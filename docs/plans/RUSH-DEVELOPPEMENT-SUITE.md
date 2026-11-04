@@ -33,20 +33,20 @@ pas ; les textes sont **réécrits**, jamais recopiés.
 > l'organisation des chantiers Rush ; l'amorce en est la **tête de lecture**, pas une copie.
 
 **État mesuré au 04/11/2026** — mécanique **terminée** (S0), outillage God **fini** (S4), route
-**livrée** (G0 / L1 / L2 / L3), contenu **partiel** : Bontarien **100/100**, Ordres **5/5 × 6**,
-classes **19**, Brâkmarien **121 séquences importées** (15 d'Ordre + 106 de cité ; cible **102**,
-l'écart de 4 venant des étapes dédoublées/variantes). **Mesure neuve** : sur ces 121 séquences,
-**115 n'ont AUCUN tag** (ni objet, ni donjon, ni position) et **117 n'ont pas de conseil** — la
-route est là, le contenu ne l'est pas.
+**livrée** (G0 / L1 / L2 / L3), contenu **inégal** : Bontarien **100/100**, Ordres **5/5 × 6**,
+classes **19**, Brâkmarien **121 séquences importées** (cible **102**, l'écart venant des étapes
+dédoublées/variantes). **Mesure neuve** : sur ces 121 séquences, **115 n'avaient AUCUN tag** — la
+route était là, le contenu ne l'était pas.
 
-**Livré le 04/11/2026** : **25 conseils** écrits depuis les contraintes Tougli (19 Brâkmarien,
-6 Bontarien), le rattachement passant désormais par **`questDbIds`** (une séquence importée n'a pas
-le libellé de Tougli). Reste **194** conseils, dont **98 Brâkmarien sans aucune source**.
+**Livrés le 04/11/2026** : ① **25 conseils** écrits depuis les contraintes Tougli (19 Brâkmarien,
+6 Bontarien), rattachement par **`questDbIds`** ; reste **194** conseils, dont **98 Brâkmarien sans
+aucune source**. ② **V-D1 — les ressources par quête** : **390 → 485 ids**, **81 séquences** et
+**252 tags** ajoutés (Brâkmarien **1 → 151 ids**), **2ᵉ passage = 0 écriture**, dataset
+**inchangé**, **aucune migration**.
 
-**Prochain lot : `V-D`** (ressources par quête, `MODULE-RUSH-SYLVESTRE.md` § D) — la trame
-`src/temp/trame-rush/data.json` porte les objets **par quête** (`id`, `name`, `count`) : attendu
-~**485-517** ids contre **390** aujourd'hui, sans migration et **sans re-seed**. L'ordre **global**
-reste `docs/ROADMAP.md`.
+**Prochain lot : `V-H`** (donjons ocre « capturé / à capturer », `MODULE-RUSH-SYLVESTRE.md` § H),
+puis **V-C** (purge WebP — ops serveur). **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par
+étape) reste **ouvert**, à trancher. L'ordre **global** reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|

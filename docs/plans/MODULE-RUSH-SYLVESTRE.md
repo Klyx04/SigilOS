@@ -232,10 +232,13 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Changement** : interdire le chemin deviné pour les **objets**, purger les `items/{id}.webp` dont l'id est invalide / mismatch (script de repérage), re-pré-chauffer avec `allowGuessedPath:false`.
 - **Dépendances** : **B** · **Statut** : **à faire** · **Ops** : purge à exécuter côté serveur (volumes `assets-*-data`).
 
-### D — Couverture des ressources du guide (391 → ~609)
-- **État mesuré** : nous **391** ids uniques · **Tougli** 517 directs / **543** avec recettes · **Dofusyelle** 478 (531 lignes) · **union = 609**. 119 manquants chez nous : 53 récupérables via l'arbre de recettes Tougli, 66 restants (45 au catalogue Tougli non référencés + 21 absents).
-- **Changement** : importer l'union (base **Tougli** + compléments Dofusyelle) → `preparation.items` + tags `item` ; re-seed ; pré-chauffer les icônes nouvelles.
-- **Dépendances** : **B** · **Statut** : **à faire**.
+### D — Couverture des ressources du guide (390 → 485 livrés ; cible par quête 517)
+- **État mesuré le 04/11/2026** : **390** ids uniques dans le guide · **Tougli** 517 ids directs · **Dofusyelle** 472 ids (531 lignes) · **union 584**.
+  ⚠️ **584 n'est pas atteignable par quête** : Dofusyelle liste ses ressources **globalement** (nom + quantité, sans id ni quête) ⇒ **67** ids n'existent que là. La cible honnête, par quête, est **517** (Tougli).
+- **Livré le 04/11/2026 (`V-D1`, branche `feat/rush-ressources`)** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute les ids absents, ne réécrit ni ne supprime, nom **canonique** réutilisé) + `scripts/enrich-rush-guide-resources.ts` (appariement `questDbIds` → URL → nom, dry-run, `--apply --db`, `--sql` additif) ⇒ **81 séquences**, **252 tags**, **173 ids** dont **95 nouveaux** : **390 → 485**. Brâkmarien **1 → 151 ids**, **65** séquences avec objets. **2ᵉ passage = 0 écriture** ; dataset **inchangé** (ces séquences ne sont pas dans le seed) ; **aucune migration**.
+  **Jamais de re-seed** (il écraserait les éditions God) : le script, idempotent, fait foi — le rejouer sur la bêta (`--sql`), puis pré-chauffer les **95** icônes nouvelles.
+- **Reste (`V-D2`, à trancher)** : **51** ids Tougli dont la quête est absente de notre base (530 quêtes Tougli vs 492 séquences) + **67** ids Dofusyelle par étape. `preparation.items` (391 noms, sans id, non lu par l'UI) n'est pas reconstruit.
+- **Dépendances** : **B** (livré) · **Statut** : **V-D1 livré**, V-D2 ouvert.
 
 ### E — Vérifications + docs
 - `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run security:audit`, puis `docs/ROADMAP.md` (bloc de session) + `docs/agents/activeContext.md` (bloc en haut).

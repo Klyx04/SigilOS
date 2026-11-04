@@ -407,14 +407,17 @@ export function GalleryClient({
     return (
         <div className="space-y-6 pb-20">
             {/* Hero Header avec fond immersif subtil et accents SigilOS */}
-            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-surface/80 via-surface/40 to-background/90 p-6 lg:p-8 shadow-xl backdrop-blur-xl">
+            {/* Performance : aucun `backdrop-filter` ni `filter: blur()` ici. Ces couches sont
+                repeintes pendant le défilement ; deux dégradés radiaux donnent le même halo sans
+                coût de composition. */}
+            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-surface/80 via-surface/40 to-background/90 p-6 lg:p-8 shadow-xl">
                 {/* Background Artwork Layer */}
-                <div 
-                    className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none mix-blend-luminosity scale-105"
+                <div
+                    className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none"
                     style={{ backgroundImage: "url('/assets/dofus/gallery-hero-bg.png')" }}
                 />
-                <div className="absolute -top-24 -left-24 w-96 h-96 bg-success/15 rounded-full blur-[100px] pointer-events-none" />
-                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_55%)] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_55%)] pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-4">
@@ -425,7 +428,7 @@ export function GalleryClient({
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-background/80 border border-border/80 h-11 p-1 rounded-2xl shadow-inner backdrop-blur-md">
+                                <TabsList className="bg-background/80 border border-border/80 h-11 p-1 rounded-2xl shadow-inner">
                                     <TabsTrigger 
                                         value="STUFF" 
                                         className="rounded-xl px-5 h-full text-xs font-bold gap-2 data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-md transition-all duration-200"
@@ -494,7 +497,7 @@ export function GalleryClient({
 
             {/* Filter Bar — 3 groupes : Filtres / Tri / Résultats */}
             <div className="sticky top-0 z-30 pt-1">
-                <div className="bg-surface/95 backdrop-blur-xl border border-border/80 rounded-2xl px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
+                <div className="bg-surface border border-border/80 rounded-2xl px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
                     {/* Groupe Filtres */}
                     <div className="flex items-center gap-3 flex-wrap min-h-[40px]">
                         <div className="flex items-center gap-2 bg-background/60 p-1 rounded-2xl border border-border/70 shadow-inner" data-tour="galerie-filters">
@@ -565,7 +568,7 @@ export function GalleryClient({
                                 <SelectTrigger size="sm" aria-label="Trier les résultats" className="w-[8.5rem] rounded-xl bg-background/80 border-border/80 text-xs font-semibold shadow-sm">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent align="end" className="bg-background/95 backdrop-blur-xl border-border rounded-xl shadow-xl">
+                                <SelectContent align="end" className="bg-background border-border rounded-xl shadow-xl">
                                     <SelectItem value="newest">
                                         <span className="flex items-center gap-2 font-medium"><RefreshCw className="w-3.5 h-3.5 text-success" /> Récents</span>
                                     </SelectItem>
@@ -610,12 +613,12 @@ export function GalleryClient({
                         <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "STUFF", selectedSource)} />
                     ) : stuffBuilds.length > 0 ? (
                         stuffBuilds.map((build) => (
-                            <div key={build.id} className="group/card flex flex-col gap-3">
+                            <div key={build.id} className="cv-auto group/card flex flex-col gap-3">
                                 <div className="relative">
                                     <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} itemSets={build.itemSets} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
-                                        <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
+                                        <div className="flex items-center justify-end gap-1.5 bg-black/60 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
                                             {/* Bascule Stuff ⇄ Variante — visible par TOUT LE MONDE dès que
                                                 l'auteur a publié une variante. Elle vit dans le voile (et non
                                                 dans la carte) : le voile `z-10` est un frère qui recouvre le
@@ -762,7 +765,7 @@ export function GalleryClient({
                         <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "SKIN", selectedSource)} />
                     ) : skinBuilds.length > 0 ? (
                         skinBuilds.map((skin) => (
-                            <div key={skin.id} className="group/card flex flex-col gap-3">
+                            <div key={skin.id} className="cv-auto group/card flex flex-col gap-3">
                                 <div 
                                     onClick={() => setSelectedSkin(skin)}
                                     className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-surface group-hover/card:border-sky-500/50 transition-all cursor-pointer"
@@ -854,6 +857,10 @@ export function GalleryClient({
                                                     <img 
                                                         src={`https://www.google.com/s2/favicons?domain=${skin.provider === 'BARBOFUS' ? 'barbofus.com' : skin.provider === 'DOFUSSKINMANGA' ? 'dofusskinmanga.com' : 'google.com'}&sz=32`}
                                                         alt="" 
+                                                        width={14}
+                                                        height={14}
+                                                        loading="lazy"
+                                                        decoding="async"
                                                         className="w-3.5 h-3.5 object-contain rounded"
                                                     />
                                                 </a>
@@ -909,7 +916,7 @@ export function GalleryClient({
 
             {/* Skin Detail Modal */}
             <Dialog open={!!selectedSkin} onOpenChange={(open) => !open && setSelectedSkin(null)}>
-                <DialogContent className="bg-background/95 backdrop-blur-2xl border-border text-foreground sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
+                <DialogContent className="bg-background border-border text-foreground sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
                     <DialogTitle className="sr-only">Détails du Look</DialogTitle>
                     <DialogDescription className="sr-only">Aperçu et métadonnées du skin partagé par la guilde.</DialogDescription>
                     {selectedSkin && (
@@ -929,12 +936,12 @@ export function GalleryClient({
                                 )}
                                 
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                                    <div className="bg-sky-500/20 backdrop-blur-xl px-3 py-1 rounded-full border border-sky-500/30 w-fit">
+                                    <div className="bg-sky-500/20 px-3 py-1 rounded-full border border-sky-500/30 w-fit">
                                         <span className="text-caption font-black text-sky-400 tracking-widest uppercase">
                                             {selectedSkin.provider}
                                         </span>
                                     </div>
-                                    <div className="bg-background/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-border w-fit shadow-2xl flex items-center gap-2">
+                                    <div className="bg-background/80 px-3 py-1 rounded-xl border border-border w-fit shadow-2xl flex items-center gap-2">
                                         <Avatar className="w-4 h-4 border border-border">
                                             <AvatarImage src={selectedSkin.author.image || undefined} />
                                             <AvatarFallback className="text-caption bg-surface">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
@@ -1059,7 +1066,7 @@ export function GalleryClient({
                             </div>
 
                             {/* Sticky Footer */}
-                            <div className="p-4 bg-surface/80 backdrop-blur-lg border-t border-border grid grid-cols-2 gap-3 shrink-0">
+                            <div className="p-4 bg-surface border-t border-border grid grid-cols-2 gap-3 shrink-0">
                                 <Button 
                                     asChild
                                     variant="outline" 

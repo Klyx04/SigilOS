@@ -362,7 +362,7 @@ function MarketListingCard({ guildId, listing }: { guildId: string; listing: Ser
      */
     const firstComponent = listing.components[0] ?? null;
     return (
-        <Card className="bg-surface/60 border-border hover:border-border-strong transition-colors overflow-hidden">
+        <Card className="cv-auto bg-surface/60 border-border hover:border-border-strong transition-colors overflow-hidden">
             <CardContent className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
                     <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">

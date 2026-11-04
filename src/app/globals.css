@@ -1330,6 +1330,14 @@ html:has(.boss-detail-shell) {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* ── Longues grilles : le navigateur saute la mise en page et la peinture des cartes
+   hors écran. `auto` mémorise la hauteur réelle après le premier rendu, donc pas de saut
+   de scrollbar. Mesure du 04/11/2026 : la galerie monte 24 cartes × ~20 tooltips d'items. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
+}
+
 /* Hide Scrollbar Utility */
 .scrollbar-hide, .no-scrollbar {
   -ms-overflow-style: none;

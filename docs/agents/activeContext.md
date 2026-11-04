@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 9) — **Module DJ/Quête : la DA landing partout** — branche `feat/dj-da-landing`
+
+> **Demande user (verbatim)** : « dans le module dj quete pk on reaplique pas partout le theme landing plus propre sobre ? … les boutons etc » · « ouvert caché par la croix » · « le bouton soutenir qui cache le bas » · « le dropdown de transfert immonde, les bouton stand by etc tout doit etre sobre landing like » · « on a pas indiqué dans les skills qu'on doit systématiquement uniformiser comme les landing partout sur le produit ? ».
+> **Mesures** : ① le tiroir empilait `emerald-*`/`amber-*` en dur (≈ 45 occurrences) + `rounded-2xl` + ombres colorées ; la carte de post ajoutait `backdrop-blur-sm` et un `hover:-translate-y-0.5` ; ② la croix du `Sheet` (absolue à droite) recouvrait le badge « Ouvert » posé dans le même coin (`px-5` sans réserve) ; ③ le transfert de lead était un **`<select>` natif** (options bleues du navigateur) ; ④ `SupportOrb` était en `z-[100]`, donc **au-dessus** du tiroir (`z-50`) et des boutons d'action ; ⑤ la règle UI existante disait « deslop » mais **pas** « une seule DA, celle de la landing, partout ».
+> **Fait** : ① `docs/RULES.md` gagne la section **« UI — une seule DA (la landing), partout »** (+ ligne miroir dans `.clinerules/02-ui.md`) ; ② tiroir : `pr-12` (croix), badges `success`/`warning`, boutons uniformes `h-11 rounded-xl` (secondaires neutres, « Terminer » en `success`), input et sélecteur de classe en tokens ; ③ transfert de lead en **`Select` maison** (Radix) ; ④ carte : `rounded-xl`, plus de blur ni de lift, statuts/avatars/places en tokens, « Terminer » en `success` ; ⑤ `SupportOrb` en `z-40` (sous les modales) ; ⑥ verrou `ui-tokens-dj` (4 tests : couleurs en dur, `pr-12`, `Select`, z-index).
+> **Preuves** : `ui-tokens-dj` **4/4** · `tsc` 0 · ESLint 0 erreur (warnings `<img>` antérieurs) · ROADMAP < 60 Kio (2 doublons `RUSH-*` retirés).
+> **Reste / ops** : passe identique sur les modales de **création** (`DjPostCreateModal` : 65 occurrences) et d'édition, `DungeonFinderClient` (11), `DjFiltersBar` (9) — même règle, lot suivant ; contrôle visuel 390 / 768 / 1024 / 1440 du tiroir et de la liste.
+> **Rotation** : bloc « 04/11/2026 (suite 3) — Avatars Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 8) — **Barre du haut : vrais visuels d'événements, zéro boîte imbriquée** — branche `feat/headbar-evenements-assets`
 
 > **Demande user (verbatim)** : « dans le bouton event header bar ajoute la vrai asset de l'event … titan : tu affiche son icone, idem donjons, idem mission » · « texte pas responsive à l'intérieur du flux » · « ce contour là, et cette barre verticale on garde ca c ui 2026 ? » · « pk un contour + un autre dans la date ? ».
@@ -56,14 +66,6 @@
 > **Rotation** : bloc « 03/11/2026 — Rush : les conseils réparés (« &1 ») » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 04/11/2026 (suite 3) — **Avatars Discord : l’absence d’avatar ne produit plus d’initiales** — branche `fix/avatars-discord-default`
-
-> **Demande user (verbatim)** : « normaliser le placeholder icone discord partout pour ceux qui n'ont pas d'icone et si un jour ils mettent une icone comment ca marche ? l'impression qu'on est pas raccord partout ou les icones pp discord sont dispo sur le produit, on avait déjà fait une passe, annuaire par exemple c ok, post dj semblent ok aussi ».
-> **Mesures** : ① base locale (4 comptes Discord) : **0 `User.image` null**, **2 avatars `embed/avatars`** — l’OAuth écrit donc bien le défaut officiel ; ② c’est **`avatar-sync`** qui l’écrasait : `buildDiscordAvatarUrl(...) ?? null` transformait « pas d’avatar personnalisé » en `null`, d’où des initiales ici et l’avatar Discord ailleurs ; ③ `lifecycle-actions` concaténait `User.image` (déjà une **URL**) comme un hash ⇒ `…/avatars/<id>/https://cdn…png`, un embed au visuel cassé.
-> **Fait** : ① règle pure `resolveDiscordAvatarUrl(userId, hash)` — vrai avatar sinon `embed/avatars/{n}.png` déterministe, `null` seulement sans identité exploitable ; ② `avatar-sync` l’utilise (plus jamais `null`), le **cron quotidien répare l’existant** sans migration ; ③ URL d’embed du cycle de vie réparée (`normalizeDiscordAvatarUrl` + défaut officiel) ; ④ verrous `discord-avatars` + `avatar-sync` (43 tests ciblés).
-> **Preuves** : `avatar-sync` **9** · `discord-avatars` **34** · `tsc` 0 · suite **598 fichiers / 6 292 tests ✓** · **aucune migration**.
-> **Reste / ops** : lancer `/api/cron/avatar-resync` après déploiement (ou attendre 05:00) pour réécrire les éventuels `null` existants ; les icônes de **guilde** restent en initiales (Discord n’expose pas d’avatar de guilde par défaut).
-> **Rotation** : bloc « 02/11/2026 (suite 10) — Rush : la modale d’accueil en DA Carnet (L3) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

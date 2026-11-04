@@ -9,6 +9,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock, ChevronDown,
@@ -271,22 +272,24 @@ export function DjPostDetailModal({
                                 className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-xl scale-110"
                             />
                         ) : (
-                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-success/10 via-transparent to-transparent" />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
-                        <div className="relative z-10 flex items-center gap-4 px-5 h-full">
-                            <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border border-border/70 bg-surface/90 shadow-md p-1.5">
+                        {/* `pr-12` : réserve la place de la croix du Sheet — le badge de statut
+                            ne doit jamais passer dessous. */}
+                        <div className="relative z-10 flex items-center gap-4 pl-5 pr-12 h-full">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-border/70 bg-surface/90 p-1.5">
                                 {isMulti ? (
                                     <DjMultiBossAvatars dungeons={multiDungeons} size="lg" />
                                 ) : coverImage ? (
                                     <img src={coverImage} alt="" className="w-full h-full object-contain" />
                                 ) : post.mode === "DEFI" ? (
-                                    <Zap className="w-6 h-6 text-amber-500" />
+                                    <Zap className="w-6 h-6 text-warning" />
                                 ) : post.mode === "DONJON" ? (
                                     <Swords className="w-6 h-6 text-muted-foreground" />
                                 ) : (
-                                    <Map className="w-6 h-6 text-emerald-400" />
+                                    <Map className="w-6 h-6 text-success" />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -298,13 +301,13 @@ export function DjPostDetailModal({
                                 </p>
                             </div>
                             {post.status === "OPEN" ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-mono font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 shrink-0 shadow-sm shadow-emerald-950/30">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-semibold bg-success/10 border border-success/30 text-success shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                     Ouvert
                                 </span>
                             ) : post.status === "FULL" ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-mono font-semibold bg-amber-950/40 border border-amber-500/30 text-amber-400 shrink-0">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-semibold bg-warning/10 border border-warning/30 text-warning shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-warning" />
                                     Complet
                                 </span>
                             ) : (
@@ -328,11 +331,11 @@ export function DjPostDetailModal({
                                 <p className="font-bold text-foreground text-sm">
                                     {isMulti ? (
                                         summary.allFull
-                                            ? <span className="text-amber-400 font-mono">Complet partout</span>
-                                            : <span className="text-emerald-400 font-mono font-medium">{summary.label}</span>
+                                            ? <span className="text-warning font-mono">Complet partout</span>
+                                            : <span className="text-success font-mono font-medium">{summary.label}</span>
                                     ) : (
                                         <>
-                                            {summary.label} — {stats[0].spotsLeft > 0 ? <span className="text-emerald-400 font-mono font-medium">{`${stats[0].spotsLeft} dispo${stats[0].spotsLeft > 1 ? "s" : ""}`}</span> : <span className="text-amber-400 font-mono">Complet</span>}
+                                            {summary.label} — {stats[0].spotsLeft > 0 ? <span className="text-success font-mono font-medium">{`${stats[0].spotsLeft} dispo${stats[0].spotsLeft > 1 ? "s" : ""}`}</span> : <span className="text-warning font-mono">Complet</span>}
                                         </>
                                     )}
                                 </p>
@@ -372,7 +375,7 @@ export function DjPostDetailModal({
                                     if (!ficheHref) return null;
                                     return (
                                         <a href={ficheHref} target="_blank" rel="noopener noreferrer"
-                                            className="text-caption font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-950/20 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
+                                            className="text-caption font-semibold text-success hover:text-success border border-success/30 hover:bg-success/10 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
                                             <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-3.5 h-3.5 rounded-sm object-contain" /> Fiche SigilOS
                                         </a>
                                     );
@@ -385,7 +388,7 @@ export function DjPostDetailModal({
                                 )}
                                 {post.questId && post.questId !== -1 && (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-semibold text-muted-foreground hover:text-emerald-400 border border-border/70 hover:bg-surface/80 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-semibold text-muted-foreground hover:text-success border border-border/70 hover:bg-surface/80 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
                                     </a>
                                 )}
@@ -428,7 +431,7 @@ export function DjPostDetailModal({
                                             href={post.questMinimap.grid.mapHref}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="shrink-0 text-caption font-semibold text-emerald-400 transition-colors hover:text-emerald-300"
+                                            className="shrink-0 text-caption font-semibold text-success transition-colors hover:text-success"
                                         >
                                             Carte →
                                         </a>
@@ -479,13 +482,13 @@ export function DjPostDetailModal({
                                             <span className={cn(
                                                 "text-caption font-mono font-bold shrink-0 px-2 py-1 rounded-lg border",
                                                 s.isFull
-                                                    ? "text-amber-400 border-amber-500/30 bg-amber-950/30"
-                                                    : "text-emerald-400 border-emerald-500/30 bg-emerald-950/30"
+                                                    ? "text-warning border-warning/30 bg-warning/10"
+                                                    : "text-success border-success/30 bg-success/10"
                                             )}>
                                                 {s.acceptedCount}/{s.maxMembers}
                                             </span>
                                             {isDjDungeonClosed(d) && (
-                                                <span className="text-caption font-bold uppercase tracking-wider text-emerald-400 shrink-0">Clôturé</span>
+                                                <span className="text-caption font-bold uppercase tracking-wider text-success shrink-0">Clôturé</span>
                                             )}
                                             <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{s.index + 1}</span>
                                             <ChevronDown className={cn("w-4 h-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
@@ -496,7 +499,7 @@ export function DjPostDetailModal({
                                                 succès de CE donjon, puis suppression de son message
                                                 Discord (les autres donjons restent ouverts). */}
                                             {isDjDungeonClosed(d) ? (
-                                                <p className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-emerald-400">
+                                                <p className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-success">
                                                     <CheckCircle2 className="w-3.5 h-3.5" /> Donjon clôturé
                                                 </p>
                                             ) : isOwner && (post.status === "OPEN" || post.status === "FULL") ? (
@@ -573,7 +576,7 @@ export function DjPostDetailModal({
                                                 </div>
                                                 {s.pending.length > 0 && (
                                                     <div className="space-y-1">
-                                                        <p className="text-caption font-mono text-amber-400 flex items-center gap-1">
+                                                        <p className="text-caption font-mono text-warning flex items-center gap-1">
                                                             <AlarmClock className="w-3 h-3" /> En attente ({s.pending.length})
                                                         </p>
                                                         {s.pending.map((p) => (
@@ -583,7 +586,7 @@ export function DjPostDetailModal({
                                                                     <div className="flex gap-1 shrink-0">
                                                                         {s.spotsLeft > 0 && (
                                                                             <Button size="icon" variant="ghost"
-                                                                                className="w-7 h-7 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-md"
+                                                                                className="w-7 h-7 text-success hover:bg-success/20 hover:text-success rounded-md"
                                                                                 onClick={() => handleAccept(p.id)} disabled={isPending}
                                                                                 title="Accepter dans ce donjon">
                                                                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -608,8 +611,8 @@ export function DjPostDetailModal({
                                                     <span className={cn(
                                                         "px-2 py-0.5 rounded-full text-caption font-mono font-semibold border",
                                                         myRow.status === "ACCEPTED"
-                                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                                                            : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                                                            ? "bg-success/10 border-success/20 text-success"
+                                                            : "bg-warning/10 border-warning/20 text-warning"
                                                     )}>
                                                         {myRow.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
                                                     </span>
@@ -624,7 +627,7 @@ export function DjPostDetailModal({
                                                     className={cn(
                                                         "h-8 px-2.5 text-xs font-bold rounded-lg",
                                                         ticked
-                                                            ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                                                            ? "border-success/50 bg-success/15 text-success hover:bg-success/25"
                                                             : "border-border/70 bg-surface/80 text-foreground hover:bg-surface"
                                                     )}
                                                     onClick={() => toggleTarget(s.index)} disabled={isPending}>
@@ -642,8 +645,8 @@ export function DjPostDetailModal({
                                 {/* Inscriptions « sans donjon » (antérieures à la reprise #26) :
                                     visibles et résiliables, jamais silencieuses. */}
                                 {myLegacy.length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5">
-                                        <span className="text-caption text-amber-400 font-semibold">
+                                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-warning/30 bg-warning/10">
+                                        <span className="text-caption text-warning font-semibold">
                                             {`Ton inscription « sans donjon » (${myLegacy.length}) n'est rattachée à aucun donjon précis.`}
                                         </span>
                                         <Button size="sm" variant="outline"
@@ -658,7 +661,7 @@ export function DjPostDetailModal({
 
                         {/* Message — post simple (en multi, la note vit **dans** son donjon) */}
                         {!isMulti && post.message && (
-                            <div className="bg-surface/40 rounded-xl p-3.5 border border-border/70 border-l-2 border-l-emerald-500/60 min-w-0">
+                            <div className="bg-surface/40 rounded-xl p-3.5 border border-border/70 border-l-2 border-l-success/60 min-w-0">
                                 <p className="text-sm text-foreground leading-relaxed italic opacity-90 break-words [overflow-wrap:anywhere] break-all">
                                     &ldquo;{post.message.length > 200 ? `${post.message.slice(0, 200)}…` : post.message}&rdquo;
                                 </p>
@@ -673,7 +676,7 @@ export function DjPostDetailModal({
                                     {post.dungeon.achievements
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
                                         .map((a) => (
-                                             <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-emerald-500/30 transition-colors">
+                                             <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-success/30 transition-colors">
                                                 <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={16} />
                                                 <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>
@@ -732,7 +735,7 @@ export function DjPostDetailModal({
 
                                 {/* Participants ACCEPTED */}
                                 {acceptedParticipants.map((p) => (
-                                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border/60 hover:bg-surface/60 hover:border-emerald-500/30 transition-all group">
+                                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border/60 hover:bg-surface/60 hover:border-success/30 transition-all group">
                                         <div className="flex items-center gap-3.5 flex-1 min-w-0">
                                             <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-border/70">
                                                 {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
@@ -749,7 +752,7 @@ export function DjPostDetailModal({
                                                             {multiDungeons[p.dungeonIndex].name}
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="outline" className="text-caption h-4 border-amber-500/40 text-amber-400 px-1.5">
+                                                        <Badge variant="outline" className="text-caption h-4 border-warning/40 text-warning px-1.5">
                                                             Sans donjon
                                                         </Badge>
                                                     ))}
@@ -761,7 +764,7 @@ export function DjPostDetailModal({
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-success/10 border border-success/20 text-success">
                                                 Inscrit
                                             </span>
                                             {/* Self leave button — visible only for the current participant */}
@@ -798,7 +801,7 @@ export function DjPostDetailModal({
                             {pendingParticipants.length > 0 && (
                                 <div className="mt-4">
                                     <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
-                                        <AlarmClock className="w-3.5 h-3.5 text-amber-400" /> File d'attente ({pendingParticipants.length})
+                                        <AlarmClock className="w-3.5 h-3.5 text-warning" /> File d'attente ({pendingParticipants.length})
                                     </p>
                                     <div className="space-y-1.5">
                                         {pendingParticipants.map((p, idx) => (
@@ -830,7 +833,7 @@ export function DjPostDetailModal({
                                                         <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border/70 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
                                                             {spotsLeftFor(p.dungeonIndex) > 0 && (
                                                                 <Button size="icon" variant="ghost"
-                                                                    className="w-8 h-8 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-md"
+                                                                    className="w-8 h-8 text-success hover:bg-success/20 hover:text-success rounded-md"
                                                                     onClick={() => handleAccept(p.id)} disabled={isPending}
                                                                     title="Accepter dans le groupe">
                                                                     <CheckCircle2 className="w-4 h-4" />
@@ -873,12 +876,12 @@ export function DjPostDetailModal({
                                                         className={cn(
                                                             "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all",
                                                             isTicked
-                                                                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                                                                ? "border-success bg-success/15 text-success"
                                                                 : "border-border/60 bg-surface/70 text-muted-foreground hover:border-border hover:text-foreground"
                                                         )}>
                                                         {isTicked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded border border-border/70" />}
                                                         <span className="max-w-[150px] truncate">#{s.index + 1} {s.dungeon?.name}</span>
-                                                        <span className={cn("font-mono", s.isFull ? "text-amber-400" : "text-emerald-400")}>
+                                                        <span className={cn("font-mono", s.isFull ? "text-warning" : "text-success")}>
                                                             {s.isFull ? "file" : `${s.spotsLeft} dispo${s.spotsLeft > 1 ? "s" : ""}`}
                                                         </span>
                                                     </button>
@@ -886,15 +889,15 @@ export function DjPostDetailModal({
                                             })}
                                         </div>
                                         {joinable.some((s) => s.isFull) && (
-                                            <p className="text-caption text-amber-400">
+                                            <p className="text-caption text-warning">
                                                 Un donjon complet t&apos;inscrit en file d&apos;attente de ce donjon précis.
                                             </p>
                                         )}
                                     </div>
                                 )}
                                 {targetsAllFull && (
-                                    <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-3">
-                                        <AlarmClock className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                                    <div className="flex items-start gap-2.5 bg-warning/10 border border-warning/20 rounded-xl px-3.5 py-3">
+                                        <AlarmClock className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                                         <p className="text-xs text-foreground leading-relaxed">
                                             {isMulti
                                                 ? <>Les donjons visés sont <strong>complets</strong>. Tu rejoindras leur file d&apos;attente — si une place se libère, le créateur pourra t&apos;accepter.</>
@@ -917,7 +920,7 @@ export function DjPostDetailModal({
                                                         className={cn(
                                                             "aspect-square rounded-lg flex items-center justify-center transition-all border group/class",
                                                             isSelected
-                                                                ? "border-emerald-500 bg-emerald-500/20 scale-105 z-10 shadow-sm shadow-emerald-950/40"
+                                                                ? "border-success bg-success/20 z-10 /40"
                                                                 : "border-border/40 opacity-40 hover:opacity-100 hover:bg-surface hover:border-border"
                                                         )}
                                                     >
@@ -943,7 +946,7 @@ export function DjPostDetailModal({
                                             maxLength={200}
                                             onChange={(e) => setMessage(e.target.value.slice(0, 200))}
                                             placeholder="Ex: Dispo toute la soirée, j'ai le stuff..."
-                                            className="w-full bg-surface/60 border border-border/70 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
+                                            className="w-full bg-surface/60 border border-border/70 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-success/40 focus:ring-1 focus:ring-success/20"
                                         />
                                     </div>
                                 </div>
@@ -953,8 +956,8 @@ export function DjPostDetailModal({
                                         isMulti && targets.length === 0
                                             ? "bg-surface/60 text-muted-foreground border border-border/70"
                                             : targetsAllFull
-                                                ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black"
-                                                : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-950/20 border border-emerald-400/40"
+                                                ? "bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20 hover:text-warning"
+                                                : "bg-success hover:bg-success/90 text-success-foreground  border border-success/40"
                                     )}
                                     onClick={handleJoin}
                                     disabled={isPending || (isMulti && targets.length === 0)}
@@ -979,11 +982,11 @@ export function DjPostDetailModal({
                                     return (
                                         <div key={p.id} className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <span className={cn("text-sm font-semibold flex items-center gap-2 shrink-0", p.status === "ACCEPTED" ? "text-emerald-400" : "text-amber-400")}>
+                                                <span className={cn("text-sm font-semibold flex items-center gap-2 shrink-0", p.status === "ACCEPTED" ? "text-success" : "text-warning")}>
                                                     {p.status === "ACCEPTED" ? <CheckCircle2 className="w-4 h-4" /> : <AlarmClock className="w-4 h-4" />}
                                                     {p.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
                                                 </span>
-                                                <span className={cn("text-xs truncate", dungeonName ? "text-muted-foreground" : "text-amber-400")}>
+                                                <span className={cn("text-xs truncate", dungeonName ? "text-muted-foreground" : "text-warning")}>
                                                     {dungeonName ? `· ${dungeonName}` : isMulti ? "· sans donjon" : ""}
                                                 </span>
                                             </div>
@@ -1015,7 +1018,7 @@ export function DjPostDetailModal({
                                         {post.isDiscordPublished && post.discordMessageId && acceptedParticipants.length > 0 && (
                                             <Button
                                                 variant="outline"
-                                                className="border-amber-500/30 bg-amber-500/10 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 font-bold h-11 transition-all px-4 rounded-xl"
+                                                className="h-11 rounded-xl border-warning/30 bg-warning/10 px-4 font-semibold text-warning hover:bg-warning/15 hover:text-warning"
                                                 onClick={() => setIsReminderModalOpen(true)}
                                                 disabled={isPending}
                                                 title="Envoyer une relance personnalisée aux participants"
@@ -1026,11 +1029,11 @@ export function DjPostDetailModal({
                                         )}
                                         <Button
                                             variant="outline"
-                                            className="flex-1 min-w-[180px] border-border/70 bg-surface/60 text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all rounded-xl"
+                                            className="h-11 min-w-[180px] flex-1 rounded-xl border-border bg-surface/60 font-semibold text-foreground hover:bg-surface hover:text-foreground"
                                             onClick={() => setIsEditModalOpen(true)}
                                             disabled={isPending}
                                         >
-                                            <Pencil className="w-4 h-4 mr-2 stroke-[2.5]" />
+                                            <Pencil className="w-4 h-4 mr-2" />
                                             Modifier le groupe
                                         </Button>
                                     </>
@@ -1043,7 +1046,7 @@ export function DjPostDetailModal({
                                 {isMulti && post.isDiscordPublished && post.discordMessageId && !hasPerDungeonLayout && (
                                     <Button
                                         variant="outline"
-                                        className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/20 font-bold h-11 transition-all px-4 rounded-xl"
+                                        className="h-11 rounded-xl border-border bg-surface/60 px-4 font-semibold text-foreground hover:bg-surface hover:text-foreground"
                                         onClick={handleRepublishLayout}
                                         disabled={isPending}
                                         title="Réparer le post Discord : un message par donjon (le message d'ouverture devient le chapeau, les anciens messages de donjon sont remplacés)"
@@ -1056,23 +1059,28 @@ export function DjPostDetailModal({
                                     quand le créateur s'en va. Liste = les autres inscrits only. */}
                                 {acceptedParticipants.length > 0 && (
                                     <div className="w-full flex flex-col sm:flex-row gap-2">
-                                        <select
-                                            aria-label="Nouveau lead du groupe"
-                                            value={transferTarget}
-                                            onChange={(event) => setTransferTarget(event.target.value)}
+                                        <Select
+                                            value={transferTarget || undefined}
+                                            onValueChange={setTransferTarget}
                                             disabled={isPending}
-                                            className="h-11 flex-1 min-w-0 rounded-xl bg-surface/60 border border-border/70 px-3 text-sm text-foreground"
                                         >
-                                            <option value="">Transférer le lead à…</option>
-                                            {acceptedParticipants.map((p) => (
-                                                <option key={p.profile.id} value={p.profile.id}>
-                                                    {displayName(p.profile)}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger
+                                                aria-label="Nouveau lead du groupe"
+                                                className="h-11 w-full flex-1 min-w-0 rounded-xl border-border bg-surface/60 px-3 text-sm text-foreground"
+                                            >
+                                                <SelectValue placeholder="Transférer le lead à…" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {acceptedParticipants.map((p) => (
+                                                    <SelectItem key={p.profile.id} value={p.profile.id}>
+                                                        {displayName(p.profile)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                         <Button
                                             variant="outline"
-                                            className="h-11 px-4 rounded-xl border-border/70 bg-surface/60 font-bold"
+                                            className="h-11 rounded-xl border-border bg-surface/60 px-4 font-semibold"
                                             onClick={handleTransferLead}
                                             disabled={!transferTarget || isPending}
                                         >
@@ -1082,7 +1090,7 @@ export function DjPostDetailModal({
                                 )}
                                 <Button
                                     variant="outline"
-                                    className="flex-1 min-w-[160px] border-border/70 bg-surface/60 text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all rounded-xl"
+                                    className="h-11 min-w-[160px] flex-1 rounded-xl border-border bg-surface/60 font-semibold text-foreground hover:bg-surface hover:text-foreground"
                                     onClick={handleToggleStandBy}
                                     disabled={isPending}
                                     title="Suspendre les rappels et les relances sans fermer le groupe"
@@ -1092,7 +1100,7 @@ export function DjPostDetailModal({
                                         : <><Pause className="w-4 h-4 mr-2" /> Stand-by</>}
                                 </Button>
                                 <Button
-                                    className="flex-1 min-w-[180px] bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/30 font-bold h-11 transition-all rounded-xl cursor-pointer"
+                                    className="h-11 min-w-[180px] flex-1 rounded-xl border border-success/30 bg-success font-semibold text-success-foreground hover:bg-success/90"
                                     onClick={() => { setCloseDungeonIndex(null); setIsCloseModalOpen(true); }}
                                     disabled={isPending}
                                     title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}

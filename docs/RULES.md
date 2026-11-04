@@ -122,6 +122,27 @@ src/
 
 ---
 
+## 🎨 UI — une seule DA (la landing), partout
+
+Le produit n'a **qu'une** direction artistique : celle de la landing (sobre, registre). Toute
+surface connectée (dashboard, admin, modales, tiroirs) la reprend — jamais une variante locale.
+
+- **Aucune couleur en dur** (`emerald-*`, `amber-*`, `zinc-*`, `indigo-*`, `#5865F2`…) : uniquement
+  les tokens (`success`, `warning`, `danger`, `info`, `surface`, `border`, `muted-foreground`).
+- **Un seul accent par écran** : la couleur dit un **état** (ouvert / complet / erreur), jamais une
+  décoration.
+- **Rayons ≤ 12 px** (`rounded-xl` max), **pas de `backdrop-blur`**, **pas d'ombre colorée**, **pas de
+  `hover:-translate`** : un survol change la bordure ou le fond, pas la géométrie.
+- **Pas de boîte dans la boîte** : un seul contour par groupe ; un séparateur vertical ne se pose
+  qu'entre deux zones réellement distinctes — jamais en bord de groupe.
+- **Un contrôle natif non thémé est un défaut** (`<select>`, `color`, `range`…) : passer par les
+  composants maison (`Select`, `Button`, `Sheet`…).
+- Les surfaces flottantes (`SupportOrb`, toasts) restent **sous** les modales (`z-40` < `z-50`).
+
+Garde-fou : `tests/unit/ui-tokens-dj.test.ts` verrouille les surfaces DJ/Quête.
+
+---
+
 ## ⚡ Performance de défilement
 
 - **Jamais de `backdrop-filter` sur une surface de défilement** : barre `sticky`, en-tête fixe, carte répétée. Le flou est recalculé à chaque frame ; un fond opaque ou légèrement translucide suffit.

@@ -7,6 +7,12 @@ import { logger } from "@/lib/logger";
 
 import { getKralamoureEvents, getKralamoureEventDetails, MetamobApiError } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
+import {
+    KRALAMOURE_IMAGE_PATH,
+    eventIllustrationRef,
+    isKralamoureEvent,
+    resolveEventImagePath,
+} from "@/lib/calendar-event-images";
 
 export type UpcomingEvent = {
     id: string;
@@ -14,8 +20,63 @@ export type UpcomingEvent = {
     startDate: string; // ISO string — Date objects crash Next.js server→client serialization
     type: string;
     participantsCount: number;
+    /** Illustration réelle (donjon / titan / Kralamoure) — sinon le visuel du type. */
+    imageUrl?: string | null;
     metadata?: any;
 };
+
+/**
+ * Illustration d'un événement : la **vraie fiche** (donjon / titan) quand la source la
+ * nomme, sinon le visuel du type (`resolveEventImagePath`).
+ *
+ * Bornée : au plus une requête par nature, sur les noms des événements retournés
+ * (≤ `limit`). Le `metadata` ne part pas au client — seul `imageUrl` en sort.
+ */
+async function withIllustrations(events: UpcomingEvent[]): Promise<UpcomingEvent[]> {
+    const refs = new Map<string, { kind: "dungeon" | "titan"; name: string }>();
+    for (const event of events) {
+        const ref = eventIllustrationRef(event.metadata, event.title);
+        if (ref) refs.set(event.id, ref);
+    }
+
+    const dungeonNames = [...new Set([...refs.values()].filter((r) => r.kind === "dungeon").map((r) => r.name))];
+    const titanNames = [...new Set([...refs.values()].filter((r) => r.kind === "titan").map((r) => r.name))];
+
+    const dungeonRows = dungeonNames.length
+        ? await db.dungeon.findMany({
+              where: { name: { in: dungeonNames } },
+              select: { name: true, imageUrl: true },
+          })
+        : [];
+    const titanRows = titanNames.length
+        ? await db.titan.findMany({
+              where: { name: { in: titanNames } },
+              select: { name: true, imageUrl: true },
+          })
+        : [];
+
+    const imageByName = new Map<string, string>();
+    for (const row of [...dungeonRows, ...titanRows]) {
+        if (row.imageUrl) imageByName.set(row.name, row.imageUrl);
+    }
+
+    return events.map((event) => {
+        const rest = { ...event };
+        delete rest.metadata;
+
+        const real = isKralamoureEvent(event.type, event.metadata)
+            ? KRALAMOURE_IMAGE_PATH
+            : (() => {
+                  const ref = refs.get(event.id);
+                  return ref ? imageByName.get(ref.name) : undefined;
+              })();
+
+        return {
+            ...rest,
+            imageUrl: real ?? resolveEventImagePath(event.type, event.metadata),
+        };
+    });
+}
 
 export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promise<UpcomingEvent[]> {
     const session = await auth();
@@ -105,7 +166,8 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
             type: e.type,
             participantsCount: ((e.type as any) === "KRALAMOURE" || meta?.isKralamoure) 
                 ? (meta?.metamobParticipantsCount || e._count.participants) 
-                : e._count.participants
+                : e._count.participants,
+            metadata: e.metadata ?? undefined,
         };
     });
 
@@ -196,7 +258,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
     });
 
-    const result = allEvents.slice(0, limit);
+    const result = await withIllustrations(allEvents.slice(0, limit));
     await redis.set(cacheKey, JSON.stringify(result), "EX", 15).catch(() => {});
     return result;
     } catch (error) {

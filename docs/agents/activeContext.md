@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 8) — **Barre du haut : vrais visuels d'événements, zéro boîte imbriquée** — branche `feat/headbar-evenements-assets`
+
+> **Demande user (verbatim)** : « dans le bouton event header bar ajoute la vrai asset de l'event … titan : tu affiche son icone, idem donjons, idem mission » · « texte pas responsive à l'intérieur du flux » · « ce contour là, et cette barre verticale on garde ca c ui 2026 ? » · « pk un contour + un autre dans la date ? ».
+> **Mesures** : ① le bouton ne connaissait que le Kralamoure, en **PNG statique** (`kralamoure-head.png`), tout le reste retombait sur un picto calendrier + `animate-ping` ; ② les miroirs DJ portent `metadata.source.mode` (`DONJON`/`TITAN`) + `metadata.mirror.names`, mais `getUpcomingGuildEvents` **jetait** ce metadata ; ③ en base : `Dungeon` « Antre du Kralamoure Géant » → `/game-data/dungeons/antre-du-kralamoure-g-ant.webp`, `Titan` « Gargandyas » → `/game-data/titans/gargandays.webp` (chemins réels) ; ④ le cluster cumulait **deux** séparateurs au même endroit (un dans `SmartBar`, un `border-r`) + une bordure externe ⇒ une boîte dans la boîte ; ⑤ le titre `[Titan] …` est le format **généré par `djMirrorTitle`** (pas une devinette).
+> **Fait** : ① `eventIllustrationRef(metadata, title)` + `isKralamoureEvent` (purs, `calendar-event-images`) : metadata d'abord, **repli titre** `[Titan]`/`[DJ]` pour les miroirs anciens, résolution BDD bornée (≤ 2 requêtes, noms tronqués à 80) puis repli sur le visuel du type ; ② `UpcomingEvent.imageUrl`, `metadata` **retiré** de la charge client ; ③ `EventThumb` (repli `onError` sur le picto Dofus) dans le bouton **et** la liste ; ④ `TYPE_COLOR` supprimé au profit de `calendarEventTheme` (source unique) ; ⑤ cluster : **zéro contour, zéro séparateur**, icônes nues 36 px, badge de date **sans boîte** ; ⑥ libellés complets en `xl`, nom/rôle du profil tronqués (`7rem` / `12rem`) ; ⑦ `kralamoure-head.png` supprimé (0 référence code + 0 `DocPage` locale).
+> **Preuves** : `calendar-event-images` **18** (11 neufs) · `harness-config` **9** · suite **600 fichiers / 6 316 tests ✓** · `tsc` 0 · ESLint 0 erreur · ROADMAP 61 347 o (< 60 Kio, 2 doublons `RUSH-*` retirés).
+> **Reste / ops** : contrôle visuel 390 / 768 / 1024 / 1440 (bouton, popover, profil) ; `kralamoure-head.png` : 0 `DocPage` en local, bêta/prod non mesurables.
+> **Rotation** : bloc « 04/11/2026 (suite 2) — Annonces de créateurs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 7) — **Stats, Phase 2b : la colonne morte est supprimée** — branche `chore/stats-phase2b`
 
 > **Demande user (verbatim)** : « c'est quoi le mieux ? » — après la question d'accord sur une suppression **irréversible** ; choix retenu : drop, avec sauvegarde et bêta d'abord.
@@ -56,13 +66,5 @@
 > **Rotation** : bloc « 02/11/2026 (suite 10) — Rush : la modale d’accueil en DA Carnet (L3) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 04/11/2026 (suite 2) — **Annonces de créateurs : un salon Twitch, un salon YouTube, deux interrupteurs** — branche `feat/creator-watch-split-channels`
-
-> **Demande user (verbatim)** : « dissocier les alertes youtubes et twitch avec possiblité de deux salons paramétrables (aujourd'hui un seul), on envoie les notif de stream twitch dans un canal et les yotuubes dans un autre, un toggle on off en + pour chacun dans le settings, si on, > parametrage salon possible » — GO, migration validée explicitement.
-> **Mesures** : ① un seul salon (`liveNotifyChannelId`) servait aux **deux** annonces ; `notifyYouTubeUploads` existait déjà mais sans salon propre ⇒ destinations impossibles à séparer. ② les **deux** passes du cron filtraient sur `liveNotifyChannelId` ⇒ YouTube ne pouvait pas déménager sans emporter Twitch. ③ `shouldAnnounceLive` n'avait aucun interrupteur, contrairement à `shouldAnnounceVideo`.
-> **Fait** : ① schéma — `youtubeNotifyChannelId String?` + `notifyTwitchLives Boolean @default(true)` ; `liveNotifyChannelId` reste le salon Twitch. ② migration additive `20270125000200` — deux `ADD COLUMN IF NOT EXISTS` + **copie** du salon existant vers YouTube (aucune guilde ne perd ses annonces). ③ règle pure — `shouldAnnounceLive({ enabled })` refuse d'abord (`disabled`). ④ passes serveur — Twitch filtre `liveNotifyChannelId` + `notifyTwitchLives`, YouTube filtre `youtubeNotifyChannelId` + `notifyYouTubeUploads`, chacune envoie dans **son** salon. ⑤ action/UI — deux blocs dans « Annonces de créateurs » : toggle puis sélecteur de salon (masqué si coupé), avertissement si actif sans salon, ping commun ; les deux salons sont vérifiés côté Discord avant écriture.
-> **Preuves** : `live-notify` **16** · `live-watch-core` **9** · `youtube-watch-core` **9** · `live-settings-rbac` **11** ⇒ **45/45 ✓** · suite **598 fichiers / 6 289 tests ✓** · `tsc` 0 · ESLint 0 erreur · migration appliquée en local (`migrate deploy`).
-> **Reste / ops** : bêta — `migrate deploy` puis contrôle visuel 390 / 768 / 1024 / 1440 (deux toggles, sélecteurs masqués si off, test Twitch) ; vérifier après reprise qu'aucune guilde n'a perdu son salon YouTube.
-> **Rotation** : bloc « 02/11/2026 (suite 9) — Rush : la route cité→Ordre→classe » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

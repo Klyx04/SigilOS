@@ -253,11 +253,11 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `HEADBAR-EVENEMENTS` | Barre du haut : **visuel réel** des événements (donjon, titan, Kralamoure) dans le bouton et la liste, cluster de droite **sans contour imbriqué ni séparateur**, nom/rôle du profil tronqués — branche `feat/headbar-evenements-assets` | 04/11/2026 |
 | `STATS-MORTE` | Page morte « Stats Guilde » supprimée (**15 fichiers**) ; **`getGuildStats`/`QuickStatsRow` conservés** (accueil) · **2a** : clé `stats` retirée du registre/RBAC · **2b** : colonne `GuildModules.stats` **supprimée** (migration `20270125000300`), `RETIRED_MODULE_KEYS`, libellé legacy et asset retirés — branches `chore/remove-stats-page` / `chore/stats-phase2b` | 04/11/2026 |
 | `AVATARS-DISCORD` | Avatars : `avatar-sync` n'écrit plus `null` (avatar Discord **officiel** `embed/avatars/{n}.png`), URL d'embed du cycle de vie réparée (elle concaténait une URL comme un hash), règle pure `resolveDiscordAvatarUrl` + verrous — branche `fix/avatars-discord-default` | 04/11/2026 |
 | `RUSH-NOTES` | Notes Rush : siphon Tougli (**73 notes · 74 quêtes contraintes**) + analyse Dofusyelle, règle `rush-notes` (rattachement par nom, **10 tests**), **22 conseils** écrits ; notes de donjon laissées au rapport (mesure négative « Ali 57 ») — branche `feat/rush-notes` | 03/11/2026 |
 | `RUSH-TEXTES` | Conseils du guide : **37 séquences « &n » corrigées** (règle `resolveQuestRefs`, **74** champs dataset + base, garde d'écriture), **Dofusyelle siphonné** (pas d'API) et **5 conseils corrélés** ; **aucune migration** — branche `fix/rush-textes` | 03/11/2026 |
-| `RUSH-NOTES` | Notes Rush : siphon Tougli (**73 notes · 74 quêtes contraintes**) + analyse Dofusyelle, règle `rush-notes`, **22 conseils** écrits ; notes de donjon laissées au rapport — branche `feat/rush-notes` | 03/11/2026 |
 | `RUSH-L1` | Alignement : source **`camp`/`name`** (67 lignes relisibles), palier **calculé** (`alignmentCountForCamp`, hors Ordres), reset **par cité** (`alignmentResetSeeds`) — branche `feat/rush-alignment-l1` | 02/11/2026 |
 | `RUSH-G0` | Outillage God de la route : route du bloc, classe en liste fermée (19 ids), aperçu `resolveRushRoute`, Branches à 3 étages — branche `feat/rush-route-tooling` | 02/11/2026 |
 | `RUSH-S1-CONTENU` | Contenu S1 : import outillé (liens sûrs), **30 Ordres** (6 × 5/5), **19 classes** + filtre, cités **100/100 + 102 + 3 variantes**, étape à choix (`choice_group`) — PR #1139 | 27/10/2026 |

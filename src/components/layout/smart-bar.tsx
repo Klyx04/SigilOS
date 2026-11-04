@@ -54,12 +54,6 @@ export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartB
     return (
         <div className="hidden md:flex items-center gap-1.5 p-1">
 
-
-            {/* DIVIDER */}
-            {(memberCount !== undefined || onlineCount !== undefined) && (
-                <div className="h-4 w-px bg-surface mx-0.5" />
-            )}
-
             {/* 2. Guild Stats (Clickable) */}
             {(memberCount !== undefined || onlineCount !== undefined) && (
                 <div className="flex items-center px-1">

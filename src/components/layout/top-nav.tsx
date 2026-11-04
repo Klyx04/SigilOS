@@ -189,9 +189,10 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: Top
                     />
                 )}
 
-                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0">
-                    {/* 1. Smart Bar (Hidden on Mobile) */}
-                    <div className="hidden sm:block border-r border-border">
+                <div className="flex items-center gap-1 shrink-0">
+                    {/* 1. Smart Bar (Hidden on Mobile) — pas de contour : le bloc ne doit pas
+                        ressembler à une carte imbriquée dans une autre. */}
+                    <div className="hidden md:block">
                         <SmartBar
                             memberCount={sidebarProps.guildData?.memberCount}
                             onlineCount={sidebarProps.guildData?.activeCount}
@@ -199,22 +200,21 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: Top
                         />
                     </div>
 
-                    {/* Interactive Tools */}
-                    <div className="flex items-center px-1 gap-0.5">
+                    {/* Interactive Tools — icônes nues, même gabarit 36 px, hover seul. */}
+                    <div className="flex items-center gap-0.5">
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-success" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
-                        <div className="w-px h-4 bg-border/40 mx-0.5" />
                         <FeedBell
                             guildId={sidebarProps.guildId}
-                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
+                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                         <NotificationBell
                             userId={userId}
                             guildId={sidebarProps.guildId}
-                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
+                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                         {/* Chantier N (lot N-3) : les bulles d'activité de guilde, en haut à droite
                             sous le profil, pour tout le monde (montées ici : c'est l'en-tête qui
@@ -222,14 +222,14 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: Top
                         <ActivityToaster guildId={sidebarProps.guildId} />
                     </div>
 
-                    {/* 3. Arcade (Live Games) */}
+                    {/* 3. Arcade (Live Games) — pastille autonome, jamais un séparateur vertical. */}
                     {roomCount > 0 && (
-                        <div className="border-l border-border/40 flex items-center">
+                        <div className="flex items-center">
                             <Button
                                 variant="ghost"
                                 onClick={() => setIsArcadeOpen(!isArcadeOpen)}
                                 className={cn(
-                                    "h-10 px-4 bg-success/5 hover:bg-success/10 text-success rounded-none transition-all flex items-center gap-2",
+                                    "h-9 px-3 bg-success/10 hover:bg-success/15 text-success rounded-xl transition-all flex items-center gap-2",
                                     isArcadeOpen && "bg-success/20"
                                 )}
                             >
@@ -274,13 +274,13 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: Top
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button
-                                    className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-surface transition-colors outline-none"
+                                    className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-1 outline-none transition-colors hover:bg-surface"
                                 >
-                                    <div className="flex flex-col items-end leading-tight hidden lg:flex">
-                                        <span className="text-xs font-bold text-foreground group-hover:text-foreground transition-colors">
+                                    <div className="hidden min-w-0 max-w-[7rem] flex-col items-end leading-tight lg:flex xl:max-w-[12rem]">
+                                        <span className="w-full truncate text-right text-xs font-bold text-foreground group-hover:text-foreground transition-colors">
                                             {sidebarProps.user.name}
                                         </span>
-                                        <span className="text-caption text-muted-foreground font-medium">
+                                        <span className="w-full truncate text-right text-caption text-muted-foreground font-medium">
                                             {sidebarProps.user.roleName || "Membre"}
                                         </span>
                                     </div>

@@ -98,7 +98,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                             ? `${first.creatorId} est en direct — ouvrir le stream`
                             : `${count} créateurs en direct — voir la liste`
                     }
-                    className="flex h-8 items-center gap-2 pl-1 pr-2.5 rounded-xl bg-danger/10 border border-danger/20 hover:bg-danger/15 transition-colors cursor-pointer"
+                    className="flex h-9 items-center gap-2 pl-1 pr-2.5 rounded-xl bg-danger/10 border border-danger/20 hover:bg-danger/15 transition-colors cursor-pointer"
                 >
                     <span className="relative flex h-6 w-6 items-center justify-center shrink-0">
                         {first.avatarUrl ? (
@@ -114,7 +114,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                         <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
                     </span>
 
-                    <span className="text-xs font-semibold text-foreground max-w-[190px] truncate">{label}</span>
+                    <span className="hidden xl:inline text-xs font-semibold text-foreground max-w-[190px] truncate">{label}</span>
 
                     {count > 1 && (
                         <span className="text-[10px] font-semibold text-danger bg-danger/15 rounded-md px-1.5 py-0.5">

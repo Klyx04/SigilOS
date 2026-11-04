@@ -158,6 +158,17 @@ if docker ps --format '{{.Names}}' | grep -qx "$REDIS_CONTAINER"; then
     fi
 fi
 
+# 4c. Redémarrage requis — `unattended-upgrades` installe les noyaux `-security` mais ne
+# redémarre JAMAIS (`Automatic-Reboot "false"`, scripts/setup_security_updates.sh). Sans cette
+# alerte, une CVE noyau est « corrigée » sur le disque et reste **active en mémoire** jusqu'au
+# prochain reboot, parfois des mois (mesure du 04/11/2026 : CVE-2026-98432, 9.8, le noyau
+# corrigé n'était pas encore publié — mais le jour où il l'est, il faut le savoir).
+if [ -f /var/run/reboot-required ]; then
+    REBOOT_PKGS="$(tr '\n' ' ' < /var/run/reboot-required.pkgs 2>/dev/null || true)"
+    echo "🔁 Redémarrage requis : $(cat /var/run/reboot-required)"
+    send_alert "**Redémarrage requis** : un noyau ou une bibliothèque critique a été mis à jour, mais la machine tourne encore sur l'ancienne version en mémoire. Paquets : ${REBOOT_PKGS:-inconnus}. Planifier un reboot (prod + bêta ~1-2 min) puis **prouver** avec \`uname -r\`."
+fi
+
 # 5. Nettoyage de la base de données (Janitor)
 JANITOR_OK=1  # 0 = succès, 1 = échec (défaut échec)
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."

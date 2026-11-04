@@ -219,6 +219,12 @@ WHERE s."activityTags" @> '[{"id": 22058}]'::jsonb;
 docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < fix-rush-22058.sql
 ```
 
+- **Patchs SQL des conseils (03/11/2026)** — les trois correctifs de texte ont une option `--sql` qui imprime un patch **portable** (cible le **contenu** ou le **nom**, jamais le cuid, qui diffère entre local, bêta et prod) :
+  - `npx tsx scripts/fix-rush-guide-quest-refs.ts --sql` → références `&n` (40 `UPDATE` par contenu) ;
+  - `npx tsx scripts/correlate-dofusyelle-tips.ts --sql` → 5 conseils Dofusyelle (par nom, protégés par `tips = ''`) ;
+  - `npx tsx scripts/correlate-rush-notes.ts --sql` → contraintes Tougli.
+  L'échappement est **une seule règle** (`sqlLiteral`, `src/lib/rush-notes.ts`, testée). `--apply` et `--sql` sont exclusifs : on relit le patch avant de le jouer. Sortie redirigeable puis `psql` dans `sigilos-db-beta`, puis `sigilos-db-prod`.
+
 - **Ops (humain) — état au 10/10/2026** :
   - **Bêta : FAIT** — les 4 WebP sont en place (`items/{7807,7809,7864,10000000001}.webp`, propriété rendue à l'app par `docker exec -u root … chown nextjs:nodejs`) et la base est corrigée (`reste_22058` **1 → 0**, `avec_32079` = 2).
   - **Reste bêta** : merger le lot puis **déployer** (c'est le deploy qui active le correctif `migrate-uploads`) → **ensuite** pré-chauffer les **319** icônes (bouton God) → contrôle visuel de la modale « Ressources à prévoir ».

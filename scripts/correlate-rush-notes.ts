@@ -30,6 +30,7 @@ import path from "node:path";
 import {
   correlateRushNotes,
   normalizeQuestKey,
+  sqlLiteral,
   type DofusyelleNotes,
   type NoteTarget,
   type RushNote,
@@ -53,11 +54,6 @@ const valueOf = (flag: string, fallback: string): string => {
   const i = argv.indexOf(flag);
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
-
-/** Littéral SQL : apostrophes doublées (les textes viennent de Tougli/Dofusyelle). */
-function sqlLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
 
 type SequenceLike = {
   id?: string;

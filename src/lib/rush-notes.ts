@@ -106,6 +106,14 @@ export function cleanDofusyelleBody(text: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * Littéral SQL sûr — les textes viennent de tiers (Tougli, Dofusyelle), donc l'apostrophe est
+ * doublée. Aucune autre transformation : le patch doit rester lisible et vérifiable à l'œil.
+ */
+export function sqlLiteral(value: string | null | undefined): string {
+  return `'${String(value ?? "").replace(/'/g, "''")}'`;
+}
+
 const MAX_NOTES_PER_TARGET = 6;
 
 /**

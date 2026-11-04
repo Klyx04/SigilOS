@@ -31,6 +31,7 @@ for (const file of [".env.local", ".env"]) {
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { resolveQuestRefs } from "../src/lib/rush-quest-refs";
+import { sqlLiteral } from "../src/lib/rush-notes";
 
 const SLUG = "rsa-rush-sylvestre-accelere";
 const TOUGLI_API = `https://api.tougli.barbofus.com/api/guide/details-batch?slugs=${SLUG}`;
@@ -39,6 +40,7 @@ const DATASET_FILE = "src/data/rush-sylvestre-guide.json";
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
+const SQL = argv.includes("--sql");
 const WITH_DB = argv.includes("--db");
 const valueOf = (flag: string, fallback: string): string => {
   const i = argv.indexOf(flag);
@@ -90,6 +92,42 @@ function buildResolution(tougli: unknown): Map<string, string> {
   return resolution;
 }
 
+/**
+ * Patch SQL **portable** : les ids de `GuideSequence` diffèrent entre local, bêta et prod
+ * (cuid générés à l'import), donc la cible est le **contenu** (`WHERE btrim(tips) IN (…)`).
+ * Le texte Tougli n'a pas l'émoji d'amorce : on couvre les deux formes.
+ */
+function buildSqlPatch(tougli: unknown): string[] {
+  const root = (tougli as { data?: Record<string, TougliRoot> })?.data?.[SLUG];
+  const objectives = root?.guide?.objectives;
+  if (!Array.isArray(objectives)) throw new Error("structure Tougli inattendue — arrêt (fail-closed)");
+  const quests = root?.quests ?? {};
+  const statements: string[] = ["BEGIN;"];
+
+  for (const objective of objectives) {
+    const text = objective?.payload?.text?.fr;
+    if (!hasRef(text)) continue;
+    const ids = Array.isArray(objective.payload?.quests) ? objective.payload.quests : [];
+    const names = new Map<number, string>();
+    ids.forEach((id, index) => {
+      const name = quests?.[String(id)]?.name?.fr;
+      if (typeof name === "string" && name.trim()) names.set(index + 1, name.trim());
+    });
+    const resolved = resolveQuestRefs(text, names);
+    if (!resolved || /&\d+/.test(resolved)) continue;
+    const from = text.trim();
+    const candidates = [from, `💡 ${from}`].map(sqlLiteral).join(", ");
+    for (const field of ["tips", "note"] as const) {
+      statements.push(
+        `UPDATE "GuideSequence" SET ${field} = ${sqlLiteral(resolved)} WHERE btrim(${field}) IN (${candidates});`,
+      );
+    }
+  }
+
+  statements.push("COMMIT;");
+  return statements;
+}
+
 type SequenceLike = { id?: string; subGuideName?: string; tips?: string | null; note?: string | null };
 type MilestoneLike = { sequences?: SequenceLike[] };
 
@@ -137,7 +175,16 @@ function applyTo(
 }
 
 async function main(): Promise<void> {
-  const resolution = buildResolution(await loadTougli());
+  if (APPLY && SQL) throw new Error("--apply et --sql sont exclusifs (relire le patch avant de l'appliquer)");
+
+  const tougli = await loadTougli();
+  if (SQL) {
+    // Sortie brute : redirigeable dans un fichier .sql, sans message de progression.
+    console.log(buildSqlPatch(tougli).join("\n"));
+    return;
+  }
+
+  const resolution = buildResolution(tougli);
   console.log(`références résolvables = ${resolution.size} textes distincts`);
 
 // ─── 1. Dataset versionné (source de seed) ──────────────────────────────────

@@ -757,6 +757,38 @@ health_check() {
 # 04/09/2026 (`handle /robots.txt` absent → la prod a servi un robots.txt/HTML pendant
 # 20 jours, constaté le 24/09). On compare donc les empreintes, on valide la config AVANT
 # de toucher au proxy, et on ne recrée que si nécessaire.
+# Garde-fou IMAGE Caddy — le conteneur sert-il la version attendue par le Dockerfile ?
+# -----------------------------------------------------------------------------
+# `caddy_config_check` (ci-dessous) ne surveille que le **Caddyfile** (bind-mount d'un fichier).
+# Il ne dit RIEN de l'**image** : `docker compose up -d` ne rebuild jamais, donc un
+# `Dockerfile.caddy` modifié peut rester sans effet indéfiniment.
+# Mesure du 04/11/2026 : le proxy exposé à Internet servait encore un binaire de janvier 2025
+# (`go1.23.8`, compilé depuis `master`) alors que ce même Dockerfile annonçait `caddy:2.9.1` —
+# personne ne rebuildait, et rien ne le signalait. On compare donc la version du
+# `FROM caddy:X.Y.Z` à ce que répond `caddy version` **dans le conteneur en service**.
+caddy_image_check() {
+    local CONTAINER="sigilos-gateway" WANT HAVE
+
+    [[ -f Dockerfile.caddy ]] || return 0
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+        return 0
+    fi
+
+    WANT="$(grep -m1 -oE 'FROM caddy:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile.caddy | cut -d: -f2)"
+    [[ -n "$WANT" ]] || { dim "   Version Caddy illisible dans Dockerfile.caddy — contrôle ignoré."; return 0; }
+
+    HAVE="$(sudo docker exec "$CONTAINER" caddy version 2>/dev/null | awk '{print $1}' | sed 's/^v//')"
+    if [[ "$HAVE" == "$WANT" ]]; then
+        ok "Image Caddy à jour (v$HAVE = Dockerfile)."
+        return 0
+    fi
+
+    warn "Image Caddy EN RETARD : Dockerfile attend v$WANT, le conteneur sert v${HAVE:-?}."
+    dim "   Rebuild en fenêtre (le proxy tombe ~2 s) :"
+    dim "     sudo docker compose -f docker-compose.prod.yml build --no-cache caddy"
+    dim "     sudo docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps caddy"
+}
+
 caddy_config_check() {
     local ENV_FILE_C="$1"
     local CONTAINER="sigilos-gateway" HOST_SUM CONT_SUM
@@ -1062,6 +1094,7 @@ deploy() {
     # 2) ce qui est RÉELLEMENT servi aux robots (robots.txt / sitemap.xml) ;
     # 3) l'application elle-même.
     caddy_config_check "$ENV_FILE"
+    caddy_image_check
     seo_check "$URL"
     health_check "$URL"
 }

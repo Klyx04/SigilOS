@@ -4302,33 +4302,33 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </div>
               )}
             </div>
-
-            {/* Déplacer vers un autre bloc */}
-            {seq.id && milestones && milestones.length > 1 && (
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
-                <select
-                  value=""
-                  onChange={e => {
-                    const targetId = e.target.value;
-                    if (targetId && targetId !== milestoneId && seq.id) {
-                      onMove(seq.id, targetId);
-                      onCancel();
-                    }
-                  }}
-                  className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
-                >
-                  <option value="">— Choisir un bloc —</option>
-                  {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
-                    <option key={m.id} value={m.id}>{m.title}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      {/* Déplacer vers un autre bloc — visible sans ouvrir la section 9 */}
+      {seq.id && milestones && milestones.length > 1 && (
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
+          <select
+            value=""
+            onChange={e => {
+              const targetId = e.target.value;
+              if (targetId && targetId !== milestoneId && seq.id) {
+                onMove(seq.id, targetId);
+                onCancel();
+              }
+            }}
+            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
+          >
+            <option value="">— Choisir un bloc —</option>
+            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
+              <option key={m.id} value={m.id}>{m.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Footer Actions */}
       <div className="flex items-center justify-between pt-2 border-t border-white/5">

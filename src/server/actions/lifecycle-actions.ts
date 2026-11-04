@@ -19,6 +19,7 @@ import {
 } from "@/server/market/lifecycle";
 import { rateLimit } from "@/lib/ratelimit";
 import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
+import { getDefaultDiscordAvatar, normalizeDiscordAvatarUrl } from "@/lib/discord-avatars";
 import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { deleteEventDiscordMessage, deleteReminderMessageRefs, type ReminderMessageRef } from "@/server/calendar-message-cleanup";
 import { syncDjMirror, syncSongesMirror } from "@/server/agenda-mirror-sync";
@@ -247,11 +248,13 @@ export async function sendLifecycleNotification(
         const appUrl = getAppBaseUrl();
         const rosterLink = `${appUrl}/dashboard/${guildId}/admin/members?status=${type === "REACTIVATED" ? "ACTIVE" : type === "DELETED" ? "archived" : type}`;
 
-        // Build avatar URL for Discord embed author
+        // Avatar de l'embed : `userAvatar` est **déjà une URL** (`User.image`), pas un hash.
+        // L'ancien code la concaténait comme un hash ⇒ URL invalide
+        // (`…/avatars/<id>/https://cdn…png`). On normalise l'URL réelle (webp borné) et on
+        // retombe sur l'avatar Discord officiel quand elle manque.
         const discordId = profile.user?.accounts?.[0]?.providerAccountId;
-        const discordAvatarUrl = discordId && userAvatar
-            ? `https://cdn.discordapp.com/avatars/${discordId}/${userAvatar}.${userAvatar.startsWith("a_") ? "gif" : "png"}?size=128`
-            : undefined;
+        const discordAvatarUrl =
+            normalizeDiscordAvatarUrl(userAvatar, 128) ?? getDefaultDiscordAvatar(discordId);
 
         const fields = [
             { name: "Pseudo Dofus", value: dofusPseudo || "Non défini", inline: true },

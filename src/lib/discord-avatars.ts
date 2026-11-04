@@ -122,6 +122,28 @@ export function getDefaultDiscordAvatar(userId: string | null | undefined): stri
 }
 
 /**
+ * #23 + #134 — **URL d'affichage** d'un avatar de membre : le vrai avatar Discord s'il existe,
+ * sinon l'avatar **par défaut officiel** (`embed/avatars/{n}.png`), jamais `null` tant que
+ * l'identifiant est exploitable.
+ *
+ * 📌 Décision du 04/11/2026 : `avatar-sync` écrivait `null` quand le membre n'avait pas d'avatar
+ * personnalisé, ce qui faisait basculer l'UI sur des **initiales** alors que Discord fournit un
+ * avatar par défaut déterministe. Une seule règle, appliquée à l'écriture (`User.image`) et
+ * testable sans I/O.
+ *
+ * Fail-closed : sans identifiant, ou avec un identifiant non numérique sans hash, retourne `null`
+ * (l'appelant affiche ses initiales).
+ */
+export function resolveDiscordAvatarUrl(
+    userId: string | null | undefined,
+    avatarHash: string | null | undefined,
+    size = 256
+): string | null {
+    if (!userId) return null;
+    return buildDiscordAvatarUrl(userId, avatarHash, size) ?? getDefaultDiscordAvatar(userId);
+}
+
+/**
  * #23 — Fallback CDN : en cas d'échec/429 du CDN principal (`cdn.discordapp.com`),
  * on bascule sur le miroir `media.discordapp.net` (proxy de redimensionnement Discord,
  * plus tolérant au hotlinking). Retourne null si l'URL n'est pas un avatar Discord.

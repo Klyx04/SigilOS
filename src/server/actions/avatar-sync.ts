@@ -7,8 +7,10 @@
  * (DiscordAvatarImage). Ce module re-synchronise périodiquement les hashs via
  * `GET /guilds/{guild_id}/members` :
  *   - avatar de guilde (`member.avatar`) prioritaire sur l'avatar global (`user.avatar`) ;
- *   - `null` → `User.image = null` (l'UI bascule alors sur l'avatar par défaut
- *     officiel `cdn.discordapp.com/embed/avatars/{n}.png` via getDefaultDiscordAvatar).
+ *   - pas d'avatar personnalisé → `User.image` reçoit l'avatar **par défaut officiel**
+ *     (`cdn.discordapp.com/embed/avatars/{n}.png`) : **jamais `null`** pour un membre Discord,
+ *     donc aucun écran ne retombe sur des initiales à cause d'un simple resync.
+ *   - membre absent de la réponse Discord (quota 1000, etc.) → ignoré, jamais écrasé.
  *
  * Usage :
  *   - Route cron : /api/cron/avatar-resync (protégée par x-cron-secret).
@@ -20,7 +22,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { listGuildMembers } from "@/server/discord";
-import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
+import { resolveDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 export interface AvatarSyncResult {
     success: boolean;
@@ -84,7 +86,7 @@ export async function resyncGuildAvatarHashes(discordGuildId: string): Promise<A
             // on ne casse pas un avatar existant sur une donnée incomplète.
             if (!avatarByDiscordId.has(discordUserId)) continue;
 
-            const nextImage = buildDiscordAvatarUrl(discordUserId, hash, 256) ?? null;
+            const nextImage = resolveDiscordAvatarUrl(discordUserId, hash, 256);
 
             if (profile.user.image === nextImage) {
                 result.unchanged++;

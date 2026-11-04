@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 4) — **Fluidité du scroll : fin du verre, `content-visibility` sur les longues grilles** — branche `perf/scroll-galerie-stuff`
+
+> **Demande user (verbatim)** : « https://beta.sigilos.fr/dashboard/1290442961380835451/galerie-stuff c'est pas encore assez fluide à mon gout ou sont les meilleurs techno pour rendre le scroll smooth etc , et peut-être pas uniquement sur ce module ? ».
+> **Mesures** : ① la barre de filtres est **sticky** avec `backdrop-blur-xl` (flou recalculé à chaque frame), le hero cumule `backdrop-blur-xl` + **2 halos `blur(100px)`** + `mix-blend-luminosity`, et chaque carte a un voile `backdrop-blur-md` ; ② **24 cartes** sont montées d'un coup, chacune avec le `DofusbookPreview` (~20 tooltips d'items) — **~480 tooltips** hors du premier écran, aucune `content-visibility` ; ③ le layout dashboard est déjà opaque (`TopNav` sans blur, sidebar fixe) : le coût est **local à la galerie**.
+> **Fait** : ① **zéro `backdrop-blur`** dans `gallery-client.tsx` (barre sticky, hero, onglets, voile des cartes, dialogue) — fonds opaques/alpha à la place ; ② halos `blur(100px)` remplacés par **deux `radial-gradient`** et `mix-blend-luminosity`/`scale-105` retirés ; ③ utilitaire **`.cv-auto`** (`content-visibility: auto` + `contain-intrinsic-size: auto 480px`) appliqué aux cartes de la galerie, de l'annuaire, du marché et des posts de donjon ; ④ favicon hors écran en `loading="lazy" decoding="async"` + dimensions ; ⑤ règle durable `docs/RULES.md` § Performance de défilement.
+> **Preuves** : verrou `gallery-scroll-perf` **5** · suite **599 fichiers / 6 297 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : contrôle visuel bêta 390 / 768 / 1024 / 1440 (hero, barre sticky, voile des cartes) ; virtualiser (TanStack Virtual) seulement si une page dépasse ~100 cartes.
+> **Rotation** : bloc « 03/11/2026 — Rush : les conseils réparés (« &1 ») » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 3) — **Avatars Discord : l’absence d’avatar ne produit plus d’initiales** — branche `fix/avatars-discord-default`
 
 > **Demande user (verbatim)** : « normaliser le placeholder icone discord partout pour ceux qui n'ont pas d'icone et si un jour ils mettent une icone comment ca marche ? l'impression qu'on est pas raccord partout ou les icones pp discord sont dispo sur le produit, on avait déjà fait une passe, annuaire par exemple c ok, post dj semblent ok aussi ».
@@ -50,13 +60,3 @@
 > **Preuves** : base **273** conseils / 492 · `rush-notes` **10** · suite **596 fichiers / 6 260 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
 > **Reste / ops** : **219** conseils (dont Brâkmarien) ; **18** références Ali/Ordre à trancher pour appliquer les notes de donjon ; contrôle visuel bêta d'un conseil (« Joueurs : … », « Métier : … »).
 > **Rotation** : bloc « 02/11/2026 (suite 6) — la route à 3 étages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 03/11/2026 — **Rush : les conseils réparés (« &1 »), Dofusyelle siphonné et corrélé** — branche `fix/rush-textes`
-
-> **Demande user (verbatim)** : « si tu resiphonne l'intégralité du guide RSA Tougli ? » · « on avait aussi siphonné dofusyelle rush, à voir si ya une api ou non, et corréler toutes les astuces aux bonnes quêtes bon moments etc ? » · « notre module rush ne doit jamais laisser paraître qu'on a siphonné dofusyelle et tougli : on devra reformuler un peu mais ça c'est moi qui ferai, on siphonne tel quel là ».
-> **Mesures** : ① **37 séquences (15 textes)** affichaient « &1 », « &2 »… (dataset à l'identique) — le rendu ne les remplace pas (capture Tougli : `&1` → « Restauration rapide ») ; la correspondance est `payload.quests[n-1]` (preuve : quête **1989**) ; ② Tougli resiphonné en lecture seule : arbre **identique** au 08/10 (383 objectifs), 530 noms identiques, **214** `&n` toujours présents ⇒ resiphonner ne répare pas les textes (+11 objets et `bashMobs` seulement) ; ③ Dofusyelle : **pas d'API** (`window.RUSH_DATA` en dur), nouveau chemin `assets/js/rush-sylvestre-data.js?v=20261019` (l'ancien est 404) — **57 étapes · 45 notes de donjon · 9 aides · 531 ressources** ; **8/8** quêtes citées retrouvées, **5** sans conseil ; ④ base : 493 séquences, **247** sans conseil, dont **102 Brâkmarien** et **30 Ordres** (non couverts par Dofusyelle).
-> **Fait** : ① règle pure `src/lib/rush-quest-refs.ts` (`resolveQuestRefs`, `hasUnresolvedQuestRef`) + **10** tests ; ② script `scripts/fix-rush-guide-quest-refs.ts` (dry-run par défaut, `--apply --db`) ⇒ **74 champs corrigés** (dataset **et** base), **0** `&n` restant, aucun reformatage (74/74 lignes) ; ③ **garde** dans `upsertRushSequence` (refuse `tips`/`note` avec `&n`) + test de câblage ; ④ `scripts/siphon-dofusyelle-rush.mjs` (sortie **zone volatile**, jamais committée) ; ⑤ règle pure `src/lib/rush-dofusyelle-tips.ts` (`normalizeQuestKey`, `quotedQuestTitles`, `aidLineFor`, `alignmentRefs`) + **9** tests ; ⑥ script `scripts/correlate-dofusyelle-tips.ts` ⇒ **5 conseils écrits** (dataset + base), **18** références Ali/Ordre **listées** (non appliquées : numérotation à trancher).
-> **Preuves** : `rush-quest-refs` **10** · `rush-dofusyelle-tips` **9** · suite **595 fichiers / 6 250 tests ✓** · `tsc` 0 · ESLint 0 erreur (warnings préexistants). **Aucune migration.**
-> **Reste / ops** : **242** conseils à écrire (Ordres 30, classes 19, Brâkmarien 102, cité 47, divers) ; **18** références Ali/Ordre à trancher ; resiphonnage Tougli (données seules) ; contrôle visuel bêta d'un conseil réparé (« Restauration rapide »).
-> **Rotation** : bloc « 02/11/2026 (suite 5) — cocher les ressources dans la fiche » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

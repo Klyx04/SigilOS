@@ -110,7 +110,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         <>
             <div
                 className={cn(
-                    "group relative rounded-2xl border font-sans overflow-hidden transition-all duration-200 flex flex-col justify-between p-4 space-y-3.5",
+                    "cv-auto group relative rounded-2xl border font-sans overflow-hidden transition-all duration-200 flex flex-col justify-between p-4 space-y-3.5",
                     isOpen
                         ? "bg-surface/50 backdrop-blur-sm text-foreground border-border/70 shadow-md hover:border-emerald-500/40 hover:bg-surface/75 hover:shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5"
                         : "bg-surface/20 text-muted-foreground border-border/50 opacity-60 grayscale-[30%]",

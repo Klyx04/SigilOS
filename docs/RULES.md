@@ -122,6 +122,16 @@ src/
 
 ---
 
+## ⚡ Performance de défilement
+
+- **Jamais de `backdrop-filter` sur une surface de défilement** : barre `sticky`, en-tête fixe, carte répétée. Le flou est recalculé à chaque frame ; un fond opaque ou légèrement translucide suffit.
+- **Pas de `filter: blur()` sur une grande couche** (halos décoratifs) : préférer `radial-gradient`.
+- **Longues grilles** : `.cv-auto` (`content-visibility: auto` + `contain-intrinsic-size: auto 480px`) sur les **cartes**, jamais sur le conteneur.
+- **Images hors écran** : `loading="lazy"`, `decoding="async"`, dimensions explicites.
+- **Virtualisation** seulement au-delà de ~100 cartes (TanStack Virtual / react-virtuoso) ; inutile pour une page de 24.
+
+---
+
 ## ✍️ Naming Conventions
 
 | Type | Convention | Example |

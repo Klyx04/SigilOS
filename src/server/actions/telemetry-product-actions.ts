@@ -17,7 +17,6 @@ import {
     type ModuleAdoptionInput,
 } from "@/lib/telemetry/product";
 import { isSuperAdmin } from "./super-admin-actions";
-import { RETIRED_MODULE_KEYS } from "@/lib/module-types";
 
 /**
  * Mesures **produit** du panneau God (D-2bis).
@@ -248,12 +247,9 @@ export async function getProductStats() {
         // (`disabledByGod`) n'est pas une activation.
         const moduleKeys = new Set<string>();
         for (const row of moduleRows) {
-            // `RETIRED_MODULE_KEYS` : un module supprimé du produit peut encore exister comme
-            // colonne `GuildModules` (compatibilité sans migration) — il ne doit pas réapparaître
-            // dans l'adoption ni dans le compteur de modules activés.
-            for (const key of moduleKeysOf(row)) {
-                if (!RETIRED_MODULE_KEYS.has(key)) moduleKeys.add(key);
-            }
+            // Les clés de module sont les booléens réellement portés par la ligne `GuildModules` :
+            // aucune liste n'est recopiée ici (une colonne ajoutée apparaît seule dans la mesure).
+            for (const key of moduleKeysOf(row)) moduleKeys.add(key);
         }
 
         const enabledByModule = new Map<string, Set<string>>();

@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 7) — **Stats, Phase 2b : la colonne morte est supprimée** — branche `chore/stats-phase2b`
+
+> **Demande user (verbatim)** : « c'est quoi le mieux ? » — après la question d'accord sur une suppression **irréversible** ; choix retenu : drop, avec sauvegarde et bêta d'abord.
+> **Mesures** : ① la colonne ne portait plus aucune lecture : `readGuildModules` merge champ par champ sans `stats` (`module-actions.ts:117-146`), `GUILD_CONFIG_CACHE_SELECT` ne la sélectionne pas (`user-actions.ts:428-469`) ; ② en base locale, **6 lignes `GuildModules` dont 1 à `stats = false`** ⇒ la donnée perdue est réelle, pas seulement un défaut ; ③ asset `guildActivity.png` : **0** référence code, **0** `DocPage` locale ; ④ `stats` existe aussi dans `MonsterStat`/`MarketListing` ⇒ le verrou de test scope le **modèle** `GuildModules` ; ⑤ `deploy-cd.sh` démarre l'image **puis** joue `migrate deploy` : après le drop, l'image précédente ne peut plus tourner.
+> **Fait** : ① schéma sans `stats` + migration écrite à la main `20270125000300_drop_guild_modules_stats` (`DROP COLUMN IF EXISTS`, en-tête **irréversible** + SQL inverse documenté) ; ② `RETIRED_MODULE_KEYS` retiré (`module-types` + filtre télémétrie) ; ③ `LEGACY_MODULE_LABELS` retiré, `moduleLabel("stats")` rend `stats` ; ④ asset orphelin supprimé ; ⑤ `stats-page-removal` réécrit en **10 tests** (schéma scopé, SQL exact, absence de compat, asset) ; ⑥ fixtures `stats: true` retirées (`onboarding-console`, `user-context`) ; ⑦ `prisma-schema-change.md` gagne un § « migration destructive ».
+> **Preuves** : `stats-page-removal` **10** · `user-context` **46** · `onboarding-console` **19** · `telemetry-product-stats` **11** ⇒ **86/86 ✓** · colonne absente en base (`information_schema` = 0) · `migrate deploy` + `generate` joués.
+> **Reste / ops** : **`pg_dump` avant** `migrate deploy` en bêta puis prod ; **aucun rollback vers l'image pré-drop** (le client Prisma précédent sélectionne `stats`) — procédure d'urgence = `ADD COLUMN IF NOT EXISTS … DEFAULT true`, valeurs perdues ; conteneur local `sigilos-app` (image du 23/10/2026) à recréer s'il sert encore.
+> **Rotation** : bloc « 04/11/2026 — Rush : ressources par quête » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 6) — **Stats, Phase 2a : la clé quitte le registre, la colonne reste** — branche `chore/stats-phase2a`
 
 > **Demande user (verbatim)** : « on casse quoi rien j'espère ? » — puis « GO » sur la Phase 2a (nettoyage code, sans migration).
@@ -56,10 +66,3 @@
 > **Rotation** : bloc « 02/11/2026 (suite 9) — Rush : la route cité→Ordre→classe » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 04/11/2026 (suite) — **Rush : ressources par quête, la série Brâkmarien remplie (V-D1)** — branche `feat/rush-ressources`
-
-> **Demande user (verbatim)** : « Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO.
-> **Mesures** : ① les **121** séquences Brâkmarien (importées depuis God, absentes du dataset de seed) : **115 n'avaient AUCUN tag**, **1** seul id d'objet, mais **120 `questDbIds`** ⇒ appariement exact par id (replis URL puis nom) ; ② `dofusyelle.resources` est **global** (531 lignes nom+qté, sans id) ⇒ **584 est un plafond**, pas une cible par quête (67 ids n'existent que là) ; ③ la trame porte encore l'id **22058** (invalide, corrigé en **32079**).
-> **Fait** : ① règle pure `src/lib/rush-resource-tags.ts` — `mergeItemTags` ajoute les ids absents, **ne réécrit ni ne supprime jamais**, `count` borné, **nom canonique** réutilisé (clé `id|nom` stable) ; ② script `enrich-rush-guide-resources.ts` — appariement `questDbIds`→URL→nom, dry-run, `--apply --db`, `--sql` **additif** (bêta), remap `22058→32079` ; ③ **81 séquences** enrichies, **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485 ids** ; Brâkmarien **1 → 151 ids** / **65** séquences (contre 1).
-> **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 274 ✓** · `tsc` 0 · ESLint 0 erreur · **2ᵉ passage = 0 écriture** · 0 tag sans nom / quantité invalide · **486 clés pour 485 ids** (seul doublon **9687**, antérieur) · dataset **inchangé** · **aucune migration**.
-> **Reste / ops** : **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par étape) ; bêta — `--sql` puis God ▸ « Pré-chauffer les icônes du guide » (**95** ids) ; prochain lot **V-H**.

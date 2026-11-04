@@ -7,12 +7,16 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   cleanDofusyelleBody,
   constraintLabel,
   correlateRushNotes,
   normalizeQuestKey,
 } from "@/lib/rush-notes";
+
+const ROOT = path.resolve(__dirname, "../..");
 
 describe("normalizeQuestKey — la même clé pour les deux sources", () => {
   it("neutralise accents, casse, ponctuation et suffixe de camp", () => {
@@ -189,5 +193,18 @@ describe("correlateRushNotes — le rattachement de chaque source", () => {
       targets: TARGETS,
     });
     expect(notes.size).toBe(0);
+  });
+});
+
+describe("le script émet un patch SQL additif (bêta / prod)", () => {
+  const SCRIPT = "scripts/correlate-rush-notes.ts";
+
+  it("expose --sql, cible les ids DofusDB et n'écrase jamais un tips existant", () => {
+    const source = readFileSync(path.join(ROOT, SCRIPT), "utf8");
+    expect(source).toContain('argv.includes("--sql")');
+    // La ligne est visée par ses ids de quête (stables d'un environnement à l'autre), pas par un cuid.
+    expect(source).toContain('"questDbIds" && ARRAY[');
+    // Garde d'écriture : un `tips` déjà rempli (édition God) n'est jamais remplacé.
+    expect(source).toContain('("tips" IS NULL OR btrim("tips") = \'\')');
   });
 });

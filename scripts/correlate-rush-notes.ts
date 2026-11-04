@@ -47,15 +47,22 @@ const UNSOLVED_QUEST_REF = /&\d/;
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
-const WITH_DB = argv.includes("--db");
+const SQL = argv.includes("--sql");
+const WITH_DB = argv.includes("--db") || SQL;
 const valueOf = (flag: string, fallback: string): string => {
   const i = argv.indexOf(flag);
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 
+/** Littéral SQL : apostrophes doublées (les textes viennent de Tougli/Dofusyelle). */
+function sqlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 type SequenceLike = {
   id?: string;
   subGuideName?: string;
+  alignReq?: string | null;
   tips?: string | null;
   dungeonNames?: string[];
   /** Ids DofusDB — rattachement exact des contraintes Tougli (séquences importées depuis God). */
@@ -126,6 +133,7 @@ function report(title: string, sequences: SequenceLike[], notes: Map<string, Rus
 }
 
 async function main(): Promise<void> {
+  if (APPLY && SQL) throw new Error("--apply et --sql sont exclusifs (relire le patch avant de l'appliquer)");
   const toughli = loadJson<TougliNotes>(valueOf("--tougli", TOUGLI_FILE), "lancer scripts/siphon-tougli-notes.ts");
   const dofusyelle = loadJson<DofusyelleNotes>(
     valueOf("--dofusyelle", DOFUSYELLE_FILE),
@@ -173,6 +181,8 @@ async function main(): Promise<void> {
           id: sequence.id ?? "",
           text: tipsText(baseNotes.get(normalizeQuestKey(sequence.subGuideName))),
           name: sequence.subGuideName ?? "",
+          alignReq: sequence.alignReq ?? null,
+          questDbIds: sequence.questDbIds ?? [],
         }))
         .filter((write) => write.id && write.text);
       console.log(`base : ${writes.length} conseil(s) à écrire`);
@@ -182,12 +192,48 @@ async function main(): Promise<void> {
         }
         console.log(`base : ${writes.length} conseil(s) écrit(s)`);
       }
+      // Patch SQL : la CIBLE complète (pas le delta local) — la base distante n'a pas le même
+      // état ; la garde `tips` vide fait que rien n'est jamais écrasé.
+      const sqlRows = baseSequences
+        .map((sequence) => {
+          const text = tipsText(baseNotes.get(normalizeQuestKey(sequence.subGuideName)));
+          const current = String(sequence.tips ?? "").trim();
+          return {
+            name: sequence.subGuideName ?? "",
+            alignReq: sequence.alignReq ?? null,
+            questDbIds: sequence.questDbIds ?? [],
+            text,
+            // On n'exporte que les conseils que NOUS avons écrits (le texte calculé est celui de
+            // la base) ou une ligne encore vide : un `tips` édité par God n'est jamais proposé.
+            ours: !current || current === text,
+          };
+        })
+        .filter((row) => row.name && row.text && row.ours);
+      if (SQL) {
+        // Patch ADDITIF pour la bêta / la prod : n'écrit QUE sur un `tips` vide (jamais une
+        // édition God), et cible la ligne par ses ids DofusDB (stables d'un environnement à
+        // l'autre) — jamais par le cuid local.
+        console.log(`\n-- patch additif : ${sqlRows.length} conseil(s) (n'écrase jamais un tips existant)`);
+        console.log("BEGIN;");
+        for (const row of sqlRows) {
+          const payload = row.text.replace(/\$j\$/g, "$ j$");
+          const where = row.questDbIds.length
+            ? `"questDbIds" && ARRAY[${row.questDbIds.join(",")}]::int[]`
+            : `"subGuideName" = ${sqlLiteral(row.name)} AND COALESCE("alignReq", '') = ${sqlLiteral(row.alignReq ?? "")}`;
+          console.log(
+            `UPDATE "GuideSequence" SET "tips" = $j$${payload}$j$ WHERE "milestoneId" IN (` +
+              `SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre') ` +
+              `AND ${where} AND ("tips" IS NULL OR btrim("tips") = '');`,
+          );
+        }
+        console.log("COMMIT;");
+      }
     } finally {
       await db.$disconnect();
     }
   }
 
-  console.log(APPLY ? "terminé (écritures appliquées)" : "dry-run : rien n'a été écrit (relancer avec --apply)");
+  console.log(APPLY || SQL ? "terminé" : "dry-run : rien n'a été écrit (relancer avec --apply)");
 }
 
 main().catch((error) => {

@@ -11,8 +11,15 @@
 > **Demande user (verbatim)** : « Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO.
 > **Mesures** : ① les **121** séquences Brâkmarien (importées depuis God, absentes du dataset de seed) : **115 n'avaient AUCUN tag**, **1** seul id d'objet, mais **120 `questDbIds`** ⇒ appariement exact par id (replis URL puis nom) ; ② `dofusyelle.resources` est **global** (531 lignes nom+qté, sans id) ⇒ **584 est un plafond**, pas une cible par quête (67 ids n'existent que là) ; ③ la trame porte encore l'id **22058** (invalide, corrigé en **32079**).
 > **Fait** : ① règle pure `src/lib/rush-resource-tags.ts` — `mergeItemTags` ajoute les ids absents, **ne réécrit ni ne supprime jamais**, `count` borné, **nom canonique** réutilisé (clé `id|nom` stable) ; ② script `enrich-rush-guide-resources.ts` — appariement `questDbIds`→URL→nom, dry-run, `--apply --db`, `--sql` **additif** (bêta), remap `22058→32079` ; ③ **81 séquences** enrichies, **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485 ids** ; Brâkmarien **1 → 151 ids** / **65** séquences (contre 1).
-> **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 272 ✓** · `tsc` 0 · ESLint 0 erreur · **2ᵉ passage = 0 écriture** · 0 tag sans nom / quantité invalide · **486 clés pour 485 ids** (seul doublon **9687**, antérieur) · dataset **inchangé** · **aucune migration**.
+> **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 274 ✓** · `tsc` 0 · ESLint 0 erreur · **2ᵉ passage = 0 écriture** · 0 tag sans nom / quantité invalide · **486 clés pour 485 ids** (seul doublon **9687**, antérieur) · dataset **inchangé** · **aucune migration**.
 > **Reste / ops** : **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par étape) ; bêta — `--sql` puis God ▸ « Pré-chauffer les icônes du guide » (**95** ids) ; prochain lot **V-H**.
+## 📝 Session 04/11/2026 — **Rush : 25 conseils écrits (contraintes Tougli, rattachement par `questDbIds`)** — branche `feat/rush-brakmarien`
+
+> **Demande user (verbatim)** : « lot A ok, Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO sur A puis B.
+> **Mesures** : ① le script de corrélation prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les **121** Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0** ; ② sur ces 121 séquences, **115 n'ont AUCUN tag** (ni objet, ni donjon, ni position) et **117** n'ont pas de conseil ; ③ les **74** quêtes Tougli contraintes portent un `questId` DofusDB ⇒ le rattachement **exact** est possible (l'ancien passait par le nom).
+> **Fait** : ① `rush-notes.ts` — `NoteTarget.questIds` + index par id (l'id tranche, le nom reste le repli), **2 tests** de plus ; ② `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base) et n'écrit jamais un texte contenant `&n` ; ③ **25 conseils** écrits en base locale (**19 Brâkmarien + 6 Bontarien**, 28 contraintes `needPlayer` 24 / `job` 6), **dataset inchangé** (ces quêtes n'y sont pas).
+> **Preuves** : `rush-notes` **12** · base **298** conseils / **194** restants (98 Brâkmarien · 42 Bontarien · 54 hors route) · **2ᵉ passage = 0 écriture** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : **194** conseils, dont **98 Brâkmarien sans aucune source** (Tougli n'a aucun texte de quête) ; rejouer le script sur la bêta (`--apply --db`) ; prochain lot **V-D** (ressources par quête).
 > **Rotation** : bloc « 02/11/2026 (suite 7) — outillage God de la route (G0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 03/11/2026 (suite) — **Rush : notes Tougli siphonnées, Dofusyelle analysé, corrélation mesurée** — branche `feat/rush-notes`
@@ -53,13 +60,3 @@
 > **Preuves** : `rush-order-chain` **17** · `rush-order-reset` **8** · Rush **59 fichiers / 735 tests ✓** · suite **592 fichiers / 6 217 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.** ROADMAP ramenée de 61 350 à **58 244 o** (5 blocs livrés déplacés au §5, borne du verrou 60 KiB).
 > **Reste / ops** : `L3` (modale d'accueil, prop morte `hasNoClassDeclared`), textes/tips, guide public (compte visiteur = `PLAN-ESPACE-VISITEUR.md`) ; **contrôle visuel bêta** 390 / 768 / 1024 / 1440 (`./scripts/deploy-cd.sh beta`) : 5 quêtes d'Ordre visibles, carte du rang 2 qui nomme le rang 1, changement d'Ordre → 5 coches retirées.
 > **Rotation** : bloc « 02/11/2026 (suite 3) — Alignement du libellé d'exclusion » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 02/11/2026 (suite 8) — **Rush : source d'alignement (L1)** — branche `feat/rush-alignment-l1`
-
-> **Demande user (verbatim)** : « c'est parti one shot le tout je m'absente 15 minutes » (feu vert sur `L1`, clé `camp` validée).
-> **Mesures** : ① `alignment_set` écrit `camp` par l'import, lu `name` par le studio/`getAlignmentSet` ⇒ **null sur les 67 lignes réelles** (bandeau et badge jamais rendus, `applyRushAlignmentFromSequence` no-op) ; ② `level` figé à `1` ; ③ reset = **67 racines sur 236** ; ④ compteur gonflé par les 30 quêtes d'Ordre.
-> **Fait** : ① `alignmentTagCamp` (`camp` puis `name`), studio écrit `camp` — les 67 lignes redeviennent lisibles ; ② palier **calculé** par `alignmentCountForCamp` (hors Ordres) à la coche/décoche ; ③ `alignmentResetSeeds` : reset de **toute** la branche `alignReq` de l'ancienne cité (115/121 racines) + cascade, cité lue côté serveur avant l'écriture du profil ; ④ badges sans faux niveau.
-> **Preuves** : `rush-alignment-source` **15** · `rush-alignment-tranche` **8** · Rush **57 fichiers / 710 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : `L2` (route cité→Ordre→classe, chaîne des rangs), `L3` (modale d'accueil) ; contrôle visuel profil/guide/overlay ; **aucune migration**.
-> **Rotation** : bloc « 02/11/2026 (suite) — Almanax : bornage de la navigation » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

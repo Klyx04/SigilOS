@@ -62,6 +62,35 @@ describe("correlateRushNotes — le rattachement de chaque source", () => {
     ]);
   });
 
+  it("rattache une contrainte Tougli par son id DofusDB quand le nom diffère", () => {
+    // Les séquences importées depuis God (Brâkmarien) gardent leur libellé : seul `questDbIds` tranche.
+    const notes = correlateRushNotes({
+      toughli: {
+        questConstraints: [
+          {
+            questId: 1989,
+            questName: "Restauration rapide (libellé Tougli)",
+            constraints: [{ type: "needPlayer", text: "3 joueurs" }],
+          },
+        ],
+      },
+      targets: [{ key: normalizeQuestKey("Restauration rapide"), name: "Restauration rapide", questIds: [1989] }],
+    });
+    expect(notes.get(normalizeQuestKey("Restauration rapide"))).toEqual([
+      { source: "tougli", kind: "constraint", text: "Joueurs : 3 joueurs", origin: "needPlayer" },
+    ]);
+  });
+
+  it("n'attache rien quand l'id de la contrainte ne correspond à aucune cible", () => {
+    const notes = correlateRushNotes({
+      toughli: {
+        questConstraints: [{ questId: 4242, questName: "Quête inconnue", constraints: [{ type: "job", text: "x" }] }],
+      },
+      targets: [{ key: normalizeQuestKey("Restauration rapide"), name: "Restauration rapide", questIds: [1989] }],
+    });
+    expect(notes.size).toBe(0);
+  });
+
   it("rattache un texte de guide Tougli à toutes les quêtes qu'il cite", () => {
     const notes = correlateRushNotes({
       toughli: {

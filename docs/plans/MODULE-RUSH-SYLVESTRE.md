@@ -131,8 +131,10 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 interne + overlay, chaîne des rangs, changement d'Ordre) et `L3` (modale d'accueil en DA « Carnet »,
 classe manquante dite et cliquable) sont **livrés** → **`textes`** (tips par quête) : **livré le
 03/11/2026** pour les références `&n` (**74** champs corrigés, dataset + base, garde d'écriture) et
-la **corrélation Dofusyelle** (**5** conseils écrits, **18** références Ali/Ordre listées) — reste la
-**rédaction** des 219 conseils manquants. Le **public
+la **corrélation Dofusyelle** (**5** conseils écrits, **18** références Ali/Ordre listées) ; **25
+conseils de plus le 04/11/2026** — les contraintes Tougli sont désormais rattachées **par
+`questDbIds`**, donc les séquences importées depuis God (Brâkmarien) sont atteignables. Reste
+**194** conseils (98 Brâkmarien sans aucune source, 42 Bontarien, 54 hors route). Le **public
 authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`
 (la modale publique, elle, attend ce compte visiteur : **migration ⇒ accord**).
 
@@ -143,7 +145,11 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 > **Aucune migration.** **`textes` livré le 03/11/2026** : `resolveQuestRefs` + script ciblé
 > (**74** champs, **0** `&n` restant), garde `upsertRushSequence`, siphon Dofusyelle (pas d'API)
 > et corrélation par nom (**5** conseils ; **18** références Ali/Ordre listées, non appliquées).
-> **Reste** : 219 conseils à rédiger (Ordres 30, classes 19, Brâkmarien 102, cité 47, divers 21) ;
+> **`textes` complété le 04/11/2026** : rattachement des contraintes Tougli **par `questDbIds`**
+> (`NoteTarget.questIds`), cibles calculées **aussi** depuis la base ⇒ **25 conseils** écrits
+> (19 Brâkmarien + 6 Bontarien, 28 contraintes), **2ᵉ passage = 0 écriture**.
+> **Reste** : **194** conseils — **98 Brâkmarien** (aucune source : Tougli n'a aucun texte de quête,
+> Dofusyelle ne couvre que Bonta), **42 Bontarien**, **54 hors route** ;
 > **18** références « Ali N »/« Ordre N » à trancher pour appliquer les notes de donjon Dofusyelle.
 >
 > **L2, ce qui a changé concrètement** : l'Ordre du personnage sélectionné entre dans la route

@@ -25,7 +25,6 @@ const UpdateModulesSchema = z.object({
     // Général
     presentation: z.boolean(),
     roster: z.boolean(),
-    stats: z.boolean(),
     calendar: z.boolean(),
     // Fonctionnalités
     missions: z.boolean(),
@@ -118,7 +117,6 @@ async function readGuildModules(discordGuildId: string): Promise<CachedGuildModu
         const data: GuildModulesState = {
             ...DEFAULT_MODULES,
             presentation: dbModules.presentation ?? DEFAULT_MODULES.presentation,            roster: dbModules.roster ?? DEFAULT_MODULES.roster,
-            stats: dbModules.stats ?? DEFAULT_MODULES.stats,
             calendar: dbModules.calendar ?? DEFAULT_MODULES.calendar,
             missions: dbModules.missions ?? DEFAULT_MODULES.missions,
             songes: dbModules.songes ?? DEFAULT_MODULES.songes,

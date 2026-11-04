@@ -199,7 +199,6 @@ export type UserContext = {
     canViewDashboard: boolean;
     canViewPresentation: boolean;
     canViewWelcome: boolean;
-    canViewStats: boolean;
     canViewDocs: boolean;
     canViewAdminDocs: boolean;
     canViewResources: boolean;
@@ -438,7 +437,6 @@ const GUILD_CONFIG_CACHE_SELECT = {
             docs: true,
             profile: true,
             roster: true,
-            stats: true,
             presentation: true,
             polls: true,
             scheduledPolls: true,
@@ -553,7 +551,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDashboard: false,
         canViewPresentation: false,
         canViewWelcome: false,
-        canViewStats: false,
         canViewDocs: false,
         canViewAdminDocs: false,
         canViewResources: false,
@@ -1209,9 +1206,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         "presentation:edit": PERMISSIONS.STAFF_CONTENT,
         "docs:view_admin": PERMISSIONS.STAFF_CONTENT,
         "admin:audit": PERMISSIONS.STAFF_AUDIT,
-        // NOTE: l'ancienne permission "stats:view" n'est PAS remappée vers STAFF_AUDIT.
-        // La page Stats Guilde dépend de DASHBOARD_LOGIN (canViewStats) — mapper ici
-        // octroyait par accident l'accès Audit Logs à tout rôle legacy "stats:view".
+        // NOTE: l'ancienne permission "stats:view" n'est PAS remappée vers STAFF_AUDIT :
+        // le faire octroyait par accident l'accès Audit Logs à tout rôle legacy "stats:view".
         "admin:settings": PERMISSIONS.SYSTEM_CONFIG,
         "admin:full": PERMISSIONS.SYSTEM_GOD,
     };
@@ -1238,8 +1234,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal;
     const canEditPresentation = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
-    // Stats Guilde = même RBAC que la page guilde (DASHBOARD_LOGIN), pas lié aux Audit Logs
-    const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || isAdminFinal;
@@ -1355,7 +1349,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDashboard: true,
         canViewPresentation: !!applyModule(!!mod?.presentation, !!canViewPresentation),
         canViewWelcome: !!applyModule(!!(guildConfig?.welcomeEnabled && guildConfig?.welcomeDashboardEnabled), !!canViewWelcome),
-        canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
         canViewCommands: !!applyModule(!!mod?.commandes, !!canViewCommands),
@@ -1453,7 +1446,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewWelcome = false;
         finalContext.canViewCommands = false;
         finalContext.canViewPresentation = false;
-        finalContext.canViewStats = false;
         finalContext.canViewDocs = false;
         finalContext.canViewAdminDocs = false;
         finalContext.canViewResources = false;

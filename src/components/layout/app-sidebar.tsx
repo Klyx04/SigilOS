@@ -263,7 +263,7 @@ export function AppSidebar({
             icon: Sparkles, 
             imgSrc: "/assets/nav/guild.png",
             color: "emerald",
-            visible: (user.canViewWelcome || user.canViewPresentation || user.canViewStats),
+            visible: (user.canViewWelcome || user.canViewPresentation),
             aliases: [
                 `/dashboard/${guildId}/welcome`,
                 `/dashboard/${guildId}/presentation`,
@@ -608,7 +608,7 @@ export function AppSidebar({
                                     className="space-y-1 px-1 overflow-hidden"
                                 >
                                     {/* La guilde - Hub Link */}
-                                    {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
+                                    {(user.canViewWelcome || user.canViewPresentation) &&
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
                                             <NavItem 

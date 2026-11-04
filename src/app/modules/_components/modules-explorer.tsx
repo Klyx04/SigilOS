@@ -34,7 +34,6 @@ const KEY_TO_CATEGORY: Record<string, string> = {
     resources: "economie",
     gallery: "economie",
     roster: "communaute",
-    stats: "communaute",
     missions: "communaute",
     commandes: "communaute",
     reactionRoles: "communaute",
@@ -126,10 +125,6 @@ const MODULE_I18N_EN: Partial<Record<ModuleKey, { label: string; description: st
     roster: {
         label: "Roster & Directory",
         description: "Guild member directory with characters, Discord roles and Dofus character statistics.",
-    },
-    stats: {
-        label: "Guild Statistics",
-        description: "Global guild performance dashboard (activity, missions, Dreams, events).",
     },
     calendar: {
         label: "Calendar",

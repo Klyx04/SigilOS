@@ -5,7 +5,6 @@ export type ModuleKey =
     // Général
     | "presentation"
     | "roster"
-    | "stats"
     | "calendar"
     // Fonctionnalités
     | "missions"
@@ -44,7 +43,6 @@ export type GuildModulesState = {
     // Général
     presentation: boolean;
     roster: boolean;
-    stats: boolean;
     calendar: boolean;
     // Fonctionnalités
     missions: boolean;
@@ -96,7 +94,6 @@ export type GuildModulesState = {
 export const DEFAULT_MODULES: GuildModulesState = {
     presentation: false,
     roster: false,
-    stats: false,
     calendar: false,
     missions: false,
     songes: false,
@@ -135,7 +132,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
 };
 
 /**
- * Modules **retirés** du produit, conservés dans les types et en BDD pour compatibilité
+ * Modules **retirés** du produit, conservés **en BDD uniquement** pour compatibilité
  * (aucune migration). Ils ne doivent apparaître dans aucun écran ni mesure d'adoption :
  * le catalogue les ignore, la télémétrie les filtre, la page n'existe plus.
  */

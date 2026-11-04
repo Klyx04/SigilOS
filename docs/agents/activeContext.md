@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 5) — **Suppression de la page morte « Stats Guilde »** — branche `chore/remove-stats-page`
+
+> **Demande user (verbatim)** : « analyse 'src/temp/debug.md' … attention je veux uniquement supprimer cette page de stat morte et ses composants sans casser d'autres composant utilisés » — puis « oui » au libellé legacy.
+> **Mesures** : ① le mémo était faux sur `guild-stats-actions.ts` : `getGuildStats` alimente aussi **`QuickStatsRow`** sur l'accueil du dashboard — la supprimer cassait l'accueil ; ② la page = **15 fichiers** (page + 14 composants), tous privés à `stats-client.tsx` ; ③ la télémétrie d'adoption relit **`GuildModules` en direct** (`moduleKeysOf`), donc `stats` serait réapparu comme module « activé non mesuré » — pas seulement dans l'historique ; ④ `docs-modules.test.ts` exige que chaque clé de `MODULE_DOC_COVERAGE` existe dans `MODULE_GROUPS` : catalogue et doc doivent partir ensemble ; ⑤ `module-lock.test.ts` listait `stats/page.tsx` en dur.
+> **Fait** : ① suppression des **15 fichiers** ; ② catalogue (`MODULE_GROUPS`, `MODULE_DOFUS_ASSETS`, import `BarChart3`), `MODULE_ROUTES`, **3 alias** sidebar, tour stats (`STATS_STEPS`, phase, route) et entrée du bouton de replay retirés ; ③ `MODULE_DOC_COVERAGE.stats` retiré ; ④ `RETIRED_MODULE_KEYS = { stats }` + filtre dans `moduleKeysOf` (télémétrie) ; ⑤ `moduleLabel("stats")` garde « Stats Guilde » pour les données historiques ; ⑥ **conservés** : `getGuildStats`, `QuickStatsRow`, `canViewStats`, `GuildModules.stats` et les types/Zod — **aucune migration** ; ⑦ verrou `stats-page-removal` (6 tests) + fixtures `module-lock` nettoyées.
+> **Preuves** : `stats-page-removal` **6** · `module-lock` **27** · `docs-modules` **16** · `user-context` **46** ⇒ **95/95 ✓** · suite **600 fichiers / 6 303 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : Phase 2 (hors lot) — retirer `stats` de `ModuleKey`/`GuildModulesState`/`DEFAULT_MODULES`/Zod/`user-actions`, `canViewStats`, et la colonne `GuildModules.stats` (migration + accord) ; asset `guildActivity.png` orphelin à supprimer.
+> **Rotation** : bloc « 03/11/2026 (suite) — Rush : notes Tougli siphonnées » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 4) — **Fluidité du scroll : fin du verre, `content-visibility` sur les longues grilles** — branche `perf/scroll-galerie-stuff`
 
 > **Demande user (verbatim)** : « https://beta.sigilos.fr/dashboard/1290442961380835451/galerie-stuff c'est pas encore assez fluide à mon gout ou sont les meilleurs techno pour rendre le scroll smooth etc , et peut-être pas uniquement sur ce module ? ».
@@ -51,12 +61,3 @@
 > **Preuves** : `rush-notes` **12** · base **298** conseils / **194** restants (98 Brâkmarien · 42 Bontarien · 54 hors route) · **2ᵉ passage = 0 écriture** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
 > **Reste / ops** : **194** conseils, dont **98 Brâkmarien sans aucune source** (Tougli n'a aucun texte de quête) ; `--sql` (patch additif, `tips` vide uniquement) sur la bêta ; prochain lot **V-H** (ressources livrées en V-D1).
 > **Rotation** : bloc « 02/11/2026 (suite 7) — outillage God de la route (G0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 03/11/2026 (suite) — **Rush : notes Tougli siphonnées, Dofusyelle analysé, corrélation mesurée** — branche `feat/rush-notes`
-
-> **Demande user (verbatim)** : « Siphonne les notes tougli des quetes, analyse les notes dofusyelle car ce guide n'a aucun lien ni adhérance avec le guide tougli et correèle ».
-> **Mesures** : ① Tougli : `quests[].objectives` = **0 texte** sur 1 085 ; ses notes sont des contraintes structurées (`needPlayer` 38, `job` 37, `hours` 6, `spell` 3, `note` 4) + **73 textes de guide** (20 `take_quests` avec `&n`, désormais résolus) ; notre base ne porte que `plusieurs_personnes` (91), aucun `job`/`hours`/`spell` ; ② Dofusyelle : **57 étapes**, 54 avec quêtes, 35 avec donjons, **45 notes de donjon**, 9 aides — guide **autonome**, aucune correspondance de structure avec Tougli ; ③ piège mesuré : rattacher une note de donjon à toutes les quêtes du donjon posait « Ali 57 » sur **12** quêtes, et l'aide d'étape faisait de même.
-> **Fait** : ① `scripts/siphon-tougli-notes.ts` (zone volatile) : **73 notes** + **74 quêtes contraintes** ; ② `scripts/analyse-dofusyelle-notes.mjs` : **57 étapes · 45 notes de donjon** ; ③ règle pure `src/lib/rush-notes.ts` (`normalizeQuestKey`, `constraintLabel`, `cleanDofusyelleBody` qui retire les `[object Object]`, `correlateRushNotes` borné à 6 notes) + **10 tests** ; ④ `scripts/correlate-rush-notes.ts` (dry-run, `--apply --db`) ⇒ **22 conseils** écrits (dataset + base), **219** quêtes restent sans conseil ; ⑤ les notes de donjon et les `body` d'étape restent au **rapport**, non appliqués.
-> **Preuves** : base **273** conseils / 492 · `rush-notes` **10** · suite **596 fichiers / 6 260 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
-> **Reste / ops** : **219** conseils (dont Brâkmarien) ; **18** références Ali/Ordre à trancher pour appliquer les notes de donjon ; contrôle visuel bêta d'un conseil (« Joueurs : … », « Métier : … »).
-> **Rotation** : bloc « 02/11/2026 (suite 6) — la route à 3 étages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

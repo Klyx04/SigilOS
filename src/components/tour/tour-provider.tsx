@@ -39,7 +39,6 @@ export type TourPhase =
     | "ressources"
     | "docs"
     | "minijeu"
-    | "stats"
     | "presentation"
     | "guide"
     | "succes"
@@ -54,7 +53,7 @@ export type TourPhase =
 export const MODULE_TOUR_PHASES = [
     "missions", "ladder", "songes", "ocre",
     "services", "donjons", "calendar", "sondages", "annuaire",
-    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
+    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "presentation",
     "guide", "succes",
     "marche",
     "tickets",
@@ -1170,44 +1169,6 @@ const MINIJEU_STEPS: TourStep[] = [
     },
 ];
 
-const STATS_STEPS: TourStep[] = [
-    {
-        target: '[data-tour="stats-header"]',
-        title: "Statistiques Guilde",
-        description: "Suivez l'activité de votre guilde et de ses membres.",
-        placement: "bottom",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-overview"]',
-        title: "Indicateurs clés",
-        description: "Les KPI principaux de la guilde : effectifs, activité et progression.",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-charts"]',
-        title: "Graphiques",
-        description: "L'évolution de l'activité selon les modules activés (missions, songes, services…).",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-board"]',
-        title: "Vue d'ensemble",
-        description: "L'ensemble des statistiques de la guilde sur une seule page.",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="sidebar-la-guilde"]',
-        title: "Où le retrouver",
-        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
-        placement: "right",
-        module: "stats",
-    },
-];
-
 const PRESENTATION_STEPS: TourStep[] = [
     {
         target: '[data-tour="presentation-header"]',
@@ -1557,7 +1518,6 @@ export function TourProvider({
     const galerieSteps = applyFilters(GALERIE_STEPS);
     const ressourcesSteps = applyFilters(RESSOURCES_STEPS);
     const minijeuSteps = applyFilters(MINIJEU_STEPS);
-    const statsSteps = applyFilters(STATS_STEPS);
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
     const succesSteps = applyFilters(SUCCES_STEPS);
     const marcheSteps = applyFilters(MARCHE_STEPS);
@@ -1593,7 +1553,6 @@ export function TourProvider({
             case "galerie": return galerieSteps;
             case "ressources": return ressourcesSteps;
             case "minijeu": return minijeuSteps;
-            case "stats": return statsSteps;
             case "presentation": return presentationSteps;
             case "succes": return succesSteps;
             case "marche": return marcheSteps;
@@ -1791,9 +1750,6 @@ export function TourProvider({
                 break;
             case "minijeu":
                 router.push(`/dashboard/${guildId}/mini-jeux`);
-                break;
-            case "stats":
-                router.push(`/dashboard/${guildId}/stats`);
                 break;
             case "presentation":
                 router.push(`/dashboard/${guildId}/presentation`);

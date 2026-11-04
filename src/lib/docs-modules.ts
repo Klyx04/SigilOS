@@ -128,7 +128,6 @@ export const MODULE_DOC_COVERAGE: Record<string, ModuleDocCoverage> = {
     // Général
     presentation: { member: "presentation", staff: "admin-presentation" },
     roster: { member: "members", staff: "admin-members" },
-    stats: { member: "stats" },
     calendar: { member: "calendar", staff: "admin-calendar" },
     availability: { member: "disponibilites" },
     commandes: { member: "commandes", staff: "admin-commandes" },

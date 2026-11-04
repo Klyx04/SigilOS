@@ -169,7 +169,6 @@ describe("couverture — une seule vérité, jusqu'à la UI", () => {
         const files = [
             "src/app/dashboard/[guildId]/marche/page.tsx",
             "src/app/dashboard/[guildId]/services/page.tsx",
-            "src/app/dashboard/[guildId]/stats/page.tsx",
             "src/app/dashboard/[guildId]/succes/page.tsx",
             "src/app/dashboard/[guildId]/calendar/page.tsx",
             "src/app/dashboard/[guildId]/donjons-et-quetes/page.tsx",
@@ -323,7 +322,6 @@ describe("couverture — le verrou atteint enfin la carte de la guilde", () => {
             "src/app/dashboard/[guildId]/ressources/page.tsx",
             "src/app/dashboard/[guildId]/services/page.tsx",
             "src/app/dashboard/[guildId]/sondages/page.tsx",
-            "src/app/dashboard/[guildId]/stats/page.tsx",
             "src/app/dashboard/[guildId]/succes/page.tsx",
             "src/app/dashboard/[guildId]/worldmap/page.tsx",
             "src/app/overlay/worldmap/[guildId]/page.tsx",

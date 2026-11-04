@@ -267,7 +267,6 @@ export function AppSidebar({
             aliases: [
                 `/dashboard/${guildId}/welcome`,
                 `/dashboard/${guildId}/presentation`,
-                `/dashboard/${guildId}/stats`,
             ]
         },
 
@@ -624,13 +623,11 @@ export function AppSidebar({
                                                     aliases: [
                                                         `/dashboard/${guildId}/welcome`,
                                                         `/dashboard/${guildId}/presentation`,
-                                                        `/dashboard/${guildId}/stats`,
                                                     ]
                                                 }} 
                                                 isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
                                                     `/dashboard/${guildId}/welcome`,
                                                     `/dashboard/${guildId}/presentation`,
-                                                    `/dashboard/${guildId}/stats`,
                                                 ])} 
                                                 isPinned={false}
                                                 onPin={handleTogglePin}

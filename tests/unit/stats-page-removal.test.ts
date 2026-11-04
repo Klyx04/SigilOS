@@ -4,30 +4,43 @@
  * Phase 1 : page, 14 composants, catalogue, sidebar, tour et couverture documentaire.
  * Phase 2a : clé `stats` retirée du registre (`ModuleKey`/`GuildModulesState`/`DEFAULT_MODULES`),
  * du Zod, de `module-actions` et de `user-actions` ; `canViewStats` retiré.
- * Ce qui est **conservé** : `getGuildStats` + `QuickStatsRow` (accueil), la **colonne**
- * `GuildModules.stats` (rollback sûr, aucune migration), `RETIRED_MODULE_KEYS` et le
- * libellé legacy pour les données historiques.
+ * Phase 2b : **colonne `GuildModules.stats` supprimée** (migration `20270125000300`), restes de
+ * compatibilité retirés (`RETIRED_MODULE_KEYS`, libellé legacy) et asset orphelin supprimé.
+ * Ce qui reste **volontairement** : `getGuildStats` + `QuickStatsRow` (accueil du dashboard).
  */
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { MODULE_GROUPS, moduleLabel } from "@/lib/module-catalog";
-import { DEFAULT_MODULES, RETIRED_MODULE_KEYS } from "@/lib/module-types";
+import { DEFAULT_MODULES } from "@/lib/module-types";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+
+const MIGRATION = "prisma/migrations/20270125000300_drop_guild_modules_stats/migration.sql";
+
+/**
+ * Bloc du modèle Prisma `GuildModules`. Indispensable : `stats` existe aussi dans d'autres
+ * modèles (`MonsterStat.stats`, `MarketListing.stats`) — une recherche globale se tromperait.
+ */
+function guildModulesModel(): string {
+    const match = read("prisma/schema.prisma").match(/model GuildModules \{[\s\S]*?\n\}/);
+    if (!match) throw new Error("modèle GuildModules introuvable dans prisma/schema.prisma");
+    return match[0];
+}
 
 describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
     it("le dossier de la page et ses composants n'existent plus", () => {
         expect(fs.existsSync(path.join(ROOT, "src/app/dashboard/[guildId]/stats"))).toBe(false);
     });
 
-    it("le catalogue ne propose plus le module, mais garde son libellé historique", () => {
+    it("le catalogue ne propose plus le module et n'a plus de libellé legacy", () => {
         const keys = MODULE_GROUPS.flatMap((group) => group.modules.map((module) => module.key));
         expect(keys).not.toContain("stats");
-        expect(RETIRED_MODULE_KEYS.has("stats")).toBe(true);
-        expect(moduleLabel("stats")).toBe("Stats Guilde");
+        expect(moduleLabel("stats")).toBe("stats");
         expect(moduleLabel("pas-un-module")).toBe("pas-un-module");
+        expect(read("src/lib/module-catalog.ts")).not.toContain("LEGACY_MODULE_LABELS");
+        expect(read("src/lib/module-catalog.ts")).not.toContain("Stats Guilde");
     });
 
     it("la clé stats a quitté le registre et le RBAC (Phase 2a)", () => {
@@ -40,8 +53,23 @@ describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
         expect(read("src/components/layout/app-sidebar.tsx")).not.toContain("canViewStats");
     });
 
-    it("la colonne GuildModules.stats reste en base (aucune migration, rollback sûr)", () => {
-        expect(read("prisma/schema.prisma")).toMatch(/model GuildModules[\s\S]*?stats\s+Boolean\s+@default\(true\)/);
+    it("le schéma ne porte plus la colonne GuildModules.stats (Phase 2b)", () => {
+        expect(guildModulesModel()).not.toMatch(/\bstats\s+Boolean/);
+        // Garde-fou de lecture : le bloc extrait est bien celui du modèle.
+        expect(guildModulesModel()).toContain("disabledByGod");
+    });
+
+    it("la migration supprime la colonne, une seule fois, et dit qu'elle est irréversible", () => {
+        expect(fs.existsSync(path.join(ROOT, MIGRATION))).toBe(true);
+        const sql = read(MIGRATION);
+        expect(sql).toContain('ALTER TABLE "GuildModules" DROP COLUMN IF EXISTS "stats";');
+        expect(sql).toMatch(/IRR[ÉE]VERSIBLE/i);
+        expect(sql).not.toContain("DROP TABLE");
+    });
+
+    it("plus aucun reste de compatibilité pour un module retiré", () => {
+        expect(read("src/lib/module-types.ts")).not.toContain("RETIRED_MODULE_KEYS");
+        expect(read("src/server/actions/telemetry-product-actions.ts")).not.toContain("RETIRED_MODULE_KEYS");
     });
 
     it("plus aucun lien /stats dans la sidebar, le tour ou l'admin des modules", () => {
@@ -55,8 +83,9 @@ describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
         }
     });
 
-    it("la télémétrie exclut les modules retirés", () => {
-        expect(read("src/server/actions/telemetry-product-actions.ts")).toContain("RETIRED_MODULE_KEYS");
+    it("l'asset orphelin a disparu et n'est plus mappé", () => {
+        expect(fs.existsSync(path.join(ROOT, "public/assets/dofus/modules/guildActivity.png"))).toBe(false);
+        expect(read("src/lib/module-catalog.ts")).not.toContain("guildActivity");
     });
 
     it("l'accueil du dashboard garde getGuildStats et QuickStatsRow", () => {

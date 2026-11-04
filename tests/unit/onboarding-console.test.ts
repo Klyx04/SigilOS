@@ -84,7 +84,7 @@ const mockGetUserContext = getUserContext as ReturnType<typeof vi.fn>;
 
 function allOn(): Record<string, boolean> {
     return {
-        presentation: true, roster: true, stats: true, calendar: true,
+        presentation: true, roster: true, calendar: true,
         missions: true, songes: true, ocre: true, ladder: true,
         services: true, donjons: true, profile: true, docs: true,
         polls: true, availability: true, logs: true, admin: true,

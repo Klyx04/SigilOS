@@ -34,6 +34,21 @@ les lots récents, `20270107000000_…` par exemple) :
 - ⚠️ **ne jamais modifier une migration déjà appliquée** : Prisma vérifie son **checksum**, la retoucher
   fait échouer `migrate deploy`. On en ajoute une **nouvelle**.
 
+### 2 bis. Migration destructive (`DROP COLUMN`, `DROP TABLE`)
+
+Une migration peut **retirer** un objet, mais ce n'est pas la voie par défaut (règle additive,
+`docs/RULES.md` § Code Organization). Dans ce cas :
+
+- **accord explicite du mainteneur avant de l'écrire** (`AGENTS.md` §7) : c'est une perte de données ;
+- **sauvegarde de la base visée** (`pg_dump`) **avant** `migrate deploy`, bêta puis prod ;
+- **l'ordre de déploiement ferme le rollback de code** : `scripts/deploy-cd.sh` démarre la nouvelle
+  image **puis** joue les migrations. Après le drop, l'image précédente ne peut plus tourner — son
+  client Prisma sélectionne encore la colonne et échouerait sur « column … does not exist » ;
+- écrire dans l'en-tête le **SQL inverse** (ex. `ADD COLUMN IF NOT EXISTS … DEFAULT …`) : il remet le
+  service debout, il ne restaure **pas** les valeurs ;
+- la suite doit verrouiller le **SQL exact** et l'absence de l'objet dans le **bloc du modèle**
+  (un champ homonyme peut exister dans un autre modèle).
+
 ### 3. Appliquer en local, puis régénérer le client
 ```bash
 npx prisma migrate deploy   # joue les migrations EN ATTENTE sur la base locale (127.0.0.1:5433)

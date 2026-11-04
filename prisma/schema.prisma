@@ -643,7 +643,6 @@ model GuildModules {
   profile          Boolean     @default(true)
   roster           Boolean     @default(true)
   services         Boolean     @default(true)
-  stats            Boolean     @default(true)
   polls            Boolean     @default(true)
   admin            Boolean     @default(true)
   quests           Boolean     @default(false)

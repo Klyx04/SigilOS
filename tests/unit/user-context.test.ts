@@ -128,7 +128,7 @@ function makeGuildConfig(overrides: Record<string, any> = {}) {
         modules: {
             missions: true, songes: true, ocre: true, ladder: true,
             calendar: true, services: true, donjons: true, docs: true,
-            profile: true, roster: true, stats: true, presentation: true,
+            profile: true, roster: true, presentation: true,
             polls: true, logs: true, quests: true, worldmap: true,
             resources: true, ladderSync: false, manualLadderSync: false, minigames: true,
             succes: true,

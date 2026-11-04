@@ -179,6 +179,9 @@ async function main(): Promise<void> {
       addedTags: RushItemTag[];
       added: number;
     }> = [];
+    /** Patch SQL : la CIBLE complète par séquence (pas le delta local) — la base distante
+     *  n'a pas le même état, et l'UPDATE n'ajoute que les ids qui lui manquent. */
+    const sqlRows: Array<{ name: string; alignReq: string | null; questDbIds: number[]; items: TrameItem[] }> = [];
     const byHow = { questDbIds: 0, url: 0, nom: 0, aucun: 0 };
     const addedIds = new Set<string>();
     const skippedByCamp = new Map<string, number>();
@@ -193,7 +196,17 @@ async function main(): Promise<void> {
       byHow[match?.how ?? "aucun"] += 1;
       if (!match) continue;
 
-      const { tags, added, skipped } = mergeItemTags(sequence.activityTags, incomingItems(match.quest), {
+      const incoming = incomingItems(match.quest);
+      if (incoming.length > 0) {
+        sqlRows.push({
+          name: sequence.subGuideName,
+          alignReq: sequence.alignReq,
+          questDbIds: sequence.questDbIds ?? [],
+          items: incoming,
+        });
+      }
+
+      const { tags, added, skipped } = mergeItemTags(sequence.activityTags, incoming, {
         canonicalNames,
         maxTags: MAX_TAGS,
       });
@@ -238,24 +251,40 @@ async function main(): Promise<void> {
     }
 
     if (SQL) {
-      // Patch ADDITIF : il ajoute les tags absents DANS la base cible (bêta), id par id.
-      // Rien n'est écrasé : une édition God faite entre-temps reste en place.
-      console.log("\n-- patch additif (n'ajoute que les ids absents, n'écrase aucun tag existant)");
-      console.log("BEGIN;");
-      for (const write of writes) {
-        const payload = JSON.stringify(write.addedTags).replace(/\$j\$/g, "$ j$");
-        const where = write.questDbIds.length
-          ? `"questDbIds" && ARRAY[${write.questDbIds.join(",")}]::int[]`
-          : `"subGuideName" = ${sqlLiteral(write.name)} AND COALESCE("alignReq", '') = ${sqlLiteral(write.alignReq ?? "")}`;
-        console.log(
-          `UPDATE "GuideSequence" SET "activityTags" = COALESCE("activityTags", '[]'::jsonb) || COALESCE((` +
+      // Patch ADDITIF destiné à une AUTRE base (bêta / prod) : il part de la CIBLE complète de
+      // chaque quête et n'ajoute, DANS la base visée, que les ids qui lui manquent. Rien n'est
+      // écrasé : une édition God faite entre-temps reste en place, et un 2ᵉ passage n'écrit rien.
+      const statements = sqlRows
+        .map((row) => {
+          const tags = row.items
+            .map((item) => ({
+              type: "item",
+              id: rushItemId(item.id),
+              name: String(item.name ?? "").trim(),
+              count: Number(item.count) > 0 ? Math.trunc(Number(item.count)) : 1,
+            }))
+            .filter((tag) => tag.id !== null && tag.name);
+          if (tags.length === 0) return "";
+          const payload = JSON.stringify(tags).replace(/\$j\$/g, "$ j$");
+          const where = row.questDbIds.length
+            ? `"questDbIds" && ARRAY[${row.questDbIds.join(",")}]::int[]`
+            : `"subGuideName" = ${sqlLiteral(row.name)} AND COALESCE("alignReq", '') = ${sqlLiteral(row.alignReq ?? "")}`;
+          return (
+            `UPDATE "GuideSequence" SET "activityTags" = COALESCE("activityTags", '[]'::jsonb) || COALESCE((` +
             `SELECT jsonb_agg(t) FROM jsonb_array_elements($j$${payload}$j$::jsonb) t ` +
             `WHERE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE("activityTags", '[]'::jsonb)) e ` +
             `WHERE e->>'type' = 'item' AND e->>'id' = t->>'id')), '[]'::jsonb) ` +
             `WHERE "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre') ` +
-            `AND ${where};`,
-        );
-      }
+            `AND ${where} AND EXISTS (` +
+            `SELECT 1 FROM jsonb_array_elements($j$${payload}$j$::jsonb) t ` +
+            `WHERE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE("activityTags", '[]'::jsonb)) e ` +
+            `WHERE e->>'type' = 'item' AND e->>'id' = t->>'id'));`
+          );
+        })
+        .filter(Boolean);
+      console.log(`\n-- patch additif : ${statements.length} séquence(s) (n'ajoute que les ids absents, n'écrase aucun tag)`);
+      console.log("BEGIN;");
+      for (const statement of statements) console.log(statement);
       console.log("COMMIT;");
     }
 

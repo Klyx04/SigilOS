@@ -122,6 +122,16 @@ describe("le script d'enrichissement ne peut pas détruire un tag", () => {
     expect(read(SCRIPT)).toContain("[[22058, 32079]]");
   });
 
+  it("ne retire que sur demande explicite et whiteliste le Kamas synthétique", () => {
+    const source = read(SCRIPT);
+    expect(source).toContain('argv.includes("--prune-unknown")');
+    expect(source).toContain('valueOf("--drop-ids", "")');
+    expect(source).toContain("new Set<number>([10000000001])");
+    // Un id absent du catalogue n'a pas d'icône fiable (l'API renvoie l'item de repli 666).
+    expect(source).toContain("db.gameItem.findMany");
+    expect(source).toContain("isKnownItem(id)");
+  });
+
   it("ne supprime ni ne remplace en masse (jamais de re-seed, jamais d'écrasement)", () => {
     const source = read(SCRIPT);
     expect(source).not.toContain("deleteMany");

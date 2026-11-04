@@ -42,9 +42,16 @@ DISCORD_WEBHOOK_URL="${DISCORD_ADMIN_WEBHOOK:-}"
 
 send_alert() {
     local message=$1
-    if [ ! -z "$DISCORD_WEBHOOK_URL" ]; then
-        curl -X POST -H "Content-Type: application/json" -d "{\"content\": \"🚨 **[SigilOS Infra]** $message\"}" "$DISCORD_WEBHOOK_URL"
+    if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+        # ⚠️ Mesure du 04/11/2026 : `DISCORD_ADMIN_WEBHOOK` était présent dans `.env` et
+        # `.env.prod` mais **absent de `.env.beta`** — or le cron charge `.env.beta` par défaut
+        # (`TARGET_BASE` vide en cron). Résultat : les 5 alertes infra (disque >85 %, Redis >60 %,
+        # Redis sans plafond, maintenance échouée, reboot-required) étaient **silencieuses**.
+        # On ne peut pas deviner que le canal manque : on le dit dans le log.
+        echo "⚠️  DISCORD_ADMIN_WEBHOOK absent de $ENV_FILE : alerte NON envoyée → $message"
+        return
     fi
+    curl -X POST -H "Content-Type: application/json" -d "{\"content\": \"🚨 **[SigilOS Infra]** $message\"}" "$DISCORD_WEBHOOK_URL"
 }
 
 send_god_notif() {

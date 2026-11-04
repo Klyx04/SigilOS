@@ -849,9 +849,17 @@ salon de notification est un **forum** (un post de forum est un thread).
 ---
 ## 📞 Contacts & Alertes
 
-**Discord Webhook**: Configuré dans `.env.prod`  
-**Variable**: `DISCORD_ADMIN_WEBHOOK`  
-**Alertes**: Saturation disque >85% (webhook Discord) + Sentry (erreurs). **Pas d'Alertmanager** : Prometheus n'envoie aucune alerte.
+**Discord Webhook** : `DISCORD_ADMIN_WEBHOOK`, à poser dans **`.env.beta` ET `.env.prod`**. ⚠️ Le cron
+de maintenance charge **`.env.beta` par défaut** (`TARGET_BASE` est vide en cron) : une variable posée
+seulement dans `.env.prod` est **invisible** pour lui. Mesure du 04/11/2026 : présente dans `.env` et
+`.env.prod`, absente de `.env.beta` → les 5 alertes infra étaient **silencieuses**. `maintenance.sh`
+écrit désormais `⚠️ DISCORD_ADMIN_WEBHOOK absent de <fichier> : alerte NON envoyée` dans
+`logs/maintenance.log`.
+**Variable** : `DISCORD_ADMIN_WEBHOOK`  
+**Alertes** : saturation disque >85 %, Redis >60 % ou sans plafond, **reboot-required**
+(`/var/run/reboot-required`), échec de maintenance → webhook Discord. **Pas d'Alertmanager** :
+Prometheus n'envoie aucune alerte.
+**Contrôle** : `grep -q '^DISCORD_ADMIN_WEBHOOK=https' ~/SigilOS/.env.beta && echo ok || echo absent`
 
 ---
 

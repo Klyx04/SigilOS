@@ -13,7 +13,7 @@ import { getLiveNotifySettings, saveLiveNotifySettings, sendLiveNotifyTest } fro
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
-import { TwitchIcon } from "@/components/icons/brand-icons";
+import { TwitchIcon, YouTubeIcon } from "@/components/icons/brand-icons";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface SystemSettingsClientProps {
@@ -24,7 +24,9 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
     const [newsEnabled, setNewsEnabled] = useState<boolean>(false);
     const [lifecycleChannelId, setLifecycleChannelId] = useState<string>("");
-    const [liveChannelId, setLiveChannelId] = useState<string>("");
+    const [twitchChannelId, setTwitchChannelId] = useState<string>("");
+    const [youtubeChannelId, setYoutubeChannelId] = useState<string>("");
+    const [twitchEnabled, setTwitchEnabled] = useState<boolean>(true);
     const [livePingRoleIds, setLivePingRoleIds] = useState<string[]>([]);
     const [youtubeEnabled, setYoutubeEnabled] = useState<boolean>(true);
     const [guildRoles, setGuildRoles] = useState<Array<{ id: string; name: string; color: number }>>([]);
@@ -38,8 +40,10 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         channelId: string;
         newsEnabled: boolean;
         lifecycleChannelId: string;
-        liveChannelId: string;
+        twitchChannelId: string;
+        youtubeChannelId: string;
         livePingRoleIds: string[];
+        twitchEnabled: boolean;
         youtubeEnabled: boolean;
     };
     const [initialConfig, setInitialConfig] = useState<SystemConfigSnapshot | null>(null);
@@ -48,10 +52,21 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         channelId,
         newsEnabled,
         lifecycleChannelId,
-        liveChannelId,
+        twitchChannelId,
+        youtubeChannelId,
         livePingRoleIds,
+        twitchEnabled,
         youtubeEnabled,
-    }), [channelId, newsEnabled, lifecycleChannelId, liveChannelId, livePingRoleIds, youtubeEnabled]);
+    }), [
+        channelId,
+        newsEnabled,
+        lifecycleChannelId,
+        twitchChannelId,
+        youtubeChannelId,
+        livePingRoleIds,
+        twitchEnabled,
+        youtubeEnabled,
+    ]);
 
     const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
 
@@ -66,22 +81,32 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
 
             const live = liveRes.success && liveRes.data
                 ? liveRes.data
-                : { channelId: null, pingRoleIds: [], youtubeEnabled: true };
+                : {
+                    twitchChannelId: null,
+                    youtubeChannelId: null,
+                    pingRoleIds: [],
+                    twitchEnabled: true,
+                    youtubeEnabled: true,
+                };
 
             if ((sysRes.success && sysRes.data) || (missionRes.success && missionRes.data) || liveRes.success) {
                 const loaded: SystemConfigSnapshot = {
                     channelId: (sysRes.success && sysRes.data ? sysRes.data.systemNotifyChannelId : "") || "",
                     newsEnabled: missionRes.success && missionRes.data ? (missionRes.data.newsBroadcastEnabled || false) : false,
                     lifecycleChannelId: missionRes.success && missionRes.data ? (missionRes.data.lifecycleNotifyChannelId || "") : "",
-                    liveChannelId: live.channelId || "",
+                    twitchChannelId: live.twitchChannelId || "",
+                    youtubeChannelId: live.youtubeChannelId || "",
                     livePingRoleIds: live.pingRoleIds,
+                    twitchEnabled: live.twitchEnabled ?? true,
                     youtubeEnabled: live.youtubeEnabled ?? true,
                 };
                 setChannelId(loaded.channelId);
                 setNewsEnabled(loaded.newsEnabled);
                 setLifecycleChannelId(loaded.lifecycleChannelId);
-                setLiveChannelId(loaded.liveChannelId);
+                setTwitchChannelId(loaded.twitchChannelId);
+                setYoutubeChannelId(loaded.youtubeChannelId);
                 setLivePingRoleIds(loaded.livePingRoleIds);
+                setTwitchEnabled(loaded.twitchEnabled);
                 setYoutubeEnabled(loaded.youtubeEnabled);
                 setInitialConfig(loaded);
             }
@@ -116,8 +141,10 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
             });
 
             const liveResult = await saveLiveNotifySettings(guildId, {
-                channelId: liveChannelId.trim() || null,
+                twitchChannelId: twitchChannelId.trim() || null,
+                youtubeChannelId: youtubeChannelId.trim() || null,
                 pingRoleIds: livePingRoleIds,
+                twitchEnabled,
                 youtubeEnabled,
             });
 
@@ -319,38 +346,76 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                     </Card>
                 </div>
 
-                {/* 4. ANNONCES DE LIVE */}
+                {/* 4. ANNONCES DE CRÉATEURS */}
                 <Card className="bg-surface/60 border-border overflow-hidden">
                     <CardHeader className="pb-4 border-b border-border/50">
                         <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
-                            <span className="p-1.5 rounded-lg bg-[#9146FF]/15 text-[#9146FF]">
-                                <TwitchIcon className="h-4 w-4" />
+                            <span className="p-1.5 rounded-lg bg-elevated text-muted-foreground">
+                                <Bell className="h-4 w-4" />
                             </span>
-                            Annonces de live Twitch
+                            Annonces de créateurs
                         </CardTitle>
                         <CardDescription className="text-xs text-muted-foreground">
-                            Un seul message par live Twitch et par nouvelle vidéo YouTube : photo, jeu et spécialité, miniature, lien. Vérifié toutes les 5 minutes.
+                            Deux salons distincts : un pour les lives Twitch, un pour les nouvelles vidéos YouTube.
+                            Une annonce par live et par vidéo, vérifiée toutes les 5 minutes.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-5">
-                        <div className="space-y-2">
-                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
-                                Salon des annonces
-                            </label>
-                            <DiscordChannelPicker
-                                guildId={guildId}
-                                value={liveChannelId}
-                                onChange={setLiveChannelId}
-                            />
-                            <p className="text-caption text-muted-foreground">
-                                Laissez vide pour désactiver les annonces.
-                            </p>
+                        {/* Lives Twitch */}
+                        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                                        <TwitchIcon className="h-3.5 w-3.5 text-[#9146FF]" />
+                                        Lives Twitch
+                                    </p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Un message par session de stream.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={twitchEnabled}
+                                    onCheckedChange={setTwitchEnabled}
+                                    aria-label="Activer les annonces de lives Twitch"
+                                />
+                            </div>
+                            {twitchEnabled && (
+                                <div className="space-y-2">
+                                    <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        Salon des lives Twitch
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={twitchChannelId}
+                                        onChange={setTwitchChannelId}
+                                    />
+                                    {!twitchChannelId && (
+                                        <p className="text-caption text-warning">
+                                            Choisissez un salon : sans salon, aucune annonce Twitch n’est envoyée.
+                                        </p>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleTestLive}
+                                        disabled={isTestingLive || !twitchChannelId}
+                                        className="w-full h-10"
+                                    >
+                                        {isTestingLive ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                            <Send className="h-4 w-4 mr-2" />
+                                        )}
+                                        Envoyer un test Twitch
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
                                 <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
-                                    Rôles à ping
+                                    Rôles à ping (Twitch et YouTube)
                                 </label>
                                 <span className="text-caption text-muted-foreground">{livePingRoleIds.length}/5</span>
                             </div>
@@ -370,7 +435,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                                 onClick={() => toggleLivePingRole(role.id)}
                                                 className={
                                                     active
-                                                        ? "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-[#9146FF]/20 border-[#9146FF]/40 text-foreground transition-colors"
+                                                        ? "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-foreground/10 border-border-strong text-foreground transition-colors"
                                                         : "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-elevated/40 border-border text-muted-foreground hover:text-foreground transition-colors"
                                                 }
                                             >
@@ -385,30 +450,43 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                             </p>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-surface/60">
-                            <div className="space-y-0.5">
-                                <p className="text-xs font-semibold text-foreground">Nouvelles vidéos YouTube</p>
-                                <p className="text-caption text-muted-foreground">
-                                    Une annonce par vidéo, via le flux de la chaîne (aucun quota).
-                                </p>
+                        {/* Nouvelles vidéos YouTube */}
+                        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                                        <YouTubeIcon className="h-3.5 w-3.5 text-[#FF0000]" />
+                                        Nouvelles vidéos YouTube
+                                    </p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Une annonce par vidéo, via le flux de la chaîne (aucun quota).
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={youtubeEnabled}
+                                    onCheckedChange={setYoutubeEnabled}
+                                    aria-label="Activer les annonces de nouvelles vidéos YouTube"
+                                />
                             </div>
-                            <Switch checked={youtubeEnabled} onCheckedChange={setYoutubeEnabled} />
+                            {youtubeEnabled && (
+                                <div className="space-y-2">
+                                    <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        Salon des vidéos YouTube
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={youtubeChannelId}
+                                        onChange={setYoutubeChannelId}
+                                    />
+                                    {!youtubeChannelId && (
+                                        <p className="text-caption text-warning">
+                                            Choisissez un salon : sans salon, aucune annonce YouTube n’est envoyée.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleTestLive}
-                            disabled={isTestingLive || !liveChannelId}
-                            className="w-full h-10"
-                        >
-                            {isTestingLive ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                                <Send className="h-4 w-4 mr-2" />
-                            )}
-                            Envoyer un test
-                        </Button>
                     </CardContent>
                 </Card>
             </div>

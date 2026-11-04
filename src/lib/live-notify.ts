@@ -7,6 +7,7 @@
  * repart au passage suivant au lieu d'être perdu pour toute la session.
  *
  * Deux garde-fous anti-bruit :
+ * - **interrupteur de guilde** : `notifyTwitchLives` à `false` ⇒ aucune annonce, même avec un salon ;
  * - **âge maximal** : un live commencé il y a plus de 2 h n'est pas annoncé (après un
  *   redéploiement, on ne réveille pas la guilde pour un stream commencé la veille) ;
  * - **ping optionnel** : `livePingRoleIds` vide ⇒ **sans ping**. Aucun repli sur `@everyone`.
@@ -79,19 +80,22 @@ export const LIVE_SNAPSHOT_TTL_SECONDS = 15 * 60;
 
 export type LiveAnnounceDecision =
     | { announce: true; reason: "ok" }
-    | { announce: false; reason: "no_channel" | "already_notified" | "too_old" | "invalid_start" };
+    | { announce: false; reason: "disabled" | "no_channel" | "already_notified" | "too_old" | "invalid_start" };
 
 /**
- * Faut-il poster l'annonce de ce live dans cette guilde ? **Une seule question**, quatre raisons
- * de refuser — l'ordre compte : un canal absent est plus définitif qu'une date illisible.
+ * Faut-il poster l'annonce de ce live dans cette guilde ? **Une seule question**, cinq raisons
+ * de refuser — l'ordre compte : un interrupteur coupé ou un salon absent est plus définitif
+ * qu'une date illisible.
  */
 export function shouldAnnounceLive(input: {
     channelId: string | null | undefined;
+    enabled?: boolean;
     alreadyNotified: boolean;
     startedAt: Date | string;
     now: Date;
     maxStartAgeMs?: number;
 }): LiveAnnounceDecision {
+    if (input.enabled === false) return { announce: false, reason: "disabled" };
     if (!input.channelId) return { announce: false, reason: "no_channel" };
     if (input.alreadyNotified) return { announce: false, reason: "already_notified" };
 

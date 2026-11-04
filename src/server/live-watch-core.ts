@@ -263,9 +263,10 @@ export async function runLiveWatch(options: { now?: Date } = {}): Promise<LiveWa
     }
 
     const guilds = await db.guildConfig.findMany({
-        // Garde d'état dans le `WHERE` : jamais une guilde désactivée, jamais sans salon.
-        where: { isActive: true, liveNotifyChannelId: { not: null } },
-        select: { id: true, liveNotifyChannelId: true, livePingRoleIds: true },
+        // Garde d'état dans le `WHERE` : jamais une guilde désactivée, jamais sans salon Twitch,
+        // jamais avec l'interrupteur Twitch coupé.
+        where: { isActive: true, liveNotifyChannelId: { not: null }, notifyTwitchLives: true },
+        select: { id: true, liveNotifyChannelId: true, livePingRoleIds: true, notifyTwitchLives: true },
     });
     outcome.guilds = guilds.length;
 
@@ -286,6 +287,7 @@ export async function runLiveWatch(options: { now?: Date } = {}): Promise<LiveWa
 
             const decision = shouldAnnounceLive({
                 channelId: guild.liveNotifyChannelId,
+                enabled: guild.notifyTwitchLives,
                 alreadyNotified,
                 startedAt: stream.startedAt,
                 now,

@@ -170,9 +170,15 @@ export async function runYouTubeWatch(options: { now?: Date } = {}): Promise<You
     if (creators.length === 0) return outcome;
 
     const guilds = await db.guildConfig.findMany({
-        // Une guilde désactivée ou sans salon ne reçoit rien, jamais.
-        where: { isActive: true, liveNotifyChannelId: { not: null } },
-        select: { id: true, liveNotifyChannelId: true, livePingRoleIds: true, notifyYouTubeUploads: true },
+        // Une guilde désactivée, sans **salon YouTube** ou avec l'interrupteur coupé ne reçoit
+        // rien, jamais. Le salon Twitch n'entre pas dans cette décision.
+        where: { isActive: true, youtubeNotifyChannelId: { not: null }, notifyYouTubeUploads: true },
+        select: {
+            id: true,
+            youtubeNotifyChannelId: true,
+            livePingRoleIds: true,
+            notifyYouTubeUploads: true,
+        },
     });
     outcome.guilds = guilds.length;
     if (guilds.length === 0) return outcome;
@@ -204,7 +210,7 @@ export async function runYouTubeWatch(options: { now?: Date } = {}): Promise<You
                 }
 
                 const decision = shouldAnnounceVideo({
-                    channelId: guild.liveNotifyChannelId,
+                    channelId: guild.youtubeNotifyChannelId,
                     enabled: guild.notifyYouTubeUploads,
                     alreadyNotified,
                     publishedAt: video.publishedAt,
@@ -222,7 +228,7 @@ export async function runYouTubeWatch(options: { now?: Date } = {}): Promise<You
                 );
 
                 try {
-                    const messageId = await sendChannelMessage(guild.liveNotifyChannelId as string, "", payload);
+                    const messageId = await sendChannelMessage(guild.youtubeNotifyChannelId as string, "", payload);
                     if (!messageId) {
                         outcome.failed += 1;
                         continue;

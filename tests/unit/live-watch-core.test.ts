@@ -34,7 +34,12 @@ const mockRedis = redis as any;
 const mockSend = sendChannelMessage as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-11-02T20:00:00.000Z");
-const GUILD = { id: "guild-internal", liveNotifyChannelId: "123456789012345678", livePingRoleIds: [] as string[] };
+const GUILD = {
+    id: "guild-internal",
+    liveNotifyChannelId: "123456789012345678",
+    livePingRoleIds: [] as string[],
+    notifyTwitchLives: true,
+};
 
 let streamsPayload: any[] = [];
 
@@ -111,6 +116,26 @@ describe("runLiveWatch", () => {
         expect(dedup?.[2]).toBe("EX");
 
         expect(mockSend.mock.invocationCallOrder[0]).toBeLessThan(mockRedis.set.mock.invocationCallOrder.at(-1)!);
+    });
+
+    it("interrupteur Twitch coupé ⇒ aucune annonce, même avec un salon", async () => {
+        mockDb.guildConfig.findMany.mockResolvedValue([{ ...GUILD, notifyTwitchLives: false }]);
+
+        const outcome = await runLiveWatch({ now: NOW });
+
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(outcome.reasons.disabled).toBe(1);
+    });
+
+    it("ne sélectionne que les guildes avec un salon Twitch et l'interrupteur actif", async () => {
+        await runLiveWatch({ now: NOW });
+
+        const query = mockDb.guildConfig.findMany.mock.calls[0][0];
+        expect(query.where).toMatchObject({
+            isActive: true,
+            liveNotifyChannelId: { not: null },
+            notifyTwitchLives: true,
+        });
     });
 
     it("un live déjà annoncé ne repart pas — même session, même clé", async () => {

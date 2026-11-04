@@ -32,7 +32,7 @@ const mockSend = sendChannelMessage as unknown as ReturnType<typeof vi.fn>;
 const NOW = new Date("2026-11-02T20:00:00.000Z");
 const GUILD = {
     id: "guild-internal",
-    liveNotifyChannelId: "123456789012345678",
+    youtubeNotifyChannelId: "123456789012345678",
     livePingRoleIds: [] as string[],
     notifyYouTubeUploads: true,
 };
@@ -118,7 +118,8 @@ describe("runYouTubeWatch", () => {
 
         expect(outcome.notified).toBe(1);
         expect(mockSend).toHaveBeenCalledTimes(1);
-        const [, content, payload] = mockSend.mock.calls[0];
+        const [channelId, content, payload] = mockSend.mock.calls[0];
+        expect(channelId).toBe(GUILD.youtubeNotifyChannelId);
         expect(content).toBe("");
         expect(payload.embedColor).toBe(0xff0000);
         expect(payload.embedAuthor.name).toContain("Huzounet");
@@ -135,6 +136,28 @@ describe("runYouTubeWatch", () => {
 
         expect(mockSend).not.toHaveBeenCalled();
         expect(outcome.reasons.already_notified).toBe(1);
+    });
+
+    it("sans salon YouTube, rien n'est envoyé — même si le salon Twitch existe", async () => {
+        mockDb.guildConfig.findMany.mockResolvedValue([
+            { ...GUILD, youtubeNotifyChannelId: null, liveNotifyChannelId: "123456789012345678" },
+        ]);
+
+        const outcome = await runYouTubeWatch({ now: NOW });
+
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(outcome.reasons.no_channel).toBe(1);
+    });
+
+    it("ne sélectionne que les guildes avec un salon YouTube et l'interrupteur actif", async () => {
+        await runYouTubeWatch({ now: NOW });
+
+        const query = mockDb.guildConfig.findMany.mock.calls[0][0];
+        expect(query.where).toMatchObject({
+            isActive: true,
+            youtubeNotifyChannelId: { not: null },
+            notifyYouTubeUploads: true,
+        });
     });
 
     it("guilde qui a coupé YouTube ⇒ rien, même avec un salon configuré", async () => {

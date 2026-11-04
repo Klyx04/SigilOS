@@ -103,6 +103,28 @@ describe("une annonce par session de stream", () => {
         ).toBe(true);
     });
 
+    it("interrupteur coupé ⇒ refus, même avec un salon", () => {
+        expect(
+            shouldAnnounceLive({
+                channelId: "123456789012345678",
+                enabled: false,
+                alreadyNotified: false,
+                startedAt: NOW,
+                now: NOW,
+            }),
+        ).toEqual({ announce: false, reason: "disabled" });
+
+        expect(
+            shouldAnnounceLive({
+                channelId: null,
+                enabled: false,
+                alreadyNotified: false,
+                startedAt: NOW,
+                now: NOW,
+            }),
+        ).toEqual({ announce: false, reason: "disabled" });
+    });
+
     it("une date illisible ne notifie jamais", () => {
         expect(
             shouldAnnounceLive({

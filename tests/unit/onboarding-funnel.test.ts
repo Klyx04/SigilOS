@@ -152,7 +152,7 @@ describe("onboarding-funnel A-Z", () => {
  *
  * 🔍 Défauts mesurés à la lecture :
  *   ① le layout recopiait une liste de 14 clés qui avait **dérivé** du registre
- *      (`DEFAULT_MODULES` compte 27 clés : `marche`, `commandes`, `tickets`, `succes`, `minigames`,
+ *      (`DEFAULT_MODULES` compte 28 clés : `marche`, `commandes`, `tickets`, `succes`, `minigames`,
  *      `logs`, `gallery`, `reactionRoles`, `worldmap`, `quests`, `resources`, `ladderSync`,
  *      `manualLadderSync`, `availability` manquaient) ;
  *   ② elle comptait `admin` — le panneau de configuration, actif **par construction**

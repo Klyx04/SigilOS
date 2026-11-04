@@ -10,7 +10,7 @@ import { GodCard, GodSectionHeader, GodBadge } from "../../ui";
 const ORDER: ModuleKey[] = [
     "missions", "songes", "ocre", "ladder", "donjons", "quests", "worldmap",
     "resources", "services", "marche", "calendar", "polls", "minigames", "succes",
-    "gallery", "roster", "stats", "profile", "presentation", "docs",
+    "gallery", "roster", "profile", "presentation", "docs",
     "availability", "logs", "reactionRoles", "tickets", "commandes",
     "ladderSync", "manualLadderSync", "scheduledPolls",
 ];

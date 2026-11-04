@@ -1,16 +1,18 @@
 /**
  * Suppression de la page morte « Stats Guilde » — **verrou de non-régression**.
  *
- * Ce qui est supprimé : la page, ses 14 composants, la carte du catalogue, les alias de
- * la sidebar, le tour guidé et la couverture documentaire.
- * Ce qui est **conservé** : `getGuildStats` + `QuickStatsRow` (accueil), `canViewStats`,
- * `GuildModules.stats` (aucune migration) et un libellé legacy pour les données historiques.
+ * Phase 1 : page, 14 composants, catalogue, sidebar, tour et couverture documentaire.
+ * Phase 2a : clé `stats` retirée du registre (`ModuleKey`/`GuildModulesState`/`DEFAULT_MODULES`),
+ * du Zod, de `module-actions` et de `user-actions` ; `canViewStats` retiré.
+ * Ce qui est **conservé** : `getGuildStats` + `QuickStatsRow` (accueil), la **colonne**
+ * `GuildModules.stats` (rollback sûr, aucune migration), `RETIRED_MODULE_KEYS` et le
+ * libellé legacy pour les données historiques.
  */
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { MODULE_GROUPS, moduleLabel } from "@/lib/module-catalog";
-import { RETIRED_MODULE_KEYS } from "@/lib/module-types";
+import { DEFAULT_MODULES, RETIRED_MODULE_KEYS } from "@/lib/module-types";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -26,6 +28,20 @@ describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
         expect(RETIRED_MODULE_KEYS.has("stats")).toBe(true);
         expect(moduleLabel("stats")).toBe("Stats Guilde");
         expect(moduleLabel("pas-un-module")).toBe("pas-un-module");
+    });
+
+    it("la clé stats a quitté le registre et le RBAC (Phase 2a)", () => {
+        expect("stats" in DEFAULT_MODULES).toBe(false);
+        expect(read("src/lib/module-types.ts")).not.toContain('| "stats"');
+        expect(read("src/server/actions/module-actions.ts")).not.toContain("stats: z.boolean");
+        expect(read("src/server/actions/module-actions.ts")).not.toContain("dbModules.stats");
+        expect(read("src/server/actions/user-actions.ts")).not.toContain("canViewStats");
+        expect(read("src/server/actions/user-actions.ts")).not.toContain("mod?.stats");
+        expect(read("src/components/layout/app-sidebar.tsx")).not.toContain("canViewStats");
+    });
+
+    it("la colonne GuildModules.stats reste en base (aucune migration, rollback sûr)", () => {
+        expect(read("prisma/schema.prisma")).toMatch(/model GuildModules[\s\S]*?stats\s+Boolean\s+@default\(true\)/);
     });
 
     it("plus aucun lien /stats dans la sidebar, le tour ou l'admin des modules", () => {

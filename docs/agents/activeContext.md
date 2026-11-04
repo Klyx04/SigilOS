@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite 6) — **Stats, Phase 2a : la clé quitte le registre, la colonne reste** — branche `chore/stats-phase2a`
+
+> **Demande user (verbatim)** : « on casse quoi rien j'espère ? » — puis « GO » sur la Phase 2a (nettoyage code, sans migration).
+> **Mesures** : ① `canViewStats` est un **alias strict** de `canViewWelcome` (`DASHBOARD_LOGIN || isAdminFinal`), consommé uniquement par la sidebar (2 conditions), `user-actions` et 4 assertions de test — aucun service/bot ; ② la colonne `GuildModules.stats` n'est lue que par `module-actions` (`dbModules.stats`) et le `select` de `getUserContext` ; la **supprimer** exposerait un rollback et les vieux clients Prisma (`column does not exist`) ; ③ `RETIRED_MODULE_KEYS` filtre déjà la colonne dans la télémétrie et `moduleLabel("stats")` garde le libellé historique ; ④ `tsc` a révélé deux écrans oubliés (ordre God, explorateur de modules) qui listaient encore la clé.
+> **Fait** : ① `stats` retiré de `ModuleKey`, `GuildModulesState`, `DEFAULT_MODULES`, du Zod et du merge de `module-actions`, du `select` et du `applyModule` de `user-actions` ; ② `canViewStats` retiré (type, défauts, calcul, application, verrou onboarding) et les 2 conditions sidebar ramenées à `canViewWelcome || canViewPresentation` — **aucun changement de visibilité** ; ③ 4 assertions retirées, le verrou « `stats:view` ne donne pas Audit Logs » conservé ; ④ `stats-page-removal` étendu à **8 tests**, entrées `stats` retirées de l'explorateur de modules et de l'ordre God ; ⑤ **conservés** : colonne `GuildModules.stats`, `RETIRED_MODULE_KEYS`, libellé legacy, asset `guildActivity.png` — **aucune migration**.
+> **Preuves** : `stats-page-removal` **8** · `user-context` **46** · `module-lock` **27** · `onboarding-funnel` **34** · `modules-select` **3** ⇒ **118/118 ✓** · suite **600 fichiers / 6 305 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : Phase 2b (hors lot) — `DROP COLUMN` seulement après la fenêtre de rollback, avec accord explicite ; sinon la colonne peut rester indéfiniment.
+> **Rotation** : bloc « 04/11/2026 — Rush : 25 conseils écrits » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 04/11/2026 (suite 5) — **Suppression de la page morte « Stats Guilde »** — branche `chore/remove-stats-page`
 
 > **Demande user (verbatim)** : « analyse 'src/temp/debug.md' … attention je veux uniquement supprimer cette page de stat morte et ses composants sans casser d'autres composant utilisés » — puis « oui » au libellé legacy.
@@ -53,11 +63,3 @@
 > **Fait** : ① règle pure `src/lib/rush-resource-tags.ts` — `mergeItemTags` ajoute les ids absents, **ne réécrit ni ne supprime jamais**, `count` borné, **nom canonique** réutilisé (clé `id|nom` stable) ; ② script `enrich-rush-guide-resources.ts` — appariement `questDbIds`→URL→nom, dry-run, `--apply --db`, `--sql` **additif** (bêta), remap `22058→32079` ; ③ **81 séquences** enrichies, **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485 ids** ; Brâkmarien **1 → 151 ids** / **65** séquences (contre 1).
 > **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 274 ✓** · `tsc` 0 · ESLint 0 erreur · **2ᵉ passage = 0 écriture** · 0 tag sans nom / quantité invalide · **486 clés pour 485 ids** (seul doublon **9687**, antérieur) · dataset **inchangé** · **aucune migration**.
 > **Reste / ops** : **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par étape) ; bêta — `--sql` puis God ▸ « Pré-chauffer les icônes du guide » (**95** ids) ; prochain lot **V-H**.
-## 📝 Session 04/11/2026 — **Rush : 25 conseils écrits (contraintes Tougli, rattachement par `questDbIds`)** — branche `feat/rush-brakmarien`
-
-> **Demande user (verbatim)** : « lot A ok, Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO sur A puis B.
-> **Mesures** : ① le script de corrélation prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les **121** Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0** ; ② sur ces 121 séquences, **115 n'ont AUCUN tag** (ni objet, ni donjon, ni position) et **117** n'ont pas de conseil ; ③ les **74** quêtes Tougli contraintes portent un `questId` DofusDB ⇒ le rattachement **exact** est possible (l'ancien passait par le nom).
-> **Fait** : ① `rush-notes.ts` — `NoteTarget.questIds` + index par id (l'id tranche, le nom reste le repli), **2 tests** de plus ; ② `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base) et n'écrit jamais un texte contenant `&n` ; ③ **25 conseils** écrits en base locale (**19 Brâkmarien + 6 Bontarien**, 28 contraintes `needPlayer` 24 / `job` 6), **dataset inchangé** (ces quêtes n'y sont pas).
-> **Preuves** : `rush-notes` **12** · base **298** conseils / **194** restants (98 Brâkmarien · 42 Bontarien · 54 hors route) · **2ᵉ passage = 0 écriture** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
-> **Reste / ops** : **194** conseils, dont **98 Brâkmarien sans aucune source** (Tougli n'a aucun texte de quête) ; `--sql` (patch additif, `tips` vide uniquement) sur la bêta ; prochain lot **V-H** (ressources livrées en V-D1).
-> **Rotation** : bloc « 02/11/2026 (suite 7) — outillage God de la route (G0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

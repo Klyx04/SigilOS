@@ -48,10 +48,26 @@ const ITEM_ID_REMAP = new Map<number, number>([[22058, 32079]]);
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
 const SQL = argv.includes("--sql");
+const PRUNE = argv.includes("--prune-unknown");
 const valueOf = (flag: string, fallback: string): string => {
   const i = argv.indexOf(flag);
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
+/** Ids à retirer explicitement (ex. `--drop-ids 7696`) — indépendant de l'état de la base locale. */
+const DROP_IDS = new Set<number>(
+  valueOf("--drop-ids", "")
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((id) => Number.isSafeInteger(id) && id > 0),
+);
+
+/**
+ * Ids **synthétiques** du guide : le Kamas porte `10000000001`, absent du catalogue `GameItem`
+ * mais servi par une icône locale (`items/10000000001.webp`). Tous les autres ids doivent
+ * exister dans `GameItem` — sinon l'API renvoie l'item de repli 666 (défaut mesuré : `7696`
+ * « Dragofesse en Cuir Violet de Bwork », poussé par la trame Tougli le 04/11/2026).
+ */
+const SYNTHETIC_ICON_IDS = new Set<number>([10000000001]);
 
 type TrameItem = { id?: number | string | null; name?: string | null; count?: number | null };
 type TrameQuest = { id?: number; name?: string; dnpl?: string; items?: TrameItem[] };
@@ -170,6 +186,26 @@ async function main(): Promise<void> {
       }
     }
 
+    // Garde catalogue : un id absent de `GameItem` n'a pas d'icône fiable (l'API renvoie 666).
+    const catalogueIds = new Set<number>(
+      (await db.gameItem.findMany({ select: { ankamaId: true } })).map((row) => row.ankamaId),
+    );
+    const isKnownItem = (id: number) => catalogueIds.has(id) || SYNTHETIC_ICON_IDS.has(id);
+    const unknownItemIds = new Set<string>();
+    for (const sequence of sequences) {
+      for (const tag of sequence.activityTags ?? []) {
+        if (tag?.type !== "item") continue;
+        const id = rushItemId(tag.id);
+        if (id !== null && !isKnownItem(id)) unknownItemIds.add(String(id));
+      }
+    }
+    if (unknownItemIds.size > 0) {
+      console.log(
+        `catalogue   : ${unknownItemIds.size} id(s) inconnu(s) — ${[...unknownItemIds].join(", ")}` +
+          `${PRUNE ? " (retirés)" : " (laissés ; --prune-unknown pour les retirer)"}`,
+      );
+    }
+
     const writes: Array<{
       id: string;
       name: string;
@@ -196,7 +232,10 @@ async function main(): Promise<void> {
       byHow[match?.how ?? "aucun"] += 1;
       if (!match) continue;
 
-      const incoming = incomingItems(match.quest);
+      const incoming = incomingItems(match.quest).filter((item) => {
+        const id = rushItemId(item.id);
+        return id === null || isKnownItem(id);
+      });
       if (incoming.length > 0) {
         sqlRows.push({
           name: sequence.subGuideName,
@@ -224,6 +263,35 @@ async function main(): Promise<void> {
         addedTags: added,
         added: added.length,
       });
+    }
+
+    /** Ids à retirer : explicites (`--drop-ids`) + inconnus du catalogue (`--prune-unknown`). */
+    const dropIds = new Set<number>(DROP_IDS);
+    if (PRUNE) for (const id of unknownItemIds) dropIds.add(Number(id));
+
+    const prunes: Array<{
+      id: string;
+      name: string;
+      tags: RushTagLike[];
+      removedIds: number[];
+    }> = [];
+    if (dropIds.size > 0) {
+      for (const sequence of sequences) {
+        const tags = sequence.activityTags ?? [];
+        const removedIds: number[] = [];
+        const kept = tags.filter((tag) => {
+          if (tag?.type !== "item") return true;
+          const id = rushItemId(tag.id);
+          if (id === null || !dropIds.has(id)) return true;
+          removedIds.push(id);
+          return false;
+        });
+        if (removedIds.length === 0) continue;
+        prunes.push({ id: sequence.id, name: sequence.subGuideName, tags: kept, removedIds });
+      }
+      const totalRemoved = prunes.reduce((n, prune) => n + prune.removedIds.length, 0);
+      console.log(`retrait     : ${prunes.length} séquence(s) · ${totalRemoved} tag(s) à retirer (${[...dropIds].join(", ")})`);
+      for (const prune of prunes.slice(0, 10)) console.log(`    ${prune.name} → -${prune.removedIds.join(", ")}`);
     }
 
     const newIds = [...addedIds].filter((id) => !guideIds.has(id));
@@ -285,6 +353,21 @@ async function main(): Promise<void> {
       console.log(`\n-- patch additif : ${statements.length} séquence(s) (n'ajoute que les ids absents, n'écrase aucun tag)`);
       console.log("BEGIN;");
       for (const statement of statements) console.log(statement);
+      // Retrait ciblé (`--drop-ids` / `--prune-unknown`) : UNE requête, pilotée par les ids, qui
+      // ne retire que ceux-là et seulement s'ils sont présents (idempotent, indépendant de la base).
+      if (dropIds.size > 0) {
+        const ids = [...dropIds].join(",");
+        const matchesUnknown =
+          `EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE("activityTags", '[]'::jsonb)) t ` +
+          `WHERE t->>'type' = 'item' AND (t->>'id') ~ '^[0-9]+$' AND (t->>'id')::bigint = ANY(ARRAY[${ids}]::bigint[]))`;
+        console.log(
+          `UPDATE "GuideSequence" SET "activityTags" = COALESCE((` +
+            `SELECT jsonb_agg(t) FROM jsonb_array_elements(COALESCE("activityTags", '[]'::jsonb)) t ` +
+            `WHERE NOT (t->>'type' = 'item' AND (t->>'id') ~ '^[0-9]+$' AND (t->>'id')::bigint = ANY(ARRAY[${ids}]::bigint[]))), '[]'::jsonb) ` +
+            `WHERE "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre') ` +
+            `AND ${matchesUnknown};`,
+        );
+      }
       console.log("COMMIT;");
     }
 
@@ -296,6 +379,13 @@ async function main(): Promise<void> {
         });
       }
       console.log(`base : ${writes.length} séquence(s) écrite(s)`);
+      for (const prune of prunes) {
+        await db.guideSequence.update({
+          where: { id: prune.id },
+          data: { activityTags: prune.tags as unknown as Prisma.InputJsonValue },
+        });
+      }
+      if (prunes.length > 0) console.log(`base : ${prunes.length} séquence(s) nettoyée(s)`);
     }
 
     console.log(APPLY || SQL ? "terminé" : "dry-run : rien n'a été écrit (relancer avec --apply --db)");

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 — **Rush : 25 conseils écrits (contraintes Tougli, rattachement par `questDbIds`)** — branche `feat/rush-brakmarien`
+
+> **Demande user (verbatim)** : « lot A ok, Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO sur A puis B.
+> **Mesures** : ① le script de corrélation prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les **121** Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0** ; ② sur ces 121 séquences, **115 n'ont AUCUN tag** (ni objet, ni donjon, ni position) et **117** n'ont pas de conseil ; ③ les **74** quêtes Tougli contraintes portent un `questId` DofusDB ⇒ le rattachement **exact** est possible (l'ancien passait par le nom).
+> **Fait** : ① `rush-notes.ts` — `NoteTarget.questIds` + index par id (l'id tranche, le nom reste le repli), **2 tests** de plus ; ② `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base) et n'écrit jamais un texte contenant `&n` ; ③ **25 conseils** écrits en base locale (**19 Brâkmarien + 6 Bontarien**, 28 contraintes `needPlayer` 24 / `job` 6), **dataset inchangé** (ces quêtes n'y sont pas).
+> **Preuves** : `rush-notes` **12** · base **298** conseils / **194** restants (98 Brâkmarien · 42 Bontarien · 54 hors route) · **2ᵉ passage = 0 écriture** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : **194** conseils, dont **98 Brâkmarien sans aucune source** (Tougli n'a aucun texte de quête) ; rejouer le script sur la bêta (`--apply --db`) ; prochain lot **V-D** (ressources par quête).
+> **Rotation** : bloc « 02/11/2026 (suite 7) — outillage God de la route (G0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 03/11/2026 (suite) — **Rush : notes Tougli siphonnées, Dofusyelle analysé, corrélation mesurée** — branche `feat/rush-notes`
 
 > **Demande user (verbatim)** : « Siphonne les notes tougli des quetes, analyse les notes dofusyelle car ce guide n'a aucun lien ni adhérance avec le guide tougli et correèle ».
@@ -54,15 +63,3 @@
 > **Preuves** : `rush-alignment-source` **15** · `rush-alignment-tranche` **8** · Rush **57 fichiers / 710 tests ✓** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : `L2` (route cité→Ordre→classe, chaîne des rangs), `L3` (modale d'accueil) ; contrôle visuel profil/guide/overlay ; **aucune migration**.
 > **Rotation** : bloc « 02/11/2026 (suite) — Almanax : bornage de la navigation » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 02/11/2026 (suite 7) — **Rush : outillage God de la route (G0)** — branche `feat/rush-route-tooling`
-
-> **Demande user (verbatim)** : « Reprise SigilOS. » (amorce générique) — le §0 désignait `G0`.
-> **Mesures** : ① la route s'éditait **quête par quête** (236 `alignReq`), aucune action de masse ; ② `classReq` en `<input>` libre (une faute ⇒ quête **masquée**, fail-closed) ; ③ aucun aperçu de route ; ④ vue Branches à **2** étages ; base locale : **492** séquences, **30** Ordres, **19** classes, **67** `alignment_set`.
-> **Fait** : ① `updateRushBlockRoute` (brique Rush + rate limit Redis, Zod borné, Ordre de la cité, classe des 19 ids, bloc vérifié dans `rush-sylvestre`, `updateMany`, trace) + barre « Route du bloc » avec confirmation de portée ; ② `RushClassSelect` (19 ids, valeur inconnue **conservée** et signalée) sur les 3 surfaces ; ③ `RushRoutePreview` par `resolveRushRoute` (aucun second filtre) ; ④ `buildRushClassBranches` (règle pure) + table des 19 classes, manques nommés, `unknown`/`misplaced`.
-> **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : `L1` (source d'alignement), `L2`, `L3` ; contrôle visuel God 390/768/1024/1440 ; **aucune migration**.
-> **Rotation** : bloc « 02/11/2026 (suite 2) — Rang d'ancienneté, panneau CRON, erreur d'auth » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-

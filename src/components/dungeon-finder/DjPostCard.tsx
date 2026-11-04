@@ -542,7 +542,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 onClick={() => setIsCloseModalOpen(true)}
                                 disabled={isPending}
                                 title="Terminer le post (bilan + clôture Discord)"
-                                className="flex-1 h-8 rounded-lg text-success border border-success/30 hover:border-success/50 text-xs font-semibold transition-colors inline-flex items-center justify-center gap-1 cursor-pointer"
+                                className="flex-1 h-8 rounded-lg bg-transparent hover:bg-transparent text-success border border-success/30 hover:border-success/50 text-xs font-semibold transition-colors inline-flex items-center justify-center gap-1 cursor-pointer"
                             >
                                 <CheckCircle2 className="w-3 h-3 mr-1" />
                                 Terminer

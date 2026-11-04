@@ -1100,7 +1100,7 @@ export function DjPostDetailModal({
                                         : <><Pause className="w-4 h-4 mr-2" /> Stand-by</>}
                                 </Button>
                                 <Button
-                                    className="h-11 min-w-[180px] flex-1 rounded-xl border border-success/30 bg-success/10 font-semibold text-success hover:bg-success/15"
+                                    className="h-11 min-w-[180px] flex-1 rounded-xl border border-success/30 bg-success font-semibold text-success-foreground hover:bg-success/90"
                                     onClick={() => { setCloseDungeonIndex(null); setIsCloseModalOpen(true); }}
                                     disabled={isPending}
                                     title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}

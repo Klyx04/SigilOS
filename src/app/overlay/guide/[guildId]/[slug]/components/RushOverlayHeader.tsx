@@ -18,7 +18,6 @@ interface RushOverlayHeaderProps {
   overallPct: number;
   isLightMode: boolean;
   onToggleTheme: () => void;
-  onOpenResources: () => void;
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
   onOpenTutorial: () => void;
@@ -66,7 +65,6 @@ export function RushOverlayHeader({
   overallPct,
   isLightMode,
   onToggleTheme,
-  onOpenResources,
   hideCompleted,
   onToggleHideCompleted,
   onOpenTutorial,
@@ -227,28 +225,6 @@ export function RushOverlayHeader({
             className={actionBtnGold}
           >
             {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Ressources (toutes étapes) */}
-          <button
-            type="button"
-            onClick={onOpenResources}
-            aria-label="Voir toutes les ressources à prévoir"
-            title="Ressources à prévoir"
-            className={actionBtnGold}
-          >
-            {/* Picto du jeu pour « Ressources à prévoir » : l'asset Dofus de l'icône du
-                module Ressources (`/assets/dofus/modules/resources.png`, celui que
-                `module-catalog` associe à `resources`) — mesuré coloré (RGB 47,50,21,
-                alpha 94), donc lisible en thème clair ET sombre, contrairement au picto
-                blanc de la barre de navigation (`nav/resources.png`, RGB 255). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/assets/dofus/modules/resources.png"
-              alt=""
-              className="h-3.5 w-3.5 object-contain"
-              loading="lazy"
-            />
           </button>
 
           {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}

@@ -246,6 +246,32 @@
 .da-btn:active { transform: translateY(1px); }
 .da-btn:disabled { opacity: .45; cursor: default; transform: none; }
 
+/* ── Rangée d'actions — Reprendre / Ressources (celle de la maquette) ─────── */
+.da-actions {
+  display: flex;
+  gap: .6rem;
+  padding: .75rem .75rem 0;
+}
+
+.da-actions .da-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Pastille de comptage du bouton « Ressources » : l'ambre de la maquette, encre
+   sombre de l'écriteau (aucune couleur en dur). Rayon 10 px : le verrou de la DA
+   interdit au-delà de 12 px. */
+.da-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 .35rem;
+  border-radius: 10px;
+  background: var(--da-amber);
+  color: var(--da-plank-ink);
+  font: 700 10px var(--da-font-text);
+  letter-spacing: 0;
+}
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;

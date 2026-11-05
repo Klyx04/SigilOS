@@ -32,6 +32,7 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
+import { RushOverlayActions } from "./components/RushOverlayActions";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -206,6 +207,9 @@ export default function GuideOverlayClient({
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
   // On observe le conteneur racine avec un ResizeObserver.
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Liste des quêtes : cible du bouton « Reprendre » (on ne cherche JAMAIS dans
+  // toute la fenêtre — le nœud du dock porte lui aussi un `data-state`).
+  const listRef = useRef<HTMLElement | null>(null);
   const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
   useEffect(() => {
     const el = rootRef.current;
@@ -556,6 +560,22 @@ export default function GuideOverlayClient({
 
   // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
+
+  // Compteur du bouton « Ressources » : les ressources du guide déjà cochées.
+  const resourcesChecked = useMemo(
+    () => allResources.filter((r) => resourceChecks.has(r.key)).length,
+    [allResources, resourceChecks]
+  );
+
+  // « Reprendre » : la prochaine quête à faire du chapitre affiché. On interroge la
+  // LISTE, jamais la fenêtre entière (le nœud du dock porte lui aussi un `data-state`).
+  // `next` depuis E1e ; `todo` sinon (liste entièrement verrouillée).
+  const scrollToNextQuest = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const target = list.querySelector<HTMLElement>('[data-state="next"], [data-state="todo"]');
+    target?.scrollIntoView({ block: "center" });
+  }, []);
 
   // Alignement de la guilde : `allProgress` porte déjà camp / Ordre / tranche
   // (`GuideProgressRow`), et la présence live dit qui est connecté — zéro requête.
@@ -1307,7 +1327,6 @@ export default function GuideOverlayClient({
             isLightMode={isLightMode}
             isNarrow={overlaySmall}
             onToggleTheme={toggleTheme}
-            onOpenResources={() => setShowResources(true)}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
             onOpenTutorial={() => setShowTutorial(true)}
@@ -1347,6 +1366,16 @@ export default function GuideOverlayClient({
                 ? { imageUrl: currentMsDofus.imageUrl, label: currentMsDofus.label, done: dofusDone }
                 : null
             }
+          />
+
+          {/* ══ RANGÉE D'ACTIONS ══
+              Reprendre (saut à la prochaine quête à faire) + Ressources (la modale,
+              qui n'a plus d'icône dans l'en-tête : un seul point d'entrée). */}
+          <RushOverlayActions
+            onResume={scrollToNextQuest}
+            onOpenResources={() => setShowResources(true)}
+            checked={resourcesChecked}
+            total={allResources.length}
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
@@ -1428,7 +1457,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main className="flex-1 min-h-0 p-3 space-y-2 overlay-scroll">
+          <main ref={listRef} className="flex-1 min-h-0 p-3 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}

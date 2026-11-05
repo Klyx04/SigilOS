@@ -407,3 +407,35 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(readFileSync(SHELL, "utf8")).toMatch(/<OverlayToaster \/>/);
     });
 });
+
+/**
+ * Guide plein écran — la coque et ses deux colonnes collantes.
+ *
+ * Mesure du 05/11/2026 (capture 1440 px) : le sommaire de gauche et la colonne du
+ * module décrochaient au scroll. Cause unique : la coque empruntait la classe
+ * `.da-window`, dont `overflow: hidden` (elle sert la PiP) **annule tout
+ * `position: sticky`** à l'intérieur. Une page qui défile ne porte pas une fenêtre.
+ */
+describe("DA Gouache Wakfu — coque du guide plein écran", () => {
+    const GUIDE_SHELL = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+
+    it("la coque du guide n'emprunte pas `.da-window` (son `overflow: hidden` tue le sticky)", () => {
+        const src = readFileSync(GUIDE_SHELL, "utf8");
+        expect(src).toMatch(/className="rush-guide da-grain da-guide"/);
+        expect(src).not.toMatch(/rush-guide da-window/);
+        // `.da-window` garde bien son overflow : c'est la PiP, pas la page.
+        expect(css).toMatch(/\.da-window\s*\{[^}]*overflow:\s*hidden/);
+    });
+
+    it("la coque porte elle-même le fond de la DA (elle ne l'emprunte plus à la fenêtre)", () => {
+        const guideRule = css.match(/^\.da-guide\s*\{([^}]*)\}/m)?.[1] ?? "";
+        expect(guideRule).toMatch(/background:\s*var\(--da-bg\)/);
+    });
+
+    it("le sommaire ET la colonne du module sont collants au-delà de 900 / 1 280 px", () => {
+        const navRule = [...css.matchAll(/\.da-guide-nav\s*\{([^}]*)\}/g)].map((m) => m[1]).join(";");
+        expect(navRule).toMatch(/position:\s*sticky/);
+        const asideRule = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)].map((m) => m[1]).join(";");
+        expect(asideRule).toMatch(/position:\s*sticky/);
+    });
+});

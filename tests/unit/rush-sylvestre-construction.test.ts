@@ -54,11 +54,12 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
 
     it("la page publique sert l'avis d'arrivée au lieu du guide interactif", () => {
         expect(PAGE).toMatch(/\{isUnderConstruction \? \(/);
-        // E2 (05/11/2026) : le client n'est plus auto-fermant — il reçoit le BANDEAU en
-        // enfant pour que celui-ci vive DANS la coque `data-da`. Même intention : le guide
-        // interactif n'est rendu que dans la branche `else` du drapeau public.
+        // 05/11/2026 : le bandeau est passé DANS le client (une seule carte avec le
+        // panneau de contrôle), il transmet donc l'image d'ambiance en prop et le
+        // client se ferme sur lui-même. Même intention : le guide interactif n'est
+        // rendu que dans la branche `else` du drapeau public.
         expect(PAGE).toMatch(
-            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\}>/
+            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\} heroArt=\{heroArt\} \/>/
         );
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionTitle/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionHint/);

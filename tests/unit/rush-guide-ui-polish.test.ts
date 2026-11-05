@@ -102,7 +102,28 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
     it("la barre de contrôle n'est plus collante (elle recouvrait le rail)", () => {
         const code = codeOf(PUBLIC);
         expect(code).not.toContain("sticky top-16 z-30");
-        expect(code).toContain('<div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">');
+        // Le panneau porte désormais la classe de la DA : il vit DANS le bandeau
+        // (une seule carte, 05/11/2026) et n'a plus de carte à lui.
+        expect(code).toContain('<div className="da-guide-controls">');
+    });
+
+    it("le titre et le panneau de contrôle ne font qu'UNE carte", () => {
+        // Demande user du 05/11/2026 : « mets ce bloc dans le bloc du titre ».
+        // Le panneau est DANS le `<header>` du bandeau, pas dans la colonne du module.
+        const code = codeOf(PUBLIC);
+        const hero = code.indexOf('<header className="da-guide-hero">');
+        const controls = code.indexOf('<div className="da-guide-controls">');
+        const heroEnd = code.indexOf("</header>", hero);
+        expect(hero).toBeGreaterThan(-1);
+        expect(controls).toBeGreaterThan(hero);
+        expect(controls).toBeLessThan(heroEnd);
+
+        // Les lignes explicatives du titre sont supprimées (slop) : plus de
+        // sous-titre, plus de « ~370 étapes optimisées », plus de « sauvegarde
+        // locale » — le titre parle seul.
+        const page = codeOf("src/app/guides/rush-sylvestre/page.tsx");
+        expect(code).not.toMatch(/da-guide-hero-sub/);
+        expect(page).not.toMatch(/da-guide-hero-sub|étapes optimisées|sauvegarde locale/);
     });
 
     it("le rail est collant, borné au scrollport et défilable en interne", () => {

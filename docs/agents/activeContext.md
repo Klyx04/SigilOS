@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 (suite 5) — **DA « Gouache Wakfu » : E2 complet (coque, sommaire, cartes, fil)** — branches `fix/da-guide-sticky`, `feat/da-wakfu-e2-cartes`
+
+> **Demande user (verbatim)** : « visuellement les guides internes externe et les overlay public / interne doivent etre identique coté DA techno etc , sauf toutes les brique interne à la guilde » · « enchaine » · puis trois captures : « la majeure partie du bloc est rempli de vide », « ko la seve là », « conseil et note ko ».
+> **Mesures (toutes sur capture, aucune supposition)** : ① le sommaire et la colonne décrochaient au scroll — la coque empruntait `.da-window`, dont `overflow: hidden` **annule tout `position: sticky`** ; ② l'icône du Dofus restait un carré vide — `guide.imageUrl` (base) pointe une URL morte et le code ne retombait pas sur l'asset local ; ③ le fil de sève était **haché** (un rail par bloc de quête) et passait **devant** les cartes (panneaux non positionnés, le pseudo-élément du rail les recouvrait) ; ④ `.da-card` est un flex **horizontal** (une seule ligne dans l'overlay) — le guide y empilait 4 blocs qui se chevauchaient ; ⑤ le nom de quête s'écrasait à **un caractère par ligne** : dans un `flex-wrap` de chips `shrink-0`, il était le seul élément compressible.
+> **Fait** : **#1265** = coque sans `da-window` + fond porté par `.da-guide`, repli d'erreur sur l'icône Dofus, garde `da-wakfu` +3 cas · **#1266** = étapes à l'anatomie de l'overlay (`da-row[data-state]`, **nœud = le bouton de coche** hors carte, `da-card`), **fil unique par chapitre** (`DaRail`) avec la règle de mesure **extraite** dans `src/components/da/use-da-rail.ts` et appelée par l'overlay ET le guide, panneau de quête **sans cadre** (fin de la boîte dans la boîte), `relative z-[1]` sur le panneau, wrapper colonne dans la carte, `min-w-[12rem]` sur le nom.
+> **Preuves** : suite **6 441 ✓ / 609 fichiers** · `tsc` 0 · ESLint 0 erreur · **5 verrous réécrits** (sticky, mode construction, parité, largeur des blocs, état verrouillé), **aucun supprimé** · ROADMAP **61 412 o** (< 61 440 : le verrou « < 60 Kio » laisse 28 o de marge, élaguer avant d'écrire).
+> **Reste** : contrôle visuel des cartes (390 / 1440) · tiroir 420 px ≥ 1 280 (écart assumé : un tiroir demande un bouton neuf) · **E3** (guide membre) → **E4** (passation dashboard, écran par écran).
+> **Rotation** : bloc « 04/11/2026 (suite 9) — Module DJ/Quête » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 05/11/2026 (suite 4) — **DA « Gouache Wakfu » : le guide public reçoit sa coque (E2)** — branche `feat/da-wakfu-e2`
 
 > **Demande user (verbatim)** : « visuellement les guides internes externe et les overlay public / interne doivent etre identique coté DA techno etc , sauf toutes les brique interne à la guilde et tout ce qui va avec l'interne qui ne dois pas être dispo en public » — la **parité** prime sur toute variante « public ».
@@ -59,14 +68,5 @@
 > **Preuves** : `rush-move-sequence` **10** · `rush-split-blocks` **12** · Rush **66 / 817 ✓** · suite **603 / 6 344 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste / ops** : E1 (squelette 3 panneaux) → E2 → E3 → E4 → D → E5 ; le split bêta s'exécute par le bouton ; la base locale garde 19 classes en `cra` (patch local séparé) ; contrôle visuel du studio.
 > **Rotation** : bloc « 04/11/2026 (suite 4) — Fluidité du scroll » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 04/11/2026 (suite 9) — **Module DJ/Quête : la DA landing partout** — branche `feat/dj-da-landing`
-
-> **Demande user (verbatim)** : « dans le module dj quete pk on reaplique pas partout le theme landing plus propre sobre ? … les boutons etc » · « ouvert caché par la croix » · « le bouton soutenir qui cache le bas » · « le dropdown de transfert immonde, les bouton stand by etc tout doit etre sobre landing like » · « on a pas indiqué dans les skills qu'on doit systématiquement uniformiser comme les landing partout sur le produit ? ».
-> **Mesures** : ① le tiroir empilait `emerald-*`/`amber-*` en dur (≈ 45 occurrences) + `rounded-2xl` + ombres colorées ; la carte de post ajoutait `backdrop-blur-sm` et un `hover:-translate-y-0.5` ; ② la croix du `Sheet` (absolue à droite) recouvrait le badge « Ouvert » posé dans le même coin (`px-5` sans réserve) ; ③ le transfert de lead était un **`<select>` natif** (options bleues du navigateur) ; ④ `SupportOrb` était en `z-[100]`, donc **au-dessus** du tiroir (`z-50`) et des boutons d'action ; ⑤ la règle UI existante disait « deslop » mais **pas** « une seule DA, celle de la landing, partout ».
-> **Fait** : ① `docs/RULES.md` gagne la section **« UI — une seule DA (la landing), partout »** (+ ligne miroir dans `.clinerules/02-ui.md`) ; ② tiroir : `pr-12` (croix), badges `success`/`warning`, boutons uniformes `h-11 rounded-xl` (secondaires neutres, « Terminer » en `success`), input et sélecteur de classe en tokens ; ③ transfert de lead en **`Select` maison** (Radix) ; ④ carte : `rounded-xl`, plus de blur ni de lift, statuts/avatars/places en tokens, « Terminer » en `success` ; ⑤ `SupportOrb` en `z-40` (sous les modales) ; ⑥ verrou `ui-tokens-dj` (4 tests : couleurs en dur, `pr-12`, `Select`, z-index).
-> **Preuves** : `ui-tokens-dj` **4/4** · `tsc` 0 · ESLint 0 erreur (warnings `<img>` antérieurs) · ROADMAP < 60 Kio (2 doublons `RUSH-*` retirés).
-> **Reste / ops** : passe identique sur les modales de **création** (`DjPostCreateModal` : 65 occurrences) et d'édition, `DungeonFinderClient` (11), `DjFiltersBar` (9) — même règle, lot suivant ; contrôle visuel 390 / 768 / 1024 / 1440 du tiroir et de la liste.
-> **Rotation** : bloc « 04/11/2026 (suite 3) — Avatars Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

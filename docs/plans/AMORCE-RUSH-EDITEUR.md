@@ -27,7 +27,8 @@ description: Amorce de reprise — Rush : merger A/B, puis E1 du studio God (3 p
   changement de cible ; responsive **1024 / 768**. **Aucun formulaire dans la liste**.
 - **Reste connu** : l'édition inline du **séparateur** (E3) ; la découpe du monolithe en
   `forms/`·`list/`·`fields/` (E2/E3/E4) ; la base **locale** garde 19 quêtes de classe en
-  `classReq='cra'` (patch local séparé, hors dépôt).
+  `classReq='cra'` (patch local séparé, hors dépôt). Détail : `REFONTE-EDITEUR-RUSH.md` §3
+  (« Reste de E1 »).
 
 > ⚠️ Les états ci-dessus sont ceux du **05/11**. À la reprise : `gh pr list --state open` et
 > `git log -1 --oneline origin/dev` avant de conclure.
@@ -86,7 +87,7 @@ contenu → `E4` → `D` → `E5` → `bloc B` / `espace-visiteur` (décision).
 
 - **E2** : position dans le bloc cible → **ajout en fin + réordonnancement** (recommandé) ou choix de la position.
 - **E3** : blocs de palier vides après split → suppression (recommandé) ou repères INFO.
-- **D** : overlay live dans le même lot que E1, ou séparé (recommandé).
+- **D** : overlay live en lot **séparé** (recommandé ; E1 est livré, ne pas le rouvrir) ou inclus dans E2.
 - **Bloc B** : `publicSlug` / `isPublished` n'ont **aucune route** ; cadrer la page publique ou retirer les colonnes (**migration ⇒ accord**).
 - **V-D2** : chercher les 51 ids Tougli / 67 Dofusyelle, ou acter la cible 517.
 - **Espace visiteur** : GO migration (il règle cité / Ordre / classe du public).

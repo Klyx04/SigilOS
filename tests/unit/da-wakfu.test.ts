@@ -583,3 +583,47 @@ describe("DA Gouache Wakfu — les modales du Rush passent à la DA (E3c)", () =
     });
 });
 
+
+/**
+ * E3d — le reste des guides.
+ *
+ * Mesure du 05/11/2026 : le brief annonçait « 80 occurrences de tokens produit »
+ * dans le guide interne. La mesure réelle dit autre chose — et il faut le dire :
+ * ces chaînes SONT bridgées par `[data-da].rush-guide` (globals.css), donc elles
+ * peignent déjà `--da-*` (0 rayon > 12 px, 0 ombre, 0 `backdrop-blur`, 0
+ * `font-black`, 0 couleur dure `zinc`/`emerald`/`indigo` sur les deux guides).
+ * Les réécrire n'aurait rien changé au rendu et aurait cassé des verrous pour rien.
+ *
+ * Ce qui restait vraiment hors DA, et que ce bloc verrouille :
+ *   · `--font-cinzel` sur deux titres du guide interne et la célébration de bloc
+ *     (la DA a tranché pour Barlow Condensed dès E1b) ;
+ *   · six italiques décoratifs — le déslop les proscrit.
+ */
+describe("DA Gouache Wakfu — le reste des guides (E3d)", () => {
+    const GUIDE = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+    const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+    const CELEBRATION = "src/components/dofus-quests/rush/MilestoneCelebration.tsx";
+    const OVERLAY_LAYOUT = "src/app/overlay/layout.tsx";
+
+    /** Le code seul : la prose cite les anciens jetons pour expliquer le lot. */
+    const code = (path: string) =>
+        readFileSync(path, "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+    it("la fonte Cinzel a quitté le module Rush (la DA a tranché pour Barlow)", () => {
+        for (const path of [GUIDE, PUBLIC, CELEBRATION, OVERLAY_LAYOUT]) {
+            expect(code(path), path).not.toMatch(/cinzel/i);
+        }
+        // Les deux titres qui la portaient prennent la fonte de titre de la DA.
+        expect(code(GUIDE)).toMatch(/family-name:var\(--da-font-title\)/);
+        expect(code(CELEBRATION)).toMatch(/className="da-title text-sm"/);
+    });
+
+    it("plus d'italique décoratif dans les deux guides (déslop)", () => {
+        for (const path of [GUIDE, PUBLIC]) {
+            expect(code(path), path).not.toMatch(/\bitalic\b/);
+        }
+    });
+});
+

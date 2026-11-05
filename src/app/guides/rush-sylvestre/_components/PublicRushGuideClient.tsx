@@ -1661,7 +1661,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                 // d'étapes épousent désormais exactement la largeur du bloc chapitre.
                 <DaRail className="py-4 sm:py-5 space-y-5">
                   {questBlocks.length === 0 ? (
-                    <p className="py-4 text-xs italic text-muted-foreground">
+                    <p className="py-4 text-xs text-muted-foreground">
                       Aucune étape correspondante.
                     </p>
                   ) : (
@@ -2213,7 +2213,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                                             </div>
                                           )}
                                           {seq.note && (
-                                            <p className="text-[11px] italic leading-relaxed text-muted-foreground">
+                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
                                               Note : {seq.note}
                                             </p>
                                           )}

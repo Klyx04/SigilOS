@@ -42,7 +42,7 @@ export function MilestoneCelebrationBurst({ title, tint }: { title: string; tint
       >
         <div className="flex items-center gap-2.5">
           <Sparkles className="w-4 h-4" style={{ color }} />
-          <span className="font-[family-name:var(--font-cinzel)] font-black uppercase tracking-[0.12em] text-sm" style={{ color }}>
+          <span className="da-title text-sm" style={{ color }}>
             {title}
           </span>
           <Star className="w-4 h-4 fill-current" style={{ color }} />

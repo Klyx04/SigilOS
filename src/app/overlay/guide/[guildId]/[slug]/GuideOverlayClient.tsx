@@ -35,6 +35,7 @@ import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { OverlayToaster } from "@/components/rush/overlay-toast";
+import { safeImageUrl } from "@/lib/security";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -1228,6 +1229,11 @@ export default function GuideOverlayClient({
   // Le chapitre courant est-il validé ? (lu par la barre de chapitre via `completedIds`)
   const currentMsTotal = currentMsSeqs.length;
 
+  // Décor du bandeau : l'image du bloc, posée par le God. Elle est rendue en
+  // `contain` à droite (jamais étirée ni rognée) — une scène comme une icône s'y
+  // inscrivent sans déformation, et le dégradé du bloc reste dessous.
+  const bannerArt = currentMs?.imageUrl ? safeImageUrl(currentMs.imageUrl) : "";
+
   // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
   // Deux sources, dans cet ordre :
   //   1. `accentColor` du bloc courant (posé par le God) ⇒ N'IMPORTE QUEL Dofus
@@ -1454,6 +1460,18 @@ export default function GuideOverlayClient({
                 className="da-banner"
                 data-block={daBlock}
               >
+                {bannerArt ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={bannerArt}
+                    alt=""
+                    aria-hidden="true"
+                    className="da-banner-art"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : null}
                 <div className="da-banner-text">
                   <div>
                     <h2>{currentMs.title || "Bloc en cours"}</h2>

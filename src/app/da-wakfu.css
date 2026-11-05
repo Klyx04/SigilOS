@@ -352,16 +352,29 @@
 }
 
 /* ── Toasts de l'overlay (Sonner) — les matières du reste de la fenêtre ──── */
-[data-sonner-toast].da-toast {
-  border: 1.5px solid var(--da-outline, #0f1410);
-  background: var(--da-panel, #1f2822);
-  color: var(--da-ink, #eceedf);
-  font: 600 11px var(--da-font-text, inherit);
-  box-shadow: none;
-  backdrop-filter: none;
+/* Sonner injecte sa feuille à l'exécution avec `[data-sonner-toast][data-styled]`
+   (spécificité 0,2,0) : on passe par le conteneur `.da-toaster` et `!important`
+   pour que la DA gagne, quel que soit l'ordre d'injection. */
+[data-sonner-toaster].da-toaster [data-sonner-toast] {
+  background: var(--da-panel, #1f2822) !important;
+  color: var(--da-ink, #eceedf) !important;
+  border: 1.5px solid var(--da-outline, #0f1410) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  font: 600 11px/1.45 var(--da-font-text, inherit) !important;
+  padding: 6px 9px !important;
 }
 
-[data-sonner-toast].da-toast [data-title] { font-size: 11px; line-height: 1.45; }
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-title] {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-description] {
+  color: var(--da-muted, #a3afa1) !important;
+  font-size: 10px !important;
+}
 
 .da-toast-desc { font-size: 10px; color: var(--da-muted, #a3afa1); }
 
@@ -453,11 +466,31 @@
 /* ── Bannière de bloc ────────────────────────────────────────────────────── */
 .da-banner {
   position: relative;
-  height: 122px;
+  /* 96 px : le bandeau annonce le bloc, il ne mange pas la première carte —
+     122 px sur une PiP courte repoussaient la liste sous la ligne de flottaison. */
+  height: 96px;
   overflow: hidden;
   background: var(--da-field) center / cover no-repeat;
   border: 1.5px solid var(--da-outline);
   border-radius: 3px 12px 3px 12px;
+}
+
+/* Décor du bloc : l'image posée par le God, en `contain` à droite. Elle n'est ni
+   étirée ni rognée (une scène comme une icône s'y inscrivent), et le masque la
+   fond dans le dégradé au lieu de la coller au texte. */
+.da-banner-art {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  height: 100%;
+  width: auto;
+  max-width: 52%;
+  object-fit: contain;
+  object-position: center right;
+  pointer-events: none;
+  opacity: .95;
+  -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / 1) 58%, rgb(0 0 0 / 0) 100%);
+  mask-image: linear-gradient(to left, rgb(0 0 0 / 1) 58%, rgb(0 0 0 / 0) 100%);
 }
 
 .da-banner::after {
@@ -837,7 +870,7 @@
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
-  font: 700 13px/1.05 var(--da-font-title);
+  font: 700 13px/1.15 var(--da-font-title);
   letter-spacing: .06em;
   text-transform: uppercase;
 }

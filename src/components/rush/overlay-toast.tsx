@@ -54,6 +54,7 @@ export function OverlayToaster() {
   return (
     <Toaster
       id={OVERLAY_TOASTER_ID}
+      className="da-toaster"
       position="bottom-center"
       expand={false}
       closeButton={false}

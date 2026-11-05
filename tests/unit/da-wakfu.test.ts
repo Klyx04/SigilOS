@@ -320,9 +320,21 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(shell).toMatch(/className="da-rail" ref=\{railRef\}/);
         expect(shell).toMatch(/useDaRail\(/);
         // La longueur n'est pas devinée : elle est posée en style, sur la première
-        // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`).
+        // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`), et son
+        // arithmétique est la règle PARTAGÉE (`src/lib/da-rail-geometrie.ts`).
         expect(hook).toMatch(/setProperty\("--da-grow"/);
         expect(hook).toMatch(/\[data-state="next"\]/);
+        expect(hook).toMatch(/daRailGrow\(/);
+        // E2 avait livré une mesure par `offsetTop` : sur le guide public chaque quête
+        // est enveloppée dans son propre `div.relative`, donc `offsetTop` valait 12 pour
+        // les 18 lignes et le fil restait figé à 18 px (mesure du 05/11/2026).
+        // ⚠️ On juge le CODE, pas les commentaires : la cause racine est documentée sur
+        // place, elle a le droit de citer `offsetTop`.
+        const hookCode = hook
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+        expect(hookCode).not.toMatch(/offsetTop/);
+        expect(hookCode).toMatch(/getBoundingClientRect/);
         expect(css).toMatch(/height:\s*var\(--da-grow/);
         // Le guide monte le même rail, une fois par liste de quêtes.
         expect(readFileSync("src/components/da/da-rail.tsx", "utf8")).toMatch(/useDaRail\(/);
@@ -439,3 +451,57 @@ describe("DA Gouache Wakfu — coque du guide plein écran", () => {
         expect(asideRule).toMatch(/position:\s*sticky/);
     });
 });
+
+/**
+ * Guide interne (E3) — la même coque, les mêmes composants.
+ *
+ * Demande user (verbatim, 05/11/2026) : « visuellement les guides internes externe et
+ * les overlay public / interne doivent etre identique coté DA techno etc, sauf toutes
+ * les brique interne à la guilde ». Le socle visuel est donc IDENTIQUE ; seules les
+ * briques de guilde (présence, actions serveur, synchronisation) restent. Aucune
+ * variante « interne » du visuel n'est admise.
+ */
+describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () => {
+    const MEMBER = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+
+    it("la coque porte la portée de la DA et la règle de bloc partagée", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(/data-da="wakfu"/);
+        expect(src).toMatch(/data-theme="dark"/);
+        expect(src).toMatch(/data-block=\{daTheme\.block\}/);
+        expect(src).toMatch(/data-quality="high"/);
+        expect(src).toMatch(/className="rush-guide da-grain/);
+        // La règle de thème est celle des trois surfaces, pas une copie locale.
+        expect(src).toMatch(/resolveRushDaTheme\(/);
+    });
+
+    it("le sommaire est celui du guide public, à gauche, et le rail ne le répète pas", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(
+            /import \{ RushChapterNav \} from "@\/components\/dofus-quests\/rush\/RushChapterNav"/
+        );
+        expect(src).toMatch(/<RushChapterNav/);
+        // Sans cette garde, les chapitres s'affichent deux fois (piège payé en E2).
+        expect(src).toMatch(/hideChapters/);
+    });
+
+    it("la navigation flottante (portail hors arbre) reçoit la portée", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(
+            /data-da="wakfu" data-theme="dark" data-block=\{daTheme\.block\} className="fixed right-4/
+        );
+    });
+
+    it("les cartes de quête prennent l'anatomie de l'overlay (nœud hors carte)", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        // La ligne est un `da-row[data-state]` et le NŒUD est le bouton de coche.
+        expect(src).toMatch(/data-seq-id=\{seq\.id\}[\s\S]{0,60}data-state=\{daState\}/);
+        expect(src).toMatch(/className="da-node cursor-pointer"/);
+        expect(src).toMatch(/className=\{`da-card group/);
+        // Une carte verrouillée reste une ligne de la liste, avec son nœud inerte.
+        expect(src).toMatch(/data-state="locked" className="da-row/);
+        // Un fil de sève par liste (les panneaux de bloc sont opaques).
+        expect(src).toMatch(/<DaRail>/);
+    });
+});
+

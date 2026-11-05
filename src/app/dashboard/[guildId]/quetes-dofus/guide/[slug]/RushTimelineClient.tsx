@@ -64,6 +64,11 @@ import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButt
 // Sidebar « Chapitres / ce qu'il faut prévoir » — composant PARTAGÉ (dashboard
 // membre ↔ guide public) : même rendu, mêmes données dérivées.
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
+// Sommaire au langage du dock — le MÊME composant que le guide public (E2) :
+// la parité public ↔ interne n'admet aucune variante « interne ».
+import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
+import { DaRail } from "@/components/da/da-rail";
+import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
@@ -299,8 +304,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       ? alignmentCountForCamp(allMilestones as any, allCompletedSeqIds, seq.alignReq ?? null)
       : 0;
     const palierLocked = levelReq > 0 && cityCount < levelReq;
+    // Même anatomie que la carte normale : un NŒUD inerte (le cadenas) et une carte
+    // peinte par `da-row[data-state="locked"]` — filet pointillé, carte à 78 %, comme
+    // dans l'overlay et le guide public. Le rouge de la carte disparaît : il ne disait
+    // pas le verrou, il le criait.
     return (
-      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background bg-success/[0.06]":""}`}>
+      <div data-seq-id={seq.id} data-state="locked" className="da-row scroll-mt-24">
+        <span className="da-node" aria-hidden="true"><Lock className="h-3.5 w-3.5" /></span>
+        <div className={`da-card transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background":""}`}>
+        <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 px-3 pt-3 pb-0">
           {/* MÊME icône de quête que la carte normale : une carte bloquée reste une quête,
               elle doit se reconnaître d'un coup d'œil dans la liste. */}
@@ -350,48 +362,48 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </div>
           </div>
         )}
+        </div>
+        </div>
       </div>
     );
   }
 
+  // État de la ligne à la grammaire de la DA — MÊME vocabulaire que l'overlay et
+  // le guide public : `done` · `next` (à faire maintenant) · `todo` · `locked`.
+  const daState = isSeqCompleted ? "done" : isActive || isNext ? "next" : "todo";
+
   return (
     <>
+      {/* Anatomie de l'overlay (E3) : `da-row[data-state]` + NŒUD hors carte.
+          Le nœud EST le bouton de coche : même handler, même `aria-label`, même
+          garde — seul son habillage change. Les briques de guilde (membres ici,
+          donjons, repère, conseils) restent DANS la carte, à la même place. */}
       <div
         data-seq-id={seq.id}
-        tabIndex={0}
-        className={`group relative flex flex-col gap-2 rounded-[4px] border p-3 transition-colors scroll-mt-24
-          ${isSeqCompleted
-            ? "border-border bg-surface opacity-65"
-            : isThisBookmarked
-              ? "border-warning/40 bg-warning/10"
-              : "border-border bg-elevated hover:bg-surface"}
-          ${focusedSeqId === seq.id ? "ring-2 ring-success ring-offset-2 ring-offset-background" : ""}
-        `}
+        data-state={daState}
+        data-here={isThisBookmarked ? "true" : undefined}
+        className="da-row scroll-mt-24"
       >
+        {onToggleSeq && (
+          <button
+            type="button"
+            data-tour={isFirstVisible ? "quest-completion" : undefined}
+            onClick={e => { e.stopPropagation(); onToggleSeq(); }}
+            className="da-node cursor-pointer"
+            title={isSeqCompleted ? "Décocher" : "Valider"}
+            aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
+          >
+            {/* Coche fine 2 px : le vert reste l'ÉTAT, jamais un aplat (fixe 25). */}
+            {isSeqCompleted && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+          </button>
+        )}
+        <div
+          tabIndex={0}
+          className={`da-card group transition-colors ${focusedSeqId === seq.id ? "ring-2 ring-success ring-offset-2 ring-offset-background" : ""}`}
+        >
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
         {/* ── Ligne principale ── */}
         <div className="flex items-center gap-2 min-w-0">
-          {/* Checkbox */}
-          {onToggleSeq && (
-            <button
-              type="button"
-              data-tour={isFirstVisible ? "quest-completion" : undefined}
-              onClick={e => { e.stopPropagation(); onToggleSeq(); }}
-              className={`flex-shrink-0 -m-1 w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer`}
-              title={isSeqCompleted ? "Décocher" : "Valider"}
-              aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
-            >
-              {/* Filet + coche fine 2 px : le vert reste l'ÉTAT, jamais un aplat (fixe 25). */}
-              <span className={`flex items-center justify-center w-5 h-5 rounded-[3px] border transition-colors ${
-                isSeqCompleted
-                  ? "border-success/70 text-success"
-                  : isActive
-                    ? "border-warning"
-                    : "border-border-strong hover:border-success"
-              }`}>
-                {isSeqCompleted && <Check className="w-3.5 h-3.5 stroke-[2]" />}
-              </span>
-            </button>
-          )}
           {/* Nom + position + tags */}
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {resolveRushSeqIcon(seq.icon) ? (
@@ -612,6 +624,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           if (!tipsText && !seq.note) return null;
           return <CollapsibleHints tipsText={tipsText} note={seq.note || null} />;
         })()}
+        </div>
+        </div>
       </div>
       {/* ── Modal membres ── */}
       {membersModalOpen && (
@@ -972,13 +986,17 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
                   ) : (
-                    visibleSeqs.map((s:any)=>(
+                    /* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
+                       opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */
+                    <DaRail>
+                    {visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
                         <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
-                    ))
+                    ))}
+                    </DaRail>
                   )}
                 </CompletedStepsCtx.Provider>
               </div>
@@ -2056,6 +2074,21 @@ const timelineItems=useMemo(()=>{
   const pageIndex = isAllChapters ? -1 : (pageIdx != null && chapterPages[pageIdx] ? pageIdx : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter)));
   const currentPage = isAllChapters ? null : chapterPages[pageIndex] ?? chapterPages[0] ?? null;
   const showEveryChapter = isAllChapters || !!searchResults || !!dofusFilter;
+
+  // ─── Bloc de la DA « Gouache Wakfu » (E3) ───────────────────────────────────
+  // EXACTEMENT la règle de l'overlay et du guide public (`resolveRushDaTheme`) :
+  // bloc nommé d'abord, puis héritage en remontant la liste. Une seule vérité pour
+  // les trois surfaces — c'est la parité, pas une copie.
+  const daTheme = useMemo(
+    () =>
+      resolveRushDaTheme(
+        milestones as any,
+        currentChapter === "ALL" || currentChapter == null
+          ? null
+          : (milestones.find((m) => (m as any).chapter === currentChapter)?.id ?? null)
+      ),
+    [milestones, currentChapter]
+  );
   const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
   const goToPage = (idx: number) => {
     const page = chapterPages[idx];
@@ -2067,7 +2100,23 @@ const timelineItems=useMemo(()=>{
 
 
   return(<><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
-  <div className="flex flex-col gap-5">
+  {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
+      `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
+      `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
+      autorise le grain et les bords tremblés (coupés dans la PiP).
+      ⚠️ On ne pose PAS `.da-guide` : elle porte son propre `padding-inline` et
+      son fond plein cadre, or le guide interne vit DANS la coque du dashboard,
+      qui a déjà ses gouttières (mesure : 48 + 24 px par côté à 1 440). Les
+      jetons `--da-*` passent quand même (`[data-da].rush-guide` dans
+      `globals.css`), c'est tout ce dont les composants ont besoin. */}
+  <div
+    data-da="wakfu"
+    data-theme="dark"
+    data-block={daTheme.block}
+    data-quality="high"
+    className="rush-guide da-grain flex flex-col gap-5"
+    style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
+  >
     {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
     <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
     <div className="relative overflow-hidden rounded-[6px] p-5 sm:p-6 border border-border bg-surface">
@@ -2432,29 +2481,21 @@ const timelineItems=useMemo(()=>{
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
     </AnimatePresence>
     <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
-    {/* ── CSS grid responsive (timeline + sidebar) ── */}
-    <style>{`
-      .rush-content-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 260px;
-        gap: 24px;
-        /* ⚠️ PAS de align-items: start : il réduit la zone du rail à sa propre hauteur,
-           et position: sticky n'a alors PLUS de course (le panneau restait figé pendant
-           que les étapes défilaient). L'item est étiré à la hauteur de la ligne, et c'est
-           le bloc INTERNE qui est sticky. */
-        align-items: stretch;
-      }
-      @media (max-width: 900px) {
-        .rush-content-grid {
-          grid-template-columns: 1fr;
-        }
-        .rush-content-grid .rush-sidebar {
-          display: none;
-        }
-      }
-    `}</style>
-    <div className="rush-content-grid">
-      <div className="min-w-0">
+    {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
+        C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers
+        1 440 / 1 280 / 900) : la grille locale et son `<style>` sont SUPPRIMÉS,
+        pas dupliqués. La colonne du module est collante par `.da-guide-aside`.
+        Sous 900 px elle descend en fin de page, comme sur le guide public. */}
+    <div className="da-guide-grid">
+      {/* Sommaire de gauche — composant PARTAGÉ avec le guide public (E2).
+          Il ne lit que `milestones` et les étapes validées : aucune requête neuve. */}
+      <RushChapterNav
+        milestones={milestones as any}
+        completedSeqIds={allCompletedSeqIds}
+        selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
+        onSelectChapter={setActiveChapter as any}
+      />
+      <div className="da-guide-main">
         {/* ── Pagination par chapitre ──────────────────────────────────────────
             Une page = UN chapitre (ou un libellé de chapitre). Le rail de droite
             (`RushChapterSidebar`) porte le sommaire : plus de liste dépliante ici. */}
@@ -2489,7 +2530,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
@@ -2514,10 +2555,10 @@ const timelineItems=useMemo(()=>{
           `100dvh − 5,5 rem` (3,5 topnav + 1 rem de haut + 1 rem d'air) ⇒ bas du rail à
           884 px pour un scrollport de 900 ✓. Le rail est masqué sous 900 px par
           `.rush-content-grid`, d'où le `custom-scrollbar` desktop. */}
-      <div className="rush-sidebar pr-1">
-        {/* Sticky sur un bloc INTERNE : l'item de grille est étiré (voir le CSS ci-dessus),
-            donc ce bloc a la hauteur de la colonne pour se déplacer. */}
-        <div className="sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar">
+      {/* Colonne du module — collante par la règle PARTAGÉE `.da-guide-aside`
+          (E3). Plus de `sticky` local : c'est exactement la mécanique du guide
+          public, et deux `sticky` imbriqués se contredisaient (5 rem vs 1 rem). */}
+      <div className="da-guide-aside pr-1">
           <RushChapterSidebar
             milestones={contentMilestones as any}
             completedSeqIds={allCompletedSeqIds}
@@ -2525,13 +2566,16 @@ const timelineItems=useMemo(()=>{
             selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
             onSelectChapter={setActiveChapter}
             hideProvidedResources={hideDone}
+            /* Le sommaire vit désormais à GAUCHE (`RushChapterNav`) : sans cette
+               garde, les chapitres s'afficheraient deux fois à l'écran — le même
+               piège a été payé côté public en E2. */
+            hideChapters
           />
-        </div>
       </div>
     </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
-      <div className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
+      <div data-da="wakfu" data-theme="dark" data-block={daTheme.block} className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button onClick={scrollToTop} disabled={!showScrollTop}

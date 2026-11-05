@@ -1269,6 +1269,12 @@
     top: 5rem;
     max-height: calc(100dvh - 6rem);
     overflow-y: auto;
+    /* ⚠️ Un sommaire collant doit être OPAQUE : sans fond, le contenu qui défile
+       passe DERRIÈRE lui et se lit au travers (mesure du 05/11/2026 sur le guide
+       interne : la barre de recherche et le bouton Options se voyaient à travers
+       les chapitres). Le fond est celui de la DA, donc identique à la coque du
+       guide public — invisible là-bas, correct ici. */
+    background: var(--da-bg);
   }
 }
 

@@ -1,21 +1,18 @@
 /**
  * Garde — une quête VERROUILLÉE (prérequis non terminés) et une quête REPÉRÉE
- * (« Je suis ici ») ne doivent JAMAIS se peindre de la même couleur.
+ * (« Je suis ici ») ne doivent JAMAIS se peindre de la même façon.
  *
  * 🎯 Défaut mesuré (user, 21/09/2026) : « la couleur de fond d'une quête prérequis
- * bloqué et une quête jalonée sont identiques faut revoir ca, idem dans les overlay,
- * change valable public et interne ». Les deux états étaient ambre : la carte bloquée
- * en `bg-warning/[0.04] border-warning/25`, la carte repérée en `bg-warning/10
- * border-warning/40` — deux teintes voisines sur fond sombre (et côté overlay, la carte
- * bloquée restait carrément neutre, seul l'encart « À terminer avant » disait le verrou).
+ * bloqué et une quête jalonée sont identiques faut revoir ca, idem dans les overlay ».
  *
- * ✅ Règle retenue (sémantique, pas décoration) : le VERROU est `danger` (rouge, avec
- * cadenas + libellé rouges), le REPÈRE reste `warning` (ambre, + filet gauche dans l'overlay).
+ * ✅ Règle retenue, réécrite avec la DA (E3, 05/11/2026) : chaque état a son
+ * **attribut**, et la feuille le peint. `data-state="locked"` ⇒ nœud pointillé +
+ * carte à 78 % ; `data-here="true"` ⇒ accent du bloc, teinte légère. Le jaune du
+ * repère n'est plus une classe Tailwind posée à la main : même information, une
+ * seule source de vérité visuelle, identique au guide public et à l'overlay.
  *
  * 🛡️ Câblage vérifié sur les sources, commentaires retirés (la prose ne fait pas passer
- * le test). Les deux surfaces partagées sont concernées : dashboard interne et overlay
- * (`RushOverlayQuestListItem` sert l'overlay interne ET public). Le guide public n'a pas
- * d'état « bloqué » (aucun verrou côté visiteur). Lecture seule : aucun rendu, aucune base.
+ * le test). Lecture seule : aucun rendu, aucune base.
  */
 
 import { describe, it, expect } from "vitest";
@@ -32,23 +29,33 @@ const codeOf = (p: string) =>
 
 const DASH = codeOf(DASHBOARD);
 const ITEM = codeOf(OVERLAY_ITEM);
+const DA_CSS = codeOf("src/app/da-wakfu.css");
 
-describe("Dashboard — quête bloquée (rouge) ≠ quête repérée (ambre)", () => {
-  it("la carte bloquée par un prérequis passe en danger", () => {
-    expect(DASH).toMatch(/bg-danger\/\[0\.05\] border-danger\/30/);
-    // L'ancienne teinte ambre du blocage ne doit pas revenir.
+describe("Dashboard — quête bloquée ≠ quête repérée (deux attributs, deux peintures)", () => {
+  it("la carte bloquée est un `da-row[data-state=locked]`, pas un cadre rouge", () => {
+    expect(DASH).toMatch(/data-state="locked"/);
+    // La peinture est dans la feuille de la DA : nœud pointillé + carte atténuée.
+    expect(DA_CSS).toMatch(
+      /\.da-row\[data-state="locked"\] \.da-node::before\s*\{[^}]*border-style:\s*dashed/
+    );
+    expect(DA_CSS).toMatch(/\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.78/);
+    // Les anciennes teintes de blocage ne doivent pas revenir.
+    expect(DASH).not.toMatch(/bg-danger\/\[0\.05\] border-danger\/30/);
     expect(DASH).not.toMatch(/bg-warning\/\[0\.04\] border-warning\/25/);
   });
 
-  it("cadenas, nom du prérequis et chips sont rouges (même état, même couleur)", () => {
+  it("cadenas, nom du prérequis et chips restent rouges (même état, même couleur)", () => {
     expect(DASH).toMatch(/Lock className="w-3\.5 h-3\.5 text-danger/);
     expect(DASH).toMatch(/text-danger truncate">\{singleName\}/);
     expect(DASH).toMatch(/font-semibold text-danger border border-danger\/30 hover:bg-danger\/10/);
     expect(DASH).toMatch(/outline-danger\/50/);
   });
 
-  it("la carte repérée reste ambre (le repère n'est pas un blocage)", () => {
-    expect(DASH).toMatch(/isThisBookmarked\s*\?\s*"border-warning\/40 bg-warning\/10"/);
+  it("la carte repérée a SON attribut (`data-here`), distinct du verrou", () => {
+    expect(DASH).toMatch(/data-here=\{isThisBookmarked \? "true" : undefined\}/);
+    // Peinte par la DA à l'accent du bloc — jamais par la règle du verrou.
+    expect(DA_CSS).toMatch(/\.da-row\[data-here="true"\] \.da-card::before/);
+    expect(DA_CSS).not.toMatch(/\.da-row\[data-here="true"\] \.da-node/);
   });
 });
 

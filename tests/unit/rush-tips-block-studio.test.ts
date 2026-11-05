@@ -40,6 +40,9 @@ describe("Studio GOD — bloc CONSEIL / TIPS", () => {
   });
 
   it("aucune quête ne peut être ajoutée à un bloc Tips", () => {
-    expect(CODE, "section quêtes non gardée").toMatch(/\{!isTips && isExpanded && !isEditing && \(/);
+    // E1 : l'édition inline a disparu (l'inspecteur la remplace) — le `!isEditing` n'a donc
+    // plus d'objet. La garde qui compte, `!isTips`, reste intacte : un bloc Tips n'affiche
+    // jamais de liste de quêtes.
+    expect(CODE, "section quêtes non gardée").toMatch(/\{!isTips && isExpanded && \(/);
   });
 });

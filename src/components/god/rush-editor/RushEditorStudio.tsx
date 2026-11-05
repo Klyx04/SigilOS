@@ -18,7 +18,7 @@ import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { readableOn } from "@/lib/rush-dofus-accent";
 import {
   Zap, Plus, Trash2, ChevronDown, ChevronRight, ChevronUp,
-  Settings, Construction, Check, X,
+  Settings, Check, X,
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
@@ -72,6 +72,25 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { isDirty, UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
+// E1 — le studio est découpé : coquille, barre, arbre, inspecteur et palette vivent dans
+// `src/components/god/rush-editor/**` (plafond God 77/77 respecté). Les formulaires
+// existants sont **montés tels quels** dans l'inspecteur — aucune réécriture.
+import { RushEditorShell } from "@/components/god/rush-editor/RushEditorShell";
+import { RushEditorTopbar, type RushEditorTab } from "@/components/god/rush-editor/RushEditorTopbar";
+import { RushEditorTree } from "@/components/god/rush-editor/RushEditorTree";
+import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/rush-editor/RushEditorInspector";
+import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
+import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
+import {
+  findRushEditorBlock,
+  isRushOutsideChapter,
+  isRushSeparator,
+  selectionAfterRushEditorBlockRemoved,
+  selectionAfterRushEditorQuestRemoved,
+  selectionTargetsRushEditorBlock,
+  type RushEditorCommand,
+} from "@/lib/rush-editor-selection";
 
 type DungeonResult = { id: string; name: string; imageUrl?: string | null; level: number; bossName?: string };
 
@@ -233,13 +252,11 @@ function getMilestoneTypeInfo(type?: MilestoneType) {
   return MILESTONE_TYPES.find(t => t.value === type) ?? MILESTONE_TYPES[0];
 }
 
-function isSeparatorMilestone(m: Pick<Milestone, "type">) {
-  return m.type === "SEPARATEUR";
-}
+/** Un bloc SEPARATEUR ne porte ni quête ni option (règle partagée avec l'arbre). */
+const isSeparatorMilestone = isRushSeparator;
 
-function isOutsideChapterMilestone(m: Pick<Milestone, "type">) {
-  return m.type === "SEPARATEUR" || m.type === "DOFUS_OBTAINED" || m.type === "INFO";
-}
+/** Séparateur, bannière Dofus et bloc Conseil / Tips restent hors chapitre. */
+const isOutsideChapterMilestone = isRushOutsideChapter;
 
 function sortMilestonesByOrder(milestones: Milestone[]) {
   return [...milestones].sort((a, b) => a.order - b.order);
@@ -348,7 +365,29 @@ export function RushSylvestreAdminClient({
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
-  const [activeTab, setActiveTab] = useState<"content" | "settings" | "launch" | "branches">("content");
+  const [activeTab, setActiveTab] = useState<RushEditorTab>("content");
+
+  // ─── E1 : une seule sélection, recherche, filtres, palette ─────────────────
+  // `editingMilestone` (copie de travail du bloc) et `editingSeqId` (quête) sont pilotés
+  // par la sélection : c'est l'inspecteur qui les affiche, plus la liste.
+  const editor = useRushEditorSelection(localMilestones);
+  const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
+  /** Bloc dont on est en train d'ajouter une quête (formulaire monté dans l'inspecteur). */
+  const [addingSequenceTo, setAddingSequenceTo] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  /** Le formulaire de quête signale ses modifications non enregistrées. */
+  const [sequenceDirty, setSequenceDirty] = useState(false);
+  /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
+  const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
+
+  /** Le bloc édité diffère-t-il de sa version enregistrée ? (`isDirty` = comparaison JSON) */
+  const blockDirty = useMemo(() => {
+    if (!editingMilestone) return false;
+    const original = localMilestones.find((m) => m.id === editingMilestone.id);
+    return !!original && isDirty(editingMilestone, original);
+  }, [editingMilestone, localMilestones]);
+  const hasUnsavedChanges = blockDirty || sequenceDirty;
+
   // Config UI/UX éditable (pense-bête + options modale de lancement) — lue depuis le guide.
   const [uiConfig, setUiConfig] = useState<RushUIConfig>(() => resolveRushUIConfig((initialGuide as any).rushUIConfig));
   const [uiSaving, setUiSaving] = useState(false);
@@ -595,7 +634,11 @@ export function RushSylvestreAdminClient({
           imageUrl: m.imageUrl ?? null,
         });
         toast.success("Étape sauvegardée ✓");
-        setEditingMilestone(null);
+        // Le bloc enregistré devient la **nouvelle référence** : `localMilestones` est mis à
+        // jour tout de suite, sinon `blockDirty` repasserait à vrai jusqu'au refresh serveur
+        // et la garde de saisie bloquerait le clic suivant sans raison.
+        setLocalMilestones(prev => prev.map(item => (item.id === m.id ? { ...item, ...m } : item)));
+        setEditingMilestone({ ...m });
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
@@ -612,6 +655,15 @@ export function RushSylvestreAdminClient({
     // et Prisma remontait un P2025 en plein studio. En cas d'échec réel, le `refresh()`
     // fait foi : la ligne encore en base réapparaît.
     setLocalMilestones(prev => prev.filter(m => m.id !== id));
+    // L'inspecteur ne garde jamais une épave : la sélection glisse sur le bloc qui prend
+    // la place (ou le précédent), et les formulaires de ce bloc sont refermés.
+    if (selectionTargetsRushEditorBlock(editor.selection, id)) {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setSequenceDirty(false);
+    }
+    editor.setSelection((prev) => selectionAfterRushEditorBlockRemoved(prev, editor.tree, id));
     startTransition(async () => {
       try {
         const res = await deleteRushMilestone(id);
@@ -680,6 +732,9 @@ export function RushSylvestreAdminClient({
       try {
         await upsertRushSequence(data);
         toast.success(data.id ? "Quête mise à jour ✓" : "Quête ajoutée ✓");
+        // Le formulaire n'est plus « sale » : la garde de saisie retombe immédiatement.
+        setSequenceDirty(false);
+        if (!data.id) setAddingSequenceTo(null);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
@@ -705,6 +760,15 @@ export function RushSylvestreAdminClient({
     // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
     // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
     setLocalMilestones(prev => prev.map(m => ({ ...m, sequences: m.sequences.filter(s => s.id !== id) })));
+    // La sélection suit la suppression : quête suivante du même bloc, sinon le bloc.
+    if (editingSeqId === id) {
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+    }
+    editor.setSelection((prev) => {
+      const block = prev.kind === "quest" ? findRushEditorBlock(editor.tree, prev.blockId) : null;
+      return selectionAfterRushEditorQuestRemoved(prev, block, id);
+    });
     startTransition(async () => {
       try {
         const res = await deleteRushSequence(id);
@@ -753,56 +817,181 @@ export function RushSylvestreAdminClient({
     });
   }, [isActive, isUnderConstruction, isPublicUnderConstruction]);
 
+  // ─── E1 : garde de saisie, sélection, palette ──────────────────────────────
+
+  /**
+   * Change-t-on de cible alors qu'une saisie n'est pas enregistrée ? On demande l'accord
+   * dans une **modale Radix** (le `confirm()` natif est interdit par le verrou E4) ; la
+   * garde de navigation (`UnsavedChangesGuard`) couvre, elle, la sortie de page.
+   */
+  const guardEditorSwitch = useCallback((action: () => void) => {
+    if (blockDirty || sequenceDirty) setPendingSwitch(() => action);
+    else action();
+  }, [blockDirty, sequenceDirty]);
+
+  /** Ouvre un bloc dans l'inspecteur (la liste ne porte plus aucun formulaire). */
+  const selectBlock = useCallback((blockId: string) => {
+    const milestone = localMilestones.find((m) => m.id === blockId);
+    if (!milestone) return;
+    guardEditorSwitch(() => {
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setEditingMilestone({ ...milestone });
+      editor.setSelection({ kind: "block", blockId });
+      editor.setTreeOpen(false);
+      editor.setInspectorOpen(true);
+    });
+  }, [localMilestones, guardEditorSwitch, editor]);
+
+  /** Ouvre une quête dans l'inspecteur. */
+  const selectQuest = useCallback((blockId: string, questId: string) => {
+    if (!localMilestones.some((m) => m.id === blockId && m.sequences.some((s) => s.id === questId))) return;
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setAddingSequenceTo(null);
+      setEditingSeqId(questId);
+      editor.setSelection({ kind: "quest", blockId, questId });
+      editor.setTreeOpen(false);
+      editor.setInspectorOpen(true);
+    });
+  }, [localMilestones, guardEditorSwitch, editor]);
+
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+
+  /** Ouvre la création d'une quête dans l'inspecteur (bouton de la liste). */
+  const startAddSequence = useCallback((blockId: string) => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+      setAddingSequenceTo(blockId);
+      editor.setSelection({ kind: "block", blockId });
+      editor.setInspectorOpen(true);
+    });
+  }, [guardEditorSwitch, editor]);
+
+  /** Actions de la palette (les quêtes et les blocs viennent de la règle pure). */
+  const paletteActions = useMemo<RushEditorCommand[]>(() => [
+    { id: "action:add-block", kind: "action", label: "Créer un bloc", hint: "Contenu", keywords: "creer bloc ajouter", actionId: "add-block" },
+    { id: "action:branches", kind: "action", label: "Ouvrir Branches", hint: "Cité → Ordre → classe", keywords: "branches route", actionId: "branches" },
+    { id: "action:settings", kind: "action", label: "Ouvrir Config", hint: "Paramètres du guide", keywords: "config parametres", actionId: "settings" },
+    { id: "action:launch", kind: "action", label: "Ouvrir Lancement", hint: "Modale d'accueil", keywords: "lancement accueil", actionId: "launch" },
+  ], []);
+
+  const runPaletteCommand = useCallback((command: RushEditorCommand) => {
+    if (command.actionId) {
+      if (command.actionId === "add-block") { setActiveTab("content"); setAddingStep(true); }
+      else if (command.actionId === "branches") setActiveTab("branches");
+      else if (command.actionId === "settings") setActiveTab("settings");
+      else if (command.actionId === "launch") setActiveTab("launch");
+      return;
+    }
+    if (command.selection?.kind === "block") selectBlock(command.selection.blockId);
+    else if (command.selection?.kind === "quest") selectQuest(command.selection.blockId, command.selection.questId);
+  }, [selectBlock, selectQuest]);
+
+  /** Ferme l'inspecteur — avec l'accord de l'utilisateur si une saisie est en cours. */
+  const closeInspector = useCallback(() => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setSequenceDirty(false);
+      editor.setSelection({ kind: "none" });
+    });
+  }, [guardEditorSwitch, editor]);
+
+  // ─── E1 : ce que l'inspecteur affiche ──────────────────────────────────────
+  const selectedBlockNode = editor.selection.kind === "block" || editor.selection.kind === "quest"
+    ? findRushEditorBlock(editor.tree, editor.selection.blockId)
+    : null;
+  const selectedQuest = editingSeqId
+    ? localMilestones.flatMap((m) => m.sequences).find((s) => s.id === editingSeqId) ?? null
+    : null;
+  const selectedQuestBlock = selectedQuest
+    ? localMilestones.find((m) => m.id === selectedBlockNode?.id) ?? null
+    : null;
+  // Un séparateur garde son édition inline (reste E3) : l'inspecteur ne le prend pas.
+  const blockBeingEdited = editingMilestone && !isSeparatorMilestone(editingMilestone) ? editingMilestone : null;
+
+  const inspectorTitle = addingSequenceTo
+    ? "Nouvelle quête"
+    : blockBeingEdited
+      ? blockBeingEdited.title
+      : selectedQuest
+        ? (selectedQuest.subGuideName || selectedQuest.subGuideRef)
+        : "Aucune sélection";
+
+  const inspectorSubtitle = addingSequenceTo
+    ? localMilestones.find((m) => m.id === addingSequenceTo)?.title ?? null
+    : blockBeingEdited
+      ? `${blockBeingEdited.sequences.length} quête${blockBeingEdited.sequences.length !== 1 ? "s" : ""} · ${isOutsideChapterMilestone(blockBeingEdited) ? "hors chapitre" : `chapitre ${blockBeingEdited.chapter}`}`
+      : selectedQuestBlock
+        ? `Quête · ${selectedQuestBlock.title}`
+        : null;
+
+  const inspectorBody = addingSequenceTo ? (
+    <AddSequenceForm
+      milestoneId={addingSequenceTo}
+      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
+      isPending={isPending}
+    />
+  ) : blockBeingEdited ? (
+    <BlockInspectorForm
+      milestone={blockBeingEdited}
+      editingData={blockBeingEdited}
+      isPending={isPending}
+      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
+      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+      onCancelEdit={closeInspector}
+    />
+  ) : selectedQuest && selectedQuestBlock ? (
+    <SequenceEditForm
+      seq={selectedQuest}
+      milestoneId={selectedQuestBlock.id}
+      isPending={isPending}
+      milestones={localMilestones}
+      onMove={handleMoveSequence}
+      onSplit={handleSplitSequence}
+      onDirtyChange={setSequenceDirty}
+      onSave={(data) => handleSaveSequence({ ...data, id: selectedQuest.id, milestoneId: selectedQuestBlock.id })}
+      onCancel={closeInspector}
+    />
+  ) : (
+    <RushEditorInspectorEmpty />
+  );
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white" data-rush-admin-root>
-      {/* Header */}
-      <div className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
-              <Zap className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-caption font-black uppercase tracking-widest text-emerald-400/60">ÉDITEUR GOD</p>
-              <h1 className="text-lg font-black text-white italic">{initialGuide.name}</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={`px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border ${isActive ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}>
-              {isActive ? "Actif" : "Inactif"}
-            </span>
-            {isUnderConstruction && (
-              <span className="px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                <Construction className="w-2.5 h-2.5" /> En construction
-              </span>
-            )}
-            <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-white/5">
-              {(["content", "branches", "settings", "launch"] as const).map(t => (
-                <button key={t} onClick={() => setActiveTab(t)}
-                  className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all ${activeTab === t ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
-                >
-                  {t === "content"
-                    ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</>
-                    : t === "branches"
-                      ? <><AlignLeft className="w-3 h-3 inline mr-1" />Branches</>
-                      : t === "launch"
-                        ? <><ClipboardList className="w-3 h-3 inline mr-1" />Lancement</>
-                        : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setImportJsonOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 transition-all"
-              title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
-              <ClipboardList className="w-3 h-3" /> JSON
-            </button>
-            <button onClick={() => runSeed(false)} disabled={importing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 transition-all disabled:opacity-50"
-              title="Importer le guide Laniyelle (métiers, ressources, donjons)">
-              <Sparkles className="w-3 h-3" /> Importer
-            </button>
-          </div>
-        </div>
+      {/* Barre unique (E1) — guide, état, recherche, onglets, données. */}
+      <div className="sticky top-0 z-40 border-b border-border bg-surface">
+        <RushEditorTopbar
+          guideName={initialGuide.name}
+          isActive={isActive}
+          isUnderConstruction={isUnderConstruction}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          query={editor.filters.query}
+          onQueryChange={(query) => editor.patchFilters({ query })}
+          onOpenPalette={openPalette}
+          onOpenTree={() => editor.setTreeOpen(true)}
+          visibleQuestCount={editor.visibleQuestCount}
+          totalQuestCount={editor.totalQuestCount}
+          actions={
+            <>
+              <button onClick={() => setImportJsonOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong"
+                title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
+                <ClipboardList className="w-3 h-3" aria-hidden /> JSON
+              </button>
+              <button onClick={() => runSeed(false)} disabled={importing}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong disabled:opacity-50"
+                title="Importer le guide Laniyelle (métiers, ressources, donjons)">
+                <Sparkles className="w-3 h-3" aria-hidden /> Importer
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Modal d'aperçu d'import */}
@@ -840,8 +1029,32 @@ export function RushSylvestreAdminClient({
         )}
       </AnimatePresence>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6 relative">
+      <div className="relative px-2 py-2 sm:px-3 sm:py-3">
         {activeTab === "content" && (
+          <RushEditorShell
+            tree={
+              <RushEditorTree
+                tree={editor.visibleTree}
+                selection={editor.selection}
+                filters={editor.filters}
+                filtersActive={editor.filtersActive}
+                onFiltersChange={editor.patchFilters}
+                onResetFilters={editor.resetFilters}
+                onSelectBlock={selectBlock}
+                onSelectQuest={selectQuest}
+              />
+            }
+            inspector={
+              <RushEditorInspector title={inspectorTitle} subtitle={inspectorSubtitle} onClose={closeInspector}>
+                {inspectorBody}
+              </RushEditorInspector>
+            }
+            treeOpen={editor.treeOpen}
+            onTreeOpenChange={editor.setTreeOpen}
+            inspectorOpen={editor.inspectorOpen}
+            onInspectorOpenChange={editor.setInspectorOpen}
+            onOpenPalette={openPalette}
+            list={
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Stats */}
             <div className="flex items-center gap-6 px-5 py-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
@@ -1080,22 +1293,16 @@ export function RushSylvestreAdminClient({
                               <SortableMilestoneRow
                                 milestone={m}
                                 isExpanded={expandedMilestones.has(m.id)}
-                                isEditing={editingMilestone?.id === m.id}
-                                editingData={editingMilestone?.id === m.id ? editingMilestone : null}
+                                isSelected={selectionTargetsRushEditorBlock(editor.selection, m.id)}
                                 isPending={isPending}
                                 onToggle={() => setExpandedMilestones(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })}
-                                onEdit={() => setEditingMilestone({ ...m })}
-                                onEditChange={patch => setEditingMilestone(prev => prev ? { ...prev, ...patch } : prev)}
-                                onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-                                onCancelEdit={() => setEditingMilestone(null)}
+                                onSelect={() => selectBlock(m.id)}
+                                onSelectQuest={(questId) => selectQuest(m.id, questId)}
+                                onAddSequence={() => startAddSequence(m.id)}
                                 onDelete={() => setPendingDelete(m)}
-                                onSaveSequence={handleSaveSequence}
                                 onDeleteSequence={handleDeleteSequence}
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
                                 onApplyBlockRoute={handleApplyBlockRoute}
-                                onMoveSequence={handleMoveSequence}
-                                onSplitSequence={handleSplitSequence}
-                                allMilestones={localMilestones}
                               />
                             </div>
                           )}
@@ -1132,6 +1339,8 @@ export function RushSylvestreAdminClient({
               </DndContext>
             )}
           </motion.div>
+            }
+          />
         )}
 
         {activeTab === "branches" && (
@@ -1325,6 +1534,40 @@ export function RushSylvestreAdminClient({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all disabled:opacity-50"
             >
               <Trash2 className="w-3 h-3" /> Supprimer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Palette Ctrl+K + garde de sortie (E1). */}
+      <RushEditorCommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        commands={editor.commands}
+        actions={paletteActions}
+        onRun={runPaletteCommand}
+      />
+      <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
+
+      {/* Changement de cible alors qu'une saisie n'est pas enregistrée : modale Radix,
+          jamais `confirm()` natif (verrou E4). */}
+      <Dialog open={!!pendingSwitch} onOpenChange={(open) => { if (!open) setPendingSwitch(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifications non enregistrées</DialogTitle>
+            <DialogDescription>
+              La saisie en cours sera perdue si vous changez de bloc ou de quête.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setPendingSwitch(null)}
+              className="rounded-lg border border-white/10 bg-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-zinc-700">
+              Rester ici
+            </button>
+            <button type="button"
+              onClick={() => { const action = pendingSwitch; setPendingSwitch(null); action?.(); }}
+              className="rounded-lg border border-red-500/30 bg-red-500/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-300 transition-colors hover:bg-red-500/30">
+              Continuer sans enregistrer
             </button>
           </DialogFooter>
         </DialogContent>
@@ -1698,22 +1941,16 @@ function SeparatorRowAdmin({
 function SortableMilestoneRow(props: {
   milestone: Milestone;
   isExpanded: boolean;
-  isEditing: boolean;
-  editingData: Milestone | null;
+  isSelected: boolean;
   isPending: boolean;
   onToggle: () => void;
-  onEdit: () => void;
-  onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void;
-  onCancelEdit: () => void;
+  onSelect: () => void;
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
   onDelete: () => void;
-  onSaveSequence: (data: any) => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
   onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
-  onMoveSequence: (sequenceId: string, targetMilestoneId: string) => void;
-  onSplitSequence: (sequenceId: string) => void;
-  allMilestones: Milestone[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -1726,27 +1963,131 @@ function SortableMilestoneRow(props: {
 }
 
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
-function MilestoneRow({
-  milestone, isExpanded, isEditing, editingData, isPending,
-  onToggle, onEdit, onEditChange, onSave, onCancelEdit, onDelete,
-  onSaveSequence, onDeleteSequence, onReorderSequences, onApplyBlockRoute, onMoveSequence, onSplitSequence, allMilestones, dragHandleProps,
+// ─── BlockInspectorForm (E1) ─────────────────────────────────────────────────
+/**
+ * Formulaire d'édition d'un bloc, **extrait tel quel** de `MilestoneRow` (E1).
+ *
+ * La liste ne porte plus aucun formulaire : ce panneau est monté par l'inspecteur.
+ * Le JSX est celui du studio d'origine (aucune réécriture) — la DA sera reprise en E4.
+ */
+function BlockInspectorForm({
+  milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
 }: {
-  milestone: Milestone; isExpanded: boolean; isEditing: boolean;
-  editingData: Milestone | null; isPending: boolean;
-  onToggle: () => void; onEdit: () => void;
+  milestone: Milestone;
+  editingData: Milestone;
+  isPending: boolean;
   onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void; onCancelEdit: () => void; onDelete: () => void;
-  onSaveSequence: (data: any) => void; onDeleteSequence: (id: string) => void;
+  onSave: () => void;
+  onCancelEdit: () => void;
+}) {
+  const color = milestone.accentColor || "#10b981";
+
+  return (
+    <div className="space-y-2">
+      {/* Type selector inline */}
+      <div className="flex flex-wrap gap-1">
+        {MILESTONE_TYPES.map(t => (
+          <button key={t.value} onClick={() => onEditChange({ type: t.value })}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-black border transition-all"
+            style={(editingData?.type ?? milestone.type) === t.value
+              ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" }
+              : { color: "#71717a", borderColor: "transparent" }
+            }
+          >
+            {t.icon}{t.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input value={editingData?.title ?? ""} onChange={e => onEditChange({ title: e.target.value })}
+          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+          placeholder="Nom du bloc" autoFocus
+        />
+        <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
+          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
+          placeholder="Description (optionnel)"
+        />
+      </div>
+      {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
+      {(editingData?.type ?? milestone.type) === "INFO" ? (
+        <RushBlockMetaEditor
+          values={parseBlockMeta(editingData?.tips ?? "")}
+          onChange={(patch) => {
+            const current = parseBlockMeta(editingData?.tips ?? "");
+            const updated = formatBlockMeta({ ...current, ...patch });
+            onEditChange({ tips: updated });
+          }}
+          accentColor={editingData?.accentColor ?? color}
+          isSeparator={false}
+        />
+      ) : (
+        <>
+          <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
+            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
+            placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
+          />
+          <RichTextSyntaxHint />
+        </>
+      )}
+      {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
+          DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
+          dans la ligne). Champ partagé avec la création et le séparateur. */}
+      <BlockImageField
+        value={editingData?.imageUrl ?? ""}
+        onChange={(url) => onEditChange({ imageUrl: url })}
+      />
+      {/* Dofus selector si type DOFUS */}
+      {editingData?.type === "DOFUS" && (
+        <div className="flex flex-wrap gap-1.5">
+          {DOFUS_LIST.map(d => (
+            <button key={d.id} onClick={() => onEditChange({ dofusId: d.id })}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-black border transition-all ${editingData.dofusId === d.id ? "border-white/40" : "border-white/10 opacity-50 hover:opacity-100"}`}
+              style={{ color: d.color, borderColor: editingData.dofusId === d.id ? d.color : undefined, background: d.color + "15" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={d.imageUrl} alt={d.label} className="w-4 h-4 object-contain" />
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1">
+          {COLOR_PALETTE.map(c => (
+            <button key={c.value} onClick={() => onEditChange({ accentColor: c.value })} title={c.label}
+              className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+              style={{ backgroundColor: c.value }}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-1 ml-auto">
+          <button onClick={onSave} disabled={isPending} aria-label="Enregistrer le bloc" className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
+          <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MilestoneRow({
+  milestone, isExpanded, isSelected, isPending,
+  onToggle, onSelect, onSelectQuest, onAddSequence, onDelete,
+  onDeleteSequence, onReorderSequences, onApplyBlockRoute, dragHandleProps,
+}: {
+  milestone: Milestone; isExpanded: boolean; isSelected: boolean; isPending: boolean;
+  onToggle: () => void;
+  /** Ouvre le bloc dans l'inspecteur — la liste ne porte plus aucun formulaire. */
+  onSelect: () => void;
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
+  onDelete: () => void;
+  onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
   onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
-  onMoveSequence: (sequenceId: string, targetMilestoneId: string) => void;
-  onSplitSequence: (sequenceId: string) => void;
-  allMilestones: Milestone[];
   dragHandleProps?: any;
 }) {
   const color = milestone.accentColor || "#10b981";
   const typeInfo = getMilestoneTypeInfo(milestone.type);
-  const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
 
   // Dnd for sequences
   const sensors = useSensors(
@@ -1769,7 +2110,7 @@ function MilestoneRow({
   const isTips = milestone.type === "INFO";
 
   return (
-    <div className="bg-zinc-950/40">
+    <div className={isSelected ? "bg-zinc-900/60" : "bg-zinc-950/40"}>
       <div className="flex items-center gap-2 px-4 py-2.5 group">
         {/* Drag handle */}
         <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-400 transition-colors flex-shrink-0 touch-none">
@@ -1784,109 +2125,11 @@ function MilestoneRow({
         {/* Color dot */}
         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
 
-        {isEditing ? (
-          <div className="flex-1 space-y-2">
-            {/* Type selector inline */}
-            <div className="flex flex-wrap gap-1">
-              {MILESTONE_TYPES.map(t => (
-                <button key={t.value} onClick={() => onEditChange({ type: t.value })}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-black border transition-all"
-                  style={(editingData?.type ?? milestone.type) === t.value
-                    ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" }
-                    : { color: "#71717a", borderColor: "transparent" }
-                  }
-                >
-                  {t.icon}{t.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <input value={editingData?.title ?? ""} onChange={e => onEditChange({ title: e.target.value })}
-                className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                placeholder="Nom du bloc" autoFocus
-              />
-              <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
-                className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
-                placeholder="Description (optionnel)"
-              />
-            </div>
-            {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
-            {(editingData?.type ?? milestone.type) === "INFO" ? (
-              <RushBlockMetaEditor
-                values={parseBlockMeta(editingData?.tips ?? "")}
-                onChange={(patch) => {
-                  const current = parseBlockMeta(editingData?.tips ?? "");
-                  const updated = formatBlockMeta({ ...current, ...patch });
-                  onEditChange({ tips: updated });
-                }}
-                accentColor={editingData?.accentColor ?? color}
-                isSeparator={false}
-              />
-            ) : (
-              <>
-                <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
-                  placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
-                />
-                <RichTextSyntaxHint />
-              </>
-            )}
-            {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
-                DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
-                dans la ligne). Champ partagé avec la création et le séparateur. */}
-            <BlockImageField
-              value={editingData?.imageUrl ?? ""}
-              onChange={(url) => onEditChange({ imageUrl: url })}
-            />
-            {/* Dofus selector si type DOFUS */}
-            {editingData?.type === "DOFUS" && (
-              <div className="flex flex-wrap gap-1.5">
-                {DOFUS_LIST.map(d => (
-                  <button key={d.id} onClick={() => onEditChange({ dofusId: d.id })}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-black border transition-all ${editingData.dofusId === d.id ? "border-white/40" : "border-white/10 opacity-50 hover:opacity-100"}`}
-                    style={{ color: d.color, borderColor: editingData.dofusId === d.id ? d.color : undefined, background: d.color + "15" }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={d.imageUrl} alt={d.label} className="w-4 h-4 object-contain" />
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {COLOR_PALETTE.map(c => (
-                  <button key={c.value} onClick={() => onEditChange({ accentColor: c.value })} title={c.label}
-                    className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                    style={{ backgroundColor: c.value }}
-                  />
-                ))}
-              </div>
-              {/* Preview icon for INFO blocks */}
-              {(editingData?.type ?? milestone.type) === "INFO" && (() => {
-                const ac = editingData?.accentColor ?? milestone.accentColor;
-                let icon = "💡";
-                if (ac) {
-                  const c = ac.toLowerCase();
-                  if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) icon = "⚠️";
-                  else if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38")) icon = "📖";
-                  else if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0")) icon = "🔮";
-                }
-                return <span className="text-base ml-2" title="Icône d'aperçu pour ce type INFO">{icon}</span>;
-              })()}
-              <div className="flex items-center gap-1 ml-auto">
-                <button onClick={onSave} disabled={isPending} className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
-                <button onClick={onCancelEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => { if (!isTips) onToggle(); }}
-              aria-expanded={isTips ? undefined : isExpanded}
-              className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
-            >
+        <button
+          onClick={() => { if (!isTips) onToggle(); }}
+          aria-expanded={isTips ? undefined : isExpanded}
+          className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
+        >
               <span className="text-sm font-bold text-white truncate">{milestone.title}</span>
               {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
               {!isTips && dofusInfo && (
@@ -1916,17 +2159,15 @@ function MilestoneRow({
               )}
               {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />)}
             </button>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-              <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
-              <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={onSelect} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all" aria-label="Éditer ce bloc"><Pencil className="w-3 h-3" /></button>
+          <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all" aria-label="Supprimer ce bloc"><Trash2 className="w-3 h-3" /></button>
+        </div>
       </div>
 
       {/* Sequences — jamais pour un bloc CONSEIL / TIPS : il n'accueille aucune quête. */}
       <AnimatePresence>
-        {!isTips && isExpanded && !isEditing && (
+        {!isTips && isExpanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
               <RushRouteBlockBar
@@ -1938,40 +2179,25 @@ function MilestoneRow({
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
                 <SortableContext items={milestone.sequences.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   {milestone.sequences.map(seq => (
-                    editingSeqId === seq.id ? (
-                      <SequenceEditForm
-                        key={seq.id}
-                        seq={seq}
-                        milestoneId={milestone.id}
-                        isPending={isPending}
-                        milestones={allMilestones}
-                        onMove={onMoveSequence}
-                        onSplit={onSplitSequence}
-                        onSave={(data) => {
-                          onSaveSequence({ ...data, id: seq.id, milestoneId: milestone.id });
-                          setEditingSeqId(null);
-                        }}
-                        onCancel={() => setEditingSeqId(null)}
-                      />
-                    ) : (
-                      <SortableSequenceRow
-                        key={seq.id}
-                        seq={seq}
-                        color={color}
-                        onEdit={() => setEditingSeqId(seq.id)}
-                        onDelete={() => onDeleteSequence(seq.id)}
-                      />
-                    )
+                    <SortableSequenceRow
+                      key={seq.id}
+                      seq={seq}
+                      color={color}
+                      onEdit={() => onSelectQuest(seq.id)}
+                      onDelete={() => onDeleteSequence(seq.id)}
+                    />
                   ))}
                 </SortableContext>
               </DndContext>
-              {editingSeqId === null && (
-                <AddSequenceForm
-                  milestoneId={milestone.id}
-                  onAdd={(data) => onSaveSequence({ ...data, milestoneId: milestone.id })}
-                  isPending={isPending}
-                />
-              )}
+              {/* Le formulaire « Ajouter une quête » vit dans l'inspecteur : la liste ne
+                  pousse plus la position quand on édite (cause racine n°1 de la refonte). */}
+              <button
+                type="button"
+                onClick={onAddSequence}
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-white/10 px-2 py-1.5 text-caption text-zinc-500 transition-colors hover:border-white/25 hover:text-zinc-300"
+              >
+                <Plus className="w-3 h-3" aria-hidden /> Ajouter une quête
+              </button>
             </div>
           </motion.div>
         )}
@@ -2825,12 +3051,14 @@ const GOD_DOFUS_SURFACE = "#18181b";
 const GOD_MODAL_SURFACE = "#09090b";
 
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
   onSave: (data: any) => void; onCancel: () => void;
   onMove: (sequenceId: string, targetMilestoneId: string) => void;
   onSplit: (sequenceId: string) => void;
   milestones?: Milestone[];
+  /** E1 — signale à l'inspecteur que la fiche diffère de la donnée enregistrée. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
   const [splitConfirm, setSplitConfirm] = useState(false);
@@ -3293,6 +3521,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
   }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+
+  // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus

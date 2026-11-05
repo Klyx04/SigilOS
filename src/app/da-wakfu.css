@@ -384,11 +384,15 @@
 }
 
 .da-banner-text h2 {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
   color: #fff;
-  font: 700 27px/.95 var(--da-font-title);
+  font: 700 22px/.95 var(--da-font-title);
   text-transform: uppercase;
   letter-spacing: .03em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   text-shadow: 0 2px 0 var(--da-outline), 0 4px 12px rgb(0 0 0 / .66);
 }
 
@@ -861,7 +865,12 @@
 
 .da-meta strong { font: 700 16px var(--da-font-title); letter-spacing: .04em; }
 
-.da-track { position: relative; height: 9px; }
+.da-track {
+  position: relative;
+  height: 9px;
+  /* La jauge respire sous la ligne « joueur · MAIN » (elle la touchait). */
+  margin-top: .4rem;
+}
 
 .da-track::before {
   content: "";

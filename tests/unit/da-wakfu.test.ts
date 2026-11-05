@@ -18,6 +18,7 @@ import { countRushQuests, matchesRushQuestFilter } from "@/lib/rush-quest-filter
 const CSS = "src/app/da-wakfu.css";
 const SKILL = ".cline/skills/sigilos-da-wakfu/SKILL.md";
 const FILTERS = "src/components/da/DaWakfuFilters.tsx";
+const DOCK = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 
 type Rgb = [number, number, number];
 
@@ -226,5 +227,31 @@ describe("DA Gouache Wakfu — compteurs de filtre", () => {
         expect(matchesRushQuestFilter({ isDone: true, isLocked: false }, "done")).toBe(true);
         expect(matchesRushQuestFilter({ isDone: false, isLocked: false }, "done")).toBe(false);
         expect(matchesRushQuestFilter({ isDone: false, isLocked: true }, "done")).toBe(false);
+    });
+});
+
+describe("DA Gouache Wakfu — dock (E1e)", () => {
+    it("le compteur du dock est un mini-écriteau 40 × 28", () => {
+        const mini = css.match(/\.da-plank\[data-size="mini"\]\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(mini, "variante absente").not.toBe("");
+        expect(mini).toMatch(/width:\s*40px/);
+        expect(mini).toMatch(/height:\s*28px/);
+    });
+
+    it("le titre du chapitre n'est JAMAIS tronqué (plus d'ellipsis)", () => {
+        const label = css.match(/\.da-dock \.da-dock-label\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(label, "règle absente").not.toBe("");
+        expect(label).not.toMatch(/text-overflow/);
+        expect(label).not.toMatch(/overflow:\s*hidden/);
+        // La taille reste celle de la maquette : 13 px condensé.
+        expect(label).toMatch(/font:\s*700 13px/);
+        expect(readFileSync(DOCK, "utf8")).toMatch(/className="da-dock-label/);
+    });
+
+    it("la case « tout le chapitre » est le nœud de la liste, pas un carré nu", () => {
+        expect(readFileSync(DOCK, "utf8")).toMatch(
+            /<span className="da-node" data-state=\{msDone \? "done" : "todo"\}/
+        );
+        expect(css).toMatch(/\.da-dock \.da-node\[data-state="done"\]::before/);
     });
 });

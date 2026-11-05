@@ -62,9 +62,12 @@ describe("DA « Grimoire Sylvestre » — barre de chapitre", () => {
         expect(codeOf(CHAPTER)).not.toMatch(SLOP);
     });
 
-    it("le titre du chapitre est en serif et la jauge en or", () => {
+    it("le titre du chapitre suit le dock et la jauge en or", () => {
         const src = codeOf(CHAPTER);
-        expect(src).toMatch(/font-serif text-\[12px\]/);
+        // DA « Gouache Wakfu » : le titre vit dans `.da-dock-label` (13 px condensé,
+        // jamais tronqué) — la taille et la fonte sont des jetons, pas du Tailwind.
+        expect(src).toMatch(/da-dock-label/);
+        expect(src).not.toMatch(/truncate text-left font-serif text-\[12px\]/);
         expect(src).toMatch(/bg-gold transition-\[width\][^"]*motion-reduce/);
     });
 });

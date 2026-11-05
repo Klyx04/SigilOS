@@ -449,6 +449,23 @@
   filter: url(#da-brush);
 }
 
+/* Mini-écriteau 40 × 28 : le compteur du dock. Même signature (deux planches
+   inclinées, rayures de bois, chiffres au pinceau), à l'échelle de la barre. */
+.da-plank[data-size="mini"] {
+  width: 40px;
+  height: 28px;
+  margin-bottom: 0;
+  transform: rotate(-4deg);
+}
+
+.da-plank[data-size="mini"] i { inset: 0 2px 7px 0; }
+.da-plank[data-size="mini"] b { inset: 7px 0 0 3px; }
+
+.da-plank[data-size="mini"] span {
+  font-size: 13px;
+  transform: rotate(3deg) translateY(-1px);
+}
+
 /* ── Fil de sève + nœud + carte ──────────────────────────────────────────── */
 .da-rail {
   position: relative;
@@ -647,6 +664,7 @@
   top: 0;
   z-index: 30;
   display: flex;
+  align-items: center;
   gap: .4rem;
   padding: .5rem .75rem 0;
   background: var(--da-bg);
@@ -681,11 +699,13 @@
 
 .da-dock .da-dock-label {
   min-width: 0;
-  overflow: hidden;
+  /* Le titre du chapitre n'est JAMAIS tronqué (le « Ali… » d'E1d était une
+     régression) : il passe à la ligne. En graisse condensée 13 px, deux lignes
+     tiennent déjà dans une PiP de 420 px. */
+  overflow-wrap: break-word;
   font: 700 13px/1.05 var(--da-font-title);
   letter-spacing: .06em;
   text-transform: uppercase;
-  text-overflow: ellipsis;
 }
 
 .da-dock small {
@@ -713,6 +733,17 @@
   height: 3px;
   background: var(--da-acc);
   clip-path: polygon(0 40%, 10% 0, 100% 30%, 92% 100%, 0 80%);
+}
+
+/* Nœud du dock : la case « tout le chapitre » est le MÊME cercle peint que les
+   nœuds de la liste (elle était un carré nu, hors grammaire). */
+.da-dock .da-node { margin-top: 0; }
+
+.da-dock .da-node[data-state="done"] { color: var(--da-on); }
+
+.da-dock .da-node[data-state="done"]::before {
+  border-color: var(--da-outline);
+  background: var(--da-ok);
 }
 
 /* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */

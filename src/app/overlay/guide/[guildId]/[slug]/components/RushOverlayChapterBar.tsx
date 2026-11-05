@@ -41,9 +41,13 @@ interface RushOverlayChapterBarProps {
  * perdus dans une fenêtre PiP.
  *
  * Cette barre unique porte les trois informations sur UNE rangée :
- *   · case à cocher « tout le chapitre » (à gauche) ;
- *   · titre + chevron (clic = recherche parmi les chapitres) ;
- *   · avancement chiffré (`n/N · x%`) et jauge fine collée au bas de la barre.
+ *   · nœud « tout le chapitre » (à gauche) ;
+ *   · médaillon + titre + chevron (clic = recherche parmi les chapitres) ;
+ *   · compteur sur mini-écriteau et jauge fine collée au bas de la barre.
+ *
+ * DA « Gouache Wakfu » (E1e) : la barre est le `dock` de la maquette — barre pleine
+ * largeur, médaillon 26 px, titre 13 px condensé qui passe à la ligne (jamais
+ * tronqué), compteur sur planches 40 × 28, nœud rond au lieu d'un carré nu.
  *
  * Deux mentions disparaissent quand elles n'informent personne : « Chapitre 1 / 1 »
  * (un guide à un seul chapitre) et la jauge d'un bloc sans quête (séparateur, encart).
@@ -95,8 +99,8 @@ export function RushOverlayChapterBar({
       aria-label="Chapitres du guide"
       className={cn("da-dock", className)}
     >
-      <div className="flex items-center gap-2">
-        {/* Case à cocher « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/* Case « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais
             imbriqué dedans (HTML invalide, et le clic ouvrirait la liste). */}
         {activeMs && onToggleChapter && showProgress && (
           <button
@@ -112,38 +116,32 @@ export function RushOverlayChapterBar({
               loading && "cursor-not-allowed opacity-50"
             )}
           >
-            <span
-              className={cn(
-                "flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors motion-reduce:transition-none",
-                msDone
-                  ? "border-success bg-success text-background"
-                  : "border-border-strong bg-background"
-              )}
-            >
-              {msDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+            {/* DA « Gouache Wakfu » : le nœud de la liste, pas un carré nu. */}
+            <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true">
+              {msDone && <Check className="h-3 w-3 stroke-[3]" />}
             </span>
           </button>
         )}
 
-        {/* Déclencheur : titre du chapitre + avancement + chevron (liste déroulante) */}
+        {/* Déclencheur : médaillon + titre du chapitre + compteur + chevron */}
         <button
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label="Choisir un chapitre"
+          aria-current="true"
           onClick={() => canSelect && setOpen((v) => !v)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-[6px] border font-semibold transition-colors motion-reduce:transition-none",
-            "px-2.5 py-2 text-[11px]",
-            canSelect && "cursor-pointer",
-            "border-border bg-elevated text-foreground hover:border-border-strong"
+            "flex min-w-0 flex-1 items-center gap-2 rounded-[6px] px-1.5 py-1.5 text-left transition-colors motion-reduce:transition-none",
+            canSelect && "cursor-pointer"
           )}
         >
-          {/* Picto de QUÊTE du jeu (asset réel, 64 px servi en 16 px) : une quête/un chapitre
-              se reconnaît à son picto, pas à un glyphe d'interface. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 shrink-0 object-contain" />
-          <span className="min-w-0 flex-1 truncate text-left font-serif text-[12px] tracking-[0.01em]">
+          {/* Médaillon 26 px (DA) : le picto de QUÊTE du jeu, pas un glyphe. */}
+          <span className="da-medal" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 object-contain" />
+          </span>
+          <span className="da-dock-label min-w-0 flex-1 text-left">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
           </span>
           {/* Dofus visé par le bloc courant (icône Dofus + pastille quand il est obtenu) */}
@@ -183,12 +181,16 @@ export function RushOverlayChapterBar({
           )}
           {showProgress && (
             <span
-              className={cn(
-                "shrink-0 font-mono text-[9px] font-semibold tabular-nums",
-                "text-muted-foreground"
-              )}
+              className="da-plank shrink-0"
+              data-size="mini"
+              role="img"
+              aria-label={`${done} étapes validées sur ${total}`}
             >
-              {done}/{total} · {pct}%
+              <i />
+              <b />
+              <span>
+                {done}/{total}
+              </span>
             </span>
           )}
           {canSelect && (

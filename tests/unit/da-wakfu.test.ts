@@ -283,4 +283,14 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         // L'hôte décide du palier : `wide` dès 820 px de haut.
         expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 820 \? "wide"/);
     });
+
+    it("le fil de sève est monté et sa longueur est MESURÉE", () => {
+        const shell = readFileSync(SHELL, "utf8");
+        expect(shell).toMatch(/className="da-rail" ref=\{railRef\}/);
+        // La longueur n'est pas devinée : elle est posée en style, sur la première
+        // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`).
+        expect(shell).toMatch(/setProperty\("--da-grow"/);
+        expect(shell).toMatch(/\[data-state="next"\]/);
+        expect(css).toMatch(/height:\s*var\(--da-grow/);
+    });
 });

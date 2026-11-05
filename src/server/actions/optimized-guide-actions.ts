@@ -27,6 +27,7 @@ import { resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
+import { nextSequenceOrder } from "@/lib/rush-move";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -3975,7 +3976,9 @@ export async function upsertRushSequence(data: {
   };
 
   if (data.id) {
-    // UPDATE : Prisma v7 exige l'API relation pour les FK (connect/disconnect)
+    // UPDATE : Prisma v7 exige l'API relation pour les FK (connect/disconnect).
+    // Le BLOC ne change pas ici : un déplacement passe par `moveRushSequence`
+    // (action dédiée qui n'écrit que `milestoneId` + `order`, jamais les autres champs).
     seq = await db.guideSequence.update({
       where: { id: data.id },
       data: {
@@ -4011,6 +4014,111 @@ export async function upsertRushSequence(data: {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, sequence: seq };
+}
+
+/**
+ * Schéma **borné** du déplacement d'une quête : deux ids, rien d'autre.
+ * Le bloc cible ne vient jamais du client tel quel : il est relu dans le guide
+ * avant l'écriture (isolation + fail-closed).
+ */
+const MoveRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  targetMilestoneId: z.string().min(1).max(64),
+});
+
+/**
+ * (God) Déplace **une quête** vers un autre bloc du guide Rush.
+ *
+ * Correctif mesuré le 05/11/2026 : le studio réutilisait `upsertRushSequence` avec
+ * des champs partiels pour « déplacer » une quête. Cette action ne modifiait pas
+ * `milestoneId` et remettait `alignOrderCode`, `alignLevelReq`, `classReq`,
+ * `isSuccess`, `icon` et `metamobMonsterId` à null/false (perte de route).
+ * Ici, l'écriture est **exclusivement** `milestoneId` + `order` : la route, les
+ * tips, les tags et les donjons restent attachés à la quête.
+ *
+ * Fail-closed :
+ *  · la quête et le bloc cible doivent appartenir au guide `rush-sylvestre` ;
+ *  · un séparateur ne porte pas de quêtes ;
+ *  · le bloc cible est relu dans la même transaction que l'écriture ;
+ *  · un déplacement vers le bloc courant est un no-op explicite (`moved: false`).
+ */
+export async function moveRushSequence(sequenceId: string, targetMilestoneId: string) {
+  const parsed = MoveRushSequenceSchema.safeParse({ sequenceId, targetMilestoneId });
+  if (!parsed.success) {
+    throw new Error("Déplacement invalide");
+  }
+
+  // Une réorganisation peut déplacer plusieurs quêtes d'affilée : la limite est plus
+  // large que les écritures de masse, mais reste bornée (jamais une boucle client).
+  await requireRushWriteAccess("rush-move-sequence", 60, 60_000);
+
+  const result = await db.$transaction(async (tx) => {
+    const source = await tx.guideSequence.findUnique({
+      where: { id: parsed.data.sequenceId },
+      select: {
+        id: true,
+        milestoneId: true,
+        milestone: {
+          select: {
+            guideId: true,
+            guide: { select: { slug: true } },
+          },
+        },
+      },
+    });
+
+    if (!source || source.milestone.guide.slug !== "rush-sylvestre") {
+      throw new Error("Quête introuvable dans le guide Rush");
+    }
+
+    const target = await tx.guideMilestone.findFirst({
+      where: { id: parsed.data.targetMilestoneId, guideId: source.milestone.guideId },
+      select: { id: true, type: true },
+    });
+
+    if (!target) {
+      throw new Error("Bloc cible introuvable dans ce guide");
+    }
+    if (target.type === "SEPARATEUR") {
+      throw new Error("Un séparateur ne porte pas de quêtes.");
+    }
+    if (target.type === "INFO") {
+      throw new Error("Un bloc Conseil / Tips ne porte pas de quêtes.");
+    }
+    if (target.id === source.milestoneId) {
+      return { moved: false, sequence: source };
+    }
+
+    const orders = await tx.guideSequence.findMany({
+      where: { milestoneId: target.id },
+      select: { order: true },
+    });
+
+    const updated = await tx.guideSequence.update({
+      where: { id: source.id },
+      data: {
+        milestoneId: target.id,
+        order: nextSequenceOrder(orders.map((sequence) => sequence.order)),
+      },
+    });
+
+    return { moved: true, sequence: updated };
+  });
+
+  if (result.moved) {
+    await logGodWrite({
+      action: "GOD_RUSH_UPDATE",
+      targetType: "DATA_SYNC",
+      targetId: parsed.data.sequenceId,
+      metadata: { op: "move-rush-sequence", toMilestoneId: parsed.data.targetMilestoneId },
+    });
+
+    revalidatePath("/god/rush-sylvestre");
+    revalidatePath("/dashboard");
+    revalidatePath("/guides/rush-sylvestre");
+  }
+
+  return { success: true, moved: result.moved, sequence: result.sequence };
 }
 
 // ---------------------------------------------------------------------------

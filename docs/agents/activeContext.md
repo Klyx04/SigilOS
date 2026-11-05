@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 — **Rush : le déplacement d'une quête réparé (lot A)** — branche `fix/rush-move-sequence`
+
+> **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → le lot A (déplacement) de la reprise, avant la refonte E1→E5.
+> **Mesures** : ① le contrôle « Déplacer vers » ne s'affichait **jamais** : `MilestoneRow` passait `milestones={[milestone]}` à `SequenceEditForm`, donc `milestones.length > 1` était toujours faux ; ② l'action appelée (`upsertRushSequence`) **ignorait `milestoneId`** et remettait `alignOrderCode`, `alignLevelReq`, `classReq`, `isSuccess`, `icon`, `metamobMonsterId` à `null`/`false` (perte de route) ; ③ `RushSylvestreAdminClient.tsx` = **5 128 lignes**, **405** motifs UI interdits, **77/77** fichiers God.
+> **Fait** : action dédiée `moveRushSequence` (Zod borné, rate limit 60/min, transaction, cible relue dans le même guide, séparateur + bloc Conseil/Tips refusés, no-op même bloc) qui n'écrit que `milestoneId` + `order` (`nextSequenceOrder`) ; `SequenceEditForm` reçoit la liste complète des blocs et appelle `onMove` ; mise à jour optimiste + `router.refresh()` en échec ; garde en commentaire dans `upsertRushSequence`. Plan de la refonte : `docs/plans/REFONTE-EDITEUR-RUSH.md`.
+> **Preuves** : `rush-move-sequence` **10** · Rush **65 / 805 ✓** · suite **602 / 6 332 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : E1 (squelette 3 panneaux) → E2 → B (split bêta) → E3 → E4 → D → E5 ; contrôle visuel du studio (le contrôle « Déplacer vers » est visible en bas du formulaire, à remonter dans l'inspecteur en E2).
+> **Rotation** : bloc « 04/11/2026 (suite 4) — Fluidité du scroll » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 04/11/2026 (suite 9) — **Module DJ/Quête : la DA landing partout** — branche `feat/dj-da-landing`
 
 > **Demande user (verbatim)** : « dans le module dj quete pk on reaplique pas partout le theme landing plus propre sobre ? … les boutons etc » · « ouvert caché par la croix » · « le bouton soutenir qui cache le bas » · « le dropdown de transfert immonde, les bouton stand by etc tout doit etre sobre landing like » · « on a pas indiqué dans les skills qu'on doit systématiquement uniformiser comme les landing partout sur le produit ? ».
@@ -56,14 +65,6 @@
 > **Rotation** : bloc « 03/11/2026 (suite) — Rush : notes Tougli siphonnées » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 04/11/2026 (suite 4) — **Fluidité du scroll : fin du verre, `content-visibility` sur les longues grilles** — branche `perf/scroll-galerie-stuff`
-
-> **Demande user (verbatim)** : « https://beta.sigilos.fr/dashboard/1290442961380835451/galerie-stuff c'est pas encore assez fluide à mon gout ou sont les meilleurs techno pour rendre le scroll smooth etc , et peut-être pas uniquement sur ce module ? ».
-> **Mesures** : ① la barre de filtres est **sticky** avec `backdrop-blur-xl` (flou recalculé à chaque frame), le hero cumule `backdrop-blur-xl` + **2 halos `blur(100px)`** + `mix-blend-luminosity`, et chaque carte a un voile `backdrop-blur-md` ; ② **24 cartes** sont montées d'un coup, chacune avec le `DofusbookPreview` (~20 tooltips d'items) — **~480 tooltips** hors du premier écran, aucune `content-visibility` ; ③ le layout dashboard est déjà opaque (`TopNav` sans blur, sidebar fixe) : le coût est **local à la galerie**.
-> **Fait** : ① **zéro `backdrop-blur`** dans `gallery-client.tsx` (barre sticky, hero, onglets, voile des cartes, dialogue) — fonds opaques/alpha à la place ; ② halos `blur(100px)` remplacés par **deux `radial-gradient`** et `mix-blend-luminosity`/`scale-105` retirés ; ③ utilitaire **`.cv-auto`** (`content-visibility: auto` + `contain-intrinsic-size: auto 480px`) appliqué aux cartes de la galerie, de l'annuaire, du marché et des posts de donjon ; ④ favicon hors écran en `loading="lazy" decoding="async"` + dimensions ; ⑤ règle durable `docs/RULES.md` § Performance de défilement.
-> **Preuves** : verrou `gallery-scroll-perf` **5** · suite **599 fichiers / 6 297 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : contrôle visuel bêta 390 / 768 / 1024 / 1440 (hero, barre sticky, voile des cartes) ; virtualiser (TanStack Virtual) seulement si une page dépasse ~100 cartes.
-> **Rotation** : bloc « 03/11/2026 — Rush : les conseils réparés (« &1 ») » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

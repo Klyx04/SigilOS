@@ -376,6 +376,13 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(shell).toMatch(/prereqs: refs\.filter\(\(r\) => !gateAllCompleted\.has\(r\.seqId\)\)/);
     });
 
+    it("le compteur du dock ne glisse pas quand le titre passe sur deux lignes", () => {
+        // Mesure du 05/11/2026 : le compteur suivait le texte et se retrouvait au
+        // milieu de la barre dès que le titre prenait deux lignes (PiP étroite).
+        expect(css).toMatch(/\.da-dock \.da-dock-trail\s*\{[^}]*margin-left:\s*auto/);
+        expect(readFileSync(DOCK, "utf8")).toMatch(/<span className="da-dock-trail">/);
+    });
+
     it("les toasts de l'overlay suivent la DA (ni fond en dur, ni flou, ni ombre)", () => {
         const src = readFileSync("src/components/rush/overlay-toast.tsx", "utf8");
         expect(src).not.toMatch(/backdrop-blur/);

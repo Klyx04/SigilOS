@@ -151,28 +151,33 @@ export function RushOverlayChapterBar({
               Chapitre {chapterPos + 1} / {selectable.length}
             </span>
           )}
-          {showProgress && (
-            <span
-              className="da-plank shrink-0"
-              data-size="mini"
-              role="img"
-              aria-label={`${done} étapes validées sur ${total}`}
-            >
-              <i />
-              <b />
-              <span>
-                {done}/{total}
+          {/* Compteur + chevron dans un groupe collé à DROITE (`margin-left: auto`) :
+              quand le titre passe à deux lignes en PiP étroite, il poussait le
+              compteur au milieu de la barre (mesure du 05/11/2026). */}
+          <span className="da-dock-trail">
+            {showProgress && (
+              <span
+                className="da-plank shrink-0"
+                data-size="mini"
+                role="img"
+                aria-label={`${done} étapes validées sur ${total}`}
+              >
+                <i />
+                <b />
+                <span>
+                  {done}/{total}
+                </span>
               </span>
-            </span>
-          )}
-          {canSelect && (
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
-                open && "rotate-180"
-              )}
-            />
-          )}
+            )}
+            {canSelect && (
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+                  open && "rotate-180"
+                )}
+              />
+            )}
+          </span>
         </button>
       </div>
       {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée

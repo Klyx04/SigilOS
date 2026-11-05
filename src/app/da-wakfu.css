@@ -850,6 +850,16 @@
   padding: .4rem .1rem .55rem .25rem;
 }
 
+/* Compteur + chevron : un seul bloc collé à droite, insensible au passage du titre
+   sur deux lignes (sinon le compteur glissait au milieu de la barre). */
+.da-dock .da-dock-trail {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
 .da-medal {
   display: grid;
   flex: none;
@@ -861,14 +871,37 @@
   background: var(--da-field);
 }
 
+/* Déclencheur : une GRILLE à trois colonnes, pas un flex. En flex, le titre se
+   faisait écraser à la largeur de son plus long mot et s'empilait sur cinq lignes
+   dans une PiP de 250 px (mesure du 05/11/2026) ; ici la colonne du milieu prend
+   TOUT l'espace restant, le compteur et le chevron restent collés à droite. */
+.da-dock .da-dock-trigger {
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  min-width: 0;
+  padding: .4rem .25rem .55rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
 .da-dock .da-dock-label {
   min-width: 0;
-  /* Le titre du chapitre n'est JAMAIS tronqué (le « Ali… » d'E1d était une
-     régression) : il passe à la ligne aux ESPACES, jamais au milieu d'un mot.
-     Casser les mots empilait une lettre par ligne dans une PiP de 250 px. */
+  /* Deux lignes MAXIMUM : au-delà, la barre mangeait la hauteur de la liste.
+     Le nom complet reste lisible en infobulle et dans la liste déroulante. */
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font: 700 13px/1.15 var(--da-font-title);
   letter-spacing: .06em;
   text-transform: uppercase;

@@ -211,6 +211,56 @@ html:has(.boss-detail-shell) {
   --rush-bevel: inset 0 1px 0 oklch(1 0 0 / 0.75), inset 0 -1px 0 oklch(0.3 0.03 60 / 0.08);
 }
 
+/* ── Passerelle DA « Gouache Wakfu » — la fenêtre de jeu prend la gouache ─────
+   Même principe que `.registre` : une **portée** redéfinit les tokens
+   sémantiques, les composants ne changent pas d'une ligne. Les valeurs ne sont
+   pas recopiées : elles sont empruntées à `src/app/da-wakfu.css` (`--da-*`),
+   qui reste la source unique — donc aucun risque de dérive entre les deux.
+
+   Réversibilité : retirer `data-da` de la racine de l'overlay rend l'ancienne
+   DA « Carnet de campagne ». C'est le commutateur d'A/B du lot E1.
+
+   Tous les composants de l'overlay (cartes, barre de chapitre, filtres, fiches,
+   modales en portail) n'utilisent que `bg-surface`, `border-border`, `text-gold`,
+   `text-success`… : ils suivent donc **tous**, y compris hors de l'arbre React. */
+[data-da="wakfu"].rush-overlay {
+  color-scheme: dark;
+  --background: var(--da-bg);
+  --surface: var(--da-panel);
+  --elevated: color-mix(in srgb, var(--da-panel) 62%, var(--da-bg));
+  --foreground: var(--da-ink);
+  --muted: var(--da-bg);
+  --muted-foreground: var(--da-muted);
+  --subtle-foreground: var(--da-muted);
+  --border: var(--da-line);
+  --border-strong: var(--da-ln);
+  --input: var(--da-line);
+  --accent: var(--da-acc);
+  --accent-foreground: var(--da-on);
+  --ring: var(--da-acc);
+  --success: var(--da-ok);
+  --success-foreground: var(--da-on);
+  --warning: var(--da-amber-ink);
+  --warning-foreground: var(--da-on);
+  --danger: var(--da-warn);
+  --danger-foreground: var(--da-on);
+  --info: var(--da-acc2);
+  --info-foreground: var(--da-on);
+  --sigil-gold: var(--da-acc-ink);
+  --sigil-teal: var(--da-acc-ink);
+  --rush-bevel: none;
+
+  /* Typographie. `font-serif` n'était mappé nulle part : les titres de l'overlay
+     tombaient sur Georgia, et Cinzel était chargée pour rien. La DA tranche. */
+  --font-sans: var(--da-font-text);
+  --font-serif: var(--da-font-title);
+  --font-heading: var(--da-font-title);
+}
+
+[data-da="wakfu"].rush-overlay[data-theme="light"] {
+  color-scheme: light;
+}
+
 @layer utilities {
   /* Panneau « carnet » : un filet de bronze + un biseau interne, jamais d'ombre portée. */
   .rush-carnet {

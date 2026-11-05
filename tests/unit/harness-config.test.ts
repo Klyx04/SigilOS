@@ -48,6 +48,16 @@ describe("harnais agentique", () => {
             expect(name, skill.name).toBe(skill.name);
             expect(description?.length ?? 0, skill.name).toBeGreaterThan(20);
             expect(description?.length ?? 0, skill.name).toBeLessThanOrEqual(1024);
+
+            /* YAML : une valeur **non citée** ne peut pas contenir « deux-points
+               espace » — le parseur casse et le skill DISPARAÎT du panneau
+               Cline, sans erreur visible. Mesuré le 05/11/2026 : c'était la
+               seule raison pour laquelle `sentry-triage` (écrit en octobre) et
+               `sigilos-da-wakfu` n'apparaissaient pas dans la liste. */
+            const quoted = /^(["']).*\1$/.test(description ?? "");
+            if (!quoted) {
+                expect(description, `${skill.name} : description non citée avec « : »`).not.toMatch(/: /);
+            }
         }
     });
 

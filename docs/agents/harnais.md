@@ -132,10 +132,17 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `doc-session` | fin de session | ROADMAP + activeContext sans doublon |
 | `node-runtime` | avis de sécurité Node, conteneur plus vieux que `.nvmrc` | la procédure `.nvmrc` → images → rebuild bêta/prod |
 | `discord-api` | toute nouveauté/modif/suppression côté Discord (commande, permission, salon, bouton, modale, intent) | la vérification doc officielle + types installés + `GET` de mesure **avant** de coder |
+| `sigilos-da-wakfu` | tout habillage visuel du Rush (overlay, guide public, guide membre), puis passation au dashboard | la DA « Gouache Wakfu » : tokens `--da-*`, signatures, contraste, coût de rendu, règle « habillage seul » |
 
 Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même
 nom **écrase** le skill projet : on garde donc tout dans le dépôt.
+
+⚠️ **Piège mesuré le 05/11/2026** : la `description` est un **scalaire YAML non cité**, elle ne peut donc
+contenir **aucun `": "`** (deux-points + espace). Un seul suffit à casser le parseur, et le skill
+**disparaît du panneau Cline sans message d'erreur** — c'est arrivé à `sentry-triage` (écrit en octobre,
+jamais chargé) et à `sigilos-da-wakfu`. Utiliser un tiret cadratin `—`. Verrou :
+`tests/unit/harness-config.test.ts` (une valeur citée `"…"` reste autorisée).
 
 ## 6. Hooks — le seul endroit où l'agent ne peut pas oublier
 

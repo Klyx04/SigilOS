@@ -30,8 +30,11 @@ const SLOP = /bg-gradient|backdrop-blur|\bshadow-2xl\b|drop-shadow|\bfont-black\
 describe("DA « Grimoire Sylvestre » — en-tête", () => {
     it("le titre est un serif d'or souligné d'un filet, pas un `font-black`", () => {
         const src = codeOf(HEADER);
-        expect(src).toMatch(/<h1 className="[^"]*font-serif/);
-        expect(src).toMatch(/className="mt-1 block h-px w-10 bg-gold\/70"/);
+        // DA « Gouache Wakfu » : le titre se scinde comme la maquette —
+        // premier mot en surtitre espacé, le reste en grand condensé.
+        expect(src).toMatch(/<h1 className="da-logo">/);
+        expect(src).toMatch(/className="da-logo-a"/);
+        expect(src).toMatch(/className="da-logo-b"/);
     });
 
     it("aucun slop : ni dégradé, ni verre, ni ombre diffuse, ni `font-black`", () => {
@@ -49,7 +52,9 @@ describe("DA « Grimoire Sylvestre » — en-tête", () => {
 describe("DA « Grimoire Sylvestre » — barre de chapitre", () => {
     it("les jetons de thème remplacent les couleurs codées en dur", () => {
         const src = codeOf(CHAPTER);
-        expect(src).toMatch(/border-border-strong bg-surface/);
+        // DA « Gouache Wakfu » : la barre de chapitre est le dock de la maquette
+        // — sa matière vient de `.da-dock`, donc d'un jeton, jamais d'un hex.
+        expect(src).toContain("da-dock");
         expect(src).not.toMatch(/bg-\[#0d1014\]|bg-\[#181c22\]|bg-\[#161b21\]/);
     });
 
@@ -114,7 +119,10 @@ describe("DA « Carnet de campagne » — blocs de conseil", () => {
 describe("DA « Carnet de campagne » — carte de quête verrouillée", () => {
     it("un filet terre cuite à gauche remplace le cadre rouge complet", () => {
         const src = codeOf(CARD);
-        expect(src).toMatch(/border-l-2 border-l-danger\/70/);
+        // Depuis la DA « Gouache Wakfu » (lot E1), l'état est porté par un
+        // attribut et peint par `src/app/da-wakfu.css` : même intention (le
+        // verrou se signale, il ne remplit pas la carte de rouge).
+        expect(src).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : "todo"\}/);
         expect(src).not.toMatch(/border-danger\/30 bg-danger\//);
     });
 
@@ -153,7 +161,7 @@ describe("DA « Carnet de campagne » — fiche de quête et alignement", () => 
 describe("DA « Carnet de campagne » — recherche", () => {
     it("la recherche est une plaque de carnet, sans palette legacy", () => {
         const src = codeOf(SEARCH);
-        expect(src).toContain("rush-carnet");
+        expect(src).toContain("da-search");
         expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
     });
 });
@@ -177,7 +185,8 @@ describe("DA « Carnet de campagne » — navigation et portails", () => {
     it("le footer suit les jetons (plus de palette legacy)", () => {
         const src = codeOf(FOOTER);
         expect(src).toMatch(/border-t border-border-strong bg-surface/);
-        expect(src).toMatch(/text-success/);
+        // « Suivant » est l'action principale : bouton planche accentué.
+        expect(src).toMatch(/data-variant="main"/);
         expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
     });
 

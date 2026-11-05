@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
-import type { RushQuestFilter } from "@/lib/rush-quest-filter";
+import type { RushQuestCounts, RushQuestFilter } from "@/lib/rush-quest-filter";
 
 /**
  * Filtre segmenté de la liste des quêtes — DA « Carnet de campagne ».
@@ -14,21 +13,25 @@ import type { RushQuestFilter } from "@/lib/rush-quest-filter";
 const OPTIONS: Array<{ value: RushQuestFilter; label: string }> = [
   { value: "all", label: "Toutes" },
   { value: "active", label: "En cours" },
+  { value: "done", label: "Faites" },
   { value: "locked", label: "Verrouillées" },
 ];
 
 export function RushOverlayQuestFilter({
   value,
   onChange,
+  counts,
 }: {
   value: RushQuestFilter;
   onChange: (value: RushQuestFilter) => void;
+  /** Compteurs par filtre (règle pure `countRushQuests`). Absent ⇒ pas de compteur. */
+  counts?: RushQuestCounts;
 }) {
   return (
     <div
       role="group"
       aria-label="Filtrer les quêtes"
-      className="mx-3 mt-2 flex gap-1.5"
+      className="da-filters mx-3 mt-2"
     >
       {OPTIONS.map((option) => {
         const active = value === option.value;
@@ -38,14 +41,10 @@ export function RushOverlayQuestFilter({
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={active}
-            className={cn(
-              "flex h-7 flex-1 cursor-pointer items-center justify-center rounded-[4px] border text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors motion-reduce:transition-none",
-              active
-                ? "border-gold/60 bg-gold/10 text-foreground"
-                : "border-border-strong bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
-            )}
+            className="flex h-7 cursor-pointer items-center text-[12px] font-semibold transition-colors motion-reduce:transition-none"
           >
             {option.label}
+            {counts ? <b>{counts[option.value]}</b> : null}
           </button>
         );
       })}

@@ -33,7 +33,7 @@ import {
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
-import { matchesRushQuestFilter, type RushQuestFilter } from "@/lib/rush-quest-filter";
+import { countRushQuests, matchesRushQuestFilter, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -1148,6 +1148,53 @@ export default function GuideOverlayClient({
   const currentMsTotal = currentMsSeqs.length;
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
 
+  // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
+  // Deux sources, dans cet ordre :
+  //   1. `accentColor` du bloc courant (posé par le God) ⇒ N'IMPORTE QUEL Dofus
+  //      a sa propre teinte, sans toucher au CSS ;
+  //   2. sinon un des trois blocs nommés (Émeraude, Cauchemar, Ocre), cherché en
+  //      REMONTANT la liste : un chapitre qui n'est pas un Dofus (« Quêtes
+  //      Incarnam, Astrub… ») doit hériter du bloc Dofus qui le précède, sinon
+  //      il tombait sur le repli gris — c'est le défaut mesuré du 05/11/2026.
+  const daTheme = useMemo(() => {
+    const norm = (s?: string | null) =>
+      (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const idx = milestones.findIndex((m) => m.id === currentMs?.id);
+    const from = idx >= 0 ? idx : 0;
+    // 1. BLOC NOMMÉ d'abord : un bloc « Dofus Émeraude » doit s'appeler Émeraude,
+    //    même si le God lui a posé un accentColor (sinon l'en-tête annonçait
+    //    « BLOC » sur un bloc Émeraude — défaut vu à l'écran le 05/11/2026).
+    for (let i = from; i >= 0; i -= 1) {
+      const id = norm(milestones[i]?.dofusId);
+      const title = norm(milestones[i]?.title);
+      for (const key of ["emeraude", "cauchemar", "ocre"] as const) {
+        if (id === key || id === `du_${key}` || title.includes(`dofus ${key}`)) {
+          return { block: key, accent: null };
+        }
+      }
+    }
+    // 2. N'IMPORTE QUEL AUTRE Dofus : la teinte vient de l'accent du bloc
+    //    (hex strict — jamais d'injection CSS).
+    for (let i = from; i >= 0; i -= 1) {
+      const accent = milestones[i]?.accentColor;
+      if (accent && /^#[0-9a-f]{6}$/i.test(accent)) return { block: "custom" as const, accent };
+    }
+    return { block: "emeraude" as const, accent: null };
+  }, [milestones, currentMs]);
+  const daBlock = daTheme.block;
+
+  // Compteurs des filtres — même source que la liste filtrée, même règle pure
+  // (`countRushQuests`) : les encarts info ne sont pas des quêtes et ne comptent pas.
+  const daCounts: RushQuestCounts = useMemo(
+    () =>
+      countRushQuests(
+        currentMsSeqs
+          .filter((s) => !isInfoSequence(s))
+          .map((s) => ({ isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked }))
+      ),
+    [currentMsSeqs, currentMsDoneSeqs, getSeqGate]
+  );
+
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
     if (!currentMs) return undefined;
@@ -1231,8 +1278,14 @@ export default function GuideOverlayClient({
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      data-da="wakfu"
+      data-theme={isLightMode ? "light" : "dark"}
+      data-block={daBlock}
+      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
+      style={{
+        fontFamily: "var(--da-font-text)",
+        ...(daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : null),
+      }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
 
@@ -1262,6 +1315,7 @@ export default function GuideOverlayClient({
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
+            block={daBlock}
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
@@ -1296,7 +1350,37 @@ export default function GuideOverlayClient({
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
-          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} />
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} />
+
+          {/* Bandeau du bloc courant + écriteau — signature de la DA. Il annonce la
+              partie du guide (image posée par le God dans `imageUrl`, repli dégradé)
+              et son avancement en planches. Masqué si le bloc n'a aucune étape. */}
+          {currentMs && currentMsTotal > 0 ? (
+            <div className="px-3 pt-3">
+              <div
+                className="da-banner"
+                data-block={daBlock}
+              >
+                <div className="da-banner-text">
+                  <div>
+                    <h2>{currentMs.title || "Bloc en cours"}</h2>
+                    {currentMs.subtitle ? <small>{currentMs.subtitle}</small> : null}
+                  </div>
+                  <div
+                    className="da-plank"
+                    role="img"
+                    aria-label={`${currentMsDoneCount} étapes validées sur ${currentMsTotal}`}
+                  >
+                    <i />
+                    <b />
+                    <span>
+                      {currentMsDoneCount}/{currentMsTotal}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
 
 

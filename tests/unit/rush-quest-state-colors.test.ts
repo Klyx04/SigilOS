@@ -54,14 +54,18 @@ describe("Dashboard — quête bloquée (rouge) ≠ quête repérée (ambre)", (
 
 describe("Overlay — verrou (danger) ≠ repère (ambre), pour l'interne comme le public", () => {
   it("la carte verrouillée porte un filet danger à gauche, pas un cadre rouge complet", () => {
-    expect(ITEM).toMatch(/isLocked\s*\?\s*"border-border border-l-2 border-l-danger\/70 bg-surface"/);
+    // DA « Gouache Wakfu » : l'état est un ATTRIBUT, peint par `da-wakfu.css`.
+    // Même intention — le verrou se signale sans remplir la carte de rouge.
+    expect(ITEM).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : "todo"\}/);
     // L'ancien cadre rouge intégral ne doit pas revenir (retour user 02/11/2026).
     expect(ITEM).not.toMatch(/border-danger\/30 bg-danger\/\[0\.05\]/);
   });
 
   it("la carte repérée garde son ambre et son filet gauche", () => {
+    // Le repère reste DISTINCT du verrou : il a son propre attribut (`data-here`)
+    // et sa propre teinte, l'accent du bloc — jamais `danger`.
     expect(ITEM).toMatch(
-      /isBookmarked\s*\?\s*"border-warning\/40 border-l-2 border-l-warning bg-warning\/\[0\.07\]"/
+      /data-here=\{isBookmarked && !isDone && !isLocked \? "true" : "false"\}/
     );
   });
 

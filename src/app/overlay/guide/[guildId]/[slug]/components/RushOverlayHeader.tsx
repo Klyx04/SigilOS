@@ -42,6 +42,11 @@ interface RushOverlayHeaderProps {
   onOpenOcre?: () => void;
   /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
   onOpenAlignment?: () => void;
+  /**
+   * Bloc actif de la DA « Gouache Wakfu » : donne l'image d'ambiance de l'en-tête
+   * et la teinte de l'accent (`data-block`). Absent ⇒ Émeraude.
+   */
+  block?: "emeraude" | "cauchemar" | "ocre" | "custom";
 }
 
 /**
@@ -74,6 +79,7 @@ export function RushOverlayHeader({
   ocre,
   onOpenOcre,
   onOpenAlignment,
+  block = "emeraude",
 }: RushOverlayHeaderProps) {
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
   const toast = useOverlayToast();
@@ -95,6 +101,22 @@ export function RushOverlayHeader({
   }, []);
   // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
   const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
+
+  /* ── DA « Gouache Wakfu » : titre et surtitre ────────────────────────────
+     « Rush Sylvestre » se scinde comme dans la maquette : le premier mot en
+     surtitre espacé, le reste en grand condensé. Aucun libellé n'est réécrit :
+     on ne fait que répartir les mots déjà fournis par la donnée. */
+  const titleWords = guideName.trim().split(/\s+/).filter(Boolean);
+  const titleLead = titleWords.length > 1 ? titleWords[0] : "Rush";
+  const titleRest = titleWords.length > 1 ? titleWords.slice(1).join(" ") : guideName;
+  const blockLabel =
+    block === "emeraude"
+      ? "Dofus Émeraude"
+      : block === "cauchemar"
+      ? "Dofus Cauchemar"
+      : block === "ocre"
+      ? "Dofus Ocre"
+      : "Bloc";
 
   // Retour / bug : le bouton vit dans le menu « ⋯ » (place libérée pour l'archimonstre),
   // et reste un bouton direct quand l'overlay est large.
@@ -120,36 +142,49 @@ export function RushOverlayHeader({
   return (
     <header
       className={cn(
-        // DA « Grimoire Sylvestre » : un panneau plein, un seul filet, aucun dégradé.
-        "shrink-0 flex flex-col gap-2 border-b border-border-strong bg-surface shadow-[var(--rush-bevel)]",
+        // DA « Gouache Wakfu » : en-tête illustré — image du bloc actif, voile de
+        // lisibilité, surtitre, titre condensé. La structure et les 12 actions
+        // restent EXACTEMENT où elles étaient (habillage seul).
+        "da-hero shrink-0",
         narrow ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
         className
       )}
+      data-density={narrow ? "tight" : "normal"}
     >
+      <div className="da-hero-img" data-block={block ?? "emeraude"} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         {/* Gauche : branding + titre + compteur */}
         <div className="flex-1 min-w-0">
-          {/* Label discret (masqué en overlay réduit pour gagner de la hauteur) */}
+          {/* Surtitre de la DA (masqué en overlay réduit pour gagner de la hauteur) */}
           {!narrow && (
-            <span className="mb-0.5 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gold/90">
-              Guide de progression
+            <span className="da-kicker">
+              Guide de progression <b>· {blockLabel}</b>
             </span>
           )}
 
-          {/* Nom du guide — serif de titre + filet d'or (DA « Grimoire »). */}
-          <h1 className="truncate font-serif text-[15px] font-semibold uppercase leading-tight tracking-[0.04em] text-foreground">
-            {guideName}
+          {/* Titre : premier mot en surtitre espacé, le reste en grand condensé. */}
+          <h1 className="da-logo">
+            <span className="da-logo-a">{titleLead}</span>
+            <span className="da-logo-b">{titleRest}</span>
           </h1>
-          <span aria-hidden="true" className="mt-1 block h-px w-10 bg-gold/70" />
 
           {/* Progression explicite */}
-          <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {completedSteps} / {totalSteps}
-            </span>{" "}
-            étapes ·{" "}
-            <span className="font-semibold text-gold">{overallPct}%</span>
+          <p className="da-meta mt-1">
+            <span>
+              <strong>{completedSteps}</strong> / {totalSteps} étapes
+            </span>
+            <span>{overallPct} %</span>
           </p>
+          <div
+            className="da-track"
+            role="progressbar"
+            aria-valuenow={overallPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progression du guide"
+          >
+            <i style={{ width: `${Math.max(overallPct, 2)}%` }} />
+          </div>
 
           {/* Personnage courant (masqué en overlay réduit) */}
           {character && !narrow && (

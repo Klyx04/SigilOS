@@ -79,6 +79,8 @@ docs/
 │   ├── AMORCE-REFONTE-GOD-GUILDES.md  amorce d'exécution de la refonte God
 │   ├── PLAN-RAID.md                raid : clôture/no-show, strat, overlay, données (relevé mesuré 01/10/2026)
 │   ├── MODULE-RUSH-SYLVESTRE.md    module Rush Sylvestre : carte des fichiers + chantiers (agrégateur)
+│   ├── REFONTE-EDITEUR-RUSH.md    éditeur God Rush : audit UX mesuré + lots E1→E5 (studio 3 panneaux)
+│   ├── AMORCE-RUSH-EDITEUR.md     amorce de reprise : merge A/B, puis E1 (squelette 3 panneaux) + file des chantiers
 │   ├── PLAN-ESPACE-VISITEUR.md     chantier PV : compte Discord public, profil visiteur, progression en base, annuaire par serveur (RGPD)
 │   ├── AMORCE-RAID.md              amorce d'exécution des chantiers raid (lots L1→L7 + bloc à coller)
 │   ├── PLAN-SALONS-VOCAUX.md       module « salons vocaux » : cahier produit/technique V2.1 (à cadrer)

@@ -20,6 +20,7 @@ const SKILL = ".cline/skills/sigilos-da-wakfu/SKILL.md";
 const FILTERS = "src/components/da/DaWakfuFilters.tsx";
 const DOCK = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 const SHELL = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
 
 type Rgb = [number, number, number];
 
@@ -271,5 +272,15 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(shell).toMatch(/className="da-blockdesc"/);
         expect(shell).toMatch(/<RushRichText text=\{currentMs\.description\}/);
         expect(css).toMatch(/\.da-blockdesc\s*\{/);
+    });
+
+    it("le palier `wide` fait 276 px et la frise de stade est montée", () => {
+        expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*276px/);
+        expect(css).toMatch(/\.da-stage\s*\{/);
+        const header = readFileSync(HEADER, "utf8");
+        expect(header).toMatch(/dofusStage\(overallPct\)/);
+        expect(header).toMatch(/RUSH_DOFUS_STAGE_COUNT/);
+        // L'hôte décide du palier : `wide` dès 820 px de haut.
+        expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 820 \? "wide"/);
     });
 });

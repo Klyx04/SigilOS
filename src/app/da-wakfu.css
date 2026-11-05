@@ -861,7 +861,7 @@
   background: var(--da-field);
 }
 
-.da-hero[data-density="wide"] { min-height: 180px; }
+.da-hero[data-density="wide"] { min-height: 276px; }
 .da-hero[data-density="normal"] { min-height: 132px; }
 .da-hero[data-density="tight"] { min-height: 96px; }
 
@@ -978,6 +978,7 @@
 
 .da-hero[data-density="tight"] .da-logo .da-logo-b { font-size: clamp(22px, 8vw, 30px); }
 .da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 8.6vw, 38px); }
+.da-hero[data-density="wide"] .da-logo .da-logo-b { font-size: clamp(30px, 9vw, 56px); }
 
 .da-logo .da-logo-b::after {
   content: "";
@@ -1042,6 +1043,19 @@
   border-radius: 9px 0 9px 0;
   background: var(--da-acc);
   transform: rotate(45deg);
+}
+
+/* Frise des stades du Dofus : cinq losanges + le nom du stade atteint. */
+.da-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin-top: .5rem;
+  color: var(--da-muted);
+  font: 700 9.5px var(--da-font-text);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .7);
 }
 
 .da-pips { display: inline-flex; gap: .25rem; }

@@ -211,6 +211,9 @@ export default function GuideOverlayClient({
   // toute la fenêtre — le nœud du dock porte lui aussi un `data-state`).
   const listRef = useRef<HTMLElement | null>(null);
   const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
+  // Palier de densité de l'en-tête : `wide` dès 820 px de haut (hero 276 px + pips
+  // de stade), `tight` en fenêtre de jeu, `normal` entre les deux.
+  const [overlayDensity, setOverlayDensity] = useState<"wide" | "normal" | "tight">("normal");
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -218,6 +221,7 @@ export default function GuideOverlayClient({
       const w = entry?.contentRect?.width ?? el.clientWidth;
       const h = entry?.contentRect?.height ?? el.clientHeight;
       setOverlaySmall(w < 580 || h < 640);
+      setOverlayDensity(h >= 820 ? "wide" : w < 580 || h < 640 ? "tight" : "normal");
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -1342,6 +1346,7 @@ export default function GuideOverlayClient({
             overallPct={overallPct}
             isLightMode={isLightMode}
             isNarrow={overlaySmall}
+            density={overlayDensity}
             onToggleTheme={toggleTheme}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}

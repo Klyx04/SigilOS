@@ -5,6 +5,7 @@ import { Sun, Moon, ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Use
 import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+import { RUSH_DOFUS_STAGE_COUNT, dofusStage } from "@/lib/rush-dofus-stage";
 
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 
@@ -30,6 +31,11 @@ interface RushOverlayHeaderProps {
   className?: string;
   /** Overlay réduit (largeur/hauteur) : masque le contenu secondaire et groupe les actions. */
   isNarrow?: boolean;
+  /**
+   * Palier de densité calculé par l'hôte (`ResizeObserver` de la racine) :
+   * `wide` ≥ 820 px de haut (hero 276 px + pips), `tight` = fenêtre de jeu.
+   */
+  density?: "wide" | "normal" | "tight";
   /** Mode invité sans guilde ni compte */
   isGuest?: boolean;
   /**
@@ -73,6 +79,7 @@ export function RushOverlayHeader({
   onResetGuide,
   className,
   isNarrow: isNarrowProp,
+  density,
   isGuest = false,
   ocre,
   onOpenOcre,
@@ -99,6 +106,12 @@ export function RushOverlayHeader({
   }, []);
   // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
   const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
+  // Palier de densité : `wide` dès 820 px de haut (hero 276 px), `tight` en PiP.
+  const level = density ?? (narrow ? "tight" : "normal");
+  const compact = level === "tight";
+  const roomy = level !== "tight";
+  // Frise de stade du Dofus (même règle pure que partout : cinq paliers).
+  const stage = dofusStage(overallPct);
 
   /* ── DA « Gouache Wakfu » : titre et surtitre ────────────────────────────
      « Rush Sylvestre » se scinde comme dans la maquette : le premier mot en
@@ -144,17 +157,17 @@ export function RushOverlayHeader({
         // lisibilité, surtitre, titre condensé. La structure et les 12 actions
         // restent EXACTEMENT où elles étaient (habillage seul).
         "da-hero shrink-0",
-        narrow ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
+        compact ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
         className
       )}
-      data-density={narrow ? "tight" : "normal"}
+      data-density={level}
     >
       <div className="da-hero-img" data-block={block ?? "emeraude"} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         {/* Gauche : branding + titre + compteur */}
         <div className="flex-1 min-w-0">
           {/* Surtitre de la DA (masqué en overlay réduit pour gagner de la hauteur) */}
-          {!narrow && (
+          {roomy && (
             <span className="da-kicker">
               Guide de progression <b>· {blockLabel}</b>
             </span>
@@ -184,8 +197,21 @@ export function RushOverlayHeader({
             <i style={{ width: `${Math.max(overallPct, 2)}%` }} />
           </div>
 
+          {/* Frise des stades du Dofus (maquette) : cinq losanges + le stade atteint.
+              Le texte porte l'information, les losanges la ponctuent — masquée en PiP. */}
+          {roomy && (
+            <span className="da-stage">
+              <span className="da-pips" aria-hidden="true">
+                {Array.from({ length: RUSH_DOFUS_STAGE_COUNT }, (_, index) => (
+                  <i key={index} data-on={index <= stage.index ? "true" : "false"} />
+                ))}
+              </span>
+              <span>{stage.label}</span>
+            </span>
+          )}
+
           {/* Personnage courant (masqué en overlay réduit) */}
-          {character && !narrow && (
+          {character && roomy && (
             <div className="flex items-center gap-1.5 mt-1">
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border border-border bg-elevated">
                 {character.classe ? (

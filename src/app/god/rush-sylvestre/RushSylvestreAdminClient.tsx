@@ -22,13 +22,14 @@ import {
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
-  ClipboardList, Hammer, RotateCcw,
+  ClipboardList, Hammer, RotateCcw, Scissors,
 } from "lucide-react";
 import {
   upsertRushMilestone,
   deleteRushMilestone,
   upsertRushSequence,
   moveRushSequence,
+  splitRushSequence,
   updateRushBlockRoute,
   deleteRushSequence,
   updateRushSylvestreSettings,
@@ -655,6 +656,25 @@ export function RushSylvestreAdminClient({
     });
   }, [router]);
 
+  /**
+   * Scission d'un bloc multi-quêtes en N quêtes individuelles (05/11/2026).
+   * L'action serveur crée les N séquences, reporte la progression et supprime le bloc ;
+   * ici on ne fait que rafraîchir la liste (pas d'optimisme : N ids inconnus avant l'appel).
+   */
+  const handleSplitSequence = useCallback((sequenceId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await splitRushSequence(sequenceId);
+        toast.success(
+          `${res.created} quêtes créées ✓${res.droppedDungeons ? ` · ${res.droppedDungeons} donjon(s) non reconnu(s) ignoré(s)` : ""}`,
+        );
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Scission impossible");
+      }
+    });
+  }, [router]);
+
   const handleSaveSequence = useCallback((data: any) => {
     startTransition(async () => {
       try {
@@ -1074,6 +1094,7 @@ export function RushSylvestreAdminClient({
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
                                 onApplyBlockRoute={handleApplyBlockRoute}
                                 onMoveSequence={handleMoveSequence}
+                                onSplitSequence={handleSplitSequence}
                                 allMilestones={localMilestones}
                               />
                             </div>
@@ -1691,6 +1712,7 @@ function SortableMilestoneRow(props: {
   onReorderSequences: (ids: string[]) => void;
   onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
   onMoveSequence: (sequenceId: string, targetMilestoneId: string) => void;
+  onSplitSequence: (sequenceId: string) => void;
   allMilestones: Milestone[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
@@ -1707,7 +1729,7 @@ function SortableMilestoneRow(props: {
 function MilestoneRow({
   milestone, isExpanded, isEditing, editingData, isPending,
   onToggle, onEdit, onEditChange, onSave, onCancelEdit, onDelete,
-  onSaveSequence, onDeleteSequence, onReorderSequences, onApplyBlockRoute, onMoveSequence, allMilestones, dragHandleProps,
+  onSaveSequence, onDeleteSequence, onReorderSequences, onApplyBlockRoute, onMoveSequence, onSplitSequence, allMilestones, dragHandleProps,
 }: {
   milestone: Milestone; isExpanded: boolean; isEditing: boolean;
   editingData: Milestone | null; isPending: boolean;
@@ -1718,6 +1740,7 @@ function MilestoneRow({
   onReorderSequences: (ids: string[]) => void;
   onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
   onMoveSequence: (sequenceId: string, targetMilestoneId: string) => void;
+  onSplitSequence: (sequenceId: string) => void;
   allMilestones: Milestone[];
   dragHandleProps?: any;
 }) {
@@ -1923,6 +1946,7 @@ function MilestoneRow({
                         isPending={isPending}
                         milestones={allMilestones}
                         onMove={onMoveSequence}
+                        onSplit={onSplitSequence}
                         onSave={(data) => {
                           onSaveSequence({ ...data, id: seq.id, milestoneId: milestone.id });
                           setEditingSeqId(null);
@@ -2801,13 +2825,15 @@ const GOD_DOFUS_SURFACE = "#18181b";
 const GOD_MODAL_SURFACE = "#09090b";
 
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, milestones }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
   onSave: (data: any) => void; onCancel: () => void;
   onMove: (sequenceId: string, targetMilestoneId: string) => void;
+  onSplit: (sequenceId: string) => void;
   milestones?: Milestone[];
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
+  const [splitConfirm, setSplitConfirm] = useState(false);
   const [dofusdbUrl, setDofusdbUrl] = useState(seq.dofusdbUrl || "");
   const [noobsUrl, setNoobsUrl] = useState(seq.dofuspourlesnoobsUrl || "");
   const [tips, setTips] = useState(seq.tips || "");
@@ -4305,6 +4331,52 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           </div>
         )}
       </div>
+
+      {/* Scinder un bloc multi-quêtes — visible sans ouvrir la section 9 */}
+      {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+        <div className="flex flex-col gap-2 p-2.5 rounded-xl border border-warning/30 bg-warning/5">
+          <div className="flex items-start gap-2">
+            <Scissors className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-caption font-bold text-warning uppercase tracking-wider">
+                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
+              </p>
+              <p className="text-caption text-muted-foreground">
+                La scinder crée une quête par ligne, à la même place, avec la même route.
+                La progression de l'étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
+              </p>
+            </div>
+          </div>
+          {splitConfirm ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => { onSplit(seq.id!); onCancel(); }}
+                className="px-3 py-1.5 rounded-lg bg-warning text-black text-caption font-bold disabled:opacity-40"
+              >
+                Confirmer la scission ({seq.questDbIds.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplitConfirm(false)}
+                className="px-3 py-1.5 rounded-lg border border-border text-caption font-medium text-muted-foreground"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => setSplitConfirm(true)}
+              className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 text-caption font-bold text-warning hover:bg-warning/10 disabled:opacity-40"
+            >
+              <Scissors className="w-3 h-3" /> Scinder en {seq.questDbIds.length} quêtes individuelles
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Déplacer vers un autre bloc — visible sans ouvrir la section 9 */}
       {seq.id && milestones && milestones.length > 1 && (

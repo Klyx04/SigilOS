@@ -320,9 +320,21 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(shell).toMatch(/className="da-rail" ref=\{railRef\}/);
         expect(shell).toMatch(/useDaRail\(/);
         // La longueur n'est pas devinée : elle est posée en style, sur la première
-        // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`).
+        // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`), et son
+        // arithmétique est la règle PARTAGÉE (`src/lib/da-rail-geometrie.ts`).
         expect(hook).toMatch(/setProperty\("--da-grow"/);
         expect(hook).toMatch(/\[data-state="next"\]/);
+        expect(hook).toMatch(/daRailGrow\(/);
+        // E2 avait livré une mesure par `offsetTop` : sur le guide public chaque quête
+        // est enveloppée dans son propre `div.relative`, donc `offsetTop` valait 12 pour
+        // les 18 lignes et le fil restait figé à 18 px (mesure du 05/11/2026).
+        // ⚠️ On juge le CODE, pas les commentaires : la cause racine est documentée sur
+        // place, elle a le droit de citer `offsetTop`.
+        const hookCode = hook
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+        expect(hookCode).not.toMatch(/offsetTop/);
+        expect(hookCode).toMatch(/getBoundingClientRect/);
         expect(css).toMatch(/height:\s*var\(--da-grow/);
         // Le guide monte le même rail, une fois par liste de quêtes.
         expect(readFileSync("src/components/da/da-rail.tsx", "utf8")).toMatch(/useDaRail\(/);

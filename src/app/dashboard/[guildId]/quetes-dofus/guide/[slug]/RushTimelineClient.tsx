@@ -645,7 +645,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           milestone={ms as any}
           seq={seq as any}
           isDone={isSeqCompleted}
-          isLightMode={false}
           guildId={guildId}
           hideProvidedResources={!!hideSeqCompleted}
           checkedKeys={resourceChecks}
@@ -2635,7 +2634,6 @@ const timelineItems=useMemo(()=>{
         allResources={rushResourcesAll}
         totalCount={rushResourcesAll.length}
         theme="site"
-        isLightMode={false}
         checkedKeys={resourceChecks}
         onToggleCheck={handleToggleResourceCheck}
         hideProvidedResources={hideDone}

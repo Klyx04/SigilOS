@@ -56,7 +56,8 @@ describe("Overlay — verrou (danger) ≠ repère (ambre), pour l'interne comme 
   it("la carte verrouillée porte un filet danger à gauche, pas un cadre rouge complet", () => {
     // DA « Gouache Wakfu » : l'état est un ATTRIBUT, peint par `da-wakfu.css`.
     // Même intention — le verrou se signale sans remplir la carte de rouge.
-    expect(ITEM).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : "todo"\}/);
+    // Depuis E1e, la première quête ni validée ni verrouillée porte `next`.
+    expect(ITEM).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : isNext \? "next" : "todo"\}/);
     // L'ancien cadre rouge intégral ne doit pas revenir (retour user 02/11/2026).
     expect(ITEM).not.toMatch(/border-danger\/30 bg-danger\/\[0\.05\]/);
   });

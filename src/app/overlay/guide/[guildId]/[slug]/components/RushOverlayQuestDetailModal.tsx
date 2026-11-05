@@ -20,13 +20,6 @@ interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
   seq: RushSequence;
   isDone: boolean;
-  /**
-   * Conservé pour les appelants (site public, overlay, guide interne). Le
-   * panneau ne s'en sert plus : il ne se peint qu'avec les jetons de thème, donc
-   * il suit le `.dark` / `.light` du document — et l'overlay pose `.light` sur sa
-   * racine quand le joueur bascule en thème clair.
-   */
-  isLightMode?: boolean;
   guildId?: string;
   onClose: () => void;
   /** Coches MANUELLES de ressources (« déjà préparé »), keyées par `rushResourceKey`. */

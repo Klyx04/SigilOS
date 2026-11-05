@@ -51,6 +51,7 @@ export function RushInfoBanner({
   imageUrl,
   accentColor,
   className,
+  collapsible = false,
 }: {
   title?: string | null;
   /** Contenu du conseil — fourni par l'appelant (chaque surface a son rendu de liens). */
@@ -58,10 +59,31 @@ export function RushInfoBanner({
   imageUrl?: string | null;
   accentColor?: string | null;
   className?: string;
+  /**
+   * Overlay uniquement : un bloc CONSEIL devient un DÉPLIABLE (filet haut/bas,
+   * `+` à droite) au lieu d'un encadré de 112 px — dans une PiP, un conseil
+   * ouvert en permanence coûtait la moitié de la hauteur utile.
+   */
+  collapsible?: boolean;
 }) {
   const tone = infoBannerTone(accentColor);
   const ToneIcon = TONE_ICON[tone.tone];
   const src = imageUrl ? safeImageUrl(imageUrl) : "";
+
+  if (collapsible) {
+    return (
+      <details
+        data-tone={tone.tone}
+        className={cn("rush-carnet da-conseil select-none", className)}
+      >
+        <summary>
+          <ToneIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{title ? `${tone.label} · ${title}` : tone.label}</span>
+        </summary>
+        <div className="da-conseil-body">{children}</div>
+      </details>
+    );
+  }
 
   return (
     <section

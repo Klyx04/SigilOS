@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { filterRushQuests, matchesRushQuestFilter } from "@/lib/rush-quest-filter";
+import { filterRushQuests, matchesRushQuestFilter, nextQuestId } from "@/lib/rush-quest-filter";
 
 const q = (id: string, isDone = false, isLocked = false) => ({ id, isDone, isLocked });
 
@@ -73,5 +73,28 @@ describe("câblage de l'overlay", () => {
         // dorée — le composant ne code donc plus aucune couleur d'état.
         expect(src).toContain("da-filters");
         expect(src).not.toContain("border-gold/60");
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DA « Gouache Wakfu » (E1e ④) : « à faire maintenant » est une règle PURE.
+// Elle sert le nœud accentué, le bouton « Reprendre » et l'arrêt du fil de sève :
+// une seule vérité, sinon les trois désignent trois quêtes différentes.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("nextQuestId — la prochaine quête à faire", () => {
+    const q = (id: string, isDone = false, isLocked = false) => ({ id, isDone, isLocked });
+
+    it("rend la PREMIÈRE quête ni validée ni verrouillée, dans l'ordre du guide", () => {
+        expect(nextQuestId([q("a", true), q("b", true), q("c"), q("d")])).toBe("c");
+    });
+
+    it("saute les verrouillées et les validées", () => {
+        expect(nextQuestId([q("a", false, true), q("b", true), q("c")])).toBe("c");
+    });
+
+    it("ne rend rien quand tout est fait (ou tout verrouillé)", () => {
+        expect(nextQuestId([q("a", true), q("b", true)])).toBeNull();
+        expect(nextQuestId([q("a", false, true)])).toBeNull();
+        expect(nextQuestId([])).toBeNull();
     });
 });

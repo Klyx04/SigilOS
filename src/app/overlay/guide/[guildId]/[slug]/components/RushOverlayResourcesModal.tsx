@@ -15,7 +15,6 @@ interface RushOverlayResourcesModalProps {
   resources: RushResourceAgg[];
   /** Ressources TOTALES (statique, toutes étapes). */
   allResources: RushResourceAgg[];
-  isLightMode: boolean;
   onClose: () => void;
   /** Compte total (pour affichage "X / Y restantes"). */
   totalCount?: number;

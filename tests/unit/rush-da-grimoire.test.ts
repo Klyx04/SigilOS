@@ -62,9 +62,12 @@ describe("DA « Grimoire Sylvestre » — barre de chapitre", () => {
         expect(codeOf(CHAPTER)).not.toMatch(SLOP);
     });
 
-    it("le titre du chapitre est en serif et la jauge en or", () => {
+    it("le titre du chapitre suit le dock et la jauge en or", () => {
         const src = codeOf(CHAPTER);
-        expect(src).toMatch(/font-serif text-\[12px\]/);
+        // DA « Gouache Wakfu » : le titre vit dans `.da-dock-label` (13 px condensé,
+        // jamais tronqué) — la taille et la fonte sont des jetons, pas du Tailwind.
+        expect(src).toMatch(/da-dock-label/);
+        expect(src).not.toMatch(/truncate text-left font-serif text-\[12px\]/);
         expect(src).toMatch(/bg-gold transition-\[width\][^"]*motion-reduce/);
     });
 });
@@ -119,10 +122,10 @@ describe("DA « Carnet de campagne » — blocs de conseil", () => {
 describe("DA « Carnet de campagne » — carte de quête verrouillée", () => {
     it("un filet terre cuite à gauche remplace le cadre rouge complet", () => {
         const src = codeOf(CARD);
-        // Depuis la DA « Gouache Wakfu » (lot E1), l'état est porté par un
-        // attribut et peint par `src/app/da-wakfu.css` : même intention (le
-        // verrou se signale, il ne remplit pas la carte de rouge).
-        expect(src).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : "todo"\}/);
+        // DA « Gouache Wakfu » : l'état est porté par un attribut et peint par
+        // `src/app/da-wakfu.css`. Depuis E1e, la première quête ni validée ni
+        // verrouillée porte `next` (nœud accentué) — même règle que « Reprendre ».
+        expect(src).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : isNext \? "next" : "todo"\}/);
         expect(src).not.toMatch(/border-danger\/30 bg-danger\//);
     });
 

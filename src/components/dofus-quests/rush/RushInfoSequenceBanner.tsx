@@ -30,17 +30,43 @@ export function RushInfoSequenceBanner({
   seq,
   accentColor,
   className,
+  collapsible = false,
 }: {
   seq: RushSequence;
   /** Couleur du bloc, utilisée seulement si la séquence n'a pas la sienne. */
   accentColor?: string | null;
   className?: string;
+  /**
+   * Overlay uniquement : rend un `<details>` (dépliable) au lieu de l'encart.
+   * Faux par défaut ⇒ dashboard et guide public strictement inchangés.
+   */
+  collapsible?: boolean;
 }) {
   const tag = (seq.activityTags || []).find((t) => t.type === "info_sequence");
   const rawColor = tag?.color || accentColor || "";
   const tone = infoBannerTone(rawColor);
   const ToneIcon = RUSH_INFO_TONE_ICON[tone.tone];
   const text = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+
+  /* DA « Gouache Wakfu » : dans l'overlay, un conseil est un DÉPLIABLE (filet
+     haut/bas, `+` à droite) — plus un encadré. Opt-in : le dashboard et le guide
+     public gardent l'encart toujours ouvert, donc un seul comportement change. */
+  if (collapsible) {
+    return (
+      <details
+        data-tone={tone.tone}
+        className={cn("rush-carnet da-conseil select-none", className)}
+      >
+        <summary>
+          <ToneIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{tone.label}</span>
+        </summary>
+        <div className="da-conseil-body">
+          <RushRichText text={text} />
+        </div>
+      </details>
+    );
+  }
 
   return (
     <div

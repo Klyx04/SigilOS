@@ -111,11 +111,14 @@ describe("Overlay — verrou composé (prérequis ET donjons requis)", () => {
 });
 
 describe("Overlay — les toasts s'affichent DANS la fenêtre", () => {
-  it("le Toaster dédié est monté dans le portail du PiP, avec le provider", () => {
+  it("le Toaster dédié est monté dans le portail du PiP, sous la portée de la DA", () => {
     const host = codeOf(HOST);
     expect(host).toMatch(/OverlayToastProvider/);
-    expect(host).toMatch(/<OverlayToaster \/>/);
     expect(host).toMatch(/win\.document\.body/);
+    // Depuis E1e, le Toaster vit dans `GuideOverlayClient`, sous `data-da` : il
+    // hérite des jetons (à côté, il retombait sur un noir en dur). Le portail,
+    // lui, reste celui de l'hôte.
+    expect(codeOf(OVERLAY)).toMatch(/<OverlayToaster \/>/);
   });
 
   it("plus aucun composant de l'overlay n'appelle le toast global", () => {

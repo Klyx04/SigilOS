@@ -8,7 +8,6 @@ interface RushOverlaySearchProps {
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
-  isLightMode?: boolean;
   placeholder?: string;
   className?: string;
 }

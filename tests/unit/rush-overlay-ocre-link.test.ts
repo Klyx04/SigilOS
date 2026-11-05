@@ -33,7 +33,6 @@ describe("panneau Ocre — état « compte non lié »", () => {
     const html = render(
       React.createElement(RushOverlayOcreModal, {
         guildId: "g1",
-        isLightMode: false,
         initial: null,
         state: "not-linked",
         onClose: () => {},
@@ -49,7 +48,6 @@ describe("panneau Ocre — état « compte non lié »", () => {
     const html = render(
       React.createElement(RushOverlayOcreModal, {
         guildId: "g1",
-        isLightMode: false,
         initial: unavailableOcrePanelData(),
         state: "ready",
         onClose: () => {},

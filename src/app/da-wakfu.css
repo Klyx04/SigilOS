@@ -246,6 +246,125 @@
 .da-btn:active { transform: translateY(1px); }
 .da-btn:disabled { opacity: .45; cursor: default; transform: none; }
 
+/* ── Description du bloc — sous la bannière, comme la maquette ───────────── */
+.da-blockdesc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: .6rem .1rem 0;
+  color: var(--da-muted);
+  font: 500 12.5px/1.6 var(--da-font-text);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ── Rangée d'actions — Reprendre / Ressources (celle de la maquette) ─────── */
+.da-actions {
+  display: flex;
+  gap: .6rem;
+  padding: .75rem .75rem 0;
+}
+
+.da-actions .da-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Pastille de comptage du bouton « Ressources » : l'ambre de la maquette, encre
+   sombre de l'écriteau (aucune couleur en dur). Rayon 10 px : le verrou de la DA
+   interdit au-delà de 12 px. */
+.da-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 .35rem;
+  border-radius: 10px;
+  background: var(--da-amber);
+  color: var(--da-plank-ink);
+  font: 700 10px var(--da-font-text);
+  letter-spacing: 0;
+}
+
+/* ── « Conseil » dépliable (maquette) : filets, + / −, puces losange ─────── */
+.da-conseil {
+  margin: .5rem 0;
+  border: 0;
+}
+
+.da-conseil > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .1rem;
+  border-top: 1.5px solid var(--da-ln);
+  border-bottom: 1.5px solid var(--da-ln);
+  color: var(--da-ink);
+  font: 700 12px var(--da-font-text);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.da-conseil > summary::-webkit-details-marker { display: none; }
+
+.da-conseil > summary svg { color: var(--da-acc); }
+
+.da-conseil > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--da-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.da-conseil[open] > summary::after { content: "\2212"; }
+
+.da-conseil-body {
+  margin: .6rem .1rem .2rem;
+  color: var(--da-muted);
+  font: 500 12px/1.65 var(--da-font-text);
+}
+
+.da-conseil-body ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.da-conseil-body p,
+.da-conseil-body li {
+  position: relative;
+  margin: 0 0 .5rem;
+  padding-left: .875rem;
+}
+
+/* Puce losange : le même losange que les nœuds et les pips de stade. */
+.da-conseil-body p::before,
+.da-conseil-body li::before {
+  content: "";
+  position: absolute;
+  top: .45em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 6px 0 6px 0;
+  background: var(--da-acc);
+  transform: rotate(45deg);
+}
+
+/* ── Toasts de l'overlay (Sonner) — les matières du reste de la fenêtre ──── */
+[data-sonner-toast].da-toast {
+  border: 1.5px solid var(--da-outline, #0f1410);
+  background: var(--da-panel, #1f2822);
+  color: var(--da-ink, #eceedf);
+  font: 600 11px var(--da-font-text, inherit);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-sonner-toast].da-toast [data-title] { font-size: 11px; line-height: 1.45; }
+
+.da-toast-desc { font-size: 10px; color: var(--da-muted, #a3afa1); }
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;
@@ -449,6 +568,23 @@
   filter: url(#da-brush);
 }
 
+/* Mini-écriteau 40 × 28 : le compteur du dock. Même signature (deux planches
+   inclinées, rayures de bois, chiffres au pinceau), à l'échelle de la barre. */
+.da-plank[data-size="mini"] {
+  width: 40px;
+  height: 28px;
+  margin-bottom: 0;
+  transform: rotate(-4deg);
+}
+
+.da-plank[data-size="mini"] i { inset: 0 2px 7px 0; }
+.da-plank[data-size="mini"] b { inset: 7px 0 0 3px; }
+
+.da-plank[data-size="mini"] span {
+  font-size: 13px;
+  transform: rotate(3deg) translateY(-1px);
+}
+
 /* ── Fil de sève + nœud + carte ──────────────────────────────────────────── */
 .da-rail {
   position: relative;
@@ -483,6 +619,10 @@
   margin-bottom: .75rem;
 }
 
+/* Pas de marge morte sous la dernière carte : elle laissait un vide en bas du
+   défilement dans une PiP courte (vu à l'écran le 05/11/2026). */
+.da-rail .da-row:last-child { margin-bottom: 0; }
+
 .da-node {
   position: relative;
   z-index: 1;
@@ -516,7 +656,7 @@
 }
 
 .da-row[data-state="next"] .da-node::before {
-  border-color: var(--da-outline);
+  border-color: var(--da-acc2);
   background: var(--da-acc);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--da-acc) 26%, transparent);
 }
@@ -539,13 +679,15 @@
 
 /* Bord : `clip-path` (coût nul) par défaut. Le déplacement « rough » est
    réservé aux surfaces à `data-quality="high"` — sinon 20 cartes = 20 filtres
-   recalculés au défilement, dans une PiP au-dessus du jeu. */
+   recalculés au défilement, dans une PiP au-dessus du jeu.
+   Le filet est TEINTÉ par le bloc (`--da-acc2`), plus un gris uniforme : la carte
+   appartient visiblement à son chapitre. */
 .da-card::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  border: 1.6px solid var(--da-ln);
+  border: 1.6px solid var(--da-acc2);
   border-radius: 4px 14px 4px 14px; /* exception mesurée : signature de carte (coins asymétriques) */
   background: var(--da-card);
   clip-path: polygon(0 1%, 100% 0, 99.6% 99.2%, 0.5% 100%);
@@ -647,6 +789,7 @@
   top: 0;
   z-index: 30;
   display: flex;
+  align-items: center;
   gap: .4rem;
   padding: .5rem .75rem 0;
   background: var(--da-bg);
@@ -668,6 +811,13 @@
   cursor: pointer;
 }
 
+/* Le bouton du nœud n'est PAS le déclencheur : il ne doit jamais s'étirer
+   (`flex: 1` hérité créait un vide de 200 px entre le nœud et le titre). */
+.da-dock button.da-node-btn {
+  flex: none;
+  padding: .4rem .1rem .55rem .25rem;
+}
+
 .da-medal {
   display: grid;
   flex: none;
@@ -681,11 +831,15 @@
 
 .da-dock .da-dock-label {
   min-width: 0;
-  overflow: hidden;
+  /* Le titre du chapitre n'est JAMAIS tronqué (le « Ali… » d'E1d était une
+     régression) : il passe à la ligne aux ESPACES, jamais au milieu d'un mot.
+     Casser les mots empilait une lettre par ligne dans une PiP de 250 px. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
   font: 700 13px/1.05 var(--da-font-title);
   letter-spacing: .06em;
   text-transform: uppercase;
-  text-overflow: ellipsis;
 }
 
 .da-dock small {
@@ -715,6 +869,17 @@
   clip-path: polygon(0 40%, 10% 0, 100% 30%, 92% 100%, 0 80%);
 }
 
+/* Nœud du dock : la case « tout le chapitre » est le MÊME cercle peint que les
+   nœuds de la liste (elle était un carré nu, hors grammaire). */
+.da-dock .da-node { margin-top: 0; }
+
+.da-dock .da-node[data-state="done"] { color: var(--da-on); }
+
+.da-dock .da-node[data-state="done"]::before {
+  border-color: var(--da-outline);
+  background: var(--da-ok);
+}
+
 /* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
 .da-hero {
   position: relative;
@@ -723,9 +888,9 @@
   background: var(--da-field);
 }
 
-.da-hero[data-density="wide"] { min-height: 180px; }
-.da-hero[data-density="normal"] { min-height: 132px; }
-.da-hero[data-density="tight"] { min-height: 96px; }
+.da-hero[data-density="wide"] { min-height: min(276px, 30vh); }
+.da-hero[data-density="normal"] { min-height: 112px; }
+.da-hero[data-density="tight"] { min-height: 80px; }
 
 .da-hero-img {
   position: absolute;
@@ -814,7 +979,7 @@
 
 .da-kicker b { color: var(--da-acc-ink); }
 
-.da-logo { margin: .5rem 0 0; line-height: .9; text-transform: uppercase; }
+.da-logo { margin: .35rem 0 0; line-height: .9; text-transform: uppercase; }
 
 .da-logo .da-logo-a {
   display: block;
@@ -839,7 +1004,12 @@
 }
 
 .da-hero[data-density="tight"] .da-logo .da-logo-b { font-size: clamp(22px, 8vw, 30px); }
-.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 8.6vw, 38px); }
+.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 7.4vw, 32px); }
+.da-hero[data-density="wide"] .da-logo .da-logo-b { font-size: clamp(30px, 9vw, 56px); }
+
+/* Le surtitre `RUSH` est la signature du hero : il rétrécit avant de disparaître. */
+.da-hero[data-density="normal"] .da-logo .da-logo-a { font-size: 16px; letter-spacing: .34em; }
+.da-hero[data-density="tight"] .da-logo .da-logo-a { font-size: 13px; letter-spacing: .24em; }
 
 .da-logo .da-logo-b::after {
   content: "";
@@ -851,13 +1021,13 @@
   clip-path: polygon(0 30%, 6% 0, 100% 40%, 94% 100%, 0 80%);
 }
 
-.da-hero-bottom { margin-top: auto; padding-top: .6rem; }
+.da-hero-bottom { margin-top: auto; padding-top: .4rem; }
 
 .da-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: .4rem;
+  margin-bottom: .3rem;
   color: var(--da-ink);
   font: 600 12px var(--da-font-text);
   text-shadow: 0 1px 4px rgb(0 0 0 / .8);
@@ -904,6 +1074,21 @@
   border-radius: 9px 0 9px 0;
   background: var(--da-acc);
   transform: rotate(45deg);
+}
+
+/* Frise des stades du Dofus : cinq losanges + le nom du stade atteint.
+   Réservée au palier `wide` (≥ 820 px de haut) : en `normal`, elle coûtait ~22 px
+   de hauteur utile pour une information que la jauge porte déjà. */
+.da-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin-top: .35rem;
+  color: var(--da-muted);
+  font: 700 9.5px var(--da-font-text);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .7);
 }
 
 .da-pips { display: inline-flex; gap: .25rem; }

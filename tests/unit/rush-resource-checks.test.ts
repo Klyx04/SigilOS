@@ -48,7 +48,6 @@ const html = (props: Record<string, unknown>) =>
       {
         resources: [res("Eau Potable", 10), res("Bois de Frêne", 2, "2")],
         allResources: [res("Eau Potable", 10), res("Bois de Frêne", 2, "2")],
-        isLightMode: false,
         onClose: () => {},
         totalCount: 2,
         theme: "site",

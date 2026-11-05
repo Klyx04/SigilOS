@@ -14,6 +14,7 @@ import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
 import { resolveGuildActivityState, type GuildActivityState } from "@/lib/discord-guild-state";
 import { Prisma } from "@prisma/client";
 import { buildStandBy, isStandByActive } from "@/lib/group-standby";
+import { runInteractionRefusal } from "@/lib/songes/run-status";
 import { isAgendaMirror } from "@/lib/agenda-mirror";
 import type { TicketAuthorizationContext } from "@/lib/tickets/access";
 import {
@@ -175,9 +176,10 @@ async function handleStandByButton(args: {
                 select: { id: true, leaderId: true, status: true, standBy: true },
             });
             if (!run) return ephemeralDiscordRefusal("❌ Cette run n'existe plus.");
-            if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
-                return ephemeralDiscordRefusal("❌ Cette run est terminée.");
-            }
+            // Une run close n'accepte plus aucune interaction — refus **par cause**
+            // (archivée / terminée / échouée), même règle que le bouton Postuler.
+            const refusal = runInteractionRefusal(run.status);
+            if (refusal) return ephemeralDiscordRefusal(`❌ ${refusal}`);
             creatorUserId = run.leaderId;
             current = run.standBy;
             break;
@@ -758,6 +760,26 @@ export async function POST(request: NextRequest) {
                 return ephemeralDiscordMessage("❌ Action calendrier inconnue.");
             } else if (prefix === "songes") {
                 if (action === "join") {
+                    // Une run close ne doit plus ouvrir la modale : le refus arrivait APRÈS
+                    // soumission, avec un message qui parlait de « candidatures » alors que
+                    // la run avait été archivée automatiquement (mesure du 05/11/2026).
+                    const guildConfig = await db.guildConfig.findUnique({
+                        where: { discordGuildId: guild_id },
+                        select: { id: true },
+                    });
+                    // `DreamRun.guildId` porte l'un **ou** l'autre selon le chemin d'écriture
+                    // (mesure du 30/10/2026) — même portée que le handler stand-by.
+                    const run = await db.dreamRun.findFirst({
+                        where: {
+                            id: entityId,
+                            guildId: { in: [guild_id, ...(guildConfig ? [guildConfig.id] : [])] },
+                        },
+                        select: { status: true },
+                    });
+                    if (!run) return ephemeralDiscordRefusal("❌ Cette run n'existe plus.");
+                    const refusal = runInteractionRefusal(run.status);
+                    if (refusal) return ephemeralDiscordRefusal(`❌ ${refusal}`);
+
                     // Open a Modal for class selection + optional message
                     return NextResponse.json({
                         type: 9, // MODAL

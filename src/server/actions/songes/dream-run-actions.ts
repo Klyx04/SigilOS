@@ -22,6 +22,7 @@ import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { getAppBaseUrl } from "@/lib/utils";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { isRunOpen, runJoinRefusal } from "@/lib/songes/run-status";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -1124,9 +1125,10 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         return { success: false, error: "Run non trouvée" };
     }
 
-    // Allow candidature for RECRUITING or IN_PROGRESS runs
-    if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
-        return { success: false, error: "Cette run n'accepte plus de candidatures" };
+    // Allow candidature for RECRUITING or IN_PROGRESS runs — refus par cause sinon
+    // (archivée / terminée / échouée), même règle que le service Discord.
+    if (!isRunOpen(run.status)) {
+        return { success: false, error: runJoinRefusal(run.status) };
     }
 
     // Check if already member

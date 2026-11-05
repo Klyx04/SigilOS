@@ -3,7 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { RushSequence } from "@/types/rush-guide-types";
-import { RushRichText } from "./RushRichText";
+import { RushRichText, RushTipLines } from "./RushRichText";
 import {
   infoBannerTone,
   RUSH_INFO_TONE_ICON,
@@ -62,7 +62,7 @@ export function RushInfoSequenceBanner({
           <span>{tone.label}</span>
         </summary>
         <div className="da-conseil-body">
-          <RushRichText text={text} />
+          <RushTipLines text={text} />
         </div>
       </details>
     );

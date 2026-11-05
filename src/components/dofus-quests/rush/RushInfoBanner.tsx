@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle, BookOpen, Lightbulb, Sparkles } from "lucide-react";
 import { safeImageUrl } from "@/lib/security";
 import { cn } from "@/lib/utils";
+import { RushTipLines } from "./RushRichText";
 
 /**
  * RushInfoBanner — le bandeau d'un bloc CONSEIL / TIPS (type `INFO`) du Rush Sylvestre.
@@ -48,6 +49,7 @@ export const RUSH_INFO_TONE_RAIL = TONE_RAIL;
 export function RushInfoBanner({
   title,
   children,
+  bodyText,
   imageUrl,
   accentColor,
   className,
@@ -56,6 +58,8 @@ export function RushInfoBanner({
   title?: string | null;
   /** Contenu du conseil — fourni par l'appelant (chaque surface a son rendu de liens). */
   children: ReactNode;
+  /** Texte brut du conseil : rendu en PUCES dans le dépliable (maquette). */
+  bodyText?: string | null;
   imageUrl?: string | null;
   accentColor?: string | null;
   className?: string;
@@ -80,7 +84,9 @@ export function RushInfoBanner({
           <ToneIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>{title ? `${tone.label} · ${title}` : tone.label}</span>
         </summary>
-        <div className="da-conseil-body">{children}</div>
+        <div className="da-conseil-body">
+          {bodyText ? <RushTipLines text={bodyText} /> : children}
+        </div>
       </details>
     );
   }

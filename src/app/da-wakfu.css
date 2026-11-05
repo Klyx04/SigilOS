@@ -246,6 +246,17 @@
 .da-btn:active { transform: translateY(1px); }
 .da-btn:disabled { opacity: .45; cursor: default; transform: none; }
 
+/* ── Description du bloc — sous la bannière, comme la maquette ───────────── */
+.da-blockdesc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: .6rem .1rem 0;
+  color: var(--da-muted);
+  font: 500 12.5px/1.6 var(--da-font-text);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 /* ── Rangée d'actions — Reprendre / Ressources (celle de la maquette) ─────── */
 .da-actions {
   display: flex;

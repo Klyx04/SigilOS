@@ -19,6 +19,7 @@ const CSS = "src/app/da-wakfu.css";
 const SKILL = ".cline/skills/sigilos-da-wakfu/SKILL.md";
 const FILTERS = "src/components/da/DaWakfuFilters.tsx";
 const DOCK = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
+const SHELL = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
 
 type Rgb = [number, number, number];
 
@@ -263,5 +264,12 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         // Même teinte sur le nœud « à faire maintenant ».
         const next = css.match(/\.da-row\[data-state="next"\] \.da-node::before\s*\{([^}]*)\}/)?.[1] ?? "";
         expect(next).toMatch(/border-color:\s*var\(--da-acc2\)/);
+    });
+
+    it("la description du bloc est rendue sous la bannière", () => {
+        const shell = readFileSync(SHELL, "utf8");
+        expect(shell).toMatch(/className="da-blockdesc"/);
+        expect(shell).toMatch(/<RushRichText text=\{currentMs\.description\}/);
+        expect(css).toMatch(/\.da-blockdesc\s*\{/);
     });
 });

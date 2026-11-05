@@ -1424,6 +1424,13 @@ export default function GuideOverlayClient({
                   </div>
                 </div>
               </div>
+              {/* Description du bloc — perdue depuis la refonte, elle est la seule à
+                  dire ce que le chapitre regroupe (maquette : `.blockdesc`). */}
+              {currentMs.description ? (
+                <div className="da-blockdesc">
+                  <RushRichText text={currentMs.description} />
+                </div>
+              ) : null}
             </div>
           ) : null}
 

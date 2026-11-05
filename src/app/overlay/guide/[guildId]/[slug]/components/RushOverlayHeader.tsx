@@ -167,9 +167,6 @@ export function RushOverlayHeader({
             <span className="da-logo-a">{titleLead}</span>
             <span className="da-logo-b">{titleRest}</span>
           </h1>
-          {!narrow && (
-            <p className="da-devise">« Le fruit du sacrifice sème les graines du renouveau. »</p>
-          )}
 
           {/* Progression explicite */}
           <p className="da-meta mt-1">

@@ -309,7 +309,11 @@
 .da-filters button b {
   margin-left: .3rem;
   font-size: 10px;
-  opacity: .7;
+  font-weight: 700;
+  /* Le compteur est un chiffre aligné sur la ligne de base — pas un exposant. */
+  vertical-align: baseline;
+  line-height: 1;
+  opacity: .65;
 }
 
 .da-filters button[aria-selected="true"],
@@ -785,11 +789,15 @@
   align-self: flex-start;
   align-items: center;
   gap: .5rem;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--da-ink);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: .24em;
   text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   text-shadow: 0 1px 3px rgb(0 0 0 / .66);
 }
 
@@ -837,14 +845,6 @@
   margin-top: 6px;
   background: var(--da-acc2);
   clip-path: polygon(0 30%, 6% 0, 100% 40%, 94% 100%, 0 80%);
-}
-
-.da-devise {
-  max-width: 32ch;
-  margin-top: .5rem;
-  color: var(--da-ink);
-  font: italic 400 13px/1.5 var(--da-font-serif);
-  text-shadow: 0 1px 4px rgb(0 0 0 / .8);
 }
 
 .da-hero-bottom { margin-top: auto; padding-top: .6rem; }

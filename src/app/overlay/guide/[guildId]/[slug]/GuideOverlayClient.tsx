@@ -1161,12 +1161,9 @@ export default function GuideOverlayClient({
       (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const idx = milestones.findIndex((m) => m.id === currentMs?.id);
     const from = idx >= 0 ? idx : 0;
-    // 1. accent libre du bloc courant (hex strict : jamais d'injection CSS)
-    for (let i = from; i >= 0; i -= 1) {
-      const accent = milestones[i]?.accentColor;
-      if (accent && /^#[0-9a-f]{6}$/i.test(accent)) return { block: "custom" as const, accent };
-    }
-    // 2. bloc Dofus nommé, en remontant jusqu'au dernier connu
+    // 1. BLOC NOMMÉ d'abord : un bloc « Dofus Émeraude » doit s'appeler Émeraude,
+    //    même si le God lui a posé un accentColor (sinon l'en-tête annonçait
+    //    « BLOC » sur un bloc Émeraude — défaut vu à l'écran le 05/11/2026).
     for (let i = from; i >= 0; i -= 1) {
       const id = norm(milestones[i]?.dofusId);
       const title = norm(milestones[i]?.title);
@@ -1175,6 +1172,12 @@ export default function GuideOverlayClient({
           return { block: key, accent: null };
         }
       }
+    }
+    // 2. N'IMPORTE QUEL AUTRE Dofus : la teinte vient de l'accent du bloc
+    //    (hex strict — jamais d'injection CSS).
+    for (let i = from; i >= 0; i -= 1) {
+      const accent = milestones[i]?.accentColor;
+      if (accent && /^#[0-9a-f]{6}$/i.test(accent)) return { block: "custom" as const, accent };
     }
     return { block: "emeraude" as const, accent: null };
   }, [milestones, currentMs]);
@@ -1357,11 +1360,6 @@ export default function GuideOverlayClient({
               <div
                 className="da-banner"
                 data-block={daBlock}
-                style={
-                  currentMs.imageUrl
-                    ? { backgroundImage: `url("${currentMs.imageUrl}")` }
-                    : undefined
-                }
               >
                 <div className="da-banner-text">
                   <div>

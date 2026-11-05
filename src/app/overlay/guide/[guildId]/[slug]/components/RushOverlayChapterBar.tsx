@@ -127,9 +127,10 @@ export function RushOverlayChapterBar({
           aria-expanded={open}
           aria-label="Choisir un chapitre"
           aria-current="true"
+          title={activeMs?.title || `Chapitre ${activeIdx + 1}`}
           onClick={() => canSelect && setOpen((v) => !v)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-[6px] px-1.5 py-1.5 text-left transition-colors motion-reduce:transition-none",
+            "da-dock-trigger rounded-[6px] transition-colors motion-reduce:transition-none",
             canSelect && "cursor-pointer"
           )}
         >
@@ -141,20 +142,21 @@ export function RushOverlayChapterBar({
           <span className="da-dock-label min-w-0 flex-1 text-left">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
           </span>
-          {showChapterCount && (
-            <span
-              className={cn(
-                "hidden shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] sm:inline",
-                "text-muted-foreground"
-              )}
-            >
-              Chapitre {chapterPos + 1} / {selectable.length}
-            </span>
-          )}
           {/* Compteur + chevron dans un groupe collé à DROITE (`margin-left: auto`) :
               quand le titre passe à deux lignes en PiP étroite, il poussait le
-              compteur au milieu de la barre (mesure du 05/11/2026). */}
+              compteur au milieu de la barre (mesure du 05/11/2026). Le numéro de
+              chapitre y vit aussi : la grille n'a que trois colonnes. */}
           <span className="da-dock-trail">
+            {showChapterCount && (
+              <span
+                className={cn(
+                  "hidden shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] sm:inline",
+                  "text-muted-foreground"
+                )}
+              >
+                Chapitre {chapterPos + 1} / {selectable.length}
+              </span>
+            )}
             {showProgress && (
               <span
                 className="da-plank shrink-0"

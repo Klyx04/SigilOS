@@ -240,14 +240,18 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(mini).toMatch(/height:\s*28px/);
     });
 
-    it("le titre du chapitre n'est JAMAIS tronqué (plus d'ellipsis)", () => {
+    it("le titre du dock a deux lignes garanties, jamais une lettre par ligne", () => {
         const label = css.match(/\.da-dock \.da-dock-label\s*\{([^}]*)\}/)?.[1] ?? "";
         expect(label, "règle absente").not.toBe("");
-        expect(label).not.toMatch(/text-overflow/);
-        expect(label).not.toMatch(/overflow:\s*hidden/);
+        // Jamais de coupe au milieu d'un mot (c'était « D / O / F / U / S … »).
+        expect(label).toMatch(/overflow-wrap:\s*normal/);
+        expect(label).toMatch(/hyphens:\s*none/);
+        expect(label).not.toMatch(/break-word/);
+        // Deux lignes minimum garanties en PiP étroite, et le nom complet en infobulle.
+        expect(label).toMatch(/-webkit-line-clamp:\s*2/);
+        expect(readFileSync(DOCK, "utf8")).toMatch(/title=\{activeMs\?\.title/);
         // La taille reste celle de la maquette : 13 px condensé.
         expect(label).toMatch(/font:\s*700 13px/);
-        expect(readFileSync(DOCK, "utf8")).toMatch(/className="da-dock-label/);
     });
 
     it("la case « tout le chapitre » est le nœud de la liste, pas un carré nu", () => {

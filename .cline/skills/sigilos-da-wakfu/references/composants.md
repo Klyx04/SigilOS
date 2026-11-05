@@ -13,7 +13,7 @@ Ordre vertical **inchangé** (ne pas réordonner, ne pas fusionner) :
 | 1 | `RushOverlayHeader` | `.da-hero`, `.da-hero-img`, `.da-kicker`, `.da-logo`, `.da-stage`, `.da-meta`, `.da-track`, `.da-pips` | image du bloc + voiles, titre condensé, jauge 9 px, frise de stade |
 | 2 | `RushOverlaySearch` | `.da-search` | champ « rough », touche `/` |
 | 3 | `RushOverlayChapterBar` | `.da-dock`, `.da-medal`, `.da-dock-label`, `.da-plank[data-size="mini"]`, `.da-node` | médaillon 26 px, titre 13 px **jamais tronqué**, compteur 40 × 28, nœud « tout le chapitre » |
-| 3b | `RushOverlayActions` | `.da-actions`, `.da-btn`, `.da-badge` | `Reprendre` (planche pleine) + `Ressources n/N` — **seul** point d'entrée de la modale |
+| 3b | `RushOverlayActions` | `.da-actions`, `.da-btn`, `.da-badge` | `Reprendre` (planche pleine, cible = `[data-state="next"]` de la liste) + `Ressources n/N` **du bloc affiché** — **seul** point d'entrée de la modale |
 | 4 | `RushOverlayQuestFilter` | `.da-filters` | texte seul, compteurs, actif souligné |
 | 5 | `RushOverlayQuestListItem` | `.da-row`, `.da-node`, `.da-card`, `.da-state`, `.da-chips`, `.da-coord`, `.da-req`, `.da-prereq` | nœud 4 états (`done` / `next` / `todo` / `locked`), carte 4/14, chips mono |
 | 6 | `RushOverlayFooter` | `.da-foot` | fil de sève + compteur |
@@ -23,9 +23,12 @@ il ne remplace pas les cartes, il les longe à gauche (`left: 8px`). Sa longueur
 **mesurée** (`--da-grow` = `offsetTop + 26` de la première quête ni validée ni
 verrouillée ; tout validé ⇒ `clientHeight − 48`), comme `growRails()` dans la maquette.
 
-Le **conseil** dépliable (`.da-conseil`) est opt-in : seul l'overlay le demande à
-`RushInfoSequenceBanner` (`collapsible`) ; le dashboard et le guide public gardent
-l'encart toujours ouvert.
+Le **conseil** dépliable (`.da-conseil`) est opt-in : seul l'overlay le demande
+(`collapsible`) à `RushInfoSequenceBanner` **et** à `RushInfoBanner` — le dashboard et
+le guide public gardent l'encart toujours ouvert.
+
+Les **toasts** Sonner (`.da-toast`) sont montés sous la portée `data-da` de l'overlay :
+ils héritent des jetons (un toast posé à côté retombait sur un noir en dur).
 
 Le **thème** n'est plus passé en prop : `data-theme` sur la racine de l'overlay, et
 `DaThemeProvider` (`src/components/da/da-theme.tsx`) pour les surfaces sorties de
@@ -35,17 +38,16 @@ l'arbre (portails `createPortal`).
 
 | Hauteur de l'hôte | `data-density` | Titre |
 |---|---|---|
-| ≥ 820 px | `wide` | 56 px, hero 276 px, frise de stade visible |
-| 640–819 px | `normal` | 44 px, frise de stade visible |
-| < 640 px (ou largeur < 580) | `tight` | 34 px, sans kicker, sans frise |
+| ≥ 900 px | `wide` | 56 px, hero `min(276px, 30vh)`, frise de stade visible |
+| 640–899 px | `normal` | 44 px, hero 112 px, sans frise |
+| < 640 px (ou largeur < 580) | `tight` | 34 px, hero 80 px, sans kicker ni frise |
 
 Le palier est calculé **une fois**, par le `ResizeObserver` de la racine de l'overlay
 (`GuideOverlayClient`), et passé en prop `density` — l'en-tête ne devine rien.
 
-Budget : **tout ce qui précède la liste** valait ≤ 240 px sur un hôte de 600 px avant
-E1e. La rangée d'actions (② ≈ 44 px) et la description de bloc (⑤ ≈ 40 px) l'ont
-**augmenté d'environ 85 px** : c'est assumé par la maquette, mais la mesure sur capture
-PiP reste **à faire** (arbitrage humain si la liste devient trop courte).
+Budget : la frise de stade est réservée à `wide` et le hero `wide` est plafonné à
+`30vh` (mesure du 05/11/2026 : 276 px sur un PiP de 870 px mangeait un tiers de la
+fenêtre). Reste à contrôler sur capture qu'un hôte de 600 px laisse assez de liste.
 
 ### Qualité
 

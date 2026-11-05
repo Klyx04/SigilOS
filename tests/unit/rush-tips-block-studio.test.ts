@@ -18,7 +18,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
-const ADMIN = "src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx";
+const ADMIN = "src/components/god/rush-editor/RushEditorStudio.tsx";
 
 const CODE = readFileSync(ADMIN, "utf8")
   .replace(/\/\*[\s\S]*?\*\//g, "")

@@ -344,14 +344,25 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(css).toMatch(/\.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*112px/);
     });
 
+    it("le bandeau du bloc est plus court et accepte une image non déformée", () => {
+        const banner = css.match(/\.da-banner\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(banner).toMatch(/height:\s*96px/);
+        // Décor en `contain` : une scène comme une icône s'inscrivent sans étirement.
+        expect(css).toMatch(/\.da-banner-art\s*\{[^}]*object-fit:\s*contain/);
+        expect(readFileSync(SHELL, "utf8")).toMatch(/className="da-banner-art"/);
+    });
+
     it("les toasts de l'overlay suivent la DA (ni fond en dur, ni flou, ni ombre)", () => {
         const src = readFileSync("src/components/rush/overlay-toast.tsx", "utf8");
         expect(src).not.toMatch(/backdrop-blur/);
         expect(src).not.toMatch(/#030712/);
         expect(src).not.toMatch(/shadow-2xl/);
         expect(src).toMatch(/className: "da-toast"/);
+        expect(src).toMatch(/className="da-toaster"/);
         // La matière est dans la feuille de la DA, et le Toaster est monté SOUS la portée.
-        expect(css).toMatch(/\[data-sonner-toast\]\.da-toast\s*\{/);
+        // Sonner injecte sa propre feuille à l'exécution (0,2,0) : on cible le
+        // conteneur pour passer devant, sinon le toast reste noir.
+        expect(css).toMatch(/\[data-sonner-toaster\]\.da-toaster \[data-sonner-toast\]\s*\{/);
         expect(readFileSync(SHELL, "utf8")).toMatch(/<OverlayToaster \/>/);
     });
 });

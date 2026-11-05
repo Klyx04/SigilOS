@@ -1530,7 +1530,7 @@ export default function GuideOverlayClient({
                   // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
                   // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (
-                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} />
+                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} collapsible />
                   );
                 }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);

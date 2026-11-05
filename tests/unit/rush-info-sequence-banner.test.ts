@@ -192,3 +192,43 @@ describe("RushChapterSidebar — les encarts ne comptent pas dans la progression
 });
 
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DA « Gouache Wakfu » (E1e ③) : dans l'OVERLAY, le conseil devient un dépliable
+// (filet haut/bas + `+`, puces losange). Opt-in : le dashboard et le guide public
+// gardent l'encart toujours ouvert — une seule surface change de comportement.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("RushInfoSequenceBanner — dépliable (overlay seulement)", () => {
+  const details = () =>
+    renderToStaticMarkup(
+      React.createElement(RushInfoSequenceBanner, { seq: seq(), collapsible: true })
+    );
+
+  it("rend un <details> avec son <summary>, même registre et même texte", () => {
+    const out = details();
+    expect(out).toContain("<details");
+    expect(out).toContain("<summary>");
+    expect(out).toContain("da-conseil");
+    expect(out).toContain('data-tone="attention"');
+    expect(out).toContain("Attention");
+    // Le contenu enrichi ne change pas : lien nommé + position copiable.
+    expect(out).toContain("Cliquer pour copier /travel -55,15");
+    // Toujours rien à cocher : un encart n'est pas une quête.
+    expect(out).not.toContain("<input");
+  });
+
+  it("sans la prop, les trois surfaces gardent l'encart (aucun <details>)", () => {
+    const out = html(seq());
+    expect(out).not.toContain("<details");
+    expect(out).toContain("rush-carnet");
+  });
+
+  it("seul l'overlay l'active", () => {
+    expect(readFileSync(OVERLAY, "utf8")).toMatch(/<RushInfoSequenceBanner[^>]*collapsible/);
+    for (const path of [DASHBOARD, PUBLIC]) {
+      expect(readFileSync(path, "utf8"), path).not.toMatch(
+        /<RushInfoSequenceBanner[^>]*collapsible/
+      );
+    }
+  });
+});

@@ -272,6 +272,74 @@
   letter-spacing: 0;
 }
 
+/* ── « Conseil » dépliable (maquette) : filets, + / −, puces losange ─────── */
+.da-conseil {
+  margin: .5rem 0;
+  border: 0;
+}
+
+.da-conseil > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .1rem;
+  border-top: 1.5px solid var(--da-ln);
+  border-bottom: 1.5px solid var(--da-ln);
+  color: var(--da-ink);
+  font: 700 12px var(--da-font-text);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.da-conseil > summary::-webkit-details-marker { display: none; }
+
+.da-conseil > summary svg { color: var(--da-acc); }
+
+.da-conseil > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--da-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.da-conseil[open] > summary::after { content: "\2212"; }
+
+.da-conseil-body {
+  margin: .6rem .1rem .2rem;
+  color: var(--da-muted);
+  font: 500 12px/1.65 var(--da-font-text);
+}
+
+.da-conseil-body ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.da-conseil-body p,
+.da-conseil-body li {
+  position: relative;
+  margin: 0 0 .5rem;
+  padding-left: .875rem;
+}
+
+/* Puce losange : le même losange que les nœuds et les pips de stade. */
+.da-conseil-body p::before,
+.da-conseil-body li::before {
+  content: "";
+  position: absolute;
+  top: .45em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 6px 0 6px 0;
+  background: var(--da-acc);
+  transform: rotate(45deg);
+}
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;

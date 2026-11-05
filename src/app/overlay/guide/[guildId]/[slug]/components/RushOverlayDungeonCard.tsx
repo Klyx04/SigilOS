@@ -17,8 +17,6 @@ import {
 interface RushOverlayDungeonCardProps {
   dungeons: DungeonInfo[];
   guildId?: string;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode?: boolean;
   className?: string;
 }
 
@@ -41,8 +39,6 @@ interface RushOverlayDungeonCardProps {
 interface RushOverlayDungeonCardProps {
   dungeons: DungeonInfo[];
   guildId?: string;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode?: boolean;
   className?: string;
   /** Masque le titre « Donjons requis » quand le panneau parent porte déjà le sien. */
   hideHeader?: boolean;

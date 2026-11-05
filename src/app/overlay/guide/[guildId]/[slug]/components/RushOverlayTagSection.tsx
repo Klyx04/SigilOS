@@ -8,8 +8,6 @@ import type { TagClassification } from "./overlay-utils";
 
 interface RushOverlayTagSectionProps {
   tags: TagClassification;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode?: boolean;
   className?: string;
 }
 

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDaTheme } from "@/components/da/da-theme";
 import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
@@ -44,7 +45,6 @@ export function RushOverlayDungeonPopover({
   onOpenChange,
   targetKey = null,
   children,
-  isLightMode = false,
 }: {
   /** La quête de la ligne — porte l'identité de l'occurrence. */
   seq: RushSequence;
@@ -67,10 +67,11 @@ export function RushOverlayDungeonPopover({
   onOpenChange?: (open: boolean) => void;
   /** Donjon à mettre en avant à l'ouverture. */
   targetKey?: string | null;
-  /** Thème clair de l'overlay : la popover vit dans le portail, elle porte sa classe. */
-  isLightMode?: boolean;
   children: React.ReactNode;
 }) {
+  // Thème : le portail vit hors de l'arbre de la fenêtre, il réapplique la classe
+  // du thème courant (source unique : le contexte de la DA).
+  const { theme } = useDaTheme();
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = openProp ?? internalOpen;
   const setOpen = useCallback(
@@ -147,7 +148,8 @@ export function RushOverlayDungeonPopover({
 
       {isOpen && portalDoc && createPortal(
         <div
-          className={cn("rush-carnet-theme fixed z-[999999] pointer-events-auto", isLightMode && "light")}
+          className={cn("rush-carnet-theme fixed z-[999999] pointer-events-auto", theme === "light" && "light")}
+          data-theme={theme}
           style={{ top: position.top, left: position.left, width: 320 }}
         >
           <div className="rush-carnet rounded-[6px] bg-elevated p-1.5">

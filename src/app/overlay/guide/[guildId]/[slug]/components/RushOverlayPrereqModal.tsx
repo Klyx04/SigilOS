@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDaTheme } from "@/components/da/da-theme";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushPrereqRef } from "@/lib/rush-guide-utils";
@@ -22,13 +23,14 @@ export function RushOverlayPrereqModal({
   prereqs,
   onGoTo,
   onClose,
-  isLightMode = false,
 }: {
   prereqs: RushPrereqRef[];
   onGoTo: (seqId: string, milestoneId: string) => void;
   onClose: () => void;
-  isLightMode?: boolean;
 }) {
+  // Thème : la modale sort de l'arbre (portail), elle réapplique la classe du
+  // thème courant — source unique, le contexte de la DA.
+  const { theme } = useDaTheme();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [doc, setDoc] = useState<Document | null>(null);
 
@@ -63,8 +65,9 @@ export function RushOverlayPrereqModal({
           <div
             className={cn(
               "rush-carnet-theme fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 p-3",
-              isLightMode && "light"
+              theme === "light" && "light"
             )}
+            data-theme={theme}
             onClick={onClose}
             role="presentation"
           >

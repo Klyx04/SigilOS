@@ -293,4 +293,13 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(shell).toMatch(/\[data-state="next"\]/);
         expect(css).toMatch(/height:\s*var\(--da-grow/);
     });
+
+    it("le thème n'est plus passé en prop : `data-theme` + un contexte pour les portails", () => {
+        // Zéro `isLightMode` dans TOUT `src` : la vérité vit sur la racine.
+        expect(readFileSync(SHELL, "utf8")).toMatch(/data-theme=\{lightMode \? "light" : "dark"\}/);
+        expect(readFileSync(SHELL, "utf8")).toMatch(/<DaThemeProvider value=\{daThemeValue\}>/);
+        for (const path of [SHELL, HEADER, DOCK, "src/components/da/da-theme.tsx"]) {
+            expect(readFileSync(path, "utf8"), path).not.toMatch(/isLightMode/);
+        }
+    });
 });

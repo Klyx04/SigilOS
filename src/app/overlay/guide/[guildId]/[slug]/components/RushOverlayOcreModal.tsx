@@ -21,8 +21,6 @@ import { SoulStoneTiles, StoneImage } from "@/components/ocre/OcreSoulStonesPane
 
 interface RushOverlayOcreModalProps {
   guildId: string;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   onClose: () => void;
   /**
    * Données déjà chargées par l'appelant (dashboard → PiP, page overlay interne).

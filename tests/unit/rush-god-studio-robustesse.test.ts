@@ -203,7 +203,6 @@ describe("E5 — l'aperçu live rend les composants du MEMBRE", () => {
         seq,
         isDone: false,
         isBookmarked: false,
-        isLightMode: false,
         onToggle: () => {},
         onBookmark: () => {},
         onOpenDetail: () => {},

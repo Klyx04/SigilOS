@@ -9,7 +9,6 @@ interface RushOverlayFooterProps {
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
-  isLightMode?: boolean;
   /** Libellé central, ex : "1 / 5" */
   label?: string;
   className?: string;

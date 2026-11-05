@@ -59,8 +59,6 @@ interface RushOverlayQuestListItemProps {
   seq: RushSequence;
   isDone: boolean;
   isBookmarked: boolean;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   /**
    * Première quête ni validée ni verrouillée du chapitre affiché : c'est celle que
    * « Reprendre » vise et que le fil de sève atteint. Le libellé reste « À faire »
@@ -128,7 +126,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
-  isLightMode = false,
   isNext = false,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
@@ -284,7 +281,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   seq={seq}
                   dungeons={dungeons}
                   guildId={guildId}
-                  isLightMode={isLightMode}
                   open={dungeonPanelOpen}
                   onOpenChange={(next) => {
                     setDungeonPanelOpen(next);
@@ -341,7 +337,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {prereqsOpen && (
             <RushOverlayPrereqModal
               prereqs={prereqs}
-              isLightMode={isLightMode}
               onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
               onClose={() => setPrereqsOpen(false)}
             />

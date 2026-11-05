@@ -15,8 +15,6 @@ interface RushOverlayMembersModalProps {
    * annonçait en ligne des gens qui ne l'étaient pas »).
    */
   liveMembers?: OverlayMember[];
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   onClose: () => void;
 }
 

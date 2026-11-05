@@ -3642,7 +3642,6 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             seq={previewSeq}
             isDone={false}
             isBookmarked={false}
-            isLightMode={false}
             onToggle={previewNoop}
             onBookmark={previewNoop}
             onOpenDetail={() => setShowPreviewModal(true)}

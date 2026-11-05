@@ -289,7 +289,6 @@ describe("rendu réel — panneau de l'overlay (données fournies, aucun chargem
   const html = render(
     React.createElement(RushOverlayOcreModal, {
       guildId: "1290442961380835451",
-      isLightMode: false,
       initial: PANEL,
       onClose: () => {},
     })

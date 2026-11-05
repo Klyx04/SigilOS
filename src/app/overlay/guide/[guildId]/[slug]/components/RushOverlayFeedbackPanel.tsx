@@ -13,8 +13,6 @@ interface RushOverlayFeedbackPanelProps {
   targetSlug?: string;
   /** Étape/position calculée pré-remplie dans le retour */
   context?: string;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   onClose: () => void;
 }
 

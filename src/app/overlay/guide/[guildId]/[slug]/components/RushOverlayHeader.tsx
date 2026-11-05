@@ -6,6 +6,7 @@ import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { RUSH_DOFUS_STAGE_COUNT, dofusStage } from "@/lib/rush-dofus-stage";
+import { useDaTheme } from "@/components/da/da-theme";
 
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 
@@ -17,7 +18,6 @@ interface RushOverlayHeaderProps {
   totalSteps: number;
   completedSteps: number;
   overallPct: number;
-  isLightMode: boolean;
   onToggleTheme: () => void;
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
@@ -69,7 +69,6 @@ export function RushOverlayHeader({
   totalSteps,
   completedSteps,
   overallPct,
-  isLightMode,
   onToggleTheme,
   hideCompleted,
   onToggleHideCompleted,
@@ -86,6 +85,10 @@ export function RushOverlayHeader({
   onOpenAlignment,
   block = "emeraude",
 }: RushOverlayHeaderProps) {
+  // Thème de la DA : une seule source (`data-theme` de la racine, exposé par le
+  // contexte) — plus aucune prop de thème à faire descendre.
+  const { theme } = useDaTheme();
+  const light = theme === "light";
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
   const toast = useOverlayToast();
   // Confirmation en 2 temps du reset (évite le reset accidentel).
@@ -246,11 +249,11 @@ export function RushOverlayHeader({
           <button
             type="button"
             onClick={onToggleTheme}
-            aria-label={isLightMode ? "Passer en mode sombre" : "Passer en mode clair"}
-            title={isLightMode ? "Mode Sombre" : "Mode Clair"}
+            aria-label={light ? "Passer en mode sombre" : "Passer en mode clair"}
+            title={light ? "Mode Sombre" : "Mode Clair"}
             className={actionBtnGold}
           >
-            {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            {light ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
 
           {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
@@ -312,7 +315,6 @@ export function RushOverlayHeader({
               sourcePage={`guide:overlay:${guideSlug}`}
               targetSlug={guideSlug}
               context={bugContext}
-              isLightMode={isLightMode}
               onClose={() => setFeedbackOpen(false)}
             />
           )}

@@ -33,6 +33,7 @@ import {
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
+import { DaThemeProvider } from "@/components/da/da-theme";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -177,16 +178,20 @@ export default function GuideOverlayClient({
   }, []);
 
   // ─── Thème Clair / Sombre ─────────────────────────────────────────────────
-  const [isLightMode, setIsLightMode] = useState<boolean>(false);
+  // Source UNIQUE du thème de la DA : l'état local, posé sur la racine en
+  // `data-theme` (+ `.light` pour la passerelle des jetons sémantiques). Les
+  // composants ne le reçoivent plus en prop : ceux qui sortent de l'arbre
+  // (portails) lisent le contexte `DaThemeProvider`.
+  const [lightMode, setLightMode] = useState<boolean>(false);
   useEffect(() => {
     try {
       const saved = localStorage.getItem("sigil_overlay_theme");
-      if (saved === "light") setIsLightMode(true);
+      if (saved === "light") setLightMode(true);
     } catch {}
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setIsLightMode((prev) => {
+    setLightMode((prev) => {
       const next = !prev;
       try {
         localStorage.setItem("sigil_overlay_theme", next ? "light" : "dark");
@@ -1253,6 +1258,13 @@ export default function GuideOverlayClient({
   }, [milestones, currentMs]);
   const daBlock = daTheme.block;
 
+  // Thème exposé aux portails (popover de donjon, prérequis) : la MÊME vérité que
+  // `data-theme`, une seule fois — plus aucun composant ne reçoit le thème en prop.
+  const daThemeValue = useMemo(
+    () => ({ theme: lightMode ? ("light" as const) : ("dark" as const), block: daBlock }),
+    [lightMode, daBlock]
+  );
+
   // Compteurs des filtres — même source que la liste filtrée, même règle pure
   // (`countRushQuests`) : les encarts info ne sont pas des quêtes et ne comptent pas.
   const daCounts: RushQuestCounts = useMemo(
@@ -1326,7 +1338,7 @@ export default function GuideOverlayClient({
           {ms.title}
         </h3>
         {(ms.description || ms.tips) && (
-          <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
             <RushRichText text={ms.description || ms.tips} />
           </p>
         )}
@@ -1346,12 +1358,14 @@ export default function GuideOverlayClient({
     // peignent qu'avec `--surface`, `--border`, `--accent`… et suivent donc le
     // thème sans variante claire codée en dur. Sans cette classe, `<html>` porte
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
+    // Le fournisseur expose la MÊME vérité aux portails, sans prop-drilling.
+    <DaThemeProvider value={daThemeValue}>
     <div
       ref={rootRef}
       data-da="wakfu"
-      data-theme={isLightMode ? "light" : "dark"}
+      data-theme={lightMode ? "light" : "dark"}
       data-block={daBlock}
-      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
+      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${lightMode ? "light" : ""} bg-background text-foreground`}
       style={{
         fontFamily: "var(--da-font-text)",
         ...(daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : null),
@@ -1374,7 +1388,6 @@ export default function GuideOverlayClient({
             totalSteps={totalSteps}
             completedSteps={completedSteps}
             overallPct={overallPct}
-            isLightMode={isLightMode}
             isNarrow={overlaySmall}
             density={overlayDensity}
             onToggleTheme={toggleTheme}
@@ -1396,7 +1409,6 @@ export default function GuideOverlayClient({
             value={search}
             onChange={setSearch}
             onClear={() => setSearch("")}
-            isLightMode={isLightMode}
             ref={searchRef}
           />
 
@@ -1546,7 +1558,6 @@ export default function GuideOverlayClient({
                         dungeonActions={dungeonActions}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
-                        isLightMode={isLightMode}
                         isLocked={gate.locked}
                         prereqs={gate.prereqs}
                         missingDungeons={gate.missingDungeons}
@@ -1605,7 +1616,6 @@ export default function GuideOverlayClient({
                       isDone={isSeqDone}
                       isNext={nextSeqId === seq.id}
                       isBookmarked={isBookmarked}
-                      isLightMode={isLightMode}
                       isLocked={gate.locked}
                       prereqs={gate.prereqs}
                       missingDungeons={gate.missingDungeons}
@@ -1633,7 +1643,6 @@ export default function GuideOverlayClient({
             onNext={goToNextMs}
             canPrev={currentMsIndex > 0}
             canNext={currentMsIndex < milestones.length - 1}
-            isLightMode={isLightMode}
             label={chapterPos.index > 0 ? `${chapterPos.index} / ${chapterPos.total}` : ""}
           />
 
@@ -1642,7 +1651,6 @@ export default function GuideOverlayClient({
         <RushOverlayResourcesModal
           resources={remainingResources}
           allResources={allResources}
-          isLightMode={isLightMode}
           totalCount={allResources.length}
           hideProvidedResources={hideCompleted}
           checkedKeys={resourceChecks}
@@ -1662,7 +1670,6 @@ export default function GuideOverlayClient({
           title={membersModal.title}
           members={membersModal.members}
           liveMembers={liveMembers}
-          isLightMode={isLightMode}
           onClose={() => setMembersModal(null)}
         />
       )}
@@ -1673,7 +1680,6 @@ export default function GuideOverlayClient({
           milestone={detailSeq.ms}
           seq={detailSeq.seq}
           isDone={(completedStepsByMs.get(detailSeq.ms.id) || new Set<string>()).has(detailSeq.seq.id)}
-          isLightMode={isLightMode}
           guildId={guildId}
           hideProvidedResources={hideCompleted}
           checkedKeys={resourceChecks}
@@ -1684,14 +1690,13 @@ export default function GuideOverlayClient({
 
       {/* ══ MODALE TUTORIEL ══ */}
       {showTutorial && (
-        <RushOverlayTutorialModal isLightMode={isLightMode} onClose={() => setShowTutorial(false)} />
+        <RushOverlayTutorialModal onClose={() => setShowTutorial(false)} />
       )}
 
       {/* ══ PANNEAU QUÊTE OCRE (Metamob · overlay interne) ══ */}
       {showOcre && ocreEnabled && (
         <RushOverlayOcreModal
           guildId={guildId}
-          isLightMode={isLightMode}
           initial={ocre}
           state={ocreState}
           onClose={() => setShowOcre(false)}
@@ -1710,6 +1715,7 @@ export default function GuideOverlayClient({
         />
       )}
     </div>
+    </DaThemeProvider>
   );
 }
 

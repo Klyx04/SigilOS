@@ -2227,7 +2227,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
               detailModalSeq.sequence.id
             )
           }
-          isLightMode={false}
           hideProvidedResources={hideDone}
           onClose={() => setDetailModalSeq(null)}
         />
@@ -2240,7 +2239,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           allResources={allResources}
           totalCount={allResources.length}
           theme="site"
-          isLightMode={false}
           checkedKeys={resourceChecks}
           onToggleCheck={handleToggleResourceCheck}
           hideProvidedResources={hideDone}

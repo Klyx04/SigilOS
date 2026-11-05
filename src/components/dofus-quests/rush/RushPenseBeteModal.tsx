@@ -3,6 +3,8 @@
 import React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ClipboardList, Hammer } from "lucide-react";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { RUSH_PENSE_BETE, type RushPenseBeteSection } from "@/data/rush-sylvestre-pense-bete";
 
 interface RushPenseBeteModalProps {
@@ -18,23 +20,34 @@ interface RushPenseBeteModalProps {
  * 📋 Pense-bête du Rush — liste **en lecture seule** les « choses à savoir / à
  * préparer » en amont (métiers, prépa stuffs, captures, déplacement…).
  * Le contenu est édité côté GOD (onglet « Lancement »). Aucune interaction user.
+ *
+ * DA « Gouache Wakfu » (05/11/2026) : la modale était la seule du Rush encore
+ * peinte **en dur** (`bg-zinc-950`, `#e6b96b`, `amber-500`, `rounded-3xl`) — donc
+ * ni thémée, ni réversible. Elle ne garde que des jetons sémantiques : la
+ * passerelle `[data-da].da-portal` les fait pointer sur `--da-*` dans le Rush, et
+ * ils restent neutres partout ailleurs. L'ambre d'exigence passe par `--warning`,
+ * que la DA remappe sur `--da-amber-ink` (sémantique fixe, cf. skill).
  */
 export function RushPenseBeteModal({ open, onClose, sections }: RushPenseBeteModalProps) {
   const list = sections ?? RUSH_PENSE_BETE;
+  const daScope = daScopeProps(useDaTheme());
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl w-[94vw] max-h-[86vh] flex flex-col bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
+      <DialogContent
+        {...daScope}
+        overlayClassName="da-modal-scrim"
+        className="da-modal da-portal max-w-2xl w-[94vw] max-h-[86vh] gap-0 p-0"
+      >
         {/* Header */}
-        <div className="p-6 pb-4 border-b border-white/5 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <ClipboardList className="w-5 h-5 text-[#e6b96b]" />
+        <div className="da-modal-head">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-[6px] border border-warning/30 bg-warning/10">
+              <ClipboardList className="size-5 text-warning" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <DialogTitle className="text-base font-black uppercase tracking-[0.14em] text-white flex items-center gap-2">
-                Pense-bête
-              </DialogTitle>
-              <p className="text-caption text-zinc-400 font-medium">
+              <DialogTitle className="da-modal-title">Pense-bête</DialogTitle>
+              <p className="da-modal-sub mt-0.5">
                 Les choses à savoir / à préparer en amont pour le Rush Sylvestre.
               </p>
             </div>
@@ -42,11 +55,11 @@ export function RushPenseBeteModal({ open, onClose, sections }: RushPenseBeteMod
         </div>
 
         {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 custom-scrollbar">
+        <div className="da-modal-body custom-scrollbar">
           {list.map((section) => (
-            <div key={section.id} className="mt-5">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e6b96b] mb-2 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#e6b96b]/70" />
+            <div key={section.id} className="mt-5 first:mt-0">
+              <h3 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-warning">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-warning/70" />
                 {section.title}
               </h3>
 
@@ -54,29 +67,29 @@ export function RushPenseBeteModal({ open, onClose, sections }: RushPenseBeteMod
                 {section.items.map((item) => (
                   <div
                     key={item.id}
-                    className="w-full flex items-start gap-3 text-left px-3 py-2.5 rounded-xl border border-white/10 bg-[#121821]"
+                    className="flex w-full items-start gap-3 rounded-[6px] border border-border bg-surface px-3 py-2.5 text-left"
                   >
                     {/* Puce */}
-                    <span className="mt-1 shrink-0 w-[6px] h-[6px] rounded-full bg-[#e6b96b]/80" />
+                    <span aria-hidden="true" className="mt-1 size-1.5 shrink-0 rounded-full bg-warning/80" />
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <span className="block text-[13px] font-semibold leading-tight text-zinc-100">
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold leading-tight text-foreground">
                         {item.label}
                       </span>
                       {item.detail && (
-                        <span className="block text-[11px] text-zinc-400 mt-0.5">{item.detail}</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">{item.detail}</span>
                       )}
 
                       {/* Métiers requis (chips) */}
                       {item.metiers && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
+                        <div className="mt-1.5 flex flex-wrap gap-1">
                           {item.metiers.map((m) => (
                             <span
                               key={m}
-                              className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#1c2129] border border-white/10 text-zinc-300"
+                              className="inline-flex items-center rounded-[4px] border border-border bg-elevated px-1.5 py-0.5 text-[10px] font-bold text-foreground/90"
                             >
-                              <Hammer className="w-3 h-3 mr-1 text-[#e6b96b]/70" />
+                              <Hammer className="mr-1 size-3 text-warning/80" aria-hidden="true" />
                               {m}
                             </span>
                           ))}
@@ -85,13 +98,13 @@ export function RushPenseBeteModal({ open, onClose, sections }: RushPenseBeteMod
 
                       {/* Alternative */}
                       {item.alternative && (
-                        <div className="flex items-start gap-1.5 mt-1.5 text-[10px] text-zinc-500">
-                          <span className="font-bold uppercase tracking-wide shrink-0">Alternative</span>
+                        <div className="mt-1.5 flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="shrink-0 font-bold uppercase tracking-wide">Alternative</span>
                           <span className="flex flex-wrap gap-1">
                             {item.alternative.map((m) => (
                               <span
                                 key={m}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400"
+                                className="inline-flex items-center rounded-[4px] border border-border/60 px-1.5 py-0.5"
                               >
                                 {m}
                               </span>

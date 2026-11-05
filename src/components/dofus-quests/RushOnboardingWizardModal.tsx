@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ALIGNMENTS, getClass, ORDERS } from "@/lib/dofus-assets";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
 
@@ -108,6 +110,8 @@ export function RushOnboardingWizardModal({
   resettingId = null,
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3>(initialStep);
+  /** Portée de la DA : ce portail sort de la coque `data-da`, il la réapplique. */
+  const daScope = daScopeProps(useDaTheme());
   // L'étape est remontée au dashboard : il la mémorise le temps d'un changement de
   // personnage (le guide est remonté par `key={character}`), sinon la modale se fermait.
   const go = (next: 1 | 2 | 3) => {
@@ -181,7 +185,8 @@ export function RushOnboardingWizardModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="rush-onboarding-title"
-          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex max-h-[calc(100dvh_-_1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
+          {...daScope}
+          className="da-modal da-portal relative max-h-[calc(100dvh_-_1.5rem)] w-full max-w-xl"
         >
           {/* ══ EN-TÊTE — serif, filet d'or, trois repères d'étape ══ */}
           <header className="relative shrink-0 border-b border-border-strong px-5 pb-4 pt-5">

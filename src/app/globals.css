@@ -223,8 +223,13 @@ html:has(.boss-detail-shell) {
    Tous les composants de l'overlay (cartes, barre de chapitre, filtres, fiches,
    modales en portail) n'utilisent que `bg-surface`, `border-border`, `text-gold`,
    `text-success`… : ils suivent donc **tous**, y compris hors de l'arbre React. */
+/* `.da-portal` : la même passerelle pour un nœud SORTI de l'arbre (modale Radix
+   portée dans `document.body`, portail maison). Posée par `daScopeProps`
+   (`src/lib/da-scope.ts`) — sans elle, une modale du guide reste aux jetons
+   produit alors que son contenu est déjà écrit avec. */
 [data-da="wakfu"].rush-overlay,
-[data-da="wakfu"].rush-guide {
+[data-da="wakfu"].rush-guide,
+[data-da="wakfu"].da-portal {
   color-scheme: dark;
   --background: var(--da-bg);
   --surface: var(--da-panel);
@@ -259,7 +264,8 @@ html:has(.boss-detail-shell) {
 }
 
 [data-da="wakfu"].rush-overlay[data-theme="light"],
-[data-da="wakfu"].rush-guide[data-theme="light"] {
+[data-da="wakfu"].rush-guide[data-theme="light"],
+[data-da="wakfu"].da-portal[data-theme="light"] {
   color-scheme: light;
 }
 

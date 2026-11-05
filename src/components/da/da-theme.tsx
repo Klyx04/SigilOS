@@ -18,10 +18,21 @@ import React, { createContext, useContext } from "react";
 export type DaTheme = "light" | "dark";
 export type DaBlock = "emeraude" | "cauchemar" | "ocre" | "custom";
 
-type DaThemeValue = { theme: DaTheme; block: DaBlock };
+export type DaThemeValue = {
+  theme: DaTheme;
+  block: DaBlock;
+  /** Accent libre du God — utilisé seulement pour `block === "custom"`. */
+  accent?: string | null;
+};
 
-/** Hors overlay : sombre + Émeraude (le défaut de la DA). */
-const DaThemeContext = createContext<DaThemeValue>({ theme: "dark", block: "emeraude" });
+/**
+ * ⚠️ **`null` = aucune surface de la DA** (reprise du 05/11/2026). Le défaut
+ * était « sombre + Émeraude » : une modale partagée par un écran non migré
+ * (`OcreProgressModal` est aussi montée par le module Quêtes Dofus) aurait donc
+ * été repeinte sans que personne l'ait demandé. Un consommateur qui a besoin de
+ * la DA monte le fournisseur ; les autres ne voient rien.
+ */
+const DaThemeContext = createContext<DaThemeValue | null>(null);
 
 export function DaThemeProvider({
   value,
@@ -34,6 +45,6 @@ export function DaThemeProvider({
 }
 
 /** Thème et bloc courants, pour les surfaces sorties de l'arbre (portails). */
-export function useDaTheme(): DaThemeValue {
+export function useDaTheme(): DaThemeValue | null {
   return useContext(DaThemeContext);
 }

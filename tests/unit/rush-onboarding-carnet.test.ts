@@ -30,12 +30,18 @@ const codeOnly = (path: string) => codeOf(path).replace(/\/\*[\s\S]*?\*\//g, "")
 const SLOP =
   /bg-gradient|backdrop-blur|\bshadow-2xl\b|drop-shadow|\bfont-black\b|animate-pulse|rounded-2xl|rounded-3xl/;
 
-describe("modale d'accueil — DA « Carnet de campagne »", () => {
-  it("le panneau porte les trois jetons du carnet (thème, filet, cadre à rivets)", () => {
+describe("modale d'accueil — DA « Gouache Wakfu »", () => {
+  it("le panneau porte la matière de la DA et sa portée (thème, filet, liseré)", () => {
+    // Verrou RÉÉCRIT le 05/11/2026 (même intention, nouveau mécanisme) : la modale
+    // ne relève plus de la DA « Carnet » (`rush-carnet-theme`, `rush-carnet-frame`,
+    // palette oklch locale) mais de la DA « Gouache Wakfu ». `.da-modal` porte la
+    // matière (liseré `--da-outline`, rayon 12 px, aucune ombre) et `.da-portal` +
+    // `{...daScope}` reposent la portée sur le nœud porté dans `document.body`
+    // (la passerelle de jetons est dans `globals.css`).
     const src = codeOf(MODAL);
-    expect(src).toContain("rush-carnet-theme");
-    expect(src).toContain("rush-carnet rush-carnet-frame");
-    expect(src).toContain("bg-surface text-foreground");
+    expect(src).toContain("da-modal da-portal");
+    expect(src).toMatch(/\{\.\.\.daScope\}/);
+    expect(src).toContain("daScopeProps(useDaTheme())");
   });
 
   it("aucun slop : ni verre, ni ombre diffuse, ni `font-black`, ni dégradé, ni rayon > 12 px", () => {

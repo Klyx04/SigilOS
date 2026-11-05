@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { AlignmentChoiceForm } from "./rush/AlignmentChoiceForm";
 
 /**
@@ -13,6 +15,10 @@ import { AlignmentChoiceForm } from "./rush/AlignmentChoiceForm";
  *
  * Persistance : `updateUserProfile` (perso principal) ou `updateMuleAlignment` (mule),
  * via le formulaire partagé.
+ *
+ * DA « Gouache Wakfu » (05/11/2026) : portée reposée sur le nœud portailé, et
+ * laissée vide hors d'une surface de la DA (le profil personnel monte aussi cette
+ * modale — il garde exactement son habillage produit).
  */
 export default function AlignmentModal({
   open,
@@ -32,23 +38,28 @@ export default function AlignmentModal({
   alignmentLevel?: number;
 }) {
   const close = () => onOpenChange(false);
+  const daScope = daScopeProps(useDaTheme());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-xl border border-border bg-background p-5 text-foreground">
-        <DialogHeader className="mb-3">
-          <DialogTitle className="text-sm font-semibold text-foreground">
-            Alignement & Ordre
-          </DialogTitle>
+      <DialogContent
+        {...daScope}
+        overlayClassName="da-modal-scrim"
+        className="da-modal da-portal max-w-md max-h-[85vh] gap-0 p-0"
+      >
+        <DialogHeader className="da-modal-head">
+          <DialogTitle className="da-modal-title">Alignement &amp; Ordre</DialogTitle>
         </DialogHeader>
-        <AlignmentChoiceForm
-          guildId={guildId}
-          mulePseudo={mulePseudo}
-          alignment={alignment}
-          alignmentOrder={alignmentOrder}
-          onSaved={close}
-          onCancel={close}
-        />
+        <div className="da-modal-body">
+          <AlignmentChoiceForm
+            guildId={guildId}
+            mulePseudo={mulePseudo}
+            alignment={alignment}
+            alignmentOrder={alignmentOrder}
+            onSaved={close}
+            onCancel={close}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -5,6 +5,8 @@ import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
 import { memberDofusProgress, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +71,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 }) {
   /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
   const [openDofusId, setOpenDofusId] = useState<string | null>(null);
+  /** Portée de la DA pour le nœud portailé (Radix sort de la coque `data-da`). */
+  const daScope = daScopeProps(useDaTheme());
 
   const dofusStats = useMemo(() => {
     const map = new Map<string, DofusStat>();
@@ -224,22 +228,26 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           Un clic sur un Dofus ouvre ce détail (avant : un panneau en ligne qui
           poussait la timeline). Le filtre de timeline reste accessible d'ici. */}
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setOpenDofusId(null); }}>
-        <DialogContent className="sm:max-w-lg bg-background border-border">
+        <DialogContent
+          {...daScope}
+          overlayClassName="da-modal-scrim"
+          className="da-modal da-portal sm:max-w-lg gap-0 p-0"
+        >
           {selected && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <DialogHeader className="da-modal-head">
+                <DialogTitle className="da-modal-title flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={selected.imageUrl} alt="" className="w-7 h-7 object-contain" />
                   {selected.label}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
+                <DialogDescription className="da-modal-sub">
                   {selected.completedMilestones}/{selected.totalMilestones} blocs validés par au moins un membre ·{" "}
                   {selected.membersInProgress.length} membre(s) engagé(s)
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="max-h-[55vh] space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
+              <div className="da-modal-body max-h-[55vh] space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
                 {selected.membersInProgress.length === 0 ? (
                   <p className="py-6 text-center text-xs italic text-muted-foreground">
                     Aucun membre n&apos;a encore commencé ce Dofus.

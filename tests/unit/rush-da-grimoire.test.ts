@@ -151,7 +151,11 @@ describe("DA « Carnet de campagne » — fiche de quête et alignement", () => 
         const src = codeOf(DETAIL);
         expect(src).toMatch(/font-serif text-\[16px\] font-semibold/);
         expect(src).toMatch(/border-l-2 border-l-gold\/70/);
-        expect(src).toContain("rush-carnet");
+        // Anatomie « Gouache Wakfu » depuis le 05/11/2026 : la fiche ne porte plus
+        // le cadre du carnet (`.rush-carnet`), elle prend la matière de la modale
+        // de la DA et reçoit sa portée de jetons — elle sort de l'arbre.
+        expect(src).toMatch(/da-modal da-portal/);
+        expect(src).toMatch(/\{\.\.\.daScope\}/);
     });
 
     it("la modale d'alignement ne force plus une hauteur pleine (fin du vide)", () => {

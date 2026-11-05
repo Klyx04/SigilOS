@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import { X, MapPin, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
@@ -15,6 +14,8 @@ import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 
 interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
@@ -94,6 +95,13 @@ export function RushOverlayQuestDetailModal({
   // fenêtre Document Picture-in-Picture, le `window` de l'onglet ne reçoit aucun événement —
   // Échap ne fermait donc rien dans la PiP (retour user du 08/10/2026).
   const dialogRef = useRef<HTMLDivElement>(null);
+  /**
+   * Portée de la DA : la fiche sort de l'arbre (portail maison, `document.body`).
+   * Le fournisseur du guide la rend à `RushOverlayQuestDetailModal` ; le studio
+   * God, qui monte le même composant hors de toute coque, reçoit `{}` et garde
+   * donc l'habillage produit.
+   */
+  const daScope = daScopeProps(useDaTheme());
   useEffect(() => {
     const win =
       dialogRef.current?.ownerDocument.defaultView ??
@@ -126,10 +134,8 @@ export function RushOverlayQuestDetailModal({
         aria-modal="true"
         aria-labelledby="rush-quest-detail-title"
         ref={dialogRef}
-        className={cn(
-          "rush-carnet relative z-10 flex max-h-[85vh] w-full max-w-[32.5rem] flex-col overflow-hidden",
-          "rounded-[6px] border border-border-strong bg-elevated shadow-[var(--rush-bevel)]"
-        )}
+        {...daScope}
+        className="da-modal da-portal relative z-10 max-h-[85vh] w-full max-w-[32.5rem]"
       >
         {/* En-tête : illustration du Dofus visé, nom de la quête, chapitre */}
         <header className="flex shrink-0 items-start gap-3 border-b border-border-strong bg-surface/60 px-4 py-3">

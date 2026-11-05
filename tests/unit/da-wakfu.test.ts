@@ -485,11 +485,14 @@ describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () =
         expect(src).toMatch(/hideChapters/);
     });
 
-    it("la navigation flottante (portail hors arbre) reçoit la portée", () => {
+    it("la navigation flottante (portail hors arbre) reçoit la portée, accent compris", () => {
+        // Depuis le 05/11/2026 la portée n'est plus recopiée à la main : elle vient
+        // de `daScopeProps` (`src/lib/da-scope.ts`), qui porte aussi l'accent libre
+        // du bloc `custom`. `.da-portal` rétablit la passerelle de jetons sur le
+        // nœud porté dans `document.body` (globals.css).
         const src = readFileSync(MEMBER, "utf8");
-        expect(src).toMatch(
-            /data-da="wakfu" data-theme="dark" data-block=\{daTheme\.block\} className="fixed right-4/
-        );
+        expect(src).toMatch(/<div \{\.\.\.daScope\} className="da-portal fixed right-4/);
+        expect(src).toMatch(/const daScope = daScopeProps\(daThemeValue\)/);
     });
 
     it("les cartes de quête prennent l'anatomie de l'overlay (nœud hors carte)", () => {
@@ -502,6 +505,81 @@ describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () =
         expect(src).toMatch(/data-state="locked" className="da-row/);
         // Un fil de sève par liste (les panneaux de bloc sont opaques).
         expect(src).toMatch(/<DaRail>/);
+    });
+});
+
+
+/**
+ * Modales du Rush (E3c) — le dernier étage de l'habillage.
+ *
+ * Mesure du 05/11/2026 : douze modales du module Rush vivaient encore hors de la
+ * portée. Radix (et trois portails maison) les montent dans `document.body` :
+ * ni `data-da`, ni `.rush-guide`, donc les jetons produit (153 occurrences
+ * mesurées). La correction ne recopie pas la portée dans douze fichiers : une
+ * règle pure (`daScopeProps`, `src/lib/da-scope.ts`), une classe de passerelle
+ * (`.da-portal`) et une matière (`.da-modal`).
+ */
+describe("DA Gouache Wakfu — les modales du Rush passent à la DA (E3c)", () => {
+    const GUIDE = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+    const MODALS = [
+        "src/components/dofus-quests/rush/GuildAlignmentModal.tsx",
+        "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/GuildStatusPanel.tsx",
+        "src/components/dofus-quests/OcreProgressModal.tsx",
+        "src/components/dofus-quests/rush/RushPenseBeteModal.tsx",
+        "src/components/dofus-quests/AlignmentModal.tsx",
+        "src/components/dofus-quests/ResetConfirmModal.tsx",
+        "src/components/dofus-quests/RushOnboardingWizardModal.tsx",
+        "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx",
+    ];
+
+    it("la passerelle `.da-portal` remappe les jetons produit sur le nœud portailé", () => {
+        const globals = readFileSync("src/app/globals.css", "utf8");
+        expect(globals).toMatch(/\[data-da="wakfu"\]\.da-portal\s*\{/);
+        expect(globals).toMatch(/\[data-da="wakfu"\]\.da-portal\[data-theme="light"\]\s*\{/);
+    });
+
+    it("la matière de la modale reste sous 12 px, sans ombre molle ni filtre", () => {
+        const rule = css.match(/^\.da-modal\s*\{([^}]*)\}/m)?.[1] ?? "";
+        expect(rule, "règle absente").not.toBe("");
+        expect(rule).toMatch(/border-radius:\s*12px/);
+        expect(rule).not.toMatch(/filter:/);
+        expect(rule).not.toMatch(/backdrop/);
+        // Voile : la DA refuse le flou d'arrière-plan (une passe pleine page).
+        const scrim = css.match(/\.da-modal-scrim\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(scrim).toMatch(/backdrop-filter:\s*none/);
+    });
+
+    it("les huit modales de composant portent la portée ET la matière", () => {
+        for (const path of MODALS) {
+            const src = readFileSync(path, "utf8");
+            expect(src, path).toMatch(/da-modal da-portal/);
+            expect(src, path).toMatch(/\.\.\.daScope/);
+            expect(src, path).toMatch(/daScopeProps\(useDaTheme\(\)\)/);
+        }
+    });
+
+    it("la timeline porte la portée sur ses quatre modales (3 Radix + « Reprendre ? »)", () => {
+        const src = readFileSync(GUIDE, "utf8");
+        expect((src.match(/da-modal da-portal/g) ?? []).length).toBe(4);
+        expect(src).toMatch(/<DaThemeProvider value=\{daThemeValue\}>/);
+    });
+
+    it("le pense-bête ne garde aucune couleur en dur (c'était la seule)", () => {
+        // ⚠️ Le verrou lit le source BRUT : la prose de la cause racine cite
+        // elle-même `bg-zinc-950` / `#e6b96b`. On retire les commentaires avant
+        // l'assertion négative (piège payé deux fois dans ce module).
+        const src = readFileSync(MODALS[3], "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+        expect(src).not.toMatch(/bg-zinc|text-zinc|border-zinc|rounded-3xl|#e6b96b|amber-500/);
+    });
+
+    it("hors fournisseur, la portée reste vide (aucun écran repeint par accident)", () => {
+        // `OcreProgressModal` est montée aussi par le module Quêtes Dofus : sans
+        // cette garantie, elle serait peinte en DA là où rien n'a été migré.
+        expect(readFileSync("src/components/da/da-theme.tsx", "utf8")).toMatch(
+            /createContext<DaThemeValue \| null>\(null\)/
+        );
     });
 });
 

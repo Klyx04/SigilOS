@@ -68,6 +68,9 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 // la parité public ↔ interne n'admet aucune variante « interne ».
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { DaRail } from "@/components/da/da-rail";
+import { DaThemeProvider } from "@/components/da/da-theme";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
@@ -270,6 +273,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   }, [guildProgressBySeq, seq.id]);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  /** Portée de la DA pour les nœuds portailés (Radix et `createPortal` sortent de la coque). */
+  const daScope = daScopeProps(useDaTheme());
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
@@ -630,14 +635,18 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       {/* ── Modal membres ── */}
       {membersModalOpen && (
         <Dialog open={membersModalOpen} onOpenChange={open => { if (!open) setMembersModalOpen(false); }}>
-          <DialogContent className="sm:max-w-sm bg-background border-border  p-0 gap-0">
-            <DialogHeader className="p-4 border-b border-border">
-              <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <DialogContent
+            {...daScope}
+            overlayClassName="da-modal-scrim"
+            className="da-modal da-portal sm:max-w-sm gap-0 p-0"
+          >
+            <DialogHeader className="da-modal-head">
+              <DialogTitle className="da-modal-title flex items-center gap-2">
                 <Users className="w-4 h-4 text-info" />
                 Membres sur cette quête ({seqMembers.length})
               </DialogTitle>
             </DialogHeader>
-            <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
+            <div className="max-h-[300px] space-y-1 overflow-y-auto p-3">
               {seqMembers.map(m => (
                 <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
                   <div className="w-7 h-7 rounded-full overflow-hidden bg-info/20 flex items-center justify-center flex-shrink-0">
@@ -647,7 +656,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </div>
               ))}
             </div>
-            <DialogFooter className="p-3 border-t border-border">
+            <DialogFooter className="da-modal-foot">
               <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-muted-foreground text-xs">Fermer</Button>
             </DialogFooter>
           </DialogContent>
@@ -2091,6 +2100,15 @@ const timelineItems=useMemo(()=>{
       ),
     [milestones, currentChapter]
   );
+
+  // Thème exposé aux modales : Radix les porte dans `document.body`, hors de la
+  // coque `data-da`. Le fournisseur leur rend la MÊME vérité (thème, bloc, accent
+  // libre) sans prop-drilling — `daScopeProps` la transforme en attributs.
+  const daThemeValue = useMemo(
+    () => ({ theme: "dark" as const, block: daTheme.block, accent: daTheme.accent }),
+    [daTheme.block, daTheme.accent]
+  );
+  const daScope = daScopeProps(daThemeValue);
   const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
   const goToPage = (idx: number) => {
     const page = chapterPages[idx];
@@ -2111,6 +2129,7 @@ const timelineItems=useMemo(()=>{
       qui a déjà ses gouttières (mesure : 48 + 24 px par côté à 1 440). Les
       jetons `--da-*` passent quand même (`[data-da].rush-guide` dans
       `globals.css`), c'est tout ce dont les composants ont besoin. */}
+  <DaThemeProvider value={daThemeValue}>
   <div
     data-da="wakfu"
     data-theme="dark"
@@ -2334,9 +2353,13 @@ const timelineItems=useMemo(()=>{
     <LiveActivityTicker events={guideLive.events} />
     {/* ── Modale Rush Live : membres connectés sur le guide ─────────────── */}
     <Dialog open={rushLiveModalOpen} onOpenChange={(open) => { if (!open) setRushLiveModalOpen(false); }}>
-      <DialogContent className="sm:max-w-sm bg-background border-border  p-0 gap-0">
-        <DialogHeader className="p-4 border-b border-border">
-          <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+      <DialogContent
+        {...daScope}
+        overlayClassName="da-modal-scrim"
+        className="da-modal da-portal sm:max-w-sm gap-0 p-0"
+      >
+        <DialogHeader className="da-modal-head">
+          <DialogTitle className="da-modal-title flex items-center gap-2">
             <Users className="w-4 h-4 text-success" />
             Rush Live
             <span className="ml-auto text-[11px] font-semibold tabular-nums text-muted-foreground">
@@ -2372,7 +2395,7 @@ const timelineItems=useMemo(()=>{
             </>
           )}
         </div>
-        <DialogFooter className="p-3 border-t border-border">
+        <DialogFooter className="da-modal-foot">
           <Button onClick={() => setRushLiveModalOpen(false)} variant="ghost" size="sm" className="text-muted-foreground text-xs">
             Fermer
           </Button>
@@ -2582,7 +2605,7 @@ const timelineItems=useMemo(()=>{
     </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
-      <div data-da="wakfu" data-theme="dark" data-block={daTheme.block} className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
+      <div {...daScope} className="da-portal fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button onClick={scrollToTop} disabled={!showScrollTop}
@@ -2608,7 +2631,23 @@ const timelineItems=useMemo(()=>{
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
     {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} onDismiss={handleWizardDismiss} initialStep={wizardStep} onStepChange={handleWizardStep} hasNoClassDeclared={!selectedClassDeclared} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={handleWizardSelectCharacter} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} launchConfig={rushUIConfig?.launch} onResetCharacter={handleResetCharacter} resettingId={resettingCharId}/>}
-    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-surface border border-border rounded-[6px] p-5 max-w-sm w-full mx-4 " onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-success"/><h3 className="text-sm font-semibold text-foreground" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-muted-foreground mb-4">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{ensureChapterFor(msToChapter.get(bookmarkedMsId));const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button></div></div></div>;})()}
+    {continueModalOpen&&bookmarkedMsId&&(()=>{
+      const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;
+      return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}>
+        <div {...daScope} className="da-modal da-portal max-w-sm mx-4" onClick={e=>e.stopPropagation()}>
+          <div className="da-modal-head">
+            <div className="flex items-center gap-3">
+              <Flag className="w-5 h-5 text-success" aria-hidden="true"/>
+              <h3 className="da-modal-title">Reprendre ?</h3>
+            </div>
+          </div>
+          <p className="da-modal-body text-xs text-muted-foreground">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p>
+          <div className="da-modal-foot">
+            <button onClick={()=>{ensureChapterFor(msToChapter.get(bookmarkedMsId));const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button>
+            <button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button>
+          </div>
+        </div>
+      </div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
@@ -2620,14 +2659,18 @@ const timelineItems=useMemo(()=>{
       setMetamobLinkOpen(open);
       if (!open) { setMetamobLinkError(null); setMetamobPseudoInput(""); setMetamobApiKeyInput(""); setMetamobStep(1); }
     }}>
-      <DialogContent className="sm:max-w-2xl bg-background border-border  p-0 gap-0">
-        <DialogHeader className="p-8 border-b border-border">
-          <DialogTitle className="text-2xl font-semibold text-foreground flex items-center gap-3">
+      <DialogContent
+        {...daScope}
+        overlayClassName="da-modal-scrim"
+        className="da-modal da-portal sm:max-w-2xl max-h-[85vh] gap-0 p-0"
+      >
+        <DialogHeader className="da-modal-head">
+          <DialogTitle className="da-modal-title flex items-center gap-3">
             <img src="/assets/icons/ocre.png" alt="" className="w-6 h-6 object-contain" />
             Lier votre compte Metamob
           </DialogTitle>
         </DialogHeader>
-        <div className="p-8 space-y-6">
+        <div className="da-modal-body space-y-6">
           <div className="flex items-center gap-4">
             <div className={`px-4 py-2 rounded-[4px] text-xs font-semibold uppercase ${metamobStep === 1 ? "bg-warning/20 text-warning" : "bg-success/20 text-success"}`}>1. Pseudo</div>
             <div className="flex-1 h-0.5 bg-elevated" />
@@ -2654,7 +2697,7 @@ const timelineItems=useMemo(()=>{
           )}
           {metamobLinkError && <div className="p-4 rounded-[4px] bg-danger/10 text-danger border border-danger/20 text-sm font-bold">{metamobLinkError}</div>}
         </div>
-        <DialogFooter className="p-8 border-t border-border flex gap-3">
+        <DialogFooter className="da-modal-foot flex gap-3">
           {metamobStep === 1 ? (
             <Button onClick={() => setMetamobStep(2)} disabled={!metamobPseudoInput.trim()} className="w-full bg-warning font-bold">Suivant</Button>
           ) : (
@@ -2725,7 +2768,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider>
+   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider>
 
 
 </>);}

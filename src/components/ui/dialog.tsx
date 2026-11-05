@@ -49,6 +49,7 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  overlayClassName,
   children,
   showCloseButton = true,
   draggable = false,
@@ -56,12 +57,18 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   draggable?: boolean
+  /**
+   * Classes du voile seul. Les modales de la DA s'en servent pour retirer le
+   * `backdrop-blur-sm` (leur feuille impose `filter: none`) ; les autres
+   * appelants ne passent rien et ne voient aucun changement.
+   */
+  overlayClassName?: string
 }) {
   const dragControls = useDragControls()
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         asChild

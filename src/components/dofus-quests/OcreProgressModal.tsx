@@ -6,6 +6,8 @@ import { ExternalLink, Eye, EyeOff, Info, RefreshCw, Search, X } from "lucide-re
 import { cn } from "@/lib/utils";
 import { BRAND_ICONS } from "@/lib/source-icons";
 import { useOcreWriteQueue } from "@/hooks/use-ocre-write-queue";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { OcreMonsterThumb, OcreTargetStepper } from "@/components/ocre/OcreTargetBits";
 import { metamobProfileUrl, type OcreMonsterLite } from "@/lib/ocre-soul-stones";
 
@@ -50,6 +52,13 @@ export default function OcreProgressModal({
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [hideOwned, setHideOwned] = useState(false);
+  /**
+   * Portée de la DA — **vide hors d'une surface de la DA**. Cette modale est
+   * montée par trois écrans (le guide du Rush, `OptimizedGuideClient` et
+   * `DofusQuestBanner`) : seule celle du Rush monte le fournisseur, les deux
+   * autres gardent donc exactement l'habillage produit.
+   */
+  const daScope = daScopeProps(useDaTheme());
 
   const {
     monsters: list,
@@ -105,10 +114,14 @@ export default function OcreProgressModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg overflow-hidden border border-border bg-background p-0 text-foreground outline-none">
-        <DialogHeader className="space-y-3 border-b border-border px-5 pb-3 pt-5">
+      <DialogContent
+        {...daScope}
+        overlayClassName="da-modal-scrim"
+        className="da-modal da-portal max-w-lg gap-0 p-0 outline-none"
+      >
+        <DialogHeader className="da-modal-head space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <DialogTitle className="da-modal-title flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/dofus/icons/archimonster.png" alt="" className="h-4 w-4 object-contain" />
               Mon Ocre

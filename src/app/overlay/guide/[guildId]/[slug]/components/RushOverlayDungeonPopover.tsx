@@ -70,8 +70,10 @@ export function RushOverlayDungeonPopover({
   children: React.ReactNode;
 }) {
   // Thème : le portail vit hors de l'arbre de la fenêtre, il réapplique la classe
-  // du thème courant (source unique : le contexte de la DA).
-  const { theme } = useDaTheme();
+  // du thème courant (source unique : le contexte de la DA). `null` = hors
+  // surface de la DA ⇒ on garde le thème sombre, jamais un thème inventé.
+  const da = useDaTheme();
+  const theme = da?.theme ?? "dark";
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = openProp ?? internalOpen;
   const setOpen = useCallback(

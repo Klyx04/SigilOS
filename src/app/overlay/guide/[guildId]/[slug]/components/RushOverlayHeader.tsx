@@ -87,8 +87,8 @@ export function RushOverlayHeader({
 }: RushOverlayHeaderProps) {
   // Thème de la DA : une seule source (`data-theme` de la racine, exposé par le
   // contexte) — plus aucune prop de thème à faire descendre.
-  const { theme } = useDaTheme();
-  const light = theme === "light";
+  const da = useDaTheme();
+  const light = da?.theme === "light";
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
   const toast = useOverlayToast();
   // Confirmation en 2 temps du reset (évite le reset accidentel).

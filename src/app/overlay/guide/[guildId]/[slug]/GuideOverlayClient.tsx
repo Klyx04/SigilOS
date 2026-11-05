@@ -1234,8 +1234,12 @@ export default function GuideOverlayClient({
   // Thème exposé aux portails (popover de donjon, prérequis) : la MÊME vérité que
   // `data-theme`, une seule fois — plus aucun composant ne reçoit le thème en prop.
   const daThemeValue = useMemo(
-    () => ({ theme: lightMode ? ("light" as const) : ("dark" as const), block: daBlock }),
-    [lightMode, daBlock]
+    () => ({
+      theme: lightMode ? ("light" as const) : ("dark" as const),
+      block: daBlock,
+      accent: daTheme.accent,
+    }),
+    [lightMode, daBlock, daTheme.accent]
   );
 
   // Compteurs des filtres — même source que la liste filtrée, même règle pure

@@ -29,8 +29,10 @@ export function RushOverlayPrereqModal({
   onClose: () => void;
 }) {
   // Thème : la modale sort de l'arbre (portail), elle réapplique la classe du
-  // thème courant — source unique, le contexte de la DA.
-  const { theme } = useDaTheme();
+  // thème courant — source unique, le contexte de la DA. `null` (hors surface de
+  // la DA) retombe sur le sombre : jamais un thème inventé.
+  const da = useDaTheme();
+  const theme = da?.theme ?? "dark";
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [doc, setDoc] = useState<Document | null>(null);
 

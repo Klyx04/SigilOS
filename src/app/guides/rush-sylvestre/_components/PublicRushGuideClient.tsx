@@ -97,6 +97,8 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { DaRail } from "@/components/da/da-rail";
+import { DaThemeProvider } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -1123,7 +1125,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
     [milestones, currentPage]
   );
 
+  // Thème exposé aux surfaces sorties de l'arbre (modales Radix portées dans
+  // `document.body`, navigation flottante) : même vérité que la coque, sans
+  // prop-drilling. `daScopeProps` la traduit en attributs `data-*`.
+  const daThemeValue = useMemo(
+    () => ({ theme: "dark" as const, block: daTheme.block, accent: daTheme.accent }),
+    [daTheme.block, daTheme.accent]
+  );
+  const daScope = daScopeProps(daThemeValue);
+
   return (
+    <DaThemeProvider value={daThemeValue}>
     <>
       {/* ══ COQUE DU GUIDE — la portée de la DA « Gouache Wakfu » ════════════════
           Même grammaire que l'overlay : `data-da` + `data-theme` + `data-block`
@@ -2370,10 +2382,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
       {typeof document !== "undefined" &&
         createPortal(
           <div
-            data-da="wakfu"
-            data-theme="dark"
-            data-block={daTheme.block}
-            className="fixed right-4 z-[100] flex flex-col items-center gap-1 reg-panel bg-background/95 py-2 px-1.5"
+            {...daScope}
+            className="da-portal fixed right-4 z-[100] flex flex-col items-center gap-1 reg-panel bg-background/95 py-2 px-1.5"
             style={{ top: "50%", transform: "translateY(-50%)" }}
           >
             <button
@@ -2436,5 +2446,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
           pipWin.document.body
         )}
     </>
+    </DaThemeProvider>
   );
 }

@@ -163,6 +163,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
   const chip = "inline-flex items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground";
+  /**
+   * Libellé d'état — la couleur ne porte JAMAIS seule l'information (AA + daltonisme).
+   * Vocabulaire de la DA : « Validée », « Verrouillée », « Je suis ici », « À faire ».
+   */
+  const daState = isDone ? "Validée" : isLocked ? "Verrouillée" : isBookmarked ? "Je suis ici" : "À faire";
 
   return (
     <div
@@ -214,6 +219,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
           )}
           <div className="min-w-0 flex-1">
+          <span className="da-state">{daState}</span>
           {externalUrl ? (
             <a
               href={externalUrl}
@@ -221,10 +227,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               title={`Ouvrir la fiche sur ${externalLabel}`}
-              className={cn(
-                "block w-full text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through text-muted-foreground"
-              )}
+              className="da-qtitle block w-full text-left transition-colors hover:text-accent hover:underline line-clamp-2"
             >
               {name}
             </a>
@@ -236,10 +239,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 onOpenDetail();
               }}
               title="Voir les détails"
-              className={cn(
-                "block w-full cursor-pointer text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through text-muted-foreground"
-              )}
+              className="da-qtitle block w-full cursor-pointer text-left transition-colors hover:text-accent hover:underline line-clamp-2"
             >
               {name}
             </button>

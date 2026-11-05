@@ -554,14 +554,19 @@
 .da-row[data-state="done"] .da-state { color: var(--da-ok); }
 .da-row[data-state="next"] .da-state { color: var(--da-acc-ink); }
 
-.da-card h3 {
+.da-card h3,
+.da-qtitle {
   margin: 0 0 .5rem;
   font: 700 17.5px/1.2 var(--da-font-title);
+  text-transform: uppercase;
   letter-spacing: .015em;
   color: var(--da-ink);
 }
 
-.da-row[data-state="done"] .da-card h3 {
+.da-row[data-here="true"] .da-state { color: var(--da-acc-ink); }
+
+.da-row[data-state="done"] .da-card h3,
+.da-row[data-state="done"] .da-qtitle {
   color: var(--da-muted);
   text-decoration: line-through;
   text-decoration-thickness: 2px;

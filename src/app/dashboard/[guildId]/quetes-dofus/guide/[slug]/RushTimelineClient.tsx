@@ -420,7 +420,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             )}
             {campLabel && (
               <span
-                className="font-[family-name:var(--font-cinzel)]  text-[10px] font-bold shrink-0"
+                className="font-[family-name:var(--da-font-title)] text-[10px] font-bold shrink-0"
                 style={{ color: seq.alignReq === "bontarien" ? "var(--info)" : "var(--danger)" }}
               >
                 {campLabel} :
@@ -758,7 +758,7 @@ function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string |
             <RushTipLines text={tipsText} className="text-xs leading-relaxed text-muted-foreground" />
           )}
           {note && (
-            <p className="text-[11px] italic leading-relaxed text-muted-foreground">Note : {note}</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">Note : {note}</p>
           )}
         </div>
       )}
@@ -818,7 +818,7 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
           {/* Text content strictly inside card */}
           <div className="space-y-2">
             <h2
-              className="font-[family-name:var(--font-cinzel)] text-lg sm:text-xl font-semibold uppercase tracking-[0.12em] leading-tight"
+              className="font-[family-name:var(--da-font-title)] text-lg sm:text-xl font-semibold uppercase tracking-[0.12em] leading-tight"
               style={{ color }}
             >
               VOUS AVEZ OBTENU<br />
@@ -2369,7 +2369,7 @@ const timelineItems=useMemo(()=>{
         </DialogHeader>
         <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
           {liveMembers.length === 0 && offlineMembers.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic px-1">Aucun membre sur le guide pour l'instant</p>
+            <p className="text-xs text-muted-foreground px-1">Aucun membre sur le guide pour l'instant</p>
           ) : (
             <>
               {/* Groupe 1 : connectés à cette seconde (WebSocket). */}
@@ -2377,7 +2377,7 @@ const timelineItems=useMemo(()=>{
                 En ligne maintenant ({liveMembers.length})
               </p>
               {liveMembers.length === 0 ? (
-                <p className="px-1 text-[11px] italic text-muted-foreground">Personne n'est connecté à cette seconde.</p>
+                <p className="px-1 text-[11px] text-muted-foreground">Personne n'est connecté à cette seconde.</p>
               ) : (
                 liveMembers.map((m) => (
                   <RushLiveMemberRow key={m.profileId || m.userName} member={m} online />
@@ -2493,7 +2493,7 @@ const timelineItems=useMemo(()=>{
       </div>
     )}
     {searchResults !== null && searchResults.size > 0 && (
-      <p className="text-caption text-muted-foreground italic px-1">Les résultats incluent les quêtes terminées.</p>
+      <p className="text-caption text-muted-foreground px-1">Les résultats incluent les quêtes terminées.</p>
     )}
     {searchResults !== null && searchResults.size === 0 && (
       <div className="py-16 text-center">

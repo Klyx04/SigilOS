@@ -67,6 +67,7 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 // Sommaire au langage du dock — le MÊME composant que le guide public (E2) :
 // la parité public ↔ interne n'admet aucune variante « interne ».
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
+import { DaRail } from "@/components/da/da-rail";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
@@ -303,8 +304,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       ? alignmentCountForCamp(allMilestones as any, allCompletedSeqIds, seq.alignReq ?? null)
       : 0;
     const palierLocked = levelReq > 0 && cityCount < levelReq;
+    // Même anatomie que la carte normale : un NŒUD inerte (le cadenas) et une carte
+    // peinte par `da-row[data-state="locked"]` — filet pointillé, carte à 78 %, comme
+    // dans l'overlay et le guide public. Le rouge de la carte disparaît : il ne disait
+    // pas le verrou, il le criait.
     return (
-      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background bg-success/[0.06]":""}`}>
+      <div data-seq-id={seq.id} data-state="locked" className="da-row scroll-mt-24">
+        <span className="da-node" aria-hidden="true"><Lock className="h-3.5 w-3.5" /></span>
+        <div className={`da-card transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background":""}`}>
+        <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 px-3 pt-3 pb-0">
           {/* MÊME icône de quête que la carte normale : une carte bloquée reste une quête,
               elle doit se reconnaître d'un coup d'œil dans la liste. */}
@@ -354,48 +362,48 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </div>
           </div>
         )}
+        </div>
+        </div>
       </div>
     );
   }
 
+  // État de la ligne à la grammaire de la DA — MÊME vocabulaire que l'overlay et
+  // le guide public : `done` · `next` (à faire maintenant) · `todo` · `locked`.
+  const daState = isSeqCompleted ? "done" : isActive || isNext ? "next" : "todo";
+
   return (
     <>
+      {/* Anatomie de l'overlay (E3) : `da-row[data-state]` + NŒUD hors carte.
+          Le nœud EST le bouton de coche : même handler, même `aria-label`, même
+          garde — seul son habillage change. Les briques de guilde (membres ici,
+          donjons, repère, conseils) restent DANS la carte, à la même place. */}
       <div
         data-seq-id={seq.id}
-        tabIndex={0}
-        className={`group relative flex flex-col gap-2 rounded-[4px] border p-3 transition-colors scroll-mt-24
-          ${isSeqCompleted
-            ? "border-border bg-surface opacity-65"
-            : isThisBookmarked
-              ? "border-warning/40 bg-warning/10"
-              : "border-border bg-elevated hover:bg-surface"}
-          ${focusedSeqId === seq.id ? "ring-2 ring-success ring-offset-2 ring-offset-background" : ""}
-        `}
+        data-state={daState}
+        data-here={isThisBookmarked ? "true" : undefined}
+        className="da-row scroll-mt-24"
       >
+        {onToggleSeq && (
+          <button
+            type="button"
+            data-tour={isFirstVisible ? "quest-completion" : undefined}
+            onClick={e => { e.stopPropagation(); onToggleSeq(); }}
+            className="da-node cursor-pointer"
+            title={isSeqCompleted ? "Décocher" : "Valider"}
+            aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
+          >
+            {/* Coche fine 2 px : le vert reste l'ÉTAT, jamais un aplat (fixe 25). */}
+            {isSeqCompleted && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+          </button>
+        )}
+        <div
+          tabIndex={0}
+          className={`da-card group transition-colors ${focusedSeqId === seq.id ? "ring-2 ring-success ring-offset-2 ring-offset-background" : ""}`}
+        >
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
         {/* ── Ligne principale ── */}
         <div className="flex items-center gap-2 min-w-0">
-          {/* Checkbox */}
-          {onToggleSeq && (
-            <button
-              type="button"
-              data-tour={isFirstVisible ? "quest-completion" : undefined}
-              onClick={e => { e.stopPropagation(); onToggleSeq(); }}
-              className={`flex-shrink-0 -m-1 w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer`}
-              title={isSeqCompleted ? "Décocher" : "Valider"}
-              aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
-            >
-              {/* Filet + coche fine 2 px : le vert reste l'ÉTAT, jamais un aplat (fixe 25). */}
-              <span className={`flex items-center justify-center w-5 h-5 rounded-[3px] border transition-colors ${
-                isSeqCompleted
-                  ? "border-success/70 text-success"
-                  : isActive
-                    ? "border-warning"
-                    : "border-border-strong hover:border-success"
-              }`}>
-                {isSeqCompleted && <Check className="w-3.5 h-3.5 stroke-[2]" />}
-              </span>
-            </button>
-          )}
           {/* Nom + position + tags */}
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {resolveRushSeqIcon(seq.icon) ? (
@@ -616,6 +624,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           if (!tipsText && !seq.note) return null;
           return <CollapsibleHints tipsText={tipsText} note={seq.note || null} />;
         })()}
+        </div>
+        </div>
       </div>
       {/* ── Modal membres ── */}
       {membersModalOpen && (
@@ -976,13 +986,17 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
                   ) : (
-                    visibleSeqs.map((s:any)=>(
+                    /* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
+                       opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */
+                    <DaRail>
+                    {visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
                         <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
-                    ))
+                    ))}
+                    </DaRail>
                   )}
                 </CompletedStepsCtx.Provider>
               </div>
@@ -2516,7 +2530,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

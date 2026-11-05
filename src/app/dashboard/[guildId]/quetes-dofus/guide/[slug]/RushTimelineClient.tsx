@@ -64,6 +64,10 @@ import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButt
 // Sidebar « Chapitres / ce qu'il faut prévoir » — composant PARTAGÉ (dashboard
 // membre ↔ guide public) : même rendu, mêmes données dérivées.
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
+// Sommaire au langage du dock — le MÊME composant que le guide public (E2) :
+// la parité public ↔ interne n'admet aucune variante « interne ».
+import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
+import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
@@ -2056,6 +2060,21 @@ const timelineItems=useMemo(()=>{
   const pageIndex = isAllChapters ? -1 : (pageIdx != null && chapterPages[pageIdx] ? pageIdx : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter)));
   const currentPage = isAllChapters ? null : chapterPages[pageIndex] ?? chapterPages[0] ?? null;
   const showEveryChapter = isAllChapters || !!searchResults || !!dofusFilter;
+
+  // ─── Bloc de la DA « Gouache Wakfu » (E3) ───────────────────────────────────
+  // EXACTEMENT la règle de l'overlay et du guide public (`resolveRushDaTheme`) :
+  // bloc nommé d'abord, puis héritage en remontant la liste. Une seule vérité pour
+  // les trois surfaces — c'est la parité, pas une copie.
+  const daTheme = useMemo(
+    () =>
+      resolveRushDaTheme(
+        milestones as any,
+        currentChapter === "ALL" || currentChapter == null
+          ? null
+          : (milestones.find((m) => (m as any).chapter === currentChapter)?.id ?? null)
+      ),
+    [milestones, currentChapter]
+  );
   const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
   const goToPage = (idx: number) => {
     const page = chapterPages[idx];
@@ -2067,7 +2086,23 @@ const timelineItems=useMemo(()=>{
 
 
   return(<><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
-  <div className="flex flex-col gap-5">
+  {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
+      `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
+      `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
+      autorise le grain et les bords tremblés (coupés dans la PiP).
+      ⚠️ On ne pose PAS `.da-guide` : elle porte son propre `padding-inline` et
+      son fond plein cadre, or le guide interne vit DANS la coque du dashboard,
+      qui a déjà ses gouttières (mesure : 48 + 24 px par côté à 1 440). Les
+      jetons `--da-*` passent quand même (`[data-da].rush-guide` dans
+      `globals.css`), c'est tout ce dont les composants ont besoin. */}
+  <div
+    data-da="wakfu"
+    data-theme="dark"
+    data-block={daTheme.block}
+    data-quality="high"
+    className="rush-guide da-grain flex flex-col gap-5"
+    style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
+  >
     {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
     <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
     <div className="relative overflow-hidden rounded-[6px] p-5 sm:p-6 border border-border bg-surface">
@@ -2432,29 +2467,21 @@ const timelineItems=useMemo(()=>{
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
     </AnimatePresence>
     <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
-    {/* ── CSS grid responsive (timeline + sidebar) ── */}
-    <style>{`
-      .rush-content-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 260px;
-        gap: 24px;
-        /* ⚠️ PAS de align-items: start : il réduit la zone du rail à sa propre hauteur,
-           et position: sticky n'a alors PLUS de course (le panneau restait figé pendant
-           que les étapes défilaient). L'item est étiré à la hauteur de la ligne, et c'est
-           le bloc INTERNE qui est sticky. */
-        align-items: stretch;
-      }
-      @media (max-width: 900px) {
-        .rush-content-grid {
-          grid-template-columns: 1fr;
-        }
-        .rush-content-grid .rush-sidebar {
-          display: none;
-        }
-      }
-    `}</style>
-    <div className="rush-content-grid">
-      <div className="min-w-0">
+    {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
+        C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers
+        1 440 / 1 280 / 900) : la grille locale et son `<style>` sont SUPPRIMÉS,
+        pas dupliqués. La colonne du module est collante par `.da-guide-aside`.
+        Sous 900 px elle descend en fin de page, comme sur le guide public. */}
+    <div className="da-guide-grid">
+      {/* Sommaire de gauche — composant PARTAGÉ avec le guide public (E2).
+          Il ne lit que `milestones` et les étapes validées : aucune requête neuve. */}
+      <RushChapterNav
+        milestones={milestones as any}
+        completedSeqIds={allCompletedSeqIds}
+        selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
+        onSelectChapter={setActiveChapter as any}
+      />
+      <div className="da-guide-main">
         {/* ── Pagination par chapitre ──────────────────────────────────────────
             Une page = UN chapitre (ou un libellé de chapitre). Le rail de droite
             (`RushChapterSidebar`) porte le sommaire : plus de liste dépliante ici. */}
@@ -2514,10 +2541,10 @@ const timelineItems=useMemo(()=>{
           `100dvh − 5,5 rem` (3,5 topnav + 1 rem de haut + 1 rem d'air) ⇒ bas du rail à
           884 px pour un scrollport de 900 ✓. Le rail est masqué sous 900 px par
           `.rush-content-grid`, d'où le `custom-scrollbar` desktop. */}
-      <div className="rush-sidebar pr-1">
-        {/* Sticky sur un bloc INTERNE : l'item de grille est étiré (voir le CSS ci-dessus),
-            donc ce bloc a la hauteur de la colonne pour se déplacer. */}
-        <div className="sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar">
+      {/* Colonne du module — collante par la règle PARTAGÉE `.da-guide-aside`
+          (E3). Plus de `sticky` local : c'est exactement la mécanique du guide
+          public, et deux `sticky` imbriqués se contredisaient (5 rem vs 1 rem). */}
+      <div className="da-guide-aside pr-1">
           <RushChapterSidebar
             milestones={contentMilestones as any}
             completedSeqIds={allCompletedSeqIds}
@@ -2525,13 +2552,16 @@ const timelineItems=useMemo(()=>{
             selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
             onSelectChapter={setActiveChapter}
             hideProvidedResources={hideDone}
+            /* Le sommaire vit désormais à GAUCHE (`RushChapterNav`) : sans cette
+               garde, les chapitres s'afficheraient deux fois à l'écran — le même
+               piège a été payé côté public en E2. */
+            hideChapters
           />
-        </div>
       </div>
     </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
-      <div className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
+      <div data-da="wakfu" data-theme="dark" data-block={daTheme.block} className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button onClick={scrollToTop} disabled={!showScrollTop}

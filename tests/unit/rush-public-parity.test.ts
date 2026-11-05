@@ -125,19 +125,19 @@ describe("Rail de droite — une seule zone de défilement (jamais de brique éc
     expect(SIDE).toMatch(/flex shrink-0 flex-col gap-2\.5 bg-elevated/); // donjons + métiers
   });
 
-  it("les DEUX surfaces le bornent au SCROLLPORT (fin atteignable, défilement interne)", () => {
+  it("les DEUX surfaces le bornent par la COLONNE de la grille (une seule règle)", () => {
     // ⚠️ Mesure Playwright du 08/10/2026 : dans le guide interne le défilement se fait
-    // dans `<main overflow-y-auto>` (le TopNav `h-14` = 3,5 rem est HORS du scrollport,
-    // le footer est dedans) ⇒ `100dvh − 6rem` faisait déborder le rail de 40 px sous la
-    // ligne (bas coupé, fin « Objets requis » inatteignable). Corrigé : `top-4` (1 rem
-    // sous le topnav) + `100dvh − 5,5 rem`.
-    expect(DASH).toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\] overflow-y-auto custom-scrollbar/);
-    // Le guide public défile par la FENÊTRE : `100dvh − 6rem` y est juste (mesuré).
-    // E2 (05/11/2026) : la borne est portée par la COLONNE de la grille
-    // (`.da-guide-aside`), plus par une classe passée au rail. Même intention et
-    // même mécanisme (sticky borné au viewport + défilement interne), autre endroit ;
-    // le rail reste le MÊME composant partagé dans les deux guides.
+    // dans `<main data-scroll-container>` (le TopNav `h-14` = 3,5 rem est HORS du
+    // scrollport, le footer est dedans) ; le guide public, lui, défile par la FENÊTRE.
+    // Chaque surface bornait donc le rail pour son compte, avec deux valeurs
+    // (`100dvh − 5,5 rem` ici, `100dvh − 6rem` là-bas).
+    // E2 puis E3 (05/11/2026) : la borne est portée par la COLONNE de la grille
+    // (`.da-guide-aside`), la même pour les deux guides — le rail reste le MÊME
+    // composant partagé, et plus aucun `sticky` local ne peut la contredire
+    // (deux sticky imbriqués se contredisaient : 1 rem contre 5 rem).
+    expect(DASH).toMatch(/<RushChapterSidebar/);
     expect(PUB).toMatch(/<RushChapterSidebar/);
+    expect(DASH).not.toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\]/);
     const css = readFileSync("src/app/da-wakfu.css", "utf8");
     const asideRules = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)]
       .map((m) => m[1])

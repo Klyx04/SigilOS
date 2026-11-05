@@ -451,3 +451,45 @@ describe("DA Gouache Wakfu — coque du guide plein écran", () => {
         expect(asideRule).toMatch(/position:\s*sticky/);
     });
 });
+
+/**
+ * Guide interne (E3) — la même coque, les mêmes composants.
+ *
+ * Demande user (verbatim, 05/11/2026) : « visuellement les guides internes externe et
+ * les overlay public / interne doivent etre identique coté DA techno etc, sauf toutes
+ * les brique interne à la guilde ». Le socle visuel est donc IDENTIQUE ; seules les
+ * briques de guilde (présence, actions serveur, synchronisation) restent. Aucune
+ * variante « interne » du visuel n'est admise.
+ */
+describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () => {
+    const MEMBER = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+
+    it("la coque porte la portée de la DA et la règle de bloc partagée", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(/data-da="wakfu"/);
+        expect(src).toMatch(/data-theme="dark"/);
+        expect(src).toMatch(/data-block=\{daTheme\.block\}/);
+        expect(src).toMatch(/data-quality="high"/);
+        expect(src).toMatch(/className="rush-guide da-grain/);
+        // La règle de thème est celle des trois surfaces, pas une copie locale.
+        expect(src).toMatch(/resolveRushDaTheme\(/);
+    });
+
+    it("le sommaire est celui du guide public, à gauche, et le rail ne le répète pas", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(
+            /import \{ RushChapterNav \} from "@\/components\/dofus-quests\/rush\/RushChapterNav"/
+        );
+        expect(src).toMatch(/<RushChapterNav/);
+        // Sans cette garde, les chapitres s'affichent deux fois (piège payé en E2).
+        expect(src).toMatch(/hideChapters/);
+    });
+
+    it("la navigation flottante (portail hors arbre) reçoit la portée", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        expect(src).toMatch(
+            /data-da="wakfu" data-theme="dark" data-block=\{daTheme\.block\} className="fixed right-4/
+        );
+    });
+});
+

@@ -528,6 +528,15 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
         if (!embedData) return { success: false, error: "Données de la run introuvables" };
 
         const { run, diffConfig, dashboardUrl, fields } = embedData;
+
+        // Stand-by (30/10/2026) : la pause suspend AUSSI les rappels **manuels**.
+        // Sans cette garde, le bouton « Stand-by » serait un faux silence : les crons
+        // se taisent, mais le leader peut pinger son groupe à la main. Même règle que
+        // les deux relances DJ (`dungeon-finder-actions.ts`).
+        if (isStandByActive(run.standBy)) {
+            return { success: false, error: "Cette run est en stand-by : reprends-la avant d'envoyer un rappel." };
+        }
+
         if (!run.discordChannelId) return { success: false, error: "Run ou canal introuvable" };
 
         const discordIds: string[] = [];

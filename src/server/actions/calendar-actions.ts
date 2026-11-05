@@ -2267,6 +2267,13 @@ export async function sendEventReminder(
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
+        // Stand-by (30/10/2026) : la pause suspend AUSSI les rappels **manuels**.
+        // Les passes automatiques (`raid-reminder-service`, `event-reminder-service`)
+        // skippent déjà ; sans cette garde, le bouton serait un faux silence.
+        if (isStandByActive(event.standBy)) {
+            return { success: false, error: "Cet événement est en stand-by : reprends-le avant d'envoyer un rappel." };
+        }
+
         const isRaid = event.type === "RAID_OFFICIAL";
 
         const guildConfig = await db.guildConfig.findUnique({

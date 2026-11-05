@@ -727,7 +727,10 @@ export default function GuideOverlayClient({
       );
       return {
         locked: refs.some((r) => !gateAllCompleted.has(r.seqId)) || missingDungeons.length > 0,
-        prereqs: refs,
+        // Seuls les prérequis ENCORE manquants : la carte affiche « Terminer : X » et
+        // X devait être la quête précédente même une fois validée (mesure du 05/11/2026).
+        // Le verrou, lui, reste calculé sur `refs` entier.
+        prereqs: refs.filter((r) => !gateAllCompleted.has(r.seqId)),
         missingDungeons,
       };
     },
@@ -1328,6 +1331,7 @@ export default function GuideOverlayClient({
           accentColor={ms.accentColor}
           className="my-3"
           collapsible
+          bodyText={infoText}
         >
           <RushRichText text={infoText} normalizeMeta />
         </RushInfoBanner>

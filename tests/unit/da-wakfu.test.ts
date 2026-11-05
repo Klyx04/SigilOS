@@ -344,12 +344,36 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(css).toMatch(/\.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*112px/);
     });
 
-    it("le bandeau du bloc est plus court et accepte une image non déformée", () => {
+    it("le bandeau du bloc est plus court et l'image le REMPLIT", () => {
         const banner = css.match(/\.da-banner\s*\{([^}]*)\}/)?.[1] ?? "";
         expect(banner).toMatch(/height:\s*96px/);
-        // Décor en `contain` : une scène comme une icône s'inscrivent sans étirement.
-        expect(css).toMatch(/\.da-banner-art\s*\{[^}]*object-fit:\s*contain/);
+        // Image rectangulaire du God : elle remplit le bandeau (`cover`), le voile
+        // `::after` garde le texte lisible. Jamais d'étirement.
+        const art = css.match(/\.da-banner-art\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(art).toMatch(/object-fit:\s*cover/);
+        expect(art).toMatch(/width:\s*100%/);
+        expect(art).toMatch(/height:\s*100%/);
         expect(readFileSync(SHELL, "utf8")).toMatch(/className="da-banner-art"/);
+    });
+
+    it("les conseils dépliables sont des LISTES À PUCES (maquette)", () => {
+        // `RushTipLines` est la brique unique des conseils (overlay + dashboard) :
+        // elle découpe sur les `·` et rend un `<li>` par conseil.
+        expect(readFileSync("src/components/dofus-quests/rush/RushInfoBanner.tsx", "utf8")).toMatch(
+            /<RushTipLines text=\{bodyText\} \/>/
+        );
+        expect(
+            readFileSync("src/components/dofus-quests/rush/RushInfoSequenceBanner.tsx", "utf8")
+        ).toMatch(/<RushTipLines text=\{text\} \/>/);
+        // La puce de la DA remplace la pastille ronde de la brique.
+        expect(css).toMatch(/\.da-conseil-body li > span\[aria-hidden="true"\]:first-child\s*\{\s*display:\s*none/);
+    });
+
+    it("« Terminer : X » ne s'affiche que si X manque vraiment", () => {
+        const shell = readFileSync(SHELL, "utf8");
+        // Mesure du 05/11/2026 : `getSeqGate` rendait TOUS les prérequis, la carte
+        // affichait donc la quête précédente comme à faire même une fois validée.
+        expect(shell).toMatch(/prereqs: refs\.filter\(\(r\) => !gateAllCompleted\.has\(r\.seqId\)\)/);
     });
 
     it("les toasts de l'overlay suivent la DA (ni fond en dur, ni flou, ni ombre)", () => {

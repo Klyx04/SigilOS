@@ -337,7 +337,9 @@
   padding-left: .875rem;
 }
 
-/* Puce losange : le même losange que les nœuds et les pips de stade. */
+/* Puce losange : le même losange que les nœuds et les pips de stade. La puce
+   interne de `RushTipLines` (pastille ronde ambre) est masquée ici : une seule
+   puce par ligne, et c'est celle de la DA. */
 .da-conseil-body p::before,
 .da-conseil-body li::before {
   content: "";
@@ -350,6 +352,8 @@
   background: var(--da-acc);
   transform: rotate(45deg);
 }
+
+.da-conseil-body li > span[aria-hidden="true"]:first-child { display: none; }
 
 /* ── Toasts de l'overlay (Sonner) — les matières du reste de la fenêtre ──── */
 /* Sonner injecte sa feuille à l'exécution avec `[data-sonner-toast][data-styled]`
@@ -475,22 +479,17 @@
   border-radius: 3px 12px 3px 12px;
 }
 
-/* Décor du bloc : l'image posée par le God, en `contain` à droite. Elle n'est ni
-   étirée ni rognée (une scène comme une icône s'y inscrivent), et le masque la
-   fond dans le dégradé au lieu de la coller au texte. */
+/* Décor du bloc : l'image posée par le God REMPLIT le bandeau (rectangulaire,
+   `cover` centré) — le texte garde sa lisibilité grâce au voile `::after`, qui
+   est peint au-dessus de l'image. Aucun étirement : `cover` recadre. */
 .da-banner-art {
   position: absolute;
-  inset-block: 0;
-  right: 0;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  width: auto;
-  max-width: 52%;
-  object-fit: contain;
-  object-position: center right;
+  object-fit: cover;
+  object-position: center;
   pointer-events: none;
-  opacity: .95;
-  -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / 1) 58%, rgb(0 0 0 / 0) 100%);
-  mask-image: linear-gradient(to left, rgb(0 0 0 / 1) 58%, rgb(0 0 0 / 0) 100%);
 }
 
 .da-banner::after {

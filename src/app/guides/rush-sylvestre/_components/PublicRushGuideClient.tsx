@@ -93,6 +93,9 @@ import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushS
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
+// Sommaire au langage du dock — composant PARTAGÉ (public en E2, interne en E4).
+import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
+import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -204,6 +207,12 @@ interface PublicRushGuideClientProps {
     rushUIConfig?: unknown;
   };
   milestones: RushMilestone[];
+  /**
+   * Bandeau de la page, rendu côté serveur (fil d'Ariane, titre, image) : il est
+   * passé en enfant pour vivre DANS la coque `data-da` — sinon il resterait hors
+   * de la portée de la DA et garderait les tokens « Carnet ».
+   */
+  children?: React.ReactNode;
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
@@ -274,7 +283,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones: rawMilestones }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones, children }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -1104,8 +1113,46 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     [isSearching, currentPage, milestones]
   );
 
+  // ─── Bloc de la DA « Gouache Wakfu » ───────────────────────────────────────
+  // EXACTEMENT la règle de l'overlay (`src/lib/rush-da-theme.ts`) : bloc nommé
+  // d'abord, puis héritage en remontant la liste. Une seule vérité pour les deux
+  // surfaces — c'est la parité public ↔ interne, pas une copie.
+  const daTheme = useMemo(
+    () => resolveRushDaTheme(milestones, currentPage?.ms.id ?? null),
+    [milestones, currentPage]
+  );
+
   return (
     <>
+      {/* ══ COQUE DU GUIDE — la portée de la DA « Gouache Wakfu » ════════════════
+          Même grammaire que l'overlay : `data-da` + `data-theme` + `data-block`
+          (bloc courant, règle PARTAGÉE `resolveRushDaTheme`) — et `data-quality`
+          « high », puisque le guide est une surface plein écran : le grain et les
+          bords tremblés y sont autorisés (ils sont coupés dans la PiP).
+          Coque à 1 360 px : `reg-shell` (1 120) reste pour almanax / bestiaire. */}
+      <div
+        data-da="wakfu"
+        data-theme="dark"
+        data-block={daTheme.block}
+        data-quality="high"
+        className="rush-guide da-window da-grain da-guide"
+        style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
+      >
+      {/* Bandeau (rendu serveur) : il est DANS la coque, donc il hérite des tokens. */}
+      {children}
+      <div className="da-guide-grid">
+        {/* Sommaire : colonne de gauche, au langage du dock. Le MÊME composant
+            servira au guide interne (E4) : aucune variante « public ». */}
+        <RushChapterNav
+          milestones={milestones}
+          completedSeqIds={completedSeqIds}
+          selectedChapter={currentPage?.ms.chapter ?? "ALL"}
+          onSelectChapter={(chapter) => {
+            const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
+            if (idx >= 0) goToChapterPage(idx);
+          }}
+        />
+        <div className="da-guide-main">
       {/* ── BARRE DE CONTRÔLE (progression · actions · personnage) + RECHERCHE ──
           Un seul panneau porte les trois : où en est le joueur, ce qu'il peut
           préparer, et SON personnage. Le bloc d'en-tête qui les répétait au-dessus
@@ -1405,8 +1452,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           sidebar PARTAGÉE à droite (chapitres, progression, donjons & métiers à
           prévoir, objets requis avec bascule Restantes/Toutes). Sur petit écran elle
           passe sous le contenu — aucune information perdue, aucun doublon de rendu. */}
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-6">
         {visibleMilestones.map((ms) => {
           const msIndex = milestones.indexOf(ms);
           const isDone = completedIds.has(ms.id);
@@ -1462,6 +1508,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                   description={ms.description}
                   imageUrl={ms.imageUrl}
                   accentColor={ms.accentColor}
+                  surface="page"
                 />
               </div>
             );
@@ -2170,26 +2217,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         })}
         </div>
 
-        {/* Le panneau de droite suit la page courante : cliquer un chapitre y navigue
-            (même geste que dans le guide interne) ET il reste affiché pendant toute la
-            lecture du chapitre — c'est lui qui porte le repère une fois la barre de
-            contrôle défilée. Mesure du 22/09 (1291×712) : le rail fait 596 px pour
-            616 px disponibles sous l'en-tête public (712 − 80 de décalage `top-20` −
-            16 de marge) → on le borne au viewport et il défile en interne, sinon sa
-            fin (objets requis) restait hors écran. */}
-        <RushChapterSidebar
-          className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto custom-scrollbar"
-          milestones={milestones as any}
-          completedSeqIds={completedSeqIds}
-          hideProvidedResources={hideDone}
-          selectedChapter={currentPage?.ms.chapter ?? "ALL"}
-          onSelectChapter={(chapter) => {
-            const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
-            if (idx >= 0) goToChapterPage(idx);
-          }}
-        />
-      </div>
-
       {/* ── PAGER (bas) : enchaîner les chapitres sans remonter en haut de page. ── */}
       {!isSearching && chapterPages.length > 1 && currentPage && (
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-4">
@@ -2216,6 +2243,27 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           </button>
         </div>
       )}
+
+        </div>{/* da-guide-main */}
+
+        {/* Colonne du module — le rail PARTAGÉ, inchangé côté données : progression,
+            donjons & métiers à prévoir, objets requis. `hideChapters` évite le doublon
+            avec le sommaire de gauche ; le dashboard ne passe pas la prop et garde donc
+            exactement son rendu (parité public ↔ interne). */}
+        <div className="da-guide-aside">
+          <RushChapterSidebar
+            milestones={milestones as any}
+            completedSeqIds={completedSeqIds}
+            hideProvidedResources={hideDone}
+            hideChapters
+            selectedChapter={currentPage?.ms.chapter ?? "ALL"}
+            onSelectChapter={(chapter) => {
+              const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
+              if (idx >= 0) goToChapterPage(idx);
+            }}
+          />
+        </div>
+      </div>{/* da-guide-grid */}
 
       {/* ── MODALE DÉTAILS D'ÉTAPE (RushOverlayQuestDetailModal) ── */}
       {detailModalSeq && (
@@ -2292,10 +2340,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           );
         })()}
 
+      </div>{/* rush-guide · coque DA */}
+
       {/* ── Navigation flottante haut / position / bas (comme le guide interne) ── */}
       {typeof document !== "undefined" &&
         createPortal(
           <div
+            data-da="wakfu"
+            data-theme="dark"
+            data-block={daTheme.block}
             className="fixed right-4 z-[100] flex flex-col items-center gap-1 reg-panel bg-background/95 py-2 px-1.5"
             style={{ top: "50%", transform: "translateY(-50%)" }}
           >

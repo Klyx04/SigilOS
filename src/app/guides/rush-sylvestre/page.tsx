@@ -11,6 +11,7 @@ import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getPublicGuideDetail } from "@/server/actions/optimized-guide-actions";
 import { PublicRushGuideClient } from "./_components/PublicRushGuideClient";
+import { DaWakfuFilters } from "@/components/da/DaWakfuFilters";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
@@ -84,6 +85,17 @@ export default async function PublicRushSylvestrePage() {
   const isUnderConstruction = !!guide.isPublicUnderConstruction;
   const milestones = guide.milestones as any[];
 
+  /**
+   * Image du bandeau (DA « Gouache Wakfu », brief E2 ③) : celle du **bloc**, pas
+   * l'icône du Dofus. `GuideMilestone.imageUrl` sert aussi d'icône de bloc — dans le
+   * bandeau elle est rendue en `cover`, avec un voile qui porte la lisibilité du titre
+   * (piège mesuré du 05/11 : sans voile, le titre se perd dans l'image).
+   */
+  const heroArt =
+    milestones.find((m) => typeof m?.imageUrl === "string" && m.imageUrl)?.imageUrl ||
+    guide.imageUrl ||
+    "/module-dofus/Dofus_Sylvestre.png";
+
   // Nonce pour inline scripts de sécurité
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
@@ -133,6 +145,12 @@ export default async function PublicRushSylvestrePage() {
       <JsonLd id="json-ld-rush-sylvestre" nonce={nonce} data={jsonLdData} />
 
       <main className="flex-1">
+        {/* Filtres de la DA (#da-rough / #da-brush) : montés UNE fois par page —
+            sans eux, `filter: url(#da-rough)` ne résout rien et les bords de carte
+            restent droits (« si les bords ne sont pas tremblés, c'est qu'il manque »). */}
+        <DaWakfuFilters />
+
+        {isUnderConstruction ? (
         <div className="reg-shell py-10 lg:py-14">
           <nav aria-label="Fil d'Ariane" className="mb-6">
             <Link href="/guides" className="reg-link-quiet text-sm">
@@ -181,9 +199,9 @@ export default async function PublicRushSylvestrePage() {
 
           {/* 🚧 Guide en construction (toggle God `/god/rush-sylvestre` → « Mode Construction ») :
               le guide interactif est remplacé par l'avis d'arrivée — aucun contenu incomplet servi,
-              aucun overlay proposé, la page reste accessible et lisible. */}
+              aucun overlay proposé, la page reste accessible et lisible. Ce mode garde la DA
+              « Carnet » du site : il n'y a pas de guide à habiller. */}
           <div className="mt-10">
-            {isUnderConstruction ? (
               <div className="flex flex-col items-start gap-4 rounded-2xl border border-warning/30 bg-warning/10 p-6 sm:flex-row sm:items-center sm:gap-5">
                 <span
                   className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-warning/30 bg-warning/15"
@@ -196,10 +214,51 @@ export default async function PublicRushSylvestrePage() {
                   <p className="mt-1 text-sm text-muted-foreground">{t.rushGuide.underConstructionHint}</p>
                 </div>
               </div>
-            ) : (
-              <PublicRushGuideClient guide={guide} milestones={milestones} />
-            )}
           </div>
+        </div>
+        ) : (
+          <>
+            <PublicRushGuideClient guide={guide} milestones={milestones}>
+              {/* ── BANDEAU DU GUIDE (brief E2 ③) — 320 px, image du bloc en `cover` ──
+                  Le voile est porté par `.da-guide-hero::after` : la lisibilité du titre
+                  ne dépend jamais de l'image (règle de la DA). Le titre reste UN h1 dont
+                  le nom accessible est le libellé traduit ; « Rush / Sylvestre » n'est
+                  que son découpage visuel, comme dans l'overlay. */}
+              <header className="da-guide-hero">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
+                <div className="da-guide-hero-inner">
+                  <nav aria-label="Fil d'Ariane" className="mb-4">
+                    <Link href="/guides" className="da-kicker">
+                      ← {t.rushGuide.breadcrumbGuides}
+                    </Link>
+                  </nav>
+                  <p className="da-kicker">
+                    {locale === "en" ? "Sylvan Rush" : "Rush Sylvestre"}
+                    <b>{locale === "en" ? "interactive guide" : "guide interactif"}</b>
+                  </p>
+                  <h1 className="da-logo" aria-label={t.rushGuide.title}>
+                    <span className="da-logo-a" aria-hidden="true">Rush</span>
+                    <span className="da-logo-b" aria-hidden="true">Sylvestre</span>
+                  </h1>
+                  <p className="da-guide-hero-sub">{t.rushGuide.subtitle}</p>
+                  <p className="da-meta">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                      {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
+                    </span>
+                  </p>
+                </div>
+              </header>
+            </PublicRushGuideClient>
+
+            {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
+                pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}
+            <div className="reg-shell py-10 lg:py-14">
 
           {/* Questions fréquentes — masquées tant que le guide n'est pas disponible (elles
               décrivent l'overlay et le suivi de guilde, donc des fonctions pas encore ouvertes). */}
@@ -264,7 +323,9 @@ export default async function PublicRushSylvestrePage() {
             </div>
           </section>
           )}
-        </div>
+            </div>
+          </>
+        )}
       </main>
 
       <GalacticFooter isMember={userContext.isMember} />

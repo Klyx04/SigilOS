@@ -108,9 +108,19 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
     it("le rail est collant, borné au scrollport et défilable en interne", () => {
         // `100dvh` (et non `100vh`) : sur mobile la barre d'URL fait varier la hauteur
         // visible — `dvh` suit la hauteur VISIBLE, `vh` la maximale (mesure du 08/10/2026).
-        expect(codeOf(PUBLIC)).toContain(
-            'className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto custom-scrollbar"'
-        );
+        //
+        // E2 (05/11/2026) : la borne a quitté la classe du rail pour la COLONNE de la
+        // grille du guide (`.da-guide-aside`). Même intention, même mécanisme — le rail
+        // est sticky dans les deux cas, seule la surface qui pose la contrainte change.
+        const code = codeOf(PUBLIC);
+        expect(code).toMatch(/<RushChapterSidebar/);
+        const css = readFileSync("src/app/da-wakfu.css", "utf8");
+        const asideRules = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)]
+            .map((m) => m[1])
+            .join(";");
+        expect(asideRules).toMatch(/position:\s*sticky/);
+        expect(asideRules).toMatch(/max-height:\s*calc\(100dvh - 6rem\)/);
+        expect(asideRules).toMatch(/overflow-y:\s*auto/);
     });
 
     it("le sommaire repliable est supprimé (les ancres partageables restent)", () => {

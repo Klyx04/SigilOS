@@ -127,7 +127,7 @@ export function RushOverlayQuestDetailModal({
         aria-labelledby="rush-quest-detail-title"
         ref={dialogRef}
         className={cn(
-          "rush-carnet relative z-10 flex max-h-[85vh] w-full max-w-[26rem] flex-col overflow-hidden",
+          "rush-carnet relative z-10 flex max-h-[85vh] w-full max-w-[32.5rem] flex-col overflow-hidden",
           "rounded-[6px] border border-border-strong bg-elevated shadow-[var(--rush-bevel)]"
         )}
       >

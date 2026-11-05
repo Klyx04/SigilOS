@@ -34,6 +34,7 @@ import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
 import { DaThemeProvider } from "@/components/da/da-theme";
+import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { OverlayToaster } from "@/components/rush/overlay-toast";
 import { safeImageUrl } from "@/lib/security";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
@@ -1238,38 +1239,12 @@ export default function GuideOverlayClient({
   const bannerArt = currentMs?.imageUrl ? safeImageUrl(currentMs.imageUrl) : "";
 
   // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
-  // Deux sources, dans cet ordre :
-  //   1. `accentColor` du bloc courant (posé par le God) ⇒ N'IMPORTE QUEL Dofus
-  //      a sa propre teinte, sans toucher au CSS ;
-  //   2. sinon un des trois blocs nommés (Émeraude, Cauchemar, Ocre), cherché en
-  //      REMONTANT la liste : un chapitre qui n'est pas un Dofus (« Quêtes
-  //      Incarnam, Astrub… ») doit hériter du bloc Dofus qui le précède, sinon
-  //      il tombait sur le repli gris — c'est le défaut mesuré du 05/11/2026.
-  const daTheme = useMemo(() => {
-    const norm = (s?: string | null) =>
-      (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const idx = milestones.findIndex((m) => m.id === currentMs?.id);
-    const from = idx >= 0 ? idx : 0;
-    // 1. BLOC NOMMÉ d'abord : un bloc « Dofus Émeraude » doit s'appeler Émeraude,
-    //    même si le God lui a posé un accentColor (sinon l'en-tête annonçait
-    //    « BLOC » sur un bloc Émeraude — défaut vu à l'écran le 05/11/2026).
-    for (let i = from; i >= 0; i -= 1) {
-      const id = norm(milestones[i]?.dofusId);
-      const title = norm(milestones[i]?.title);
-      for (const key of ["emeraude", "cauchemar", "ocre"] as const) {
-        if (id === key || id === `du_${key}` || title.includes(`dofus ${key}`)) {
-          return { block: key, accent: null };
-        }
-      }
-    }
-    // 2. N'IMPORTE QUEL AUTRE Dofus : la teinte vient de l'accent du bloc
-    //    (hex strict — jamais d'injection CSS).
-    for (let i = from; i >= 0; i -= 1) {
-      const accent = milestones[i]?.accentColor;
-      if (accent && /^#[0-9a-f]{6}$/i.test(accent)) return { block: "custom" as const, accent };
-    }
-    return { block: "emeraude" as const, accent: null };
-  }, [milestones, currentMs]);
+  // La règle vit dans `src/lib/rush-da-theme.ts` : le guide plein écran applique
+  // la MÊME (parité public ↔ interne), donc plus de copie locale.
+  const daTheme = useMemo(
+    () => resolveRushDaTheme(milestones, currentMs?.id),
+    [milestones, currentMs]
+  );
   const daBlock = daTheme.block;
 
   // Thème exposé aux portails (popover de donjon, prérequis) : la MÊME vérité que

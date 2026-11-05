@@ -60,6 +60,13 @@ interface RushChapterSidebarProps {
    * deux surfaces qui montent ce rail).
    */
   hideProvidedResources?: boolean;
+  /**
+   * Masque la liste « Chapitres » du rail. Le guide public affiche le sommaire
+   * dans sa colonne de gauche (`RushChapterNav`) : sans ça les chapitres
+   * apparaîtraient deux fois à l'écran. Défaut `false` ⇒ le dashboard, qui ne
+   * passe rien, rend exactement ce qu'il rendait (parité public ↔ interne).
+   */
+  hideChapters?: boolean;
 }
 
 export function RushChapterSidebar({
@@ -70,6 +77,7 @@ export function RushChapterSidebar({
   selectedChapter: selectedChapterProp,
   onSelectChapter,
   hideProvidedResources = false,
+  hideChapters = false,
 }: RushChapterSidebarProps) {
   // Liste des chapitres distincts
   const chapters = useMemo(() => {
@@ -250,38 +258,44 @@ export function RushChapterSidebar({
         className
       )}
     >
-      {/* Chapitres */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border pb-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium text-foreground">Chapitres</span>
-        </div>
-        <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{chapters.length}</span>
-      </div>
+      {/* Chapitres — masqués quand la surface affiche déjà `RushChapterNav`
+          ailleurs (guide public). Sans cette garde, la liste apparaîtrait deux
+          fois à l'écran. */}
+      {!hideChapters && (
+        <>
+          <div className="flex shrink-0 items-center justify-between border-b border-border pb-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="text-xs font-medium text-foreground">Chapitres</span>
+            </div>
+            <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{chapters.length}</span>
+          </div>
 
-      {/* Sommaire des chapitres — hauteur NATURELLE : c'est le rail qui défile, pas lui. */}
-      <div className="flex shrink-0 flex-col gap-1">
-        {chapters.map((ch) => {
-          const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
-          const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
-          const pct = allSeq.length > 0 ? Math.round((doneSeq / allSeq.length) * 100) : 0;
-          const active = selectedChapter === ch.chapter;
-          const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
-          return (
-            <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
-              className={cn("w-full min-h-9 flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
-                active ? "bg-elevated border-border" : "border-transparent hover:border-border")}>
-              <span className={cn("w-5 h-5 shrink-0 rounded-[3px] flex items-center justify-center text-[11px] font-mono border",
-                isDone ? "border-success text-success" : active ? "border-warning text-warning" : "border-border text-muted-foreground")}>{isDone ? <Check className="w-3 h-3" strokeWidth={2}/> : ch.chapter}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-xs text-foreground truncate">{ch.label}</span>
-                <span className="block h-[3px] rounded-[2px] bg-elevated mt-1 overflow-hidden"><span className="block h-full rounded-[2px] bg-success" style={{ width: `${pct}%` }}/></span>
-              </span>
-              <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{doneSeq}/{allSeq.length}</span>
-            </button>
-          );
-        })}
-      </div>
+          {/* Sommaire des chapitres — hauteur NATURELLE : c'est le rail qui défile, pas lui. */}
+          <div className="flex shrink-0 flex-col gap-1">
+            {chapters.map((ch) => {
+              const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
+              const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
+              const pct = allSeq.length > 0 ? Math.round((doneSeq / allSeq.length) * 100) : 0;
+              const active = selectedChapter === ch.chapter;
+              const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
+              return (
+                <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
+                  className={cn("w-full min-h-9 flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
+                    active ? "bg-elevated border-border" : "border-transparent hover:border-border")}>
+                  <span className={cn("w-5 h-5 shrink-0 rounded-[3px] flex items-center justify-center text-[11px] font-mono border",
+                    isDone ? "border-success text-success" : active ? "border-warning text-warning" : "border-border text-muted-foreground")}>{isDone ? <Check className="w-3 h-3" strokeWidth={2}/> : ch.chapter}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs text-foreground truncate">{ch.label}</span>
+                    <span className="block h-[3px] rounded-[2px] bg-elevated mt-1 overflow-hidden"><span className="block h-full rounded-[2px] bg-success" style={{ width: `${pct}%` }}/></span>
+                  </span>
+                  <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{doneSeq}/{allSeq.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
       {/* ─── Progression du Chapitre ─── */}
       <div className="flex shrink-0 items-center gap-4 bg-elevated p-3 rounded-[6px] border border-border">
         <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">

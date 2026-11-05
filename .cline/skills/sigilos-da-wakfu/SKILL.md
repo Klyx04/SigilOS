@@ -1,6 +1,6 @@
 ---
 name: sigilos-da-wakfu
-description: Direction artistique « Gouache Wakfu » de SigilOS (peinture gouache, traits fins tremblés, planches de bois usé, thème par bloc de quêtes, clair et sombre). À déclencher pour tout habillage visuel du module Rush Sylvestre puis, par passation, du reste du produit : en-tête, barre de blocs, cartes de quête, boutons, écriteau, fil de sève, guide plein écran. Porte la règle « habillage seul » (aucun déplacement de bouton, aucune logique métier touchée) et le verrou de contraste. Ne pas l'utiliser pour la logique métier, les données, les server actions ni les migrations.
+description: Direction artistique « Gouache Wakfu » de SigilOS (peinture gouache, traits fins tremblés, planches de bois usé, thème par bloc de quêtes, clair et sombre). À déclencher pour tout habillage visuel du module Rush Sylvestre puis, par passation, du reste du produit — en-tête, barre de blocs, cartes de quête, boutons, écriteau, fil de sève, guide plein écran. Porte la règle « habillage seul » (aucun déplacement de bouton, aucune logique métier touchée) et le verrou de contraste. Ne pas l'utiliser pour la logique métier, les données, les server actions ni les migrations.
 ---
 # SigilOS — DA « Gouache Wakfu »
 

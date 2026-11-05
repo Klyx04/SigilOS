@@ -1,6 +1,6 @@
 ---
 name: sentry-triage
-description: Utiliser quand on parle d'une erreur Sentry, d'un 500 en production, d'une régression ou d'une alerte. Impose la mesure avant la cause : issue, occurrences, stack, release, trace, corrélation guilde, puis test de non-régression.
+description: Utiliser quand on parle d'une erreur Sentry, d'un 500 en production, d'une régression ou d'une alerte. Impose la mesure avant la cause — issue, occurrences, stack, release, trace, corrélation guilde, puis test de non-régression.
 ---
 # Tri Sentry
 

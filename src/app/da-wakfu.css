@@ -627,7 +627,7 @@
 }
 
 .da-row[data-state="next"] .da-node::before {
-  border-color: var(--da-outline);
+  border-color: var(--da-acc2);
   background: var(--da-acc);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--da-acc) 26%, transparent);
 }
@@ -650,13 +650,15 @@
 
 /* Bord : `clip-path` (coût nul) par défaut. Le déplacement « rough » est
    réservé aux surfaces à `data-quality="high"` — sinon 20 cartes = 20 filtres
-   recalculés au défilement, dans une PiP au-dessus du jeu. */
+   recalculés au défilement, dans une PiP au-dessus du jeu.
+   Le filet est TEINTÉ par le bloc (`--da-acc2`), plus un gris uniforme : la carte
+   appartient visiblement à son chapitre. */
 .da-card::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  border: 1.6px solid var(--da-ln);
+  border: 1.6px solid var(--da-acc2);
   border-radius: 4px 14px 4px 14px; /* exception mesurée : signature de carte (coins asymétriques) */
   background: var(--da-card);
   clip-path: polygon(0 1%, 100% 0, 99.6% 99.2%, 0.5% 100%);

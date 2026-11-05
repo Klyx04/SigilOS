@@ -34,7 +34,7 @@ import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
-import { countRushQuests, matchesRushQuestFilter, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
+import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -1135,6 +1135,22 @@ export default function GuideOverlayClient({
     return seqs;
   }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
 
+  // Quête « à faire maintenant » de la liste AFFICHÉE : une seule règle partagée
+  // par le nœud accentué, « Reprendre » et l'arrêt du fil de sève.
+  const nextSeqId = useMemo(
+    () =>
+      nextQuestId(
+        visibleSequences
+          .filter((s) => !isInfoSequence(s))
+          .map((s) => ({
+            id: s.id,
+            isDone: currentMsDoneSeqs.has(s.id),
+            isLocked: getSeqGate(s).locked,
+          }))
+      ),
+    [visibleSequences, currentMsDoneSeqs, getSeqGate]
+  );
+
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
   const globalResults = useMemo(() => {
@@ -1543,6 +1559,7 @@ export default function GuideOverlayClient({
                       guildId={guildId}
                       dungeonActions={dungeonActions}
                       isDone={isSeqDone}
+                      isNext={nextSeqId === seq.id}
                       isBookmarked={isBookmarked}
                       isLightMode={isLightMode}
                       isLocked={gate.locked}

@@ -61,6 +61,12 @@ interface RushOverlayQuestListItemProps {
   isBookmarked: boolean;
   /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
   isLightMode: boolean;
+  /**
+   * Première quête ni validée ni verrouillée du chapitre affiché : c'est celle que
+   * « Reprendre » vise et que le fil de sève atteint. Le libellé reste « À faire »
+   * (aucun état inventé) — seul le nœud est accentué.
+   */
+  isNext?: boolean;
   onToggle: () => void;
   onBookmark: () => void;
   onOpenDetail: () => void;
@@ -123,6 +129,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onOpenBookmarkers,
   guildId,
   isLightMode = false,
+  isNext = false,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
@@ -173,11 +180,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
     <div
       id={`overlay-seq-${seq.id}`}
       className="da-row"
-      data-state={isDone ? "done" : isLocked ? "locked" : "todo"}
+      data-state={isDone ? "done" : isLocked ? "locked" : isNext ? "next" : "todo"}
       data-here={isBookmarked && !isDone && !isLocked ? "true" : "false"}
     >
       {/* Nœud de validation — HORS de la carte : le fil de sève passe derrière lui.
-          Trois états seulement (validée / à faire / verrouillée) ; le repère
+          Validée / à faire maintenant / à faire / verrouillée ; le repère
           « je suis ici » colore la CARTE, jamais le nœud (un seul point focal). */}
       <button
         type="button"

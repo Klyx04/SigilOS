@@ -60,3 +60,20 @@ export function filterRushQuests<T extends RushQuestFilterState>(
 ): T[] {
   return items.filter((item) => matchesRushQuestFilter(item, filter));
 }
+
+/**
+ * La quête « à faire maintenant » : la **première** qui n'est ni terminée ni
+ * verrouillée, dans l'ordre du guide. Une seule règle pour trois usages — le nœud
+ * accentué, la cible de « Reprendre » et l'arrêt du fil de sève — afin qu'ils ne
+ * puissent pas désigner trois quêtes différentes.
+ *
+ * `null` quand il n'y a rien à faire (tout validé, ou tout verrouillé).
+ */
+export function nextQuestId<T extends RushQuestFilterState & { id: string }>(
+  items: readonly T[]
+): string | null {
+  for (const item of items) {
+    if (!item.isDone && !item.isLocked) return item.id;
+  }
+  return null;
+}

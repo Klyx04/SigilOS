@@ -254,4 +254,14 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         );
         expect(css).toMatch(/\.da-dock \.da-node\[data-state="done"\]::before/);
     });
+
+    it("le filet de carte est teinté par le bloc, jamais un gris uniforme", () => {
+        const card = css.match(/\.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(card, "règle absente").not.toBe("");
+        expect(card).toMatch(/border:\s*1\.6px solid var\(--da-acc2\)/);
+        expect(card).not.toMatch(/var\(--da-ln\)/);
+        // Même teinte sur le nœud « à faire maintenant ».
+        const next = css.match(/\.da-row\[data-state="next"\] \.da-node::before\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(next).toMatch(/border-color:\s*var\(--da-acc2\)/);
+    });
 });

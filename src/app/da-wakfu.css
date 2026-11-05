@@ -1191,6 +1191,10 @@
    (inventaire) qui descend en fin de page. */
 .da-guide {
   width: 100%;
+  /* Le fond vient d'ici : la coque n'emprunte PAS `.da-window`, dont
+     `overflow: hidden` annulerait le `position: sticky` du sommaire et de la
+     colonne du module (mesure du 05/11/2026 : les deux décrochaient au scroll). */
+  background: var(--da-bg);
   padding-inline: 1rem;
   padding-block: 1.5rem 2.5rem;
 }

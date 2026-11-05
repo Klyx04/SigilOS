@@ -1135,7 +1135,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
         data-theme="dark"
         data-block={daTheme.block}
         data-quality="high"
-        className="rush-guide da-window da-grain da-guide"
+        className="rush-guide da-grain da-guide"
         style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
       >
       {/* Bandeau (rendu serveur) : il est DANS la coque, donc il hérite des tokens. */}
@@ -1171,10 +1171,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
           {/* Progress summary */}
           <div className="flex min-w-0 items-center gap-3.5">
             <div className="w-12 h-12 shrink-0 flex items-center justify-center">
+              {/* Repli d'erreur (règle UI) : `guide.imageUrl` vient de la base et
+                  peut pointer une URL morte — on retombe alors sur l'asset local du
+                  jeu, jamais sur un carré vide (défaut vu à l'écran le 05/11/2026). */}
               <img
                 src={guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png"}
                 alt="Dofus Sylvestre"
                 className="w-12 h-12 object-contain"
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  const local = "/module-dofus/Dofus_Sylvestre.png";
+                  if (!img.src.endsWith(local)) img.src = local;
+                }}
               />
             </div>
             <div className="min-w-0">

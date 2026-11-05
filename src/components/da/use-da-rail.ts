@@ -1,13 +1,23 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, type DependencyList, type RefObject } from "react";
+import { daRailGrow } from "@/lib/da-rail-geometrie";
 
 /**
  * Fil de sève — la longueur du fil est **mesurée**, jamais devinée.
  *
  * Règle de la maquette (`growRails()`) : le fil s'arrête à la première quête ni
- * validée ni verrouillée — `offsetTop` du nœud + 26 px, moins les 20 px de départ
+ * validée ni verrouillée — position du nœud + 26 px, moins les 20 px de départ
  * du tracé. Tout le chapitre est validé ⇒ il va jusqu'au bout, à 48 px du bas.
+ * L'arithmétique vit dans `src/lib/da-rail-geometrie.ts` (règle pure, testée) ;
+ * ce hook ne fait que lire la géométrie et la lui donner.
+ *
+ * ⚠️ Défaut mesuré le 05/11/2026 : lire `offsetTop` supposait des lignes filles
+ * directes du rail. Le guide public enveloppe chaque quête dans son propre
+ * `div.relative` (le panneau de la carte) : les 18 lignes rapportaient alors
+ * `offsetTop = 12` et le fil restait figé à 18 px, sans jamais descendre. La
+ * position est donc calculée par **différence de rectangles** — relative au rail,
+ * insensible à l'imbrication et au défilement (les deux rectangles bougent ensemble).
  *
  * Mesuré **avant la peinture** (`useLayoutEffect`, repli `useEffect` au rendu
  * serveur) pour qu'aucun saut ne soit visible, puis ré-observé : un filtre, un
@@ -30,12 +40,17 @@ export function useDaRail(deps: DependencyList): RefObject<HTMLDivElement | null
             const target =
                 rail.querySelector<HTMLElement>('[data-state="next"]') ??
                 rail.querySelector<HTMLElement>('[data-state="todo"]');
-            const height = target
-                ? target.offsetTop + 26
-                : rows.length > 0
-                    ? rail.clientHeight - 48
-                    : 0;
-            rail.style.setProperty("--da-grow", `${Math.max(0, height - 20)}px`);
+            // `getBoundingClientRect` plutôt que `offsetTop` : la cible peut être
+            // imbriquée dans une enveloppe positionnée (guide public), et seuls les
+            // rectangles donnent une position relative au rail dans tous les montages.
+            const railTop = rail.getBoundingClientRect().top;
+            const targetOffset = target ? target.getBoundingClientRect().top - railTop : null;
+            const height = daRailGrow({
+                targetOffset,
+                railHeight: rail.clientHeight,
+                rowCount: rows.length,
+            });
+            rail.style.setProperty("--da-grow", `${height}px`);
         };
 
         grow();

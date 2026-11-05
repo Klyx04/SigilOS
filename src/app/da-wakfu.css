@@ -105,9 +105,10 @@
 [data-da="wakfu"] {
   --da-bg: color-mix(in srgb, var(--da-bg0) 90%, var(--da-tint));
   --da-panel: color-mix(in srgb, var(--da-panel0) 80%, var(--da-tint));
-  /* La carte est PLUS CLAIRE que le panneau : sur la maquette elle se détache
-     du fond de fenêtre. L'ancien 88 % la rendait plus sombre (mesuré). */
-  --da-card: color-mix(in srgb, var(--da-panel0) 74%, var(--da-tint));
+  /* Valeur EXACTE de la maquette (`references/tokens.css` puis `.window`) :
+     carte = panel0 88 % + teinte du bloc. Ne pas « éclaircir » à l'œil : la
+     capture d'écran d'une PiP est plus sombre que le rendu réel (gamma). */
+  --da-card: color-mix(in srgb, var(--da-panel0) 88%, var(--da-tint));
   --da-line: color-mix(in srgb, var(--da-line0) 76%, var(--da-tint));
   --da-muted: var(--da-muted0);
   --da-ln: color-mix(in srgb, var(--da-acc2) 40%, var(--da-outline));

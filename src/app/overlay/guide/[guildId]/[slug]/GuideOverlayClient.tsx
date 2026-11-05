@@ -1149,26 +1149,36 @@ export default function GuideOverlayClient({
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
 
   // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
-  // Le bloc actif porte `data-block` : trois thèmes nommés, plus un repli
-  // « custom » dont l'accent vient de la donnée du God. L'accent libre est
-  // VALIDÉ (hex strict) avant d'entrer dans une variable CSS : une valeur de
-  // base ne doit jamais pouvoir injecter une déclaration.
-  const daBlock = useMemo<"emeraude" | "cauchemar" | "ocre" | "custom">(() => {
+  // Deux sources, dans cet ordre :
+  //   1. `accentColor` du bloc courant (posé par le God) ⇒ N'IMPORTE QUEL Dofus
+  //      a sa propre teinte, sans toucher au CSS ;
+  //   2. sinon un des trois blocs nommés (Émeraude, Cauchemar, Ocre), cherché en
+  //      REMONTANT la liste : un chapitre qui n'est pas un Dofus (« Quêtes
+  //      Incarnam, Astrub… ») doit hériter du bloc Dofus qui le précède, sinon
+  //      il tombait sur le repli gris — c'est le défaut mesuré du 05/11/2026.
+  const daTheme = useMemo(() => {
     const norm = (s?: string | null) =>
       (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const id = norm(currentMs?.dofusId);
-    const title = norm(currentMs?.title);
-    for (const key of ["emeraude", "cauchemar", "ocre"] as const) {
-      if (id === key || id === `du_${key}` || title.includes(`dofus ${key}`) || title.includes(key)) {
-        return key;
+    const idx = milestones.findIndex((m) => m.id === currentMs?.id);
+    const from = idx >= 0 ? idx : 0;
+    // 1. accent libre du bloc courant (hex strict : jamais d'injection CSS)
+    for (let i = from; i >= 0; i -= 1) {
+      const accent = milestones[i]?.accentColor;
+      if (accent && /^#[0-9a-f]{6}$/i.test(accent)) return { block: "custom" as const, accent };
+    }
+    // 2. bloc Dofus nommé, en remontant jusqu'au dernier connu
+    for (let i = from; i >= 0; i -= 1) {
+      const id = norm(milestones[i]?.dofusId);
+      const title = norm(milestones[i]?.title);
+      for (const key of ["emeraude", "cauchemar", "ocre"] as const) {
+        if (id === key || id === `du_${key}` || title.includes(`dofus ${key}`)) {
+          return { block: key, accent: null };
+        }
       }
     }
-    return "custom";
-  }, [currentMs]);
-  const daCustomAccent =
-    daBlock === "custom" && /^#[0-9a-f]{6}$/i.test(currentMs?.accentColor || "")
-      ? (currentMs?.accentColor as string)
-      : null;
+    return { block: "emeraude" as const, accent: null };
+  }, [milestones, currentMs]);
+  const daBlock = daTheme.block;
 
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
@@ -1259,9 +1269,7 @@ export default function GuideOverlayClient({
       className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
       style={{
         fontFamily: "var(--da-font-text)",
-        ...(daCustomAccent
-          ? ({ "--da-acc": daCustomAccent } as React.CSSProperties)
-          : null),
+        ...(daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : null),
       }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>

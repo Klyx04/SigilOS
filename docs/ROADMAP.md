@@ -9,21 +9,26 @@
 
 ## 0. Reprise immédiate
 
-- **Livré le 05/11/2026 — Rush : le studio God passe en 3 panneaux (E1, branche `feat/rush-editor-e1`).**
-  **Mesure** : `RushSylvestreAdminClient.tsx` = **5 242 lignes** ; **9** tests sources y pointaient (les 7 verrous + `rush-move-sequence` + `rush-split-blocks`) ; **77/77** fichiers `src/app/god/**` ; **674** occurrences de motifs UI interdits.
-  **Fait** : studio **sorti de `src/app/god/**`** (`src/components/god/rush-editor/RushEditorStudio.tsx` ; l'app file devient un **ré-export de 12 lignes**) ; coquille **3 panneaux** (`RushEditorShell` : arbre / contenu / inspecteur), barre unique (`RushEditorTopbar`), arbre persistant + recherche (nom, qid, bloc, cité, Ordre, classe) + filtres (`RushEditorTree`), inspecteur (`RushEditorInspector`), palette `Ctrl+K` (`RushEditorCommandPalette`), garde de saisie (`UnsavedChangesGuard` + modale Radix au changement de cible), responsive (arbre en `Sheet` **< 1024**, inspecteur **< 768**) ; règles pures dans `src/lib/rush-editor-selection.ts` (arbre, recherche, filtres, sélection après suppression, index de palette) ; **plus aucun formulaire dans la liste** — `SequenceEditForm` / `AddSequenceForm` / `BlockInspectorForm` sont montés **par l'inspecteur**, tels quels.
-  **Preuves** : `rush-editor-selection` **24** · `rush-editor-shell` **16** · Rush **68 / 857 ✓** · suite **605 / 6 384 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Reste** : E2 (inspecteur quête) → E3 → E4 (**644** occurrences DA restantes) → E5 ; l'édition inline du **séparateur** est conservée jusqu'à E3.
+- **Livré le 05/11/2026 — Rush : studio God en 3 panneaux (E1, `feat/rush-editor-e1`, PR #1257).**
+  Studio **sorti de `src/app/god/**`** (app file = ré-export, `77/77` inchangé) ; arbre / contenu /
+  inspecteur, barre unique + recherche, filtres, `Ctrl+K`, garde de saisie, responsive **1024/768** ;
+  **plus aucun formulaire dans la liste** (l'inspecteur monte les formulaires tels quels) ; règles
+  pures `src/lib/rush-editor-selection.ts`. **Preuves** : Rush **857 ✓** · suite **6 384 ✓** ·
+  `tsc` 0 · ESLint 0 erreur · **aucune migration** ; DA **674 → 644** occurrences. **Reste** :
+  E2 → E3 → E4 → E5 (détail : `REFONTE-EDITEUR-RUSH.md` §3 « Reste de E1 »).
 
 - **Livré le 05/11/2026 — Rush : le déplacement d'une quête réparé (branche `fix/rush-move-sequence`).**
   **Bug mesuré** : le bouton « Déplacer vers » était **invisible** (le formulaire ne recevait qu'un seul bloc, donc `milestones.length > 1` toujours faux) et, appelé, il ne changeait **pas** `milestoneId` et remettait `alignOrderCode`/`alignLevelReq`/`classReq`/`isSuccess`/`icon`/`metamobMonsterId` à `null`/`false` (perte de route). **Fait** : action dédiée `moveRushSequence` (Zod borné, **60/min**, transaction, bloc cible relu dans le **même** guide, séparateur et bloc Conseil/Tips refusés, no-op si même bloc) qui n'écrit **que** `milestoneId` + `order` (règle pure `nextSequenceOrder`) ; studio rebranché (liste complète des blocs) + mise à jour optimiste. **Preuves** : `rush-move-sequence` **10** · Rush **65 / 805 ✓** · suite **602 / 6 332 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Reste** : refonte de l'éditeur (E1→E5, `docs/plans/REFONTE-EDITEUR-RUSH.md`) et split des blocs bêta.
 
-- **Livré le 04/11/2026 — Rush : ressources par quête, la série Brâkmarien enfin remplie (branche `feat/rush-ressources`).**
-  ① **Mesure** : sur les **121** séquences Brâkmarien (importées depuis God, absentes du dataset de seed), **115 n'avaient AUCUN tag** et **une seule** portait un id d'objet ; elles portent **120 `questDbIds`** ⇒ l'id DofusDB est la clé d'appariement exacte (replis URL puis nom).
-  ② **Fait** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute les ids absents, ne réécrit ni ne supprime jamais, `count` borné, **nom canonique** réutilisé pour un id déjà affiché ⇒ la clé `id|nom` de `rushResourceKey` reste unique) + script `enrich-rush-guide-resources.ts` (**dry-run** par défaut, `--apply --db`, `--sql` additif pour la bêta ; remap mesuré `22058 → 32079`).
-  ③ **Résultat (base locale)** : **81 séquences** enrichies, **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485 ids** ; Brâkmarien **1 → 151 ids**, **65** séquences avec objets (contre **1**) ; **2ᵉ passage = 0 écriture**. Dataset **inchangé**, **aucune migration**.
-  ④ **Effet attendu** : les totaux « Ressources à prévoir » montent (c'est le but) ; les coches manuelles existantes gardent leur clé (aucune ressource renommée). Seul id à deux noms : **9687** (`moyenne pierre d'âme` / `… parfaite`), **défaut antérieur** mesuré en V-A (486 clés pour 485 ids).
-  **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 274 ✓** · `tsc` 0 · ESLint 0 erreur.
-  **Ops (humain)** : bêta — `--sql` puis God ▸ Siphons DofusDB ▸ « Pré-chauffer les icônes du guide » (**95** ids nouveaux) ; contrôle visuel 390/768/1024/1440. Prod : rien tant que le guide n'y est pas seedé.
+- **Livré le 04/11/2026 — Rush : ressources par quête (branche `feat/rush-ressources`).**
+  **Mesure** : sur les **121** séquences Brâkmarien (hors dataset de seed), **115 n'avaient aucun tag** ;
+  elles portent **120 `questDbIds`** ⇒ l'id DofusDB est la clé d'appariement (replis URL puis nom).
+  **Fait** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute, ne réécrit ni ne
+  supprime ; nom canonique réutilisé ⇒ clé `id|nom` unique) + script `enrich-rush-guide-resources.ts`
+  (**dry-run** par défaut, `--apply --db`, `--sql` additif). **Résultat (local)** : **81 séquences**,
+  **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485** ; Brâkmarien **1 → 151** ; 2ᵉ passage
+  = **0 écriture**, **aucune migration**. **Preuves** : `rush-resource-tags` **12** · suite
+  **597 / 6 274 ✓** · `tsc` 0 · ESLint 0. **Ops** : bêta — `--sql` puis pré-chauffage des icônes.
 
 - **Livré le 04/11/2026 — Rush : 25 conseils écrits depuis les contraintes Tougli (branche `feat/rush-brakmarien`).**
   ① **Le script ne pouvait pas viser les séquences importées depuis God** : il prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les 121 Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0**. Correctif : `NoteTarget.questIds` + index par **id DofusDB** dans `rush-notes.ts` (l'id tranche, le nom reste le repli) et `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base).

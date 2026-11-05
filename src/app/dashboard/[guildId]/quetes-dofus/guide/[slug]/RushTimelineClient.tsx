@@ -321,8 +321,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <p className="text-[13px] font-semibold text-muted-foreground truncate">{questName}</p>
         </div>
         {totalPrereqs === 1 && singleName ? (
-          <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
-            className="w-full flex items-center gap-3 px-3 pb-3 pt-2 text-left group focus-visible:outline-2 focus-visible:outline-danger/50 rounded-[4px]"
+          <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);}}
+            className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/25 bg-danger/[0.04] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/45 focus-visible:outline-2 focus-visible:outline-danger/50"
             aria-label={`Voir la quête requise : ${singleName}`}
             data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
           >
@@ -351,7 +351,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {prereqRefs.map((ref) => (
-                <button key={ref.seqId} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(ref.name||"");}}
+                <button key={ref.seqId} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(ref.name||"", ref.seqId);}}
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-danger border border-danger/30 hover:bg-danger/10 transition-colors group focus-visible:outline-2 focus-visible:outline-danger/50"
                   aria-label={`Voir la quête requise : ${ref.name}`}
                 >
@@ -1102,7 +1102,7 @@ function isInfoSequence(seq: Sequence): boolean {
 // ─── Contexts ────────────────────────────────────────────────────────────────
 const CapturedMonsterCtx=React.createContext<Set<number>>(new Set);
 const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
-const ScrollToPrereqCtx=React.createContext<(name:string)=>void>(()=>{});
+const ScrollToPrereqCtx=React.createContext<(name:string, targetSeqId?:string|null)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
@@ -1788,12 +1788,14 @@ const timelineItems=useMemo(()=>{
     try { await setRushBookmark(guildId, ms.id, wasBookmarked ? null : seqId, effectiveAltPseudo); } catch {}
   }, [bookmarksByMs, guildId, blockedSeqIds, completedStepsByMs, effectiveAltPseudo]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
-  const handleScrollToPrereq = useCallback((seqName: string) => {
-    // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : nom EXACT d'abord, nom partiel
-    // en dernier recours. Le tag ne porte qu'un nom, et l'ancien `includes` partait au premier
-    // libellé qui *contenait* la recherche — donc une quête pouvait en pointer une autre
-    // (retour user 08/10/2026).
-    const foundId = resolvePrereqTarget(seqName, milestones as any)?.seqId ?? null;
+  const handleScrollToPrereq = useCallback((seqName: string, targetSeqId?: string | null) => {
+    // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : **id** d'abord (la puce
+    // le connaît déjà : `getPrereqRefs` le renvoie), puis libellé — nom EXACT, nom partiel
+    // en dernier recours. Défaut mesuré le 05/11/2026 : la puce jetait cet id et le
+    // handler re-devinait par le NOM, si bien qu'un libellé de tag qui ne correspond pas
+    // au titre exact de la quête (« Sangs d'Encre ») ne menait nulle part — le clic était
+    // mort. Un id fourni mais introuvable renvoie `null` (fail-closed, on ne devine pas).
+    const foundId = targetSeqId || resolvePrereqTarget(seqName, milestones as any)?.seqId || null;
     if (foundId) {
       setFocusedSeqId(foundId);
       // Le prérequis peut vivre dans un AUTRE chapitre : on ouvre sa page d'abord,
@@ -2240,7 +2242,7 @@ const timelineItems=useMemo(()=>{
             </div>
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
-          <button type="button" onClick={()=>setGuildAlignmentOpen(true)} aria-label="Voir les alignements de la guilde" title="Voir qui est bontarien ou brâkmarien, par Ordre et par tranche" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p></div></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span></div></div></>;})()}</button>
+          <button type="button" onClick={()=>setGuildAlignmentOpen(true)} aria-label="Voir les alignements de la guilde" title="Voir qui est bontarien ou brâkmarien, par Ordre et par tranche" className="-mx-1.5 flex items-center gap-2.5 min-w-0 rounded-[4px] px-1.5 py-1 text-left cursor-pointer transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-success/50">{(()=>{const{alignment,alignmentOrder}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p></div></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span></div></div></>;})()}</button>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Asset Ocre posé NU (plus de tuile teintée sous le picto). */}
@@ -2249,7 +2251,7 @@ const timelineItems=useMemo(()=>{
               <p className="text-[11px] text-muted-foreground">Metamob</p>
               <div className="flex items-center gap-2 mt-0.5">
                 {currentUserProfile?.metamobPseudo ? (
-                  <button type="button" onClick={() => setOcreModalOpen(true)} className="flex items-center gap-1.5 text-xs font-semibold text-warning hover:text-foreground transition-colors cursor-pointer" title="Voir ma collection Ocre (Gardiens & Archis)">
+                  <button type="button" onClick={() => setOcreModalOpen(true)} className="flex items-center gap-1.5 rounded-[4px] border border-warning/25 bg-warning/[0.06] px-2 py-1 text-xs font-semibold text-warning transition-colors cursor-pointer hover:border-warning/45 hover:bg-warning/15 hover:text-foreground focus-visible:outline-2 focus-visible:outline-warning/50" title="Voir ma collection Ocre (Gardiens & Archis)">
                     {ocreStats
                       ? <><span>Gardiens <span className="font-mono text-foreground">{ocreStats.bosses?.gathered??0}<span className="text-muted-foreground">/{ocreStats.bosses?.total??51}</span></span></span><span className="text-muted-foreground">·</span><span>Archis <span className="font-mono text-foreground">{ocreStats.archis?.gathered??0}<span className="text-muted-foreground">/{ocreStats.archis?.total??286}</span></span></span><ChevronRight className="w-3 h-3 text-warning/60 shrink-0"/></>
                       : <span className="text-caption font-bold text-warning/80">Voir ma collection →</span>
@@ -2281,7 +2283,7 @@ const timelineItems=useMemo(()=>{
               <button
                 type="button"
                 onClick={() => setRushLiveModalOpen(true)}
-                className="flex items-center gap-1.5 mt-0.5 min-w-0 cursor-pointer"
+                className="-mx-1.5 flex items-center gap-1.5 mt-0.5 min-w-0 rounded-[4px] px-1.5 py-1 cursor-pointer transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-success/50"
                 title="Voir les membres connectés sur le guide"
               >
                 {/* Le compte ne s'affiche QUE quand la présence est réellement connue :
@@ -2377,8 +2379,13 @@ const timelineItems=useMemo(()=>{
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    {/* ── Barre d'actions ────────────────────────────────────────────────── */}
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky top-20 z-[var(--z-sticky-hud)] flex-wrap">
+    {/* ── Barre d'actions ──────────────────────────────────────────────────
+        ⚠️ NON collante (mesure du 05/11/2026, retour user « pk la barre de
+        recherche descend avec le scrol c moche ») : elle était `sticky top-20`,
+        soit le MÊME offset que le sommaire (`.da-guide-nav`, 5 rem) — les deux
+        se recouvraient au défilement. La barre défile donc avec la page ; seul
+        le sommaire reste affiché (c'est lui qui porte le repère de lecture). */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
       <div className="relative flex-1 min-w-0 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input

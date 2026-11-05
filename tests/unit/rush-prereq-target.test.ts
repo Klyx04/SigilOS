@@ -86,9 +86,19 @@ describe("câblage de T-2b", () => {
   const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
   const PAGE = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx";
 
-  it("le guide membre résout le prérequis par la règle partagée (plus d'`includes` aveugle)", () => {
+  it("le guide membre résout le prérequis par la règle partagée, ID d'abord", () => {
     const code = codeOf(DASHBOARD);
-    expect(code).toMatch(/resolvePrereqTarget\(seqName, milestones as any\)\?\.seqId/);
+    // Défaut mesuré le 05/11/2026 : la puce portait déjà `ref.seqId` (`getPrereqRefs`
+    // le renvoie) mais le handler le JETAIT et re-devinait par le libellé ⇒ un tag dont
+    // le texte ne correspond pas au titre exact de la quête ne menait nulle part
+    // (clic mort sur « Sangs d'Encre »). L'id passe maintenant en premier.
+    expect(code).toMatch(/scrollToPrereq\(ref\.name\|\|"", ref\.seqId\)/);
+    expect(code).toMatch(
+      /handleScrollToPrereq = useCallback\(\(seqName: string, targetSeqId\?: string \| null\)/
+    );
+    expect(code).toMatch(
+      /const foundId = targetSeqId \|\| resolvePrereqTarget\(seqName, milestones as any\)\?\.seqId \|\| null;/
+    );
     expect(code).not.toMatch(/matchName\.toLowerCase\(\)\.includes\(seqName\.toLowerCase\(\)\)/);
   });
 

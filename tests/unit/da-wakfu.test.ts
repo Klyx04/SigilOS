@@ -274,14 +274,38 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(css).toMatch(/\.da-blockdesc\s*\{/);
     });
 
-    it("le palier `wide` fait 276 px et la frise de stade est montée", () => {
-        expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*276px/);
+    it("le palier `wide` fait 276 px (plafonné à 30 vh) et la frise de stade est montée", () => {
+        // 276 px est la valeur de la maquette ; `30vh` l'empêche de manger un écran
+        // court (PiP de 870 px : 276 px de hero, c'était un tiers de la fenêtre).
+        expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*min\(276px,\s*30vh\)/);
         expect(css).toMatch(/\.da-stage\s*\{/);
         const header = readFileSync(HEADER, "utf8");
         expect(header).toMatch(/dofusStage\(overallPct\)/);
         expect(header).toMatch(/RUSH_DOFUS_STAGE_COUNT/);
-        // L'hôte décide du palier : `wide` dès 820 px de haut.
-        expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 820 \? "wide"/);
+        // L'hôte décide du palier : `wide` dès 900 px de haut (30 vh de hero max).
+        expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 900 \? "wide"/);
+    });
+
+    it("le nœud du dock ne s'étire pas (plus de vide avant le titre)", () => {
+        // Mesure du 05/11/2026 : `.da-dock button { flex: 1 }` s'appliquait aussi au
+        // bouton du nœud → ~200 px de vide entre le nœud et « DOFUS ÉMERAUDE ».
+        expect(css).toMatch(/\.da-dock button\.da-node-btn\s*\{\s*flex:\s*none/);
+        expect(readFileSync(DOCK, "utf8")).toMatch(/"da-node-btn shrink-0/);
+    });
+
+    it("les ressources du bouton sont celles du BLOC, pas les 482 du guide", () => {
+        const shell = readFileSync(SHELL, "utf8");
+        expect(shell).toMatch(/aggregateRushResources\(\[currentMs\]\)/);
+        expect(shell).toMatch(/total=\{chapterResources\.length\}/);
+        expect(shell).toMatch(/allResources=\{chapterResources\}/);
+    });
+
+    it("les blocs CONSEIL de l'overlay sont des dépliables (pas des encadrés)", () => {
+        const banner = readFileSync("src/components/dofus-quests/rush/RushInfoBanner.tsx", "utf8");
+        expect(banner).toMatch(/collapsible = false/);
+        expect(banner).toMatch(/<details/);
+        // Seul l'overlay le demande : dashboard et guide public gardent l'encart.
+        expect(readFileSync(SHELL, "utf8")).toMatch(/accentColor=\{ms\.accentColor\}\s+className="my-3"\s+collapsible/s);
     });
 
     it("le fil de sève est monté et sa longueur est MESURÉE", () => {
@@ -301,5 +325,33 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         for (const path of [SHELL, HEADER, DOCK, "src/components/da/da-theme.tsx"]) {
             expect(readFileSync(path, "utf8"), path).not.toMatch(/isLightMode/);
         }
+    });
+
+    it("le titre du dock passe à la ligne aux ESPACES, jamais lettre par lettre", () => {
+        // Mesure du 05/11/2026 : `overflow-wrap: break-word` + une PiP de 250 px
+        // empilait « D / O / F / U / S … » sur quatorze lignes.
+        const label = css.match(/\.da-dock \.da-dock-label\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(label).toMatch(/overflow-wrap:\s*normal/);
+        expect(label).toMatch(/hyphens:\s*none/);
+        expect(label).not.toMatch(/break-word/);
+        // Et le dock ne porte plus l'icône Dofus : elle vit dans l'en-tête et le bandeau.
+        expect(readFileSync(DOCK, "utf8")).not.toMatch(/dofus\.imageUrl/);
+    });
+
+    it("la frise de stade est réservée au palier `wide` (hauteur utile en PiP)", () => {
+        expect(readFileSync(HEADER, "utf8")).toMatch(/\{level === "wide" && \(/);
+        // Le hero `normal` reprend un gabarit court : 112 px au lieu de 132.
+        expect(css).toMatch(/\.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*112px/);
+    });
+
+    it("les toasts de l'overlay suivent la DA (ni fond en dur, ni flou, ni ombre)", () => {
+        const src = readFileSync("src/components/rush/overlay-toast.tsx", "utf8");
+        expect(src).not.toMatch(/backdrop-blur/);
+        expect(src).not.toMatch(/#030712/);
+        expect(src).not.toMatch(/shadow-2xl/);
+        expect(src).toMatch(/className: "da-toast"/);
+        // La matière est dans la feuille de la DA, et le Toaster est monté SOUS la portée.
+        expect(css).toMatch(/\[data-sonner-toast\]\.da-toast\s*\{/);
+        expect(readFileSync(SHELL, "utf8")).toMatch(/<OverlayToaster \/>/);
     });
 });

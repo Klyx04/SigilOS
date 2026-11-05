@@ -351,6 +351,20 @@
   transform: rotate(45deg);
 }
 
+/* ── Toasts de l'overlay (Sonner) — les matières du reste de la fenêtre ──── */
+[data-sonner-toast].da-toast {
+  border: 1.5px solid var(--da-outline, #0f1410);
+  background: var(--da-panel, #1f2822);
+  color: var(--da-ink, #eceedf);
+  font: 600 11px var(--da-font-text, inherit);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-sonner-toast].da-toast [data-title] { font-size: 11px; line-height: 1.45; }
+
+.da-toast-desc { font-size: 10px; color: var(--da-muted, #a3afa1); }
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;
@@ -605,6 +619,10 @@
   margin-bottom: .75rem;
 }
 
+/* Pas de marge morte sous la dernière carte : elle laissait un vide en bas du
+   défilement dans une PiP courte (vu à l'écran le 05/11/2026). */
+.da-rail .da-row:last-child { margin-bottom: 0; }
+
 .da-node {
   position: relative;
   z-index: 1;
@@ -793,6 +811,13 @@
   cursor: pointer;
 }
 
+/* Le bouton du nœud n'est PAS le déclencheur : il ne doit jamais s'étirer
+   (`flex: 1` hérité créait un vide de 200 px entre le nœud et le titre). */
+.da-dock button.da-node-btn {
+  flex: none;
+  padding: .4rem .1rem .55rem .25rem;
+}
+
 .da-medal {
   display: grid;
   flex: none;
@@ -807,9 +832,11 @@
 .da-dock .da-dock-label {
   min-width: 0;
   /* Le titre du chapitre n'est JAMAIS tronqué (le « Ali… » d'E1d était une
-     régression) : il passe à la ligne. En graisse condensée 13 px, deux lignes
-     tiennent déjà dans une PiP de 420 px. */
-  overflow-wrap: break-word;
+     régression) : il passe à la ligne aux ESPACES, jamais au milieu d'un mot.
+     Casser les mots empilait une lettre par ligne dans une PiP de 250 px. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
   font: 700 13px/1.05 var(--da-font-title);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -861,9 +888,9 @@
   background: var(--da-field);
 }
 
-.da-hero[data-density="wide"] { min-height: 276px; }
-.da-hero[data-density="normal"] { min-height: 132px; }
-.da-hero[data-density="tight"] { min-height: 96px; }
+.da-hero[data-density="wide"] { min-height: min(276px, 30vh); }
+.da-hero[data-density="normal"] { min-height: 112px; }
+.da-hero[data-density="tight"] { min-height: 80px; }
 
 .da-hero-img {
   position: absolute;
@@ -952,7 +979,7 @@
 
 .da-kicker b { color: var(--da-acc-ink); }
 
-.da-logo { margin: .5rem 0 0; line-height: .9; text-transform: uppercase; }
+.da-logo { margin: .35rem 0 0; line-height: .9; text-transform: uppercase; }
 
 .da-logo .da-logo-a {
   display: block;
@@ -977,8 +1004,12 @@
 }
 
 .da-hero[data-density="tight"] .da-logo .da-logo-b { font-size: clamp(22px, 8vw, 30px); }
-.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 8.6vw, 38px); }
+.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 7.4vw, 32px); }
 .da-hero[data-density="wide"] .da-logo .da-logo-b { font-size: clamp(30px, 9vw, 56px); }
+
+/* Le surtitre `RUSH` est la signature du hero : il rétrécit avant de disparaître. */
+.da-hero[data-density="normal"] .da-logo .da-logo-a { font-size: 16px; letter-spacing: .34em; }
+.da-hero[data-density="tight"] .da-logo .da-logo-a { font-size: 13px; letter-spacing: .24em; }
 
 .da-logo .da-logo-b::after {
   content: "";
@@ -990,13 +1021,13 @@
   clip-path: polygon(0 30%, 6% 0, 100% 40%, 94% 100%, 0 80%);
 }
 
-.da-hero-bottom { margin-top: auto; padding-top: .6rem; }
+.da-hero-bottom { margin-top: auto; padding-top: .4rem; }
 
 .da-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: .4rem;
+  margin-bottom: .3rem;
   color: var(--da-ink);
   font: 600 12px var(--da-font-text);
   text-shadow: 0 1px 4px rgb(0 0 0 / .8);
@@ -1045,12 +1076,14 @@
   transform: rotate(45deg);
 }
 
-/* Frise des stades du Dofus : cinq losanges + le nom du stade atteint. */
+/* Frise des stades du Dofus : cinq losanges + le nom du stade atteint.
+   Réservée au palier `wide` (≥ 820 px de haut) : en `normal`, elle coûtait ~22 px
+   de hauteur utile pour une information que la jauge porte déjà. */
 .da-stage {
   display: inline-flex;
   align-items: center;
   gap: .55rem;
-  margin-top: .5rem;
+  margin-top: .35rem;
   color: var(--da-muted);
   font: 700 9.5px var(--da-font-text);
   letter-spacing: .2em;

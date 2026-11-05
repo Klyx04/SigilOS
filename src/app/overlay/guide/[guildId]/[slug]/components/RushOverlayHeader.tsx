@@ -201,8 +201,9 @@ export function RushOverlayHeader({
           </div>
 
           {/* Frise des stades du Dofus (maquette) : cinq losanges + le stade atteint.
-              Le texte porte l'information, les losanges la ponctuent — masquée en PiP. */}
-          {roomy && (
+              Palier `wide` UNIQUEMENT — en `normal` elle coûtait 22 px de hauteur
+              utile pour une information que la jauge porte déjà. */}
+          {level === "wide" && (
             <span className="da-stage">
               <span className="da-pips" aria-hidden="true">
                 {Array.from({ length: RUSH_DOFUS_STAGE_COUNT }, (_, index) => (

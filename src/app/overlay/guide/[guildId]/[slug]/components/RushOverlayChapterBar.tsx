@@ -28,8 +28,6 @@ interface RushOverlayChapterBarProps {
   onToggleChapter?: (ms: RushMilestone) => void;
   /** Bloc courant en cours d'écriture serveur : la case ne repart pas en double. */
   loading?: boolean;
-  /** Dofus visé par le chapitre courant : icône + pastille « obtenu ». */
-  dofus?: { imageUrl: string; label: string; done: boolean } | null;
 }
 
 /**
@@ -61,7 +59,6 @@ export function RushOverlayChapterBar({
   className,
   onToggleChapter,
   loading = false,
-  dofus = null,
 }: RushOverlayChapterBarProps) {
   const [open, setOpen] = useState(false);
   if (chapters.length === 0) return null;
@@ -112,7 +109,7 @@ export function RushOverlayChapterBar({
             aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
             title={msDone ? "Décocher tout le chapitre" : "Valider tout le chapitre"}
             className={cn(
-              "shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              "da-node-btn shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
               loading && "cursor-not-allowed opacity-50"
             )}
           >
@@ -144,31 +141,6 @@ export function RushOverlayChapterBar({
           <span className="da-dock-label min-w-0 flex-1 text-left">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
           </span>
-          {/* Dofus visé par le bloc courant (icône Dofus + pastille quand il est obtenu) */}
-          {dofus && (
-            <span className="relative flex shrink-0 items-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={dofus.imageUrl}
-                alt={dofus.label}
-                title={dofus.label}
-                className="h-5 w-5 object-contain"
-              />
-              {dofus.done && (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-success" />
-              )}
-            </span>
-          )}
-          {dofus?.done && (
-            <span
-              className={cn(
-                "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
-                "border-success/50 bg-success/10 text-success"
-              )}
-            >
-              Dofus obtenu
-            </span>
-          )}
           {showChapterCount && (
             <span
               className={cn(

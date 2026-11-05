@@ -57,12 +57,23 @@ export function OverlayToaster() {
       position="bottom-center"
       expand={false}
       closeButton={false}
-      visibleToasts={2}
+      visibleToasts={1}
+      offset={10}
+      gap={6}
       toastOptions={{
-        className:
-          "group font-sans border border-white/10 bg-[#030712]/95 text-white backdrop-blur-xl shadow-2xl",
-        style: { fontSize: "12px", borderRadius: "6px", padding: "8px 10px", maxWidth: "300px" },
-        descriptionClassName: "text-[10px] text-white/60",
+        // La matière des toasts vient de `da-wakfu.css` (`.da-toast`) : plus de
+        // plaque opaque en dur, plus de flou ni d'ombre diffuse — trois interdits
+        // de la DA, et un pavé noir pleine largeur dans une PiP de 250 px
+        // (mesure du 05/11/2026).
+        className: "da-toast",
+        style: {
+          fontSize: "11px",
+          lineHeight: 1.45,
+          borderRadius: "6px",
+          padding: "6px 9px",
+          maxWidth: "min(16rem, calc(100vw - 1.5rem))",
+        },
+        descriptionClassName: "da-toast-desc",
       }}
     />
   );

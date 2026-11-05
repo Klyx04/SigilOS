@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { useRushOverlayStore } from "@/store/rush-overlay-store";
 import GuideOverlayClient from "@/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient";
-import { OverlayToaster, OverlayToastProvider } from "@/components/rush/overlay-toast";
+import { OverlayToastProvider } from "@/components/rush/overlay-toast";
 
 /**
  * Héberge l'overlay Rush dans la fenêtre Document PiP (ou la popup de secours).
@@ -34,7 +34,8 @@ export function RushOverlayHost() {
         pinned={payload.pinned}
         ocre={payload.ocre ?? null}
       />
-      <OverlayToaster />
+      {/* Le Toaster vit désormais DANS `GuideOverlayClient`, sous la portée `data-da` :
+          il hérite ainsi des jetons de la DA (thème clair compris). */}
     </OverlayToastProvider>,
     win.document.body
   );

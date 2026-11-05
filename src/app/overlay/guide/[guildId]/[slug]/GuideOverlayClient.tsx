@@ -34,6 +34,7 @@ import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
 import { DaThemeProvider } from "@/components/da/da-theme";
+import { OverlayToaster } from "@/components/rush/overlay-toast";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -228,7 +229,7 @@ export default function GuideOverlayClient({
       const w = entry?.contentRect?.width ?? el.clientWidth;
       const h = entry?.contentRect?.height ?? el.clientHeight;
       setOverlaySmall(w < 580 || h < 640);
-      setOverlayDensity(h >= 820 ? "wide" : w < 580 || h < 640 ? "tight" : "normal");
+      setOverlayDensity(h >= 900 ? "wide" : w < 580 || h < 640 ? "tight" : "normal");
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -569,13 +570,18 @@ export default function GuideOverlayClient({
     return { missing: plan.progress.missing, percent: plan.progress.percent };
   }, [ocre, ocreEnabled]);
 
-  // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
-  const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
+  // Ressources du BLOC affiché : même agrégation, périmètre = le chapitre courant.
+  // C'est ce que le bouton « Ressources n/N » compte et ouvre — le guide entier
+  // (482 objets) ne disait rien de l'étape en cours (retour user 05/11/2026).
+  const chapterResources = useMemo(
+    () => (currentMs ? aggregateRushResources([currentMs]) : []),
+    [currentMs]
+  );
 
-  // Compteur du bouton « Ressources » : les ressources du guide déjà cochées.
+  // Compteur du bouton « Ressources » : les ressources du bloc déjà cochées.
   const resourcesChecked = useMemo(
-    () => allResources.filter((r) => resourceChecks.has(r.key)).length,
-    [allResources, resourceChecks]
+    () => chapterResources.filter((r) => resourceChecks.has(r.key)).length,
+    [chapterResources, resourceChecks]
   );
 
   // « Reprendre » : la prochaine quête à faire du chapitre affiché. On interroge la
@@ -689,10 +695,11 @@ export default function GuideOverlayClient({
     return all;
   }, [milestones, completedIds, completedStepsByMs]);
   // Mode « restantes » : on exclut les ressources des quêtes déjà cochées
-  // (décrément en direct selon l'avancement).
+  // (décrément en direct selon l'avancement). Périmètre = le bloc affiché, comme
+  // le bouton « Ressources n/N » (une seule vérité pour le compteur et la liste).
   const remainingResources = useMemo(
-    () => aggregateRushResources(milestones, gateAllCompleted),
-    [milestones, gateAllCompleted]
+    () => (currentMs ? aggregateRushResources([currentMs], gateAllCompleted) : []),
+    [currentMs, gateAllCompleted]
   );
 
 
@@ -1219,9 +1226,7 @@ export default function GuideOverlayClient({
     : null;
 
   // Le chapitre courant est-il validé ? (lu par la barre de chapitre via `completedIds`)
-  const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
   const currentMsTotal = currentMsSeqs.length;
-  const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
 
   // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
   // Deux sources, dans cet ordre :
@@ -1316,6 +1321,7 @@ export default function GuideOverlayClient({
           imageUrl={ms.imageUrl}
           accentColor={ms.accentColor}
           className="my-3"
+          collapsible
         >
           <RushRichText text={infoText} normalizeMeta />
         </RushInfoBanner>
@@ -1424,11 +1430,6 @@ export default function GuideOverlayClient({
             doneByMs={completedStepsByMs}
             onToggleChapter={handleToggleMs}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
-            dofus={
-              currentMsDofus
-                ? { imageUrl: currentMsDofus.imageUrl, label: currentMsDofus.label, done: dofusDone }
-                : null
-            }
           />
 
           {/* ══ RANGÉE D'ACTIONS ══
@@ -1438,7 +1439,7 @@ export default function GuideOverlayClient({
             onResume={scrollToNextQuest}
             onOpenResources={() => setShowResources(true)}
             checked={resourcesChecked}
-            total={allResources.length}
+            total={chapterResources.length}
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
@@ -1527,7 +1528,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main ref={listRef} className="flex-1 min-h-0 p-3 space-y-2 overlay-scroll">
+          <main ref={listRef} className="flex-1 min-h-0 px-3 pt-3 pb-2 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
@@ -1650,8 +1651,8 @@ export default function GuideOverlayClient({
       {showResources && (
         <RushOverlayResourcesModal
           resources={remainingResources}
-          allResources={allResources}
-          totalCount={allResources.length}
+          allResources={chapterResources}
+          totalCount={chapterResources.length}
           hideProvidedResources={hideCompleted}
           checkedKeys={resourceChecks}
           onToggleCheck={handleToggleResourceCheck}
@@ -1715,6 +1716,17 @@ export default function GuideOverlayClient({
         />
       )}
     </div>
+      {/* Toaster de l'overlay : monté SOUS la portée `data-da` pour hériter des
+          jetons (Sonner le positionne en `fixed`, mais ses variables viennent de
+          l'arbre : hors de cette portée, il retombait sur un noir en dur). */}
+      <div
+        data-da="wakfu"
+        data-theme={lightMode ? "light" : "dark"}
+        data-block={daBlock}
+        className="contents"
+      >
+        <OverlayToaster />
+      </div>
     </DaThemeProvider>
   );
 }

@@ -140,7 +140,7 @@ const codeOf = (path: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const ADMIN = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
+const ADMIN = codeOf("src/components/god/rush-editor/RushEditorStudio.tsx");
 const ACTIONS = codeOf("src/server/actions/optimized-guide-actions.ts");
 const SERVER = codeOf("src/server/rush-alignment.ts");
 

@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { nextSequenceOrder } from "@/lib/rush-move";
 
 const ACTIONS = readFileSync("src/server/actions/optimized-guide-actions.ts", "utf8");
-const ADMIN = readFileSync("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx", "utf8");
+const ADMIN = readFileSync("src/components/god/rush-editor/RushEditorStudio.tsx", "utf8");
 
 function functionOf(source: string, name: string): string {
     const start = source.indexOf(`export async function ${name}(`);
@@ -83,8 +83,10 @@ describe("studio — le bouton appelle l'action dédiée", () => {
     });
 
     it("le formulaire reçoit la liste complète des blocs (sinon le contrôle est masqué)", () => {
-        expect(ADMIN).toContain("milestones={allMilestones}");
-        expect(ADMIN).toContain("allMilestones={localMilestones}");
+        // E1 : le formulaire est monté par l'**inspecteur**, plus par la ligne de bloc.
+        // La garantie qui compte — il reçoit la liste **complète** des blocs, pas le seul
+        // bloc courant — reste vérifiée telle quelle.
+        expect(ADMIN).toContain("milestones={localMilestones}");
     });
 
     it("la sauvegarde ne porte plus de bloc cible (le déplacement a son action)", () => {

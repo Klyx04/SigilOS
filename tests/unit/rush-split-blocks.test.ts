@@ -14,7 +14,7 @@ import { RUSH_CLASS_QUESTS } from "@/lib/rush-class-quests";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 
 const ACTIONS = readFileSync("src/server/actions/optimized-guide-actions.ts", "utf8");
-const ADMIN = readFileSync("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx", "utf8");
+const ADMIN = readFileSync("src/components/god/rush-editor/RushEditorStudio.tsx", "utf8");
 
 function functionOf(source: string, name: string): string {
     const start = source.indexOf(`export async function ${name}(`);

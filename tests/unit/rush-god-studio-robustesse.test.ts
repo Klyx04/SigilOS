@@ -31,7 +31,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
 
-const ADMIN_PATH = "src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx";
+const ADMIN_PATH = "src/components/god/rush-editor/RushEditorStudio.tsx";
 const LAYOUT_PATH = "src/app/god/layout.tsx";
 const ACTIONS_PATH = "src/server/actions/optimized-guide-actions.ts";
 

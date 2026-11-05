@@ -140,7 +140,7 @@ describe("câblage T-2c", () => {
   });
 
   it("le studio God écrit l'id dans le tag `prereq_text`", () => {
-    const code = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
+    const code = codeOf("src/components/god/rush-editor/RushEditorStudio.tsx");
     expect(code).toMatch(
       /type:\s*"prereq_text"\s*as any,\s*id:\s*p\.id,\s*name:\s*p\.name/
     );

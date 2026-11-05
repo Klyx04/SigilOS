@@ -19,7 +19,7 @@ const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
 
 const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
-const GOD = "src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx";
+const GOD = "src/components/god/rush-editor/RushEditorStudio.tsx";
 
 describe("duplicateRushSequenceAsTwin — slot miroir", () => {
   const code = read(ACTIONS);

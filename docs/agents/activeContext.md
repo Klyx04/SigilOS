@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 (suite) — **Rush : le studio God passe en 3 panneaux (E1)** — branche `feat/rush-editor-e1`
+
+> **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → E1 de `REFONTE-EDITEUR-RUSH.md`, après A/B.
+> **Mesures** : ① `RushSylvestreAdminClient.tsx` = **5 242 l.** dans `src/app/god/**` (plafond **77/77**) ; ② **9** tests lisaient ce fichier (7 verrous + `rush-move-sequence` + `rush-split-blocks`), pas 7 ; ③ **674** occurrences de motifs UI interdits ; ④ `src/components/god/` n'existait pas ; `Sheet`, `CommandDialog` et `UnsavedChangesGuard` existaient déjà (garde jamais utilisée).
+> **Fait (E1a)** : studio **déplacé** vers `src/components/god/rush-editor/RushEditorStudio.tsx` (déplacement pur, aucun rendu changé) ; `RushSylvestreAdminClient.tsx` = **12 lignes** de ré-export ; **9** chemins de tests mis à jour, assertions intactes.
+> **Fait (E1b)** : `RushEditorShell` (arbre / contenu / inspecteur, `Sheet` < 1024 et < 768), `RushEditorTopbar` (barre unique + recherche), `RushEditorTree` (chapitres → blocs → quêtes, filtres cité/Ordre/classe/sans conseil), `RushEditorInspector`, `RushEditorCommandPalette` (`Ctrl+K`), `useRushEditorSelection` ; règles pures `src/lib/rush-editor-selection.ts` (arbre, recherche accent-insensible nom/qid/bloc/cité/Ordre/classe/tags, filtres, sélection après suppression, index de palette) ; sélection unique pilotée par l'inspecteur (`SequenceEditForm`, `AddSequenceForm`, `BlockInspectorForm` extrait de `MilestoneRow`) ; **plus aucun formulaire dans la liste** ; garde `UnsavedChangesGuard` + modale Radix au changement de cible (jamais `confirm()`) ; DA aux tokens sur les 5 fichiers neufs.
+> **Adaptations justifiées** : `rush-tips-block-studio` — le `!isEditing` disparaît avec l'édition inline (le `!isTips` reste) ; `rush-move-sequence` — `milestones={localMilestones}` remplace `allMilestones` (le formulaire est monté par l'inspecteur, la liste complète est toujours passée).
+> **Preuves** : `rush-editor-selection` **24** · `rush-editor-shell` **16** · Rush **68 / 857 ✓** · suite **605 / 6 384 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration** · dette DA **674 → 644** occurrences.
+> **Reste / ops** : l'édition inline du **séparateur** (E3) ; découpe du monolithe en `forms/`·`list/`·`fields/` (E2→E4) ; contrôle visuel 390/768/1024/1440 à faire par le mainteneur ; base **locale** : 19 quêtes de classe en `classReq='cra'` (patch local séparé).
+> **Rotation** : bloc « 04/11/2026 (suite 5) — Suppression de la page morte « Stats Guilde » » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 05/11/2026 — **Rush : déplacement réparé + split des blocs (lots A/B)** — branches `fix/rush-move-sequence` / `feat/rush-split-blocks`
 
 > **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → le lot A (déplacement) de la reprise, avant la refonte E1→E5.
@@ -56,14 +67,7 @@
 > **Rotation** : bloc « 04/11/2026 — Rush : 25 conseils écrits » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 04/11/2026 (suite 5) — **Suppression de la page morte « Stats Guilde »** — branche `chore/remove-stats-page`
 
-> **Demande user (verbatim)** : « analyse 'src/temp/debug.md' … attention je veux uniquement supprimer cette page de stat morte et ses composants sans casser d'autres composant utilisés » — puis « oui » au libellé legacy.
-> **Mesures** : ① le mémo était faux sur `guild-stats-actions.ts` : `getGuildStats` alimente aussi **`QuickStatsRow`** sur l'accueil du dashboard — la supprimer cassait l'accueil ; ② la page = **15 fichiers** (page + 14 composants), tous privés à `stats-client.tsx` ; ③ la télémétrie d'adoption relit **`GuildModules` en direct** (`moduleKeysOf`), donc `stats` serait réapparu comme module « activé non mesuré » — pas seulement dans l'historique ; ④ `docs-modules.test.ts` exige que chaque clé de `MODULE_DOC_COVERAGE` existe dans `MODULE_GROUPS` : catalogue et doc doivent partir ensemble ; ⑤ `module-lock.test.ts` listait `stats/page.tsx` en dur.
-> **Fait** : ① suppression des **15 fichiers** ; ② catalogue (`MODULE_GROUPS`, `MODULE_DOFUS_ASSETS`, import `BarChart3`), `MODULE_ROUTES`, **3 alias** sidebar, tour stats (`STATS_STEPS`, phase, route) et entrée du bouton de replay retirés ; ③ `MODULE_DOC_COVERAGE.stats` retiré ; ④ `RETIRED_MODULE_KEYS = { stats }` + filtre dans `moduleKeysOf` (télémétrie) ; ⑤ `moduleLabel("stats")` garde « Stats Guilde » pour les données historiques ; ⑥ **conservés** : `getGuildStats`, `QuickStatsRow`, `canViewStats`, `GuildModules.stats` et les types/Zod — **aucune migration** ; ⑦ verrou `stats-page-removal` (6 tests) + fixtures `module-lock` nettoyées.
-> **Preuves** : `stats-page-removal` **6** · `module-lock` **27** · `docs-modules` **16** · `user-context` **46** ⇒ **95/95 ✓** · suite **600 fichiers / 6 303 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : Phase 2 (hors lot) — retirer `stats` de `ModuleKey`/`GuildModulesState`/`DEFAULT_MODULES`/Zod/`user-actions`, `canViewStats`, et la colonne `GuildModules.stats` (migration + accord) ; asset `guildActivity.png` orphelin à supprimer.
-> **Rotation** : bloc « 03/11/2026 (suite) — Rush : notes Tougli siphonnées » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

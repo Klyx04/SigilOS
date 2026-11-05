@@ -26,7 +26,7 @@ const codeOf = (p: string) =>
 
 const PAGE = codeOf("src/app/guides/rush-sylvestre/page.tsx");
 const GOD_PAGE = codeOf("src/app/god/rush-sylvestre/page.tsx");
-const GOD_CLIENT = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
+const GOD_CLIENT = codeOf("src/components/god/rush-editor/RushEditorStudio.tsx");
 const ACTIONS = codeOf("src/server/actions/optimized-guide-actions.ts");
 /** Surfaces MEMBRES : elles lisent le drapeau interne, jamais celui de la page publique. */
 const RUSH_TIMELINE = codeOf("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx");

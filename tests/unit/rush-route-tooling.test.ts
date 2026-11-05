@@ -15,7 +15,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
-const ADMIN_PATH = "src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx";
+const ADMIN_PATH = "src/components/god/rush-editor/RushEditorStudio.tsx";
 const PAGE_PATH = "src/app/god/rush-sylvestre/page.tsx";
 const ACTIONS_PATH = "src/server/actions/optimized-guide-actions.ts";
 const BRANCHES_PATH = "src/lib/rush-branches.ts";

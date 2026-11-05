@@ -10,6 +10,7 @@ import { logger } from "@/lib/logger";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
 import { isStandByActive, standByButtonLabel, standByEmbedLine } from "@/lib/group-standby";
+import { isRunOpen, runInteractionRefusal, runJoinRefusal } from "@/lib/songes/run-status";
 
 // ============================================
 // CONSTANTS
@@ -623,8 +624,10 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
             return { success: false, error: "Tu es le leader de cette run !" };
         }
 
-        if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
-            return { success: false, error: "Cette run n'accepte plus de candidatures" };
+        if (!isRunOpen(run.status)) {
+            // Refus **par cause** (archivée / terminée / échouée) : une seule formulation,
+            // partagée avec le dashboard et le bouton Discord (`src/lib/songes/run-status.ts`).
+            return { success: false, error: runJoinRefusal(run.status) };
         }
 
         // Already a member?
@@ -737,8 +740,8 @@ export async function updateRunCandidateClass(
             include: { members: { select: { userId: true } } },
         });
         if (!run) return { success: false, error: "Run non trouvée" };
-        if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
-            return { success: false, error: "Cette run n'accepte plus de candidatures" };
+        if (!isRunOpen(run.status)) {
+            return { success: false, error: runJoinRefusal(run.status) };
         }
         // Classe choisie : validée contre le roster du clic (main + mules) — vaut pour le
         // meneur comme pour un candidat. Fail-closed : jamais une classe non possédée.
@@ -832,6 +835,15 @@ export async function processRunLeave(guildId: string, runId: string, userId: st
         });
 
         if (!run) return { success: false, error: "Run non trouvée" };
+
+        // Une run close (archive automatique, clôture, meneur parti) n'accepte plus
+        // d'interaction : on refuse AVANT de retirer un membre ou d'écrire quoi que ce soit.
+        if (!isRunOpen(run.status)) {
+            return {
+                success: false,
+                error: runInteractionRefusal(run.status) ?? "Cette run n'accepte plus d'interactions.",
+            };
+        }
 
         // Cannot leave if you're the leader
         if (run.leaderId === userId) {

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { RushQuestFilter } from "@/lib/rush-quest-filter";
+import type { RushQuestCounts, RushQuestFilter } from "@/lib/rush-quest-filter";
 
 /**
  * Filtre segmenté de la liste des quêtes — DA « Carnet de campagne ».
@@ -13,15 +13,19 @@ import type { RushQuestFilter } from "@/lib/rush-quest-filter";
 const OPTIONS: Array<{ value: RushQuestFilter; label: string }> = [
   { value: "all", label: "Toutes" },
   { value: "active", label: "En cours" },
+  { value: "done", label: "Faites" },
   { value: "locked", label: "Verrouillées" },
 ];
 
 export function RushOverlayQuestFilter({
   value,
   onChange,
+  counts,
 }: {
   value: RushQuestFilter;
   onChange: (value: RushQuestFilter) => void;
+  /** Compteurs par filtre (règle pure `countRushQuests`). Absent ⇒ pas de compteur. */
+  counts?: RushQuestCounts;
 }) {
   return (
     <div
@@ -40,6 +44,7 @@ export function RushOverlayQuestFilter({
             className="flex h-7 flex-1 cursor-pointer items-center justify-center text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors motion-reduce:transition-none"
           >
             {option.label}
+            {counts ? <b>{counts[option.value]}</b> : null}
           </button>
         );
       })}

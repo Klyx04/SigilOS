@@ -33,7 +33,7 @@ import {
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
-import { matchesRushQuestFilter, type RushQuestFilter } from "@/lib/rush-quest-filter";
+import { countRushQuests, matchesRushQuestFilter, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -1180,6 +1180,18 @@ export default function GuideOverlayClient({
   }, [milestones, currentMs]);
   const daBlock = daTheme.block;
 
+  // Compteurs des filtres — même source que la liste filtrée, même règle pure
+  // (`countRushQuests`) : les encarts info ne sont pas des quêtes et ne comptent pas.
+  const daCounts: RushQuestCounts = useMemo(
+    () =>
+      countRushQuests(
+        currentMsSeqs
+          .filter((s) => !isInfoSequence(s))
+          .map((s) => ({ isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked }))
+      ),
+    [currentMsSeqs, currentMsDoneSeqs, getSeqGate]
+  );
+
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
     if (!currentMs) return undefined;
@@ -1335,7 +1347,7 @@ export default function GuideOverlayClient({
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
-          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} />
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} />
 
           {/* Bandeau du bloc courant + écriteau — signature de la DA. Il annonce la
               partie du guide (image posée par le God dans `imageUrl`, repli dégradé)

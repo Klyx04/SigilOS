@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
+import { countRushQuests, matchesRushQuestFilter } from "@/lib/rush-quest-filter";
 
 /**
  * Garde de la DA « Gouache Wakfu » (`src/app/da-wakfu.css`).
@@ -203,5 +204,27 @@ describe("DA Gouache Wakfu — harnais", () => {
         expect(body).toMatch(/description: .{40,}/);
         // La règle demandée par le mainteneur : habillage, jamais déplacement.
         expect(body).toMatch(/Habillage seul/);
+    });
+});
+
+describe("DA Gouache Wakfu — compteurs de filtre", () => {
+    // Règle pure `countRushQuests` : une seule passe, une seule vérité.
+    // Une quête terminée n'est JAMAIS comptée « verrouillée », même si l'entrée
+    // est incohérente (même règle que `matchesRushQuestFilter`).
+    it("compte chaque état une fois et le total à part", () => {
+        const counts = countRushQuests([
+            { isDone: true, isLocked: false },
+            { isDone: true, isLocked: true },
+            { isDone: false, isLocked: true },
+            { isDone: false, isLocked: false },
+            { isDone: false, isLocked: false },
+        ]);
+        expect(counts).toEqual({ all: 5, done: 2, locked: 1, active: 2 });
+    });
+
+    it("un filtre « Faites » ne rend que les quêtes terminées", () => {
+        expect(matchesRushQuestFilter({ isDone: true, isLocked: false }, "done")).toBe(true);
+        expect(matchesRushQuestFilter({ isDone: false, isLocked: false }, "done")).toBe(false);
+        expect(matchesRushQuestFilter({ isDone: false, isLocked: true }, "done")).toBe(false);
     });
 });

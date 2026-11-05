@@ -47,7 +47,14 @@ describe("Prérequis — le public refuse EXACTEMENT ce que l'interne refuse", (
   });
 
   it("la quête verrouillée se dit : carte danger, case inerte, prérequis nommés", () => {
-    expect(PUB).toMatch(/border-danger\/30 bg-danger\/\[0\.05\]/);
+    // E2 (05/11/2026) : l'état n'est plus une classe Tailwind posée à la main, c'est
+    // un ATTRIBUT peint par la DA (`da-row[data-state="locked"]` : filet pointillé,
+    // carte à 78 %) — même information, une seule source de vérité visuelle.
+    expect(PUB).toMatch(/data-state=\{daState\}/);
+    expect(PUB).toMatch(/className="da-row"/);
+    expect(codeOf("src/app/da-wakfu.css")).toMatch(
+      /\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.78/
+    );
     expect(PUB).toMatch(/disabled=\{stepLocked\}/);
     expect(PUB).toMatch(/getPrereqRefs\(seq, milestones\)/);
     expect(PUB).toMatch(/À terminer avant :/);

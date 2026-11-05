@@ -35,6 +35,7 @@ import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import { useDaRail } from "@/components/da/use-da-rail";
 import { OverlayToaster } from "@/components/rush/overlay-toast";
 import { safeImageUrl } from "@/lib/security";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
@@ -218,8 +219,9 @@ export default function GuideOverlayClient({
   // Liste des quêtes : cible du bouton « Reprendre » (on ne cherche JAMAIS dans
   // toute la fenêtre — le nœud du dock porte lui aussi un `data-state`).
   const listRef = useRef<HTMLElement | null>(null);
-  // Fil de sève : la longueur du fil est posée en style (`--da-grow`), mesurée.
-  const railRef = useRef<HTMLDivElement | null>(null);
+  // Fil de sève : la longueur du fil est mesurée par la règle PARTAGÉE
+  // (`useDaRail`, `src/components/da/use-da-rail.ts`) — le guide plein écran
+  // applique exactement la même, ce n'est pas une copie.
   const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
   // Palier de densité de l'en-tête : `wide` dès 820 px de haut (hero 276 px + pips
   // de stade), `tight` en fenêtre de jeu, `normal` entre les deux.
@@ -1175,32 +1177,14 @@ export default function GuideOverlayClient({
   );
 
   // ─── Fil de sève ────────────────────────────────────────────────────────────
-  // La maquette arrête le fil à la première quête non validée (`growRails()`) :
-  // hauteur du nœud + 26 px. On mesure AVANT la peinture (`useLayoutEffect`, avec
-  // le repli SSR) pour qu'aucun saut ne soit visible, puis on ré-observe le rail :
-  // un filtre, un repli de chapitre ou un redimensionnement de la PiP le remesure.
-  const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
-  useIsomorphicLayoutEffect(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    const grow = () => {
-      const rows = rail.querySelectorAll<HTMLElement>("[data-state]");
-      const target =
-        rail.querySelector<HTMLElement>('[data-state="next"]') ??
-        rail.querySelector<HTMLElement>('[data-state="todo"]');
-      // Tout validé ⇒ le fil va jusqu'au bout, à 48 px du bas.
-      const height = target
-        ? target.offsetTop + 26
-        : rows.length > 0
-          ? rail.clientHeight - 48
-          : 0;
-      rail.style.setProperty("--da-grow", `${Math.max(0, height - 20)}px`);
-    };
-    grow();
-    const ro = new ResizeObserver(grow);
-    ro.observe(rail);
-    return () => ro.disconnect();
-  }, [visibleSequences, currentMs?.id, overlaySmall, overlayDensity]);
+  // Règle partagée : `useDaRail` mesure `--da-grow` (offsetTop + 26 de la première
+  // quête ni validée ni verrouillée ; tout validé ⇒ clientHeight − 48).
+  const railRef = useDaRail([
+    visibleSequences,
+    currentMs?.id,
+    overlaySmall,
+    overlayDensity,
+  ]);
 
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.

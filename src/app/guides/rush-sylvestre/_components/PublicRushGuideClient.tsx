@@ -96,6 +96,7 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 // Sommaire au langage du dock — composant PARTAGÉ (public en E2, interne en E4).
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import { DaRail } from "@/components/da/da-rail";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -1638,7 +1639,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                 // `p-4 sm:p-6` ⇒ les blocs d'étapes étaient **insetés de 16 à 24 px** de chaque côté
                 // par rapport au panneau du chapitre. On ne garde que l'espace VERTICAL : les blocs
                 // d'étapes épousent désormais exactement la largeur du bloc chapitre.
-                <div className="py-4 sm:py-5 space-y-5">
+                <DaRail className="py-4 sm:py-5 space-y-5">
                   {questBlocks.length === 0 ? (
                     <p className="py-4 text-xs italic text-muted-foreground">
                       Aucune étape correspondante.
@@ -1659,13 +1660,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                       <div
                         key={`${block.questRef}-${blockIdx}`}
                         className={cn(
-                          "reg-panel overflow-hidden transition-colors bg-background",
+                          // DA : le panneau de quête n'est plus une BOÎTE (pas de boîte dans
+                          // la boîte) — c'est `.da-card`, portée par chaque étape, qui dessine
+                          // le cadre. Le bloc ne garde qu'un en-tête de quête et son fil.
+                          // `relative z-[1]` : sans position, ce bloc passait DERRIÈRE le fil de
+                          // sève (pseudo-élément positionné du rail) — le fil traversait le texte.
+                          "relative z-[1] transition-colors",
                           block.isDone && "opacity-70"
                         )}
                       >
                         {/* ── EN-TÊTE DU BLOC DE QUÊTE (multi-étapes uniquement) ── */}
                         {hasSteps && !isSingleStep && (
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:px-4 bg-surface border-b border-border">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border px-1 py-2.5">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {questDofusImg ? (
                               <img
@@ -1735,8 +1741,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                         </div>
                         )}
 
-                        {/* ── ÉTAPES DE LA QUÊTE ── */}
-                        <div className={blockItems.length > 1 ? "p-2 sm:p-3 space-y-2.5" : "p-2 sm:p-3"}>
+                        {/* ── ÉTAPES DE LA QUÊTE ──
+                            Le fil de sève est porté par le chapitre entier (un seul rail) :
+                            ici on ne garde que la liste, sans padding horizontal, pour que les
+                            nœuds soient alignés sur le tracé. */}
+                        <div className={blockItems.length > 1 ? "py-2 pr-2 sm:py-3 sm:pr-3 space-y-2.5" : "py-2 pr-2 sm:py-3 sm:pr-3"}>
                           {blockItems.map((seq) => {
                             const stepDone = doneSteps.has(seq.id);
                             // Verrou de prérequis (même règle que le guide interne) : la case
@@ -1812,53 +1821,54 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                               );
                             }
 
+                            // DA « Gouache Wakfu » : l'état de la quête est un ATTRIBUT, peint
+                            // par `da-wakfu.css` (`done` / `locked` / `next` / `todo`). Le nœud
+                            // sort de la carte, comme dans l'overlay — même grammaire, mêmes
+                            // couleurs, même filet teinté par le bloc.
+                            const daState = stepDone
+                              ? "done"
+                              : stepLocked
+                                ? "locked"
+                                : activeObjective?.id === seq.id && activeObjective?.blockId === ms.id
+                                  ? "next"
+                                  : "todo";
                             return (
                               <div
                                 key={seq.id}
                                 data-seq-id={seq.id}
-                                className={cn(
-                                  "group flex flex-col gap-2 rounded-[4px] border p-3 transition-colors",
-                                  // Trois états, trois couleurs (règle partagée avec l'interne) :
-                                  // validée = neutre atténué · VERROUILLÉE = danger · REPÈRE = ambre.
-                                  stepDone
-                                    ? "border-border bg-surface opacity-65"
-                                    : stepLocked
-                                    ? "border-danger/30 bg-danger/[0.05]"
-                                    : isBookmarked
-                                    ? "border-warning/40 bg-warning/10"
-                                    : "border-border bg-elevated hover:bg-surface"
-                                )}
+                                className="da-row"
+                                data-state={daState}
                               >
-                                {/* Ligne principale de l'étape */}
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                  {/* Checkbox & Titre */}
-                                  <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleStep(ms.id, seq.id)}
-                                      disabled={stepLocked}
-                                      aria-label={stepDone ? "Décocher" : stepLocked ? "Quête verrouillée" : "Valider cette étape"}
-                                      title={
-                                        prereqLocked
-                                          ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne."
-                                          : dungeonLocked
-                                            ? "Donjon requis non fait — coche-le sur la pastille Donjon de cette quête."
-                                            : undefined
-                                      }
-                                      className={cn(
-                                        "w-5 h-5 rounded-[3px] border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-colors",
-                                        stepLocked ? "border-danger/40 text-danger cursor-not-allowed" : "cursor-pointer",
-                                        stepDone
-                                          ? "border-success/70 text-success"
-                                          : stepLocked
-                                          ? ""
-                                          : "border-border hover:border-success"
-                                      )}
-                                    >
-                                      {stepDone && <Check className="w-3.5 h-3.5 stroke-[2]" />}
-                                      {stepLocked && <Lock className="w-3 h-3 stroke-[2]" aria-hidden="true" />}
-                                    </button>
+                                {/* Le NŒUD est le bouton de coche lui-même : même handler, même
+                                    `aria-label`, même garde `stepLocked`. Seul son habillage change. */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStep(ms.id, seq.id)}
+                                  disabled={stepLocked}
+                                  aria-label={stepDone ? "Décocher" : stepLocked ? "Quête verrouillée" : "Valider cette étape"}
+                                  title={
+                                    prereqLocked
+                                      ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne."
+                                      : dungeonLocked
+                                        ? "Donjon requis non fait — coche-le sur la pastille Donjon de cette quête."
+                                        : undefined
+                                  }
+                                  className="da-node"
+                                >
+                                  {stepDone && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+                                  {stepLocked && <Lock className="h-3 w-3 stroke-[2]" aria-hidden="true" />}
+                                </button>
 
+                                <div className="da-card">
+                                {/* Colonne : `.da-card` est un flex HORIZONTAL (une seule ligne
+                                    dans l'overlay). Le guide y empile plusieurs blocs (ligne,
+                                    verrou, conseils, ressources) : sans ce wrapper ils se
+                                    posaient côte à côte et se recouvraient (mesure du 05/11). */}
+                                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                {/* Ligne principale de l'étape */}
+                                <div className="flex min-w-0 flex-1 flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                  {/* Titre et indicateurs */}
+                                  <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2 flex-wrap">
                                         {activeObjective?.id === seq.id && activeObjective?.blockId === ms.id && !stepDone && (
@@ -1877,7 +1887,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                                           <>
                                             {(() => {
                                               const primaryUrl = (seq as any).dofuspourlesnoobsUrl || (seq as any).dofusdbUrl || block.dofuspourlesnoobsUrl || block.dofusdbUrl || null;
-                                              const cls = "text-[13px] font-semibold leading-snug break-words min-w-0";
+                                              // `min-w` : dans un `flex-wrap` bourré de chips `shrink-0`, le nom
+                                              // est le SEUL élément compressible — il s'écrasait à un caractère par
+                                              // ligne (mesure du 05/11/2026). Une base de 12 rem force les chips à
+                                              // passer à la ligne suivante, jamais à manger le titre.
+                                              const cls = "text-[13px] font-semibold leading-snug break-words min-w-[12rem] flex-1";
                                               if (primaryUrl) {
                                                 return (
                                                   <a
@@ -2202,6 +2216,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                                     />
                                   </div>
                                 )}
+                                </div>{/* colonne interne */}
+                                </div>{/* da-card */}
                               </div>
                             );
                           })}
@@ -2210,7 +2226,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
                     );
                   })
                 )}
-                </div>
+                </DaRail>
               )}
             </div>
           );

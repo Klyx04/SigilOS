@@ -154,7 +154,10 @@ describe("largeur des blocs d'étapes = largeur du bloc chapitre", () => {
         // Après correctif, mesuré à nouveau : chapitre 160→936 (776 px) **et** blocs d'étapes
         // 160→936 (776 px) ⇒ identiques.
         expect(GUIDE_RAW).toMatch(/retour user : « je veux la même largeur pour les quêtes déroulées/);
-        expect(GUIDE).toMatch(/<div className="py-4 sm:py-5 space-y-5">/);
+        // E2 (05/11/2026) : le conteneur des blocs est devenu la portée du FIL DE SÈVE
+        // (`DaRail`, un seul fil par chapitre). La mesure tient toujours : les blocs
+        // d'étapes épousent la largeur du bloc chapitre, sans inset horizontal.
+        expect(GUIDE).toMatch(/<DaRail className="py-4 sm:py-5 space-y-5">/);
         expect(GUIDE).not.toMatch(/<div className="p-4 sm:p-6 space-y-5">/);
     });
 });

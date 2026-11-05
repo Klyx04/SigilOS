@@ -314,12 +314,18 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
 
     it("le fil de sève est monté et sa longueur est MESURÉE", () => {
         const shell = readFileSync(SHELL, "utf8");
+        const hook = readFileSync("src/components/da/use-da-rail.ts", "utf8");
+        // E2 (05/11/2026) : la mesure a quitté le shell pour la règle PARTAGÉE
+        // `useDaRail` — overlay ET guide plein écran l'appellent, ce n'est pas une copie.
         expect(shell).toMatch(/className="da-rail" ref=\{railRef\}/);
+        expect(shell).toMatch(/useDaRail\(/);
         // La longueur n'est pas devinée : elle est posée en style, sur la première
         // quête ni validée ni verrouillée (+ 26 px, règle `growRails()`).
-        expect(shell).toMatch(/setProperty\("--da-grow"/);
-        expect(shell).toMatch(/\[data-state="next"\]/);
+        expect(hook).toMatch(/setProperty\("--da-grow"/);
+        expect(hook).toMatch(/\[data-state="next"\]/);
         expect(css).toMatch(/height:\s*var\(--da-grow/);
+        // Le guide monte le même rail, une fois par liste de quêtes.
+        expect(readFileSync("src/components/da/da-rail.tsx", "utf8")).toMatch(/useDaRail\(/);
     });
 
     it("le thème n'est plus passé en prop : `data-theme` + un contexte pour les portails", () => {

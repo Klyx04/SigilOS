@@ -2379,8 +2379,13 @@ const timelineItems=useMemo(()=>{
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    {/* ── Barre d'actions ────────────────────────────────────────────────── */}
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky top-20 z-[var(--z-sticky-hud)] flex-wrap">
+    {/* ── Barre d'actions ──────────────────────────────────────────────────
+        ⚠️ NON collante (mesure du 05/11/2026, retour user « pk la barre de
+        recherche descend avec le scrol c moche ») : elle était `sticky top-20`,
+        soit le MÊME offset que le sommaire (`.da-guide-nav`, 5 rem) — les deux
+        se recouvraient au défilement. La barre défile donc avec la page ; seul
+        le sommaire reste affiché (c'est lui qui porte le repère de lecture). */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
       <div className="relative flex-1 min-w-0 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input

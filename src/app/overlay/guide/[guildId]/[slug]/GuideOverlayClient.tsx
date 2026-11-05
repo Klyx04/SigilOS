@@ -1329,6 +1329,41 @@ export default function GuideOverlayClient({
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
           <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} />
 
+          {/* Bandeau du bloc courant + écriteau — signature de la DA. Il annonce la
+              partie du guide (image posée par le God dans `imageUrl`, repli dégradé)
+              et son avancement en planches. Masqué si le bloc n'a aucune étape. */}
+          {currentMs && currentMsTotal > 0 ? (
+            <div className="px-3 pt-3">
+              <div
+                className="da-banner"
+                data-block={daBlock}
+                style={
+                  currentMs.imageUrl
+                    ? { backgroundImage: `url("${currentMs.imageUrl}")` }
+                    : undefined
+                }
+              >
+                <div className="da-banner-text">
+                  <div>
+                    <h2>{currentMs.title || "Bloc en cours"}</h2>
+                    {currentMs.subtitle ? <small>{currentMs.subtitle}</small> : null}
+                  </div>
+                  <div
+                    className="da-plank"
+                    role="img"
+                    aria-label={`${currentMsDoneCount} étapes validées sur ${currentMsTotal}`}
+                  >
+                    <i />
+                    <b />
+                    <span>
+                      {currentMsDoneCount}/{currentMsTotal}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
 
 
           {/* L'objectif courant (« À FAIRE MAINTENANT ») a été retiré : la liste des quêtes

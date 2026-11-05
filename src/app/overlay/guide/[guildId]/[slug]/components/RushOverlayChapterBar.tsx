@@ -93,11 +93,7 @@ export function RushOverlayChapterBar({
   return (
     <nav
       aria-label="Chapitres du guide"
-      className={cn(
-        "relative shrink-0 px-3 py-2.5 border-b z-30",
-        "border-border-strong bg-surface",
-        className
-      )}
+      className={cn("da-dock", className)}
     >
       <div className="flex items-center gap-2">
         {/* Case à cocher « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais

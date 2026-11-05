@@ -615,7 +615,7 @@
 .da-dock {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 30;
   display: flex;
   gap: .4rem;
   padding: .5rem .75rem 0;
@@ -700,9 +700,18 @@
 .da-hero-img {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background-size: cover;
   background-position: center 38%;
   transition: opacity .9s;
+}
+
+/* Le voile de lisibilité est un `::after` : sans cette règle il passerait
+   AU-DESSUS du texte. Les enfants de l'en-tête remontent donc au-dessus des
+   deux couches (image + voile) — aucune structure JSX ajoutée. */
+.da-hero > *:not(.da-hero-img) {
+  position: relative;
+  z-index: 2;
 }
 
 /* Repli sans image : dégradés du bloc (aucune illustration Ankama requise). */
@@ -784,9 +793,12 @@
 .da-logo .da-logo-b {
   display: block;
   margin-top: 2px;
+  overflow: hidden;
   color: var(--da-acc-ink);
   font: 700 56px var(--da-font-title);
   letter-spacing: .015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-shadow: 0 3px 0 var(--da-outline), 0 8px 18px rgb(0 0 0 / .53);
 }
 

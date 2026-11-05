@@ -72,7 +72,9 @@ describe("overlay — le mode compact est supprimé (retour user 07/10/2026)", (
     it("la pile d'en-tête respire (recherche, UNE barre de chapitre)", () => {
         // Renfort visuel verrouillé pour éviter un retour en arrière silencieux.
         expect(codeOf(SEARCH)).toContain("mx-3 mt-3 mb-2.5");
-        expect(codeOf(TREE)).toContain("px-3 py-2.5 border-b");
+        // DA « Gouache Wakfu » : la barre de blocs est le dock de la maquette
+        // (`sticky`, bord bas, médaillon) — même rôle, même place.
+        expect(codeOf(TREE)).toContain("da-dock");
         // Depuis le 08/10/2026, l'overlay n'a PLUS de 2ᵉ barre « chapitre courant » empilée
         // (les trois blocs qui coûtaient ~120 px sont fusionnés dans `RushOverlayChapterBar`) :
         // cette classe-là ne doit pas revenir dans le client.

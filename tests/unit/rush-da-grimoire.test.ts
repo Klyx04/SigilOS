@@ -30,8 +30,11 @@ const SLOP = /bg-gradient|backdrop-blur|\bshadow-2xl\b|drop-shadow|\bfont-black\
 describe("DA « Grimoire Sylvestre » — en-tête", () => {
     it("le titre est un serif d'or souligné d'un filet, pas un `font-black`", () => {
         const src = codeOf(HEADER);
-        expect(src).toMatch(/<h1 className="[^"]*font-serif/);
-        expect(src).toMatch(/className="mt-1 block h-px w-10 bg-gold\/70"/);
+        // DA « Gouache Wakfu » : le titre se scinde comme la maquette —
+        // premier mot en surtitre espacé, le reste en grand condensé.
+        expect(src).toMatch(/<h1 className="da-logo">/);
+        expect(src).toMatch(/className="da-logo-a"/);
+        expect(src).toMatch(/className="da-logo-b"/);
     });
 
     it("aucun slop : ni dégradé, ni verre, ni ombre diffuse, ni `font-black`", () => {
@@ -49,7 +52,9 @@ describe("DA « Grimoire Sylvestre » — en-tête", () => {
 describe("DA « Grimoire Sylvestre » — barre de chapitre", () => {
     it("les jetons de thème remplacent les couleurs codées en dur", () => {
         const src = codeOf(CHAPTER);
-        expect(src).toMatch(/border-border-strong bg-surface/);
+        // DA « Gouache Wakfu » : la barre de chapitre est le dock de la maquette
+        // — sa matière vient de `.da-dock`, donc d'un jeton, jamais d'un hex.
+        expect(src).toContain("da-dock");
         expect(src).not.toMatch(/bg-\[#0d1014\]|bg-\[#181c22\]|bg-\[#161b21\]/);
     });
 

@@ -1292,6 +1292,7 @@ export default function GuideOverlayClient({
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
+            block={daBlock}
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}

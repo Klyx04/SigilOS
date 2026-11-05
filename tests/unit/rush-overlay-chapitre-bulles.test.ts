@@ -43,7 +43,8 @@ describe("overlay — changer de chapitre à tout moment (sélecteur partagé un
     expect(tree).not.toMatch(/variant/);
     expect(tree).not.toMatch(/isInline/);
     // Une seule barre : c'est le seul rendu (chrome + liste déroulante + jauge fusionnés).
-    expect(tree).toMatch(/"relative shrink-0 px-3 py-2.5 border-b z-30"/);
+    // Depuis la DA « Gouache Wakfu », elle porte la classe du dock de la maquette.
+    expect(tree).toMatch(/className=\{cn\("da-dock", className\)\}/);
     expect(tree).toMatch(/const showProgress = !!activeMs && total > 0;/);
   });
 

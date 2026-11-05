@@ -6,7 +6,19 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 (suite 7) — **DA « Gouache Wakfu » : le guide interne passe à la DA (E3)** — branches `fix/da-fil-seve-mesure`, `feat/da-wakfu-e3-socle`, `feat/da-wakfu-e3-cartes`
+
+> **Demande user (verbatim)** : « visuellement les guides internes externe et les overlay public / interne doivent etre identique coté DA techno etc, sauf toutes les brique interne à la guilde » — puis « enchaine », captures 390 / 1 440 à l'appui.
+> **Mesures (capture Playwright, 390 et 1 440 px)** : coque 1 360, grille **260 / 736 / 300** à 1 440, sommaire en bande sous 900 (`overflow-x: auto`), **18 `.da-row`** (`next` 1 · `todo` 12 · `locked` 5), **0 px** de débordement horizontal. ① `--da-grow` valait **18 px constants** : `useDaRail` lisait `offsetTop`, or chaque quête du guide public est enveloppée dans son propre `div.relative` ⇒ 12 px pour les 18 lignes, positions réelles de 32 à 2 666 px ; ② côté interne, le sommaire collant laissait passer le contenu derrière lui (recherche et « Options » lisibles au travers) ; ③ `.rush-content-grid` et son `<style>` faisaient doublon avec la grille de la DA.
+> **Fait** : **#1271** = règle pure `src/lib/da-rail-geometrie.ts` (20/26/48 px nommés) + mesure par `getBoundingClientRect` (fil 18 → **38 px** à 1 440, **30 px** à 390) · **#1272** = portée `data-da`/`theme`/`block`/`quality` + `resolveRushDaTheme`, `.da-guide-grid` partagée, `RushChapterNav` à gauche, `hideChapters` sur le rail, un seul `sticky` (`.da-guide-aside`) · **#1273** = `SequenceRow` en `da-row[data-state]` + **nœud hors carte** (le nœud EST le bouton de coche), carte verrouillée `data-state="locked"` (fin du cadre rouge), repère en `data-here`, un `DaRail` par bloc, fond opaque du sommaire, `RushSeparatorBanner surface="page"`.
+> **Écart assumé** : `.da-guide` n'est pas posée sur la coque interne — son `padding-inline` doublerait les gouttières du dashboard ; les jetons passent par `[data-da].rush-guide`. Sous 900 px la colonne du module n'est plus masquée (parité public).
+> **Preuves** : suite **6 469 ✓ / 613 fichiers** · `tsc` 0 · ESLint 0 erreur · **6 verrous réécrits** (`da-wakfu` ×3, `rush-guide-rail-bloquee` ×2, `rush-public-parity`, `rush-quest-state-colors`), **aucun supprimé** · aucune migration.
+> **Reste** : **E4** (passation dashboard, écran par écran) · à trancher : à 1 440 le panneau de contrôle du guide public est trop étroit pour sa rangée `xl:flex-row` (progression sur 4 lignes devant 4 boutons).
+> **Rotation** : bloc « 04/11/2026 — Rush : le studio God passe en 3 panneaux (E1) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 05/11/2026 (suite 6) — **Songes : la clôture redevient unique (fin du J+3 silencieux)** — branche `fix/songes-cloture`
+
 
 > **Demande user (verbatim)** : « 🔍 Analyse — Disparition des runs Songes + message Discord incorrect » — une run du 29/10 n'apparaît plus sur `/songes`, mais son post Discord est toujours là, boutons compris, et répond « Cette run n'accepte plus de candidatures ».
 > **Mesures (dans le code, aucune supposition)** : ① la cause n'est **pas** `cleanupInactiveRuns()` (code mort, supprimé) mais le job BullMQ **`daily-cleanup`** (`metamob-worker.ts`, `0 4 * * *`) qui passait en `ABANDONED` toute run `RECRUITING`/`IN_PROGRESS` à **J+3**, sans rappel ni purge — d'où la disparition du site et le post fantôme ; ② `deleteDiscordRunEmbed` **savait déjà** supprimer un fil forum (`deleteChannelMessage` → `deleteChannel` pour les types 10/11/12) mais **vidait les IDs même quand la suppression échouait** ; ③ le calendrier J+7/15/20/21 était **faux** : `updatedAt` (`@updatedAt`) avance à chaque rappel (`lastReminderAt`), donc la clôture réelle tombait vers **J+38** ; ④ `IN_PROGRESS` n'était traité par aucun cron une fois le worker retiré ; ⑤ `leaveDreamRun` abandonnait aussi sans purger ; ⑥ le refus « n'accepte plus de candidatures » était recopié **3 fois**, et la modale `songes:join` s'ouvrait sans lire le statut.
@@ -59,16 +71,7 @@
 > **Rotation** : bloc « 04/11/2026 (suite 6) — Stats, Phase 2a » sorti (6ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 05/11/2026 (suite) — **Rush : le studio God passe en 3 panneaux (E1)** — branche `feat/rush-editor-e1`
 
-> **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → E1 de `REFONTE-EDITEUR-RUSH.md`, après A/B.
-> **Mesures** : ① `RushSylvestreAdminClient.tsx` = **5 242 l.** dans `src/app/god/**` (plafond **77/77**) ; ② **9** tests lisaient ce fichier (7 verrous + `rush-move-sequence` + `rush-split-blocks`), pas 7 ; ③ **674** occurrences de motifs UI interdits ; ④ `src/components/god/` n'existait pas ; `Sheet`, `CommandDialog` et `UnsavedChangesGuard` existaient déjà (garde jamais utilisée).
-> **Fait (E1a)** : studio **déplacé** vers `src/components/god/rush-editor/RushEditorStudio.tsx` (déplacement pur, aucun rendu changé) ; `RushSylvestreAdminClient.tsx` = **12 lignes** de ré-export ; **9** chemins de tests mis à jour, assertions intactes.
-> **Fait (E1b)** : `RushEditorShell` (arbre / contenu / inspecteur, `Sheet` < 1024 et < 768), `RushEditorTopbar` (barre unique + recherche), `RushEditorTree` (chapitres → blocs → quêtes, filtres cité/Ordre/classe/sans conseil), `RushEditorInspector`, `RushEditorCommandPalette` (`Ctrl+K`), `useRushEditorSelection` ; règles pures `src/lib/rush-editor-selection.ts` (arbre, recherche accent-insensible nom/qid/bloc/cité/Ordre/classe/tags, filtres, sélection après suppression, index de palette) ; sélection unique pilotée par l'inspecteur (`SequenceEditForm`, `AddSequenceForm`, `BlockInspectorForm` extrait de `MilestoneRow`) ; **plus aucun formulaire dans la liste** ; garde `UnsavedChangesGuard` + modale Radix au changement de cible (jamais `confirm()`) ; DA aux tokens sur les 5 fichiers neufs.
-> **Adaptations justifiées** : `rush-tips-block-studio` — le `!isEditing` disparaît avec l'édition inline (le `!isTips` reste) ; `rush-move-sequence` — `milestones={localMilestones}` remplace `allMilestones` (le formulaire est monté par l'inspecteur, la liste complète est toujours passée).
-> **Preuves** : `rush-editor-selection` **24** · `rush-editor-shell` **16** · Rush **68 / 857 ✓** · suite **605 / 6 384 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration** · dette DA **674 → 644** occurrences.
-> **Reste / ops** : l'édition inline du **séparateur** (E3) ; découpe du monolithe en `forms/`·`list/`·`fields/` (E2→E4) ; contrôle visuel 390/768/1024/1440 à faire par le mainteneur ; base **locale** : 19 quêtes de classe en `classReq='cra'` (patch local séparé).
-> **Rotation** : bloc « 04/11/2026 (suite 5) — Suppression de la page morte « Stats Guilde » » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

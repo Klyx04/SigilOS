@@ -491,5 +491,17 @@ describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () =
             /data-da="wakfu" data-theme="dark" data-block=\{daTheme\.block\} className="fixed right-4/
         );
     });
+
+    it("les cartes de quête prennent l'anatomie de l'overlay (nœud hors carte)", () => {
+        const src = readFileSync(MEMBER, "utf8");
+        // La ligne est un `da-row[data-state]` et le NŒUD est le bouton de coche.
+        expect(src).toMatch(/data-seq-id=\{seq\.id\}[\s\S]{0,60}data-state=\{daState\}/);
+        expect(src).toMatch(/className="da-node cursor-pointer"/);
+        expect(src).toMatch(/className=\{`da-card group/);
+        // Une carte verrouillée reste une ligne de la liste, avec son nœud inerte.
+        expect(src).toMatch(/data-state="locked" className="da-row/);
+        // Un fil de sève par liste (les panneaux de bloc sont opaques).
+        expect(src).toMatch(/<DaRail>/);
+    });
 });
 

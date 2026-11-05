@@ -82,14 +82,17 @@ describe("Ciblage d'une quête (prérequis, repère, reprise)", () => {
       /focusedSeqId === seq\.id \? "ring-2 ring-success ring-offset-2 ring-offset-background"/
     );
     expect(DASH_CODE).toMatch(
-      /focusedSeqId===seq\.id\?"ring-2 ring-success ring-offset-2 ring-offset-background bg-success\/\[0\.06\]"/
+      /focusedSeqId===seq\.id\?"ring-2 ring-success ring-offset-2 ring-offset-background":""/
     );
   });
 });
 
 describe("Carte bloquée — une quête reste une quête", () => {
   it("elle porte l'icône de quête (même asset que la carte normale)", () => {
-    expect(DASH_CODE).toMatch(/bg-danger\/\[0\.05\][\s\S]{0,700}icone-quete\.png/);
+    // E3 (05/11/2026) : l'état n'est plus une classe de fond posée à la main, c'est
+    // l'attribut peint par la DA (`da-row[data-state="locked"]`). Même intention :
+    // une quête verrouillée reste une quête et garde son icône.
+    expect(DASH_CODE).toMatch(/data-state="locked"[\s\S]{0,700}icone-quete\.png/);
   });
 
   it("côté public, le bouton info n'est pas rendu quand la quête est verrouillée", () => {

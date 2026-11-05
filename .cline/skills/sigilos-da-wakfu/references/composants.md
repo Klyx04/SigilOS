@@ -61,7 +61,7 @@ l'écriteau. `data-quality="high"` réservé au guide plein écran.
 | Bandeau | `PublicRushGuideClient` (en-tête) | 320 px, image 1600 w, `SYLVESTRE` 72 px |
 | Sommaire | `RushChapterSidebar` | langage du dock, compteur sur mini-écriteau |
 | Cartes de quête | mêmes composants que l'overlay | **largeur identique**, jamais agrandies, max 760 px |
-| Bannière de bloc | `RushSeparatorBanner` | 140 px (122 en overlay), écriteau ×1,25 |
+| Bannière de bloc | `RushSeparatorBanner` | 140 px (96 px en overlay), écriteau ×1,25 ; l'image du bloc **remplit** le cadre (`cover`) |
 | Colonne droite | réutiliser l'existant | inventaire, présence, progression — **aucune requête neuve** |
 | Modales | `RushOverlay*Modal` | 520 px centrées ; tiroir 420 px ≥ 1280 |
 

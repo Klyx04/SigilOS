@@ -54,7 +54,12 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
 
     it("la page publique sert l'avis d'arrivée au lieu du guide interactif", () => {
         expect(PAGE).toMatch(/\{isUnderConstruction \? \(/);
-        expect(PAGE).toMatch(/<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\} \/>/);
+        // E2 (05/11/2026) : le client n'est plus auto-fermant — il reçoit le BANDEAU en
+        // enfant pour que celui-ci vive DANS la coque `data-da`. Même intention : le guide
+        // interactif n'est rendu que dans la branche `else` du drapeau public.
+        expect(PAGE).toMatch(
+            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\}>/
+        );
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionTitle/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionHint/);
         // Promesses de contenu (chips « ~370 étapes ») et FAQ masquées : on n'annonce que le dispo.

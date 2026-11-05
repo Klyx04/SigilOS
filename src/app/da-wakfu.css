@@ -1181,6 +1181,276 @@
   filter: none;
 }
 
+/* ── Guide plein écran — sa propre coque, sa propre grille ──────────────────
+   `reg-shell` (1 120 px) reste pour almanax / bestiaire / marché : la route du
+   guide reçoit SA coque, comme la maquette (1 360 px, gouttière 32).
+
+   Écart assumé au brief du 05/11/2026 : entre 900 et 1 279 px le sommaire ne
+   passe PAS en tiroir. Un tiroir demande un bouton neuf, interdit par la règle
+   « habillage seul » ; il reste dans la grille et c'est la colonne du module
+   (inventaire) qui descend en fin de page. */
+.da-guide {
+  width: 100%;
+  padding-inline: 1rem;
+  padding-block: 1.5rem 2.5rem;
+}
+
+@media (min-width: 900px) {
+  .da-guide { padding-inline: 1.5rem; }
+}
+
+@media (min-width: 1440px) {
+  /* 1 360 px de coque, gouttière 32 : 260 | 720–760 | 300 tient sans débord. */
+  .da-guide {
+    width: min(100% - 4rem, 1360px);
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+}
+
+.da-guide-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+}
+
+/* 900–1 279 px : sommaire + contenu, colonne du module en fin de page. */
+@media (min-width: 900px) {
+  .da-guide-grid {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .da-guide-aside { grid-column: 1 / -1; }
+}
+
+/* 1 280–1 439 px : trois colonnes, la colonne du module à 280. */
+@media (min-width: 1280px) {
+  .da-guide-grid {
+    grid-template-columns: 240px minmax(0, 1fr) 280px;
+    gap: 2rem;
+  }
+
+  .da-guide-aside { grid-column: auto; }
+}
+
+/* ≥ 1 440 px : la grille exacte de la maquette. */
+@media (min-width: 1440px) {
+  .da-guide-grid {
+    grid-template-columns: 260px minmax(680px, 760px) 300px;
+  }
+}
+
+.da-guide-nav,
+.da-guide-main,
+.da-guide-aside { min-width: 0; }
+
+/* La colonne du module suit la lecture (progression, donjons, objets requis) :
+   c'est elle qui porte le repère une fois la barre de contrôle défilée. */
+@media (min-width: 1280px) {
+  .da-guide-aside {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+  }
+}
+
+/* Le sommaire suit la lecture : il reste visible pendant qu'on descend le
+   chapitre (même rôle que le rail de droite de l'overlay). */
+@media (min-width: 900px) {
+  .da-guide-nav {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+  }
+}
+
+/* ── Sommaire — le langage du dock, sans la barre ────────────────────────── */
+.da-guide-nav > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .5rem;
+  padding-bottom: .5rem;
+  border-bottom: 1.5px solid var(--da-line);
+}
+
+.da-guide-nav > header strong {
+  font: 700 12px var(--da-font-title);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--da-muted);
+}
+
+.da-guide-nav > header span {
+  font: 700 11px var(--da-font-mono);
+  color: var(--da-muted);
+}
+
+.da-guide-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: .125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Médaillon | libellé | compteur : la grille du dock (un flex écraserait le
+   libellé à la largeur de son plus long mot — mesure du 05/11 sur la barre). */
+.da-guide-nav-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .35rem .3rem .4rem;
+  border: 1.5px solid transparent;
+  border-radius: 4px 12px 4px 12px;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: color .15s, background-color .15s, border-color .15s;
+}
+
+.da-guide-nav-item:hover {
+  color: var(--da-ink);
+  border-color: var(--da-line);
+}
+
+.da-guide-nav-item[aria-current="true"] {
+  color: var(--da-ink);
+  background: var(--da-card);
+  border-color: var(--da-ln);
+}
+
+.da-guide-nav-item[aria-current="true"] .da-medal {
+  border-color: var(--da-outline);
+  background: var(--da-acc);
+  color: var(--da-on);
+}
+
+/* Le libellé du dock est borné à deux lignes ; dans un sommaire vertical on
+   laisse le titre respirer, sans troncature (nom complet). */
+.da-guide-nav-item .da-dock-label {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: none;
+}
+
+/* L'écriteau est RÉPÉTÉ par chapitre ici : on coupe le filtre de pinceau
+   (`#da-brush` = une rastérisation par écriteau) — coût mesuré, règle « jamais
+   de filtre sur une liste ». La signature reste : deux planches, chiffres. */
+.da-guide-nav-item .da-plank span { filter: none; }
+
+@media (max-width: 899px) {
+  /* Sous 900 px la disposition est celle de l'overlay : le sommaire passe en
+     bande horizontale défilante, jamais en colonne qui pousse le contenu. */
+  .da-guide-nav ul {
+    flex-direction: row;
+    gap: .25rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+
+  .da-guide-nav li { flex: none; }
+
+  .da-guide-nav-item {
+    width: auto;
+    max-width: 15rem;
+  }
+}
+
+/* ── Bandeau du guide — 320 px, l'image du bloc remplit le cadre ────────────
+   Même règle que `.da-banner-art` : `cover`, et c'est le VOILE qui porte la
+   lisibilité du titre (jamais l'image). `GuideMilestone.imageUrl` servait déjà
+   d'icône de bloc : en `cover` sur 320 px elle est floue, c'est assumé — le
+   voile et le titre la recouvrent, et le repli (aucune image) tient tout seul. */
+.da-guide-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 320px;
+  margin-bottom: 1.75rem;
+  padding: 1.5rem;
+  overflow: hidden;
+  border: 1.5px solid var(--da-outline);
+  border-radius: 4px 12px 4px 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--da-acc2) 26%, var(--da-card)), var(--da-bg));
+  isolation: isolate;
+}
+
+.da-guide-hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+}
+
+/* Deux voiles : un vertical qui assoit le titre en bas, un radial qui éclaire
+   l'angle du surtitre. Aucun dégradé « lumineux » : que du ton de bloc. */
+.da-guide-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--da-outline) 45%, transparent) 0%,
+      color-mix(in srgb, var(--da-outline) 78%, transparent) 55%,
+      var(--da-outline) 100%),
+    radial-gradient(120% 90% at 12% 100%,
+      color-mix(in srgb, var(--da-outline) 72%, transparent),
+      transparent 62%);
+}
+
+.da-guide-hero-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-width: 0;
+  color: var(--da-ink);
+}
+
+.da-guide-hero-inner > .da-kicker { margin: 0 0 .3rem; }
+
+/* `SYLVESTRE` 72 px (brief E2 ③) ; la densité suit la largeur, jamais une
+   hauteur fixe qui déborde sur 390 px. */
+.da-guide-hero .da-logo-b { font-size: clamp(40px, 7.4vw, 72px); }
+.da-guide-hero .da-logo-a { font-size: 15px; }
+
+.da-guide-hero-sub {
+  margin: .6rem 0 0;
+  max-width: 58ch;
+  font: 400 14px/1.5 var(--da-font-text);
+  color: var(--da-muted);
+}
+
+.da-guide-hero .da-meta {
+  margin-top: .75rem;
+  color: var(--da-muted);
+}
+
+.da-guide-hero .da-kicker,
+.da-guide-hero-inner a.da-kicker { color: var(--da-muted); }
+
+@media (max-width: 899px) {
+  .da-guide-hero {
+    min-height: 220px;
+    padding: 1rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-da="wakfu"] *,
   [data-da="wakfu"] *::before,

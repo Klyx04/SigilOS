@@ -126,9 +126,19 @@ describe("Rail de droite — une seule zone de défilement (jamais de brique éc
     // sous le topnav) + `100dvh − 5,5 rem`.
     expect(DASH).toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\] overflow-y-auto custom-scrollbar/);
     // Le guide public défile par la FENÊTRE : `100dvh − 6rem` y est juste (mesuré).
-    expect(PUB).toMatch(
-      /xl:sticky xl:top-20 xl:max-h-\[calc\(100dvh-6rem\)\] xl:overflow-y-auto custom-scrollbar/
-    );
+    // E2 (05/11/2026) : la borne est portée par la COLONNE de la grille
+    // (`.da-guide-aside`), plus par une classe passée au rail. Même intention et
+    // même mécanisme (sticky borné au viewport + défilement interne), autre endroit ;
+    // le rail reste le MÊME composant partagé dans les deux guides.
+    expect(PUB).toMatch(/<RushChapterSidebar/);
+    const css = readFileSync("src/app/da-wakfu.css", "utf8");
+    const asideRules = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)]
+      .map((m) => m[1])
+      .join(";");
+    expect(asideRules).toMatch(/position:\s*sticky/);
+    expect(asideRules).toMatch(/top:\s*5rem/);
+    expect(asideRules).toMatch(/max-height:\s*calc\(100dvh - 6rem\)/);
+    expect(asideRules).toMatch(/overflow-y:\s*auto/);
   });
 });
 

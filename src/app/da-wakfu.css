@@ -1,0 +1,882 @@
+/* ═══ SigilOS — DA « Gouache Wakfu » ═════════════════════════════════════════
+   Couche 1 (tokens + socle). Extraite de la maquette validée
+   (`src/temp/DA-SigilOS/rush-sylvestre-wakfu-affine.html`) et adaptée au dépôt.
+   Le mode d'emploi complet vit dans `.cline/skills/sigilos-da-wakfu/`.
+
+   Règles de la couche :
+     1. Préfixe `--da-` OBLIGATOIRE. Les noms sémantiques globaux appartiennent
+        déjà au produit, et `--muted` y est une SURFACE alors qu'il est un TEXTE
+        dans la maquette : les mélanger repeindrait le dashboard par accident.
+     2. Portée `[data-da="wakfu"]` : un écran non migré ne change pas de couleur.
+     3. Thème = `data-block` (accent du bloc) × `data-theme` (clair / sombre).
+     4. Écarts à la maquette, chacun justifié par une mesure (WCAG AA, 4,5:1) :
+          · `--da-muted0` clair #5f6e5d → #54634f : 3,96 → 5,26:1 sur carte ;
+          · `--da-amber-ink` : ambre en TEXTE, 1,76 → 5,94:1 en clair ;
+          · `--da-acc-ink` : accent en TEXTE, 1,76 → 5,08:1 en clair ;
+          · `--da-ok` FIXE : la maquette peignait « validé » avec l'accent du
+            bloc, donc « validé » changeait de couleur selon le chapitre.
+   Mesures verrouillées par `tests/unit/da-wakfu.test.ts`.                    */
+
+@property --da-acc { syntax: '<color>'; inherits: true; initial-value: #b8cf6a }
+@property --da-acc2 { syntax: '<color>'; inherits: true; initial-value: #7f9a45 }
+@property --da-tint { syntax: '<color>'; inherits: true; initial-value: #34452f }
+@property --da-on { syntax: '<color>'; inherits: true; initial-value: #1c250d }
+@property --da-outline { syntax: '<color>'; inherits: true; initial-value: #0f1410 }
+
+/* ── Base (sombre par défaut, comme la maquette) ─────────────────────────── */
+[data-da="wakfu"] {
+  color-scheme: dark;
+  --da-page: #0c0f0d;
+  --da-bg0: #131815;
+  --da-panel0: #1f2822;
+  --da-field: #0e120f;
+  --da-line0: #364239;
+  --da-ink: #eceedf;
+  --da-muted0: #a3afa1;
+  --da-warn: #ec9a85;
+  --da-amber: #e3a63c;
+  --da-amber-ink: #e3a63c;
+  --da-ok: #8fbf5a;
+  --da-plank: #cdcbbd;
+  --da-plank-ink: #2a2924;
+}
+
+[data-da="wakfu"][data-theme="light"] {
+  color-scheme: light;
+  --da-page: #e4e3d5;
+  --da-bg0: #f3f1e5;
+  --da-panel0: #e9ecd9;
+  --da-field: #fbf9ee;
+  --da-line0: #c5cab2;
+  --da-ink: #2a3123;
+  --da-muted0: #54634f;
+  --da-warn: #9d543a;
+  --da-amber: #e3a63c;
+  --da-amber-ink: #7a4d0c;
+  --da-ok: #3f6b1f;
+  --da-plank: #e7e3d1;
+  --da-plank-ink: #2a2924;
+}
+
+/* ── Accent par bloc — six combinaisons, une seule structure ─────────────── */
+[data-da="wakfu"][data-block="emeraude"] {
+  --da-acc: #b8cf6a; --da-acc2: #7f9a45; --da-acc-ink: #b8cf6a;
+  --da-tint: #34452f; --da-on: #1c250d; --da-outline: #0f1410;
+}
+[data-da="wakfu"][data-block="cauchemar"] {
+  --da-acc: #79c7d4; --da-acc2: #3a8fa0; --da-acc-ink: #79c7d4;
+  --da-tint: #123e4b; --da-on: #06212a; --da-outline: #07141a;
+}
+[data-da="wakfu"][data-block="ocre"] {
+  --da-acc: #e9a93a; --da-acc2: #b97c1c; --da-acc-ink: #e9a93a;
+  --da-tint: #4d3826; --da-on: #2a1a05; --da-outline: #1a1108;
+}
+[data-da="wakfu"][data-theme="light"][data-block="emeraude"] {
+  --da-acc: #9fc43e; --da-acc2: #668c20; --da-acc-ink: #52690f;
+  --da-tint: #d3e5ae; --da-on: #1f2d0c; --da-outline: #3a4720;
+}
+[data-da="wakfu"][data-theme="light"][data-block="cauchemar"] {
+  --da-acc: #4fb6c8; --da-acc2: #177a8e; --da-acc-ink: #0d5666;
+  --da-tint: #c2e2ea; --da-on: #04222a; --da-outline: #224654;
+}
+[data-da="wakfu"][data-theme="light"][data-block="ocre"] {
+  --da-acc: #eba126; --da-acc2: #b57206; --da-acc-ink: #7a4d0c;
+  --da-tint: #f0d9b0; --da-on: #2a1a05; --da-outline: #59401a;
+}
+
+/* Bloc arbitraire (accent fourni par la donnée `GuideMilestone.accentColor`) :
+   l'accent pose `--da-acc` en style inline ; le reste est dérivé. En mode
+   clair, l'accent ne sert JAMAIS de texte (`--da-acc-ink` retombe sur l'encre) :
+   on ne peut pas calculer un contraste en CSS. */
+[data-da="wakfu"][data-block="custom"] {
+  --da-acc2: color-mix(in srgb, var(--da-acc) 72%, #000);
+  --da-acc-ink: var(--da-ink);
+  --da-outline: #0f1410;
+  --da-tint: color-mix(in srgb, var(--da-acc) 26%, #0c0f0d);
+  --da-on: #10140c;
+}
+[data-da="wakfu"][data-theme="light"][data-block="custom"] {
+  --da-outline: #3a4720;
+  --da-tint: color-mix(in srgb, var(--da-acc) 30%, #f3f1e5);
+  --da-on: #1f2d0c;
+}
+
+/* ── Dérivés : c'est ici que six thèmes ne coûtent aucun composant ───────── */
+[data-da="wakfu"] {
+  --da-bg: color-mix(in srgb, var(--da-bg0) 90%, var(--da-tint));
+  --da-panel: color-mix(in srgb, var(--da-panel0) 80%, var(--da-tint));
+  --da-card: color-mix(in srgb, var(--da-panel0) 88%, var(--da-tint));
+  --da-line: color-mix(in srgb, var(--da-line0) 76%, var(--da-tint));
+  --da-muted: var(--da-muted0);
+  --da-ln: color-mix(in srgb, var(--da-acc2) 40%, var(--da-outline));
+  --da-ok-soft: color-mix(in srgb, var(--da-ok) 14%, transparent);
+  --da-amber-soft: color-mix(in srgb, var(--da-amber) 18%, transparent);
+  transition:
+    --da-acc .8s, --da-acc2 .8s, --da-tint .8s, --da-on .8s, --da-outline .8s;
+}
+
+/* ── Socle : typographie, focus, grain ───────────────────────────────────── */
+[data-da="wakfu"] {
+  --da-font-title: var(--font-barlow), "Barlow Condensed", "Arial Narrow", sans-serif;
+  --da-font-text: var(--font-source-sans), "Source Sans 3", system-ui, sans-serif;
+  --da-font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
+  --da-font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+
+  color: var(--da-ink);
+  font-family: var(--da-font-text);
+}
+
+[data-da="wakfu"] :focus-visible {
+  outline: 2px solid var(--da-acc);
+  outline-offset: 3px;
+}
+
+.da-title {
+  margin: 0;
+  font-family: var(--da-font-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  line-height: .95;
+  color: var(--da-ink);
+}
+
+.da-mono {
+  font-family: var(--da-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.da-serif {
+  font-family: var(--da-font-serif);
+  font-style: italic;
+}
+
+/* Grain de gouache : UNE fois par surface racine, jamais par composant. */
+.da-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: .1;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.1 -.2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ── Fenêtre (hôte : largeur 100 %, hauteur 100dvh côté page) ────────────── */
+.da-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--da-bg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.da-window[data-host="pip"] {
+  height: 100dvh;
+  border-radius: 0;
+}
+
+/* Hors PiP (aperçu, guide) la fenêtre est encadrée : liseré, pas d'ombre molle. */
+.da-window[data-host="page"] {
+  border-radius: 14px; /* exception mesurée à la règle « rayons ≤ 12 px » : signature de fenêtre */
+  box-shadow:
+    0 0 0 2px var(--da-outline),
+    0 0 0 3px color-mix(in srgb, var(--da-acc2) 30%, transparent);
+}
+
+.da-chrome {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .4rem .875rem;
+  background: var(--da-field);
+  border-bottom: 1.5px solid var(--da-ln);
+  color: var(--da-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Bouton planche ──────────────────────────────────────────────────────── */
+.da-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem 1.05rem;
+  border: 0;
+  background: none;
+  color: var(--da-ink);
+  font: 700 13px var(--da-font-text);
+  letter-spacing: .03em;
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform .1s;
+}
+
+.da-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.8px solid var(--da-outline);
+  border-radius: 7px 2px 7px 2px;
+  background-color: var(--da-panel);
+  background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .07) 0 1px, transparent 1px 5px);
+  filter: url(#da-rough);
+}
+
+.da-btn[data-variant="main"] {
+  color: var(--da-on);
+}
+
+.da-btn[data-variant="main"]::before {
+  background-color: var(--da-acc);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / .14), inset 0 1px 0 rgb(255 255 255 / .35);
+}
+
+.da-btn:hover { transform: translateY(-1px); }
+.da-btn:active { transform: translateY(1px); }
+.da-btn:disabled { opacity: .45; cursor: default; transform: none; }
+
+/* ── Recherche ───────────────────────────────────────────────────────────── */
+.da-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .55rem .7rem;
+  color: var(--da-muted);
+  isolation: isolate;
+}
+
+.da-search::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--da-field);
+  border: 1.5px solid var(--da-ln);
+  border-radius: 6px;
+  filter: url(#da-rough);
+}
+
+.da-search input {
+  width: 100%;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--da-ink);
+  font: 600 13px var(--da-font-text);
+}
+
+.da-search kbd {
+  border: 1.5px solid var(--da-ln);
+  border-radius: 4px;
+  padding: 0 .3rem;
+  font: 700 10px var(--da-font-text);
+}
+
+/* ── Filtres : texte seul, compteur en petit, actif = trait de pinceau ───── */
+.da-filters {
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1.5px solid var(--da-ln);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.da-filters button {
+  position: relative;
+  flex: none;
+  padding: .5rem 0 .55rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  font: 700 12px var(--da-font-text);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.da-filters button b {
+  margin-left: .3rem;
+  font-size: 10px;
+  opacity: .7;
+}
+
+.da-filters button[aria-selected="true"] { color: var(--da-ink); }
+
+.da-filters button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1.5px;
+  left: 0;
+  height: 3px;
+  background: var(--da-acc);
+  clip-path: polygon(0 30%, 8% 0, 100% 40%, 94% 100%, 0 85%);
+}
+
+/* ── Bannière de bloc ────────────────────────────────────────────────────── */
+.da-banner {
+  position: relative;
+  height: 122px;
+  overflow: hidden;
+  background: var(--da-field) center / cover no-repeat;
+  border: 1.5px solid var(--da-outline);
+  border-radius: 3px 12px 3px 12px;
+}
+
+.da-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 3px 12px 3px 12px;
+  background:
+    linear-gradient(to top, rgb(0 0 0 / .72), transparent 62%),
+    linear-gradient(to right, rgb(0 0 0 / .35), transparent 55%);
+}
+
+.da-banner-text {
+  position: absolute;
+  z-index: 2;
+  right: .875rem;
+  bottom: .75rem;
+  left: 1rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .6rem;
+}
+
+.da-banner-text h2 {
+  margin: 0;
+  color: #fff;
+  font: 700 27px/.95 var(--da-font-title);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  text-shadow: 0 2px 0 var(--da-outline), 0 4px 12px rgb(0 0 0 / .66);
+}
+
+.da-banner-text small {
+  display: block;
+  margin-top: .25rem;
+  color: #e8ece0;
+  font: 600 11px var(--da-font-text);
+  letter-spacing: .04em;
+  text-shadow: 0 1px 4px #000;
+}
+
+/* ── Écriteau en planches — LA signature, compteurs de bloc uniquement ───── */
+.da-plank {
+  position: relative;
+  flex: none;
+  width: 76px;
+  height: 50px;
+  margin-bottom: -2px;
+  transform: rotate(-5deg);
+}
+
+.da-plank i,
+.da-plank b {
+  position: absolute;
+  display: block;
+  background: var(--da-plank);
+}
+
+.da-plank i {
+  inset: 0 4px 12px 0;
+  transform: rotate(3deg);
+  clip-path: polygon(2% 12%, 98% 0, 100% 88%, 0 100%);
+  background-image: repeating-linear-gradient(2deg, rgb(0 0 0 / .08) 0 1px, transparent 1px 6px);
+}
+
+.da-plank b {
+  inset: 12px 0 0 6px;
+  filter: brightness(.93);
+  clip-path: polygon(0 6%, 100% 0, 97% 100%, 3% 88%);
+  background-image: repeating-linear-gradient(-1deg, rgb(0 0 0 / .1) 0 1px, transparent 1px 7px);
+}
+
+.da-plank span {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--da-plank-ink);
+  font: 800 24px var(--da-font-title);
+  letter-spacing: .02em;
+  transform: rotate(3deg) translateY(-3px);
+  filter: url(#da-brush);
+}
+
+/* ── Fil de sève + nœud + carte ──────────────────────────────────────────── */
+.da-rail {
+  position: relative;
+  margin-top: 14px;
+}
+
+.da-rail::before,
+.da-rail::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 8px;
+  width: 12px;
+  background-color: var(--da-line);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='60' viewBox='0 0 12 60'><path d='M6 0 C0 10 12 20 6 30 C0 40 12 50 6 60' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>") repeat-y 0 0 / 12px 60px;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='60' viewBox='0 0 12 60'><path d='M6 0 C0 10 12 20 6 30 C0 40 12 50 6 60' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>") repeat-y 0 0 / 12px 60px;
+}
+
+.da-rail::before { bottom: 20px; }
+
+.da-rail::after {
+  height: var(--da-grow, 0px);
+  background-color: var(--da-acc);
+  transition: height .6s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.da-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.da-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: .75rem;
+  color: var(--da-muted);
+  isolation: isolate;
+}
+
+.da-node::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.8px solid var(--da-ln);
+  border-radius: 50%;
+  background: var(--da-field);
+  filter: url(#da-rough);
+}
+
+/* États : validé (--da-ok, FIXE), à faire maintenant (accent), verrouillé. */
+.da-row[data-state="done"] .da-node { color: var(--da-on); }
+.da-row[data-state="done"] .da-node::before {
+  border-color: var(--da-outline);
+  background: var(--da-ok);
+}
+
+.da-row[data-state="next"] .da-node::before {
+  border-color: var(--da-outline);
+  background: var(--da-acc);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--da-acc) 26%, transparent);
+}
+
+.da-row[data-state="locked"] .da-node::before {
+  background: var(--da-bg);
+  border-style: dashed;
+}
+
+.da-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .75rem .75rem .75rem .875rem;
+}
+
+/* Bord : `clip-path` (coût nul) par défaut. Le déplacement « rough » est
+   réservé aux surfaces à `data-quality="high"` — sinon 20 cartes = 20 filtres
+   recalculés au défilement, dans une PiP au-dessus du jeu. */
+.da-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.6px solid var(--da-ln);
+  border-radius: 4px 14px 4px 14px; /* exception mesurée : signature de carte (coins asymétriques) */
+  background: var(--da-card);
+  clip-path: polygon(0 1%, 100% 0, 99.6% 99.2%, 0.5% 100%);
+}
+
+[data-quality="high"] .da-card::before { filter: url(#da-rough); }
+
+.da-row[data-state="done"] .da-card::before {
+  background: color-mix(in srgb, var(--da-acc2) 12%, var(--da-card));
+}
+
+.da-row[data-state="next"] .da-card::before {
+  border-color: var(--da-acc2);
+  background: color-mix(in srgb, var(--da-acc) 12%, var(--da-card));
+}
+
+.da-row[data-state="locked"] .da-card { opacity: .78; }
+
+.da-state {
+  display: inline-block;
+  margin-bottom: .3rem;
+  color: var(--da-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.da-row[data-state="done"] .da-state { color: var(--da-ok); }
+.da-row[data-state="next"] .da-state { color: var(--da-acc-ink); }
+
+.da-card h3 {
+  margin: 0 0 .5rem;
+  font: 700 17.5px/1.2 var(--da-font-title);
+  letter-spacing: .015em;
+  color: var(--da-ink);
+}
+
+.da-row[data-state="done"] .da-card h3 {
+  color: var(--da-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--da-ok);
+}
+
+.da-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  color: var(--da-muted);
+  font: 600 11px var(--da-font-text);
+}
+
+.da-coord {
+  padding: 1px 7px;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 4px;
+  background: var(--da-field);
+  font: 600 11px var(--da-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.da-req { color: var(--da-amber-ink); }
+
+.da-prereq {
+  margin: .5rem 0 0;
+  color: var(--da-warn);
+  font: 600 11px var(--da-font-text);
+}
+
+.da-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.25rem;
+  color: var(--da-muted);
+  font: 600 10px var(--da-font-text);
+  letter-spacing: .04em;
+}
+
+.da-foot strong { color: var(--da-acc-ink); }
+
+/* ── Barre de blocs (collante) ───────────────────────────────────────────── */
+.da-dock {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: .4rem;
+  padding: .5rem .75rem 0;
+  background: var(--da-bg);
+  border-bottom: 1.5px solid var(--da-ln);
+}
+
+.da-dock button {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .5rem .55rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.da-medal {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 50%;
+  background: var(--da-field);
+}
+
+.da-dock .da-dock-label {
+  min-width: 0;
+  overflow: hidden;
+  font: 700 13px/1.05 var(--da-font-title);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+}
+
+.da-dock small {
+  display: block;
+  font: 600 9px var(--da-font-text);
+  letter-spacing: .04em;
+  text-transform: none;
+  opacity: .85;
+}
+
+.da-dock button[aria-current="true"] { color: var(--da-ink); }
+
+.da-dock button[aria-current="true"] .da-medal {
+  border-color: var(--da-outline);
+  background: var(--da-acc);
+  color: var(--da-on);
+}
+
+.da-dock button[aria-current="true"]::after {
+  content: "";
+  position: absolute;
+  right: .25rem;
+  bottom: -1.5px;
+  left: .25rem;
+  height: 3px;
+  background: var(--da-acc);
+  clip-path: polygon(0 40%, 10% 0, 100% 30%, 92% 100%, 0 80%);
+}
+
+/* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
+.da-hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1.5px solid var(--da-ln);
+  background: var(--da-field);
+}
+
+.da-hero[data-density="wide"] { min-height: 180px; }
+.da-hero[data-density="normal"] { min-height: 132px; }
+.da-hero[data-density="tight"] { min-height: 96px; }
+
+.da-hero-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 38%;
+  transition: opacity .9s;
+}
+
+/* Repli sans image : dégradés du bloc (aucune illustration Ankama requise). */
+.da-hero-img[data-block="emeraude"] {
+  background-image:
+    radial-gradient(60% 70% at 30% 62%, #53703a 0, transparent 70%),
+    radial-gradient(70% 60% at 82% 28%, #3a484d 0, transparent 70%),
+    linear-gradient(#222b2e, #171d1b);
+}
+
+.da-hero-img[data-block="ocre"] {
+  background-image:
+    radial-gradient(50% 80% at 35% 40%, #e5ad5c 0, transparent 70%),
+    radial-gradient(60% 60% at 85% 80%, #566f7d 0, transparent 70%),
+    linear-gradient(#53402c, #251d15);
+}
+
+.da-hero-img[data-block="cauchemar"] {
+  background-image:
+    radial-gradient(55% 70% at 40% 45%, #2b6b7d 0, transparent 72%),
+    radial-gradient(60% 50% at 80% 25%, #17333d 0, transparent 70%),
+    linear-gradient(#16262c, #0d171b);
+}
+
+.da-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top,
+      color-mix(in srgb, var(--da-bg) 97%, transparent) 0,
+      color-mix(in srgb, var(--da-bg) 55%, transparent) 34%,
+      transparent 66%),
+    linear-gradient(to right, color-mix(in srgb, var(--da-bg) 45%, transparent), transparent 55%);
+}
+
+.da-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: inherit;
+  flex-direction: column;
+  padding: .9rem 1rem .8rem;
+}
+
+.da-kicker {
+  display: flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: .5rem;
+  color: var(--da-ink);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .66);
+}
+
+.da-kicker::before {
+  content: "";
+  width: 22px;
+  height: 1.5px;
+  background: var(--da-acc);
+}
+
+.da-kicker b { color: var(--da-acc-ink); }
+
+.da-logo { margin: .5rem 0 0; line-height: .9; text-transform: uppercase; }
+
+.da-logo .da-logo-a {
+  display: block;
+  color: var(--da-ink);
+  font: 700 19px var(--da-font-title);
+  letter-spacing: .5em;
+  text-shadow: 0 2px 6px rgb(0 0 0 / .7);
+}
+
+.da-logo .da-logo-b {
+  display: block;
+  margin-top: 2px;
+  color: var(--da-acc-ink);
+  font: 700 56px var(--da-font-title);
+  letter-spacing: .015em;
+  text-shadow: 0 3px 0 var(--da-outline), 0 8px 18px rgb(0 0 0 / .53);
+}
+
+.da-hero[data-density="tight"] .da-logo .da-logo-b { font-size: 34px; }
+.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: 44px; }
+
+.da-logo .da-logo-b::after {
+  content: "";
+  display: block;
+  width: 132px;
+  height: 5px;
+  margin-top: 6px;
+  background: var(--da-acc2);
+  clip-path: polygon(0 30%, 6% 0, 100% 40%, 94% 100%, 0 80%);
+}
+
+.da-devise {
+  max-width: 32ch;
+  margin-top: .5rem;
+  color: var(--da-ink);
+  font: italic 400 13px/1.5 var(--da-font-serif);
+  text-shadow: 0 1px 4px rgb(0 0 0 / .8);
+}
+
+.da-hero-bottom { margin-top: auto; padding-top: .6rem; }
+
+.da-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: .4rem;
+  color: var(--da-ink);
+  font: 600 12px var(--da-font-text);
+  text-shadow: 0 1px 4px rgb(0 0 0 / .8);
+}
+
+.da-meta strong { font: 700 16px var(--da-font-title); letter-spacing: .04em; }
+
+.da-track { position: relative; height: 9px; }
+
+.da-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--da-field) 80%, transparent);
+}
+
+.da-track i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  min-width: 6px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--da-acc2), var(--da-acc));
+  transition: width .5s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.da-track i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  width: 11px;
+  height: 11px;
+  margin-top: -6px;
+  border: 1.5px solid var(--da-outline);
+  border-radius: 9px 0 9px 0;
+  background: var(--da-acc);
+  transform: rotate(45deg);
+}
+
+.da-pips { display: inline-flex; gap: .25rem; }
+
+.da-pips i {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--da-acc2);
+  border-radius: 9px 0 9px 0;
+  background: transparent;
+  transform: rotate(45deg);
+}
+
+.da-pips i[data-on="true"] {
+  border-color: var(--da-acc);
+  background: var(--da-acc);
+}
+
+/* ── Qualité : la PiP passe au-dessus du jeu, on coupe le coût inutile ───── */
+[data-quality="low"] .da-grain::after { display: none; }
+
+[data-quality="low"] .da-btn::before,
+[data-quality="low"] .da-search::before,
+[data-quality="low"] .da-node::before,
+[data-quality="low"] .da-plank span {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-da="wakfu"] *,
+  [data-da="wakfu"] *::before,
+  [data-da="wakfu"] *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

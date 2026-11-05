@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Space_Grotesk, Inter, Cinzel, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
+import { Geist_Mono, Space_Grotesk, Inter, Cinzel, Source_Sans_3, IBM_Plex_Mono, Barlow_Condensed, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import "./da-wakfu.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PublicViewBeacon } from "@/components/telemetry/public-view-beacon";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -45,6 +46,25 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
   subsets: ["latin"],
   weight: ["500", "600"],
+  display: "swap",
+});
+
+/* ── DA « Gouache Wakfu » — typographie de la couche `[data-da="wakfu"]` ────
+   Barlow Condensed porte les titres en capitales (jamais le texte courant) ;
+   Source Serif 4 italique est réservée à la devise du guide. Deux familles,
+   quatre fichiers : le texte courant reste Source Sans 3 (déjà chargée). */
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
+});
+
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["italic"],
   display: "swap",
 });
 
@@ -147,7 +167,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} ${sourceSans.variable} ${plexMono.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} ${sourceSans.variable} ${plexMono.variable} ${barlowCondensed.variable} ${sourceSerif.variable} antialiased`}>
         <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
           <I18nProvider initialLocale={locale}>
             <AuthProvider session={session}>

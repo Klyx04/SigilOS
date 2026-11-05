@@ -1,0 +1,91 @@
+# Composants — correspondance avec le code réel
+
+**Règle de ce fichier** : chaque ligne dit *où* le composant vit déjà. La DA change
+son **habillement**, jamais sa place. Si un composant n'existe pas, il se crée dans le
+dossier de la surface concernée.
+
+## 1. Overlay — `src/app/overlay/guide/[guildId]/[slug]/`
+
+Ordre vertical **inchangé** (ne pas réordonner, ne pas fusionner) :
+
+| Ordre | Composant réel | Classes DA | Ce qui change |
+|---|---|---|---|
+| 1 | `RushOverlayHeader` | `.da-hero`, `.da-hero-img`, `.da-kicker`, `.da-logo`, `.da-devise`, `.da-meta`, `.da-track`, `.da-pips` | image du bloc + voiles, titre condensé, jauge 9 px, pips losange |
+| 2 | `RushOverlaySearch` | `.da-search` | champ « rough », touche `/` |
+| 3 | `RushOverlayChapterBar` | `.da-dock`, `.da-medal`, `.da-dock-label` | médaillon 26 px, actif plein + trait de pinceau |
+| 4 | `RushOverlayQuestFilter` | `.da-filters` | texte seul, compteurs, actif souligné |
+| 5 | `RushOverlayQuestListItem` | `.da-row`, `.da-node`, `.da-card`, `.da-state`, `.da-chips`, `.da-coord`, `.da-req`, `.da-prereq` | nœud 3 états, carte 4/14, chips mono |
+| 6 | `RushOverlayFooter` | `.da-foot` | fil de sève + compteur |
+
+Le **fil de sève** (`.da-rail`) enveloppe la liste dans `GuideOverlayClient` :
+il ne remplace pas les cartes, il les longe à gauche (`left: 8px`).
+
+### Densité de l'en-tête (hôte PiP)
+
+| Hauteur de l'hôte | `data-density` | Titre |
+|---|---|---|
+| ≥ 820 px | `wide` | 56 px, devise visible |
+| 620–819 px | `normal` | 44 px, sans devise |
+| < 620 px | `tight` | 34 px, sans kicker |
+
+Budget mesuré : **tout ce qui précède la liste ≤ 240 px sur un hôte de 600 px.**
+
+### Qualité
+
+`data-quality="low"` sur la racine de l'overlay : grain coupé, filtres coupés sauf
+l'écriteau. `data-quality="high"` réservé au guide plein écran.
+
+## 2. Guide plein écran — `src/app/guides/rush-sylvestre/`
+
+| Élément | Composant réel | Spécification |
+|---|---|---|
+| Bandeau | `PublicRushGuideClient` (en-tête) | 320 px, image 1600 w, `SYLVESTRE` 72 px |
+| Sommaire | `RushChapterSidebar` | langage du dock, compteur sur mini-écriteau |
+| Cartes de quête | mêmes composants que l'overlay | **largeur identique**, jamais agrandies, max 760 px |
+| Bannière de bloc | `RushSeparatorBanner` | 140 px (122 en overlay), écriteau ×1,25 |
+| Colonne droite | réutiliser l'existant | inventaire, présence, progression — **aucune requête neuve** |
+| Modales | `RushOverlay*Modal` | 520 px centrées ; tiroir 420 px ≥ 1280 |
+
+### Grille
+
+- ≥ 1 440 px : 260 | 720–760 | 300, gouttière 32, coque 1 360 px
+- 1 280–1 439 px : 240 | 1fr (≥ 680) | 280
+- 1 024–1 279 px : contenu + colonne ; sommaire en tiroir 320
+- 900–1 023 px : sommaire + contenu ; colonne en fin de page
+- < 900 px : disposition de l'overlay
+
+`reg-shell` fait 1 120 px : **ne pas le modifier** (almanax, bestiaire, marché).
+La route guide reçoit sa propre coque.
+
+## 3. Écriteau en planches — signature, usage unique
+
+`.da-plank` : deux planches inclinées (−5° / +3°), rayures de bois, chiffres 24 px
+avec `#da-brush`. **Uniquement pour le compteur d'un bloc.** Jamais dans une carte,
+jamais répété, jamais agrandi au-delà de ×1,25.
+
+## 4. Nœud et états
+
+| État | `data-state` | Rendu | Libellé |
+|---|---|---|---|
+| Validée | `done` | `--da-ok` plein + coche | « Validée » |
+| À faire maintenant | `next` | `--da-acc` + halo 4 px à 26 % | « Faire maintenant » |
+| À faire | `todo` | vide | « À faire » |
+| Verrouillée | `locked` | pointillé + cadenas, carte à 78 % | « Verrouillée » |
+
+Le **texte** de l'état est toujours affiché : la couleur ne porte jamais seule
+l'information.
+
+## 5. Ce qu'un lot d'habillage n'a pas le droit de toucher
+
+- `page.tsx` : auth, `getUserContext`, `getOptimizedGuideDetail`, `resolveRushRoute`,
+  panneau Ocre.
+- Les server actions de coche et la règle `rush-quest-filter.ts`.
+- Les clés de progression locale de l'invité.
+- Les ancres `#bloc-<id>`, la pagination « une vue = un chapitre », le JSON-LD.
+- L'ordre et le libellé des boutons existants.
+
+## 6. Verrous de tests à réécrire, jamais à supprimer
+
+`tests/unit/rush-guide-ui-polish.test.ts` fige des chaînes de classes
+(`mx-3 mt-3 mb-2.5`, `px-3 py-2.5 border-b`). Un passage à la DA **réécrit** ces
+verrous avec les nouvelles classes : les supprimer serait verdir en retirant un test.

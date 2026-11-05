@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 (suite 2) — **DA « Gouache Wakfu » : la fondation est en place (E0)** — branche `feat/da-wakfu-fondation`
+
+> **Demande user (verbatim)** : « l'idée n'est pas de chambouler tout les placements des boutons pour le rush sylvestre etc mais d'appliquer cette magnifique DA, puis de faire la passation vers cette DA une fois l'entité du module rush sylvestre complétée à l'entité du dashboard en ancrant dans le harnais la DA ».
+> **Mesures** : ① le package `src/temp/DA-SigilOS/` est une maquette auto-suffisante (383 lignes) mais **uniquement** l'overlay ; ② trois défauts de contraste mesurés — `--muted` teinté en clair **3,96:1**, ambre en texte **1,76:1**, accent en texte **1,76:1** (AA = 4,5) ; ③ « validé » était peint avec l'accent du bloc (Ocre = coche brunâtre) ; ④ `composants.css` embarque un reset global (`*{margin:0}`, `body{display:grid}`) **non importable tel quel** ; ⑤ `filter: url()` sur **chaque** carte = une rastérisation par carte, dans une PiP au-dessus du jeu ; ⑥ chemins du package faux pour ce dépôt (`.claude/skills/` → `.cline/skills/`) ; ⑦ `GuideMilestone.imageUrl` + `accentColor` existent déjà ⇒ **aucune migration**.
+> **Fait** : `src/app/da-wakfu.css` (tokens `--da-*`, 6 combinaisons bloc × mode, socle, signatures : fenêtre, écriteau en planches, fil de sève, nœud 3 états, carte 4/14, dock, hero 3 densités) ; `--da-ok` **fixe**, `--da-amber-ink`, `--da-acc-ink`, `--da-muted0` clair corrigé ; `data-quality="low|high"` coupe grain et filtres ; `src/components/da/DaWakfuFilters.tsx` (`#da-rough`, `#da-brush`) monté dans le layout overlay ; Barlow Condensed + Source Serif 4 via `next/font` (racine **et** overlay) ; skill `.cline/skills/sigilos-da-wakfu/` (SKILL.md + `references/tokens.md` + `references/composants.md`) ; 4 lignes dans `.clinerules/02-ui.md` ; garde `tests/unit/da-wakfu.test.ts`.
+> **Preuves** : `da-wakfu` **16/16 ✓** · contrastes **recalculés depuis le CSS** (6 combinaisons × 6 paires) · aucun reset global, aucun token sans préfixe, `14 px` limité aux deux signatures · `harness-config` couvre le frontmatter du nouveau skill.
+> **Reste / ops** : **E1** = habillage **seul** de l'overlay (en-tête 3 densités, barre de blocs, cartes, nœuds, écriteau) **sans déplacer un bouton** ; réécrire — jamais supprimer — les verrous de classes de `rush-guide-ui-polish.test.ts` ; `isLightMode` **56 → 0** ; captures 420 / 500 / 1280, clair + sombre ; puis **E2** guide public (coque 1 360, 3 colonnes), **E3** guide membre, **E4** passation dashboard.
+> **Rotation** : bloc « 04/11/2026 (suite 6) — Stats, Phase 2a » sorti (6ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 05/11/2026 (suite) — **Rush : le studio God passe en 3 panneaux (E1)** — branche `feat/rush-editor-e1`
 
 > **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → E1 de `REFONTE-EDITEUR-RUSH.md`, après A/B.
@@ -55,24 +65,5 @@
 > **Preuves** : `stats-page-removal` **10** · `user-context` **46** · `onboarding-console` **19** · `telemetry-product-stats` **11** ⇒ **86/86 ✓** · colonne absente en base (`information_schema` = 0) · `migrate deploy` + `generate` joués.
 > **Reste / ops** : **`pg_dump` avant** `migrate deploy` en bêta puis prod ; **aucun rollback vers l'image pré-drop** (le client Prisma précédent sélectionne `stats`) — procédure d'urgence = `ADD COLUMN IF NOT EXISTS … DEFAULT true`, valeurs perdues ; conteneur local `sigilos-app` (image du 23/10/2026) à recréer s'il sert encore.
 > **Rotation** : bloc « 04/11/2026 — Rush : ressources par quête » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 04/11/2026 (suite 6) — **Stats, Phase 2a : la clé quitte le registre, la colonne reste** — branche `chore/stats-phase2a`
-
-> **Demande user (verbatim)** : « on casse quoi rien j'espère ? » — puis « GO » sur la Phase 2a (nettoyage code, sans migration).
-> **Mesures** : ① `canViewStats` est un **alias strict** de `canViewWelcome` (`DASHBOARD_LOGIN || isAdminFinal`), consommé uniquement par la sidebar (2 conditions), `user-actions` et 4 assertions de test — aucun service/bot ; ② la colonne `GuildModules.stats` n'est lue que par `module-actions` (`dbModules.stats`) et le `select` de `getUserContext` ; la **supprimer** exposerait un rollback et les vieux clients Prisma (`column does not exist`) ; ③ `RETIRED_MODULE_KEYS` filtre déjà la colonne dans la télémétrie et `moduleLabel("stats")` garde le libellé historique ; ④ `tsc` a révélé deux écrans oubliés (ordre God, explorateur de modules) qui listaient encore la clé.
-> **Fait** : ① `stats` retiré de `ModuleKey`, `GuildModulesState`, `DEFAULT_MODULES`, du Zod et du merge de `module-actions`, du `select` et du `applyModule` de `user-actions` ; ② `canViewStats` retiré (type, défauts, calcul, application, verrou onboarding) et les 2 conditions sidebar ramenées à `canViewWelcome || canViewPresentation` — **aucun changement de visibilité** ; ③ 4 assertions retirées, le verrou « `stats:view` ne donne pas Audit Logs » conservé ; ④ `stats-page-removal` étendu à **8 tests**, entrées `stats` retirées de l'explorateur de modules et de l'ordre God ; ⑤ **conservés** : colonne `GuildModules.stats`, `RETIRED_MODULE_KEYS`, libellé legacy, asset `guildActivity.png` — **aucune migration**.
-> **Preuves** : `stats-page-removal` **8** · `user-context` **46** · `module-lock` **27** · `onboarding-funnel` **34** · `modules-select` **3** ⇒ **118/118 ✓** · suite **600 fichiers / 6 305 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : Phase 2b (hors lot) — `DROP COLUMN` seulement après la fenêtre de rollback, avec accord explicite ; sinon la colonne peut rester indéfiniment.
-> **Rotation** : bloc « 04/11/2026 — Rush : 25 conseils écrits » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
 
 

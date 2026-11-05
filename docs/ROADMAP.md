@@ -195,7 +195,7 @@
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
 | 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : profil public (Général / Présentation / Mules / Succès / Métiers / Réglages), progression de rush en base, annuaire par serveur à **consentement individuel**, modération God (suppression / bannissement) | mesuré le 02/11/2026 : `signIn` **refuse** tout compte sans guilde gérée (`src/auth.ts:64-175`) ⇒ rien n'existe ; **D-V1→D-V5** tranchées | V1 (auth + tables, **migration**) → V2 (guide public + annuaire + modale de setup) → V3 (God) | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (**démarre après `L3`**) |
-| 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3 livrés** 05/11 : overlay complet · guide public (coque 1 360, grille, sommaire, cartes, fil) · guide interne (portée, grille, sommaire, cartes, fil) | PiP → **E4** (dashboard, écran par écran) | skill | — |
+| 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3 livrés** 05/11 : overlay complet · guide public (coque 1 360, grille, sommaire, cartes, fil) · guide interne (portée, grille, sommaire, cartes, fil) | **E4 reporté** (chantier dédié, semaines/mois) | skill | — |
 
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)

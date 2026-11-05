@@ -309,9 +309,11 @@
   opacity: .7;
 }
 
-.da-filters button[aria-selected="true"] { color: var(--da-ink); }
+.da-filters button[aria-selected="true"],
+.da-filters button[aria-pressed="true"] { color: var(--da-ink); }
 
-.da-filters button[aria-selected="true"]::after {
+.da-filters button[aria-selected="true"]::after,
+.da-filters button[aria-pressed="true"]::after {
   content: "";
   position: absolute;
   right: 0;
@@ -470,9 +472,10 @@
   inset: 0;
   z-index: -1;
   border: 1.8px solid var(--da-ln);
-  border-radius: 50%;
+  /* Cercle « peint » : quatre rayons différents = bord organique à coût NUL.
+     Un `filter` ici coûterait une rastérisation PAR LIGNE (une trentaine). */
+  border-radius: 48% 52% 47% 53% / 52% 48% 53% 47%;
   background: var(--da-field);
-  filter: url(#da-rough);
 }
 
 /* États : validé (--da-ok, FIXE), à faire maintenant (accent), verrouillé. */
@@ -527,6 +530,13 @@
 .da-row[data-state="next"] .da-card::before {
   border-color: var(--da-acc2);
   background: color-mix(in srgb, var(--da-acc) 12%, var(--da-card));
+}
+
+/* Repère « je suis ici » : c'est le point focal de la liste, mais il ne prend
+   pas la couleur d'un état de validation — accent du bloc, teinte légère. */
+.da-row[data-here="true"] .da-card::before {
+  border-color: color-mix(in srgb, var(--da-acc) 55%, var(--da-ln));
+  background: color-mix(in srgb, var(--da-acc) 9%, var(--da-card));
 }
 
 .da-row[data-state="locked"] .da-card { opacity: .78; }
@@ -867,7 +877,6 @@
 
 [data-quality="low"] .da-btn::before,
 [data-quality="low"] .da-search::before,
-[data-quality="low"] .da-node::before,
 [data-quality="low"] .da-plank span {
   filter: none;
 }

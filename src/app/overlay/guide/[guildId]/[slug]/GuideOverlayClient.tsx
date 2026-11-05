@@ -1148,6 +1148,28 @@ export default function GuideOverlayClient({
   const currentMsTotal = currentMsSeqs.length;
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
 
+  // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
+  // Le bloc actif porte `data-block` : trois thèmes nommés, plus un repli
+  // « custom » dont l'accent vient de la donnée du God. L'accent libre est
+  // VALIDÉ (hex strict) avant d'entrer dans une variable CSS : une valeur de
+  // base ne doit jamais pouvoir injecter une déclaration.
+  const daBlock = useMemo<"emeraude" | "cauchemar" | "ocre" | "custom">(() => {
+    const norm = (s?: string | null) =>
+      (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const id = norm(currentMs?.dofusId);
+    const title = norm(currentMs?.title);
+    for (const key of ["emeraude", "cauchemar", "ocre"] as const) {
+      if (id === key || id === `du_${key}` || title.includes(`dofus ${key}`) || title.includes(key)) {
+        return key;
+      }
+    }
+    return "custom";
+  }, [currentMs]);
+  const daCustomAccent =
+    daBlock === "custom" && /^#[0-9a-f]{6}$/i.test(currentMs?.accentColor || "")
+      ? (currentMs?.accentColor as string)
+      : null;
+
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
     if (!currentMs) return undefined;
@@ -1231,8 +1253,16 @@ export default function GuideOverlayClient({
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      data-da="wakfu"
+      data-theme={isLightMode ? "light" : "dark"}
+      data-block={daBlock}
+      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
+      style={{
+        fontFamily: "var(--da-font-text)",
+        ...(daCustomAccent
+          ? ({ "--da-acc": daCustomAccent } as React.CSSProperties)
+          : null),
+      }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
 

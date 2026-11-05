@@ -27,7 +27,7 @@ export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchP
     return (
       <div
         className={cn(
-          "rush-carnet flex shrink-0 items-center gap-2 h-9 mx-3 mt-3 mb-2.5 px-3 rounded-[4px] bg-surface transition-colors motion-reduce:transition-none",
+          "da-search flex shrink-0 items-center gap-2 h-9 mx-3 mt-3 mb-2.5 px-3 transition-colors motion-reduce:transition-none",
           className
         )}
       >

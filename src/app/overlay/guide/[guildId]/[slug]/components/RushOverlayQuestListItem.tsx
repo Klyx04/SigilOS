@@ -167,62 +167,37 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   return (
     <div
       id={`overlay-seq-${seq.id}`}
-      className={cn(
-        "overflow-hidden rounded-[6px] border transition-colors",
-        // DEUX états, DEUX couleurs — jamais la même carte :
-        //   · VERROUILLÉ (prérequis non terminés) ⇒ filet terre cuite à GAUCHE, pas de
-        //     cadre rouge complet (retour user 02/11/2026 : « ces carrés rouges, ça fait
-        //     trop fade ») ;
-        //   · REPÈRE (« Je suis ici ») ⇒ ambre : c'est le point focal de la liste.
-        // Le cadenas vit UNE seule fois (la case d'état), jamais dans le bandeau ni sur
-        // le repère : trois cadenas dans la même ligne, c'était deux de trop.
-        isDone
-          ? "border-border bg-surface/60"
-          : isLocked
-          ? "border-border border-l-2 border-l-danger/70 bg-surface"
-          : isBookmarked
-          ? "border-warning/40 border-l-2 border-l-warning bg-warning/[0.07]"
-          : "border-border bg-surface hover:border-border-strong hover:bg-elevated"
-      )}
+      className="da-row"
+      data-state={isDone ? "done" : isLocked ? "locked" : "todo"}
+      data-here={isBookmarked && !isDone && !isLocked ? "true" : "false"}
     >
-      {/* Ligne principale */}
-      <div className="flex items-center gap-2 px-2.5 py-2">
-        {/* Case de validation — cercle plein quand la quête est faite */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isLocked) onToggle();
-          }}
-          disabled={isLocked}
-          aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
-          className={cn(
-            "shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-            isLocked && "cursor-not-allowed"
-          )}
-        >
-          <span
-            className={cn(
-              "grid h-4 w-4 place-items-center rounded-full border transition-colors",
-              isDone
-                ? "border-accent bg-accent text-accent-foreground"
-                : isLocked
-                ? "border-danger/40 bg-background text-danger"
-                : "border-border-strong bg-background hover:border-accent"
-            )}
-          >
-            {isDone ? (
-              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
-            ) : isLocked ? (
-              <img
-                src="/assets/dofus-ui/pictos/verrou.png"
-                alt=""
-                aria-hidden="true"
-                className="h-2.5 w-2.5 shrink-0 object-contain"
-              />
-            ) : null}
-          </span>
-        </button>
+      {/* Nœud de validation — HORS de la carte : le fil de sève passe derrière lui.
+          Trois états seulement (validée / à faire / verrouillée) ; le repère
+          « je suis ici » colore la CARTE, jamais le nœud (un seul point focal). */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isLocked) onToggle();
+        }}
+        disabled={isLocked}
+        aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
+        className={cn("da-node cursor-pointer", isLocked && "cursor-not-allowed")}
+      >
+        {isDone ? (
+          <Check className="h-3.5 w-3.5 stroke-[3]" aria-hidden="true" />
+        ) : isLocked ? (
+          <img
+            src="/assets/dofus-ui/pictos/verrou.png"
+            alt=""
+            aria-hidden="true"
+            className="h-3 w-3 shrink-0 object-contain"
+          />
+        ) : null}
+      </button>
+
+      {/* Carte : bord peint irrégulier, filet teinté par le bloc actif */}
+      <div className="da-card items-center">
 
         {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB).
             Le bloc est une COLONNE : le nom prend toute la largeur (2 lignes max) et les

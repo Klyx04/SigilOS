@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import type { RushQuestFilter } from "@/lib/rush-quest-filter";
 
 /**
@@ -28,7 +27,7 @@ export function RushOverlayQuestFilter({
     <div
       role="group"
       aria-label="Filtrer les quêtes"
-      className="mx-3 mt-2 flex gap-1.5"
+      className="da-filters mx-3 mt-2"
     >
       {OPTIONS.map((option) => {
         const active = value === option.value;
@@ -38,12 +37,7 @@ export function RushOverlayQuestFilter({
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={active}
-            className={cn(
-              "flex h-7 flex-1 cursor-pointer items-center justify-center rounded-[4px] border text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors motion-reduce:transition-none",
-              active
-                ? "border-gold/60 bg-gold/10 text-foreground"
-                : "border-border-strong bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
-            )}
+            className="flex h-7 flex-1 cursor-pointer items-center justify-center text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors motion-reduce:transition-none"
           >
             {option.label}
           </button>

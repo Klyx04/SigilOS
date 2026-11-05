@@ -28,8 +28,9 @@ export function RushOverlayFooter({
   label,
   className,
 }: RushOverlayFooterProps) {
-  const baseBtn =
-    "flex items-center gap-1.5 rounded-[4px] border border-border bg-elevated px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface hover:text-foreground disabled:opacity-30 motion-reduce:transition-none";
+  // Bouton planche de la DA : le relief vient de `.da-btn::before` (coin 7/2,
+  // rayures de bois, bord « rough »), plus une bordure Tailwind empilée.
+  const baseBtn = "da-btn gap-1.5 px-3 py-1.5 text-xs";
 
   return (
     <footer
@@ -53,10 +54,8 @@ export function RushOverlayFooter({
         type="button"
         onClick={onNext}
         disabled={!canNext}
-        className={cn(
-          baseBtn,
-          "border-success/40 bg-success/10 text-success hover:border-success/60 hover:bg-success/15 hover:text-success"
-        )}
+        data-variant="main"
+        className={baseBtn}
       >
         <span>Suivant</span>
         <ChevronRight className="w-3.5 h-3.5" />

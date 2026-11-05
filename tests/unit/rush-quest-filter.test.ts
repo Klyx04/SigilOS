@@ -68,9 +68,10 @@ describe("câblage de l'overlay", () => {
         expect(src).toContain('aria-label="Filtrer les quêtes"');
         expect(src).toContain("aria-pressed={active}");
         for (const label of ["Toutes", "En cours", "Verrouillées"]) expect(src).toContain(label);
-        expect(src).toContain("border-gold/60 bg-gold/10 text-foreground");
-        // Chaque segment porte son propre filet : plus de rail continu.
-        expect(src).toContain("flex gap-1.5");
-        expect(src).toContain("border-border-strong bg-surface text-muted-foreground");
+        // DA « Gouache Wakfu » : le segment actif se signale par le trait de
+        // pinceau sous le texte (peint par `.da-filters`), plus par une plaque
+        // dorée — le composant ne code donc plus aucune couleur d'état.
+        expect(src).toContain("da-filters");
+        expect(src).not.toContain("border-gold/60");
     });
 });

@@ -114,7 +114,10 @@ describe("DA « Carnet de campagne » — blocs de conseil", () => {
 describe("DA « Carnet de campagne » — carte de quête verrouillée", () => {
     it("un filet terre cuite à gauche remplace le cadre rouge complet", () => {
         const src = codeOf(CARD);
-        expect(src).toMatch(/border-l-2 border-l-danger\/70/);
+        // Depuis la DA « Gouache Wakfu » (lot E1), l'état est porté par un
+        // attribut et peint par `src/app/da-wakfu.css` : même intention (le
+        // verrou se signale, il ne remplit pas la carte de rouge).
+        expect(src).toMatch(/data-state=\{isDone \? "done" : isLocked \? "locked" : "todo"\}/);
         expect(src).not.toMatch(/border-danger\/30 bg-danger\//);
     });
 
@@ -153,7 +156,7 @@ describe("DA « Carnet de campagne » — fiche de quête et alignement", () => 
 describe("DA « Carnet de campagne » — recherche", () => {
     it("la recherche est une plaque de carnet, sans palette legacy", () => {
         const src = codeOf(SEARCH);
-        expect(src).toContain("rush-carnet");
+        expect(src).toContain("da-search");
         expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
     });
 });
@@ -177,7 +180,8 @@ describe("DA « Carnet de campagne » — navigation et portails", () => {
     it("le footer suit les jetons (plus de palette legacy)", () => {
         const src = codeOf(FOOTER);
         expect(src).toMatch(/border-t border-border-strong bg-surface/);
-        expect(src).toMatch(/text-success/);
+        // « Suivant » est l'action principale : bouton planche accentué.
+        expect(src).toMatch(/data-variant="main"/);
         expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
     });
 

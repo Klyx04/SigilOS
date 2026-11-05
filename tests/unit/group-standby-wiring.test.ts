@@ -92,6 +92,18 @@ describe("Rappels manuels — la pause n'est pas contournable", () => {
         const refusals = code.match(/en stand-by : reprends-le avant d'envoyer/g) ?? [];
         expect(refusals).toHaveLength(2);
     });
+
+    it("le rappel manuel Songes refuse aussi (sinon le bouton est un faux silence)", () => {
+        const code = read("src/server/songes-service.ts");
+        expect(code).toMatch(/isStandByActive\(run\.standBy\)/);
+        expect(code).toMatch(/Cette run est en stand-by : reprends-la avant d'envoyer un rappel/);
+    });
+
+    it("le rappel manuel du calendrier refuse aussi", () => {
+        const code = read("src/server/actions/calendar-actions.ts");
+        expect(code).toMatch(/isStandByActive\(event\.standBy\)/);
+        expect(code).toMatch(/Cet événement est en stand-by : reprends-le avant d'envoyer un rappel/);
+    });
 });
 
 describe("Embeds Discord — un bouton par module, état calculé au rendu", () => {

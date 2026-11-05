@@ -41,7 +41,7 @@ export function RushOverlayQuestFilter({
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={active}
-            className="flex h-7 flex-1 cursor-pointer items-center justify-center text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors motion-reduce:transition-none"
+            className="flex h-7 cursor-pointer items-center text-[12px] font-semibold transition-colors motion-reduce:transition-none"
           >
             {option.label}
             {counts ? <b>{counts[option.value]}</b> : null}

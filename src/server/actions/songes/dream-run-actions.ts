@@ -792,16 +792,17 @@ export async function leaveDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    // If leader leaves, abandon the run
+    // If leader leaves, abandon the run — par la fonction UNIQUE, qui purge aussi le
+    // post Discord et recopie le miroir agenda. Sans elle, le sujet de forum restait
+    // vivant avec ses boutons alors que la run avait disparu du site.
     if (run.leaderId === ctx.userId) {
-        await db.dreamRun.update({
-            where: { id: runId },
-            data: { status: "ABANDONED", completedAt: new Date() },
-        });
+        const { abandonDreamRun } = await import("@/server/songes-service");
+        const abandoned = await abandonDreamRun(guildId, runId);
+        if (!abandoned) {
+            return { success: false, error: "La run n'a pas pu être clôturée. Réessaie." };
+        }
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-        // Miroir agenda (R1) : run abandonnée par le leader → CANCELLED.
-        await syncSongesMirror(guildId, runId);
         return { success: true, runAbandoned: true };
     }
 

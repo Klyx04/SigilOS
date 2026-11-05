@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 05/11/2026 (suite 6) — **Songes : la clôture redevient unique (fin du J+3 silencieux)** — branche `fix/songes-cloture`
+
+> **Demande user (verbatim)** : « 🔍 Analyse — Disparition des runs Songes + message Discord incorrect » — une run du 29/10 n'apparaît plus sur `/songes`, mais son post Discord est toujours là, boutons compris, et répond « Cette run n'accepte plus de candidatures ».
+> **Mesures (dans le code, aucune supposition)** : ① la cause n'est **pas** `cleanupInactiveRuns()` (code mort, supprimé) mais le job BullMQ **`daily-cleanup`** (`metamob-worker.ts`, `0 4 * * *`) qui passait en `ABANDONED` toute run `RECRUITING`/`IN_PROGRESS` à **J+3**, sans rappel ni purge — d'où la disparition du site et le post fantôme ; ② `deleteDiscordRunEmbed` **savait déjà** supprimer un fil forum (`deleteChannelMessage` → `deleteChannel` pour les types 10/11/12) mais **vidait les IDs même quand la suppression échouait** ; ③ le calendrier J+7/15/20/21 était **faux** : `updatedAt` (`@updatedAt`) avance à chaque rappel (`lastReminderAt`), donc la clôture réelle tombait vers **J+38** ; ④ `IN_PROGRESS` n'était traité par aucun cron une fois le worker retiré ; ⑤ `leaveDreamRun` abandonnait aussi sans purger ; ⑥ le refus « n'accepte plus de candidatures » était recopié **3 fois**, et la modale `songes:join` s'ouvrait sans lire le statut.
+> **Fait** : règle pure `src/lib/songes/run-status.ts` (`isRunOpen`, `runJoinRefusal`, `runInteractionRefusal`, `resolveSongesReminderStep` — 3 rappels obligatoires, J+21, cooldown 24 h, stand-by) ; worker **sans aucune clôture de run** ; cron élargi à `IN_PROGRESS`, activité **réelle** (dernière candidature / dernier étage) et `updatedAt` **figé** lors des rappels ; porte unique `abandonDreamRun` (garde d'état dans le `WHERE`, purge, miroir) utilisée par le cron et `leaveDreamRun` ; `deleteDiscordRunEmbed` ne perd les références qu'après une suppression **réussie** et journalise via `logger` ; passe de **rattrapage** (25/passe) des embeds de runs closes ; `cleanupInactiveRuns` supprimée.
+> **Preuves** : `songes-run-status` **8** · `songes-abandon-purge` **5** · verrous voisins **52 ✓** (orphelins, worker, cycle de vie, notifications) · `tsc` 0 · ESLint **0 erreur** · ROADMAP **60 863 o** (< 60 Ko) · **aucune migration**.
+> **Reste (PR B)** : messages par cause dans `processRunJoin` / `updateRunCandidateClass` / `sendJoinRequest` ; refus **avant** d'ouvrir la modale `songes:join` ; alignement du stand-by.
+> **Ops** : au premier passage du cron, la passe de rattrapage supprime le post du 29/10 (contrôler `songesEmbedsPurged` dans le JSON du cron).
+> **Rotation** : bloc « 05/11/2026 — Rush : déplacement réparé + split des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 05/11/2026 (suite 5) — **DA « Gouache Wakfu » : E2 complet (coque, sommaire, cartes, fil)** — branches `fix/da-guide-sticky`, `feat/da-wakfu-e2-cartes`
 
 > **Demande user (verbatim)** : « visuellement les guides internes externe et les overlay public / interne doivent etre identique coté DA techno etc , sauf toutes les brique interne à la guilde » · « enchaine » · puis trois captures : « la majeure partie du bloc est rempli de vide », « ko la seve là », « conseil et note ko ».
@@ -59,14 +70,6 @@
 > **Reste / ops** : l'édition inline du **séparateur** (E3) ; découpe du monolithe en `forms/`·`list/`·`fields/` (E2→E4) ; contrôle visuel 390/768/1024/1440 à faire par le mainteneur ; base **locale** : 19 quêtes de classe en `classReq='cra'` (patch local séparé).
 > **Rotation** : bloc « 04/11/2026 (suite 5) — Suppression de la page morte « Stats Guilde » » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 05/11/2026 — **Rush : déplacement réparé + split des blocs (lots A/B)** — branches `fix/rush-move-sequence` / `feat/rush-split-blocks`
 
-> **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → le lot A (déplacement) de la reprise, avant la refonte E1→E5.
-> **Mesures** : ① le contrôle « Déplacer vers » ne s'affichait **jamais** : `MilestoneRow` passait `milestones={[milestone]}` à `SequenceEditForm`, donc `milestones.length > 1` était toujours faux ; ② l'action appelée (`upsertRushSequence`) **ignorait `milestoneId`** et remettait `alignOrderCode`, `alignLevelReq`, `classReq`, `isSuccess`, `icon`, `metamobMonsterId` à `null`/`false` (perte de route) ; ③ `RushSylvestreAdminClient.tsx` = **5 128 lignes**, **405** motifs UI interdits, **77/77** fichiers God.
-> **Fait** : action dédiée `moveRushSequence` (Zod borné, rate limit 60/min, transaction, cible relue dans le même guide, séparateur + bloc Conseil/Tips refusés, no-op même bloc) qui n'écrit que `milestoneId` + `order` (`nextSequenceOrder`) ; `SequenceEditForm` reçoit la liste complète des blocs et appelle `onMove` ; mise à jour optimiste + `router.refresh()` en échec ; garde en commentaire dans `upsertRushSequence`. Plan de la refonte : `docs/plans/REFONTE-EDITEUR-RUSH.md`.
-> **Lot B (branche `feat/rush-split-blocks`)** : sur la bêta, un palier = une séquence de 20 quêtes ⇒ la route ne peut pas filtrer à l'intérieur et « Déplacer vers » déplace le bloc. Action `splitRushSequence` (N séquences à la même position, route/Ordre/palier/classe conservés, tags/donjons **par quête** du dataset enrichi, progression reportée, donjons inconnus écartés) ; bouton « Scinder en N quêtes » au-dessus du footer ; table `RUSH_CLASS_QUESTS` (19 classes — la base locale avait `cra` partout). **Ops** : cliquer sur chaque bloc après merge/déploiement, puis rejouer l'enrichissement des ressources.
-> **Preuves** : `rush-move-sequence` **10** · `rush-split-blocks` **12** · Rush **66 / 817 ✓** · suite **603 / 6 344 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : E1 (squelette 3 panneaux) → E2 → E3 → E4 → D → E5 ; le split bêta s'exécute par le bouton ; la base locale garde 19 classes en `cra` (patch local séparé) ; contrôle visuel du studio.
-> **Rotation** : bloc « 04/11/2026 (suite 4) — Fluidité du scroll » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

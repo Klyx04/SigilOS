@@ -379,35 +379,18 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur expiration candidatures Songes:", { error: String(err) });
         }
 
-        // SONGES: Auto-abandon inactive runs (> 3 days without ANY member/floor/join activity)
-        try {
-            const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-            // On exclut les runs qui ont eu une candidature ou un floor actif récemment
-            const inactiveRuns = await db.dreamRun.findMany({
-                where: {
-                    status: { in: ["RECRUITING", "IN_PROGRESS"] },
-                    updatedAt: { lt: threeDaysAgo },
-                    // Exclure les runs qui ont eu une récente joinRequest ou floor
-                    joinRequests: { none: { createdAt: { gt: threeDaysAgo } } },
-                    floors: { none: { completedAt: { gt: threeDaysAgo } } },
-                },
-                select: { id: true, guildId: true },
-            });
-
-            for (const run of inactiveRuns) {
-                await db.dreamRun.update({
-                    where: { id: run.id },
-                    data: { status: "ABANDONED", completedAt: new Date() },
-                });
-            }
-
-            if (inactiveRuns.length > 0) {
-                logger.info(`[Cleanup] 🌙 ${inactiveRuns.length} runs Songes inactives abandonnées (> 3j sans activité).`);
-            }
-        } catch (err) {
-            logger.error("[Cleanup] Erreur abandon runs Songes:", { error: String(err) });
-        }
+        // ⚠️ AUCUN abandon de run Songes ici (itération debug du 05/11/2026).
+        //
+        // Ce job passait en `ABANDONED` toute run RECRUITING/IN_PROGRESS sans activité
+        // depuis 3 jours : ni rappel, ni notification, ni suppression du post Discord.
+        // D'où des runs qui disparaissaient du site (la page ne liste que RECRUITING /
+        // IN_PROGRESS / COMPLETED) en laissant un sujet de forum vivant avec ses boutons.
+        //
+        // Le calendrier produit est J+7 / J+15 / J+20 / J+21, porté par le cron
+        // `cleanup-inactive-posts` (`processInactivePostsRemindersAndAutoClose`, règle
+        // pure `src/lib/songes/run-status.ts`), qui clôture par `abandonDreamRun` et
+        // purge l'embed. Ne pas réintroduire de clôture ici : elle court-circuiterait
+        // les trois rappels et laisserait le post Discord orphelin.
 
         logger.info(`[Cleanup] ✅ Nettoyage quotidien terminé.`);
     },

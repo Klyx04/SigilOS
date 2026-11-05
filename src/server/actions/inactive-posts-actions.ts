@@ -3,11 +3,12 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
-import { sendChannelMessage, deleteChannelMessage, deleteChannel } from "@/server/discord";
+import { deleteChannelMessage, deleteChannel, sendChannelMessage } from "@/server/discord";
 import { createNotification } from "@/server/actions/notification-actions";
-import { deleteDiscordRunEmbed } from "@/server/songes-service";
+import { abandonDreamRun, deleteDiscordRunEmbed } from "@/server/songes-service";
 import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
 import { isStandByActive } from "@/lib/group-standby";
+import { resolveSongesReminderStep, SONGES_CLOSE_AFTER_DAYS } from "@/lib/songes/run-status";
 
 export interface InactivePostsConfig {
     inactivityDays: number;     // Jours d'inactivité avant premier rappel / entre rappels (défaut: 3)
@@ -18,8 +19,6 @@ const DEFAULT_CONFIG: InactivePostsConfig = {
     inactivityDays: 3,
     maxReminders: 3,
 };
-
-const INACTIVITY_SCHEDULE_DAYS = [7, 15, 20] as const;
 
 /**
  * Récupère le Discord ID associé à un userId.
@@ -68,6 +67,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
     djPostsClosed: number;
     songesRemindersSent: number;
     songesRunsClosed: number;
+    songesEmbedsPurged: number;
     error?: string;
 }> {
     const now = new Date();
@@ -76,6 +76,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
     let djPostsClosed = 0;
     let songesRemindersSent = 0;
     let songesRunsClosed = 0;
+    let songesEmbedsPurged = 0;
 
     try {
         // ─────────────────────────────────────────────────────────────────────
@@ -253,18 +254,25 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 2. SONGES (DreamRun)
+        // 2. SONGES (DreamRun) — calendrier UNIQUE : J+7 / J+15 / J+20 / J+21
         // ─────────────────────────────────────────────────────────────────────
-        const recruitingRuns = await (db as any).dreamRun.findMany({
+        // `IN_PROGRESS` est inclus (05/11/2026) : le job `daily-cleanup` du worker
+        // abandonnait ces runs à J+3 ; sans cette inclusion, elles ne seraient plus
+        // jamais relancées ni clôturées après le retrait de ce job.
+        const activeRuns = await (db as any).dreamRun.findMany({
             where: {
-                status: "RECRUITING",
+                status: { in: ["RECRUITING", "IN_PROGRESS"] },
             },
             include: {
                 reminders: { select: { id: true, createdAt: true } },
+                // L'activité réelle ne vit pas seulement sur `DreamRun.updatedAt` :
+                // une candidature ou un étage terminé sont aussi des signes de vie.
+                joinRequests: { take: 1, orderBy: { createdAt: "desc" }, select: { createdAt: true } },
+                floors: { take: 1, orderBy: { completedAt: "desc" }, select: { completedAt: true } },
             },
         });
 
-        for (const run of recruitingRuns) {
+        for (const run of activeRuns) {
             const guildConfig = await db.guildConfig.findFirst({
                 where: { OR: [{ id: run.guildId }, { discordGuildId: run.guildId }] },
                 select: { id: true, discordGuildId: true },
@@ -277,8 +285,14 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                 continue;
             }
 
-            const lastUpdate = run.updatedAt || run.createdAt;
-            const daysSinceUpdate = Math.floor((now.getTime() - new Date(lastUpdate).getTime()) / (24 * 60 * 60 * 1000));
+            // Dernière activité RÉELLE — `updatedAt` seul ne suffit pas : chaque rappel
+            // écrivait `lastReminderAt`, ce qui l'avançait et repoussait chaque palier.
+            const lastActivityAt = Math.max(
+                new Date(run.updatedAt || run.createdAt).getTime(),
+                run.joinRequests?.[0]?.createdAt ? new Date(run.joinRequests[0].createdAt).getTime() : 0,
+                run.floors?.[0]?.completedAt ? new Date(run.floors[0].completedAt).getTime() : 0,
+            );
+            const daysSinceUpdate = Math.floor((now.getTime() - lastActivityAt) / (24 * 60 * 60 * 1000));
             const hoursSinceLastReminder = run.lastReminderAt
                 ? (now.getTime() - new Date(run.lastReminderAt).getTime()) / (3600 * 1000)
                 : Infinity;
@@ -287,90 +301,85 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             const leaderDiscordId = await getDiscordIdByUserId(run.leaderId);
             const leaderMention = leaderDiscordId ? `<@${leaderDiscordId}>` : "Chef de groupe";
             const runLink = `${getAppBaseUrl()}/dashboard/${guildConfig.discordGuildId}/songes`;
-            const daysLeft = Math.max(0, 21 - daysSinceUpdate);
+            const daysLeft = Math.max(0, SONGES_CLOSE_AFTER_DAYS - daysSinceUpdate);
 
-            // Seuil 1 : J+7
-            if (reminderCount === 0 && daysSinceUpdate >= 7) {
-                if (run.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 1/3 Songes (J+7)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 7 jours. S'il n'est plus d'actualité, clôture-le : [tableau de bord](${runLink}). Sinon, clôture automatique dans ${daysLeft} jours (J+21).`;
-                    const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
-                    if (sentMsgId) {
-                        await (db as any).dreamRunReminder.create({
-                            data: {
-                                runId: run.id,
-                                discordChannelId: run.discordChannelId,
-                                discordMessageId: sentMsgId,
-                            },
-                        }).catch(() => {});
-                    }
-                }
-                await (db as any).dreamRun.update({
-                    where: { id: run.id },
-                    data: { lastReminderAt: now },
-                });
-                songesRemindersSent++;
-            }
-            // Seuil 2 : J+15
-            else if (reminderCount === 1 && daysSinceUpdate >= 15 && hoursSinceLastReminder >= 24) {
-                if (run.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 2/3 Songes (J+15)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 15 jours. Continue ? Confirme ou clôture ici : [tableau de bord](${runLink}). Clôture automatique dans ${daysLeft} jours.`;
-                    const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
-                    if (sentMsgId) {
-                        await (db as any).dreamRunReminder.create({
-                            data: {
-                                runId: run.id,
-                                discordChannelId: run.discordChannelId,
-                                discordMessageId: sentMsgId,
-                            },
-                        }).catch(() => {});
-                    }
-                }
-                await (db as any).dreamRun.update({
-                    where: { id: run.id },
-                    data: { lastReminderAt: now },
-                });
-                songesRemindersSent++;
-            }
-            // Seuil 3 : J+20 (Ultime)
-            else if (reminderCount === 2 && daysSinceUpdate >= 20 && hoursSinceLastReminder >= 24) {
-                if (run.discordChannelId) {
-                    const reminderMsg = `⚠️ **DERNIER RAPPEL 3/3 Songes (J+20)** — ${leaderMention}, ton run Songes (${run.difficulty}) est inactif depuis 20 jours. Sans interaction sous 24h, il sera clôturé et supprimé : [tableau de bord](${runLink}).`;
-                    const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
-                    if (sentMsgId) {
-                        await (db as any).dreamRunReminder.create({
-                            data: {
-                                runId: run.id,
-                                discordChannelId: run.discordChannelId,
-                                discordMessageId: sentMsgId,
-                            },
-                        }).catch(() => {});
-                    }
-                }
-                await (db as any).dreamRun.update({
-                    where: { id: run.id },
-                    data: { lastReminderAt: now },
-                });
-                songesRemindersSent++;
-            }
-            // Clôture définitive : >= J+21 et 3 rappels passés (ou 24h après le rappel 3)
-            else if (reminderCount >= 3 && (daysSinceUpdate >= 21 || hoursSinceLastReminder >= 24)) {
-                await (db as any).dreamRun.update({
-                    where: { id: run.id },
-                    data: { status: "ABANDONED" },
-                });
+            // Une seule règle décide (palier 1/2/3, clôture, ou rien) — jamais une cascade
+            // de seuils recopiée dans deux fichiers : `src/lib/songes/run-status.ts`.
+            const step = resolveSongesReminderStep({
+                daysSinceActivity: daysSinceUpdate,
+                reminderCount,
+                hoursSinceLastReminder,
+            });
+            if (step === null) continue;
 
-                await deleteDiscordRunEmbed(guildConfig.discordGuildId, run.id);
+            // ── Clôture : trois rappels obligatoires puis J+21 (règle pure) ──────
+            if (step === "close") {
+                // `abandonDreamRun` porte la garde d'état ET la purge de l'embed : le
+                // sujet de forum ne survit plus à la clôture (cause du post fantôme du
+                // 29/10 — le worker abandonnait sans jamais rien supprimer).
+                const closed = await abandonDreamRun(guildConfig.discordGuildId, run.id);
+                if (!closed) continue;
 
                 await createNotification(
                     run.leaderId,
                     "SYSTEM_INFO",
                     "Run Songes expiré",
-                    `Ton run Songes (${run.difficulty}) a été archivé automatiquement après 20 jours sans activité.`,
+                    `Ton run Songes (${run.difficulty}) a été archivé automatiquement après ${SONGES_CLOSE_AFTER_DAYS} jours sans activité.`,
                     `/dashboard/${guildConfig.discordGuildId}/songes`,
                     guildConfig.discordGuildId
                 ).catch(() => {});
 
                 songesRunsClosed++;
+                continue;
+            }
+
+            // ── Rappels 1/3, 2/3, 3/3 ───────────────────────────────────────────
+            const reminderMsg = step === 1
+                ? `⏳ **Rappel 1/3 Songes (J+7)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 7 jours. S'il n'est plus d'actualité, clôture-le : [tableau de bord](${runLink}). Sinon, clôture automatique dans ${daysLeft} jours (J+21).`
+                : step === 2
+                    ? `⏳ **Rappel 2/3 Songes (J+15)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 15 jours. Continue ? Confirme ou clôture ici : [tableau de bord](${runLink}). Clôture automatique dans ${daysLeft} jours.`
+                    : `⚠️ **DERNIER RAPPEL 3/3 Songes (J+20)** — ${leaderMention}, ton run Songes (${run.difficulty}) est inactif depuis 20 jours. Sans interaction sous 24h, il sera clôturé et supprimé : [tableau de bord](${runLink}).`;
+
+            if (run.discordChannelId) {
+                const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
+                if (sentMsgId) {
+                    await (db as any).dreamRunReminder.create({
+                        data: {
+                            runId: run.id,
+                            discordChannelId: run.discordChannelId,
+                            discordMessageId: sentMsgId,
+                        },
+                    }).catch(() => {});
+                }
+            }
+            await (db as any).dreamRun.update({
+                where: { id: run.id },
+                // `updatedAt` figé : un rappel n'est PAS une activité de la run.
+                // Sans ça, chaque envoi repoussait le palier suivant de plusieurs jours.
+                data: { lastReminderAt: now, updatedAt: run.updatedAt },
+            });
+            songesRemindersSent++;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 2 bis. RATTRAPAGE — posts Discord de runs closes restés en ligne
+        // ─────────────────────────────────────────────────────────────────────
+        // Une clôture manuelle, un meneur parti (`leaveDreamRun`) ou l'ancien job du
+        // worker laissaient parfois le sujet de forum vivant : statut clos, embed intact,
+        // boutons toujours cliquables. Cette passe bornée répare l'existant. Elle est
+        // idempotente : `deleteDiscordRunEmbed` ne vide les références que si la
+        // suppression a réellement réussi, donc un échec revient au passage suivant.
+        const orphanEmbeds = await db.dreamRun.findMany({
+            where: {
+                status: { in: ["ABANDONED", "COMPLETED", "FAILED"] },
+                discordChannelId: { not: null },
+            },
+            select: { id: true, guildId: true },
+            take: 25,
+        });
+        for (const orphan of orphanEmbeds) {
+            if (await deleteDiscordRunEmbed(orphan.guildId, orphan.id)) {
+                songesEmbedsPurged++;
             }
         }
 
@@ -380,6 +389,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             djPostsClosed,
             songesRemindersSent,
             songesRunsClosed,
+            songesEmbedsPurged,
         };
     } catch (error) {
         logger.error("[processInactivePostsRemindersAndAutoClose] Erreur générale:", { error });
@@ -389,6 +399,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             djPostsClosed,
             songesRemindersSent,
             songesRunsClosed,
+            songesEmbedsPurged,
             error: "Erreur lors du traitement des posts inactifs",
         };
     }

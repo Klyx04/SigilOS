@@ -20,16 +20,6 @@
 - **Livré le 05/11/2026 — Rush : le déplacement d'une quête réparé (branche `fix/rush-move-sequence`).**
   **Bug mesuré** : le bouton « Déplacer vers » était **invisible** (le formulaire ne recevait qu'un seul bloc, donc `milestones.length > 1` toujours faux) et, appelé, il ne changeait **pas** `milestoneId` et remettait `alignOrderCode`/`alignLevelReq`/`classReq`/`isSuccess`/`icon`/`metamobMonsterId` à `null`/`false` (perte de route). **Fait** : action dédiée `moveRushSequence` (Zod borné, **60/min**, transaction, bloc cible relu dans le **même** guide, séparateur et bloc Conseil/Tips refusés, no-op si même bloc) qui n'écrit **que** `milestoneId` + `order` (règle pure `nextSequenceOrder`) ; studio rebranché (liste complète des blocs) + mise à jour optimiste. **Preuves** : `rush-move-sequence` **10** · Rush **65 / 805 ✓** · suite **602 / 6 332 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Reste** : refonte de l'éditeur (E1→E5, `docs/plans/REFONTE-EDITEUR-RUSH.md`) et split des blocs bêta.
 
-- **Livré le 04/11/2026 — Rush : ressources par quête (branche `feat/rush-ressources`).**
-  **Mesure** : sur les **121** séquences Brâkmarien (hors dataset de seed), **115 n'avaient aucun tag** ;
-  elles portent **120 `questDbIds`** ⇒ l'id DofusDB est la clé d'appariement (replis URL puis nom).
-  **Fait** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute, ne réécrit ni ne
-  supprime ; nom canonique réutilisé ⇒ clé `id|nom` unique) + script `enrich-rush-guide-resources.ts`
-  (**dry-run** par défaut, `--apply --db`, `--sql` additif). **Résultat (local)** : **81 séquences**,
-  **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485** ; Brâkmarien **1 → 151** ; 2ᵉ passage
-  = **0 écriture**, **aucune migration**. **Preuves** : `rush-resource-tags` **12** · suite
-  **597 / 6 274 ✓** · `tsc` 0 · ESLint 0. **Ops** : bêta — `--sql` puis pré-chauffage des icônes.
-
 - **Livré le 04/11/2026 — Rush : 25 conseils écrits depuis les contraintes Tougli (branche `feat/rush-brakmarien`).**
   ① **Le script ne pouvait pas viser les séquences importées depuis God** : il prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les 121 Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0**. Correctif : `NoteTarget.questIds` + index par **id DofusDB** dans `rush-notes.ts` (l'id tranche, le nom reste le repli) et `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base).
   ② **25 conseils écrits** en base locale (**dataset inchangé** : ces quêtes n'y sont pas) — **19 Brâkmarien** + **6 Bontarien**, 28 contraintes (`needPlayer` 24, `job` 6) ; **2ᵉ passage = 0 écriture**. Une note qui cite encore `&n` n'est jamais appliquée.
@@ -318,6 +308,8 @@
 | `ELEVAGE-ICONES` | Élevage — 228 icônes de montures **locales** (siphonnées) : plus de carré noir sur `/elevage` ; garde `elevage-mount-data` | 29/10/2026 |
 | `DJ-CAP` | DJ/Quêtes — file d'attente sur groupe complet + décision **atomique** (sérialisable + rejeu, fin du 5/4) | 30/10/2026 |
 | `DASH-IMG` | Présentation — images **contrôlées** : éditeur (URL/base64/collage) + règlement sans image côté serveur | 30/10/2026 |
+| `rush-ressources` | Rush — ressources par quête : 81 séquences, 252 tags, 390 → 485 (`mergeItemTags`, script dry-run/`--sql`) | 04/11/2026 |
+| `songes-cloture` | Songes — clôture : `abandonDreamRun` (garde d'état + purge du post Discord), calendrier J+7/15/20/21 réparé (activité réelle, `updatedAt` figé, `IN_PROGRESS` inclus), rattrapage des embeds orphelins | 05/11/2026 |
 
 ## 6. Archives et mémoire froide
 

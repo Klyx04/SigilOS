@@ -29,14 +29,14 @@ export async function GET(req: Request) {
         await recordCronExecution("cleanup_inactive_posts", {
             success: true,
             durationMs: Date.now() - startedAt,
-            summary: `${result.djRemindersSent} rappels DJ, ${result.djPostsClosed} posts DJ clos, ${result.songesRemindersSent} rappels Songes, ${result.songesRunsClosed} runs Songes clos.`,
+            summary: `${result.djRemindersSent} rappels DJ, ${result.djPostsClosed} posts DJ clos, ${result.songesRemindersSent} rappels Songes, ${result.songesRunsClosed} runs Songes clos, ${result.songesEmbedsPurged} embeds Songes purgés.`,
             details: result,
         });
 
         return NextResponse.json({
             success: true,
             data: result,
-            message: `Traitement terminé : ${result.djRemindersSent} rappels DJ, ${result.djPostsClosed} posts DJ clos, ${result.songesRemindersSent} rappels Songes, ${result.songesRunsClosed} runs Songes clos.`
+            message: `Traitement terminé : ${result.djRemindersSent} rappels DJ, ${result.djPostsClosed} posts DJ clos, ${result.songesRemindersSent} rappels Songes, ${result.songesRunsClosed} runs Songes clos, ${result.songesEmbedsPurged} embeds Songes purgés.`
         });
     } catch (e: any) {
         logger.error('[CRON Inactive Posts] Exception:', { error: e.message });

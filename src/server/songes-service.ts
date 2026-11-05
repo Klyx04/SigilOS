@@ -362,22 +362,54 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
 // DELETE DISCORD RUN EMBED
 // ============================================
 
-export async function deleteDiscordRunEmbed(guildId: string, runId: string) {
+/**
+ * Résout les **deux formes** de `DreamRun.guildId` vers la portée de requête à utiliser.
+ *
+ * Mesure du 30/10/2026 (déjà appliquée par le handler stand-by) : selon le chemin
+ * d'écriture, `guildId` porte l'**id interne** (`GuildConfig.id`, à la création) ou le
+ * **snowflake Discord** (sur certains chemins de fermeture). Une requête qui ne vise
+ * qu'une forme rate silencieusement la run — donc ne purge rien.
+ *
+ * Lecture seule, jamais d'écriture ici.
+ */
+async function resolveDreamRunGuildScope(guildIdOrSnowflake: string): Promise<string[]> {
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildIdOrSnowflake },
+        select: { id: true },
+    });
+    return guildConfig ? [guildConfig.id, guildIdOrSnowflake] : [guildIdOrSnowflake];
+}
+
+export async function deleteDiscordRunEmbed(guildId: string, runId: string): Promise<boolean> {
+    let ok = true;
     try {
+        const scope = await resolveDreamRunGuildScope(guildId);
         const run = await db.dreamRun.findFirst({
-            where: { id: runId, guildId },
+            where: { id: runId, guildId: { in: scope } },
             select: { discordChannelId: true, discordMessageId: true }
         });
 
         if (run?.discordChannelId && run?.discordMessageId) {
             const { deleteChannelMessage } = await import("@/server/discord");
-            await deleteChannelMessage(run.discordChannelId, run.discordMessageId);
+            // `deleteChannelMessage` supprime le message PUIS le fil (types 10/11/12) :
+            // un post de forum ne survit donc pas à un appel réussi (cf. discord.ts).
+            const deleted = await deleteChannelMessage(run.discordChannelId, run.discordMessageId);
 
-            // Clean up DB references
-            await db.dreamRun.update({
-                where: { id: runId },
-                data: { discordMessageId: null, discordChannelId: null }
-            });
+            // On ne perd les références que si la suppression a RÉELLEMENT réussi. Sinon
+            // (403 permission, réseau, fil déjà archivé…) le post resterait orphelin sans
+            // aucun moyen de le retenter : la passe de rattrapage du cron reprend le reliquat.
+            if (deleted) {
+                await db.dreamRun.update({
+                    where: { id: runId },
+                    data: { discordMessageId: null, discordChannelId: null }
+                });
+            } else {
+                ok = false;
+                logger.warn("[Songes Service] embed non supprimé — références conservées pour reprise", {
+                    guildId,
+                    runId,
+                });
+            }
         }
 
         // Clean up join requests messages as well
@@ -386,7 +418,54 @@ export async function deleteDiscordRunEmbed(guildId: string, runId: string) {
         // Clean up reminders as well
         await deleteRunRemindersDiscordMessages(guildId, runId);
     } catch (error) {
-        console.error("[Songes Service] deleteDiscordRunEmbed Error:", error);
+        logger.error("[Songes Service] deleteDiscordRunEmbed Error:", error);
+        ok = false;
+    }
+    return ok;
+}
+
+/**
+ * Abandonne une run **et** nettoie son post Discord — **la seule façon de clore**.
+ *
+ * Pourquoi une fonction unique (itération debug du 05/11/2026) : plusieurs chemins
+ * passaient le statut à `ABANDONED` à la main ; deux laissaient le sujet de forum vivant
+ * avec ses boutons (`leaveDreamRun` quand le meneur quittait, et le job `daily-cleanup`
+ * du worker qui abandonnait à J+3). Le site masquait la run, Discord continuait
+ * d'accepter les clics, et le refus parlait de « candidatures ».
+ *
+ * - **Garde d'état dans le `WHERE`** : une run déjà close n'est jamais réécrite (idempotent) ;
+ * - `guildId` accepté sous ses **deux** formes (id interne ou snowflake) ;
+ * - purge de l'embed **avant** de rendre la main.
+ *
+ * @returns `true` si la run a effectivement été close par cet appel.
+ */
+export async function abandonDreamRun(
+    guildId: string,
+    runId: string,
+    opts: { syncMirror?: boolean } = {}
+): Promise<boolean> {
+    try {
+        const scope = await resolveDreamRunGuildScope(guildId);
+        const closed = await db.dreamRun.updateMany({
+            where: {
+                id: runId,
+                guildId: { in: scope },
+                status: { in: ["RECRUITING", "IN_PROGRESS"] },
+            },
+            data: { status: "ABANDONED", completedAt: new Date() },
+        });
+        if (closed.count === 0) return false;
+
+        await deleteDiscordRunEmbed(guildId, runId);
+
+        if (opts.syncMirror !== false) {
+            const { syncSongesMirror } = await import("@/server/agenda-mirror-sync");
+            await syncSongesMirror(guildId, runId).catch(() => null);
+        }
+        return true;
+    } catch (error) {
+        logger.error("[Songes Service] abandonDreamRun Error:", error);
+        return false;
     }
 }
 
@@ -408,7 +487,7 @@ export async function deleteRunJoinRequestsDiscordMessages(guildId: string, runI
             }
         }
     } catch (error) {
-        console.error("[Songes Service] deleteRunJoinRequestsDiscordMessages Error:", error);
+        logger.error("[Songes Service] deleteRunJoinRequestsDiscordMessages Error:", error);
     }
 }
 
@@ -434,7 +513,7 @@ export async function deleteRunRemindersDiscordMessages(guildId: string, runId: 
         }
         if (tasks.length > 0) await Promise.allSettled(tasks);
     } catch (error) {
-        console.error("[Songes Service] deleteRunRemindersDiscordMessages Error:", error);
+        logger.error("[Songes Service] deleteRunRemindersDiscordMessages Error:", error);
     }
 }
 
@@ -510,40 +589,14 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
 }
 
 // ============================================
-// CLEANUP INACTIVE RUNS
+// INACTIVITÉ — plus aucune clôture ici
 // ============================================
-
-export async function cleanupInactiveRuns(guildId: string) {
-    try {
-        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-
-        // Find runs with no activity for 3 days
-        const inactiveRuns = await db.dreamRun.findMany({
-            where: {
-                guildId,
-                status: { in: ["RECRUITING", "IN_PROGRESS"] },
-                updatedAt: { lt: threeDaysAgo }
-            },
-            select: { id: true }
-        });
-
-        for (const run of inactiveRuns) {
-            // Remove embed first
-            await deleteDiscordRunEmbed(guildId, run.id);
-
-            // Mark as abandoned
-            await db.dreamRun.update({
-                where: { id: run.id },
-                data: {
-                    status: "ABANDONED",
-                    completedAt: new Date()
-                }
-            });
-        }
-    } catch (error) {
-        console.error("[Songes Service] cleanupInactiveRuns Error:", error);
-    }
-}
+//
+// `cleanupInactiveRuns()` (abandon à J+3, sans rappel) a été **supprimée** le 05/11/2026 :
+// elle était du code mort, et surtout elle portait un second calendrier de clôture.
+// Le seul calendrier est celui du cron `cleanup-inactive-posts`
+// (`processInactivePostsRemindersAndAutoClose`), qui applique J+7 / J+15 / J+20 / J+21
+// via la règle pure `src/lib/songes/run-status.ts` et clôture par `abandonDreamRun`.
 
 // ============================================
 // PROCESS RUN JOIN (from Discord button)

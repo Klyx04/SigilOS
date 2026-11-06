@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,16 @@ export function MetamobForm({
                         disabled={saving}
                     />
                     <p className="text-xs text-muted-foreground">
-                        Laisser vide conserve la clé existante. Une nouvelle clé devra être vérifiée.
+                        Laisser vide conserve la clé existante. Une nouvelle clé devra être vérifiée.{" "}
+                        <a
+                            href="https://www.metamob.fr/settings#api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-2"
+                        >
+                            Où trouver ma clé API ?
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
                     </p>
                 </div>
 

@@ -4,9 +4,10 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GameIcon } from "@/components/shared/game-icon";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
+import { AVAILABLE_ACTIVITIES, ACTIVITY_ASSETS } from "@/lib/presentation-constants";
 import { PUBLIC_INTRODUCTION_MAX, PUBLIC_OBJECTIFS_MAX } from "@/lib/public-profile-input";
 import { cn } from "@/lib/utils";
 import { updatePublicPresentation } from "@/server/actions/public-profile-actions";
@@ -107,10 +108,11 @@ export function PresentationForm({
                                     onClick={() => toggleActivity(activity.id)}
                                     disabled={saving}
                                     className={cn(
-                                        "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                        "inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                         active && "border-primary bg-primary/10 font-medium text-foreground"
                                     )}
                                 >
+                                    <GameIcon src={ACTIVITY_ASSETS[activity.id]} className="h-4 w-4" />
                                     {activity.label}
                                 </button>
                             );

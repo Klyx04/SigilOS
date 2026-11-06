@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GameIcon } from "@/components/shared/game-icon";
 import { Input } from "@/components/ui/input";
 import { DOFUS_JOBS } from "@/lib/dofus-assets";
 import { PUBLIC_PROFESSIONS_MAX } from "@/lib/public-profile-input";
@@ -91,7 +92,10 @@ export function ProfessionsForm({ professions }: { professions: { id: string; le
                                             disabled={saving}
                                             className="text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         >
-                                            {job.name}
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <GameIcon src={job.icon} className="h-4 w-4" />
+                                                {job.name}
+                                            </span>
                                         </button>
                                         {active ? (
                                             <Input

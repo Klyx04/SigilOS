@@ -1,5 +1,6 @@
 "use client";
 
+import { GameIcon } from "@/components/shared/game-icon";
 import {
     Select,
     SelectContent,
@@ -9,7 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+import { ALL_DOFUS_SERVER_ENTRIES, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 
 const GROUPS = [
     { key: "epique", label: "Serveurs Épiques" },
@@ -29,10 +30,15 @@ export function ServerSelect({
     onChange: (value: string) => void;
     disabled?: boolean;
 }) {
+    const selected = ALL_DOFUS_SERVER_ENTRIES.find((server) => String(server.id) === value);
+
     return (
         <Select value={value} onValueChange={onChange} disabled={disabled}>
             <SelectTrigger className="w-full" aria-label="Serveur Dofus">
-                <SelectValue placeholder="Choisis ton serveur" />
+                <span className="flex items-center gap-2">
+                    {selected ? <GameIcon src={selected.icon} className="h-4 w-4" /> : null}
+                    <SelectValue placeholder="Choisis ton serveur" />
+                </span>
             </SelectTrigger>
             <SelectContent>
                 {GROUPS.map((group) => (
@@ -40,7 +46,10 @@ export function ServerSelect({
                         <SelectLabel>{group.label}</SelectLabel>
                         {DOFUS_UNITY_SERVERS[group.key].map((server) => (
                             <SelectItem key={server.id} value={String(server.id)}>
-                                {server.name}
+                                <span className="flex items-center gap-2">
+                                    <GameIcon src={server.icon} className="h-4 w-4" />
+                                    {server.name}
+                                </span>
                             </SelectItem>
                         ))}
                     </SelectGroup>

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GameIcon } from "@/components/shared/game-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,6 +40,7 @@ export function IdentityForm({
     const [guildName, setGuildName] = useState(declaredGuildName ?? "");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const selectedClass = DOFUS_CLASSES.find((entry) => entry.id === classeValue);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -88,12 +90,18 @@ export function IdentityForm({
                         <Label htmlFor="identity-class">Classe</Label>
                         <Select value={classeValue} onValueChange={setClasseValue} disabled={saving}>
                             <SelectTrigger id="identity-class" className="w-full">
-                                <SelectValue placeholder="Choisis ta classe" />
+                                <span className="flex items-center gap-2">
+                                    {selectedClass ? <GameIcon src={selectedClass.icon} className="h-4 w-4" /> : null}
+                                    <SelectValue placeholder="Choisis ta classe" />
+                                </span>
                             </SelectTrigger>
                             <SelectContent>
                                 {DOFUS_CLASSES.map((entry) => (
                                     <SelectItem key={entry.id} value={entry.id}>
-                                        {entry.name}
+                                        <span className="flex items-center gap-2">
+                                            <GameIcon src={entry.icon} className="h-4 w-4" />
+                                            {entry.name}
+                                        </span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>

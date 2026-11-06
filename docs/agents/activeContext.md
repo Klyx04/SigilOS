@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 5) — **Espace visiteur : la coque publique (D-V14)** — branche `feat/visiteur-coque`
+
+> **Demande user (verbatim)** : « t mignon mais c fait expres de pas mettre le footer / header landing quand on est loggé visiteur ? […] il retrouve ou les guides les pages le rush les outils etc ? et pk ya aucun asset dans les onglets ? ».
+> **Mesures** : ① D-V6 (« aucun chrome de **guilde** ») avait été appliqué comme « aucun chrome du tout » ⇒ le visiteur n'avait plus aucun lien vers la landing, les guides, le rush ou les outils, seule sortie « Se déconnecter » ; ② `visitor-nav.tsx` était du texte nu alors que `public/assets/dofus/game-icons/` et `assets/nav/` fournissent les six pictos sans créer un fichier ; ③ le piège documenté (asset absent ⇒ 404 `/_next/image`) impose un verrou sur l'existence des chemins.
+> **Fait** : le layout rend `PublicHeader` (`dashboardHref="/espace-visiteur/general"`, donc « Tableau de bord » reste dans l'espace) + bandeau « Espace visiteur » + `VisitorNav` + `GalacticFooter` ; `SignOutButton` maison retiré (la déconnexion vit dans le menu avatar) ; six onglets avec assets réels (`party`, `guilde-et-mules`, `parchment`, `trophy-1`, `hammer`, `assets/nav/cog.png`) via `GameIcon`.
+> **Preuves** : `visitor-shell` **6** · routes 12 · entrée 9 (**27** sur les 3 verrous) · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V1g** — parité des formulaires avec l'interne (icônes serveur/classe, aide + vérif Metamob, ladder Ankama, mules avec repli manuel, activités en vignettes, métiers en icônes) → refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
+> **Rotation** : bloc « 05/11/2026 (suite 10) — E3e » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 4) — **Espace visiteur : la porte d'entrée (D-V13)** — branche `feat/visiteur-porte-entree`
 
 > **Demande user (verbatim)** : « l'entrée visiteur (menu avatar « Mon espace visiteur » + /dashboard sans guilde → /espace-visiteur/general + même règle sur la landing), sans migration ».
@@ -53,14 +63,3 @@
 > **Preuves** : **49 tests neufs** verts · `tsc` 0 · ESLint 0 erreur · migration appliquée (**296**, base « up to date ») · suite complète **6 538 ✓ / 619 fichiers** (aucun échec) — chiffres **re-mesurés** le 06/11 (le bloc annonçait 46 / 297 / 6 535).
 > **Reste** : activation de la porte à **V1c** (`PUBLIC_VISITOR_ENTRY=1`, l'écran d'installation n'existe pas encore) · V1c (profil) → V1d (progression/adoption) → V1e (sync ladder) → V2 (annuaire + présence) → V3 (God).
 > **Rotation** : bloc « 05/11/2026 (suite 5) — DA E2 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 05/11/2026 (suite 10) — **Guide public : le bandeau et le panneau ne font plus qu'une carte (E3e)** — branche `feat/rush-panneau-public-parite`
-
-> **Demande user (verbatim)** : « moi je veux que tu mettes ce bloc dans le bloc du titre rush sylvestre, supprime les lignes explicatives slop sur "rush sylvestre", centre "rush sylvestre" en gros et aligne les boutons comme l'interne en dessous » — puis, sur la divergence des deux panneaux : « pk on propose pas le même que l'interne ? ».
-> **Mesures** : ① deux panneaux pour la même intention — le public portait 4 boutons en grille + **deux** barres de progression (une de 160 px dans la rangée, un `reg-progress` global plus bas), l'interne 5 tuiles + une barre ; ② `Rush Live` et `Metamob` n'ont **aucune source publique** (présence de guilde, compte lié) : les aligner sans donnée aurait affiché des tuiles vides ; ③ le bandeau vivait dans `page.tsx` (serveur) et le panneau dans le client, donc deux cartes ; ④ `{!isUnderConstruction && (…)}` était **du code mort** : il vivait dans la branche `isUnderConstruction ? … : …` (les chips « ~370 étapes » et « sauvegarde locale » ne s'affichaient jamais).
-> **Fait** : le bandeau est **rendu par le client** (`heroArt` en prop, `children` supprimé) et contient le panneau — **une seule carte** ; titre **centré** (`clamp(44px, 8.6vw, 92px)`), sous-titre et chips supprimés, fil d'Ariane calé à gauche ; panneau `da-guide-controls` (fond opaque + filet, jamais une boîte dans une boîte) à l'anatomie interne : barre du haut (niveau + route + Ressources/Pense-bête/Masquer), tuiles **Personnage actif · Alignement · Ouvrir Overlay**, progression **pleine largeur** et **unique** ; code mort et 2 imports retirés.
-> **Preuves** : suite **6 489 ✓ / 614 fichiers** · `tsc` 0 · ESLint **0 erreur**, 7 829 avertissements (−1) · **5 verrous réécrits** (`rush-public-parity` ×4 : grille 4 colonnes → barre + tuiles, doublon `reg-progress` ; `rush-guide-ui-polish` ×2 : panneau `.da-guide-controls`, une seule carte ; `rush-sylvestre-construction` ×1 : client auto-fermant), **aucun supprimé** · un `lot4-slash-commands` instable, non reproduit sur deux passes.
-> **Reste** : tuiles **Metamob** et **Rush Live** dès que l'espace visiteur (rang 57) fournira la donnée · **E4** (passation dashboard) · captures 390 / 768 / 1 440 px.
-> **Rotation** : bloc « 05/11/2026 (suite 4) — le guide public reçoit sa coque (E2) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-

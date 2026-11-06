@@ -271,7 +271,7 @@
 | `BOSS-BUTIN` | Fiches boss : butin le plus complet (`pickBestMonsterStatRow`), garde d'écriture, succès « Spécial » résolus, lot B (quêtes, Titan, raid, bloc de stats unique) — PR #1167/#1168 | 30/10/2026 |
 | `RUSH-CONSTRUCTION` | Rush : drapeaux « En construction » **membres** vs **public** (`isPublicUnderConstruction`) + fondation du bloc B (`publicSlug`, `isPublished`) — PR #1152 | 29/10/2026 |
 | `guildes-cycle-de-vie` | Suppression d'une guilde : bouton propriétaire, purge par cron, écran honnête, propriétaire resynchronisé ; **preuve de purge 90 j + activité réelle** le 02/11 ; décisions : `docs/plans/AMORCE-GUILDES-CYCLE-DE-VIE.md` | 02/11/2026 |
-| `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G5, écran + bandeau du portail, annonce du bot à l'invitation | 01/11/2026 |
+| `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G6, écran + bandeau du portail, tiroir « Mes guildes », annonce du bot ; ordre autorisation → plafond → whitelist | 06/11/2026 |
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |
 | `RUSH-UI/S4` | Modale par Dofus + déslop du bandeau, identité de quête assistée, import dry-run, contraste des 24 accents | 26/10/2026 |

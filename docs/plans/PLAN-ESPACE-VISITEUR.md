@@ -142,6 +142,12 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   **D-V10** ; export JSON borné ; `/espace-visiteur/` en `disallow` robots.
 - **Rétention** : D-V5 passe dans le code (`ORPHAN_ACCOUNT_RETENTION_DAYS = 365`,
   `src/lib/account-retention-policy.ts`) — le cron ne passe plus `90` en dur.
+- **Reste mesuré le 06/11/2026 — la porte d'entrée manque** : `espace-visiteur` n'apparaît dans
+  **aucun** lien de l'interface (seulement `robots.ts` et la garde serveur). Un visiteur connecté
+  n'a donc pas d'entrée dans le menu avatar, et `/dashboard` sans guilde lui affiche
+  `NoGuildMessage` (cul-de-sac). À livrer **avant** `PUBLIC_VISITOR_ENTRY=1` : entrée
+  « Mon espace visiteur » dans le menu avatar, redirection `/dashboard` →
+  `/espace-visiteur/general`, même règle sur la landing. **Aucune migration.**
 - **Ops** : `PUBLIC_VISITOR_ENTRY=1` en **bêta** après contrôle à l'écran (390 / 768 / 1 440).
 
 **V1d — progression en base + adoption**

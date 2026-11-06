@@ -31,6 +31,7 @@ export const fr = {
         },
         logout: "Déconnexion",
         myGuilds: "Mes guildes",
+        visitorSpace: "Mon espace visiteur",
         noGuildFound: "Aucune guilde",
         adminSpace: "Administration",
         godSpace: "Espace God",

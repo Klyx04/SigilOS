@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 06/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique).
+> **Dernière MAJ : 06/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée livrée (D-V13)**.
 
 ## 1. Décisions verrouillées
 
@@ -37,6 +37,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 | **D-V10** | Suppression depuis l'espace visiteur = **vie publique seulement** si le `User` a aussi un `UserProfile` ACTIVE | refus explicite avec la marche à suivre ; jamais de suppression qui emporterait l'historique de guilde. Sans vie de guilde : suppression dure, **sans archivage** |
 | **D-V11** | **`touchLastSeen()` dans la garde visiteur** (`requirePublicAccount`) | sans ça, un visiteur n'est **jamais** marqué « vu » (seul `getUserContext` l'écrit) ⇒ il serait purgé à l'échéance malgré des visites quotidiennes. **Obligatoire avant `PUBLIC_VISITOR_ENTRY=1`** |
 | **D-V12** | **Guide public connecté = bandeau de l'interne** : 5 tuiles (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay), recherche + Options **entre** le bloc Rush et le bloc Progression, puis **Progression Communautaire** | non connecté : mode local actuel inchangé. La tuile Metamob est un **agrégat serveur** (la clé API ne part jamais au client) ; Rush Live dépend de `showPresence` |
+| **D-V13** | **Porte d'entrée** : entrée « Mon espace visiteur » dans le menu avatar (tout compte connecté, D-V2) + redirection `/dashboard` et `/` → `/espace-visiteur/general` pour un compte **sans aucune guilde** | une seule règle (`src/lib/visitor-entry.ts`), une seule garde (`src/server/visitor-entry.ts`) ; **jamais** de redirection quand l'interrupteur est fermé, que Discord échoue ou que le compte est banni (fail-closed, anti-boucle `/` ⇄ espace). Aucune migration |
 
 ### 1.2 Matrice de visibilité
 
@@ -142,12 +143,11 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   **D-V10** ; export JSON borné ; `/espace-visiteur/` en `disallow` robots.
 - **Rétention** : D-V5 passe dans le code (`ORPHAN_ACCOUNT_RETENTION_DAYS = 365`,
   `src/lib/account-retention-policy.ts`) — le cron ne passe plus `90` en dur.
-- **Reste mesuré le 06/11/2026 — la porte d'entrée manque** : `espace-visiteur` n'apparaît dans
-  **aucun** lien de l'interface (seulement `robots.ts` et la garde serveur). Un visiteur connecté
-  n'a donc pas d'entrée dans le menu avatar, et `/dashboard` sans guilde lui affiche
-  `NoGuildMessage` (cul-de-sac). À livrer **avant** `PUBLIC_VISITOR_ENTRY=1` : entrée
-  « Mon espace visiteur » dans le menu avatar, redirection `/dashboard` →
-  `/espace-visiteur/general`, même règle sur la landing. **Aucune migration.**
+- **Porte d'entrée livrée le 06/11/2026 (D-V13)** : entrée « Mon espace visiteur » dans le menu
+  avatar, redirection `/dashboard` et landing → `/espace-visiteur/general` pour un compte sans
+  aucune guilde. Une seule règle (`src/lib/visitor-entry.ts`), une seule garde
+  (`src/server/visitor-entry.ts`) : interrupteur fermé, échec Discord ou compte banni n'ouvrent
+  **rien** (fail-closed, anti-boucle). **Aucune migration.**
 - **Ops** : `PUBLIC_VISITOR_ENTRY=1` en **bêta** après contrôle à l'écran (390 / 768 / 1 440).
 
 **V1d — progression en base + adoption**

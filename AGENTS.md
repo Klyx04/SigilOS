@@ -96,7 +96,7 @@ npx prisma migrate deploy          # joue les migrations en attente (5433) — v
 npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (6 581 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (6 590 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0

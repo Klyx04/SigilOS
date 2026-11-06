@@ -28,6 +28,14 @@ import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+    ALL_SUCCES_LEVELS_ID,
+    SUCCES_LEVEL_BRACKETS,
+    findSuccesLevelBracket,
+    matchesSuccesLevelBracket,
+    succesLevelBracketLabel,
+    succesLevelBracketScopeLabel,
+} from "@/lib/succes-level-brackets";
 
 interface Achievement {
     id: string;
@@ -73,19 +81,6 @@ interface SuccesTrackerProps {
 
 type StatusFilter = "all" | "todo" | "done";
 
-const LEVEL_PRESETS = [
-    { label: "Tous", min: 1, max: 1000 },
-    { label: "1-99", min: 1, max: 99 },
-    { label: "100-149", min: 100, max: 149 },
-    { label: "150-199", min: 150, max: 199 },
-    { label: "200+", min: 200, max: 1000 },
-] as const;
-
-/** Libellé lisible d'une tranche de niveau (contrôle compact du filtre « Mes Succès »). */
-function levelPresetLabel(label: (typeof LEVEL_PRESETS)[number]["label"]): string {
-    return label === "Tous" ? "Tous les niveaux" : `Niveau ${label}`;
-}
-
 /**
  * #138 — Vue « Moi » du module Succès (refonte d'AchievementTracker).
  * Split view : liste de donjons à gauche, détail à droite (mobile : plein écran + Retour).
@@ -102,8 +97,10 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<StatusFilter>("all");
-    const [minLevel, setMinLevel] = useState(1);
-    const [maxLevel, setMaxLevel] = useState(1000);
+    // Une seule tranche en état : son id stable (la plage de niveaux en découle, jamais l'inverse).
+    const [levelBracketId, setLevelBracketId] = useState<string>(ALL_SUCCES_LEVELS_ID);
+    const levelBracket = findSuccesLevelBracket(levelBracketId);
+    const { min: minLevel, max: maxLevel } = levelBracket;
     // Filtre « Boss Anomalie » (chantier gardiens des anomalies) — cumulable avec la tranche de niveau.
     const [anomalyOnly, setAnomalyOnly] = useState(searchParams.get("anomaly") === "1");
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
@@ -133,7 +130,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                     });
                     toast.success(
                         action === "validate"
-                            ? `Tous les succès de la tranche (Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}) ont été validés !`
+                            ? `Tous les succès ${succesLevelBracketScopeLabel(levelBracket)} ont été validés !`
                             : `Tous les succès de la tranche ont été décochés.`
                     );
                 } else {
@@ -145,7 +142,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 setBracketLoading(false);
             }
         },
-        [canEdit, bracketLoading, guildId, minLevel, maxLevel]
+        [canEdit, bracketLoading, guildId, levelBracket, minLevel, maxLevel]
     );
 
     const updateParam = useCallback(
@@ -299,8 +296,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
     /** Donjons de la tranche de niveau sélectionnée (portée réelle du bouton « tranche »). */
     const bracketDungeons = useMemo(
-        () => dungeons.filter((d) => d.level >= minLevel && d.level <= maxLevel),
-        [dungeons, minLevel, maxLevel]
+        () => dungeons.filter((d) => matchesSuccesLevelBracket(d.level, levelBracket)),
+        [dungeons, levelBracket]
     );
     /** Toute la tranche de niveau est-elle déjà validée ? */
     const bracketAllDone = useMemo(
@@ -309,7 +306,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             bracketDungeons.every((d) => d.achievements.every((a) => completedIds.has(a.id))),
         [bracketDungeons, completedIds]
     );
-    const bracketLabel = minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`;
+    const bracketLabel = succesLevelBracketScopeLabel(levelBracket);
 
     const doneCount = useMemo(
         () => dungeons.reduce((acc, d) => acc + d.achievements.filter((a) => completedIds.has(a.id)).length, 0),
@@ -322,7 +319,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         const term = search.toLowerCase();
         return dungeons.filter((d) => {
             const matchSearch = d.name.toLowerCase().includes(term) || d.bossName.toLowerCase().includes(term);
-            const matchLevel = d.level >= minLevel && d.level <= maxLevel;
+            const matchLevel = matchesSuccesLevelBracket(d.level, levelBracket);
             // Filtre « Boss Anomalie » : uniquement le contenu siphonné (isAnomalyBoss).
             const matchKind = !anomalyOnly || !!d.isAnomalyBoss;
             if (!matchSearch || !matchLevel || !matchKind) return false;
@@ -333,7 +330,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             if (status === "todo") return done < d.achievements.length;
             return true;
         });
-    }, [dungeons, search, status, minLevel, maxLevel, anomalyOnly, completedIds]);
+    }, [dungeons, search, status, levelBracket, anomalyOnly, completedIds]);
 
     const selectedPartners = selectedDungeon ? partners[selectedDungeon.id] : undefined;
 
@@ -446,13 +443,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                     </button>
                     {/* Niveau — un seul contrôle compact (remplace les 5 puces de tranche) */}
                     <Select
-                        value={`${minLevel}-${maxLevel}`}
-                        onValueChange={(value) => {
-                            const preset = LEVEL_PRESETS.find((p) => `${p.min}-${p.max}` === value);
-                            if (!preset) return;
-                            setMinLevel(preset.min);
-                            setMaxLevel(preset.max);
-                        }}
+                        value={levelBracketId}
+                        onValueChange={(value) => setLevelBracketId(value)}
                     >
                         <SelectTrigger
                             aria-label="Filtrer par tranche de niveau"
@@ -461,9 +453,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-surface border-border">
-                            {LEVEL_PRESETS.map((p) => (
-                                <SelectItem key={p.label} value={`${p.min}-${p.max}`} className="text-xs font-bold">
-                                    {levelPresetLabel(p.label)}
+                            {SUCCES_LEVEL_BRACKETS.map((bracket) => (
+                                <SelectItem key={bracket.id} value={bracket.id} className="text-xs font-bold">
+                                    {succesLevelBracketLabel(bracket)}
                                 </SelectItem>
                             ))}
                         </SelectContent>

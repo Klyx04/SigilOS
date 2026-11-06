@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 9) — **Espace visiteur : l'onglet Succès (V1i)** — branche `feat/visiteur-succes`
+
+> **Demande user (verbatim)** : reprise sur le prochain lot documenté (« un peu paumé là », puis validation du plan V1i).
+> **Mesures** : ① `LEVEL_PRESETS` vivait **privé** dans `SuccesTracker.tsx` (l. 76-82) et ses libellés affichaient « Niv. 1-200+ » pour la tranche « Tous » ; ② la page visiteur ne lisait ni `level`, ni `slug`, ni `imageUrl`/`challenge.iconUrl` ; ③ `/boss/[dungeonId]` accepte le **slug** et redirige en 308 vers le canonique ; ④ `PublicDungeonAchievement` porte déjà `@@unique([publicProfileId, dungeonAchievementId])` — `skipDuplicates` est sûr.
+> **Fait** : règle pure `src/lib/succes-level-brackets.ts` (5 tranches, résolution **stricte** côté serveur, borne `SUCCES_DUNGEONS_TAKE = 200`) ; tracker interne migré sur un **id de tranche** (plus de liste locale, libellés corrigés) ; action `togglePublicDungeonAchievementsBracket` (Zod borné, 5/min, `where` sur le profil public, cibles relues, `createMany skipDuplicates`) ; onglet visiteur : filtre par tranche, bascule « Valider / Décocher la tranche », icône réelle par succès, lien `/boss/<slug>`.
+> **Preuves** : `visitor-succes-brackets` **15** · 10 verrous visiteurs **88 ✓** · suite **628 fichiers / 6 623 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : V1d (progression en base) → V1e (sync ladder) → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440 sur `/espace-visiteur/succes`, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
+> **Rotation** : bloc « 06/11/2026 (suite 3) — plafond de guildes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 8) — **Reprise documentée : l'ordre et le prochain lot** — branche `dev`
 
 > **Demande user (verbatim)** : « tout est documenté ? pour reprendre dans une prochaine session les prochaines iterations ».
@@ -54,13 +64,3 @@
 > **Preuves** : `visitor-entry` **9** · suite **624 fichiers / 6 590 tests ✓** · `tsc` 0 · ESLint 0 erreur · `harness-config` 9 ✓ · **aucune migration**.
 > **Reste** : V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : contrôles à 390 / 768 / 1 440 puis `PUBLIC_VISITOR_ENTRY=1` en bêta, avec un compte Discord **sans admin**.
 > **Rotation** : bloc « 05/11/2026 (suite 9) — DA E3d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 06/11/2026 (suite 3) — **Plafond de guildes : le tiroir ne contourne plus la limite** — branche `fix/plafond-guildes-portail`
-
-> **Demande user (verbatim)** : « il a bien la limite affiché le déploiement grisée pour d'autres guilde mais quand il passe par le bouton "mes guildes" sur son profil le bandeau qui s'affiche lui permet d'onboardé c quoi ce bordel ! il y a combien de trous comme ca ».
-> **Mesures** : ① le tiroir `dashboard-drawer.tsx` listait `pending` avec un lien d'invitation **sans lire le plafond** ; ② `getGuildsSeparated()` ne rendait pas l'état, donc `/dashboard` le recalculait pour lui seul ; ③ `onboardGuild` créait `AllowedGuild` (whitelist) **avant** la garde G2 ; ④ sa branche de réactivation rendait `success` **avant** `requireGuildAdmin` (un identifiant de guilde suffisait). Le déploiement était déjà refusé par G2, et le bot Discord comptait déjà les profils ACTIVE — pas de trou de ces deux côtés.
-> **Fait** : `guildLimitReached` + `guildLimit` rendus par `getGuildsSeparated` (fail-closed, God exempté, **source unique**) ; le portail les consomme sans recompter ; le tiroir réemploie `resolveGuildSetupView` (« Déploiement verrouillé », aucune invitation) ; `onboardGuild` borne l'id (Zod), **autorise d'abord** (`requireGuildAdmin` avant la réactivation), puis G2 **avant** `allowedGuild.create`.
-> **Preuves** : `guild-limit-guards` **13** (+4) · suite **623 fichiers / 6 581 tests ✓** · `tsc` 0 · ESLint 0 erreur · build vert · **aucune migration**.
-> **Reste** : contrôle à l'écran (tiroir à 2 guildes, 390 / 1 440) · V1c livré (PR #1281).
-> **Rotation** : bloc « 05/11/2026 (suite 8) — DA E3c » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

@@ -14,7 +14,7 @@
  * mise en avant (Connexion Discord). Le mono est réservé aux métadonnées.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass, UserRound } from "lucide-react";
@@ -112,6 +112,7 @@ const NAV_ITEMS = [
     { id: "modules", label: "Modules", href: "/modules" },
     { id: "guides", label: "Guides", href: "/guides" },
     { id: "guildes", label: "Guildes", href: "/guilds" },
+    { id: "visiteurs", label: "Visiteurs", href: "/visiteurs" },
 ] as const;
 
 /** Un `activePage` désigne soit un lien de nav, soit un outil, soit l'annuaire. */
@@ -121,6 +122,36 @@ function resolveActive(activePage?: string): string | null {
     if (activePage === "annuaire" || activePage === "guilds") return "guildes";
     if (NAV_ITEMS.some((item) => item.id === activePage)) return activePage;
     return null;
+}
+
+/**
+ * Ferme un `<details>` au **clic extérieur** et à `Échap` (focus rendu au déclencheur).
+ *
+ * Extrait pour être partagé par « Explorer » et « Outils » : deux menus voisins qui ne se
+ * ferment pas de la même façon, c'est exactement le genre d'incohérence qui se remarque.
+ */
+function useDismissOnOutside(
+    open: boolean,
+    setOpen: (open: boolean) => void,
+    ref: RefObject<HTMLDetailsElement | null>,
+) {
+    useEffect(() => {
+        if (!open) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            setOpen(false);
+            ref.current?.querySelector("summary")?.focus();
+        };
+        const onPointerDown = (event: PointerEvent) => {
+            if (!ref.current?.contains(event.target as Node)) setOpen(false);
+        };
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("pointerdown", onPointerDown);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("pointerdown", onPointerDown);
+        };
+    }, [open, setOpen, ref]);
 }
 
 interface PublicHeaderProps {
@@ -150,8 +181,10 @@ export function PublicHeader({
     const { t } = useI18n();
     const active = resolveActive(activePage);
     const [toolsOpen, setToolsOpen] = useState(false);
+    const [explorerOpen, setExplorerOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const toolsRef = useRef<HTMLDetailsElement>(null);
+    const explorerRef = useRef<HTMLDetailsElement>(null);
 
     const localizedTools = [
         {
@@ -192,31 +225,53 @@ export function PublicHeader({
     ];
 
     const localizedNav = [
-        { id: "dashboard", label: t.nav.dashboard, href: "/dashboard" },
-        { id: "modules", label: t.nav.modules, href: "/modules" },
-        { id: "guides", label: t.nav.guides, href: "/guides" },
-        { id: "guildes", label: t.nav.guilds, href: "/guilds" },
+        {
+            id: "dashboard",
+            label: t.nav.dashboard,
+            href: "/dashboard",
+            icon: "/assets/dofus/game-icons/house.png",
+        },
+        {
+            id: "modules",
+            label: t.nav.modules,
+            href: "/modules",
+            icon: "/assets/dofus/modules/encyclopedia.png",
+        },
+        {
+            id: "guides",
+            label: t.nav.guides,
+            href: "/guides",
+            icon: "/assets/dofus/modules/guide.png",
+        },
+        {
+            id: "guildes",
+            label: t.nav.guilds,
+            href: "/guilds",
+            icon: "/assets/dofus/modules/guild.png",
+        },
+        // Annuaire des visiteurs (V2e) : **privé**. Le lien n'existe que pour un compte
+        // connecté — la page, elle, referme aussi l'accès (garde serveur), donc le lien
+        // n'est jamais la sécurité, seulement la porte visible.
+        ...(user
+            ? [
+                  {
+                      id: "visiteurs",
+                      label: t.nav.visitors,
+                      href: "/visiteurs",
+                      icon: "/assets/dofus/modules/character.png",
+                  },
+              ]
+            : []),
     ];
 
-    // Échap ferme le menu Outils et repose le focus sur son déclencheur ;
-    // un clic hors du menu le referme (comportement attendu d'un menu).
-    useEffect(() => {
-        if (!toolsOpen) return;
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== "Escape") return;
-            setToolsOpen(false);
-            toolsRef.current?.querySelector("summary")?.focus();
-        };
-        const onPointerDown = (event: PointerEvent) => {
-            if (!toolsRef.current?.contains(event.target as Node)) setToolsOpen(false);
-        };
-        document.addEventListener("keydown", onKeyDown);
-        document.addEventListener("pointerdown", onPointerDown);
-        return () => {
-            document.removeEventListener("keydown", onKeyDown);
-            document.removeEventListener("pointerdown", onPointerDown);
-        };
-    }, [toolsOpen]);
+    /** Le menu « Explorer » porte Guides, Guildes et Visiteurs (un seul point d'entrée). */
+    const explorerItems = localizedNav.slice(2);
+    const explorerActive = explorerItems.some((item) => item.id === active);
+
+    // Échap ferme les menus et repose le focus sur leur déclencheur ; un clic à l'extérieur
+    // les referme (comportement attendu d'un menu) — même règle pour Explorer et Outils.
+    useDismissOnOutside(toolsOpen, setToolsOpen, toolsRef);
+    useDismissOnOutside(explorerOpen, setExplorerOpen, explorerRef);
 
     const linkClass = (isActive: boolean) =>
         cn(
@@ -262,8 +317,16 @@ export function PublicHeader({
                             <Link
                                 href={dashboardHref}
                                 aria-current={active === "dashboard" ? "page" : undefined}
-                                className={linkClass(active === "dashboard")}
+                                className={cn(linkClass(active === "dashboard"), "gap-1.5")}
                             >
+                                <Image
+                                    src="/assets/dofus/game-icons/house.png"
+                                    alt=""
+                                    width={16}
+                                    height={16}
+                                    aria-hidden="true"
+                                    className="h-4 w-4 shrink-0 object-contain"
+                                />
                                 {t.nav.dashboard}
                             </Link>
                         ) : (
@@ -272,7 +335,15 @@ export function PublicHeader({
                                Discord sans rien dire (même si ça marche encore via le CTA). */
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <button type="button" className={linkClass(false)}>
+                                    <button type="button" className={cn(linkClass(false), "gap-1.5")}>
+                                        <Image
+                                            src="/assets/dofus/game-icons/house.png"
+                                            alt=""
+                                            width={16}
+                                            height={16}
+                                            aria-hidden="true"
+                                            className="h-4 w-4 shrink-0 object-contain"
+                                        />
                                         {t.nav.dashboard}
                                     </button>
                                 </PopoverTrigger>
@@ -328,9 +399,17 @@ export function PublicHeader({
                             <summary
                                 className={cn(
                                     linkClass(active === "outils"),
-                                    "cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                                    "cursor-pointer list-none gap-1.5 [&::-webkit-details-marker]:hidden",
                                 )}
                             >
+                                <Image
+                                    src="/assets/nav/cog.png"
+                                    alt=""
+                                    width={16}
+                                    height={16}
+                                    aria-hidden="true"
+                                    className="h-4 w-4 shrink-0 object-contain"
+                                />
                                 {t.nav.tools}
                                 <span className="ml-1.5 text-[0.7em] text-muted-foreground" aria-hidden="true">
                                     ▾
@@ -364,16 +443,82 @@ export function PublicHeader({
                             </div>
                         </details>
 
-                        {localizedNav.slice(1).map((item) => (
+                        {/* Lien direct : « Modules ». Puis « Explorer » regroupe Guides, Guildes
+                            et Visiteurs : « Guides » et « Guildes » côte à côte étaient illisibles
+                            (retour du 06/11). Menu natif `<details>` : les liens restent dans le
+                            HTML servi, donc indexables — aucun menu en JavaScript. */}
+                        {localizedNav.slice(1, 2).map((item) => (
                             <Link
                                 key={item.id}
                                 href={item.href}
                                 aria-current={active === item.id ? "page" : undefined}
-                                className={linkClass(active === item.id)}
+                                className={cn(linkClass(active === item.id), "gap-1.5")}
                             >
+                                <Image
+                                    src={item.icon}
+                                    alt=""
+                                    width={16}
+                                    height={16}
+                                    aria-hidden="true"
+                                    className="h-4 w-4 shrink-0 object-contain"
+                                />
                                 {item.label}
                             </Link>
                         ))}
+
+                        <details
+                            ref={explorerRef}
+                            open={explorerOpen}
+                            onToggle={(event) =>
+                                setExplorerOpen((event.currentTarget as HTMLDetailsElement).open)
+                            }
+                            className="relative"
+                        >
+                            <summary
+                                className={cn(
+                                    linkClass(explorerActive),
+                                    "cursor-pointer list-none gap-1.5 [&::-webkit-details-marker]:hidden",
+                                )}
+                            >
+                                <Image
+                                    src="/assets/nav/world.png"
+                                    alt=""
+                                    width={16}
+                                    height={16}
+                                    aria-hidden="true"
+                                    className="h-4 w-4 shrink-0 object-contain"
+                                />
+                                {t.nav.explore}
+                                <span className="ml-1 text-[0.7em] text-muted-foreground" aria-hidden="true">
+                                    ▾
+                                </span>
+                            </summary>
+                            <div className="reg-panel absolute left-0 top-[calc(100%+0.5rem)] w-[15rem] p-1.5 z-50">
+                                {explorerItems.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={item.href}
+                                        aria-current={active === item.id ? "page" : undefined}
+                                        className={cn(
+                                            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                                            active === item.id
+                                                ? "bg-surface font-semibold text-foreground"
+                                                : "text-foreground hover:bg-surface",
+                                        )}
+                                    >
+                                        <Image
+                                            src={item.icon}
+                                            alt=""
+                                            width={20}
+                                            height={20}
+                                            aria-hidden="true"
+                                            className="h-5 w-5 shrink-0 object-contain"
+                                        />
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        </details>
 
                         <Popover>
                             <PopoverTrigger asChild>
@@ -519,7 +664,17 @@ export function PublicHeader({
                                                             type="submit"
                                                             className="flex w-full items-center justify-between min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
                                                         >
-                                                            {item.label}
+                                                            <span className="flex min-w-0 items-center gap-2">
+                                                                <Image
+                                                                    src={item.icon}
+                                                                    alt=""
+                                                                    width={20}
+                                                                    height={20}
+                                                                    aria-hidden="true"
+                                                                    className="h-5 w-5 shrink-0 object-contain"
+                                                                />
+                                                                {item.label}
+                                                            </span>
                                                             <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                                                         </button>
                                                     </form>
@@ -530,7 +685,17 @@ export function PublicHeader({
                                                         onClick={() => setMobileOpen(false)}
                                                         className="flex items-center justify-between min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
                                                     >
-                                                        {item.label}
+                                                        <span className="flex min-w-0 items-center gap-2">
+                                                            <Image
+                                                                src={item.icon}
+                                                                alt=""
+                                                                width={20}
+                                                                height={20}
+                                                                aria-hidden="true"
+                                                                className="h-5 w-5 shrink-0 object-contain"
+                                                            />
+                                                            {item.label}
+                                                        </span>
                                                         <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                                                     </Link>
                                                 ),

@@ -160,7 +160,7 @@ export function MulesForm({ mules, serverId }: { mules: DeclaredMule[]; serverId
                                 {DOFUS_CLASSES.map((entry) => (
                                     <SelectItem key={entry.id} value={entry.id}>
                                         <span className="flex items-center gap-2">
-                                            <GameIcon src={entry.icon} className="h-4 w-4" />
+                                            <GameIcon src={entry.icon} className="size-6" />
                                             {entry.name}
                                         </span>
                                     </SelectItem>

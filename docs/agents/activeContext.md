@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 10) — **Espace visiteur : les écrans alignés sur l'interne** — branche `feat/visiteur-succes`
+
+> **Demande user (verbatim)** : « moi j'aurai voulu l'interface semblable à l'interne (conserve ton design) sans le bouton créer groupe », « le lien vers sa fiche publique », « les images des boss », « ajoute les avis », « le bouton anomalie cliqué n'est pas flagrant », « les métiers reprend l'interface interne profil guilde », « icône laide du choix du serveur, plus grande », « doublon des icônes affichées serveur et classe ».
+> **Mesures** : ① l'icône était rendue **deux fois** (une dans `SelectTrigger`, une rejouée par `SelectValue` depuis l'item) ; ② les avis de recherche sont des `Bounty` (`isBountyMonster`, 96 lignes), **sans aucun succès** ; ③ `DOFUS_JOBS`/`JOB_CATEGORIES` portent déjà les quatre catégories et les icônes des métiers ; ④ l'état actif `bg-elevated` était indistinguable du fond.
+> **Fait** : onglet Succès en **liste + fiche** (vignette du boss, niveau, progression, tranche à gauche ; succès en grille, « Tout cocher / Tout décocher », lien fiche à droite), portée **Donjons / Avis**, action `togglePublicDungeonAchievementsGroup` (garde, 20/min, donjon relu), aucun bouton de groupe ; onglet **Métiers** refait sur `jobs-grid.tsx` (onglets par catégorie, cartes, icônes réelles) ; icônes serveur/classe en `size-6` et **doublon supprimé** ; états actifs des filtres en `warning`.
+> **Preuves** : `visitor-succes-brackets` **21** · `visitor-metiers-ui` **5** · `visitor-assets` **6** · suite **629 fichiers / 6 636 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : V1d (progression en base) → V1e (ladder) → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440 sur Succès (deux portées) et Métiers, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
+> **Rotation** : bloc « 06/11/2026 (suite 4) — porte d'entrée (D-V13) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 9) — **Espace visiteur : l'onglet Succès (V1i)** — branche `feat/visiteur-succes`
 
 > **Demande user (verbatim)** : reprise sur le prochain lot documenté (« un peu paumé là », puis validation du plan V1i).
@@ -54,13 +64,3 @@
 > **Preuves** : `visitor-shell` **6** · routes 12 · entrée 9 (**27** sur les 3 verrous) · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : **V1g** — parité des formulaires avec l'interne (icônes serveur/classe, aide + vérif Metamob, ladder Ankama, mules avec repli manuel, activités en vignettes, métiers en icônes) → refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
 > **Rotation** : blocs « 05/11/2026 (suite 10) — E3e » et « (suite 9) — DA E3d » sortis (7ᵉ et 8ᵉ) — récupérables via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 06/11/2026 (suite 4) — **Espace visiteur : la porte d'entrée (D-V13)** — branche `feat/visiteur-porte-entree`
-
-> **Demande user (verbatim)** : « l'entrée visiteur (menu avatar « Mon espace visiteur » + /dashboard sans guilde → /espace-visiteur/general + même règle sur la landing), sans migration ».
-> **Mesures** : ① aucun lien de l'interface ne menait à `/espace-visiteur` (seulement `robots.ts` et la garde serveur) ; ② `/dashboard` sans guilde rendait `NoGuildMessage` (cul-de-sac) ; ③ la landing ne repliait que `active`/`pending` ; ④ `sign-in-policy.ts` et `.env.example` annonçaient encore « après V1c », périmé depuis #1281 ; ⑤ un admin Discord sans guilde déployée ressort en `pending`/`awaiting`, jamais `isEmpty` ⇒ la redirection ne coupe pas le tunnel de déploiement.
-> **Fait** : règle pure `shouldOpenVisitorSpace` (`src/lib/visitor-entry.ts`) + garde `redirectGuildlessUserToVisitorSpace` (`src/server/visitor-entry.ts`) appelée par `/dashboard` et la landing — **une seule source**, fail-closed (interrupteur fermé, Discord en échec) et **anti-boucle** (compte banni re-vérifié par `getPublicSession` avant `redirect`, sinon `/` ⇄ espace) · entrée « Mon espace visiteur » dans le menu avatar (tout compte connecté, D-V2) · `nav.visitorSpace` en fr **et** en · commentaires périmés corrigés.
-> **Preuves** : `visitor-entry` **9** · suite **624 fichiers / 6 590 tests ✓** · `tsc` 0 · ESLint 0 erreur · `harness-config` 9 ✓ · **aucune migration**.
-> **Reste** : V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : contrôles à 390 / 768 / 1 440 puis `PUBLIC_VISITOR_ENTRY=1` en bêta, avec un compte Discord **sans admin**.
-> **Rotation** : bloc « 05/11/2026 (suite 9) — DA E3d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

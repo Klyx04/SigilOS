@@ -8,11 +8,21 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { DOFUS_CLASSES, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { ACTIVITY_ASSETS, ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 
 const onDisk = (icon: string) => `public${icon}`;
+const read = (path: string) => readFileSync(path, "utf8");
+
+const SERVER_SELECT = "src/app/espace-visiteur/_components/server-select.tsx";
+const IDENTITY = "src/app/espace-visiteur/_components/identity-form.tsx";
+const MULES = "src/app/espace-visiteur/_components/mules-form.tsx";
+
+/** Blocs `<SelectTrigger …>…</SelectTrigger>` — sert à prouver qu'aucun ne porte d'icône. */
+function triggers(code: string): string[] {
+    return [...code.matchAll(/<SelectTrigger[\s\S]*?<\/SelectTrigger>/g)].map((match) => match[0]);
+}
 
 describe("Assets visiteur — aucun chemin mort servi par `/_next/image`", () => {
     it("les treize serveurs portent une icône existante", () => {
@@ -39,6 +49,25 @@ describe("Assets visiteur — aucun chemin mort servi par `/_next/image`", () =>
             for (const job of jobs) {
                 expect(existsSync(onDisk(job.icon)), onDisk(job.icon)).toBe(true);
             }
+        }
+    });
+});
+
+describe("Sélecteurs serveur / classe — une seule icône, lisible", () => {
+    it("aucun `SelectTrigger` ne porte d'icône : `SelectValue` rejoue déjà l'item", () => {
+        // Mesure du 06/11/2026 (capture « Serveur + Classe ») : l'icône était rendue deux fois.
+        for (const file of [SERVER_SELECT, IDENTITY]) {
+            const found = triggers(read(file));
+            expect(found.length, file).toBeGreaterThan(0);
+            for (const trigger of found) {
+                expect(trigger, file).not.toContain("GameIcon");
+            }
+        }
+    });
+
+    it("les items portent une icône de 24 px, comme les réglages de guilde", () => {
+        for (const file of [SERVER_SELECT, IDENTITY, MULES]) {
+            expect(read(file), file).toContain('className="size-6"');
         }
     });
 });

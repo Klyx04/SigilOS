@@ -176,6 +176,12 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
 - Onglet : filtre par tranche, bouton « Valider / Décocher la tranche », icône de succès par ligne,
   lien vers la fiche `/boss/<slug>`.
 - Verrou : `tests/unit/visitor-succes-brackets.test.ts` (15 cas) — parité, bornes, résolution stricte, action gardée ; aucun nouvel asset.
+- **Mise en page alignée sur l'interne (06/11/2026)** : liste (vignette du boss, niveau, progression,
+  tranche) + fiche à droite (succès en grille, « Tout cocher / Tout décocher », lien `/boss/<slug>`),
+  **sans bouton de groupe** ; **avis de recherche** (96 siphonnés) servis comme fiches — un avis n'a
+  aucun succès à cocher ; onglet **Métiers** sur le modèle du profil de guilde (onglets par catégorie,
+  cartes, icônes 24 px, pas de « Gérer ») ; états actifs des filtres portés par `warning`.
+  Verrous : `visitor-succes-brackets` **21**, `visitor-metiers-ui` **5**, `visitor-assets` **6**.
 
 **V1d — progression en base + adoption**
 - `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod) : `savePublicRushProgress`,

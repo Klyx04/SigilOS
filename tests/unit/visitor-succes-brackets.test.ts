@@ -117,7 +117,38 @@ describe("Les deux écrans consomment la même source", () => {
     });
 
     it("le lien boss vise le slug public", () => {
-        expect(read(CHECKLIST)).toContain("/boss/${dungeon.slug}");
+        expect(read(CHECKLIST)).toContain("/boss/${selected.slug}");
+    });
+
+    it("la fiche reprend la disposition de l'interne (liste + détail, vignette du boss)", () => {
+        const checklist = read(CHECKLIST);
+
+        expect(checklist).toContain("lg:grid-cols-[340px_1fr]");
+        expect(checklist).toContain("DungeonThumb");
+        expect(checklist).toContain("imageUrl");
+        expect(checklist).toContain("Voir la fiche");
+        expect(checklist).toContain("/boss/${selected.slug}");
+        expect(read(PAGE)).toContain("imageUrl: true");
+    });
+
+    it("aucun bouton de groupe : un visiteur n'a pas de roster", () => {
+        const checklist = read(CHECKLIST);
+
+        expect(checklist).not.toContain("Chercher un groupe");
+        expect(checklist).not.toContain("Guide DPNL");
+        expect(checklist).not.toContain("djSearchPosts");
+    });
+
+    it("les avis de recherche sont servis comme fiches, sans succès", () => {
+        const page = read(PAGE);
+        const checklist = read(CHECKLIST);
+
+        expect(page).toContain("db.bounty.findMany");
+        expect(page).toContain("isBountyMonster: true");
+        expect(checklist).toContain("BountyTarget");
+        expect(checklist).toContain('scope === "bounties"');
+        expect(checklist).toContain("/boss/${selectedBounty.slug}");
+        expect(checklist).toContain("pas de succès de donjon à cocher");
     });
 
     it("l'action groupée et la page partagent la même borne de donjons", () => {
@@ -156,5 +187,35 @@ describe("Action groupée — garde, borne, cloisonnement", () => {
         expect(body).toContain("skipDuplicates: true");
         expect(body).toContain("db.dungeon.findMany");
         expect(body).toContain("level: { gte: bracket.min, lte: bracket.max }");
+    });
+});
+
+describe("Action par donjon — « Tout cocher / Tout décocher »", () => {
+    const source = read(ACTIONS);
+    const start = source.indexOf("export async function togglePublicDungeonAchievementsGroup");
+    const next = source.indexOf("export type", start + 1);
+    const body = source.slice(start, next === -1 ? undefined : next);
+
+    it("elle existe et n'écrit que sur le profil public du compte connecté", () => {
+        expect(start).toBeGreaterThan(-1);
+        expect(body).toContain("getPublicAccount()");
+        expect(body).toContain("account.profile.id");
+        expect(body).toContain("publicProfileId");
+        expect(body).not.toContain("guildId");
+    });
+
+    it("elle borne l'entrée, limite le débit et relit le donjon", () => {
+        expect(source).toContain("dungeonId: z.string().min(1).max(64)");
+        expect(body).toContain('limit("achievement-dungeon"');
+        expect(body).toContain("db.dungeon.findUnique(");
+        expect(body).toContain("skipDuplicates: true");
+    });
+
+    it("l'onglet visiteur branche les trois gestes (succès, donjon, tranche)", () => {
+        const checklist = read(CHECKLIST);
+
+        expect(checklist).toContain("togglePublicDungeonAchievement(");
+        expect(checklist).toContain("togglePublicDungeonAchievementsGroup(");
+        expect(checklist).toContain("togglePublicDungeonAchievementsBracket(");
     });
 });

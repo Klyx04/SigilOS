@@ -44,7 +44,6 @@ export function IdentityForm({
     const [saving, setSaving] = useState(false);
     const [checking, setChecking] = useState(false);
     const [checkMessage, setCheckMessage] = useState<PseudoVerificationOutcome | null>(null);
-    const selectedClass = DOFUS_CLASSES.find((entry) => entry.id === classeValue);
 
     const handleVerifyPseudo = async () => {
         setCheckMessage(null);
@@ -111,16 +110,14 @@ export function IdentityForm({
                         <Label htmlFor="identity-class">Classe</Label>
                         <Select value={classeValue} onValueChange={setClasseValue} disabled={saving}>
                             <SelectTrigger id="identity-class" className="w-full">
-                                <span className="flex items-center gap-2">
-                                    {selectedClass ? <GameIcon src={selectedClass.icon} className="h-4 w-4" /> : null}
-                                    <SelectValue placeholder="Choisis ta classe" />
-                                </span>
+                                {/* `SelectValue` rejoue l'item : une seule icône (cf. ServerSelect). */}
+                                <SelectValue placeholder="Choisis ta classe" />
                             </SelectTrigger>
                             <SelectContent>
                                 {DOFUS_CLASSES.map((entry) => (
                                     <SelectItem key={entry.id} value={entry.id}>
                                         <span className="flex items-center gap-2">
-                                            <GameIcon src={entry.icon} className="h-4 w-4" />
+                                            <GameIcon src={entry.icon} className="size-6" />
                                             {entry.name}
                                         </span>
                                     </SelectItem>

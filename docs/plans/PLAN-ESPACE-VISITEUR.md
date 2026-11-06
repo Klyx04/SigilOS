@@ -1,5 +1,5 @@
 ---
-description: Espace visiteur — compte Discord public, profil perso, progression de rush en base, annuaire par serveur, modération God ; décisions du 02/11/2026
+description: Espace visiteur — compte Discord public, profil perso, progression de rush en base, Progression Communautaire par serveur, Succès Donjons entre visiteurs, modération God ; décisions du 02/11/2026 révisées le 06/11/2026
 ---
 
 # 👤 Espace visiteur — compte public, profils, annuaire par serveur
@@ -12,21 +12,35 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 02/11/2026.**
+> **Dernière MAJ : 06/11/2026** — décisions d'implémentation V1c tranchées (D-V6 → D-V12).
 
-## 1. Décisions verrouillées (02/11/2026)
+## 1. Décisions verrouillées
+
+### 1.0 Socle (02/11/2026, V1a/V1b)
 
 | # | Décision | Conséquence |
 |---|---|---|
-| **D-V1** | **Tables dédiées** : `PublicProfile` + `PublicRushProgress` (une ligne JSON par personnage) | isolation **structurelle** : un visiteur ne peut pas atteindre une guilde, et inversement. Suppression RGPD = 2 lignes |
+| **D-V1** | **Tables dédiées** : `PublicProfile` + `PublicRushProgress` + `PublicProfession` + `PublicDungeonAchievement` | isolation **structurelle** : un visiteur ne peut pas atteindre une guilde, et inversement. Suppression RGPD = cascade depuis `User` |
 | **D-V2** | **Un seul `User`** porte les deux vies (guildé **et** visiteur) | un guildé garde son profil de guilde **et** un profil visiteur ; l'écran les présente ensemble, sans second compte |
 | **D-V3** | Un visiteur **ne voit jamais le roster d'une guilde** | ce chantier n'ouvre **aucune** lecture inter-guilde |
-| **D-V4** | Visibilité = **consentement individuel**, opt-in, révocable (`User.rushServerVisible`, défaut `false`) | on publie des **volontaires**, jamais une guilde ; le tag `Guilde` n'affiche le **nom** que si la guilde est déjà publique (`GuildConfig.presentationEnabled`) |
-| **D-V5** | Rétention **12 mois** sans connexion (`User.lastSeenAt`), purge par le cron `account-retention` existant | + suppression immédiate sur demande, **sans archivage** |
+| **D-V4** | Visibilité = **consentement individuel**, opt-in, révocable — **`PublicProfile.showOnDirectory`** (défaut `false`) ; présence temps réel = **`PublicProfile.showPresence`** (défaut `false`), consentement **distinct** (D9) | on publie des **volontaires**, jamais une guilde ; le tag `Guilde` n'affiche le **nom** que si la guilde est déjà publique (`GuildConfig.presentationEnabled`). ⚠️ **`User.rushServerVisible` n'existe pas** : c'était le nom pré-V1a, corrigé ici |
+| **D-V5** | Rétention **365 jours** sans connexion (`User.lastSeenAt`) pour **tous** les comptes orphelins, purge par le cron `account-retention` existant | décision du **06/11/2026** (remplace « 12 mois visiteurs seulement » et « 90 j ») : une seule durée, aucun cas particulier |
 
-### 1.1 Matrice de visibilité
+### 1.1 Implémentation V1c (06/11/2026)
 
-| Qui regarde ↓ / affiché → | consentant (`rushServerVisible = true`) | non consentant |
+| # | Décision | Conséquence |
+|---|---|---|
+| **D-V6** | **Route `/espace-visiteur/<segment>`** — `general`, `mules`, `presentation`, `succes`, `metiers`, `reglages` | un onglet = **un segment d'URL** (deep-link, retour arrière, `loading.tsx`/`error.tsx` par segment), jamais un état client. Garde dans **chaque page ET chaque action** |
+| **D-V7** | **Aucun logo de guilde** : seul le **nom déclaratif** existe (`declaredGuildName`) | `declaredGuildLogoUrl` est **retirée par migration** (colonne vide par construction : aucun writer). Pas d'upload, pas d'URL d'image, pas de modération d'image |
+| **D-V8** | **Pas de « progression commune » agrégée** dans l'annuaire | la statistique vit dans le **panneau « Progression Communautaire »** : reproduction du panneau interne par Dofus (nom, % par Dofus, détail **par bloc**, quête en cours par membre) + **donjons requis** (« qui l'a coché », « à faire ») via `PublicRushProgress.dungeonChecks` |
+| **D-V9** | Onglet **Succès Donjons** de l'espace visiteur : **boss + titans + avis uniquement**, pas le reste | vue « qui a quoi **entre visiteurs du même serveur** », filtres et recherche, alimentée par `PublicDungeonAchievement` + profils consentants |
+| **D-V10** | Suppression depuis l'espace visiteur = **vie publique seulement** si le `User` a aussi un `UserProfile` ACTIVE | refus explicite avec la marche à suivre ; jamais de suppression qui emporterait l'historique de guilde. Sans vie de guilde : suppression dure, **sans archivage** |
+| **D-V11** | **`touchLastSeen()` dans la garde visiteur** (`requirePublicAccount`) | sans ça, un visiteur n'est **jamais** marqué « vu » (seul `getUserContext` l'écrit) ⇒ il serait purgé à l'échéance malgré des visites quotidiennes. **Obligatoire avant `PUBLIC_VISITOR_ENTRY=1`** |
+| **D-V12** | **Guide public connecté = bandeau de l'interne** : 5 tuiles (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay), recherche + Options **entre** le bloc Rush et le bloc Progression, puis **Progression Communautaire** | non connecté : mode local actuel inchangé. La tuile Metamob est un **agrégat serveur** (la clé API ne part jamais au client) ; Rush Live dépend de `showPresence` |
+
+### 1.2 Matrice de visibilité
+
+| Qui regarde ↓ / affiché → | consentant (`showOnDirectory = true`) | non consentant |
 |---|---|---|
 | **Visiteur** (guide / overlay public) | ✅ pseudo, classe, Dofus + étape, tag `Visiteur` ou `Guilde` | ❌ invisible |
 | **Membre** (guide / overlay interne) | ✅ idem | ✅ **ses propres collègues** uniquement (comportement actuel, inchangé) |
@@ -47,6 +61,8 @@ pas de demande d'aide, pas de chat.
 | La progression est clé `profileId` | `PlayerGuideProgress:3205`, `PlayerGuideResourceCheck:3231`, `PlayerGuideDungeonState:3258` | idem : pas de réutilisation directe |
 | La progression publique vit dans **le navigateur** | `src/lib/guest-progress.ts`, `src/lib/rush-dungeon-storage.ts` | à supprimer **après** adoption en base (voir §6) |
 | Le serveur de la guilde existe déjà | `GuildConfig.dofusServerId` | rien à créer pour le filtre par serveur |
+| **`lastSeenAt` n'est écrit que par `getUserContext`** (dashboard) | `src/server/last-seen.ts`, un seul appelant (`user-actions.ts:523`) | un visiteur n'est **jamais** marqué « vu » ⇒ purge à l'échéance malgré des visites quotidiennes (corrigé par **D-V11**) |
+| `getPublicAccount()` rend le profil **entier**, `metamobApiKey` **déchiffrée** | `src/server/public-account.ts:51` + hook `result.publicProfile` (`src/lib/prisma.ts`) | un **`select` explicite / DTO** est obligatoire avant tout passage au client |
 
 ## 3. Modèle retenu (option 2)
 
@@ -54,14 +70,25 @@ pas de demande d'aide, pas de chat.
 User (existant)
  ├── Account / Session            (JWT, 8 h)                    ← inchangé
  ├── UserProfile[]                (guildé, guilde-scopé)        ← inchangé
- └── PublicProfile (1:1)
-      ├── pseudoDofus, dofusServerId, classe
-      ├── mules (JSON borné), metiers (JSON borné), succes (JSON borné)
-      ├── introduction, objectifs, visibilité
-      └── PublicRushProgress[]  (1 ligne = 1 personnage)
-            guideId, characterSlot,
-            completedMs, steps, bookmarks, resources, dungeons   (JSON, borné)
+ ├── lastSeenAt                    (Date?)  ← source de la rétention (D-V5, D-V11)
+ └── PublicProfile (1:1, userId @unique)
+      ├── dofusServerId (NOT NULL), pseudoDofus, classe
+      ├── declaredGuildName (nom déclaratif), introduction, objectifs
+      ├── alignment / alignmentOrder / alignmentLevel
+      ├── dofusLevel, totalXp, successPoints, lastLadderSync
+      ├── metamobPseudo, metamobApiKey (chiffrée), metamobVerified
+      ├── showOnDirectory, showPresence                     (deux consentements fermés)
+      ├── PublicRushProgress[]   (1 ligne = 1 personnage, JSON borné)
+      │     guideId, characterSlot,
+      │     completedMilestones, completedSteps, bookmarks,
+      │     dungeonChecks, currentStep
+      ├── PublicProfession[]     (table normalisée, index [metierId, level])
+      └── PublicDungeonAchievement[]  (succès de donjon cochés)
 ```
+
+⚠️ Le schéma **réel** (V1a, l. 910-1008 de `prisma/schema.prisma`) diffère du croquis du 02/11 :
+les métiers et les succès sont des **tables dédiées**, pas des JSON — un `Json` ne s'indexe pas, et
+l'annuaire filtre par métier.
 
 - **Une ligne JSON par personnage** : la progression d'un visiteur est un **instantané** (lecture/écriture
   atomique, last-write-wins). Les **règles** ne changent pas : `isSequenceBlockedByPrereqs`, cascade,
@@ -73,8 +100,8 @@ User (existant)
 
 ## 4. RGPD & sécurité (non négociable)
 
-1. **Consentement explicite** à la création (case non pré-cochée) + consentement séparé pour la
-   visibilité (`rushServerVisible`), tous deux révocables.
+1. **Consentement explicite** à la création (case non pré-cochée) + consentements **séparés** pour la
+   visibilité (`showOnDirectory`) et la présence (`showPresence`), tous révocables.
 2. **Minimisation** : pseudo Dofus, serveur, classe, mules, métiers, succès, présentation. **Jamais**
    d'e-mail, d'id Discord, de token ni de capture.
 3. **Suppression dure** (demande utilisateur, ou bannissement God) : `User` + cascade `PublicProfile` +
@@ -90,39 +117,72 @@ User (existant)
 
 ## 5. Lots
 
-> L'**ordre** vit dans `docs/ROADMAP.md`. Ici, le **quoi**.
+> L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi** et les dépendances.
 
-### V1 — Compte visiteur + progression en base (migration)
+### V1 — Compte visiteur + progression en base
 
-- **Auth** : `signIn` laisse entrer un compte **sans guilde gérée** ; le contexte reste `isMember=false`
-  ⇒ **aucune** page ni action du dashboard ne s'ouvre (les gardes existantes sont inchangées). Nouvelle
-  garde `requirePublicAccount()` pour l'espace public.
-- **Schéma** : `PublicProfile` (+ `User.publicProfile`, `User.rushServerVisible`), `PublicRushProgress`
-  (unique `[publicProfileId, guideId, characterSlot]`, index `[publicProfileId]`).
-- **Serveur** : `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod), actions
-  `savePublicRushProgress`, `resetPublicRushProgress`, `adoptLocalRushProgress` (reprise du
-  `localStorage` à la première connexion, **une seule fois**).
-- **Écrans** : profil public (Général / Présentation / Mules / Succès / Métiers / Réglages), suppression
-  du compte, export.
-- **Ops** : migration additive ; `npx prisma migrate deploy` bêta puis prod.
+**V1a / V1b — livrés le 06/11/2026 (#1279)** : 4 tables, chiffrement Metamob étendu, règle du nom
+déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUBLIC_VISITOR_ENTRY`
+(fermé par défaut), audit RBAC des actions (10 gardées, 6 noyaux sortis).
 
-### V2 — Guide public authentifié + annuaire par serveur
+**V1c — écran de profil (prochain, débloque l'activation)**
+- Routes `/espace-visiteur/<segment>` (**D-V6**) : `general`, `mules`, `presentation`, `succes`,
+  `metiers`, `reglages`. Chaque **page** serveur appelle `requirePublicAccount()` **et**
+  `touchLastSeen()` (**D-V11**) ; chaque **action** re-vérifie (règle RBAC page ET action).
+- **DTO étanche** : `loadPublicProfileView()` avec `select` explicite — `metamobApiKey` ne sort **jamais**
+  (le hook de lecture la déchiffre, cf. §2).
+- **Général** : serveur obligatoire, pseudo (repli manuel, même mécanique que `class-display.tsx`),
+  classe, nom de guilde déclaratif (`checkDeclaredGuildName`), Metamob (pseudo + clé, champ chiffré).
+  **Aucun logo** (**D-V7**) : migration `drop_declared_guild_logo`.
+- **Mules / Présentation / Métiers** : réemploi des modèles internes (`alt-pseudos`, `presentation-form`,
+  `PublicProfession` normalisée).
+- **Succès** : coche dans `PublicDungeonAchievement` ; la vue « qui a quoi entre visiteurs » est **V2b**.
+- **Réglages** : `showOnDirectory` / `showPresence`, export JSON borné, suppression (**D-V10**).
+- **Serveur** : `src/server/actions/public-profile-actions.ts` — garde, Zod borné, rate limit, écriture
+  `where: { userId }` (jamais un id client), `revalidatePath` par segment.
+- **Ops** : migration + `PUBLIC_VISITOR_ENTRY=1` en **bêta**.
 
-- La page `/guides/rush-sylvestre` exige un compte ; suppression du `localStorage` (après adoption).
-- **La modale de setup** est **le même composant** que l'interne (personnage/classe/serveur, route
-  cité → Ordre, reset en deux temps, Metamob) : une seule implémentation, deux alimentations.
-- **Annuaire** : recherche par serveur, page profil en lecture, tag `Visiteur` / `Guilde`, copie
-  `/w pseudo`.
-- **Bloc par Dofus** : la liste du serveur s'ajoute aux collègues, alimentée par le **seul consentement**.
+**V1d — progression en base + adoption**
+- `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod) : `savePublicRushProgress`,
+  `resetPublicRushProgress`, `adoptLocalRushProgress` (**une seule fois**, idempotente).
+- Le `localStorage` reste la source tant que V1d n'est pas livré (D1).
+
+**V1e — synchro ladder**
+- Extraire le noyau du worker Ankama (`profile-actions.ts`) en module partagé et le brancher sur
+  `PublicProfile` (`dofusLevel`, `totalXp`, `successPoints`, `lastLadderSync`).
+
+### V2 — Visibilité communautaire
+
+**V2a — guide public connecté** (**D-V12**)
+- Bandeau de l'interne : **5 tuiles** (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay).
+- Recherche + **Options** **entre** le bloc Rush et le bloc Progression.
+- Bloc **Progression Communautaire** : `GuildStatusPanel` extrait en composant partagé, alimenté par les
+  profils **consentants** du même serveur ; détail **par bloc** ; donjons requis → qui l'a coché,
+  qui l'a « à faire » (`resolveSequenceDungeons` + `PublicRushProgress.dungeonChecks`).
+- Non connecté : mode local actuel **inchangé**.
+
+**V2b — Succès Donjons visiteurs** (**D-V9**)
+- Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
+  (réemploi de la vue « Succès Commun » interne).
+
+**V2c — Rush Live visiteurs**
+- Room par serveur, consentement `showPresence`, fail-soft.
+
+**V2d — Ladder serveur**
+- Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
+
+**V2e — Liste des profils du serveur**
+- Liste **simple** : filtres serveur / classe / métier, pagination keyset — **aucune** statistique
+  agrégée (la stat vit dans V2a).
 
 ### V3 — God des visiteurs
 
-- Liste par serveur, suppression, bannissement (`PlatformBan`), réinitialisation de la visibilité.
+- Liste, détail, modification, suppression, bannissement (`PlatformBan`), réinitialisation de la visibilité.
 - Aucune donnée personnelle dans les logs ; volumes uniquement.
 
 ## 6. Ce qu'on supprime (et quand)
 
-1. `src/lib/guest-progress.ts` + `src/lib/rush-dungeon-storage.ts` : **après** V1 (adoption), pas avant —
+1. `src/lib/guest-progress.ts` + `src/lib/rush-dungeon-storage.ts` : **après** V1d (adoption), pas avant —
    sinon les visiteurs déjà en cours perdent leur rush.
 2. Le stockage local du guide public (`sigilos_rush_route_<slug>`, `<préfixe>resources|steps|…`) : même
    séquence.
@@ -139,3 +199,11 @@ User (existant)
 - **Ne pas** passer le `serverId` depuis le client : il est **résolu côté serveur** (profil).
 - Un `PublicRushProgress` illisible ⇒ **refus** (fail-closed), jamais un état vide qui écraserait la
   progression.
+- **`showPresence` existe deux fois** : `UserProfile.showPresence` (présence de guilde) et
+  `PublicProfile.showPresence` (D9) — ne jamais confondre les deux au branchement.
+- **`touchLastSeen` avant tout** : la purge ne « voit » que `User.lastSeenAt` (D-V11). Un écran visiteur
+  qui ne l'écrit pas est un bug de rétention, pas un détail.
+- **DTO obligatoire** : le hook `result.publicProfile` déchiffre `metamobApiKey` en lecture ; un profil
+  passé brut à un composant client fuit la clé dans le payload RSC.
+- **Ne pas dupliquer `GuildStatusPanel`** : l'extraire en composant partagé (deux alimentations), sinon
+  la parité guide interne / public se re-casse à la première évolution.

@@ -5,7 +5,7 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 05/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 06/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -26,7 +26,7 @@
   ③ **Reste 194 conseils** (mesuré) : **98 Brâkmarien** (aucune source : Tougli n'a aucun texte de quête, Dofusyelle ne couvre que Bonta), **42 Bontarien**, **54 hors route**.
   **Preuves** : `rush-notes` **13** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Ops** : `--sql` (patch additif, n'écrit que sur un `tips` vide) sur la bêta ; les 98 Brâkmarien attendent un texte du propriétaire.
 
-- **Plan du 03/11/2026 — Rush : la route, les textes, puis l'espace visiteur.** Défauts et outillage : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **1 bis**. Ordre : `G0` + `L1` + `L2` + `L3` (**livrés**) → **`textes`** (**livré le 03/11** pour les `&n` et la corrélation Dofusyelle ; reste la rédaction) → **`espace-visiteur`** (`PLAN-ESPACE-VISITEUR.md`, **migration ⇒ accord**).
+- **Plan du 03/11/2026 — Rush : la route, les textes, puis l'espace visiteur** (ordre détaillé dans le rang 57 et `docs/plans/PLAN-ESPACE-VISITEUR.md`).
 
 
 
@@ -194,7 +194,7 @@
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : profil public (Général / Présentation / Mules / Succès / Métiers / Réglages), progression de rush en base, annuaire par serveur à **consentement individuel**, modération God (suppression / bannissement) | **V1a+V1b** livrés 06/11 : 4 tables, garde `requirePublicAccount`, **audit fait** (10 actions gardées, 6 noyaux sortis) ; porte `PUBLIC_VISITOR_ENTRY=1` à V1c ; D-V1→D-V5 tranchées | V1c (profil) → V1d (progression) → V1e (sync) → V2 (annuaire) → V3 (God) | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (**démarre après `L3`**) |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (Général / Mules / Présentation / Succès / Métiers / Réglages), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, modération God (suppression / bannissement) | **V1a+V1b** livrés 06/11 (4 tables, garde, audit) ; **V1c** = écrans + DTO étanche + `touchLastSeen` + retrait du logo (migration) ; **D-V1→D-V12 tranchées** | V1c (profil) → V1d (progression) → V1e (sync) → V2a (guide public + communauté) → V2b (succès) → V2c (Rush Live) → V2d (ladder) → V2e (liste) → V3 (God) | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (**démarre après `L3`**) |
 | 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés | **E4 reporté** (chantier dédié) · tuiles Metamob/Rush Live dès l'espace visiteur | skill | — |
 
 

@@ -59,7 +59,10 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
         // client se ferme sur lui-même. Même intention : le guide interactif n'est
         // rendu que dans la branche `else` du drapeau public.
         expect(PAGE).toMatch(
-            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\} heroArt=\{heroArt\} \/>/
+            // Le verrou porte sur la **branche** rendue (guide interactif, pas l'avis de chantier)
+            // et sur les trois props historiques ; `[^>]*` tolère les props ajoutées depuis
+            // (V1d : `isConnected`), sans relâcher l'assertion.
+            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\} heroArt=\{heroArt\}[^>]*\/>/
         );
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionTitle/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionHint/);

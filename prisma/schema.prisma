@@ -956,15 +956,21 @@ model PublicProfile {
 
 /// Progression de rush d'un visiteur — une ligne par (profil, guide, personnage).
 ///
-/// L'emplacement `0` est le personnage principal ; les mules sont les suivants. Les
-/// colonnes `Json` reprennent la forme du stockage local existant
+/// `characterSlot` suit la **même convention que les trois tables internes**
+/// (`PlayerGuideProgress`, `PlayerGuideResourceCheck`, `PlayerGuideDungeonState`) : `"PRINCIPAL"`
+/// pour le personnage principal, le pseudo pour une mule. Pourquoi une **chaîne** et non un
+/// entier : la clé de progression invitée (`guestCharacterSlot`) est déjà un texte
+/// (`pseudo-serveur`) ; un entier aurait obligé à inventer un index, qui se décale dès que la
+/// liste des mules change — la progression aurait sauté d'un personnage à l'autre.
+///
+/// Les colonnes `Json` reprennent la forme du stockage local existant
 /// (`src/lib/guest-progress.ts`) : l'adoption à la première connexion ne réécrit rien.
 model PublicRushProgress {
   id                  String        @id @default(cuid())
   publicProfileId     String
   /// Slug du guide (aujourd'hui `rush-sylvestre`).
   guideId             String
-  characterSlot       Int           @default(0)
+  characterSlot       String        @default("PRINCIPAL")
   characterName       String?
   classe              String?
   completedMilestones Json?

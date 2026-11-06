@@ -62,6 +62,7 @@ pas de demande d'aide, pas de chat.
 |---|---|---|
 | **D-V18** | **Annuaire privé** : `/visiteurs` et `/visiteurs/<id>` exigent une **session valide + un profil public** ; le serveur lu est **celui du profil**, jamais un paramètre d'URL | un compte sans profil obtient l'écran « crée ton profil », pas la liste — conséquence assumée : un membre de guilde sans profil visiteur ne lit pas l'annuaire (D-V3, aucune lecture inter-guilde). `showOnDirectory: true` est dans **chaque** requête ; 404 sur un profil non consentant ou d'un autre serveur |
 | **D-V19** | **Champs publics** de la fiche : pseudo, serveur, classe, niveau, points de succès, guilde déclarée, métiers, présentation, objectifs, **nombre** de succès de donjons | jamais les mules (`altPseudos`), jamais Metamob, jamais `userId` : les trois sont **absents du `select`**, donc un champ non lu ne peut pas fuir. Aucun agrégat de progression (D-V8) |
+| **D-V20** | `PublicRushProgress.characterSlot` est une **chaîne** — `"PRINCIPAL"` ou le slug du personnage — comme les trois tables `PlayerGuide*` | migration `20270128000000_public_rush_progress_slot_text` (table **vide** : aucune perte). Un index entier se décale dès que la liste des mules change : la progression aurait sauté d'un personnage à l'autre |
 
 ## 2. Blocage mesuré avant tout code
 
@@ -190,10 +191,18 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   cartes, icônes 24 px, pas de « Gérer ») ; états actifs des filtres portés par `warning`.
   Verrous : `visitor-succes-brackets` **21**, `visitor-metiers-ui` **5**, `visitor-assets` **6**.
 
-**V1d — progression en base + adoption**
-- `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod) : `savePublicRushProgress`,
-  `resetPublicRushProgress`, `adoptLocalRushProgress` (**une seule fois**, idempotente).
-- Le `localStorage` reste la source tant que V1d n'est pas livré (D1).
+**V1d — progression en base + adoption — livré le 06/11/2026**
+- `src/lib/public-rush-progress.ts` : Zod **borné** (300 blocs, 500 étapes par bloc, 2 000 donjons,
+  emplacement = slug) — au-delà on **refuse**, jamais une troncature silencieuse.
+- `src/server/rush-public-store.ts` : `save` (upsert), `adopt` (`createMany skipDuplicates` →
+  **idempotent**), `reset` (`deleteMany` ciblé), `load` (existe ?). `publicProfileId` vient de
+  `getPublicAccount()`, `guideId` est une **constante serveur**, rate limit sur chaque mutation.
+- Guide public : adoption **une fois par emplacement**, miroir **débouncé 2 s**, « Réinitialiser »
+  efface aussi la base. **Non connecté : aucun appel réseau**, le `localStorage` reste la source (D1).
+- **Migration** `20270128000000_public_rush_progress_slot_text` : `characterSlot` Int → String
+  (**D-V20**), table vide par construction.
+- Limite assumée : `resources` (5ᵉ clé locale) n'a **pas** de colonne — elle reste locale jusqu'à V2a.
+- Verrou `tests/unit/public-rush-progress.test.ts` (15 cas) + parité de schéma (16).
 
 **V1e — synchro ladder — livré le 06/11/2026**
 - Noyau **extrait** de `updateUserProfile` vers `src/server/ladder-snapshot.ts` (un seul endroit

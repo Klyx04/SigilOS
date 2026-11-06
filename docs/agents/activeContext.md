@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 8) — **Reprise documentée : l'ordre et le prochain lot** — branche `dev`
+
+> **Demande user (verbatim)** : « tout est documenté ? pour reprendre dans une prochaine session les prochaines iterations ».
+> **Constats** : ① le rang 57 affichait encore « démarre après `L3` », périmé depuis huit lots ; ② le plan ne décrivait **pas V1i** (le prochain lot), seuls les lots livrés y figuraient ; ③ l'amorce volatile précédente avait été supprimée sans remplacement conforme au nommage de `zone-volatile.md`.
+> **Fait** : rang 57 → « prochain : **V1i** » ; `PLAN-ESPACE-VISITEUR.md` §5 décrit V1i (tranches exactes, `Dungeon.level`/`slug`, action batch, lien boss, verrou de parité) ; mémo de reprise daté `src/temp/memo-2026-11-06-espace-visiteur.md` (volatile, hors git) ; `activeContext` refermé.
+> **Preuves** : `harness-config` 9 ✓ (ROADMAP sous la limite) · aucune ligne de code touchée · **aucune migration**.
+> **Reste** : V1i → V1d → V1e → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440, compte sans admin, trois boutons « Vérifier », puis `PUBLIC_VISITOR_ENTRY=1`.
+> **Rotation** : bloc « 06/11/2026 (suite 2) — les six écrans (V1c) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 7) — **Espace visiteur : les vérifications (D-V16)** — branche `feat/visiteur-verifications`
 
 > **Demande user (verbatim)** : « v1h oui et enchaine ensuite » — vérification du pseudo ladder Ankama + repli manuel du toggle God, et vérification du pseudo/clé Metamob comme l'interne.
@@ -54,13 +64,3 @@
 > **Preuves** : `guild-limit-guards` **13** (+4) · suite **623 fichiers / 6 581 tests ✓** · `tsc` 0 · ESLint 0 erreur · build vert · **aucune migration**.
 > **Reste** : contrôle à l'écran (tiroir à 2 guildes, 390 / 1 440) · V1c livré (PR #1281).
 > **Rotation** : bloc « 05/11/2026 (suite 8) — DA E3c » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 06/11/2026 (suite 2) — **Espace visiteur : les six écrans (V1c)** — branche `feat/espace-visiteur-v1c`
-
-> **Demande user (verbatim)** : « on reprend l'espace visiteur (lot V1c, rang 57) » · « DTO étanche […] `metamobApiKey` ne sort jamais » · « `touchLastSeen()` dans `requirePublicAccount()` » · « la migration `drop_declared_guild_logo` est DÉJÀ approuvée ».
-> **Mesures** : ① `getPublicAccount()` rendait la ligne Prisma **entière** et le hook de `src/lib/prisma.ts` déchiffre `metamobApiKey` ⇒ fuite RSC **latente** (aucun appelant alors) ; ② `touchLastSeen` n'avait **qu'un** appelant (`getUserContext`) ; ③ D-V5 (**365 j**) écrite mais le cron passait encore **90** ; ④ `PublicProfession.metierId` était un `Int` **sans référentiel stable** (ids dérivés de l'ordre des tableaux).
-> **Fait** : **DTO étanche** (`src/lib/public-profile-dto.ts` : `select` explicite, `hasMetamobApiKey`, mules/activités normalisées) · gardes `requirePublicSession` (création) et `requirePublicAccount` (6 segments) avec **`touchLastSeen`** · **une migration** `20270127000000_visitor_profile_v1c` (logo retiré, `altPseudos` JSON, `metierId` en **texte**) · 6 segments `/espace-visiteur/*` + `loading`/`error` · **10 actions** bornées (Zod, rate limit, `where: { userId }`, cible relue) · **D-V10** (vie publique seule si profil ACTIVE) · export JSON · rétention **365 j** · robots.
-> **Preuves** : suite **623 fichiers / 6 576 tests ✓** · 5 verrous visiteur (**49** cas : DTO, routes, actions, schéma, rétention) · `tsc` 0 · ESLint 0 erreur · migration **appliquée** (**297**).
-> **Reste** : **porte d'entrée** (menu avatar + redirection `/dashboard` → `/espace-visiteur/general`, **aucune migration**) **avant** l'activation → V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : `PUBLIC_VISITOR_ENTRY=1` en bêta après contrôle à l'écran (390 / 768 / 1 440).
-> **Rotation** : bloc « 05/11/2026 (suite 7) — DA E3 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

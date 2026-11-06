@@ -164,6 +164,19 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   par `src/lib/pseudo-verification.ts`.
 - **Ops** : `PUBLIC_VISITOR_ENTRY=1` en **bêta** après contrôle à l'écran (390 / 768 / 1 440).
 
+**V1i — Succès (prochain lot, mesuré le 06/11/2026)**
+- `LEVEL_PRESETS` de l'interne (`SuccesTracker.tsx`) : **Tous 1-1000 · 1-99 · 100-149 · 150-199 ·
+  200+**. À extraire en règle partagée (`src/lib/succes-level-brackets.ts`) **avant** de l'utiliser
+  des deux côtés — sinon les tranches divergent au premier ajustement.
+- La page visiteur (`src/app/espace-visiteur/succes/page.tsx`) ne lit ni `Dungeon.level` ni `slug` :
+  les ajouter au `select` (le `take: 200` reste).
+- Action **batch** `togglePublicDungeonAchievementsBracket` : Zod (min/max bornés), rate limit,
+  `where` sur le profil public, cible relue ; même geste que `toggleLevelBracketAchievements`
+  (interne), **sans** `guildId`.
+- Onglet : filtre par tranche, bouton « Valider / Décocher la tranche », icône de succès par ligne,
+  lien vers la fiche `/boss/<slug>`.
+- Verrou : parité des tranches interne ↔ visiteur + existence des chemins d'assets.
+
 **V1d — progression en base + adoption**
 - `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod) : `savePublicRushProgress`,
   `resetPublicRushProgress`, `adoptLocalRushProgress` (**une seule fois**, idempotente).

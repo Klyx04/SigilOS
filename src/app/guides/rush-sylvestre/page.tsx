@@ -3,7 +3,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, Construction, ShieldCheck } from "lucide-react";
+import { Construction } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -169,20 +169,6 @@ export default async function PublicRushSylvestrePage() {
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
                 {t.rushGuide.subtitle}
               </p>
-              {/* Les promesses de contenu (« ~370 étapes ») disparaissent tant que le guide est
-                  en construction : on n'annonce que ce qui est disponible. */}
-              {!isUnderConstruction && (
-                <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
-                  </span>
-                </p>
-              )}
             </div>
 
             <div className="h-24 w-24 shrink-0 sm:h-28 sm:w-28">
@@ -218,43 +204,7 @@ export default async function PublicRushSylvestrePage() {
         </div>
         ) : (
           <>
-            <PublicRushGuideClient guide={guide} milestones={milestones}>
-              {/* ── BANDEAU DU GUIDE (brief E2 ③) — 320 px, image du bloc en `cover` ──
-                  Le voile est porté par `.da-guide-hero::after` : la lisibilité du titre
-                  ne dépend jamais de l'image (règle de la DA). Le titre reste UN h1 dont
-                  le nom accessible est le libellé traduit ; « Rush / Sylvestre » n'est
-                  que son découpage visuel, comme dans l'overlay. */}
-              <header className="da-guide-hero">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
-                <div className="da-guide-hero-inner">
-                  <nav aria-label="Fil d'Ariane" className="mb-4">
-                    <Link href="/guides" className="da-kicker">
-                      ← {t.rushGuide.breadcrumbGuides}
-                    </Link>
-                  </nav>
-                  <p className="da-kicker">
-                    {locale === "en" ? "Sylvan Rush" : "Rush Sylvestre"}
-                    <b>{locale === "en" ? "interactive guide" : "guide interactif"}</b>
-                  </p>
-                  <h1 className="da-logo" aria-label={t.rushGuide.title}>
-                    <span className="da-logo-a" aria-hidden="true">Rush</span>
-                    <span className="da-logo-b" aria-hidden="true">Sylvestre</span>
-                  </h1>
-                  <p className="da-guide-hero-sub">{t.rushGuide.subtitle}</p>
-                  <p className="da-meta">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                      {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                      {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
-                    </span>
-                  </p>
-                </div>
-              </header>
-            </PublicRushGuideClient>
+            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} />
 
             {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
                 pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}

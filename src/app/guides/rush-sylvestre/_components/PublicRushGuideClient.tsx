@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -28,6 +29,7 @@ import {
   Lock,
   ClipboardList,
   RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -215,7 +217,8 @@ interface PublicRushGuideClientProps {
    * passé en enfant pour vivre DANS la coque `data-da` — sinon il resterait hors
    * de la portée de la DA et garderait les tokens « Carnet ».
    */
-  children?: React.ReactNode;
+  /** Image d'ambiance du bandeau (bloc courant ou visuel du guide), servie par la page. */
+  heroArt: string;
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
@@ -286,7 +289,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones: rawMilestones, children }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -1151,8 +1154,276 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
         className="rush-guide da-grain da-guide"
         style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
       >
-      {/* Bandeau (rendu serveur) : il est DANS la coque, donc il hérite des tokens. */}
-      {children}
+      {/* ── BANDEAU DU GUIDE — UNE seule carte (demande user, 05/11/2026) ──────
+          Le titre et le panneau de contrôle vivaient dans deux cartes : le titre
+          centré en haut, les contrôles dans la colonne du module. Ils n'en font
+          plus qu'une, comme le guide interne. Le voile de `.da-guide-hero::after`
+          garde le titre lisible quelle que soit l'image du bloc. Le panneau, lui,
+          est rendu par le client : c'est ici qu'il trouve son état (route, filtre,
+          personnage) sans redescendre par des props. */}
+      <header className="da-guide-hero">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
+        <div className="da-guide-hero-inner">
+          <nav aria-label="Fil d'Ariane" className="da-guide-hero-crumb">
+            <Link href="/guides" className="da-kicker">
+              ← {t.rushGuide.breadcrumbGuides}
+            </Link>
+          </nav>
+          <h1 className="da-logo" aria-label={t.rushGuide.title}>
+            <span className="da-logo-a" aria-hidden="true">Rush</span>
+            <span className="da-logo-b" aria-hidden="true">Sylvestre</span>
+          </h1>
+        </div>
+        <div className="da-guide-controls">
+      {/* ── BARRE DU HAUT — contexte + outils ────────────────────────────────
+          MÊME ANATOMIE que le panneau du guide interne (05/11/2026) : le
+          contexte et les outils secondaires en haut, les TUILLES au milieu, la
+          progression en barre pleine largeur en bas. Deux panneaux différents
+          pour la même intention = deux dettes ; il n'en reste qu'un. Les tuiles
+          sans source côté visiteur (Metamob lié à la guilde, Rush Live =
+          présence des membres) ne sont pas rendues — l'espace visiteur les
+          apportera, la place est déjà la bonne. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-warning">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              Conseillé dès le <b className="font-mono font-medium">Niv. 200</b>
+            </span>
+          </span>
+          {/* Route d'alignement : choix LOCAL du visiteur (aucune donnée de guilde). */}
+          <PublicRouteChoice value={routeCamp} onChange={handleRouteChange} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowResources(true)}
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            title={
+              locale === "en"
+                ? "Resources to prepare — follows validated steps and your manual checks"
+                : "Ressources à prévoir — le calcul suit les étapes validées et vos coches manuelles"
+            }
+            aria-label={locale === "en" ? "Open resources to prepare" : "Ouvrir les ressources à prévoir"}
+          >
+            {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`), comme le guide
+                interne et l'overlay — plus de carré Lucide `Package`. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="h-3.5 w-3.5 object-contain" />
+            <span>{t.rushGuide.resourcesTab}</span>
+          </button>
+
+          {/* Pense-bête — contenu édité côté GOD, lecture seule (même modale que
+              le guide interne). Il remplace le conseil perdu dans la FAQ. */}
+          <button
+            type="button"
+            onClick={() => setPenseBeteOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            title={locale === "en" ? "Things to know / to prepare before the rush" : "Les choses à savoir / à préparer avant le rush"}
+          >
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
+          </button>
+
+          {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
+              dans le journal de la vue, supprimé avec lui. Effet inchangé —
+              les blocs et les étapes déjà faits sortent du détail ci-dessous. */}
+          <button
+            type="button"
+            onClick={() => setHideDone((v) => !v)}
+            aria-pressed={hideDone}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground",
+              hideDone && "border-accent/40 text-accent"
+            )}
+            title={locale === "en" ? "Remove validated steps from detail view" : "Retirer du détail ce qui est déjà validé"}
+          >
+            <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {hideDone
+                ? locale === "en" ? "Show full detail" : "Afficher tout le détail"
+                : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── TUILLES — personnage actif · alignement · overlay ─────────────── */}
+      <div className="flex flex-wrap items-stretch gap-3 px-4 py-3 sm:px-5">
+        {/* Personnage actif */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {hasGuestCharacter(character) && characterClass ? (
+            // Icône de classe du jeu (mêmes PNG que le profil et le dashboard).
+            <img
+              src={characterClass.icon}
+              alt={characterClass.name}
+              title={characterClass.name}
+              className="h-8 w-8 shrink-0 object-contain"
+            />
+          ) : (
+            <UserRound className="h-8 w-8 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          {hasGuestCharacter(character) && character.serverId && getDofusServerImage(character.serverId) && (
+            // Vignette du serveur déclaré (assets du jeu, WebP).
+            <img
+              src={getDofusServerImage(character.serverId)!}
+              alt=""
+              title={guestServerLabel(character.serverId) ?? ""}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="h-8 w-8 shrink-0 rounded-[3px] border border-border object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted-foreground">
+              {locale === "en" ? "Active character" : "Personnage actif"}
+            </p>
+            {hasGuestCharacter(character) ? (
+              <span className="block truncate text-xs font-semibold text-foreground">{characterLabel}</span>
+            ) : (
+              <span className="block text-[11px] text-muted-foreground">
+                {locale === "en"
+                  ? "Progress saved for this browser"
+                  : "Progression enregistrée pour ce navigateur"}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={openCharacterForm}
+            className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            title={
+              locale === "en"
+                ? "Class + nickname + server: each character keeps their own progress"
+                : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"
+            }
+          >
+            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {hasGuestCharacter(character)
+                ? locale === "en" ? "Change character" : "Changer de personnage"
+                : locale === "en" ? "Choose my character" : "Choisir mon personnage"}
+            </span>
+          </button>
+          {hasGuestCharacter(character) && (
+            <button
+              type="button"
+              onClick={() => applyGuestCharacter(null)}
+              aria-label={locale === "en" ? "Remove the character" : "Retirer le personnage"}
+              title={
+                locale === "en"
+                  ? "Reset to browser progress (no character)"
+                  : "Revenir à la progression du navigateur (sans personnage)"
+              }
+              className="shrink-0 rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+          <GuestCharacterModal
+            open={characterOpen}
+            onClose={() => setCharacterOpen(false)}
+            initial={character}
+            locale={locale}
+            onSubmit={(next) => applyGuestCharacter(next)}
+          />
+        </div>
+
+        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+
+        {/* Alignement — ce que le guide a DÉJÀ donné, recalculé à chaque coche. */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={rushView.alignment?.crestSrc ?? alignmentCrest(null)}
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted-foreground">
+              {locale === "en" ? "Alignment" : "Alignement"}
+            </p>
+            {rushView.alignment ? (
+              <span className="block truncate text-xs font-semibold text-foreground">
+                {rushView.alignment.label}
+                {rushView.alignment.level > 0 && (
+                  <>
+                    {" "}
+                    <span className="reg-mono font-normal text-muted-foreground">
+                      · {locale === "en" ? "tier" : "tranche"} {rushView.alignment.level}
+                    </span>
+                  </>
+                )}
+              </span>
+            ) : (
+              <span className="block truncate text-xs font-semibold text-foreground">
+                {locale === "en" ? "Neutral" : "Neutre"}
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  · {locale === "en" ? "no alignment quest yet" : "aucune quête validée"}
+                </span>
+              </span>
+            )}
+          </div>
+        </div>
+
+
+        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+
+        {/* Lancer l'overlay en jeu — une seule action mise en avant par écran. */}
+        <button
+          type="button"
+          onClick={handleLaunchOverlay}
+          className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-success px-3 py-1.5 text-xs font-medium text-success-foreground transition-colors hover:bg-success/90"
+          title={
+            locale === "en"
+              ? "Displays a floating mini-window always on top over Dofus"
+              : "Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"
+          }
+          aria-label={locale === "en" ? "Open the overlay" : "Ouvrir l'overlay"}
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{locale === "en" ? "Open Overlay" : "Ouvrir Overlay"}</span>
+        </button>
+      </div>
+
+      {/* ── PROGRESSION — UNE seule barre, pleine largeur ────────────────────
+          Elle vivait en 160 px dans la rangée d'actions, et un second
+          `reg-progress` la répétait plus bas : mesuré le 05/11/2026, deux
+          barres pour la même donnée. Il n'en reste qu'une. */}
+      <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 sm:px-5">
+        <span className="text-[11px] text-muted-foreground">
+          {locale === "en" ? "Local progress" : "Progression locale"}
+        </span>
+        <span className="reg-mono text-sm tabular-nums text-foreground">{progressPercent} %</span>
+        <span className="reg-mono text-xs tabular-nums text-muted-foreground">
+          ({completedCount} / {totalSequences} {locale === "en" ? "steps" : "étapes"})
+        </span>
+        <div
+          className="h-1.5 min-w-[8rem] flex-1 overflow-hidden rounded-[2px] bg-elevated"
+          role="progressbar"
+          aria-valuenow={progressPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={locale === "en" ? "Guide progress" : "Progression du guide"}
+        >
+          <span className="block h-full bg-success transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <ResetProgressButton
+          onReset={handleResetProgress}
+          label={locale === "en" ? "Reset progress" : "Réinitialiser la progression"}
+          confirmLabel={locale === "en" ? "Erase everything?" : "Effacer toute la progression ?"}
+          yesLabel={locale === "en" ? "Yes, erase all" : "Oui, tout effacer"}
+          cancelLabel={locale === "en" ? "Cancel" : "Annuler"}
+        />
+      </div>
+    </div>
+      </header>
       <div className="da-guide-grid">
         {/* Sommaire : colonne de gauche, au langage du dock. Le MÊME composant
             servira au guide interne (E4) : aucune variante « public ». */}
@@ -1176,255 +1447,26 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
           rail pour 712 px de viewport) : le rail devenait invisible dès qu'on
           scrollait. Le panneau défile donc avec la page ; c'est le rail qui reste
           affiché pendant la lecture du chapitre. */}
-      <div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">
-        {/* Route d'alignement : choix LOCAL du visiteur (aucune donnée de guilde). */}
-        <PublicRouteChoice value={routeCamp} onChange={handleRouteChange} />
-        {/* Ligne 1 — progression + actions */}
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          {/* Progress summary */}
-          <div className="flex min-w-0 items-center gap-3.5">
-            <div className="w-12 h-12 shrink-0 flex items-center justify-center">
-              {/* Repli d'erreur (règle UI) : `guide.imageUrl` vient de la base et
-                  peut pointer une URL morte — on retombe alors sur l'asset local du
-                  jeu, jamais sur un carré vide (défaut vu à l'écran le 05/11/2026). */}
-              <img
-                src={guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png"}
-                alt="Dofus Sylvestre"
-                className="w-12 h-12 object-contain"
-                onError={(e) => {
-                  const img = e.currentTarget as HTMLImageElement;
-                  const local = "/module-dofus/Dofus_Sylvestre.png";
-                  if (!img.src.endsWith(local)) img.src = local;
-                }}
-              />
-            </div>
-            <div className="min-w-0">
-              <span className="text-xs font-semibold text-foreground">
-                {locale === "en" ? "Local Progress" : "Progression locale"}
-              </span>
-              <p className="reg-mono text-sm text-foreground">
-                {completedCount} / {totalSequences} {locale === "en" ? "steps completed" : "étapes validées"} ({progressPercent}%)
-              </p>
-              <div
-                className="mt-1.5 h-1.5 w-[10rem] max-w-full bg-elevated"
-                role="progressbar"
-                aria-valuenow={progressPercent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={locale === "en" ? "Guide progress" : "Progression du guide"}
-              >
-                <span className="block h-full bg-success transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-              </div>
-            </div>
-          </div>
 
-          {/* Boutons d'action : TOUS sur la même ligne (4 colonnes) dès qu'il y a la
-              place, 2 par ligne sur tablette, empilés sur mobile — largeurs égales,
-              aucun bouton qui déborde du cadre. */}
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => setShowResources(true)}
-              className="reg-btn reg-btn-secondary w-full"
-            >
-              {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`), comme le guide
-                  interne et l'overlay — plus de carré Lucide `Package`. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="w-4 h-4 object-contain" />
-              <span>{t.rushGuide.resourcesTab}</span>
-            </button>
-
-            {/* Pense-bête — contenu édité côté GOD, lecture seule (même modale que
-                le guide interne). Il remplace le conseil perdu dans la FAQ. */}
-            <button
-              type="button"
-              onClick={() => setPenseBeteOpen(true)}
-              className="reg-btn reg-btn-secondary w-full"
-              title={locale === "en" ? "Things to know / to prepare before the rush" : "Les choses à savoir / à préparer avant le rush"}
-            >
-              <ClipboardList className="w-4 h-4" aria-hidden="true" />
-              <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
-            </button>
-
-            {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
-                dans le journal de la vue, supprimé avec lui. Effet inchangé —
-                les blocs et les étapes déjà faits sortent du détail ci-dessous. */}
-            <button
-              type="button"
-              onClick={() => setHideDone((v) => !v)}
-              aria-pressed={hideDone}
-              className={cn("reg-btn reg-btn-secondary w-full", hideDone && "border-accent/40 text-accent")}
-              title={locale === "en" ? "Remove validated steps from detail view" : "Retirer du détail ce qui est déjà validé"}
-            >
-              <CheckCheck className="w-4 h-4" aria-hidden="true" />
-              <span>
-                {hideDone
-                  ? (locale === "en" ? "Show full detail" : "Afficher tout le détail")
-                  : (locale === "en" ? "Hide completed steps" : "Masquer les étapes faites")}
-              </span>
-            </button>
-
-            {/* Lancer l'overlay en jeu — une seule action mise en avant par écran */}
-            <button
-              type="button"
-              onClick={handleLaunchOverlay}
-              className="reg-btn reg-btn-primary w-full"
-              title={locale === "en" ? "Displays a floating mini-window always on top over Dofus" : "Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"}
-            >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
-              <span>{locale === "en" ? "Launch in-game Overlay" : "Lancer l'Overlay en jeu"}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Ligne 2 — ce que le guide a DÉJÀ donné (alignement, recalculé à chaque
-            coche) et la sortie de secours (remise à zéro en deux temps). */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-          <p className="inline-flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={rushView.alignment?.crestSrc ?? alignmentCrest(null)}
-              alt=""
-              width={18}
-              height={18}
-              className="h-[18px] w-[18px] shrink-0 object-contain"
-            />
-            {rushView.alignment ? (
-              <span>
-                {locale === "en" ? "Alignment" : "Alignement"} <b className="text-foreground">{rushView.alignment.label}</b>
-                {rushView.alignment.level > 0 && (
-                  <>
-                    {" · "}
-                    {locale === "en" ? "tier" : "tranche"}{" "}
-                    <span className="reg-mono">{rushView.alignment.level}</span>
-                  </>
-                )}
-              </span>
-            ) : (
-              <span>
-                {locale === "en" ? "Alignment" : "Alignement"} <b className="text-foreground">neutre</b> —{" "}
-                {locale === "en" ? "no alignment quest validated yet" : "aucune quête d'alignement validée"}
-              </span>
-            )}
-          </p>
-          <ResetProgressButton
-            onReset={handleResetProgress}
-            label={locale === "en" ? "Reset progress" : "Réinitialiser la progression"}
-            confirmLabel={locale === "en" ? "Erase everything?" : "Effacer toute la progression ?"}
-            yesLabel={locale === "en" ? "Yes, erase all" : "Oui, tout effacer"}
-            cancelLabel={locale === "en" ? "Cancel" : "Annuler"}
-          />
-        </div>
-        {/* ── Ligne 3 — MON PERSONNAGE ────────────────────────────────────────
-            Le choix vivait dans un panneau replié (trois `<select>`) que le user ne
-            voyait pas : il vit maintenant dans une MODALE dédiée (pictos de classe,
-            vignettes de serveur, pseudo validé comme dans le profil interne) et le
-            résumé du personnage choisi reste affiché ici, en clair. */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-          {hasGuestCharacter(character) ? (
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-              {characterClass ? (
-                // Icône de classe du jeu (mêmes PNG que le profil et le dashboard).
-                <img
-                  src={characterClass.icon}
-                  alt={characterClass.name}
-                  title={characterClass.name}
-                  className="h-8 w-8 shrink-0 object-contain"
-                />
-              ) : null}
-              {character.serverId && getDofusServerImage(character.serverId) && (
-                // Vignette du serveur déclaré (assets du jeu, WebP).
-                <img
-                  src={getDofusServerImage(character.serverId)!}
-                  alt=""
-                  title={guestServerLabel(character.serverId) ?? ""}
-                  loading="lazy"
-                  decoding="async"
-                  draggable={false}
-                  className="h-8 w-8 shrink-0 rounded-[3px] border border-border object-cover"
-                />
-              )}
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold text-foreground">{characterLabel}</span>
-                <span className="block text-[11px] text-muted-foreground">
-                  {locale === "en" ? "progress saved for this character" : "progression enregistrée pour ce personnage"}
-                </span>
-              </span>
-            </div>
-          ) : (
-            <p className="min-w-0 text-[11px] text-muted-foreground">
-              {locale === "en"
-                ? "Progress is saved for this browser. Declare a character to keep one progress per character."
-                : "La progression est enregistrée pour ce navigateur. Déclare un personnage pour garder une progression par personnage."}
-            </p>
-          )}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={openCharacterForm}
-              className="reg-btn reg-btn-secondary"
-              title={locale === "en" ? "Class + nickname + server: each character keeps their own progress" : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"}
-            >
-              <UserRound className="h-4 w-4" aria-hidden="true" />
-              <span>
-                {hasGuestCharacter(character)
-                  ? locale === "en" ? "Change character" : "Changer de personnage"
-                  : locale === "en" ? "Choose my character" : "Choisir mon personnage"}
-              </span>
-            </button>
-            {hasGuestCharacter(character) && (
-              <button
-                type="button"
-                onClick={() => applyGuestCharacter(null)}
-                className="inline-flex items-center gap-1.5 rounded-[3px] border border-border px-2.5 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                title={locale === "en" ? "Reset to browser progress (no character)" : "Revenir à la progression du navigateur (sans personnage)"}
-              >
-                <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
-                {locale === "en" ? "Remove" : "Retirer"}
-              </button>
-            )}
-            <GuestCharacterModal
-              open={characterOpen}
-              onClose={() => setCharacterOpen(false)}
-              initial={character}
-              locale={locale}
-              onSubmit={(next) => applyGuestCharacter(next)}
-            />
-          </div>
-        </div>
-
-        {/* Search bar & Live Filter */}
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" aria-hidden="true" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t.rushGuide.searchPlaceholder}
-            className="w-full h-11 pl-10 pr-10 rounded-md bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              aria-label={locale === "en" ? "Clear search" : "Effacer la recherche"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-
-        {/* Progression globale */}
-        <div
-          className="reg-progress"
-          role="progressbar"
-          aria-valuenow={progressPercent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Progression du rush"
-        >
-          <span style={{ width: `${progressPercent}%` }} />
-        </div>
+      {/* Search bar & Live Filter */}
+      <div className="relative mb-8">
+        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" aria-hidden="true" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t.rushGuide.searchPlaceholder}
+          className="w-full h-11 pl-10 pr-10 rounded-md bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            aria-label={locale === "en" ? "Clear search" : "Effacer la recherche"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       {/* ── CHAPTERS & QUEST BLOCKS ── */}
@@ -2449,3 +2491,4 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, childr
     </DaThemeProvider>
   );
 }
+

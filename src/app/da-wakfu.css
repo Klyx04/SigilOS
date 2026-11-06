@@ -1384,10 +1384,10 @@
 .da-guide-hero {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  min-height: 320px;
+  flex-direction: column;
+  align-items: stretch;
   margin-bottom: 1.75rem;
-  padding: 1.5rem;
+  padding: 0;
   overflow: hidden;
   border: 1.5px solid var(--da-outline);
   border-radius: 4px 12px 4px 12px;
@@ -1427,36 +1427,50 @@
 .da-guide-hero-inner {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
   width: 100%;
   min-width: 0;
+  min-height: 220px;
+  padding: 1.25rem 1.5rem 1.5rem;
+  text-align: center;
   color: var(--da-ink);
 }
 
+/* Fil d'Ariane du bandeau : posé à gauche, il ne se centre pas avec le titre. */
+.da-guide-hero-crumb {
+  align-self: flex-start;
+  margin: 0 0 auto;
+}
+
+/* Le panneau de contrôle vit DANS le bandeau (une seule carte, demande user du
+   05/11/2026) : il ne porte donc pas de carte à lui, seulement un fond opaque et
+   un filet — sinon c'était une boîte dans une boîte. */
+.da-guide-controls {
+  position: relative;
+  z-index: 2;
+  background: var(--da-bg, var(--background));
+  border-top: 1.5px solid var(--da-ln);
+}
+
+.da-guide-controls > :last-child { border-bottom: 0; }
+
 .da-guide-hero-inner > .da-kicker { margin: 0 0 .3rem; }
 
-/* `SYLVESTRE` 72 px (brief E2 ③) ; la densité suit la largeur, jamais une
-   hauteur fixe qui déborde sur 390 px. */
-.da-guide-hero .da-logo-b { font-size: clamp(40px, 7.4vw, 72px); }
+/* `SYLVESTRE` — titre centré du bandeau (demande user du 05/11/2026 : « centre
+   Rush Sylvestre en gros »). La densité suit la largeur, jamais une hauteur
+   fixe qui déborderait sur 390 px. */
+.da-guide-hero .da-logo-b { font-size: clamp(44px, 8.6vw, 92px); }
 .da-guide-hero .da-logo-a { font-size: 15px; }
-
-.da-guide-hero-sub {
-  margin: .6rem 0 0;
-  max-width: 58ch;
-  font: 400 14px/1.5 var(--da-font-text);
-  color: var(--da-muted);
-}
-
-.da-guide-hero .da-meta {
-  margin-top: .75rem;
-  color: var(--da-muted);
-}
 
 .da-guide-hero .da-kicker,
 .da-guide-hero-inner a.da-kicker { color: var(--da-muted); }
 
 @media (max-width: 899px) {
-  .da-guide-hero {
-    min-height: 220px;
+  .da-guide-hero-inner {
+    min-height: 168px;
     padding: 1rem;
   }
 }

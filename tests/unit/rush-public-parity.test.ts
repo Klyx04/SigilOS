@@ -179,7 +179,11 @@ describe("« À faire maintenant » — supprimé avec tout l'en-tête redondant
     expect(PUB).toMatch(/function ResetProgressButton\(/);
     expect(PUB).toMatch(/onReset=\{handleResetProgress\}/);
     // Une barre de progression lisible dans le panneau (le seul endroit).
-    expect(PUB).toMatch(/Progression locale[\s\S]{0,400}role="progressbar"/);
+    expect(PUB).toMatch(/Progression locale[\s\S]{0,600}role="progressbar"/);
+    // Le doublon `reg-progress` a disparu : mesuré le 05/11/2026, le panneau
+    // peignait DEUX barres pour la même donnée (160 px dans la rangée d'actions
+    // + une pleine largeur plus bas). Il n'en reste qu'une.
+    expect(PUB).not.toMatch(/className="reg-progress"/);
   });
 });
 
@@ -207,14 +211,33 @@ describe("Ressources — plus aucun nom tronqué dans les listes", () => {
   });
 });
 
-describe("Panneau public — les quatre actions sont alignées", () => {
-  it("une seule grille responsive porte les quatre boutons", () => {
-    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4/);
+describe("Panneau public — la MÊME anatomie que le guide interne", () => {
+  it("le contexte et les trois outils tiennent dans la barre du haut", () => {
+    // Verrou RÉÉCRIT le 05/11/2026 (même intention, nouveau mécanisme) : la
+    // rangée « quatre boutons en grille » devient une barre d'outils + des
+    // tuiles, comme le guide interne — un seul panneau à maintenir.
+    expect(PUB).toMatch(/Conseillé dès le/);
+    expect(PUB).toMatch(/<PublicRouteChoice/);
+    expect(PUB).not.toMatch(/xl:grid-cols-4/);
+    for (const label of ["Ressources", "Pense-bête", "Masquer les étapes faites"]) {
+      expect(PUB, label).toContain(label);
+    }
   });
 
-  it("chaque bouton prend toute sa cellule (largeurs régulières, aucun débordement)", () => {
-    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(3);
-    expect(PUB.match(/reg-btn reg-btn-primary w-full/g)?.length).toBe(1);
+  it("les tuiles portent les trois briques qui ont une source côté visiteur", () => {
+    for (const title of ["Personnage actif", "Alignement", "Ouvrir Overlay"]) {
+      expect(PUB, title).toContain(title);
+    }
+    // Ni Metamob ni Rush Live : aucune source publique aujourd'hui (Metamob est
+    // lié au compte de guilde, Rush Live à la présence des membres). Le verrou
+    // empêche de réintroduire une tuile qui promettrait une donnée de guilde.
+    expect(PUB).not.toMatch(/Lier Metamob/);
+    expect(PUB).not.toMatch(/Rush Live/);
+  });
+
+  it("l'overlay est une action mise en avant, pas un 4e bouton de grille", () => {
+    expect(PUB).toMatch(/bg-success px-3 py-1\.5 text-xs font-medium text-success-foreground/);
+    expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
   });
 });
 
@@ -341,8 +364,12 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     // L'ancienne liste globale a disparu (aucun code mort).
     expect(existsSync("src/components/dofus-quests/rush/RushDungeonList.tsx")).toBe(false);
     expect(existsSync("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toBe(false);
-    // La barre d'actions du public reste à quatre boutons.
-    expect(PUB).toMatch(/xl:grid-cols-4/);
+    // La barre d'actions du public porte QUATRE actions (3 outils + l'overlay),
+    // désormais réparties entre la barre du haut et la rangée de tuiles.
+    expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setShowResources\(true\)\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setPenseBeteOpen\(true\)\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setHideDone/);
   });
 
   it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {

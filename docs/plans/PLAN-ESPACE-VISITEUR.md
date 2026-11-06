@@ -195,9 +195,15 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   `resetPublicRushProgress`, `adoptLocalRushProgress` (**une seule fois**, idempotente).
 - Le `localStorage` reste la source tant que V1d n'est pas livré (D1).
 
-**V1e — synchro ladder**
-- Extraire le noyau du worker Ankama (`profile-actions.ts`) en module partagé et le brancher sur
-  `PublicProfile` (`dofusLevel`, `totalXp`, `successPoints`, `lastLadderSync`).
+**V1e — synchro ladder — livré le 06/11/2026**
+- Noyau **extrait** de `updateUserProfile` vers `src/server/ladder-snapshot.ts` (un seul endroit
+  pour les deux appels `succès` + `general`) : bornes dures (niveau 1..300, XP 15 chiffres,
+  points entiers ≥ 0), **fail-open** (worker absent/lent ⇒ `{}`, la sauvegarde passe).
+- Branché sur `PublicProfile` : enregistrer son identité **ou** vérifier son propre pseudo
+  récupère `dofusLevel`, `totalXp`, `successPoints`, `lastLadderSync` (timeout 6 s).
+- `classe` n'est **jamais** écrite depuis le ladder : le profil stocke un **id** (`iop`), le
+  ladder un **libellé** (« Iop ») — l'écrire casserait le filtre par classe de l'annuaire.
+- Verrou `tests/unit/ladder-snapshot.test.ts` (8 cas) · **aucune migration**.
 
 ### V2 — Visibilité communautaire
 

@@ -29,6 +29,7 @@ import {
     PSEUDO_FORMAT_MESSAGE,
 } from "@/lib/pseudo-validation";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
+import { fetchLadderSnapshot } from "@/server/ladder-snapshot";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
@@ -837,54 +838,11 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             }
 
             // Snapshot ladder immédiat : la vérif ci-dessus prouve l'existence mais
-            // n'importait aucun point — le nouveau restait à 0 PTS + "MAUVAIS ÉLÈVE"
-            // jusqu'à la prochaine bulk (22 h). On importe dès la saisie du pseudo
-            // (meilleur effort : un ladder KO n'échoue jamais la sauvegarde).
-            if (pseudoDofus) {
-                try {
-                    const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
-                    const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
-                    if (workerUrl) {
-                        const headers: Record<string, string> = { "Accept": "application/json" };
-                        if (workerSecret) headers["X-SigilOS-Key"] = workerSecret;
-                        const base = `${workerUrl}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudoDofus)}`;
-
-                        const [succesRes, generalRes] = await Promise.all([
-                            fetch(base, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
-                            fetch(`${base}&type=general`, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
-                        ]);
-
-                        let level: number | undefined;
-                        if (succesRes?.ok) {
-                            const s = await succesRes.json().catch(() => null);
-                            if (s?.success && s?.found) {
-                                if (typeof s.points === "number") ladderSnapshot.successPoints = s.points;
-                                if (typeof s.level === "number") level = s.level;
-                            }
-                        }
-                        if (generalRes?.ok) {
-                            const g = await generalRes.json().catch(() => null);
-                            if (g?.success && g?.found) {
-                                if (g.totalXp) {
-                                    const cleanXp = String(g.totalXp).replace(/\D/g, "").slice(0, 15);
-                                    if (cleanXp) ladderSnapshot.totalXp = BigInt(cleanXp);
-                                }
-                                if (g.level && level === undefined) {
-                                    const lvl = Math.min(Math.max(Number(g.level), 1), 300);
-                                    if (Number.isFinite(lvl)) level = lvl;
-                                }
-                                if (g.classe) ladderSnapshot.classe = String(g.classe).slice(0, 50);
-                            }
-                        }
-                        if (level !== undefined) ladderSnapshot.dofusLevel = level;
-                        if (ladderSnapshot.successPoints !== undefined || ladderSnapshot.totalXp !== undefined) {
-                            ladderSnapshot.lastLadderUpdate = new Date();
-                        }
-                    }
-                } catch {
-                    // Snapshot raté : la sauvegarde du profil ne doit pas échouer pour ça
-                }
-            }
+            // n'importait aucun point — le nouveau restait à 0 PTS + « MAUVAIS ÉLÈVE »
+            // jusqu'à la prochaine bulk (22 h). On importe dès la saisie du pseudo.
+            // Noyau partagé avec le profil public (`src/server/ladder-snapshot.ts`) :
+            // un worker KO rend `{}` et n'échoue jamais la sauvegarde.
+            ladderSnapshot = await fetchLadderSnapshot(pseudoDofus, serverId);
         }
         // La classe explicite reste prioritaire : on l'isole du spread.
         const { classe: ladderClasse, ...ladderRest } = ladderSnapshot;

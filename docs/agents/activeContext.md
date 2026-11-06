@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 12) — **Espace visiteur : la synchro ladder (V1e)** — branche `feat/visiteur-ladder`
+
+> **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
+> **Mesure** : le snapshot Ankama vivait **inline** dans `updateUserProfile` (`profile-actions.ts` l. 843-887) ; `PublicProfile.dofusLevel/totalXp/successPoints/lastLadderSync` existaient mais **personne ne les remplissait** ⇒ l'annuaire affichait « — ».
+> **Fait** : noyau extrait dans `src/server/ladder-snapshot.ts` (bornes dures, fail-open, timeout court) et réutilisé **deux fois** côté visiteur : enregistrer son identité, ou vérifier **son propre** pseudo (rafraîchit les profils créés avant V1e). `classe` n'est **jamais** écrite depuis le ladder (libellé ↔ id).
+> **Preuves** : `ladder-snapshot` **8** · `public-profile-actions` 11 · `visitor-verifications` 8 · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V1d** (progression en base, décision « emplacement texte » inline) → **V2a** (guide connecté + Progression Communautaire). **Ops** : `npm run dev`, ouvrir Identité, « Vérifier » son pseudo, contrôler que niveau/points remontent dans `/visiteurs`.
+> **Rotation** : bloc « 06/11/2026 (suite 6) — assets (D-V15) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 06/11/2026 (suite 11) — **Annuaire des visiteurs (V2e)** — branche `feat/visiteur-annuaire`
 
 > **Demande user (verbatim)** : « moi je veux qu'on continue et avance les chantier profil perso landing, annuaire landing (dispo uniquement connecté) le guide rush loggé discord visiteur ».
@@ -55,13 +64,6 @@
 > **Rotation** : bloc « 06/11/2026 (suite) — double cross-check » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 06/11/2026 (suite 6) — **Espace visiteur : les assets du produit (D-V15)** — branche `feat/visiteur-assets`
 
-> **Demande user (verbatim)** : « icone serveur · icone classe · tooltip comment trouver sa clé metamob comme l'interne · […] présentation > activité préférés : icones assets · […] idem métier les icones enfin faut reprendre comme l'interne profil ».
-> **Mesures** : ① `DOFUS_CLASSES[].icon`, `DOFUS_JOBS[].icon`, `ACTIVITY_ASSETS` et `public/assets/dofus/servers/*.webp` (13 serveurs) existaient déjà — rien à créer ; ② `ALL_DOFUS_SERVERS` désignait déjà la liste de **noms** validée côté serveur, d'où la collision corrigée en `ALL_DOFUS_SERVER_ENTRIES` ; ③ un asset absent est servi en 404 par `/_next/image` (issue Sentry documentée).
-> **Fait** : icône du serveur dans le sélecteur (déclencheur + items) via `ALL_DOFUS_SERVER_ENTRIES` (source unique) ; icône de classe dans Identité **et** Mules ; `ACTIVITY_ASSETS` sur les activités ; `DOFUS_JOBS[].icon` sur les métiers ; lien « Où trouver ma clé API ? » (`metamob.fr/settings#api`) dans le formulaire Metamob.
-> **Preuves** : `visitor-assets` **4** (13 serveurs + activités + classes + métiers existent sur disque) · verrous visiteurs **31** (routes 12 · coque 6 · entrée 9 · assets 4) · suite **626 fichiers / 6 600 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : **V1h** — vérification du pseudo (ladder Ankama, repli manuel si le toggle God est actif) et du pseudo Metamob, comme l'interne → **V1i** — refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
-> **Rotation** : bloc « 06/11/2026 — socle de données + garde d'entrée (V1a/V1b) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

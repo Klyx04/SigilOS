@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { logServiceActivity } from "./activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { LoanType, LoanStatus, NotificationType, NotificationCategory } from "@prisma/client";

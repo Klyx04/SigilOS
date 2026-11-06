@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { assertGuildMemberAccess } from "@/server/guild-access";
 
 export type ActivityType = "LOGIN" | "NEW_MEMBER" | "ARCHIVED" | "BANNED" | "UNARCHIVED";
 
@@ -27,6 +28,16 @@ export async function emitGuildActivity(
     meta?: Record<string, string>
 ) {
     try {
+        // Garde d'appartenance (audit 06/11/2026) : cette action est exportée, donc
+        // appelable avec n'importe quel identifiant de guilde. Refus silencieux
+        // (l'appel est fire-and-forget : aucun écran n'attend de retour).
+        const config = await db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { discordGuildId: true },
+        });
+        if (!config) return;
+        if (!(await assertGuildMemberAccess(config.discordGuildId)).ok) return;
+
         // Server-side dedup for LOGIN — skip if same actor emitted within 2 min
         if (type === "LOGIN") {
             const recent = await db.guildActivity.findFirst({
@@ -77,6 +88,8 @@ export async function getGuildActivitiesSince(
     limit = 20
 ): Promise<ActivityEvent[]> {
     try {
+        if (!(await assertGuildMemberAccess(discordGuildId)).ok) return [];
+
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId },
             select: { id: true },
@@ -112,6 +125,7 @@ export async function getRecentGuildActivities(
 ): Promise<ActivityEvent[]> {
     const session = await auth();
     if (!session?.user?.id) return [];
+    if (!(await assertGuildMemberAccess(discordGuildId)).ok) return [];
 
     try {
         const config = await db.guildConfig.findUnique({

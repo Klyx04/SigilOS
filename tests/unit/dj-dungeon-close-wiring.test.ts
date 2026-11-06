@@ -96,7 +96,7 @@ describe("Rappels H-1 en multi-donjons", () => {
     });
 
     it("les rappels d'inactivité nomment les donjons d'un post multi", () => {
-        const inactive = read("src/server/actions/inactive-posts-actions.ts");
+        const inactive = read("src/server/inactive-posts.ts");
         expect(inactive).toContain("const multiEntries = getMultiDungeons(post.dungeonsJson);");
         expect(inactive).toContain("multiLabel");
         // Le compteur d'inactivité vit dans l'enveloppe : les items ne doivent pas être perdus.

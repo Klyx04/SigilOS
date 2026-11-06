@@ -76,6 +76,8 @@ model User {
   administeredRelances Relance[]          @relation("RelanceAdmin")
   sessions             Session[]
   profiles             UserProfile[]
+  /// Espace visiteur (rang 57) — un seul `User` porte les deux vies (D-V2).
+  publicProfile        PublicProfile?
 }
 
 model AllowedGuild {
@@ -893,6 +895,118 @@ model UserProfile {
   @@index([userId])
 }
 
+/// Espace visiteur (rang 57) — profil public d'un compte Discord **sans guilde gérée**.
+///
+/// Décisions D-V1/D-V2 (`docs/plans/PLAN-ESPACE-VISITEUR.md`) : tables dédiées, un seul
+/// `User` porte les deux vies. Isolation **structurelle** : aucune FK vers `GuildConfig`,
+/// donc aucune requête de visiteur ne peut porter un `guildId`.
+///
+/// `dofusServerId` est **obligatoire** (décision du 06/11/2026) : c'est la clé du ladder
+/// Ankama (worker `DOFUS_LADDER_WORKER_URL`, `server_id` + pseudo) et le filtre de
+/// l'annuaire. Sans serveur, aucune synchronisation n'est possible.
+///
+/// `showOnDirectory` et `showPresence` sont **deux** consentements distincts, tous deux
+/// fermés par défaut : figurer dans l'annuaire n'autorise pas à afficher « en ligne ».
+model PublicProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  /// Serveur Dofus Unity (`DOFUS_UNITY_SERVERS`, `src/lib/presentation-constants.ts`).
+  dofusServerId        Int
+  pseudoDofus          String?
+  classe               String?
+  /// Nom de guilde **déclaré** (aucune vérification Discord) — règle pure
+  /// `src/lib/public-profile-rules.ts` : 40 max, lettres non accentuées, espace, ' et -.
+  declaredGuildName    String?
+  declaredGuildLogoUrl String?
+  introduction         String?
+  objectifs            String?
+  preferredActivities  Json?
+  metiers              Json?
+  metamobPseudo        String?
+  /// Chiffrée par l'extension Prisma (`src/lib/prisma.ts`), jamais renvoyée au client.
+  metamobApiKey        String?
+  metamobVerified      Boolean  @default(false)
+  alignment            String?
+  alignmentOrder       String?
+  alignmentLevel       Int      @default(0)
+  /// Ladder Ankama — mêmes métriques que `UserProfile`, alimentées par le worker.
+  dofusLevel           Int?
+  totalXp              BigInt?  @default(0)
+  successPoints        Int?     @default(0)
+  lastLadderSync       DateTime?
+  /// Consentement **annuaire** (D-V4) — fermé par défaut : on publie des volontaires.
+  showOnDirectory      Boolean  @default(false)
+  /// Consentement **présence temps réel** (D9) — distinct : figurer dans l'annuaire
+  /// n'autorise pas à afficher « en ligne maintenant ».
+  showPresence         Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rushProgress         PublicRushProgress[]
+  professions          PublicProfession[]
+  achievements         PublicDungeonAchievement[]
+
+  @@index([dofusServerId, showOnDirectory])
+  @@index([lastLadderSync])
+}
+
+/// Progression de rush d'un visiteur — une ligne par (profil, guide, personnage).
+///
+/// L'emplacement `0` est le personnage principal ; les mules sont les suivants. Les
+/// colonnes `Json` reprennent la forme du stockage local existant
+/// (`src/lib/guest-progress.ts`) : l'adoption à la première connexion ne réécrit rien.
+model PublicRushProgress {
+  id                  String        @id @default(cuid())
+  publicProfileId     String
+  /// Slug du guide (aujourd'hui `rush-sylvestre`).
+  guideId             String
+  characterSlot       Int           @default(0)
+  characterName       String?
+  classe              String?
+  completedMilestones Json?
+  completedSteps      Json?
+  bookmarks           Json?
+  dungeonChecks       Json?
+  currentStep         String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  profile             PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, guideId, characterSlot])
+  @@index([publicProfileId])
+  @@index([guideId, updatedAt])
+}
+
+/// Métier déclaré d'un visiteur — table **normalisée** : l'annuaire filtre par métier,
+/// et un `Json` ne s'indexe pas à des milliers de profils.
+model PublicProfession {
+  id              String        @id @default(cuid())
+  publicProfileId String
+  metierId        Int
+  level           Int           @default(0)
+  profile         PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, metierId])
+  @@index([metierId, level])
+}
+
+/// Succès de donjon cochés par un visiteur.
+///
+/// Table dédiée : `UserDungeonAchievement` pointe `UserProfile`, qui est cloisonné par
+/// guilde (D-V1) — un visiteur n'en a pas.
+model PublicDungeonAchievement {
+  id                   String             @id @default(cuid())
+  publicProfileId      String
+  dungeonAchievementId String
+  completedAt          DateTime           @default(now())
+  profile              PublicProfile      @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+  dungeonAchievement   DungeonAchievement @relation(fields: [dungeonAchievementId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, dungeonAchievementId])
+  @@index([publicProfileId])
+  @@index([dungeonAchievementId])
+}
+
 /// Registre Membres & Recrutement — commentaires du staff : plusieurs par
 /// membre (10 max), horodatés et signés par leur auteur.
 ///
@@ -1330,6 +1444,8 @@ model DungeonAchievement {
   challenge    Challenge                @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   dungeon      Dungeon                  @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
   achievedBy   UserDungeonAchievement[]
+  /// Coches des **visiteurs** (espace visiteur, rang 57) — table dédiée, D-V1.
+  publicAchievedBy PublicDungeonAchievement[]
   userProgress UserDungeonProgress[]
 
   @@unique([dungeonId, challengeId])

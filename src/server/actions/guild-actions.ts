@@ -1,4 +1,6 @@
-"use server";
+// Module serveur — **pas** une action (audit du 06/11/2026) : `getGuildHeaderData` est un
+// `cache()` de composant serveur, jamais appelé depuis un client. Le laisser en
+// `"use server"` en faisait une action sans garde, lisible avec n'importe quel `guildId`.
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";

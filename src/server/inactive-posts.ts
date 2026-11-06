@@ -1,4 +1,6 @@
-"use server";
+// Noyau métier — **pas** une action serveur (audit du 06/11/2026) : il est appelé par le
+// cron `cleanup-inactive-posts` et par le bouton God (`god-system-actions`), qui porte la
+// garde. Sorti de `actions/`, il n'est plus invocable depuis un navigateur.
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";

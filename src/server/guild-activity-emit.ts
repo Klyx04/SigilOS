@@ -22,7 +22,7 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { logServiceActivity } from "@/server/actions/activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import {
     GUILD_ACTIVITY_MODULE_BY_KIND,
     buildGuildActivityCopy,

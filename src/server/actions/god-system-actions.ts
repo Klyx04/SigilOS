@@ -334,7 +334,7 @@ export async function godProcessInactivePosts(): Promise<{
     }
 
     try {
-        const { processInactivePostsRemindersAndAutoClose } = await import("./inactive-posts-actions");
+        const { processInactivePostsRemindersAndAutoClose } = await import("@/server/inactive-posts");
         const res = await processInactivePostsRemindersAndAutoClose();
         return res;
     } catch (err: any) {

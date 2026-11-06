@@ -33,7 +33,7 @@ vi.mock("@/server/discord", () => ({
     listGuildMembers: (...args: any[]) => mockListGuildMembers(...args),
 }));
 
-import { resyncGuildAvatarHashes, syncAllGuildAvatars } from "@/server/actions/avatar-sync";
+import { resyncGuildAvatarHashes, syncAllGuildAvatars } from "@/server/avatar-sync";
 
 const GUILD = { id: "guild-internal-1", name: "Test Guild" };
 

@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 6) — **Espace visiteur : les assets du produit (D-V15)** — branche `feat/visiteur-assets`
+
+> **Demande user (verbatim)** : « icone serveur · icone classe · tooltip comment trouver sa clé metamob comme l'interne · […] présentation > activité préférés : icones assets · […] idem métier les icones enfin faut reprendre comme l'interne profil ».
+> **Mesures** : ① `DOFUS_CLASSES[].icon`, `DOFUS_JOBS[].icon`, `ACTIVITY_ASSETS` et `public/assets/dofus/servers/*.webp` (13 serveurs) existaient déjà — rien à créer ; ② `ALL_DOFUS_SERVERS` désignait déjà la liste de **noms** validée côté serveur, d'où la collision corrigée en `ALL_DOFUS_SERVER_ENTRIES` ; ③ un asset absent est servi en 404 par `/_next/image` (issue Sentry documentée).
+> **Fait** : icône du serveur dans le sélecteur (déclencheur + items) via `ALL_DOFUS_SERVER_ENTRIES` (source unique) ; icône de classe dans Identité **et** Mules ; `ACTIVITY_ASSETS` sur les activités ; `DOFUS_JOBS[].icon` sur les métiers ; lien « Où trouver ma clé API ? » (`metamob.fr/settings#api`) dans le formulaire Metamob.
+> **Preuves** : `visitor-assets` **4** (13 serveurs + activités + classes + métiers existent sur disque) · verrous visiteurs **31** (routes 12 · coque 6 · entrée 9 · assets 4) · suite **626 fichiers / 6 600 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V1h** — vérification du pseudo (ladder Ankama, repli manuel si le toggle God est actif) et du pseudo Metamob, comme l'interne → **V1i** — refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
+> **Rotation** : bloc « 06/11/2026 — socle de données + garde d'entrée (V1a/V1b) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 5) — **Espace visiteur : la coque publique (D-V14)** — branche `feat/visiteur-coque`
 
 > **Demande user (verbatim)** : « t mignon mais c fait expres de pas mettre le footer / header landing quand on est loggé visiteur ? […] il retrouve ou les guides les pages le rush les outils etc ? et pk ya aucun asset dans les onglets ? ».
@@ -13,7 +23,7 @@
 > **Fait** : le layout rend `PublicHeader` (`dashboardHref="/espace-visiteur/general"`, donc « Tableau de bord » reste dans l'espace) + bandeau « Espace visiteur » + `VisitorNav` + `GalacticFooter` ; `SignOutButton` maison retiré (la déconnexion vit dans le menu avatar) ; six onglets avec assets réels (`party`, `guilde-et-mules`, `parchment`, `trophy-1`, `hammer`, `assets/nav/cog.png`) via `GameIcon`.
 > **Preuves** : `visitor-shell` **6** · routes 12 · entrée 9 (**27** sur les 3 verrous) · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : **V1g** — parité des formulaires avec l'interne (icônes serveur/classe, aide + vérif Metamob, ladder Ankama, mules avec repli manuel, activités en vignettes, métiers en icônes) → refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
-> **Rotation** : bloc « 05/11/2026 (suite 10) — E3e » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+> **Rotation** : blocs « 05/11/2026 (suite 10) — E3e » et « (suite 9) — DA E3d » sortis (7ᵉ et 8ᵉ) — récupérables via `git log -p -- docs/agents/activeContext.md`.
 
 
 ## 📝 Session 06/11/2026 (suite 4) — **Espace visiteur : la porte d'entrée (D-V13)** — branche `feat/visiteur-porte-entree`
@@ -54,12 +64,3 @@
 > **Preuves** : suite **619 fichiers / 6 538 tests ✓** · `harness-config` **9 ✓** · verrous visiteur **49 ✓** · ROADMAP **61 276 o / 61 440** (marge **164 o**).
 > **Reste** : **V1c** (écrans + DTO étanche + `touchLastSeen` + migration logo) → V1d → V1e → V2a-e → V3. **Ops** : migration à jouer, `PUBLIC_VISITOR_ENTRY=1` en bêta après V1c.
 > **Rotation** : bloc « 05/11/2026 (suite 6) — Songes : clôture unique » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 06/11/2026 — **Espace visiteur : socle de données + garde d'entrée (V1a/V1b)** — branche `feat/espace-visiteur`
-
-> **Demande user (verbatim)** : « reprenons l'espace visiteur » · « un espace perso : onglet général identique avec fallback pseudo manuel même mécanique que l'interne… » · « obligatoirement choisir un serveur … ça populera tout seul sa page ladder » · « pas d'accent, apostrophe et tiret ok, Majuscule OK » · « feu ».
-> **Mesures** : ① rien n'existait (`PublicProfile`/`PublicRushProgress` : **0 occurrence**) ; ② `UserDungeonAchievement` pointe `UserProfile`, cloisonné par guilde ⇒ table dédiée ; ③ le ladder interne se synchronise par un **worker** (`DOFUS_LADDER_WORKER_URL`, `server_id` + pseudo) ⇒ le serveur devient **obligatoire** ; ④ **10 actions serveur** cloisonnées par guilde ne vérifient qu'une session ⇒ ouvrir `signIn` les exposerait à tout compte Discord.
-> **Fait** : **V1a** = 4 tables (`PublicProfile` avec `dofusServerId` NOT NULL et deux consentements fermés, `PublicRushProgress`, `PublicProfession`, `PublicDungeonAchievement`), migration additive `20270126000000_public_profile`, chiffrement Metamob étendu au profil public (create/update/updateMany + lecture), règle pure du nom de guilde + Zod. **V1b** = décision de connexion extraite en règle pure (`src/lib/sign-in-policy.ts`), `signIn` branche la porte visiteur, garde `requirePublicAccount` (session + bannissement + profil). **Audit** = les 10 actions cloisonnées qui ne vérifiaient qu'une session portent `assertGuildMemberAccess` (ladder ×10, activité ×3, présence, réglages système), `isGod` sur les sessions God, et les **6 modules `"use server"` sans authentification** sont **sortis du dossier d'actions** (noyaux déplacés dans `src/server/` : plus une surface appelable), verrouillé par test.
-> **Preuves** : **49 tests neufs** verts · `tsc` 0 · ESLint 0 erreur · migration appliquée (**296**, base « up to date ») · suite complète **6 538 ✓ / 619 fichiers** (aucun échec) — chiffres **re-mesurés** le 06/11 (le bloc annonçait 46 / 297 / 6 535).
-> **Reste** : activation de la porte à **V1c** (`PUBLIC_VISITOR_ENTRY=1`, l'écran d'installation n'existe pas encore) · V1c (profil) → V1d (progression/adoption) → V1e (sync ladder) → V2 (annuaire + présence) → V3 (God).
-> **Rotation** : bloc « 05/11/2026 (suite 5) — DA E2 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

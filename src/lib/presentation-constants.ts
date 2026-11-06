@@ -4,29 +4,43 @@
 
 export const DOFUS_UNITY_SERVERS = {
     epique: [
-        { name: "Ombre", id: 50 }
+        { name: "Ombre", id: 50, icon: "/assets/dofus/servers/ombre.webp" }
     ],
     monocompte: [
-        { name: "Draconiros", id: 295 }
+        { name: "Draconiros", id: 295, icon: "/assets/dofus/servers/draconiros.webp" }
     ],
     classique: [
-        { name: "Tal Kasha", id: 290 },
-        { name: "Imagiro", id: 291 },
-        { name: "Orukam", id: 292 },
-        { name: "Tylezia", id: 293 },
-        { name: "Hell Mina", id: 294 }
+        { name: "Tal Kasha", id: 290, icon: "/assets/dofus/servers/tal-kasha.webp" },
+        { name: "Imagiro", id: 291, icon: "/assets/dofus/servers/imagiro.webp" },
+        { name: "Orukam", id: 292, icon: "/assets/dofus/servers/orukam.webp" },
+        { name: "Tylezia", id: 293, icon: "/assets/dofus/servers/tylezia.webp" },
+        { name: "Hell Mina", id: 294, icon: "/assets/dofus/servers/hell-mina.webp" }
     ],
     pionnierMono: [
-        { name: "Dakal", id: 353 },
-        { name: "Mikhal", id: 354 },
-        { name: "Kourial", id: 355 }
+        { name: "Dakal", id: 353, icon: "/assets/dofus/servers/dakal.webp" },
+        { name: "Mikhal", id: 354, icon: "/assets/dofus/servers/mikhal.webp" },
+        { name: "Kourial", id: 355, icon: "/assets/dofus/servers/kourial.webp" }
     ],
     pionnier: [
-        { name: "Rafal", id: 350 },
-        { name: "Brial", id: 351 },
-        { name: "Salar", id: 352 }
+        { name: "Rafal", id: 350, icon: "/assets/dofus/servers/rafal.webp" },
+        { name: "Brial", id: 351, icon: "/assets/dofus/servers/brial.webp" },
+        { name: "Salar", id: 352, icon: "/assets/dofus/servers/salar.webp" }
     ],
 } as const;
+
+export type DofusUnityServer = { id: number; name: string; icon: string };
+
+/**
+ * Tous les serveurs **à plat**, dans l'ordre des groupes : le sélecteur y lit l'icône du
+ * serveur choisi. Une seule source — un consommateur ne recompose pas la liste pour lui.
+ */
+export const ALL_DOFUS_SERVER_ENTRIES: ReadonlyArray<DofusUnityServer> = [
+    ...DOFUS_UNITY_SERVERS.epique,
+    ...DOFUS_UNITY_SERVERS.monocompte,
+    ...DOFUS_UNITY_SERVERS.classique,
+    ...DOFUS_UNITY_SERVERS.pionnierMono,
+    ...DOFUS_UNITY_SERVERS.pionnier,
+];
 
 export const ALL_DOFUS_SERVERS = [
     ...DOFUS_UNITY_SERVERS.epique.map(s => s.name),

@@ -13,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { GameIcon } from "@/components/shared/game-icon";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import type { DeclaredMule } from "@/lib/member-mules";
 import { PUBLIC_MULES_MAX } from "@/lib/public-profile-dto";
@@ -135,7 +136,10 @@ export function MulesForm({ mules }: { mules: DeclaredMule[] }) {
                             <SelectContent>
                                 {DOFUS_CLASSES.map((entry) => (
                                     <SelectItem key={entry.id} value={entry.id}>
-                                        {entry.name}
+                                        <span className="flex items-center gap-2">
+                                            <GameIcon src={entry.icon} className="h-4 w-4" />
+                                            {entry.name}
+                                        </span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>

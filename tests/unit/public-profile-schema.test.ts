@@ -134,4 +134,29 @@ describe("Espace visiteur — la clé Metamob est chiffrée comme celle de l'int
         // Lecture : la valeur rendue est déchiffrée.
         expect(PRISMA_CLIENT).toMatch(/return decrypt\(profile\.metamobApiKey\);/);
     });
+describe("Espace visiteur — V1c : logo retiré, mules, métiers en slug", () => {
+    it("aucun logo de guilde déclaré ne reste dans le schéma (D-V7)", () => {
+        expect(modelBody("PublicProfile")).not.toMatch(/declaredGuildLogoUrl/);
+    });
+
+    it("les mules sont une colonne JSON, même forme que le profil interne", () => {
+        expect(modelBody("PublicProfile")).toMatch(/altPseudos\s+Json\?/);
+    });
+
+    it("le métier est un slug texte, pas un entier inventé", () => {
+        const body = modelBody("PublicProfession");
+        expect(body).toMatch(/metierId\s+String/);
+        expect(body).not.toMatch(/metierId\s+Int/);
+    });
+
+    it("la migration V1c fait les trois changements, sans perte", () => {
+        const dir = readdirSync("prisma/migrations").find((name) => name.endsWith("_visitor_profile_v1c"));
+        expect(dir, "migration `*_visitor_profile_v1c` introuvable").toBeTruthy();
+        const code = readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8").replace(/--[^\n]*/g, "");
+        expect(code).toMatch(/DROP COLUMN IF EXISTS "declaredGuildLogoUrl"/);
+        expect(code).toMatch(/ADD COLUMN IF NOT EXISTS "altPseudos" JSONB/);
+        expect(code).toMatch(/ALTER COLUMN "metierId" TYPE TEXT/);
+    });
+});
+
 });

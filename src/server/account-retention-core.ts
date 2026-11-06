@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { resolveOrphanRetentionDays } from "@/lib/account-retention-policy";
 import { db } from "@/lib/prisma";
 import { getSuperAdminIds } from "./actions/super-admin-actions";
 import { createGodAuditLog } from "./actions/audit-actions";
@@ -44,7 +45,7 @@ export async function purgeOrphanAccountsCore(opts?: {
     max?: number;
     source?: "CRON" | "GOD";
 }): Promise<CoreResult> {
-    const retentionDays = Math.min(3650, Math.max(30, opts?.retentionDays || 90));
+    const retentionDays = resolveOrphanRetentionDays(opts?.retentionDays);
     const max = Math.min(500, Math.max(1, opts?.max || 50));
     const source = opts?.source || "GOD";
 

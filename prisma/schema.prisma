@@ -917,10 +917,14 @@ model PublicProfile {
   /// Nom de guilde **déclaré** (aucune vérification Discord) — règle pure
   /// `src/lib/public-profile-rules.ts` : 40 max, lettres non accentuées, espace, ' et -.
   declaredGuildName    String?
-  declaredGuildLogoUrl String?
+  /// Mules déclarées — même forme que `UserProfile.altPseudos`
+  /// (`{ pseudo, classe?, level? }[]`), bornées par `src/lib/public-profile-input.ts`.
+  altPseudos           Json?
   introduction         String?
   objectifs            String?
   preferredActivities  Json?
+  /// ⚠️ Réservé : **non écrit** en V1c. La source des métiers est `PublicProfession`
+  /// (table normalisée) — ce champ n'est là que pour la compatibilité du schéma V1a.
   metiers              Json?
   metamobPseudo        String?
   /// Chiffrée par l'extension Prisma (`src/lib/prisma.ts`), jamais renvoyée au client.
@@ -979,10 +983,15 @@ model PublicRushProgress {
 
 /// Métier déclaré d'un visiteur — table **normalisée** : l'annuaire filtre par métier,
 /// et un `Json` ne s'indexe pas à des milliers de profils.
+///
+/// `metierId` est le **slug** de `DOFUS_JOBS` (`forgeron`, `boulanger`), pas un entier :
+/// les seuls ids numériques du dépôt sont dérivés de l'ordre des tableaux
+/// (`dofusdude-client.ts`, `catIdx * 100 + i + 1`) et changeraient avec cet ordre —
+/// une colonne numérique pointait donc vers le mauvais métier au premier réordonnancement.
 model PublicProfession {
   id              String        @id @default(cuid())
   publicProfileId String
-  metierId        Int
+  metierId        String
   level           Int           @default(0)
   profile         PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
 

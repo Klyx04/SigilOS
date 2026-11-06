@@ -4,11 +4,13 @@ import { purgeOrphanAccountsCore } from "@/server/account-retention-core";
 import { purgeDiscordMemberActivityCore } from "@/server/discord-member-activity-retention";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
+import { ORPHAN_ACCOUNT_RETENTION_DAYS } from "@/lib/account-retention-policy";
 
 /**
  * ♻️ #168 — CRON quotidien : rétention/purge des comptes orphelins sans guilde active.
- * Purge les `User` + `Account` (tokens Discord chiffrés) après 90 jours sans profil ACTIVE
- * et avec la période de grâce (`scheduledDeletion` des profils) écoulée.
+ * Purge les `User` + `Account` (tokens Discord chiffrés) après **365 jours** sans activité
+ * connue (D-V5, `src/lib/account-retention-policy.ts`) et avec la période de grâce
+ * (`scheduledDeletion` des profils) écoulée.
  *
  * 🔒 SÉCURITÉ : la route est protégée par `x-cron-secret` (fail-closed). Elle appelle
  * `purgeOrphanAccountsCore` (module interne, NON exposé comme server action) — il n'existe
@@ -25,7 +27,11 @@ export async function GET(req: Request) {
     const startedAt = Date.now();
 
     try {
-        const summary = await purgeOrphanAccountsCore({ retentionDays: 90, max: 50, source: "CRON" });
+        const summary = await purgeOrphanAccountsCore({
+            retentionDays: ORPHAN_ACCOUNT_RETENTION_DAYS,
+            max: 50,
+            source: "CRON",
+        });
         const durationMs = Date.now() - startedAt;
 
         // Lot 7 — même passe, **autre rétention** : l'activité Discord des partants est

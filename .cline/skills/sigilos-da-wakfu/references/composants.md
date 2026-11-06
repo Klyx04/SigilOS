@@ -119,12 +119,30 @@ d'arrière-plan.
 
 | Élément | Composant réel | Spécification |
 |---|---|---|
-| Bandeau | `PublicRushGuideClient` (en-tête) | 320 px, image 1600 w, `SYLVESTRE` 72 px |
+| Bandeau + panneau de contrôle | `PublicRushGuideClient` (rendu client) | **une seule carte** `.da-guide-hero` : titre **centré** `clamp(44px, 8.6vw, 92px)`, image du bloc en `cover` + voile `::after`, puis `.da-guide-controls` (barre du haut, tuiles, progression) — voir §2 bis |
 | Sommaire | `RushChapterSidebar` | langage du dock, compteur sur mini-écriteau |
 | Cartes de quête | mêmes composants que l'overlay | **largeur identique**, jamais agrandies, max 760 px |
 | Bannière de bloc | `RushSeparatorBanner` | 140 px (96 px en overlay), écriteau ×1,25 ; l'image du bloc **remplit** le cadre (`cover`) |
 | Colonne droite | réutiliser l'existant | inventaire, présence, progression — **aucune requête neuve** |
 | Modales | `RushOverlay*Modal` | 520 px centrées ; tiroir 420 px ≥ 1280 |
+
+### 3 bis. Le panneau de contrôle — même anatomie que le guide interne
+
+Demande user du 05/11/2026 : « pk on propose pas le même que l'interne ? ».
+Il n'y a **qu'un** panneau, pas une variante publique :
+
+| Rangée | Contenu |
+|---|---|
+| barre du haut | « Conseillé dès le Niv. 200 » · route d'alignement · **Ressources** · **Pense-bête** · **Masquer les étapes faites** |
+| tuiles | **Personnage actif** (classe + serveur + pseudo) · **Alignement** (blason, tranche) · **Ouvrir Overlay** (seule action mise en avant) |
+| progression | **une** barre pleine largeur + « Réinitialiser la progression » |
+
+⚠️ **Metamob** et **Rush Live** n'ont aucune source publique (compte de guilde,
+présence des membres) : elles ne sont pas rendues. Un verrou le vérifie
+(`rush-public-parity`) — ne pas les introduire avant l'espace visiteur.
+
+Le bandeau a quitté `page.tsx` : il est rendu par le client, qui reçoit
+`heroArt` en prop. Un `children` serveur ne pourrait pas héberger les contrôles.
 
 ### Grille
 

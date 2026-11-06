@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 06/11/2026** — décisions d'implémentation V1c tranchées (D-V6 → D-V12).
+> **Dernière MAJ : 06/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique).
 
 ## 1. Décisions verrouillées
 
@@ -125,22 +125,24 @@ l'annuaire filtre par métier.
 déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUBLIC_VISITOR_ENTRY`
 (fermé par défaut), audit RBAC des actions (10 gardées, 6 noyaux sortis).
 
-**V1c — écran de profil (prochain, débloque l'activation)**
+**V1c — écran de profil — livré le 06/11/2026**
 - Routes `/espace-visiteur/<segment>` (**D-V6**) : `general`, `mules`, `presentation`, `succes`,
-  `metiers`, `reglages`. Chaque **page** serveur appelle `requirePublicAccount()` **et**
-  `touchLastSeen()` (**D-V11**) ; chaque **action** re-vérifie (règle RBAC page ET action).
-- **DTO étanche** : `loadPublicProfileView()` avec `select` explicite — `metamobApiKey` ne sort **jamais**
-  (le hook de lecture la déchiffre, cf. §2).
-- **Général** : serveur obligatoire, pseudo (repli manuel, même mécanique que `class-display.tsx`),
-  classe, nom de guilde déclaratif (`checkDeclaredGuildName`), Metamob (pseudo + clé, champ chiffré).
-  **Aucun logo** (**D-V7**) : migration `drop_declared_guild_logo`.
-- **Mules / Présentation / Métiers** : réemploi des modèles internes (`alt-pseudos`, `presentation-form`,
-  `PublicProfession` normalisée).
-- **Succès** : coche dans `PublicDungeonAchievement` ; la vue « qui a quoi entre visiteurs » est **V2b**.
-- **Réglages** : `showOnDirectory` / `showPresence`, export JSON borné, suppression (**D-V10**).
-- **Serveur** : `src/server/actions/public-profile-actions.ts` — garde, Zod borné, rate limit, écriture
-  `where: { userId }` (jamais un id client), `revalidatePath` par segment.
-- **Ops** : migration + `PUBLIC_VISITOR_ENTRY=1` en **bêta**.
+  `metiers`, `reglages`, chacun avec `loading.tsx` / `error.tsx`. Chaque **page** appelle
+  `requirePublicAccount()` ; `general` est la seule à utiliser `requirePublicSession()` pour
+  porter l'écran de **création** (serveur obligatoire). `touchLastSeen()` est appelé par la
+  garde de session (**D-V11**), donc par **toutes** les pages.
+- **DTO étanche** : `src/lib/public-profile-dto.ts` (`select` explicite, `hasMetamobApiKey`,
+  mules et activités normalisées) — `metamobApiKey` ne sort **jamais** vers un composant client.
+- **Migration unique** `20270127000000_visitor_profile_v1c` : retrait du logo (**D-V7**),
+  `altPseudos Json?` (mules, même forme que `UserProfile.altPseudos`), `PublicProfession.metierId`
+  en **texte** (slug `DOFUS_JOBS` ; l'entier n'avait aucun référentiel stable). `metiers Json`
+  reste **non écrit** : la source est la table normalisée.
+- **10 actions** `src/server/actions/public-profile-actions.ts` : garde, Zod borné, rate limit,
+  `where: { userId }`, cible relue (succès, métier), `revalidatePath` par segment ; suppression
+  **D-V10** ; export JSON borné ; `/espace-visiteur/` en `disallow` robots.
+- **Rétention** : D-V5 passe dans le code (`ORPHAN_ACCOUNT_RETENTION_DAYS = 365`,
+  `src/lib/account-retention-policy.ts`) — le cron ne passe plus `90` en dur.
+- **Ops** : `PUBLIC_VISITOR_ENTRY=1` en **bêta** après contrôle à l'écran (390 / 768 / 1 440).
 
 **V1d — progression en base + adoption**
 - `src/server/rush-public-store.ts` (lecture/écriture bornée + Zod) : `savePublicRushProgress`,

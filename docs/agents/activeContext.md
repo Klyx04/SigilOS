@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 2) — **Espace visiteur : les six écrans (V1c)** — branche `feat/espace-visiteur-v1c`
+
+> **Demande user (verbatim)** : « on reprend l'espace visiteur (lot V1c, rang 57) » · « DTO étanche […] `metamobApiKey` ne sort jamais » · « `touchLastSeen()` dans `requirePublicAccount()` » · « la migration `drop_declared_guild_logo` est DÉJÀ approuvée ».
+> **Mesures** : ① `getPublicAccount()` rendait la ligne Prisma **entière** et le hook de `src/lib/prisma.ts` déchiffre `metamobApiKey` ⇒ fuite RSC **latente** (aucun appelant alors) ; ② `touchLastSeen` n'avait **qu'un** appelant (`getUserContext`) ; ③ D-V5 (**365 j**) écrite mais le cron passait encore **90** ; ④ `PublicProfession.metierId` était un `Int` **sans référentiel stable** (ids dérivés de l'ordre des tableaux).
+> **Fait** : **DTO étanche** (`src/lib/public-profile-dto.ts` : `select` explicite, `hasMetamobApiKey`, mules/activités normalisées) · gardes `requirePublicSession` (création) et `requirePublicAccount` (6 segments) avec **`touchLastSeen`** · **une migration** `20270127000000_visitor_profile_v1c` (logo retiré, `altPseudos` JSON, `metierId` en **texte**) · 6 segments `/espace-visiteur/*` + `loading`/`error` · **10 actions** bornées (Zod, rate limit, `where: { userId }`, cible relue) · **D-V10** (vie publique seule si profil ACTIVE) · export JSON · rétention **365 j** · robots.
+> **Preuves** : suite **623 fichiers / 6 576 tests ✓** · 5 verrous visiteur (**49** cas : DTO, routes, actions, schéma, rétention) · `tsc` 0 · ESLint 0 erreur · migration **appliquée** (**297**).
+> **Reste** : V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : `PUBLIC_VISITOR_ENTRY=1` en bêta après contrôle à l'écran (390 / 768 / 1 440).
+> **Rotation** : bloc « 05/11/2026 (suite 7) — DA E3 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite) — **Espace visiteur : double cross-check + décisions V1c** — branche `docs/espace-visiteur-decisions`
 
 > **Demande user (verbatim)** : « double cross check c'est primordial » · « vulgarise un peu les points à trancher » · « 365 jrs pour tous » · « reparcourir toute ta mémoire de l'ensemble des discussions précédentes pour maj exhaustivement les chantiers ».
@@ -55,15 +65,7 @@
 > **Rotation** : bloc « 05/11/2026 (suite 2) — DA : la fondation est en place (E0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 05/11/2026 (suite 7) — **DA « Gouache Wakfu » : le guide interne passe à la DA (E3)** — branches `fix/da-fil-seve-mesure`, `feat/da-wakfu-e3-socle`, `feat/da-wakfu-e3-cartes`
 
-> **Demande user (verbatim)** : « visuellement les guides internes externe et les overlay public / interne doivent etre identique coté DA techno etc, sauf toutes les brique interne à la guilde » — puis « enchaine », captures 390 / 1 440 à l'appui.
-> **Mesures (capture Playwright, 390 et 1 440 px)** : coque 1 360, grille **260 / 736 / 300** à 1 440, sommaire en bande sous 900 (`overflow-x: auto`), **18 `.da-row`** (`next` 1 · `todo` 12 · `locked` 5), **0 px** de débordement horizontal. ① `--da-grow` valait **18 px constants** : `useDaRail` lisait `offsetTop`, or chaque quête du guide public est enveloppée dans son propre `div.relative` ⇒ 12 px pour les 18 lignes, positions réelles de 32 à 2 666 px ; ② côté interne, le sommaire collant laissait passer le contenu derrière lui (recherche et « Options » lisibles au travers) ; ③ `.rush-content-grid` et son `<style>` faisaient doublon avec la grille de la DA.
-> **Fait** : **#1271** = règle pure `src/lib/da-rail-geometrie.ts` (20/26/48 px nommés) + mesure par `getBoundingClientRect` (fil 18 → **38 px** à 1 440, **30 px** à 390) · **#1272** = portée `data-da`/`theme`/`block`/`quality` + `resolveRushDaTheme`, `.da-guide-grid` partagée, `RushChapterNav` à gauche, `hideChapters` sur le rail, un seul `sticky` (`.da-guide-aside`) · **#1273** = `SequenceRow` en `da-row[data-state]` + **nœud hors carte** (le nœud EST le bouton de coche), carte verrouillée `data-state="locked"` (fin du cadre rouge), repère en `data-here`, un `DaRail` par bloc, fond opaque du sommaire, `RushSeparatorBanner surface="page"`.
-> **Écart assumé** : `.da-guide` n'est pas posée sur la coque interne — son `padding-inline` doublerait les gouttières du dashboard ; les jetons passent par `[data-da].rush-guide`. Sous 900 px la colonne du module n'est plus masquée (parité public).
-> **Preuves** : suite **6 469 ✓ / 613 fichiers** · `tsc` 0 · ESLint 0 erreur · **6 verrous réécrits** (`da-wakfu` ×3, `rush-guide-rail-bloquee` ×2, `rush-public-parity`, `rush-quest-state-colors`), **aucun supprimé** · aucune migration.
-> **Reste** : **E4** (passation dashboard, écran par écran) · à trancher : à 1 440 le panneau de contrôle du guide public est trop étroit pour sa rangée `xl:flex-row` (progression sur 4 lignes devant 4 boutons). **Mesure du 05/11 sur l'habillage** : l'overlay est fini (**1** occurrence de token produit), mais le guide interne en garde **80** (`bg-surface`/`border-border`/`bg-elevated`, surtout les panneaux de bloc) et le guide public **37** (barre de contrôle) — plus **7 modales** du guide encore aux tokens produit (`GuildAlignmentModal`, `GuildStatusPanel`, `OcreProgressModal`, `RushPenseBeteModal`, 3 dans la timeline).
-> **Rotation** : bloc « 04/11/2026 — Rush : le studio God passe en 3 panneaux (E1) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

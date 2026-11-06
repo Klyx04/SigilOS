@@ -16,9 +16,17 @@ export type ActionResponse = {
     error?: string;
 };
 
-export async function onboardGuild(guildId: string): Promise<ActionResponse> {
+export async function onboardGuild(rawGuildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Entrée bornée : un snowflake Discord, jamais une chaîne libre.
+    const parsedGuildId = z
+        .string()
+        .regex(/^\d{17,20}$/, "Identifiant de serveur invalide.")
+        .safeParse(rawGuildId);
+    if (!parsedGuildId.success) return { success: false, error: "Identifiant de serveur invalide." };
+    const guildId = parsedGuildId.data;
 
     // Rate limit anti-abus : max 3 CRÉATIONS de guilde par tranche de 10 minutes.
     // Il tourne APRÈS le test d'idempotence ci-dessous : re-cliquer (ou
@@ -40,6 +48,19 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         if (bannedGuild) {
             return { success: false, error: "Ce serveur Discord a été banni de la plateforme SigilOS." };
         }
+
+        // 2. SECURITY CHECK — **avant** toute branche, y compris la réactivation.
+        // 🐛 Mesure du 06/11/2026 : la branche « guilde déjà en base mais inactive » rendait
+        // `success` **sans** vérifier que l'appelant est admin du serveur. Un identifiant de
+        // guilde supprimée suffisait donc à la réactiver. L'autorisation passe d'abord.
+        const { requireGuildAdmin } = await import("./guards");
+        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
+
+        if (!guard.isAuthorized) {
+            return { success: false, error: guard.error || "Permissions insuffisantes" };
+        }
+
+        const discordUserId = guard.discordUserId!;
 
         // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
@@ -101,15 +122,6 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         const limited = await checkRateLimit();
         if (limited) return limited;
 
-        // 2. SECURITY CHECK: Verify User is Admin of this Guild (allowing initial onboarding)
-        const { requireGuildAdmin } = await import("./guards");
-        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
-
-        if (!guard.isAuthorized) {
-            return { success: false, error: guard.error || "Permissions insuffisantes" };
-        }
-
-        const discordUserId = guard.discordUserId!;
         const guildInfo = await fetchGuild(guildId);
 
         // 3. ORIGINE de la guilde — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`).
@@ -150,6 +162,21 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             }
         }
 
+        // 🔒 G2 — limite de guildes : déployer une guilde en crée une de plus, on refuse **avant**
+        // la moindre écriture, y compris la ligne de whitelist (`AllowedGuild`). Placer la garde
+        // après `allowedGuild.create` laissait une guilde refusée **pré-approuvée** : un collègue
+        // moins chargé pouvait ensuite la déployer hors kill-switch (mesure du 06/11/2026).
+        // God exempté (G1 réutilise la même porte).
+        {
+            const { isGuildLimitReached } = await import("@/server/guild-limit");
+            if (await isGuildLimitReached(session.user.id)) {
+                return {
+                    success: false,
+                    error: "Impossible de déployer : vous faites déjà partie du nombre maximum de guildes. Quittez une guilde pour en déployer une nouvelle.",
+                };
+            }
+        }
+
         if (!existingAllowed) {
             await db.allowedGuild.create({
                 data: {
@@ -161,19 +188,6 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                     addedBy: discordUserId,
                 }
             });
-        }
-
-        // 🔒 G2 — limite de guildes : déployer une guilde en crée une de plus, on refuse **avant**
-        // la moindre écriture (`docs/ROADMAP.md`, chantier « limite-guildes »). God exempté (G1 réutilise la
-        // même porte).
-        {
-            const { isGuildLimitReached } = await import("@/server/guild-limit");
-            if (await isGuildLimitReached(session.user.id)) {
-                return {
-                    success: false,
-                    error: "Impossible de déployer : vous faites déjà partie du nombre maximum de guildes. Quittez une guilde pour en déployer une nouvelle.",
-                };
-            }
         }
 
         // 4. Create Config (Safe to proceed)

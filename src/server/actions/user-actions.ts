@@ -8,6 +8,7 @@ import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
 import { applyGodLocks, normalizeGodLocks } from "@/lib/module-lock";
 import { getPlatformModuleState } from "@/server/platform-module-state";
 import { logger } from "@/lib/logger";
+import { GUILD_LIMIT_DEFAULT } from "@/lib/guild-limit";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { type AuditLogEntry, logAction } from "./audit-actions";
@@ -1604,11 +1605,44 @@ export async function getGuildsSeparated(): Promise<{
      * explicite (bouton « Reconnecter avec l'accès serveurs »).
      */
     needsReconnect: boolean;
+    /**
+     * Plafond de guildes atteint pour l'utilisateur courant — **source unique** de l'état :
+     * le portail, le tiroir « Gestion SigilOS » et la carte de déploiement le lisent ici.
+     * **Fail-closed** : tant que le comptage n'a pas réussi, vaut `true` (aucune offre).
+     */
+    guildLimitReached: boolean;
+    /** Seuil courant, pour que l'écran l'écrive sans le recalculer. */
+    guildLimit: number;
 }> {
     const session = await auth();
-    if (!session?.user?.id) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
+    if (!session?.user?.id) {
+        return {
+            active: [],
+            pending: [],
+            awaiting: [],
+            rateLimited: false,
+            needsReconnect: false,
+            guildLimitReached: false,
+            guildLimit: GUILD_LIMIT_DEFAULT,
+        };
+    }
 
     const userId = session.user.id;
+
+    // 🔒 Plafond de guildes — mesuré **une seule fois**, ici. `isGuildLimitReached` est
+    // fail-closed (God exempté) ; si la lecture échoue, on masque l'offre plutôt que de laisser
+    // un écran promettre un déploiement que la garde G2 refusera.
+    let guildLimitReached = true;
+    let guildLimit = GUILD_LIMIT_DEFAULT;
+    try {
+        const { isGuildLimitReached, readGuildLimit } = await import("@/server/guild-limit");
+        [guildLimitReached, guildLimit] = await Promise.all([
+            isGuildLimitReached(userId),
+            readGuildLimit(),
+        ]);
+    } catch {
+        guildLimitReached = true;
+    }
 
     // 1. Get all guilds where the Bot is active (from DB)
     const activeConfigs = await db.guildConfig.findMany({
@@ -1669,7 +1703,17 @@ export async function getGuildsSeparated(): Promise<{
         select: { access_token: true, providerAccountId: true }
     });
 
-    if (!account?.access_token) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
+    if (!account?.access_token) {
+        return {
+            active: [],
+            pending: [],
+            awaiting: [],
+            rateLimited: false,
+            needsReconnect: false,
+            guildLimitReached,
+            guildLimit,
+        };
+    }
     const discordUserIdForPortal = account.providerAccountId || null;
 
     const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
@@ -1720,6 +1764,8 @@ export async function getGuildsSeparated(): Promise<{
             awaiting: [],
             rateLimited: errorKind === "RATE_LIMIT",
             needsReconnect: errorKind === "SCOPE",
+            guildLimitReached,
+            guildLimit,
         };
     }
 
@@ -1823,7 +1869,15 @@ export async function getGuildsSeparated(): Promise<{
         })
     );
 
-    return { active, pending, awaiting: awaitingCandidates, rateLimited: false, needsReconnect: false };
+    return {
+        active,
+        pending,
+        awaiting: awaitingCandidates,
+        rateLimited: false,
+        needsReconnect: false,
+        guildLimitReached,
+        guildLimit,
+    };
 }
 
 export async function searchGuildMembers(

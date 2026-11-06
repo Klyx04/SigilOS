@@ -80,3 +80,46 @@ describe("G5 — réactivation automatique au retour du membre", () => {
         expect(fn.slice(garde, ecriture)).toContain("return false");
     });
 });
+
+describe("G6 — le plafond est une donnée serveur, pas un calcul d'écran", () => {
+    const PORTAL = read("src/app/dashboard/page.tsx");
+    const DRAWER = read("src/components/layout/dashboard-drawer.tsx");
+
+    it("`getGuildsSeparated` rend l'état du plafond (source unique)", () => {
+        expect(USER_ACTIONS).toMatch(/guildLimitReached: boolean/);
+        expect(USER_ACTIONS).toMatch(/guildLimit: number/);
+        expect(USER_ACTIONS).toContain("isGuildLimitReached(userId)");
+    });
+
+    it("le portail consomme le champ au lieu de recompter", () => {
+        expect(PORTAL).not.toContain("countUserGuilds(session.user.id)");
+        expect(PORTAL).toContain("guildLimitReached");
+    });
+
+    it("le tiroir « Gestion SigilOS » ferme la porte au plafond (même règle que la carte)", () => {
+        // 🐛 Mesure du 06/11/2026 : le tiroir listait les serveurs « Déploiement Disponible » avec
+        // un bouton d'invitation, même au plafond — le portail refusait ensuite le déploiement.
+        expect(DRAWER).toMatch(/resolveGuildSetupView\(/);
+        expect(DRAWER).toContain("guildLimitReached: data.guildLimitReached");
+        expect(DRAWER).toContain("deployView.blocked");
+    });
+
+    it("l'autorisation passe avant la réactivation et la whitelist", () => {
+        const fn = ADMIN_ACTIONS.slice(ADMIN_ACTIONS.indexOf("export async function onboardGuild"));
+        const admin = fn.indexOf("requireGuildAdmin(");
+        const reactivation = fn.indexOf("if (existing) {");
+        const whitelist = fn.indexOf("db.allowedGuild.create({");
+        const garde = fn.indexOf("isGuildLimitReached(session.user.id)");
+
+        expect(admin, "la garde d'admin doit exister").toBeGreaterThan(-1);
+        expect(reactivation, "la branche de réactivation doit exister").toBeGreaterThan(-1);
+        expect(admin).toBeLessThan(reactivation);
+        expect(garde, "la garde G2 doit exister").toBeGreaterThan(-1);
+        expect(garde).toBeLessThan(whitelist);
+    });
+
+    it("l'identifiant de guilde est borné (Zod)", () => {
+        expect(ADMIN_ACTIONS).toContain("Identifiant de serveur invalide.");
+    });
+});
+

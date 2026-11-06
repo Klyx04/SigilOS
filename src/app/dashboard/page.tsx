@@ -23,7 +23,8 @@ export default async function GuildSelectorPage() {
         redirect("/");
     }
 
-    const { active, pending, awaiting, rateLimited, needsReconnect } = await getGuildsSeparated();
+    const { active, pending, awaiting, rateLimited, needsReconnect, guildLimitReached, guildLimit } =
+        await getGuildsSeparated();
 
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
     const platformCfg = await db.platformConfig.findUnique({
@@ -32,22 +33,9 @@ export default async function GuildSelectorPage() {
     }).catch(() => null);
     const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
 
-    // 🔒 LG-3 — bandeau : dire la limite **avant** le clic, au lieu de laisser le serveur refuser
-    // (le refus reste la vérité : garde G1/G2). Un échec de lecture n'affiche rien — on ne ment pas
-    // dans l'autre sens non plus.
-    let guildLimitReached = false;
-    let guildLimit = 2;
-    try {
-        const { countUserGuilds, readGuildLimit } = await import("@/server/guild-limit");
-        const [count, limit] = await Promise.all([
-            countUserGuilds(session.user.id),
-            readGuildLimit(),
-        ]);
-        guildLimit = limit;
-        guildLimitReached = count >= limit;
-    } catch {
-        // Silencieux : c'est un bandeau d'information, pas une garde.
-    }
+    // 🔒 LG-3 — le bandeau lit `guildLimitReached` **rendu par `getGuildsSeparated`** : le
+    // portail et le tiroir « Gestion SigilOS » partagent la même mesure, calculée une seule fois
+    // côté serveur (fail-closed). Aucun écran ne recompte pour son compte.
 
     // Pilotage cross-guilde (« mes serveurs ») : signaux admin par guilde
     // (verrous staff, récupération, gel) — calculés uniquement pour les

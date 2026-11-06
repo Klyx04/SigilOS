@@ -22,6 +22,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
 import { getMetamobMe } from "@/lib/metamob-client";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
+import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
 import { isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { SUCCES_DUNGEONS_TAKE, findSuccesLevelBracketStrict } from "@/lib/succes-level-brackets";
@@ -74,6 +75,22 @@ function emptyToNull(value: string | null | undefined): string | null {
     return trimmed.length > 0 ? trimmed : null;
 }
 
+/**
+ * Mapping **unique** d'un snapshot ladder vers les colonnes du profil public.
+ *
+ * Deux appelants (enregistrement de l'identité, bouton « Vérifier ») : une seule conversion,
+ * sinon les deux chemins divergent au premier champ ajouté. `lastLadderUpdate` (nom du profil
+ * interne) devient `lastLadderSync` (nom du profil public) — c'est le seul écart de nom.
+ */
+function ladderUpdateData(snapshot: LadderSnapshot) {
+    return {
+        ...(snapshot.dofusLevel !== undefined ? { dofusLevel: snapshot.dofusLevel } : {}),
+        ...(snapshot.totalXp !== undefined ? { totalXp: snapshot.totalXp } : {}),
+        ...(snapshot.successPoints !== undefined ? { successPoints: snapshot.successPoints } : {}),
+        ...(snapshot.lastLadderUpdate ? { lastLadderSync: snapshot.lastLadderUpdate } : {}),
+    };
+}
+
 /** Création du profil public — la seule action ouverte à une session **sans** profil. */
 export async function createPublicProfile(raw: unknown): Promise<ActionResult> {
     const parsed = createPublicProfileSchema.safeParse(raw);
@@ -121,15 +138,31 @@ export async function updatePublicIdentity(raw: unknown): Promise<ActionResult> 
     const limited = await limit("identity", account.userId, 20);
     if (limited) return limited;
 
+    /**
+     * Snapshot ladder immédiat (V1e) : le visiteur qui enregistre son pseudo récupère son
+     * niveau, son XP et ses points de succès — sans quoi l'annuaire affiche « — ».
+     *
+     * **Best effort**, timeout court (6 s) : un worker lent ou absent ne doit jamais empêcher
+     * d'enregistrer son identité. On n'écrit **jamais** `classe` depuis le ladder : le profil
+     * public stocke un **id** (`iop`, `feca`) et le ladder renvoie un **libellé** (« Iop ») —
+     * l'écrire casserait le filtre par classe de l'annuaire.
+     */
+    const ladderData = parsed.data.pseudoDofus
+        ? await fetchLadderSnapshot(parsed.data.pseudoDofus, parsed.data.dofusServerId, 6_000)
+        : {};
+
+    const data = {
+        dofusServerId: parsed.data.dofusServerId,
+        pseudoDofus: parsed.data.pseudoDofus,
+        classe: parsed.data.classe,
+        declaredGuildName: parsed.data.declaredGuildName,
+        ...ladderUpdateData(ladderData),
+    };
+
     try {
         await db.publicProfile.update({
             where: { userId: account.userId },
-            data: {
-                dofusServerId: parsed.data.dofusServerId,
-                pseudoDofus: parsed.data.pseudoDofus,
-                classe: parsed.data.classe,
-                declaredGuildName: parsed.data.declaredGuildName,
-            },
+            data,
         });
         revalidatePath(PATHS.general);
         return { success: true };
@@ -203,6 +236,34 @@ export async function verifyPublicPseudo(raw: unknown): Promise<PublicPseudoChec
     }
 
     const found = await checkPseudoExistsOnLadder(parsed.data.pseudo, String(parsed.data.dofusServerId));
+
+    /**
+     * V1e — « Vérifier » **son propre** pseudo rafraîchit le classement. C'est le seul moyen
+     * de remplir les profils créés avant V1e sans leur demander de ré-enregistrer leur identité.
+     *
+     * On n'écrit que si le pseudo vérifié est **celui du profil** et sur le **même serveur** :
+     * vérifier un pseudo qu'on n'a pas encore enregistré ne doit rien modifier.
+     */
+    if (found === true) {
+        const profile = await db.publicProfile.findUnique({
+            where: { userId: visitor.userId },
+            select: { pseudoDofus: true, dofusServerId: true },
+        });
+        const isOwnPseudo =
+            !!profile?.pseudoDofus &&
+            profile.pseudoDofus.toLowerCase() === parsed.data.pseudo.toLowerCase() &&
+            profile.dofusServerId === parsed.data.dofusServerId;
+
+        if (isOwnPseudo) {
+            const snapshot = await fetchLadderSnapshot(parsed.data.pseudo, parsed.data.dofusServerId, 6_000);
+            const data = ladderUpdateData(snapshot);
+            if (Object.keys(data).length > 0) {
+                await db.publicProfile.update({ where: { userId: visitor.userId }, data });
+                revalidatePath(PATHS.general);
+            }
+        }
+    }
+
     return { success: true, found, manual: false };
 }
 

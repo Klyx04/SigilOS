@@ -28,6 +28,7 @@ import {
     PSEUDO_TOO_LONG_MESSAGE,
     PSEUDO_FORMAT_MESSAGE,
 } from "@/lib/pseudo-validation";
+import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
@@ -169,36 +170,6 @@ const ToggleHiddenNavItemSchema = z.object({
 // ============================================================================
 // PROFILE CRUD
 // ============================================================================
-
-/**
- * Internal helper: check if a pseudo exists on the Dofus ladder.
- * Not rate-limited — only called server-side during save operations.
- * Returns true if found, false if not found, null if service unavailable (fail-open).
- */
-async function checkPseudoExistsOnLadder(pseudo: string, serverId: string): Promise<boolean | null> {
-    const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
-    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
-
-    if (!WORKER_URL) return null; // Service unavailable → fail-open (don't block)
-
-    try {
-        const headers: Record<string, string> = { "Accept": "application/json" };
-        if (WORKER_SECRET) headers["X-SigilOS-Key"] = WORKER_SECRET;
-
-        const url = `${WORKER_URL}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudo)}&type=general`;
-        const res = await fetch(url, {
-            headers,
-            signal: AbortSignal.timeout(5000),
-            cache: "no-store",
-        });
-
-        if (!res.ok) return null; // Network error → fail-open
-        const data = await res.json().catch(() => null);
-        return !!(data?.success || data?.found);
-    } catch {
-        return null; // Timeout/crash → fail-open
-    }
-}
 
 /**
  * Indique si le toggle God « Fallback Pseudo Manuel » est actif.

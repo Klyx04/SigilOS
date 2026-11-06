@@ -20,6 +20,9 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
+import { getMetamobMe } from "@/lib/metamob-client";
+import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
+import { isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import {
     createPublicProfileSchema,
@@ -29,6 +32,8 @@ import {
     publicMetamobSchema,
     publicMulesSchema,
     publicPresentationSchema,
+    publicPseudoSchema,
+    publicServerIdSchema,
     publicProfessionsSchema,
     publicSettingsSchema,
     sanitizePreferredActivities,
@@ -168,6 +173,77 @@ export async function updatePublicMetamob(raw: unknown): Promise<ActionResult> {
         return { success: false, error: "Impossible d'enregistrer tes informations Metamob." };
     }
 }
+
+/**
+ * Vérification du pseudo Dofus auprès du ladder Ankama (bouton « Vérifier »).
+ *
+ * **Fail-open** : un worker indisponible rend `found: null` — jamais un refus d'enregistrement.
+ * Le toggle God « Fallback Pseudo Manuel » (`PlatformConfig.ladderManualFallback`) court-circuite
+ * l'appel et rend `manual: true`. Même helper que le profil interne (`src/server/ladder-pseudo.ts`).
+ */
+export type PublicPseudoCheck =
+    | { success: true; found: boolean | null; manual: boolean }
+    | { success: false; error: string };
+
+export async function verifyPublicPseudo(raw: unknown): Promise<PublicPseudoCheck> {
+    const parsed = z
+        .object({ pseudo: publicPseudoSchema, dofusServerId: publicServerIdSchema })
+        .safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const visitor = await getPublicSession();
+    if (!visitor) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("pseudo-check", visitor.userId, 10);
+    if (limited) return limited;
+
+    if (await isLadderManualFallbackEnabled()) {
+        return { success: true, found: null, manual: true };
+    }
+
+    const found = await checkPseudoExistsOnLadder(parsed.data.pseudo, String(parsed.data.dofusServerId));
+    return { success: true, found, manual: false };
+}
+
+/**
+ * Vérification **immédiate** de la clé Metamob (bouton « Vérifier »), sans attendre le worker.
+ *
+ * La clé est lue **déchiffrée** par le hook Prisma et ne quitte jamais le serveur : aucun log,
+ * aucun retour au client. Le pseudo renvoyé par `/v1/me` fait foi.
+ */
+export async function verifyPublicMetamob(): Promise<
+    { success: true; pseudo: string | null } | { success: false; error: string }
+> {
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("metamob-check", account.userId, 5);
+    if (limited) return limited;
+
+    const row = await db.publicProfile.findUnique({
+        where: { userId: account.userId },
+        select: { metamobApiKey: true, metamobPseudo: true },
+    });
+    const key = row?.metamobApiKey?.trim();
+    if (!key) return { success: false, error: "Enregistre d'abord ta clé d'API Metamob." };
+
+    try {
+        const me = await getMetamobMe(key);
+        const pseudo = me.username.trim().length > 0 ? me.username.trim() : row?.metamobPseudo ?? null;
+        await db.publicProfile.update({
+            where: { userId: account.userId },
+            data: { metamobVerified: true, metamobPseudo: pseudo },
+        });
+        revalidatePath(PATHS.general);
+        return { success: true, pseudo };
+    } catch (error) {
+        logger.warn("[Espace visiteur] Vérification Metamob refusée", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return { success: false, error: "Metamob n'a pas reconnu cette clé." };
+    }
+}
+
 
 /** Mules : liste bornée (`PUBLIC_MULES_MAX`), normalisée par le schéma. */
 export async function updatePublicMules(raw: unknown): Promise<ActionResult> {

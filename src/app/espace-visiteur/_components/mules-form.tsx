@@ -18,7 +18,8 @@ import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import type { DeclaredMule } from "@/lib/member-mules";
 import { PUBLIC_MULES_MAX } from "@/lib/public-profile-dto";
 import { PUBLIC_PSEUDO_MAX } from "@/lib/public-profile-input";
-import { updatePublicMules } from "@/server/actions/public-profile-actions";
+import { describePseudoVerification, type PseudoVerificationOutcome } from "@/lib/pseudo-verification";
+import { updatePublicMules, verifyPublicPseudo } from "@/server/actions/public-profile-actions";
 import { VisitorSection } from "./visitor-section";
 
 type MuleDraft = { pseudo: string; classe: string; level: string };
@@ -27,14 +28,36 @@ const EMPTY_DRAFT: MuleDraft = { pseudo: "", classe: "", level: "200" };
 
 /**
  * Mules déclarées — même forme que `UserProfile.altPseudos` (`{ pseudo, classe?, level? }`).
- * Aucune vérification ladder ici : un visiteur n'a pas de guilde, donc pas d'appel Ankama.
+ *
+ * Le pseudo se vérifie auprès du ladder Ankama avec le **serveur du profil** (le visiteur n'a
+ * pas de guilde, mais il a un serveur) : même helper que le profil interne, avec le repli
+ * manuel du toggle God. Fail-open : la vérification n'empêche jamais l'ajout.
  */
-export function MulesForm({ mules }: { mules: DeclaredMule[] }) {
+export function MulesForm({ mules, serverId }: { mules: DeclaredMule[]; serverId: number }) {
     const router = useRouter();
     const [list, setList] = useState<DeclaredMule[]>(mules);
     const [draft, setDraft] = useState<MuleDraft>(EMPTY_DRAFT);
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [checkMessage, setCheckMessage] = useState<PseudoVerificationOutcome | null>(null);
+
+    const handleVerifyDraft = async () => {
+        setCheckMessage(null);
+        const pseudo = draft.pseudo.trim();
+        if (!pseudo) {
+            setCheckMessage({ tone: "warning", message: "Renseigne le pseudo de la mule." });
+            return;
+        }
+        setChecking(true);
+        const result = await verifyPublicPseudo({ pseudo, dofusServerId: serverId });
+        setChecking(false);
+        if (!result.success) {
+            setCheckMessage({ tone: "warning", message: result.error });
+            return;
+        }
+        setCheckMessage(describePseudoVerification({ found: result.found, manual: result.manual }));
+    };
 
     const addMule = () => {
         setError(null);
@@ -156,10 +179,21 @@ export function MulesForm({ mules }: { mules: DeclaredMule[] }) {
                             onChange={(event) => setDraft({ ...draft, level: event.target.value })}
                         />
                     </div>
-                    <Button type="button" variant="outline" onClick={addMule}>
-                        Ajouter
-                    </Button>
+                    <div className="flex items-end gap-2">
+                        <Button type="button" variant="ghost" onClick={handleVerifyDraft} disabled={saving || checking}>
+                            {checking ? "Vérification…" : "Vérifier"}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={addMule}>
+                            Ajouter
+                        </Button>
+                    </div>
                 </div>
+
+                {checkMessage ? (
+                    <p className={checkMessage.tone === "success" ? "text-xs text-success" : "text-xs text-warning"}>
+                        {checkMessage.message}
+                    </p>
+                ) : null}
 
                 {error ? (
                     <p role="alert" className="text-sm text-danger">

@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 3) — **Plafond de guildes : le tiroir ne contourne plus la limite** — branche `fix/plafond-guildes-portail`
+
+> **Demande user (verbatim)** : « il a bien la limite affiché le déploiement grisée pour d'autres guilde mais quand il passe par le bouton "mes guildes" sur son profil le bandeau qui s'affiche lui permet d'onboardé c quoi ce bordel ! il y a combien de trous comme ca ».
+> **Mesures** : ① le tiroir `dashboard-drawer.tsx` listait `pending` avec un lien d'invitation **sans lire le plafond** ; ② `getGuildsSeparated()` ne rendait pas l'état, donc `/dashboard` le recalculait pour lui seul ; ③ `onboardGuild` créait `AllowedGuild` (whitelist) **avant** la garde G2 ; ④ sa branche de réactivation rendait `success` **avant** `requireGuildAdmin` (un identifiant de guilde suffisait). Le déploiement était déjà refusé par G2, et le bot Discord comptait déjà les profils ACTIVE — pas de trou de ces deux côtés.
+> **Fait** : `guildLimitReached` + `guildLimit` rendus par `getGuildsSeparated` (fail-closed, God exempté, **source unique**) ; le portail les consomme sans recompter ; le tiroir réemploie `resolveGuildSetupView` (« Déploiement verrouillé », aucune invitation) ; `onboardGuild` borne l'id (Zod), **autorise d'abord** (`requireGuildAdmin` avant la réactivation), puis G2 **avant** `allowedGuild.create`.
+> **Preuves** : `guild-limit-guards` **13** (+4) · suite **623 fichiers / 6 581 tests ✓** · `tsc` 0 · ESLint 0 erreur · build vert · **aucune migration**.
+> **Reste** : contrôle à l'écran (tiroir à 2 guildes, 390 / 1 440) · V1c livré (PR #1281).
+> **Rotation** : bloc « 05/11/2026 (suite 8) — DA E3c » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 2) — **Espace visiteur : les six écrans (V1c)** — branche `feat/espace-visiteur-v1c`
 
 > **Demande user (verbatim)** : « on reprend l'espace visiteur (lot V1c, rang 57) » · « DTO étanche […] `metamobApiKey` ne sort jamais » · « `touchLastSeen()` dans `requirePublicAccount()` » · « la migration `drop_declared_guild_logo` est DÉJÀ approuvée ».
@@ -55,14 +65,7 @@
 > **Rotation** : bloc « 05/11/2026 (suite 3) — l'overlay est habillé (E1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 05/11/2026 (suite 8) — **DA « Gouache Wakfu » : les 12 modales du Rush passent à la DA (E3c)** — branche `feat/da-wakfu-e3c-modales`
 
-> **Demande user (verbatim)** : « Les 12 : on les habille dans le même lot, puisque le mécanisme (contexte + règle pure) les couvre presque gratuitement » — les 8 du brief (`GuildAlignmentModal`, `GuildStatusPanel`, `OcreProgressModal`, `RushPenseBeteModal`, 3 dans la timeline, `RushOverlayQuestDetailModal`) plus `AlignmentModal`, `ResetConfirmModal`, `RushOnboardingWizardModal` et la modale inline « Reprendre ? ».
-> **Mesures** : ① les modales Radix sortent dans `document.body` : ni `data-da`, ni `.rush-guide`, donc **153** jetons produit mesurés (6 + 25 + 34 + 24 + 0 + 22 sur les six composants, **42** dans les trois `DialogContent` de la timeline) ; ② `RushPenseBeteModal` était la seule **entièrement en dur** (`bg-zinc-950`, `#e6b96b`, `amber-500`, `rounded-3xl`) — donc ni thémée, ni réversible ; ③ `OcreProgressModal` est montée par **trois** écrans (Rush, `OptimizedGuideClient`, `DofusQuestBanner`) : une portée posée en dur l'aurait repeinte hors du Rush ; ④ la passerelle de jetons de `globals.css` ne couvrait que `.rush-overlay` et `.rush-guide`.
-> **Fait** : **règle pure** `src/lib/da-scope.ts` — `daScopeProps` rend `{}` hors fournisseur, n'accepte qu'un accent HEX à six chiffres et laisse le bloc **nommé** gagner sur `accentColor` — testée (7 cas) · **`useDaTheme()` rend `null` hors portée** (fin du repli « sombre + Émeraude » qui repeignait les modales partagées) · **`.da-portal`** ajouté aux deux règles de passerelle · **`.da-modal` / `-head` / `-body` / `-foot` / `-title` / `-sub` / `-scrim`** dans `da-wakfu.css` : rayon **12 px**, liseré `--da-outline`, **aucune** ombre molle ni flou d'arrière-plan, et repli produit (`var(--da-x, var(--y))`) pour les écrans non migrés · `overlayClassName` **optionnel** sur `DialogContent` (défaut inchangé) · `DaThemeProvider` monté dans le guide **interne** et **public**, l'overlay transmet désormais l'accent libre aux portails.
-> **Preuves** : suite **6 485 ✓ / 614 fichiers** · `tsc` 0 · ESLint **0 erreur** (7 832 avertissements, tous préexistants) · `da-scope` **7 cas** neufs, `da-wakfu` **49** (+7, dont la matière de la modale et les 12 points de portée) · **2 verrous réécrits** (navigation flottante de `da-wakfu`, `rush-onboarding-carnet`) et **1 renforcé** (`rush-da-grimoire` : la fiche ne porte plus `rush-carnet`), **aucun supprimé** · aucune migration.
-> **Reste** : **E4** (passation dashboard, chantier dédié) · la décision esthétique du panneau de contrôle public à 1 440 px (`PublicRushGuideClient` l. 1171 `xl:flex-row` / l. 1212 `xl:grid-cols-4`) · à l'écran : 12 modales × 2 thèmes, 390 / 768 / 1 440 px.
-> **Rotation** : bloc « 05/11/2026 (suite 2) — DA : la fondation est en place (E0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

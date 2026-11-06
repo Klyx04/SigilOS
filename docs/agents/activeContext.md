@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 11) — **Annuaire des visiteurs (V2e)** — branche `feat/visiteur-annuaire`
+
+> **Demande user (verbatim)** : « moi je veux qu'on continue et avance les chantier profil perso landing, annuaire landing (dispo uniquement connecté) le guide rush loggé discord visiteur ».
+> **Mesures** : ① `/guilds` existe (annuaire public des **guildes**), aucune route visiteur ; ② `PublicProfile` porte déjà `showOnDirectory` (fermé), `dofusServerId` obligatoire et `PublicProfession` — l'annuaire ne demande **aucune migration** ; ③ `PublicHeader` rend `localizedNav`, donc un lien conditionnel suffit sans nouvelle coque ; ④ la landing redirige **tout** compte connecté (QG ou espace visiteur) : une section « visiteurs » sur `/` n'aurait été vue de personne — l'entrée vit donc dans l'en-tête, pas sur la landing.
+> **Fait** : `/visiteurs` + `/visiteurs/<id>` (connectés seulement, `noindex`), filtres classe/métier **sans JavaScript** (`<details>` + assets réels), recherche bornée 40, pagination par curseur `id` ; règles pures `src/lib/public-directory.ts`, requêtes `src/server/public-directory.ts` (`showOnDirectory` + serveur du lecteur, **aucun `guildId`**) ; DTO sans mule / Metamob / `userId` ; **barre publique regroupée** (Guides + Guildes + Visiteurs sous « Explorer », « Guides »/« Guildes » voisins étant illisibles) avec **un asset Dofus par entrée**, menu `<details>` natif (liens dans le HTML, donc indexables).
+> **Preuves** : `visitor-directory` **18** · `public-header-nav` **6** · `tsc` 0 · ESLint 0 erreur · ROADMAP **61 266 / 61 440** · **aucune migration**.
+> **Reste** : **V1d** (progression en base — décision d'emplacement texte à trancher) → V1e → **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur `/visiteurs`, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
+> **Rotation** : bloc « 06/11/2026 (suite 5) — coque publique (D-V14) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 06/11/2026 (suite 10) — **Espace visiteur : les écrans alignés sur l'interne** — branche `feat/visiteur-succes`
 
 > **Demande user (verbatim)** : « moi j'aurai voulu l'interface semblable à l'interne (conserve ton design) sans le bouton créer groupe », « le lien vers sa fiche publique », « les images des boss », « ajoute les avis », « le bouton anomalie cliqué n'est pas flagrant », « les métiers reprend l'interface interne profil guilde », « icône laide du choix du serveur, plus grande », « doublon des icônes affichées serveur et classe ».
@@ -56,11 +65,3 @@
 > **Rotation** : bloc « 06/11/2026 — socle de données + garde d'entrée (V1a/V1b) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 06/11/2026 (suite 5) — **Espace visiteur : la coque publique (D-V14)** — branche `feat/visiteur-coque`
-
-> **Demande user (verbatim)** : « t mignon mais c fait expres de pas mettre le footer / header landing quand on est loggé visiteur ? […] il retrouve ou les guides les pages le rush les outils etc ? et pk ya aucun asset dans les onglets ? ».
-> **Mesures** : ① D-V6 (« aucun chrome de **guilde** ») avait été appliqué comme « aucun chrome du tout » ⇒ le visiteur n'avait plus aucun lien vers la landing, les guides, le rush ou les outils, seule sortie « Se déconnecter » ; ② `visitor-nav.tsx` était du texte nu alors que `public/assets/dofus/game-icons/` et `assets/nav/` fournissent les six pictos sans créer un fichier ; ③ le piège documenté (asset absent ⇒ 404 `/_next/image`) impose un verrou sur l'existence des chemins.
-> **Fait** : le layout rend `PublicHeader` (`dashboardHref="/espace-visiteur/general"`, donc « Tableau de bord » reste dans l'espace) + bandeau « Espace visiteur » + `VisitorNav` + `GalacticFooter` ; `SignOutButton` maison retiré (la déconnexion vit dans le menu avatar) ; six onglets avec assets réels (`party`, `guilde-et-mules`, `parchment`, `trophy-1`, `hammer`, `assets/nav/cog.png`) via `GameIcon`.
-> **Preuves** : `visitor-shell` **6** · routes 12 · entrée 9 (**27** sur les 3 verrous) · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : **V1g** — parité des formulaires avec l'interne (icônes serveur/classe, aide + vérif Metamob, ladder Ankama, mules avec repli manuel, activités en vignettes, métiers en icônes) → refonte de l'onglet Succès (tranches, liens boss) → V1d → V1e → V2a-e → V3.
-> **Rotation** : blocs « 05/11/2026 (suite 10) — E3e » et « (suite 9) — DA E3d » sortis (7ᵉ et 8ᵉ) — récupérables via `git log -p -- docs/agents/activeContext.md`.

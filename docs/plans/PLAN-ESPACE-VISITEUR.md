@@ -56,6 +56,13 @@ guilde de `GuildConfig.dofusServerId` — même référentiel (`DOFUS_UNITY_SERV
 **Aucune interaction** : on affiche, on copie `/w <pseudo>` au clic, rien d'autre. Pas de messagerie,
 pas de demande d'aide, pas de chat.
 
+### 1.3 Implémentation V2e — annuaire privé (06/11/2026)
+
+| # | Décision | Conséquence |
+|---|---|---|
+| **D-V18** | **Annuaire privé** : `/visiteurs` et `/visiteurs/<id>` exigent une **session valide + un profil public** ; le serveur lu est **celui du profil**, jamais un paramètre d'URL | un compte sans profil obtient l'écran « crée ton profil », pas la liste — conséquence assumée : un membre de guilde sans profil visiteur ne lit pas l'annuaire (D-V3, aucune lecture inter-guilde). `showOnDirectory: true` est dans **chaque** requête ; 404 sur un profil non consentant ou d'un autre serveur |
+| **D-V19** | **Champs publics** de la fiche : pseudo, serveur, classe, niveau, points de succès, guilde déclarée, métiers, présentation, objectifs, **nombre** de succès de donjons | jamais les mules (`altPseudos`), jamais Metamob, jamais `userId` : les trois sont **absents du `select`**, donc un champ non lu ne peut pas fuir. Aucun agrégat de progression (D-V8) |
+
 ## 2. Blocage mesuré avant tout code
 
 | Mesure | Fichier | Conséquence |
@@ -212,9 +219,16 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
 **V2d — Ladder serveur**
 - Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
 
-**V2e — Liste des profils du serveur**
-- Liste **simple** : filtres serveur / classe / métier, pagination keyset — **aucune** statistique
-  agrégée (la stat vit dans V2a).
+**V2e — Liste des profils du serveur — livré le 06/11/2026**
+- `/visiteurs` (liste) et `/visiteurs/<id>` (fiche), **connectés seulement**, `noindex` : filtres
+  classe / métier, recherche bornée (40 car.), pagination par curseur stable (`id` décroissant).
+- Règles pures `src/lib/public-directory.ts` (bornes, `where`, DTO **sans** mule / Metamob / `userId`) ;
+  requêtes `src/server/public-directory.ts` (`showOnDirectory` + `dofusServerId` du lecteur, **aucun
+  `guildId`**). La barre publique regroupe **Guides + Guildes + Visiteurs** sous « Explorer », chaque
+  entrée portant un asset Dofus réel (menu `details` natif : les liens restent dans le HTML servi).
+- Verrou `tests/unit/visitor-directory.test.ts` (18 cas) : filtres bornés et jamais bloquants, périmètre
+  imposé par la requête, liste blanche du DTO, pages gardées + 404 hors périmètre.
+- **Aucune statistique agrégée** (D-V8) et **aucune migration**.
 
 ### V3 — God des visiteurs
 

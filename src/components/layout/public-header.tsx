@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass } from "lucide-react";
+import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass, UserRound } from "lucide-react";
 import type { User } from "next-auth";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
@@ -456,6 +456,15 @@ export function PublicHeader({
                                         <Link href={dashboardHref}>
                                             <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
                                             {t.nav.dashboard}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    {/* D-V2 : le profil visiteur existe pour tout compte, guildé compris.
+                                        La porte vit ici — aucun écran de guilde n'y mène, et l'espace n'a
+                                        pas de `guildId`. */}
+                                    <DropdownMenuItem asChild className="cursor-pointer">
+                                        <Link href="/espace-visiteur/general">
+                                            <UserRound className="w-4 h-4 mr-2" aria-hidden="true" />
+                                            {t.nav.visitorSpace}
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />

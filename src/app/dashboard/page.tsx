@@ -10,6 +10,7 @@ import { NoGuildMessage } from "@/components/no-guild-message";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { getGuildsSeparated } from "@/server/actions/user-actions";
+import { redirectGuildlessUserToVisitorSpace } from "@/server/visitor-entry";
 
 export default async function GuildSelectorPage() {
     const session = await auth();
@@ -25,6 +26,23 @@ export default async function GuildSelectorPage() {
 
     const { active, pending, awaiting, rateLimited, needsReconnect, guildLimitReached, guildLimit } =
         await getGuildsSeparated();
+
+    // Smart Redirect: if only one guild, go directly without showing the portal
+    if (active.length === 1 && pending.length === 0) {
+        redirect(`/dashboard/${active[0].id}`);
+    }
+
+    // Check if empty
+    const isEmpty = active.length === 0 && pending.length === 0 && awaiting.length === 0;
+
+    // 🔓 Porte visiteur (D-V13) — un compte sans aucune guilde n'a plus de cul-de-sac : il part
+    // dans son espace perso. La règle est partagée avec la landing (`src/server/visitor-entry.ts`)
+    // et ne s'ouvre jamais quand Discord n'a pas répondu : un membre ne peut pas être pris pour
+    // un visiteur (fail-closed). Aucune migration, aucun `guildId` transmis.
+    await redirectGuildlessUserToVisitorSpace({
+        hasGuild: !isEmpty,
+        guildLookupFailed: rateLimited || needsReconnect,
+    });
 
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
     const platformCfg = await db.platformConfig.findUnique({
@@ -42,14 +60,6 @@ export default async function GuildSelectorPage() {
     // guildes dont l'utilisateur est admin Discord natif.
     const { getPilotSignals } = await import("@/server/actions/guild-owner-actions");
     const pilotSignals = await getPilotSignals(active.filter((g) => g.isAdmin).map((g) => g.id)).catch(() => ({}));
-
-    // Smart Redirect: if only one guild, go directly without showing the portal
-    if (active.length === 1 && pending.length === 0) {
-        redirect(`/dashboard/${active[0].id}`);
-    }
-
-    // Check if empty
-    const isEmpty = active.length === 0 && pending.length === 0 && awaiting.length === 0;
 
     return (
         <div className="registre min-h-screen flex flex-col bg-background text-foreground">

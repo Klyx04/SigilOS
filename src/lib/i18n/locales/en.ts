@@ -34,6 +34,7 @@ export const en: Translations = {
         },
         logout: "Sign Out",
         myGuilds: "My Guilds",
+        visitorSpace: "My visitor space",
         noGuildFound: "No guild found",
         adminSpace: "Administration",
         godSpace: "God Area",

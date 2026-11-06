@@ -54,14 +54,15 @@ export function decideSignInAccess(facts: SignInFacts): SignInDecision {
 /**
  * Interrupteur lu depuis l'environnement — **fermé par défaut** (opt-in).
  *
- * Pourquoi fermé : l'espace visiteur n'a pas encore d'écran (lot V1c). L'audit qui
- * conditionnait l'ouverture est **fait** (06/11/2026) : les dix actions cloisonnées par
- * guilde qui ne vérifiaient qu'une session portent désormais `assertGuildMemberAccess`
- * (`src/server/guild-access.ts`). La dette **antérieure** — six modules `"use server"`
- * sans aucune authentification — reste figée par `tests/unit/guild-actions-rbac.test.ts`
- * et relève d'un lot séparé.
+ * Pourquoi fermé : l'interrupteur n'ouvre que la **connexion** des comptes sans guilde — la
+ * porte d'entrée de l'interface (menu avatar + redirections `/dashboard` et `/`, **D-V13**)
+ * est livrée. L'audit qui conditionnait l'ouverture est **fait** (06/11/2026) : les dix
+ * actions cloisonnées par guilde qui ne vérifiaient qu'une session portent désormais
+ * `assertGuildMemberAccess` (`src/server/guild-access.ts`). La dette **antérieure** — six
+ * modules `"use server"` sans aucune authentification — reste figée par
+ * `tests/unit/guild-actions-rbac.test.ts` et relève d'un lot séparé.
  *
- * Activation : `PUBLIC_VISITOR_ENTRY=1`, au moment de V1c.
+ * Activation : `PUBLIC_VISITOR_ENTRY=1`, après contrôle à l'écran de l'espace visiteur.
  *
  * La signature ne demande que la clé utile — pas `NodeJS.ProcessEnv` entier.
  */

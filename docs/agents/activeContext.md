@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 4) — **Espace visiteur : la porte d'entrée (D-V13)** — branche `feat/visiteur-porte-entree`
+
+> **Demande user (verbatim)** : « l'entrée visiteur (menu avatar « Mon espace visiteur » + /dashboard sans guilde → /espace-visiteur/general + même règle sur la landing), sans migration ».
+> **Mesures** : ① aucun lien de l'interface ne menait à `/espace-visiteur` (seulement `robots.ts` et la garde serveur) ; ② `/dashboard` sans guilde rendait `NoGuildMessage` (cul-de-sac) ; ③ la landing ne repliait que `active`/`pending` ; ④ `sign-in-policy.ts` et `.env.example` annonçaient encore « après V1c », périmé depuis #1281 ; ⑤ un admin Discord sans guilde déployée ressort en `pending`/`awaiting`, jamais `isEmpty` ⇒ la redirection ne coupe pas le tunnel de déploiement.
+> **Fait** : règle pure `shouldOpenVisitorSpace` (`src/lib/visitor-entry.ts`) + garde `redirectGuildlessUserToVisitorSpace` (`src/server/visitor-entry.ts`) appelée par `/dashboard` et la landing — **une seule source**, fail-closed (interrupteur fermé, Discord en échec) et **anti-boucle** (compte banni re-vérifié par `getPublicSession` avant `redirect`, sinon `/` ⇄ espace) · entrée « Mon espace visiteur » dans le menu avatar (tout compte connecté, D-V2) · `nav.visitorSpace` en fr **et** en · commentaires périmés corrigés.
+> **Preuves** : `visitor-entry` **9** · suite **624 fichiers / 6 590 tests ✓** · `tsc` 0 · ESLint 0 erreur · `harness-config` 9 ✓ · **aucune migration**.
+> **Reste** : V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : contrôles à 390 / 768 / 1 440 puis `PUBLIC_VISITOR_ENTRY=1` en bêta, avec un compte Discord **sans admin**.
+> **Rotation** : bloc « 05/11/2026 (suite 9) — DA E3d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 3) — **Plafond de guildes : le tiroir ne contourne plus la limite** — branche `fix/plafond-guildes-portail`
 
 > **Demande user (verbatim)** : « il a bien la limite affiché le déploiement grisée pour d'autres guilde mais quand il passe par le bouton "mes guildes" sur son profil le bandeau qui s'affiche lui permet d'onboardé c quoi ce bordel ! il y a combien de trous comme ca ».
@@ -53,22 +63,4 @@
 > **Preuves** : suite **6 489 ✓ / 614 fichiers** · `tsc` 0 · ESLint **0 erreur**, 7 829 avertissements (−1) · **5 verrous réécrits** (`rush-public-parity` ×4 : grille 4 colonnes → barre + tuiles, doublon `reg-progress` ; `rush-guide-ui-polish` ×2 : panneau `.da-guide-controls`, une seule carte ; `rush-sylvestre-construction` ×1 : client auto-fermant), **aucun supprimé** · un `lot4-slash-commands` instable, non reproduit sur deux passes.
 > **Reste** : tuiles **Metamob** et **Rush Live** dès que l'espace visiteur (rang 57) fournira la donnée · **E4** (passation dashboard) · captures 390 / 768 / 1 440 px.
 > **Rotation** : bloc « 05/11/2026 (suite 4) — le guide public reçoit sa coque (E2) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 05/11/2026 (suite 9) — **DA « Gouache Wakfu » : le reste des guides (E3d)** — branche `feat/da-wakfu-e3d-reste`
-
-> **Demande user (verbatim)** : « enchaine » — après les 12 modales, l'étape 2 du brief : « panneaux de bloc du guide interne, `MilestoneRow` garde `bg-surface`/`border-border`/`bg-elevated`, 80 occurrences de tokens produit ».
-> **Mesure qui contredit le brief** : ces 69 chaînes étaient **déjà bridgées** par `[data-da].rush-guide` (`globals.css`) — elles peignent donc `--da-*` depuis E2. Comptage réel sur les deux guides : **0** rayon > 12 px, **0** ombre, **0** `backdrop-blur`, **0** `font-black`, **0** couleur dure `zinc`/`emerald`/`indigo`. Les réécrire n'aurait rien changé au rendu et aurait cassé des verrous pour rien. `guide-styles.css` (85 Ko, 256 hex, 273 rgba) est **vivante** : elle sert `OptimizedGuideClient`, l'autre guide — autre chantier, pas une feuille morte.
-> **Ce qui restait vraiment hors DA** : ① `--font-cinzel` sur deux titres du guide interne (chip de camp, bandeau « Dofus obtenu ») **et** sur `MilestoneCelebrationBurst` — la DA a tranché pour Barlow Condensed dès E1b ⇒ `var(--da-font-title)` / `.da-title` ; ② **six** italiques décoratifs (4 guide interne, 2 guide public), proscrits par le déslop ; ③ `Cinzel` **retirée** du layout overlay : plus un seul usage dans la route, trois graisses de moins à télécharger dans la PiP qui flotte au-dessus du jeu ; ④ `bg-zinc-950 text-zinc-100` du `<body>` overlay → `bg-background text-foreground` (les 2 seuls avertissements `sigil/no-hardcoded-colors` du fichier).
-> **Preuves** : suite **6 487 ✓ / 614 fichiers** (un run intermédiaire a signalé 1 échec, non reproduit sur deux passes complètes) · `tsc` 0 · ESLint **0 erreur**, 7 830 avertissements (−2) · `da-wakfu` **51** (+2 : plus de Cinzel dans la route, plus d'italique dans les deux guides, assertions négatives sur source décommentée) · **aucun verrou supprimé** · aucune migration.
-> **Reste** : **E4** (passation dashboard) · la décision **A/B** du panneau de contrôle public à 1 440 px · `guide-styles.css` (ancienne UI, vivante via `OptimizedGuideClient`) · contrôle à l'écran 390 / 768 / 1 440 px.
-> **Rotation** : bloc « 05/11/2026 (suite 3) — l'overlay est habillé (E1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
 

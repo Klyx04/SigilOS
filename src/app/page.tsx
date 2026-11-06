@@ -13,6 +13,7 @@ import { LandingGuide } from "@/components/landing/registre/guide";
 import { LandingProof } from "@/components/landing/registre/proof";
 import { LandingSetup } from "@/components/landing/registre/setup";
 import { getServerI18n } from "@/lib/i18n/server";
+import { redirectGuildlessUserToVisitorSpace } from "@/server/visitor-entry";
 
 export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accéléra le chargement & le SEO
 
@@ -42,6 +43,14 @@ export default async function Home({
     if (separated.active.length > 0 || separated.pending.length > 0) {
       redirect("/dashboard");
     }
+
+    // 🔓 Porte visiteur (D-V13) — même règle que `/dashboard`, une seule source
+    // (`src/server/visitor-entry.ts`). Un compte sans aucune guilde (active, en attente ou à
+    // déployer) part dans son espace perso ; Discord en échec ⇒ aucune redirection.
+    await redirectGuildlessUserToVisitorSpace({
+      hasGuild: separated.active.length + separated.pending.length + separated.awaiting.length > 0,
+      guildLookupFailed: separated.rateLimited || separated.needsReconnect,
+    });
   }
 
   const showcaseGuilds = await getPublicGuildShowcase(6);

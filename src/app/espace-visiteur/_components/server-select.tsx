@@ -10,8 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ALL_DOFUS_SERVER_ENTRIES, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
-
+import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 const GROUPS = [
     { key: "epique", label: "Serveurs Épiques" },
     { key: "monocompte", label: "Serveurs Monocompte" },
@@ -30,15 +29,15 @@ export function ServerSelect({
     onChange: (value: string) => void;
     disabled?: boolean;
 }) {
-    const selected = ALL_DOFUS_SERVER_ENTRIES.find((server) => String(server.id) === value);
-
     return (
         <Select value={value} onValueChange={onChange} disabled={disabled}>
+            {/*
+             * ⚠️ `SelectValue` rejoue le contenu de l'item sélectionné : l'icône vit **une
+             * seule fois**, dans l'item. Une icône ajoutée ici s'afficherait en double
+             * (mesure du 06/11/2026, capture « Serveur + Classe »).
+             */}
             <SelectTrigger className="w-full" aria-label="Serveur Dofus">
-                <span className="flex items-center gap-2">
-                    {selected ? <GameIcon src={selected.icon} className="h-4 w-4" /> : null}
-                    <SelectValue placeholder="Choisis ton serveur" />
-                </span>
+                <SelectValue placeholder="Choisis ton serveur" />
             </SelectTrigger>
             <SelectContent>
                 {GROUPS.map((group) => (
@@ -47,7 +46,7 @@ export function ServerSelect({
                         {DOFUS_UNITY_SERVERS[group.key].map((server) => (
                             <SelectItem key={server.id} value={String(server.id)}>
                                 <span className="flex items-center gap-2">
-                                    <GameIcon src={server.icon} className="h-4 w-4" />
+                                    <GameIcon src={server.icon} className="size-6" />
                                     {server.name}
                                 </span>
                             </SelectItem>

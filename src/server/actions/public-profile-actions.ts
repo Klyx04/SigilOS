@@ -432,7 +432,7 @@ const bracketToggleSchema = z.object({
     action: z.enum(["validate", "unvalidate"]),
 });
 
-export type PublicBracketToggleResult =
+export type PublicAchievementsToggleResult =
     | { success: true; data: { count: number; achievementIds: string[] } }
     | { success: false; error: string };
 
@@ -451,7 +451,7 @@ export type PublicBracketToggleResult =
  */
 export async function togglePublicDungeonAchievementsBracket(
     raw: unknown
-): Promise<PublicBracketToggleResult> {
+): Promise<PublicAchievementsToggleResult> {
     const parsed = bracketToggleSchema.safeParse(raw);
     if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
 
@@ -500,6 +500,62 @@ export async function togglePublicDungeonAchievementsBracket(
     } catch (error) {
         logger.error("[Espace visiteur] Tranche de succès non enregistrée", { error });
         return { success: false, error: "Impossible d'enregistrer cette tranche." };
+    }
+}
+
+const dungeonGroupToggleSchema = z.object({
+    dungeonId: z.string().min(1).max(64),
+    action: z.enum(["validate", "unvalidate"]),
+});
+
+/**
+ * Validation / dévalidation de **tous les succès d'un donjon** (V1i) — le geste
+ * « Tout cocher / Tout décocher » de la fiche, parité avec l'interne
+ * (`toggleDungeonAchievements`).
+ *
+ * Mêmes invariants que la tranche : garde du compte public, Zod borné, rate limit,
+ * donjon relu en base (le client ne fournit aucun id de succès), écriture idempotente
+ * sur le seul profil public du compte connecté.
+ */
+export async function togglePublicDungeonAchievementsGroup(raw: unknown): Promise<PublicAchievementsToggleResult> {
+    const parsed = dungeonGroupToggleSchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("achievement-dungeon", account.userId, 20);
+    if (limited) return limited;
+
+    const publicProfileId = account.profile.id;
+    try {
+        const dungeon = await db.dungeon.findUnique({
+            where: { id: parsed.data.dungeonId },
+            select: { achievements: { select: { id: true } } },
+        });
+        if (!dungeon) return { success: false, error: "Ce donjon n'existe pas." };
+
+        const achievementIds = dungeon.achievements.map((achievement) => achievement.id);
+        if (achievementIds.length === 0) {
+            return { success: true, data: { count: 0, achievementIds: [] } };
+        }
+
+        if (parsed.data.action === "unvalidate") {
+            await db.publicDungeonAchievement.deleteMany({
+                where: { publicProfileId, dungeonAchievementId: { in: achievementIds } },
+            });
+        } else {
+            await db.publicDungeonAchievement.createMany({
+                data: achievementIds.map((achievementId) => ({ publicProfileId, dungeonAchievementId: achievementId })),
+                skipDuplicates: true,
+            });
+        }
+
+        revalidatePath(PATHS.succes);
+        return { success: true, data: { count: achievementIds.length, achievementIds } };
+    } catch (error) {
+        logger.error("[Espace visiteur] Succès du donjon non enregistrés", { error });
+        return { success: false, error: "Impossible d'enregistrer ce donjon." };
     }
 }
 

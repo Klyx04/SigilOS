@@ -3,19 +3,31 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Hammer } from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DOFUS_JOBS } from "@/lib/dofus-assets";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { PUBLIC_PROFESSIONS_MAX } from "@/lib/public-profile-input";
 import { cn } from "@/lib/utils";
 import { updatePublicProfessions } from "@/server/actions/public-profile-actions";
 import { VisitorSection } from "./visitor-section";
 
 /**
- * Métiers déclarés — la source est `PublicProfession` (slugs + niveau), jamais le `Json`
- * `metiers`. Le niveau est ramené dans `1..200` côté action, avec un refus explicite.
+ * Onglet Métiers — **même lecture que l'onglet « Métiers » du profil de guilde**
+ * (`src/components/profile/jobs-grid.tsx`) : un onglet par catégorie, une carte par métier
+ * (icône réelle, nom, niveau), l'état actif porté par l'accent `warning`.
+ *
+ * Différence assumée : pas de bouton « Gérer » (on est déjà dans l'édition) ni de modale.
+ * La source reste `PublicProfession` (slugs + niveau), jamais le `Json` `metiers`.
  */
+
+const CATEGORY_TAB_CLASS =
+    "h-full rounded-lg text-xs font-semibold tracking-wider uppercase text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:bg-warning/15 data-[state=active]:text-warning";
+
+const CATEGORIES = Object.values(JOB_CATEGORIES);
+
 export function ProfessionsForm({ professions }: { professions: { id: string; level: number }[] }) {
     const router = useRouter();
     const [levels, setLevels] = useState<Record<string, number>>(() =>
@@ -68,53 +80,85 @@ export function ProfessionsForm({ professions }: { professions: { id: string; le
     return (
         <VisitorSection
             title="Métiers"
-            description={`Coche tes métiers et leur niveau (${selectedCount} / ${PUBLIC_PROFESSIONS_MAX}). Ils servent au filtre de l'annuaire.`}
+            description={`Déclare tes métiers et leur niveau (${selectedCount} / ${PUBLIC_PROFESSIONS_MAX}). Ils servent au filtre de l'annuaire.`}
         >
-            <div className="space-y-5">
-                {Object.entries(DOFUS_JOBS).map(([category, jobs]) => (
-                    <fieldset key={category} className="space-y-2">
-                        <legend className="text-sm font-medium text-foreground">{category}</legend>
-                        <div className="flex flex-wrap gap-2">
-                            {jobs.map((job) => {
-                                const active = job.id in levels;
-                                return (
-                                    <div
-                                        key={job.id}
-                                        className={cn(
-                                            "flex items-center gap-2 rounded-lg border border-border px-2 py-1",
-                                            active && "border-primary bg-primary/10"
-                                        )}
-                                    >
-                                        <button
-                                            type="button"
-                                            aria-pressed={active}
-                                            onClick={() => toggleJob(job.id)}
-                                            disabled={saving}
-                                            className="text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-warning/30 bg-warning/15">
+                        <Hammer className="size-4 text-warning" aria-hidden="true" />
+                    </span>
+                    <p className="text-sm font-medium text-foreground">
+                        {selectedCount} métier{selectedCount > 1 ? "s" : ""} déclaré
+                        {selectedCount > 1 ? "s" : ""}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            sur {PUBLIC_PROFESSIONS_MAX}
+                        </span>
+                    </p>
+                </div>
+
+                <Tabs defaultValue={CATEGORIES[0]}>
+                    <TabsList className="grid h-11 w-full grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1 sm:grid-cols-4">
+                        {CATEGORIES.map((category) => (
+                            <TabsTrigger key={category} value={category} className={CATEGORY_TAB_CLASS}>
+                                {category}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+
+                    {CATEGORIES.map((category) => (
+                        <TabsContent key={category} value={category} className="mt-4 focus-visible:outline-none">
+                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                                {DOFUS_JOBS[category].map((job) => {
+                                    const active = job.id in levels;
+                                    return (
+                                        <div
+                                            key={job.id}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-colors",
+                                                active
+                                                    ? "border-warning/40 bg-warning/10"
+                                                    : "border-border bg-surface hover:bg-elevated"
+                                            )}
                                         >
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <GameIcon src={job.icon} className="h-4 w-4" />
-                                                {job.name}
-                                            </span>
-                                        </button>
-                                        {active ? (
-                                            <Input
-                                                type="number"
-                                                min={1}
-                                                max={200}
-                                                value={levels[job.id]}
-                                                onChange={(event) => setLevel(job.id, event.target.value)}
-                                                aria-label={`Niveau ${job.name}`}
-                                                className="h-7 w-16 px-2 text-xs"
+                                            <button
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={() => toggleJob(job.id)}
                                                 disabled={saving}
-                                            />
-                                        ) : null}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </fieldset>
-                ))}
+                                                className="flex w-full flex-col items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                                            >
+                                                <GameIcon src={job.icon} className="size-9" />
+                                                <span className="text-xs font-semibold leading-tight text-foreground">
+                                                    {job.name}
+                                                </span>
+                                                <span
+                                                    className={cn(
+                                                        "text-[11px] font-medium",
+                                                        active ? "text-warning" : "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {active ? `Niv. ${levels[job.id]}` : "Non déclaré"}
+                                                </span>
+                                            </button>
+                                            {active ? (
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={200}
+                                                    value={levels[job.id]}
+                                                    onChange={(event) => setLevel(job.id, event.target.value)}
+                                                    aria-label={`Niveau ${job.name}`}
+                                                    className="mt-2 h-7 w-16 px-2 text-center text-xs"
+                                                    disabled={saving}
+                                                />
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </TabsContent>
+                    ))}
+                </Tabs>
 
                 {error ? (
                     <p role="alert" className="text-sm text-danger">

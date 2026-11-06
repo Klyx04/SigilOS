@@ -1,5 +1,7 @@
 import { db } from "@/lib/prisma";
 import { requirePublicAccount } from "@/server/public-account";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
+import { SUCCES_DUNGEONS_TAKE } from "@/lib/succes-level-brackets";
 import { AchievementsChecklist } from "../_components/achievements-checklist";
 
 export const metadata = {
@@ -8,7 +10,12 @@ export const metadata = {
 };
 
 /**
- * Liste **bornée** : 200 donjons au plus, succès de chacun triés par points.
+ * Liste **bornée** : `SUCCES_DUNGEONS_TAKE` donjons au plus, triés par **niveau** (même ordre
+ * que la validation groupée, qui doit couvrir exactement ce que l'écran affiche), succès de
+ * chacun triés par points.
+ *
+ * Le niveau, le slug et l'icône sont lus ici : la page visiteur ne peut pas importer l'action
+ * interne (`guildId`) — le DTO porte donc la tranche affichable et le lien vers `/boss/<slug>`.
  * La vue « qui a quoi entre visiteurs » est V2b — ici, on ne coche que pour soi.
  */
 export default async function SuccesPage() {
@@ -21,13 +28,20 @@ export default async function SuccesPage() {
                 id: true,
                 name: true,
                 bossName: true,
+                level: true,
+                slug: true,
                 achievements: {
-                    select: { id: true, challenge: { select: { name: true } } },
+                    select: {
+                        id: true,
+                        points: true,
+                        imageUrl: true,
+                        challenge: { select: { name: true, slug: true, iconUrl: true } },
+                    },
                     orderBy: { points: "desc" },
                 },
             },
-            orderBy: { name: "asc" },
-            take: 200,
+            orderBy: [{ level: "asc" }, { name: "asc" }],
+            take: SUCCES_DUNGEONS_TAKE,
         }),
         db.publicDungeonAchievement.findMany({
             where: { publicProfileId: profile.id },
@@ -40,9 +54,14 @@ export default async function SuccesPage() {
         id: dungeon.id,
         name: dungeon.name,
         bossName: dungeon.bossName,
+        level: dungeon.level,
+        slug: dungeon.slug,
         achievements: dungeon.achievements.map((achievement) => ({
             id: achievement.id,
             label: achievement.challenge.name,
+            // Icône **résolue serveur** (proxy interne → asset local → repli) : le composant
+            // client ne manipule jamais un chemin de travail, seulement une URL affichable.
+            iconUrl: getDungeonAchievementIconUrl(achievement),
         })),
     }));
 

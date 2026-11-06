@@ -24,6 +24,7 @@ import { getMetamobMe } from "@/lib/metamob-client";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { SUCCES_DUNGEONS_TAKE, findSuccesLevelBracketStrict } from "@/lib/succes-level-brackets";
 import {
     createPublicProfileSchema,
     deletePublicProfileSchema,
@@ -422,6 +423,83 @@ export async function togglePublicDungeonAchievement(raw: unknown): Promise<Acti
     } catch (error) {
         logger.error("[Espace visiteur] Succès non enregistré", { error });
         return { success: false, error: "Impossible d'enregistrer cette coche." };
+    }
+}
+
+const bracketToggleSchema = z.object({
+    /** Id d'une tranche de `SUCCES_LEVEL_BRACKETS` — jamais une plage envoyée par le client. */
+    bracketId: z.string().min(1).max(16),
+    action: z.enum(["validate", "unvalidate"]),
+});
+
+export type PublicBracketToggleResult =
+    | { success: true; data: { count: number; achievementIds: string[] } }
+    | { success: false; error: string };
+
+/**
+ * Validation / dévalidation **groupée** des succès d'une tranche de niveau (V1i).
+ *
+ * Même geste que `toggleLevelBracketAchievements` (interne) **sans `guildId`** : la seule
+ * autorité est le profil public du compte connecté (`account.profile.id`).
+ *
+ * La tranche est **résolue strictement** côté serveur : le client n'envoie qu'un id de la
+ * liste partagée, jamais une plage de niveaux. Un id forgé est **refusé** — le repli « tout »
+ * de `findSuccesLevelBracket` est une commodité d'UI, l'utiliser ici validerait tout le jeu.
+ *
+ * Même borne (`SUCCES_DUNGEONS_TAKE`) et même tri que la page : on ne valide jamais plus de
+ * donjons que l'écran n'en affiche.
+ */
+export async function togglePublicDungeonAchievementsBracket(
+    raw: unknown
+): Promise<PublicBracketToggleResult> {
+    const parsed = bracketToggleSchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("achievement-bracket", account.userId, 5);
+    if (limited) return limited;
+
+    const bracket = findSuccesLevelBracketStrict(parsed.data.bracketId);
+    if (!bracket) return { success: false, error: "Tranche de niveau inconnue." };
+
+    const publicProfileId = account.profile.id;
+    try {
+        // 1. Cibles relues en base : le catalogue est l'autorité, pas le client.
+        const dungeons = await db.dungeon.findMany({
+            where: { level: { gte: bracket.min, lte: bracket.max } },
+            select: { achievements: { select: { id: true } } },
+            orderBy: [{ level: "asc" }, { name: "asc" }],
+            take: SUCCES_DUNGEONS_TAKE,
+        });
+        const achievementIds = dungeons.flatMap((dungeon) =>
+            dungeon.achievements.map((achievement) => achievement.id)
+        );
+
+        if (achievementIds.length === 0) {
+            return { success: true, data: { count: 0, achievementIds: [] } };
+        }
+
+        if (parsed.data.action === "unvalidate") {
+            await db.publicDungeonAchievement.deleteMany({
+                where: { publicProfileId, dungeonAchievementId: { in: achievementIds } },
+            });
+            revalidatePath(PATHS.succes);
+            return { success: true, data: { count: achievementIds.length, achievementIds } };
+        }
+
+        // 2. Écriture idempotente : la contrainte unique tranche, une coche existante reste acquise.
+        await db.publicDungeonAchievement.createMany({
+            data: achievementIds.map((achievementId) => ({ publicProfileId, dungeonAchievementId: achievementId })),
+            skipDuplicates: true,
+        });
+
+        revalidatePath(PATHS.succes);
+        return { success: true, data: { count: achievementIds.length, achievementIds } };
+    } catch (error) {
+        logger.error("[Espace visiteur] Tranche de succès non enregistrée", { error });
+        return { success: false, error: "Impossible d'enregistrer cette tranche." };
     }
 }
 

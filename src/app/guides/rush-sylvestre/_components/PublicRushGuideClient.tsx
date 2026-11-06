@@ -46,6 +46,7 @@ import {
   readGuestProgress,
   adoptAnonymousGuestProgress,
   guestProgressPrefix,
+  guestCharacterSlot,
 } from "@/lib/guest-progress";
 // Coches de DONJONS du visiteur : même contrat LOCAL que le reste de sa progression
 // (préfixe par personnage), clé par OCCURRENCE (`sequenceId::dungeonKey`). Aucune
@@ -66,6 +67,13 @@ import {
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
+import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
+import {
+  adoptMyRushProgress,
+  loadMyRushProgress,
+  resetMyRushProgress,
+  saveMyRushProgress,
+} from "@/app/guides/rush-sylvestre/_actions/rush-progress";
 import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
@@ -219,6 +227,11 @@ interface PublicRushGuideClientProps {
    */
   /** Image d'ambiance du bandeau (bloc courant ou visuel du guide), servie par la page. */
   heroArt: string;
+  /**
+   * V1d — session visiteur présente ? Non connecté ⇒ le guide reste **100 % local**
+   * (aucun appel réseau), exactement comme avant.
+   */
+  isConnected?: boolean;
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
@@ -289,7 +302,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt, isConnected = false }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -508,6 +521,56 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
   useEffect(() => {
     setDungeonStates(readDungeonStates(storagePrefix));
   }, [storagePrefix]);
+
+  // ─── Progression EN BASE (V1d) — connectés seulement ────────────────────────
+  // Le navigateur reste la **source** (D1) ; la base est un **miroir**, pour que la suite
+  // (V2a : « qui a coché quoi ») puisse la lire. Non connecté ⇒ aucun appel réseau.
+  const characterSlot = guestCharacterSlot(character) ?? PUBLIC_SLOT_PRINCIPAL;
+
+  const buildProgressSnapshot = useCallback(
+    () => ({
+      characterSlot,
+      characterName: character?.pseudo ?? null,
+      classe: character?.classId ?? null,
+      completedMilestones: Array.from(completedIds),
+      completedSteps: Object.fromEntries(
+        Array.from(completedStepsByMs, ([msId, steps]) => [msId, Array.from(steps)])
+      ),
+      bookmarks: Object.fromEntries(Array.from(bookmarksByMs)),
+      dungeonChecks: dungeonStates,
+    }),
+    [characterSlot, character, completedIds, completedStepsByMs, bookmarksByMs, dungeonStates]
+  );
+
+  // Adoption : une seule fois PAR emplacement. Le serveur est déjà idempotent
+  // (`createMany skipDuplicates`) ; le `Set` évite simplement de rejouer l'appel.
+  const adoptedSlots = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!isConnected || adoptedSlots.current.has(characterSlot)) return;
+    adoptedSlots.current.add(characterSlot);
+    void (async () => {
+      const state = await loadMyRushProgress({ characterSlot });
+      if (state.success && !state.exists) {
+        await adoptMyRushProgress(buildProgressSnapshot());
+      }
+    })();
+  }, [isConnected, characterSlot, buildProgressSnapshot]);
+
+  // Miroir débouncé : 2 s après la dernière coche, on envoie l'état complet.
+  // Pas de `flush` à la fermeture d'onglet : une server action ne survit pas à un
+  // `beforeunload`, et la base reste un miroir — le navigateur n'a rien perdu.
+  const firstMirrorRun = useRef(true);
+  useEffect(() => {
+    if (!isConnected) return;
+    if (firstMirrorRun.current) {
+      firstMirrorRun.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void saveMyRushProgress(buildProgressSnapshot());
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isConnected, buildProgressSnapshot]);
 
   // Popup « Reprendre ? » : uniquement au retour sur le guide avec un repère
   // local pré-existant — jamais juste après avoir posé le repère soi-même.
@@ -915,6 +978,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
       } catch {}
     }
     clearDungeonStates(storagePrefix);
+    // V1d : la base suit la remise à zéro — **un** emplacement, jamais tout le profil.
+    if (isConnected) void resetMyRushProgress({ characterSlot });
     setCompletedIds(new Set());
     setCompletedStepsByMs(new Map());
     setBookmarksByMs(new Map());
@@ -930,7 +995,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
         ? `Étapes cochées, blocs terminés, repères et donjons de ${characterLabel} ont été effacés.`
         : "Étapes cochées, blocs terminés, repères et donjons ont été effacés.",
     });
-  }, [storagePrefix, milestones, characterLabel]);
+  }, [storagePrefix, milestones, characterLabel, isConnected, characterSlot]);
 
   // ─── Personnage (facultatif) ────────────────────────────────────────────────
   // Appliquer un personnage CHANGE d'emplacement de progression : on relit ses trois

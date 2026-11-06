@@ -17,7 +17,9 @@ import {
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { DECLARED_GUILD_NAME_MAX } from "@/lib/public-profile-rules";
 import { PUBLIC_PSEUDO_MAX } from "@/lib/public-profile-input";
-import { updatePublicIdentity } from "@/server/actions/public-profile-actions";
+import { cn } from "@/lib/utils";
+import { describePseudoVerification, type PseudoVerificationOutcome } from "@/lib/pseudo-verification";
+import { updatePublicIdentity, verifyPublicPseudo } from "@/server/actions/public-profile-actions";
 import { ServerSelect } from "./server-select";
 import { VisitorSection } from "./visitor-section";
 
@@ -40,7 +42,26 @@ export function IdentityForm({
     const [guildName, setGuildName] = useState(declaredGuildName ?? "");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [checkMessage, setCheckMessage] = useState<PseudoVerificationOutcome | null>(null);
     const selectedClass = DOFUS_CLASSES.find((entry) => entry.id === classeValue);
+
+    const handleVerifyPseudo = async () => {
+        setCheckMessage(null);
+        const parsedServerId = Number(server);
+        if (!Number.isInteger(parsedServerId) || parsedServerId <= 0) {
+            setCheckMessage({ tone: "warning", message: "Choisis ton serveur avant de vérifier." });
+            return;
+        }
+        setChecking(true);
+        const result = await verifyPublicPseudo({ pseudo, dofusServerId: parsedServerId });
+        setChecking(false);
+        if (!result.success) {
+            setCheckMessage({ tone: "warning", message: result.error });
+            return;
+        }
+        setCheckMessage(describePseudoVerification({ found: result.found, manual: result.manual }));
+    };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -111,15 +132,26 @@ export function IdentityForm({
 
                 <div className="space-y-2">
                     <Label htmlFor="identity-pseudo">Pseudo Dofus</Label>
-                    <Input
-                        id="identity-pseudo"
-                        value={pseudo}
-                        onChange={(event) => setPseudo(event.target.value)}
-                        maxLength={PUBLIC_PSEUDO_MAX}
-                        autoComplete="off"
-                        disabled={saving}
-                        required
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                            id="identity-pseudo"
+                            value={pseudo}
+                            onChange={(event) => setPseudo(event.target.value)}
+                            maxLength={PUBLIC_PSEUDO_MAX}
+                            autoComplete="off"
+                            disabled={saving}
+                            required
+                            className="flex-1"
+                        />
+                        <Button type="button" variant="outline" onClick={handleVerifyPseudo} disabled={saving || checking}>
+                            {checking ? "Vérification…" : "Vérifier"}
+                        </Button>
+                    </div>
+                    {checkMessage ? (
+                        <p className={cn("text-xs", checkMessage.tone === "success" ? "text-success" : "text-warning")}>
+                            {checkMessage.message}
+                        </p>
+                    ) : null}
                 </div>
 
                 <div className="space-y-2">

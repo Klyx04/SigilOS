@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 7) — **Espace visiteur : les vérifications (D-V16)** — branche `feat/visiteur-verifications`
+
+> **Demande user (verbatim)** : « v1h oui et enchaine ensuite » — vérification du pseudo ladder Ankama + repli manuel du toggle God, et vérification du pseudo/clé Metamob comme l'interne.
+> **Mesures** : ① `checkPseudoExistsOnLadder` vivait **privée** dans `profile-actions.ts` et `verifyDofusPseudo` exige `getUserContext(guildId)` (membre) ⇒ inutilisable pour un visiteur ; ② `updatePublicMetamob` renvoyait la vérification au worker de V1e (`metamobVerified = false`) ; ③ le toggle God (`PlatformConfig.ladderManualFallback`) existait mais n'était lu que par l'interne.
+> **Fait** : helper **extrait** dans `src/server/ladder-pseudo.ts` (une seule mesure pour les deux vies) ; actions `verifyPublicPseudo` (garde session, Zod, rate limit 10/min, toggle God puis ladder) et `verifyPublicMetamob` (garde compte, rate limit 5/min, `/v1/me`, écriture `where: { userId }`) ; boutons « Vérifier » dans Identité, Mules (serveur du profil) et Metamob ; messages uniques via `src/lib/pseudo-verification.ts` (fail-open assumé).
+> **Preuves** : `visitor-verifications` **8** · suite **627 fichiers / 6 608 tests ✓** · `tsc` 0 · ESLint 0 erreur · `harness-config` 9 ✓ · **aucune migration**.
+> **Reste** : **V1i** — onglet Succès (tranches de niveau, icônes, validation par tranche, liens vers les fiches boss) → V1d → V1e → V2a-e → V3.
+> **Rotation** : bloc « 06/11/2026 (suite) — double cross-check » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 6) — **Espace visiteur : les assets du produit (D-V15)** — branche `feat/visiteur-assets`
 
 > **Demande user (verbatim)** : « icone serveur · icone classe · tooltip comment trouver sa clé metamob comme l'interne · […] présentation > activité préférés : icones assets · […] idem métier les icones enfin faut reprendre comme l'interne profil ».
@@ -54,13 +64,3 @@
 > **Preuves** : suite **623 fichiers / 6 576 tests ✓** · 5 verrous visiteur (**49** cas : DTO, routes, actions, schéma, rétention) · `tsc` 0 · ESLint 0 erreur · migration **appliquée** (**297**).
 > **Reste** : **porte d'entrée** (menu avatar + redirection `/dashboard` → `/espace-visiteur/general`, **aucune migration**) **avant** l'activation → V1d (progression en base + adoption) → V1e (ladder) → V2a-e → V3. **Ops** : `PUBLIC_VISITOR_ENTRY=1` en bêta après contrôle à l'écran (390 / 768 / 1 440).
 > **Rotation** : bloc « 05/11/2026 (suite 7) — DA E3 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 06/11/2026 (suite) — **Espace visiteur : double cross-check + décisions V1c** — branche `docs/espace-visiteur-decisions`
-
-> **Demande user (verbatim)** : « double cross check c'est primordial » · « vulgarise un peu les points à trancher » · « 365 jrs pour tous » · « reparcourir toute ta mémoire de l'ensemble des discussions précédentes pour maj exhaustivement les chantiers ».
-> **Mesures** : ① l'état physique est exact (dev `87cbc95d`, 0 PR, arbre propre, **296** migrations, 24/24 chemins cités, 5 verrous = **49** cas verts) mais **8 écarts documentaires** ; ② **`getPublicAccount()` rend `metamobApiKey` déchiffrée** (`findUnique` sans `select` + hook `result.publicProfile`) ⇒ fuite dans le payload RSC dès le premier écran ; ③ **`touchLastSeen` n'a qu'un appelant** (`getUserContext`) ⇒ un visiteur n'est **jamais** marqué « vu » et serait purgé malgré des visites quotidiennes ; ④ la purge ne touche **jamais** un membre actuel (`profiles: { none: { status: "ACTIVE" } }`) ; ⑤ `User.rushServerVisible` (D-V4) **n'existe pas** — c'est `PublicProfile.showOnDirectory` + `showPresence` ; ⑥ le panneau par Dofus **n'existe pas** dans le guide public, seulement dans l'interne (`GuildStatusPanel`, l. 168).
-> **Fait** : **D-V1→D-V12** verrouillées (`PLAN-ESPACE-VISITEUR.md`) : route `/espace-visiteur/<segment>`, **aucun logo** (colonne retirée par migration), **Progression Communautaire** (panneau par Dofus + blocs + donjons requis / « à faire »), **Succès Donjons** visiteurs (boss + titans + avis), suppression « vie publique seulement », **`touchLastSeen` dans la garde**, guide public connecté = bandeau interne (5 tuiles, recherche + Options entre les deux blocs). **D-V5 révisée** : rétention **365 j pour tous**. ROADMAP rang 57 réécrit, `AGENTS.md` (6 538 tests), `.env.example` (`PUBLIC_VISITOR_ENTRY`).
-> **Preuves** : suite **619 fichiers / 6 538 tests ✓** · `harness-config` **9 ✓** · verrous visiteur **49 ✓** · ROADMAP **61 276 o / 61 440** (marge **164 o**).
-> **Reste** : **V1c** (écrans + DTO étanche + `touchLastSeen` + migration logo) → V1d → V1e → V2a-e → V3. **Ops** : migration à jouer, `PUBLIC_VISITOR_ENTRY=1` en bêta après V1c.
-> **Rotation** : bloc « 05/11/2026 (suite 6) — Songes : clôture unique » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

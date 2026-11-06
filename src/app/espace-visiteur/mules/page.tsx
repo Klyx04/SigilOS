@@ -8,5 +8,5 @@ export const metadata = {
 
 export default async function MulesPage() {
     const { profile } = await requirePublicAccount();
-    return <MulesForm mules={profile.altPseudos} />;
+    return <MulesForm mules={profile.altPseudos} serverId={profile.dofusServerId} />;
 }

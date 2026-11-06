@@ -37,6 +37,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 | **D-V10** | Suppression depuis l'espace visiteur = **vie publique seulement** si le `User` a aussi un `UserProfile` ACTIVE | refus explicite avec la marche à suivre ; jamais de suppression qui emporterait l'historique de guilde. Sans vie de guilde : suppression dure, **sans archivage** |
 | **D-V11** | **`touchLastSeen()` dans la garde visiteur** (`requirePublicAccount`) | sans ça, un visiteur n'est **jamais** marqué « vu » (seul `getUserContext` l'écrit) ⇒ il serait purgé à l'échéance malgré des visites quotidiennes. **Obligatoire avant `PUBLIC_VISITOR_ENTRY=1`** |
 | **D-V12** | **Guide public connecté = bandeau de l'interne** : 5 tuiles (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay), recherche + Options **entre** le bloc Rush et le bloc Progression, puis **Progression Communautaire** | non connecté : mode local actuel inchangé. La tuile Metamob est un **agrégat serveur** (la clé API ne part jamais au client) ; Rush Live dépend de `showPresence` |
+| **D-V16** | **Vérifications** : pseudo Dofus via le ladder Ankama (helper **partagé** `src/server/ladder-pseudo.ts`, repli manuel du toggle God `ladderManualFallback`) et clé Metamob immédiate (`/v1/me`) | **fail-open** sur le ladder (worker indisponible ⇒ `found: null`, jamais un refus d'enregistrement) ; garde + rate limit sur chaque action ; la clé Metamob ne sort jamais du serveur, aucun log du pseudo |
 | **D-V15** | **Les assets du produit, pas des glyphes** : serveurs (`assets/dofus/servers`), classes (`DOFUS_CLASSES[].icon`), métiers (`DOFUS_JOBS[].icon`), activités (`ACTIVITY_ASSETS`), aide « Où trouver ma clé API ? » sur Metamob | `ALL_DOFUS_SERVER_ENTRIES` est la **source unique** de l'icône serveur (`ALL_DOFUS_SERVERS` reste la liste de noms validée côté serveur) ; `tests/unit/visitor-assets.test.ts` vérifie que **chaque chemin existe sur disque** (zéro 404 `/_next/image`) |
 | **D-V14** | **Coque = chrome public, pas chrome de guilde** : `PublicHeader` + `GalacticFooter` rendus dans le layout, `dashboardHref` reste dans l'espace, chaque onglet porte un **asset du jeu** | D-V6 interdisait le chrome **de guilde**, pas celui du site : sans lui le visiteur était enfermé (seule sortie « Se déconnecter »). Les six chemins d'assets sont vérifiés **sur disque** par `tests/unit/visitor-shell.test.ts` (piège du 404 `/_next/image`) |
 | **D-V13** | **Porte d'entrée** : entrée « Mon espace visiteur » dans le menu avatar (tout compte connecté, D-V2) + redirection `/dashboard` et `/` → `/espace-visiteur/general` pour un compte **sans aucune guilde** | une seule règle (`src/lib/visitor-entry.ts`), une seule garde (`src/server/visitor-entry.ts`) ; **jamais** de redirection quand l'interrupteur est fermé, que Discord échoue ou que le compte est banni (fail-closed, anti-boucle `/` ⇄ espace). Aucune migration |
@@ -157,6 +158,10 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
 - **Assets livrés le 06/11/2026 (D-V15)** : icône du serveur dans le sélecteur (source unique
   `ALL_DOFUS_SERVER_ENTRIES`), icône de classe dans Identité et Mules, activités en vignettes,
   métiers en icônes, lien « Où trouver ma clé API ? » sur Metamob. Chemins vérifiés sur disque.
+- **Vérifications livrées le 06/11/2026 (V1h)** : bouton « Vérifier » sur le pseudo (Identité et
+  Mules) et sur la clé Metamob ; helper ladder **extrait et partagé** avec le profil interne ;
+  toggle God respecté ; les quatre issues (trouvé, introuvable, indisponible, manuel) passent
+  par `src/lib/pseudo-verification.ts`.
 - **Ops** : `PUBLIC_VISITOR_ENTRY=1` en **bêta** après contrôle à l'écran (390 / 768 / 1 440).
 
 **V1d — progression en base + adoption**

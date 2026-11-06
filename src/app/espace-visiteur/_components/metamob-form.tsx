@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PUBLIC_METAMOB_KEY_MAX, PUBLIC_METAMOB_PSEUDO_MAX } from "@/lib/public-profile-input";
-import { updatePublicMetamob } from "@/server/actions/public-profile-actions";
+import { updatePublicMetamob, verifyPublicMetamob } from "@/server/actions/public-profile-actions";
 import { VisitorSection } from "./visitor-section";
 
 /**
@@ -30,6 +30,24 @@ export function MetamobForm({
     const [apiKey, setApiKey] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [checkMessage, setCheckMessage] = useState<{ tone: "success" | "warning"; text: string } | null>(null);
+
+    const handleVerifyKey = async () => {
+        setCheckMessage(null);
+        setChecking(true);
+        const result = await verifyPublicMetamob();
+        setChecking(false);
+        if (!result.success) {
+            setCheckMessage({ tone: "warning", text: result.error });
+            return;
+        }
+        setCheckMessage({
+            tone: "success",
+            text: result.pseudo ? `Clé reconnue par Metamob (${result.pseudo}).` : "Clé reconnue par Metamob.",
+        });
+        router.refresh();
+    };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -77,6 +95,15 @@ export function MetamobForm({
                             {hasKey ? "Enregistrée" : "Aucune clé"}
                         </Badge>
                         {verified ? <Badge variant="secondary">Vérifiée</Badge> : null}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleVerifyKey}
+                            disabled={saving || checking || !hasKey}
+                        >
+                            {checking ? "Vérification…" : "Vérifier la clé"}
+                        </Button>
                     </div>
                     <Input
                         id="metamob-key"
@@ -100,6 +127,11 @@ export function MetamobForm({
                             <ExternalLink className="h-3 w-3" aria-hidden="true" />
                         </a>
                     </p>
+                    {checkMessage ? (
+                        <p className={checkMessage.tone === "success" ? "text-xs text-success" : "text-xs text-warning"}>
+                            {checkMessage.text}
+                        </p>
+                    ) : null}
                 </div>
 
                 {error ? (

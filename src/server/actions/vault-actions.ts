@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { logServiceActivity } from "./activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { VaultAction } from "@prisma/client";

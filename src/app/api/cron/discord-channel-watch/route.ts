@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
-import { checkLostChannelsCore } from "@/server/actions/discord-channel-watch-actions";
+import { checkLostChannelsCore } from "@/server/discord-channel-watch";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 
 export const dynamic = "force-dynamic";

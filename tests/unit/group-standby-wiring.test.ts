@@ -62,7 +62,7 @@ describe("Crons de rappel — le stand-by suspend le ping", () => {
     });
 
     it("relances d'inactivité : ni relance ni clôture J+21 sur un groupe gelé", () => {
-        const code = read("src/server/actions/inactive-posts-actions.ts");
+        const code = read("src/server/inactive-posts.ts");
         expect(code).toMatch(/isStandByActive\(post\.standBy\)/);
         expect(code).toMatch(/isStandByActive\(run\.standBy\)/);
         // Le contrôle du profil (banni/archivé) reste AVANT : un partant ferme son post.

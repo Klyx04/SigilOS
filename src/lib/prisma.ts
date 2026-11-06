@@ -103,6 +103,27 @@ const createPrismaClient = () => {
                     if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
                     return query(args);
                 }
+            },
+            // Espace visiteur (rang 57) : la clé Metamob d'un profil public est chiffrée par
+            // les MÊMES hooks que celle du profil de guilde — une seule convention, deux
+            // tables. `updateMany` est couvert aussi : c'est par là qu'un oubli était passé
+            // sur `Account` (F-05).
+            publicProfile: {
+                async create({ args, query }) {
+                    const data = args.data as any;
+                    if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
+                    return query(args);
+                },
+                async update({ args, query }) {
+                    const data = args.data as any;
+                    if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
+                    return query(args);
+                },
+                async updateMany({ args, query }) {
+                    const data = args.data as any;
+                    if (typeof data.metamobApiKey === 'string') data.metamobApiKey = encrypt(data.metamobApiKey);
+                    return query(args);
+                }
             }
         },
         result: {
@@ -133,6 +154,17 @@ const createPrismaClient = () => {
                 }
             },
             userProfile: {
+                metamobApiKey: {
+                    needs: { metamobApiKey: true },
+                    compute(profile: any) {
+                        if (!profile.metamobApiKey) return profile.metamobApiKey;
+                        return decrypt(profile.metamobApiKey);
+                    }
+                }
+            },
+            // Même déchiffrement à la lecture pour le profil visiteur : un consommateur ne
+            // reçoit jamais du chiffré en croyant lire une clé (cf. F-05 sur `Account`).
+            publicProfile: {
                 metamobApiKey: {
                     needs: { metamobApiKey: true },
                     compute(profile: any) {

@@ -28,7 +28,7 @@ const codeOnly = (path: string) =>
 
 const WORKER = "src/workers/metamob-worker.ts";
 const SERVICE = "src/server/songes-service.ts";
-const CRON = "src/server/actions/inactive-posts-actions.ts";
+const CRON = "src/server/inactive-posts.ts";
 const ACTIONS = "src/server/actions/songes/dream-run-actions.ts";
 
 describe("clôture d'une run Songes — une seule porte, et elle nettoie Discord", () => {

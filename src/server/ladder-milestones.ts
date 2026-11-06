@@ -13,7 +13,7 @@
  * `logServiceActivity` avale ses erreurs : une annonce manquée ne casse **jamais** la passe ladder.
  */
 
-import { logServiceActivity } from "@/server/actions/activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import { logger } from "@/lib/logger";
 import { NOTIFICATION_CATEGORY_ICONS } from "@/lib/notification-categories";
 import {

@@ -22,6 +22,12 @@ vi.mock('@/lib/prisma', () => ({
     }
 }));
 
+// La garde d'appartenance a son propre test (`tests/unit/guild-access.test.ts`) : ici on
+// vérifie la RÈGLE du classement, pas le RBAC de l'action.
+vi.mock('@/server/guild-access', () => ({
+    assertGuildMemberAccess: vi.fn(async () => ({ ok: true })),
+}));
+
 // Le classement est mis en cache Redis (10 min, même clé pour toute la guilde de
 // test). Sans ce court-circuit, le cas « aucun point de contribution » met `[]` en
 // cache et les cas suivants relisent cette entrée au lieu d'interroger leurs propres

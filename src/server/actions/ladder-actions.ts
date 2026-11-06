@@ -16,6 +16,7 @@ import {
     type PresenceCounters,
     type PresencePeriod,
 } from "@/lib/ladder-presence";
+import { assertGuildMemberAccess } from "@/server/guild-access";
 
 // ============================================================================
 // TYPES
@@ -79,6 +80,8 @@ export async function getPresenceLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
         const guildConfig = await db.guildConfig.findUnique({ 
@@ -239,6 +242,8 @@ export async function getDiscordPresenceStats(
 ): Promise<ActionResponse<DiscordPresenceStats>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
         const guildConfig = await db.guildConfig.findUnique({
@@ -305,6 +310,8 @@ export async function getActivityLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -524,6 +531,8 @@ export async function getSeniorityLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -627,6 +636,8 @@ export async function getSuccessLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -730,6 +741,8 @@ export async function getGeneralLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -836,6 +849,8 @@ export async function getContributionLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -941,6 +956,8 @@ export async function getGuildatonsLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -1153,6 +1170,8 @@ export async function getRaidLadder(
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }
@@ -1354,6 +1373,8 @@ export async function getLadderSyncInfo(
 ): Promise<ActionResponse<{ lastSyncAt: string | null; syncedCount: number; totalCount: number }>> {
     try {
         const session = await auth();
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         if (!session?.user?.id) {
             return { success: false, error: "Non authentifié" };
         }

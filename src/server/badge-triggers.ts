@@ -1,4 +1,6 @@
-"use server";
+// Noyau métier — **pas** une action serveur (audit du 06/11/2026) : il est appelé par
+// `defi-actions.ts`, qui porte déjà la garde du joueur. Sorti de `actions/`, il quitte le
+// manifeste des actions et n'est plus invocable depuis un navigateur.
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";

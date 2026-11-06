@@ -64,7 +64,7 @@ import {
 const PANEL = "src/components/admin/members/seniority-roles-panel.tsx";
 const MANAGEMENT = "src/components/admin/members/member-management.tsx";
 const PAGE = "src/app/dashboard/[guildId]/admin/members/page.tsx";
-const CHANNEL_WATCH = "src/server/actions/discord-channel-watch-actions.ts";
+const CHANNEL_WATCH = "src/server/discord-channel-watch.ts";
 
 const source = (path: string) => readFileSync(path, "utf8");
 

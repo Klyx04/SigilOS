@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { revalidatePath } from "next/cache";
-import { evaluateBadgeTriggersForProfile } from "./badge-triggers";
+import { evaluateBadgeTriggersForProfile } from "@/server/badge-triggers";
 
 // ============================================================================
 // Module « Défi » — progression « je l'ai fait » côté membre.

@@ -1,4 +1,5 @@
-"use server";
+// Noyau métier — **pas** une action serveur (audit du 06/11/2026) : il est appelé par le
+// cron `discord-channel-watch`, jamais depuis un écran.
 
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";

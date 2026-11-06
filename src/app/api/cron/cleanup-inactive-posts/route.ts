@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { processInactivePostsRemindersAndAutoClose } from '@/server/actions/inactive-posts-actions';
+import { processInactivePostsRemindersAndAutoClose } from '@/server/inactive-posts';
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from '@/lib/logger';
 import { recordCronExecution } from "@/lib/cron-telemetry";

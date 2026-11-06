@@ -15,9 +15,10 @@
  * Usage :
  *   - Route cron : /api/cron/avatar-resync (protégée par x-cron-secret).
  *   - Appel manuel/God : resyncGuildAvatarHashes(guildId).
+ *
+ * Audit du 06/11/2026 : noyau sorti de `actions/` et **plus** marqué `"use server"` — chaque
+ * export y devenait une action sans garde.
  */
-
-"use server";
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";

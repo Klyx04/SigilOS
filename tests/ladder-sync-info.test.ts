@@ -23,6 +23,12 @@ vi.mock('@/lib/prisma', () => ({
     }
 }));
 
+// La garde d'appartenance a son propre test (`tests/unit/guild-access.test.ts`) : ici on
+// vérifie la RÈGLE du classement, pas le RBAC de l'action.
+vi.mock('@/server/guild-access', () => ({
+    assertGuildMemberAccess: vi.fn(async () => ({ ok: true })),
+}));
+
 describe('getLadderSyncInfo', () => {
     const mockGuildId = 'sync-info-guild';
     const mockUserId = 'user-sync-info';

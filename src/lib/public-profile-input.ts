@@ -145,6 +145,16 @@ export const publicIdentitySchema = z.object({
     declaredGuildName: declaredGuildNameSchema.nullable(),
 });
 
+/**
+ * Alignement déclaré (V2a-4) : cité + Ordre. L'Ordre est un **slug** de `ORDERS`
+ * (`vaillant`, `attentif`, …) ; son appartenance à la cité est vérifiée dans l'action —
+ * une valeur venue du client n'est jamais crue sur parole.
+ */
+export const publicAlignmentSchema = z.object({
+    alignment: z.enum(["bontarien", "brakmarien", "neutre"]),
+    alignmentOrder: z.string().trim().max(24).nullable(),
+});
+
 export const createPublicProfileSchema = z.object({
     dofusServerId: publicServerIdSchema,
     pseudoDofus: publicPseudoSchema,

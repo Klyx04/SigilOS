@@ -7,7 +7,7 @@ import {
   CheckCircle2, Square, ChevronDown, ChevronUp, ChevronLeft,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck,
-  Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
+  Sparkles, Construction, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
   Settings2, Ghost, Maximize2, Lightbulb
 } from "lucide-react";
@@ -2153,11 +2153,6 @@ const timelineItems=useMemo(()=>{
           </Link>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center gap-1.5 text-xs text-warning">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>Conseillé dès le <b className="font-mono font-medium">Niv. 200</b></span>
-            </div>
-
             <ContextualHelp label="Aide Rush Sylvestre">
               <p className="font-bold text-success mb-1">📖 Guide Rush Sylvestre</p>
               <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-warning">JE SUIS ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>

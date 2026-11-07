@@ -212,16 +212,36 @@ describe("Ressources — plus aucun nom tronqué dans les listes", () => {
 });
 
 describe("Panneau public — la MÊME anatomie que le guide interne", () => {
-  it("le contexte et les trois outils tiennent dans la barre du haut", () => {
-    // Verrou RÉÉCRIT le 05/11/2026 (même intention, nouveau mécanisme) : la
-    // rangée « quatre boutons en grille » devient une barre d'outils + des
-    // tuiles, comme le guide interne — un seul panneau à maintenir.
-    expect(PUB).toMatch(/Conseillé dès le/);
-    expect(PUB).toMatch(/<PublicRouteChoice/);
+  it("la barre du haut ne porte QUE les outils de contenu (V2a-5)", () => {
+    // Demande user du 07/11 : « le bandeau avec les trois alignements bonta brak neutre
+    // doit disparaître, le conseil aussi ». Les deux ont quitté la barre : « Ma cité »
+    // est descendue dans « Options » (le choix pilote toujours la route), le conseil
+    // n'est plus rendu du tout.
+    expect(PUB).not.toMatch(/<PublicRouteChoice/);
     expect(PUB).not.toMatch(/xl:grid-cols-4/);
     for (const label of ["Ressources", "Pense-bête", "Masquer les étapes faites"]) {
       expect(PUB, label).toContain(label);
     }
+    // « Ma cité » : trois cités dans le sous-menu radio de « Options ».
+    expect(PUB).toContain("Options du guide");
+    expect(PUB).toMatch(/<DropdownMenuRadioGroup/);
+    for (const camp of ["Bontarien", "Neutre", "Brâkmarien"]) {
+      expect(PUB, camp).toContain(camp);
+    }
+  });
+
+  it("le conseil « Conseillé dès le Niv. 200 » n'est plus affiché sur AUCUNE surface", () => {
+    expect(PUB).not.toMatch(/Conseillé dès le/);
+    expect(DASH).not.toMatch(/Conseillé dès le/);
+  });
+
+  it("le bandeau du titre porte le Dofus, le titre complet et la porte visiteur (V2a-5)", () => {
+    // Demande user : « virer l'image floue », « renommer en Aventure Rush Sylvestre »,
+    // « l'icône du dofus sylvestre à côté », « mon espace visiteur dans le gros bandeau ».
+    expect(PUB).not.toMatch(/da-guide-hero-art/);
+    expect(PUB).toContain('src="/module-dofus/Dofus_Sylvestre.png"');
+    expect(PUB).toMatch(/Aventure Rush Sylvestre/);
+    expect(PUB).toMatch(/da-guide-hero-cta[\s\S]{0,200}Mon espace visiteur/);
   });
 
   it("les CINQ tuiles de l'interne, dans l'ordre, chacune avec sa VRAIE source (V2a-3)", () => {
@@ -255,6 +275,14 @@ describe("Panneau public — la MÊME anatomie que le guide interne", () => {
     expect(PUB).not.toMatch(/liveMembers/);
     expect(PUB).not.toMatch(/en ligne/);
     expect(PUB).not.toMatch(/connectionStatus/);
+  });
+
+  it("l'anonyme ne voit NI Metamob NI Rush Live — les deux tuiles sont gardées (V2a-5)", () => {
+    // Demande user : « le mode non connecté n'aura juste pas le rush live ni metamob ».
+    // Chaque tuile est introduite par `{visitor ? (` : sans compte, il n'y a pas de
+    // source, donc pas de tuile — et surtout pas une tuile vide à la place.
+    expect(PUB).toMatch(/\{visitor \? \(\s*<Link\s+href="\/espace-visiteur\/general"/);
+    expect(PUB).toMatch(/\{visitor \? \([\s\S]{0,220}modules\/guild\.png/);
   });
 
   it("la recherche et « Options » vivent ENTRE les tuiles et la progression (V2a-3)", () => {

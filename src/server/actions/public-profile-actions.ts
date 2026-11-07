@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
 import { getMetamobMe } from "@/lib/metamob-client";
+import { ORDERS } from "@/lib/dofus-assets";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
 import { isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
@@ -30,6 +31,7 @@ import {
     createPublicProfileSchema,
     deletePublicProfileSchema,
     isKnownJobId,
+    publicAlignmentSchema,
     publicIdentitySchema,
     publicMetamobSchema,
     publicMulesSchema,
@@ -54,6 +56,9 @@ const PATHS = {
     metiers: "/espace-visiteur/metiers",
     reglages: "/espace-visiteur/reglages",
 } as const;
+
+/** Le guide public du Rush lit `alignment` / `alignmentOrder` : il se revalide avec le profil. */
+const RUSH_GUIDE_PATH = "/guides/rush-sylvestre";
 
 function firstIssue(error: ZodError): string {
     return error.issues[0]?.message ?? "Données invalides.";
@@ -169,6 +174,52 @@ export async function updatePublicIdentity(raw: unknown): Promise<ActionResult> 
     } catch (error) {
         logger.error("[Espace visiteur] Identité non enregistrée", { error });
         return { success: false, error: "Impossible d'enregistrer ton identité." };
+    }
+}
+
+/**
+ * Alignement déclaré (V2a-4, 07/11/2026) — **la** donnée qui manquait : `PublicProfile.alignment`
+ * existait en base mais **aucune action ne l'écrivait**, donc la tuile « Alignement » du guide
+ * public ne pouvait rien changer (mesure du 06/11, confirmée par la demande user : « on peut
+ * toujours pas changer son ali comme la mécanique du guide interne ? »).
+ *
+ * Cité + Ordre, bornés par Zod ; l'Ordre doit appartenir à la cité choisie et un neutre n'en a
+ * pas. La tranche (`alignmentLevel`) n'est **pas** demandée : elle reste déduite des quêtes
+ * validées par le guide, comme sur l'interne.
+ */
+export async function updatePublicAlignment(raw: unknown): Promise<ActionResult> {
+    const parsed = publicAlignmentSchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("alignment", account.userId, 20);
+    if (limited) return limited;
+
+    const { alignment, alignmentOrder } = parsed.data;
+    const knownOrder =
+        alignment !== "neutre" &&
+        !!alignmentOrder &&
+        ((ORDERS as unknown as Record<string, Array<{ id: string }>>)[alignment] ?? []).some(
+            (order) => order.id === alignmentOrder
+        );
+    if (alignmentOrder !== null && !knownOrder) {
+        return { success: false, error: "Cet Ordre n'appartient pas à la cité choisie." };
+    }
+
+    try {
+        await db.publicProfile.update({
+            where: { userId: account.userId },
+            data: { alignment, alignmentOrder: alignment === "neutre" ? null : alignmentOrder },
+        });
+        revalidatePath(PATHS.general);
+        // La tuile du guide public lit ce champ : la page doit se rafraîchir dans la foulée.
+        revalidatePath(RUSH_GUIDE_PATH);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Espace visiteur] Alignement non enregistré", { error });
+        return { success: false, error: "Impossible d'enregistrer ton alignement." };
     }
 }
 

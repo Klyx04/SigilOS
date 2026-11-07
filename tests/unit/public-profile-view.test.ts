@@ -38,6 +38,7 @@ function row(overrides: Partial<PublicProfileRow> = {}): PublicProfileRow {
         metamobApiKey: "secret-key",
         metamobVerified: true,
         alignment: null,
+        alignmentOrder: null,
         alignmentLevel: 0,
         dofusLevel: 200,
         successPoints: 100,

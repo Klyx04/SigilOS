@@ -95,15 +95,12 @@ export default async function PublicRushSylvestrePage() {
   const milestones = guide.milestones as any[];
 
   /**
-   * Image du bandeau (DA « Gouache Wakfu », brief E2 ③) : celle du **bloc**, pas
-   * l'icône du Dofus. `GuideMilestone.imageUrl` sert aussi d'icône de bloc — dans le
-   * bandeau elle est rendue en `cover`, avec un voile qui porte la lisibilité du titre
-   * (piège mesuré du 05/11 : sans voile, le titre se perd dans l'image).
+   * V2a-5 (07/11/2026) — le bandeau du guide **n'a plus d'image de fond** : demande
+   * user « j'avais demandé de virer l'image floue ». Le flou n'était pas un `filter`
+   * mais l'agrandissement d'une source basse résolution en `cover` ; le fond est
+   * désormais le dégradé peint de la DA (`.da-guide-hero`) et le **Dofus Sylvestre**
+   * est posé à côté du titre. Plus aucune prop d'image à passer.
    */
-  const heroArt =
-    milestones.find((m) => typeof m?.imageUrl === "string" && m.imageUrl)?.imageUrl ||
-    guide.imageUrl ||
-    "/module-dofus/Dofus_Sylvestre.png";
 
   // Nonce pour inline scripts de sécurité
   const headersList = await headers();
@@ -213,7 +210,7 @@ export default async function PublicRushSylvestrePage() {
         </div>
         ) : (
           <>
-            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} isConnected={!!session?.user} visitor={guideVisitor} />
+            <PublicRushGuideClient guide={guide} milestones={milestones} isConnected={!!session?.user} visitor={guideVisitor} />
 
             {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
                 pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}

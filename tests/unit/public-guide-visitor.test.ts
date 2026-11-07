@@ -46,6 +46,9 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             successPoints: 12_345,
             metamobPseudo: "MonMetamob",
             metamobVerified: true,
+            alignment: "bontarien",
+            alignmentOrder: "vaillant",
+            altPseudos: [{ pseudo: "MaMule", classe: "cra" }],
         });
         expect(visitor).toEqual({
             pseudo: "MonIop",
@@ -55,12 +58,18 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             successPoints: 12_345,
             metamobPseudo: "MonMetamob",
             metamobVerified: true,
+            alignment: "bontarien",
+            alignmentOrder: "vaillant",
+            mules: [{ pseudo: "MaMule", classe: "cra" }],
         });
         expect(Object.keys(visitor).sort()).toEqual([
+            "alignment",
+            "alignmentOrder",
             "classe",
             "level",
             "metamobPseudo",
             "metamobVerified",
+            "mules",
             "pseudo",
             "serverId",
             "successPoints",
@@ -76,11 +85,16 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             successPoints: null,
             metamobPseudo: null,
             metamobVerified: false,
+            alignment: null,
+            alignmentOrder: null,
+            altPseudos: [],
         });
         expect(visitor.pseudo).toBeNull();
         expect(visitor.classe).toBeNull();
         expect(visitor.level).toBeNull();
         expect(visitor.metamobPseudo).toBeNull();
+        expect(visitor.alignment).toBeNull();
+        expect(visitor.mules).toEqual([]);
     });
 
     it("n'a AUCUN chemin pour recopier la clé Metamob, même si on la lui passe", () => {
@@ -93,11 +107,17 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             successPoints: 1,
             metamobPseudo: "MonMetamob",
             metamobVerified: true,
+            alignment: "brakmarien",
+            alignmentOrder: "destructeur",
+            altPseudos: [{ pseudo: "MaMule", classe: "cra", level: 200 }],
             metamobApiKey: "cle-secrete-qui-ne-doit-pas-sortir",
         };
         const visitor = toPublicGuideVisitor(leaky);
         expect(JSON.stringify(visitor)).not.toContain("cle-secrete");
         expect(Object.keys(visitor)).not.toContain("metamobApiKey");
+        // Les mules sont PUBLIQUES (fiche `/visiteurs/<id>`) et n'emportent que pseudo + classe :
+        // ni niveau, ni alignement, ni quoi que ce soit d'autre ne fuit par ce chemin.
+        expect(Object.keys(visitor.mules[0]).sort()).toEqual(["classe", "pseudo"]);
     });
 });
 
@@ -144,7 +164,9 @@ describe("Tuile du guide — jamais de données privées, jamais pour un anonyme
                 (m) => !METAMOB_ALLOWED.includes(m)
             );
             expect(unknown, `${name} expose un identifiant Metamob inattendu`).toEqual([]);
-            expect(code).not.toMatch(/altPseudos/);
+            // Le CLIENT ne touche jamais la ligne de profil : il ne voit que le DTO (`mules`,
+            // `alignment`…). Le lib, lui, lit `altPseudos` — c'est la source unique des mules.
+            if (name === "client") expect(code).not.toMatch(/altPseudos/);
             expect(code).not.toMatch(/userId/);
         }
     });

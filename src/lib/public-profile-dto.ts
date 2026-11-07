@@ -37,6 +37,8 @@ export type PublicProfileView = {
     /** La clé existe **sans être exposée** : c'est ce booléen que lit l'écran. */
     hasMetamobApiKey: boolean;
     alignment: string | null;
+    /** Ordre d'alignement (slug de `ORDERS`) — V2a-4, réglable depuis le guide public. */
+    alignmentOrder: string | null;
     alignmentLevel: number;
     dofusLevel: number | null;
     successPoints: number | null;
@@ -67,6 +69,7 @@ export type PublicProfileRow = {
     metamobApiKey: string | null;
     metamobVerified: boolean;
     alignment: string | null;
+    alignmentOrder: string | null;
     alignmentLevel: number;
     dofusLevel: number | null;
     successPoints: number | null;
@@ -126,6 +129,7 @@ export function toPublicProfileView(
         metamobVerified: row.metamobVerified,
         hasMetamobApiKey: typeof row.metamobApiKey === "string" && row.metamobApiKey.length > 0,
         alignment: row.alignment,
+        alignmentOrder: row.alignmentOrder,
         alignmentLevel: row.alignmentLevel,
         dofusLevel: row.dofusLevel,
         successPoints: row.successPoints,

@@ -133,13 +133,20 @@ Il n'y a **qu'un** panneau, pas une variante publique :
 
 | Rangée | Contenu |
 |---|---|
-| barre du haut | « Conseillé dès le Niv. 200 » · route d'alignement · **Ressources** · **Pense-bête** · **Masquer les étapes faites** |
-| tuiles | **Personnage actif** (classe + serveur + pseudo) · **Alignement** (blason, tranche) · **Ouvrir Overlay** (seule action mise en avant) |
+| barre du haut | « Conseillé dès le Niv. 200 » · route d'alignement · **Ressources** · **Pense-bête** |
+| tuiles | **Personnage actif** (identité du compte : classe, serveur, pseudo, niveau, points de succès, porte espace visiteur) · **Alignement** (blason, tranche) · **Metamob** (pseudo + état) · **Rush Live** (état réel) · **Ouvrir Overlay** (seule action mise en avant) |
+| recherche + réglages | champ « Rechercher une quête » + menu **Options** (densité : masquer les étapes faites) |
 | progression | **une** barre pleine largeur + « Réinitialiser la progression » |
 
-⚠️ **Metamob** et **Rush Live** n'ont aucune source publique (compte de guilde,
-présence des membres) : elles ne sont pas rendues. Un verrou le vérifie
-(`rush-public-parity`) — ne pas les introduire avant l'espace visiteur.
+Depuis V2a-3 (07/11/2026), la tuile **Personnage actif** porte aussi l'identité du compte :
+le bandeau séparé de V2a-1 a été fusionné (deux blocs annonçaient « Personnage actif » pour
+la même intention, l'interne n'a qu'une tuile). Un anonyme ne voit que le personnage du
+navigateur — `visitor` est le seul garde.
+
+⚠️ **Metamob** a une source publique depuis V2a-3 (`metamobPseudo` + `metamobVerified` du
+profil visiteur ; la clé d'API n'a aucun chemin). **Rush Live**, lui, n'en a toujours pas :
+la tuile affiche « présence indisponible » jusqu'à la room par serveur (V2c) — **jamais un
+compteur**. Un verrou le vérifie (`rush-public-parity`).
 
 Le bandeau a quitté `page.tsx` : il est rendu par le client, qui reçoit
 `heroArt` en prop. Un `children` serveur ne pourrait pas héberger les contrôles.

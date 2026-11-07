@@ -251,17 +251,29 @@ vient de l'**agrandissement** d'une source basse résolution (`object-fit: cover
 tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayButton`) — on le
 **réutilise**, on n'en crée pas un second.
 
-**V2a-3 — surface connectée alignée sur l'interne**
+**V2a-3 — surface connectée alignée sur l'interne** *— livré le 07/11/2026*
 - Bloc du haut : Personnage actif · Alignement · Metamob · Rush Live · Ouvrir Overlay.
+  **Fait** : les cinq tuiles, dans cet ordre ; le bandeau d'identité de V2a-1 est **fusionné**
+  dans la tuile « Personnage actif » (une seule tuile, comme l'interne).
 - **Rush Live = visiteurs connectés du même serveur uniquement**, consentement `showPresence`
   (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c** ;
-  V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé.
+  V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé. **Fait** : tuile non
+  interactive, texte « présence indisponible ».
 - **Alignement** : `PublicProfile.alignment` existe en base mais **aucune action ne l'écrit**
-  (mesuré) → bouton « renseigner » dans la modale de première arrivée (V2a-4), pas une tuile vide.
+  (mesuré) → bouton « renseigner » dans la modale de première arrivée (V2a-4), pas une tuile
+  vide. **Fait** : la tuile existante (alignement **déduit des quêtes validées**) est conservée
+  telle quelle ; aucune tuile nouvelle ne lit `PublicProfile.alignment`.
 - **Metamob** : pseudo + « vérifié » (données déjà présentes côté visiteur) ; jamais la clé.
+  **Fait** : `metamobPseudo` + `metamobVerified` ajoutés au DTO (`public-guide-visitor.ts`) et
+  à la règle pure `metamobState` (3 états) — **zéro requête neuve**, aucun accès `@/server/`.
 - Bloc **« Rechercher une quête » + Options** entre le haut et la progression (anatomie interne).
+  **Fait** : le champ a quitté la colonne du détail ; « Options » porte la densité
+  (« Masquer les étapes faites »), V2a-4 y branchera « Revoir le tour ».
 - Le guide lui-même (blocs, coches, donjons, ressources) reste **le même composant partagé** :
   la parité est verrouillée par `rush-public-parity`, aucun composant dupliqué.
+- Verrous : `rush-public-parity` **42** (ordre des 5 tuiles, Rush Live honnête, recherche+Options
+  entre tuiles et progression) · `public-guide-visitor` **10** (7 scalaires, liste blanche des
+  identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
 **V2a-4 — première arrivée (non connecté et connecté)**
 - Modale d'entrée : **classe → alignement → lancer le rush**, puis **tour guidé complet**.

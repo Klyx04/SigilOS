@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 08/11/2026 — **Progression Communautaire + accueil public** — branche `feat/visiteur-v2a-2-progression-communautaire`
+
+> **Décision tranchée (D-V21)** : la progression de rush publiée aux visiteurs du même serveur a son **propre consentement** — `PublicProfile.showRushProgress`, `false` par défaut. Ni `showOnDirectory` (« figurer dans l'annuaire ») ni `showPresence` (« être vu en ligne ») ne couvraient cette finalité : les réutiliser aurait publié des progressions **déjà en base** sans consentement.
+> **Fait** : **V2a-2** — colonne + migration `20270129000000_public_profile_show_rush_progress` (additive, indexée) ; 3ᵉ case dans les réglages ; panneau « Progression Communautaire » (règle pure `rush-community-progress`, `showRushProgress` + serveur du lecteur imposés, action colocalisée, nom de personnage seulement). **V2a-4** — accueil de première arrivée en 3 étapes qui délègue aux sélecteurs existants (drapeau local, rejouable via Options). **V2a-6** — CTA anonyme « Créer mon profil visiteur ». **V2a-5** : « Réinitialiser » **déjà** dans la barre (mesure, rien à coder).
+> **Mesures** : `TourProvider` n'est monté **que** dans `src/app/dashboard/[guildId]/layout.tsx` ⇒ le tour spotlight public est un **lot séparé**, pas une réutilisation de `ModuleTourReplayButton` ; `RushOnboardingWizardModal` (interne) exige `guildId` et la DA Carnet ⇒ inutilisable côté visiteur.
+> **Preuves** : `rush-community-progress` **12** · `rush-public-onboarding` **6** · `public-profile-schema` **16** · `public-profile-view` **7** · `rush-public-parity` **45** · `tsc` 0 · ESLint 0 erreur · **1 migration**.
+> **Reste** : **V2a-4 reste** (tour guidé spotlight) → V2b → V2c → V2d → V3. **Ops** : `npx prisma migrate deploy` + `npx prisma generate` en local, puis redémarrer `npm run dev` ; bêta par `./scripts/deploy-cd.sh beta`.
+> **Rotation** : bloc « 06/11/2026 (suite 12) — ladder (V1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 07/11/2026 (suite 4) — **Responsive : le skill devient un cliquet vérifié** — branche `chore/responsive-guard`
 
 > **Questions user (verbatim)** : « le skill on veut qu'il soit employé systématiquement sur les nouveautés les modifs de code etc non ? » et « quid du responsive non en place actuellement ça mérite un chantier titanesque ? ».
@@ -54,27 +62,3 @@
 > **Preuves** : `public-guide-visitor` **6** · `rush-public-parity` 39 (le client n'importe toujours aucun `@/server/`) · suite **634 fichiers / 6 692 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : **V2a-3** (surface connectée = anatomie interne) → **V2a-2** (Progression Communautaire) → **V2a-4/5/6** (modale classe>alignement>lancer + tour rejouable, en-tête « Rush Dofus Sylvestre » + image nette + « Ma cité » compacte, CTA profil anonyme) → V2b → V2c → V2d → V3. **Brief UI complet du 06/11 : `PLAN-ESPACE-VISITEUR.md` §5 « refonte de la surface Rush public ».** Limite assumée : `resources` reste locale. **Ops** : contrôles 390 / 768 / 1 440 sur le guide connecté (bandeau) et anonyme.
 > **Rotation** : bloc « 06/11/2026 (suite 7) — vérifications (D-V16) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 06/11/2026 (suite 12) — **Espace visiteur : ladder (V1e) + progression en base (V1d)** — branches `feat/visiteur-ladder`, `feat/visiteur-progression`
-
-> **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
-> **Mesures** : ① le snapshot Ankama vivait **inline** dans `updateUserProfile` (`profile-actions.ts` l. 843-887) ; `PublicProfile.dofusLevel/totalXp/successPoints/lastLadderSync` existaient mais **personne ne les remplissait** ⇒ annuaire à « — » ; ② `PublicRushProgress.characterSlot` était un **`Int`** quand les trois tables `PlayerGuide*` portent une **chaîne** (`"PRINCIPAL"` / pseudo) et que la clé invitée est un texte (`pseudo-serveur`) ; ③ la table était **vide par construction** (aucun writer).
-> **Fait (V1e)** : noyau extrait dans `src/server/ladder-snapshot.ts` (bornes dures, fail-open, timeout 6 s), branché deux fois côté visiteur (enregistrer l'identité, vérifier **son propre** pseudo). `classe` jamais écrite depuis le ladder (libellé ↔ id).
-> **Fait (V1d)** : Zod borné `src/lib/public-rush-progress.ts` (300 blocs / 500 étapes / 2 000 donjons), store `src/server/rush-public-store.ts` (garde, rate limit, `guideId` constant, `skipDuplicates`), actions minces ; guide : adoption **une fois par emplacement**, miroir débouncé 2 s, reset ciblé, **aucun appel** si non connecté ; **migration** `20270128000000_public_rush_progress_slot_text` (Int → String, **D-V20**).
-> **Preuves** : `ladder-snapshot` **8** · `public-rush-progress` **15** · `public-profile-schema` **16** · `tsc` 0 · ESLint 0 erreur · **1 migration** (298 au total).
-> **Reste** : **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. Limite assumée : `resources` (5ᵉ clé locale) reste locale. **Ops** : `npx prisma migrate deploy` en **bêta** + redémarrer `npm run dev` (client Prisma régénéré).
-> **Rotation** : bloc « 06/11/2026 (suite 6) — assets (D-V15) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
-
-
-
-
-

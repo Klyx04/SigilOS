@@ -30,9 +30,16 @@ import {
   ClipboardList,
   RotateCcw,
   AlertTriangle,
+  Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/lib/i18n/client";
 import type { RushMilestone, RushSequence, RushDungeonRef } from "@/types/rush-guide-types";
 import { getClass } from "@/lib/dofus-assets";
@@ -68,7 +75,7 @@ import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuest
 import { resolveRushRoute } from "@/lib/rush-route";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
-import type { PublicGuideVisitor } from "@/lib/public-guide-visitor";
+import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
 import {
   adoptMyRushProgress,
   loadMyRushProgress,
@@ -972,6 +979,28 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
         .join(" · ")
     : null;
 
+  // V2a-3 — ce que montre la tuile « Personnage actif » : le personnage invité prime,
+  // sinon l'identité du COMPTE (`visitor`, fusionnée depuis le bandeau V2a-1). Une seule
+  // tuile, deux sources, aucune valeur inventée : sans les deux, la tuile reste le rendu
+  // d'avant (progression du navigateur).
+  const activeClass = characterClass ?? visitorClass;
+  const activeServerId =
+    hasGuestCharacter(character) && character?.serverId ? character.serverId : visitor?.serverId ?? null;
+  const activeName = hasGuestCharacter(character) ? characterLabel : visitor?.pseudo ?? null;
+
+  /**
+   * V2a-3 — libellé Metamob : TROIS états sortis de la règle pure `metamobState`
+   * (aucune clé d'API, aucun appel réseau). La tuile ne raconte donc rien d'autre que
+   * ce que le profil déclare.
+   */
+  const metamob = metamobState(visitor);
+  const metamobLabel =
+    metamob === "verified"
+      ? locale === "en" ? "linked · verified" : "lié · vérifié"
+      : metamob === "linked"
+        ? locale === "en" ? "linked · unverified" : "lié · non vérifié"
+        : locale === "en" ? "not linked" : "non renseigné";
+
   // Remise à zéro : les CINQ clés de progression partent ensemble (étapes cochées,
   // blocs terminés, repères, coches de donjons, ressources préparées). Un reset partiel
   // laisserait un guide à moitié coché — et une fenêtre d'overlay ouverte se réaligne
@@ -1233,62 +1262,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           plus qu'une, comme le guide interne. Le voile de `.da-guide-hero::after`
           garde le titre lisible quelle que soit l'image du bloc. Le panneau, lui,
           est rendu par le client : c'est ici qu'il trouve son état (route, filtre,
-          personnage) sans redescendre par des props. */}
+          personnage) sans redescendre par des props.
+
+          V2a-3 (07/11/2026) — le bandeau d'identité de V2a-1 est FUSIONNÉ dans la
+          tuile « Personnage actif ». Deux blocs qui annonçaient tous les deux
+          « Personnage actif » pour la même intention étaient un doublon ; l'interne
+          n'a qu'une tuile. L'identité du COMPTE reste gardée par `visitor` (un
+          anonyme ne la voit pas), mais elle se lit désormais DANS la tuile. */}
       <header className="da-guide-hero">
-        {/* ── V2a — BANDEAU DU VISITEUR CONNECTÉ ───────────────────────────────
-            Trois informations et une porte : qui est là (classe + pseudo), son serveur,
-            ses deux chiffres publics (niveau, points de succès — remplis par V1e), et le
-            lien vers son espace. Aucune donnée de guilde, aucune liste de membres.
-            Anonyme (`visitor === null`) ⇒ rien n'est rendu, la page reste identique. */}
-        {visitor ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface/60 px-4 py-2.5 sm:px-5">
-            <span className="flex min-w-0 items-center gap-2">
-              {visitorClass ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={visitorClass.icon}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-7 w-7 shrink-0 object-contain"
-                />
-              ) : null}
-              <span className="min-w-0">
-                <span className="block text-[11px] text-muted-foreground">
-                  {locale === "en" ? "Active character" : "Personnage actif"}
-                </span>
-                <span className="block truncate text-sm font-semibold text-foreground">
-                  {visitor.pseudo ?? (locale === "en" ? "Visitor" : "Visiteur")}
-                </span>
-              </span>
-            </span>
-
-            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-              {getDofusServerImage(visitor.serverId) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={getDofusServerImage(visitor.serverId)!}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-4 w-4 shrink-0 rounded object-cover border border-black/30"
-                />
-              ) : null}
-              <span className="truncate">{guestServerLabel(visitor.serverId) ?? ""}</span>
-            </span>
-
-            <span className="text-xs text-muted-foreground">
-              {locale === "en" ? "Level" : "Niveau"}{" "}
-              <b className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</b>
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {locale === "en" ? "Success points" : "Points de succès"}{" "}
-              <b className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</b>
-            </span>
-
-            <Link href="/espace-visiteur/general" className="da-kicker ml-auto shrink-0">
-              {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
-            </Link>
-          </div>
-        ) : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
         <div className="da-guide-hero-inner">
@@ -1303,14 +1284,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           </h1>
         </div>
         <div className="da-guide-controls">
-      {/* ── BARRE DU HAUT — contexte + outils ────────────────────────────────
-          MÊME ANATOMIE que le panneau du guide interne (05/11/2026) : le
-          contexte et les outils secondaires en haut, les TUILLES au milieu, la
-          progression en barre pleine largeur en bas. Deux panneaux différents
-          pour la même intention = deux dettes ; il n'en reste qu'un. Les tuiles
-          sans source côté visiteur (Metamob lié à la guilde, Rush Live =
-          présence des membres) ne sont pas rendues — l'espace visiteur les
-          apportera, la place est déjà la bonne. */}
+      {/* ── BARRE DU HAUT — contexte + outils de contenu ─────────────────────
+          MÊME ANATOMIE que le panneau du guide interne (05/11/2026) : le contexte et
+          les outils secondaires en haut, les TUILLES au milieu, la recherche et les
+          réglages, puis la progression en barre pleine largeur en bas.
+          V2a-3 (07/11/2026) : cette barre garde les outils de CONTENU (Ressources,
+          Pense-bête) ; la densité est passée dans « Options », avec les réglages. */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-warning">
@@ -1354,50 +1333,39 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
             <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
           </button>
 
-          {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
-              dans le journal de la vue, supprimé avec lui. Effet inchangé —
-              les blocs et les étapes déjà faits sortent du détail ci-dessous. */}
-          <button
-            type="button"
-            onClick={() => setHideDone((v) => !v)}
-            aria-pressed={hideDone}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground",
-              hideDone && "border-accent/40 text-accent"
-            )}
-            title={locale === "en" ? "Remove validated steps from detail view" : "Retirer du détail ce qui est déjà validé"}
-          >
-            <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>
-              {hideDone
-                ? locale === "en" ? "Show full detail" : "Afficher tout le détail"
-                : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}
-            </span>
-          </button>
+          {/* L'interrupteur de densité a quitté cette barre en V2a-3 : il vit dans
+              « Options », la rangée sous les tuiles, avec les réglages — pas avec les
+              outils de contenu (Ressources, Pense-bête). Même état, même effet. */}
         </div>
       </div>
 
-      {/* ── TUILLES — personnage actif · alignement · overlay ─────────────── */}
+      {/* ── TUILLES — les CINQ de l'interne (V2a-3) : personnage actif · alignement ·
+          Metamob · Rush Live · overlay. Chacune n'affiche que ce qu'elle peut prouver. */}
       <div className="flex flex-wrap items-stretch gap-3 px-4 py-3 sm:px-5">
-        {/* Personnage actif */}
+        {/* Personnage actif — UNE tuile, DEUX sources (V2a-3) : le personnage invité
+            (progression locale) quand il existe, sinon l'identité du COMPTE connecté
+            (fusionnée ici depuis le bandeau V2a-1). Anonyme sans personnage ⇒ rendu
+            d'avant, à l'identique. */}
         <div className="flex min-w-0 items-center gap-2.5">
-          {hasGuestCharacter(character) && characterClass ? (
+          {activeClass ? (
             // Icône de classe du jeu (mêmes PNG que le profil et le dashboard).
+            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={characterClass.icon}
-              alt={characterClass.name}
-              title={characterClass.name}
+              src={activeClass.icon}
+              alt={activeClass.name}
+              title={activeClass.name}
               className="h-8 w-8 shrink-0 object-contain"
             />
           ) : (
             <UserRound className="h-8 w-8 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
-          {hasGuestCharacter(character) && character.serverId && getDofusServerImage(character.serverId) && (
+          {activeServerId && getDofusServerImage(activeServerId) && (
             // Vignette du serveur déclaré (assets du jeu, WebP).
+            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={getDofusServerImage(character.serverId)!}
+              src={getDofusServerImage(activeServerId)!}
               alt=""
-              title={guestServerLabel(character.serverId) ?? ""}
+              title={guestServerLabel(activeServerId) ?? ""}
               loading="lazy"
               decoding="async"
               draggable={false}
@@ -1408,8 +1376,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
             <p className="text-[11px] text-muted-foreground">
               {locale === "en" ? "Active character" : "Personnage actif"}
             </p>
-            {hasGuestCharacter(character) ? (
-              <span className="block truncate text-xs font-semibold text-foreground">{characterLabel}</span>
+            {activeName ? (
+              <span className="block truncate text-xs font-semibold text-foreground">{activeName}</span>
             ) : (
               <span className="block text-[11px] text-muted-foreground">
                 {locale === "en"
@@ -1417,6 +1385,28 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
                   : "Progression enregistrée pour ce navigateur"}
               </span>
             )}
+            {/* Identité du COMPTE — `visitor` est le SEUL garde : un anonyme ne voit
+                ni niveau, ni points de succès, ni porte vers l'espace visiteur. */}
+            {visitor ? (
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                <span>
+                  {locale === "en" ? "Level" : "Niveau"}{" "}
+                  <b className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</b>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>
+                  <b className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</b>{" "}
+                  {locale === "en" ? "success points" : "points de succès"}
+                </span>
+                <span aria-hidden="true">·</span>
+                <Link
+                  href="/espace-visiteur/general"
+                  className="underline underline-offset-2 transition-colors hover:text-foreground"
+                >
+                  {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
+                </Link>
+              </span>
+            ) : null}
           </div>
           <button
             type="button"
@@ -1499,6 +1489,52 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           </div>
         </div>
 
+        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+
+        {/* Metamob — ce que le PROFIL déclare, rien de plus (V2a-3). Pseudo et état
+            viennent de `visitor` (`metamobPseudo` + `metamobVerified`, fusionnés par
+            `metamobState`) : aucune clé d'API, aucun appel réseau, aucune collection
+            inventée. Sans visiteur, pas de tuile — il n'y a pas de source. */}
+        {visitor ? (
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* Asset Ocre du jeu, posé NU (le même que le guide interne). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/icons/ocre.png"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              className="h-8 w-8 shrink-0 object-contain"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">Metamob</p>
+              <span className="block truncate text-xs font-semibold text-foreground">{metamobLabel}</span>
+            </div>
+          </div>
+        ) : null}
+
+        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+
+        {/* Rush Live — l'ÉTAT RÉEL, jamais un compteur (V2a-3). Le visiteur n'a aucune
+            room de présence avant V2c (room par serveur, consentement `showPresence`) :
+            la tuile le dit. Ce n'est pas un bouton : il n'y a rien à ouvrir, donc pas de
+            contrôle mort — et surtout pas « 0 en ligne », qui serait un mensonge. */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/dofus/modules/guild.png"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted-foreground">Rush Live</p>
+            <span className="block truncate text-xs font-semibold text-muted-foreground">
+              {locale === "en" ? "presence unavailable" : "présence indisponible"}
+            </span>
+          </div>
+        </div>
 
         <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
 
@@ -1517,6 +1553,74 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{locale === "en" ? "Open Overlay" : "Ouvrir Overlay"}</span>
         </button>
+      </div>
+
+      {/* ── RECHERCHE + OPTIONS — la rangée de l'anatomie interne (V2a-3) ─────
+          Elle vivait plus bas, dans la colonne du détail ; le brief du 06/11 la veut
+          entre le haut du panneau (tuiles) et la progression. Même état, mêmes
+          gestionnaires : seul l'emplacement change. `Options` ne porte que des
+          réglages qui EXISTENT côté visiteur — aujourd'hui un seul (la densité) ;
+          V2a-4 y branchera « Revoir le tour ». */}
+      <div className="flex flex-col gap-2 border-t border-border px-4 py-2.5 sm:flex-row sm:items-center sm:px-5">
+        <div className="relative min-w-0 flex-1 sm:max-w-md">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.rushGuide.searchPlaceholder}
+            aria-label={locale === "en" ? "Search the guide" : "Rechercher dans le guide"}
+            className="h-9 w-full rounded-[4px] border border-border bg-surface pl-9 pr-9 text-xs text-foreground transition-colors placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label={locale === "en" ? "Clear search" : "Effacer la recherche"}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[3px] p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={locale === "en" ? "Guide options" : "Options du guide"}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            >
+              <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Options</span>
+            </button>
+          </DropdownMenuTrigger>
+          {/* Radix porte le menu dans `document.body` : `da-portal` lui rend le thème
+              de la DA (même mécanisme que les modales du guide). */}
+          <DropdownMenuContent
+            {...daScope}
+            align="end"
+            className="da-portal min-w-[15rem] rounded-[4px] border border-border bg-background p-1.5"
+          >
+            <DropdownMenuItem
+              onSelect={() => setHideDone((v) => !v)}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
+            >
+              <CheckCheck
+                className={cn("h-4 w-4", hideDone ? "text-accent" : "text-muted-foreground")}
+                aria-hidden="true"
+              />
+              <span className="text-xs font-semibold">
+                {hideDone
+                  ? locale === "en" ? "Show full detail" : "Afficher tout le détail"
+                  : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* ── PROGRESSION — UNE seule barre, pleine largeur ────────────────────
@@ -1564,37 +1668,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           }}
         />
         <div className="da-guide-main">
-      {/* ── BARRE DE CONTRÔLE (progression · actions · personnage) + RECHERCHE ──
-          Un seul panneau porte les trois : où en est le joueur, ce qu'il peut
-          préparer, et SON personnage. Le bloc d'en-tête qui les répétait au-dessus
-          est supprimé (retour user : « supprime le bloc ») — l'alignement et la
-          remise à zéro qu'il portait descendent ICI.
-          ⚠️ NON collant — mesuré le 22/09 (1291×712) : collant (décalage `top-16`, `z-30`),
-          ce panneau fait 337 px de haut et recouvrait le rail de droite (337 + 596 px de
-          rail pour 712 px de viewport) : le rail devenait invisible dès qu'on
-          scrollait. Le panneau défile donc avec la page ; c'est le rail qui reste
-          affiché pendant la lecture du chapitre. */}
-
-      {/* Search bar & Live Filter */}
-      <div className="relative mb-8">
-        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" aria-hidden="true" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t.rushGuide.searchPlaceholder}
-          className="w-full h-11 pl-10 pr-10 rounded-md bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            aria-label={locale === "en" ? "Clear search" : "Effacer la recherche"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      {/* ── COLONNE DU DÉTAIL ─────────────────────────────────────────────────
+          Le champ « Rechercher une quête » et l'interrupteur de densité ont rejoint
+          le panneau du haut en V2a-3 (anatomie du guide interne) : un seul état
+          `searchQuery`, un seul endroit pour le saisir — pas deux champs pour la
+          même recherche.
+          ⚠️ Cette colonne n'est PAS collante (mesure du 22/09 : une barre collante
+          de 337 px recouvrait le rail) : c'est le rail de droite qui reste affiché
+          pendant la lecture du chapitre. */}
 
       {/* ── CHAPTERS & QUEST BLOCKS ── */}
       {/* ── LE DÉTAIL, CHAPITRE PAR CHAPITRE ──

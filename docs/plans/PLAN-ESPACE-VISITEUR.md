@@ -275,18 +275,46 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   entre tuiles et progression) · `public-guide-visitor` **10** (7 scalaires, liste blanche des
   identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
-**V2a-4 — première arrivée (non connecté et connecté)**
-- Modale d'entrée : **classe → alignement → lancer le rush**, puis **tour guidé complet**.
+**V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement le 07/11/2026*
+- **Alignement réglable — fait**, pour **tout le monde**. Connecté : action `updatePublicAlignment`
+  (`src/server/actions/public-profile-actions.ts` + schéma `publicAlignmentSchema`), appelée par
+  l'action colocalisée `_actions/public-alignment.ts` (le client public n'importe toujours aucun
+  `@/server/`) ; modale `PublicAlignmentModal` (cité → Ordre), l'Ordre étant **vérifié contre la
+  cité** côté serveur. Anonyme : **même modale, mode local** (`localOnly`) — aucune écriture serveur,
+  la cité pilote la route (`resolveRushRoute`) et l'Ordre est conservé dans le navigateur.
+  `PublicProfile.alignmentOrder` entre dans le DTO (`PublicProfileView` + `select`). La tranche reste
+  déduite des quêtes validées.
+- **Mules déclarées — fait.** `altPseudos` entre dans `PublicGuideVisitor` (`mules: {pseudo, classe}[]`,
+  déjà publique dans l'annuaire) et `GuestCharacterModal` les propose en un clic ; la progression en base
+  étant clé par `characterSlot`, une mule est un emplacement comme un autre.
+- **Reste** : la modale d'entrée **classe → alignement → lancer le rush**, puis le **tour guidé complet**.
 - Tour **rejouable** par un bouton « Revoir le tour », et **une seule fois** en automatique
   (drapeau local par visiteur). Réutilise `ModuleTourReplayButton` + `tour-provider`.
 - « Ma cité » (Bontarien / Neutre / Brâkmarien, `PublicRouteChoice`) quitte la barre : elle vit
   dans la modale et reste un **chip compact** ensuite (elle « mange de la place » aujourd'hui).
 
-**V2a-5 — en-tête du guide**
-- Titre **« Rush Dofus Sylvestre »** + **icône du Dofus Sylvestre** à côté (`Dofus_Sylvestre.png`).
-- Image de fond **nette** : source haute résolution dédiée (le flou actuel est un agrandissement,
-  pas un effet) — sinon fond uni + visuel du Dofus.
-- Bouton **« Réinitialiser »** visible et explicite (il existe, à remonter dans la barre).
+**V2a-5 — en-tête du guide** *— livré partiellement le 07/11/2026*
+- Titre **« Aventure Rush Sylvestre »** + **icône du Dofus Sylvestre** à côté
+  (`/module-dofus/Dofus_Sylvestre.png`). **Fait.**
+- Image de fond **nette** : le flou n'était pas un `filter` mais l'agrandissement d'une source
+  basse résolution en `cover`. **Fait** : l'image de fond est **supprimée**, le bandeau garde le
+  dégradé peint de la DA ; le Dofus est posé à côté du titre. Prop `heroArt` retirée.
+- **Corrections demandées le 07/11** (retour user sur V2a-3) — **faites** :
+  « Ma cité » (les trois cités) **quitte la barre** → sous-menu radio de « Options » (le choix
+  pilote toujours `resolveRushRoute`) ; le conseil « Conseillé dès le Niv. 200 » **n'est plus
+  affiché** (public **et** interne) ; « Mon espace visiteur » monte dans le **bandeau du titre** ;
+  le **pseudo est le déclencheur** du changement de personnage (bouton « Changer de personnage »
+  supprimé) ; **Metamob est cliquable** → espace visiteur (le formulaire et les actions y sont
+  déjà : aucun import `@/server/` dans le client) ; **le guide anonyme n'affiche ni Metamob ni
+  Rush Live**.
+- Bouton **« Réinitialiser »** visible et explicite (il existe, à remonter dans la barre). **Reste.**
+- **Reste aussi** : l'**alignement** cliquable comme l'interne. Mesuré : `PublicProfile.alignment`
+  existe mais **aucune action ne l'écrit** et l'interne passe par `resetRushAlignment(guildId, …)`
+  (pas de `guildId` côté visiteur) → il faut une action `updatePublicAlignment` (V2a-4), pas une
+  tuile cliquable qui ouvrirait une modale vide.
+- **Reste** : jouer le rush sur une **mule déclarée** (`PublicProfile.altPseudos`, déjà publique).
+  Mesuré : la progression en base est clé par `characterSlot` (texte), donc **c'est possible** ;
+  il manque seulement la liste des mules dans le sélecteur (V2a-4).
 
 **V2a-6 — invitation au profil (anonyme)**
 - Le guide non connecté **encourage** à créer son profil visiteur (progression sauvegardée,

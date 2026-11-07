@@ -133,15 +133,20 @@ Il n'y a **qu'un** panneau, pas une variante publique :
 
 | Rangée | Contenu |
 |---|---|
-| barre du haut | « Conseillé dès le Niv. 200 » · route d'alignement · **Ressources** · **Pense-bête** |
-| tuiles | **Personnage actif** (identité du compte : classe, serveur, pseudo, niveau, points de succès, porte espace visiteur) · **Alignement** (blason, tranche) · **Metamob** (pseudo + état) · **Rush Live** (état réel) · **Ouvrir Overlay** (seule action mise en avant) |
-| recherche + réglages | champ « Rechercher une quête » + menu **Options** (densité : masquer les étapes faites) |
+| barre du haut | **Ressources** · **Pense-bête** (les deux outils de contenu ; ni conseil ni cité depuis V2a-5) |
+| tuiles | **Personnage actif** (classe, serveur, pseudo **cliquable** pour changer — les mules déclarées sont proposées, chiffres **à droite**) · **Alignement** (blason, tranche — **cliquable** : modale cité → Ordre) · **Metamob** (pseudo + état, lien vers l'espace visiteur) · **Rush Live** (état réel, connectés seulement) · **Ouvrir Overlay** (seule action mise en avant, picto réel `modules/guide.png`) |
+| recherche + réglages | champ « Rechercher une quête » + menu **Options** (densité · **Ma cité** en sous-menu radio) |
 | progression | **une** barre pleine largeur + « Réinitialiser la progression » |
+
+Le bandeau du titre (V2a-5) : **« Aventure Rush Sylvestre »** + le **Dofus Sylvestre** posé NU à
+côté, **aucune image de fond** (le flou venait de l'agrandissement d'une source basse résolution),
+et la porte **« Mon espace visiteur »** sous le titre, pour un compte connecté.
+
+Un **anonyme** ne voit ni Metamob ni Rush Live : pas de source, pas de tuile.
 
 Depuis V2a-3 (07/11/2026), la tuile **Personnage actif** porte aussi l'identité du compte :
 le bandeau séparé de V2a-1 a été fusionné (deux blocs annonçaient « Personnage actif » pour
-la même intention, l'interne n'a qu'une tuile). Un anonyme ne voit que le personnage du
-navigateur — `visitor` est le seul garde.
+la même intention, l'interne n'a qu'une tuile). `visitor` est le seul garde.
 
 ⚠️ **Metamob** a une source publique depuis V2a-3 (`metamobPseudo` + `metamobVerified` du
 profil visiteur ; la clé d'API n'a aucun chemin). **Rush Live**, lui, n'en a toujours pas :

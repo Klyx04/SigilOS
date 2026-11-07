@@ -224,15 +224,52 @@ describe("Panneau public — la MÊME anatomie que le guide interne", () => {
     }
   });
 
-  it("les tuiles portent les trois briques qui ont une source côté visiteur", () => {
-    for (const title of ["Personnage actif", "Alignement", "Ouvrir Overlay"]) {
-      expect(PUB, title).toContain(title);
-    }
-    // Ni Metamob ni Rush Live : aucune source publique aujourd'hui (Metamob est
-    // lié au compte de guilde, Rush Live à la présence des membres). Le verrou
-    // empêche de réintroduire une tuile qui promettrait une donnée de guilde.
-    expect(PUB).not.toMatch(/Lier Metamob/);
-    expect(PUB).not.toMatch(/Rush Live/);
+  it("les CINQ tuiles de l'interne, dans l'ordre, chacune avec sa VRAIE source (V2a-3)", () => {
+    // Anatomie du guide interne : Personnage actif · Alignement · Metamob · Rush Live ·
+    // Ouvrir Overlay. L'ordre compte — c'est lui qui rend le panneau lisible d'un coup.
+    const order = ["Personnage actif", "Alignement", "Metamob", "Rush Live", "Ouvrir Overlay"];
+    const positions = order.map((title) => PUB.indexOf(title));
+    order.forEach((title, i) => {
+      expect(positions[i], `${title} absent du panneau`).toBeGreaterThan(-1);
+      if (i > 0) {
+        expect(positions[i], `${title} n'est pas rendu après ${order[i - 1]}`).toBeGreaterThan(
+          positions[i - 1]
+        );
+      }
+    });
+  });
+
+  it("Metamob n'affiche que le lien DÉCLARÉ : ni clé, ni appel réseau", () => {
+    // La tuile est nouvelle en V2a-3 : elle existe parce que `PublicProfileView` porte
+    // déjà `metamobPseudo` + `metamobVerified` (la clé, elle, est réduite à un booléen).
+    expect(PUB).not.toMatch(/Lier Metamob/); // le geste de liaison reste dans l'espace visiteur
+    expect(PUB).toMatch(/metamobState\(visitor\)/); // règle pure, aucun calcul local
+    expect(PUB).toContain('"/assets/icons/ocre.png"');
+    expect(PUB).not.toMatch(/metamobApiKey/i);
+  });
+
+  it("Rush Live dit son état réel — « présence indisponible », jamais un compteur", () => {
+    // La room par serveur est V2c : tant qu'elle n'existe pas, la tuile ne compte rien.
+    // Un « 0 en ligne » calculé sur la base serait exactement le mensonge interdit ici.
+    expect(PUB).toMatch(/présence indisponible/);
+    expect(PUB).not.toMatch(/liveMembers/);
+    expect(PUB).not.toMatch(/en ligne/);
+    expect(PUB).not.toMatch(/connectionStatus/);
+  });
+
+  it("la recherche et « Options » vivent ENTRE les tuiles et la progression (V2a-3)", () => {
+    // Anatomie du guide interne, dans cet ordre : le haut (contexte + outils), les tuiles,
+    // la rangée recherche/réglages, puis la barre de progression.
+    const tiles = PUB.indexOf("Personnage actif");
+    const search = PUB.indexOf("Rechercher dans le guide");
+    const options = PUB.indexOf("Options du guide");
+    const progress = PUB.indexOf('"Progression locale"}');
+    expect(tiles, "tuiles absentes").toBeGreaterThan(-1);
+    expect(search, "recherche absente").toBeGreaterThan(tiles);
+    expect(options, "Options absent").toBeGreaterThan(search);
+    expect(progress, "progression absente").toBeGreaterThan(options);
+    // UN seul champ de recherche : le doublon de la colonne du détail a disparu.
+    expect(PUB.match(/placeholder=\{t\.rushGuide\.searchPlaceholder\}/g)?.length).toBe(1);
   });
 
   it("l'overlay est une action mise en avant, pas un 4e bouton de grille", () => {
@@ -364,12 +401,13 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     // L'ancienne liste globale a disparu (aucun code mort).
     expect(existsSync("src/components/dofus-quests/rush/RushDungeonList.tsx")).toBe(false);
     expect(existsSync("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toBe(false);
-    // La barre d'actions du public porte QUATRE actions (3 outils + l'overlay),
-    // désormais réparties entre la barre du haut et la rangée de tuiles.
+    // La barre d'actions du public porte QUATRE actions (3 outils + l'overlay), désormais
+    // réparties entre la barre du haut, la rangée de tuiles et — V2a-3 — le menu
+    // « Options » (la densité a quitté la barre pour les réglages, comme dans l'interne).
     expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setShowResources\(true\)\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setPenseBeteOpen\(true\)\}/);
-    expect(PUB).toMatch(/onClick=\{\(\) => setHideDone/);
+    expect(PUB).toMatch(/onSelect=\{\(\) => setHideDone\(\(v\) => !v\)\}/);
   });
 
   it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {

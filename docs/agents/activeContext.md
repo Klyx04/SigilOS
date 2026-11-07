@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 07/11/2026 — **Guide Rush public : la surface connectée alignée sur l'interne (V2a-3)** — branche `feat/rush-public-connecte`
+
+> **Demande user (verbatim)** : « UI UX encore mauvaise », « je voudrais ceci [vue interne] » — puis, devant les trois schémas d'anatomie, « 1 · Fusion ».
+> **Mesures** : ① `PublicProfileView` porte **déjà** `metamobPseudo` + `metamobVerified` (et `showPresence`) et réduit la clé au booléen `hasMetamobApiKey` ⇒ la tuile Metamob n'exige **ni requête, ni SELECT, ni migration** ; ② le client public n'a **aucune** présence : sa tuile Rush Live ne peut donc dire que « présence indisponible » (formulation déjà employée par l'interne, `RushTimelineClient` l. 2310) ; ③ la recherche du public vivait **hors** du bandeau, dans la colonne du détail ; ④ quatre des cinq entrées du menu « Options » interne n'ont **aucune source** côté visiteur.
+> **Fait** : bandeau V2a-1 **fusionné** dans la tuile « Personnage actif » (pseudo, serveur, niveau, points de succès, porte espace visiteur — `visitor` reste le **seul** garde, anonyme inchangé) ; **cinq tuiles** dans l'ordre interne avec **Metamob** (règle pure `metamobState`, 3 états) et **Rush Live** (div non interactive, aucun compteur) ; rangée **« Rechercher une quête » + Options** entre les tuiles et la progression — la densité a quitté la barre du haut, le champ a quitté la colonne du détail (un seul `searchQuery`) ; DTO de **sept scalaires**.
+> **Preuves** : `public-guide-visitor` **10** (liste blanche des identifiants `metamob*`, clé non recopiable même passée en entrée, `metamobState` ×3) · `rush-public-parity` **42** (ordre des 5 tuiles, Rush Live honnête, recherche+Options entre tuiles et progression) · suite **634 fichiers / 6 699 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V2a-2** (Progression Communautaire) → **V2a-4** (modale classe → alignement → lancer, tour rejouable ; « Revoir le tour » ira dans **Options**) → **V2a-5** (titre « Rush Dofus Sylvestre » + icône + image nette + « Ma cité » compacte + « Réinitialiser » remonté) → **V2a-6** (CTA profil anonyme) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur le guide connecté, le guide anonyme, `/visiteurs` et la barre « Explorer ».
+> **Rotation** : bloc « 06/11/2026 (suite 8) — Reprise documentée : l'ordre et le prochain lot » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 06/11/2026 (suite 13) — **Guide public : le bandeau du visiteur (V2a-1)** — branche `feat/visiteur-guide-connecte`
 
 > **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
@@ -54,14 +64,6 @@
 > **Rotation** : bloc « 06/11/2026 (suite 3) — plafond de guildes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 06/11/2026 (suite 8) — **Reprise documentée : l'ordre et le prochain lot** — branche `dev`
-
-> **Demande user (verbatim)** : « tout est documenté ? pour reprendre dans une prochaine session les prochaines iterations ».
-> **Constats** : ① le rang 57 affichait encore « démarre après `L3` », périmé depuis huit lots ; ② le plan ne décrivait **pas V1i** (le prochain lot), seuls les lots livrés y figuraient ; ③ l'amorce volatile précédente avait été supprimée sans remplacement conforme au nommage de `zone-volatile.md`.
-> **Fait** : rang 57 → « prochain : **V1i** » ; `PLAN-ESPACE-VISITEUR.md` §5 décrit V1i (tranches exactes, `Dungeon.level`/`slug`, action batch, lien boss, verrou de parité) ; mémo de reprise daté `src/temp/memo-2026-11-06-espace-visiteur.md` (volatile, hors git) ; `activeContext` refermé.
-> **Preuves** : `harness-config` 9 ✓ (ROADMAP sous la limite) · aucune ligne de code touchée · **aucune migration**.
-> **Reste** : V1i → V1d → V1e → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440, compte sans admin, trois boutons « Vérifier », puis `PUBLIC_VISITOR_ENTRY=1`.
-> **Rotation** : bloc « 06/11/2026 (suite 2) — les six écrans (V1c) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

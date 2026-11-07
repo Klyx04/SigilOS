@@ -1,18 +1,22 @@
 /**
- * Guide public du Rush — **bandeau du visiteur connecté** (V2a).
+ * Guide public du Rush — **identité du visiteur connecté** (V2a, étendue en V2a-3).
  *
- * Deux règles, et une seule façon de les casser :
+ * Trois règles, et une seule façon de les casser :
  *
- * 1. **DTO étanche** : cinq scalaires (pseudo, classe, serveur, niveau, points de succès) —
- *    jamais les mules, jamais la clé Metamob, jamais `userId` ;
- * 2. **anonyme = inchangé** : la page ne lit le profil que s'il y a une session, et le
- *    bandeau n'est rendu que si l'identité existe. Un visiteur non connecté ne doit voir
- *    ni le bandeau, ni une requête en plus.
+ * 1. **DTO étanche** : sept scalaires (pseudo, classe, serveur, niveau, points de succès,
+ *    pseudo Metamob, vérification Metamob) — jamais les mules, jamais la **clé** Metamob,
+ *    jamais `userId`. Le test n'interdit pas le mot « Metamob » (la tuile V2a-3 existe) :
+ *    il liste les identifiants autorisés et refuse **tout autre** `metamob*` ;
+ * 2. **anonyme = inchangé** : la page ne lit le profil que s'il y a une session, et rien de
+ *    l'identité n'est rendu si elle manque. Un visiteur non connecté ne voit ni la tuile
+ *    enrichie, ni une requête en plus ;
+ * 3. **état Metamob** : trois cas seulement (rien / lié / vérifié), décidés par une règle
+ *    pure — la tuile ne raconte pas ce qu'elle veut.
  */
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { toPublicGuideVisitor } from "@/lib/public-guide-visitor";
+import { metamobState, toPublicGuideVisitor } from "@/lib/public-guide-visitor";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const stripComments = (code: string) =>
@@ -20,15 +24,28 @@ const stripComments = (code: string) =>
 
 const PAGE = "src/app/guides/rush-sylvestre/page.tsx";
 const CLIENT = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+const LIB = "src/lib/public-guide-visitor.ts";
 
-describe("Bandeau du guide — cinq scalaires, rien d'autre", () => {
-    it("recopie exactement les cinq champs publics", () => {
+/** Les SEULS identifiants `metamob*` autorisés dans la surface publique. */
+const METAMOB_ALLOWED = [
+    "metamob",
+    "metamobpseudo",
+    "metamobverified",
+    "metamobstate",
+    // Libellé affiché par la tuile (« lié · vérifié »), dérivé de la règle pure.
+    "metamoblabel",
+];
+
+describe("Tuile du guide — sept scalaires, rien d'autre", () => {
+    it("recopie exactement les sept champs publics", () => {
         const visitor = toPublicGuideVisitor({
             pseudoDofus: "MonIop",
             classe: "iop",
             dofusServerId: 295,
             dofusLevel: 200,
             successPoints: 12_345,
+            metamobPseudo: "MonMetamob",
+            metamobVerified: true,
         });
         expect(visitor).toEqual({
             pseudo: "MonIop",
@@ -36,8 +53,18 @@ describe("Bandeau du guide — cinq scalaires, rien d'autre", () => {
             serverId: 295,
             level: 200,
             successPoints: 12_345,
+            metamobPseudo: "MonMetamob",
+            metamobVerified: true,
         });
-        expect(Object.keys(visitor).sort()).toEqual(["classe", "level", "pseudo", "serverId", "successPoints"]);
+        expect(Object.keys(visitor).sort()).toEqual([
+            "classe",
+            "level",
+            "metamobPseudo",
+            "metamobVerified",
+            "pseudo",
+            "serverId",
+            "successPoints",
+        ]);
     });
 
     it("accepte un profil incomplet sans inventer de valeur", () => {
@@ -47,14 +74,51 @@ describe("Bandeau du guide — cinq scalaires, rien d'autre", () => {
             dofusServerId: 295,
             dofusLevel: null,
             successPoints: null,
+            metamobPseudo: null,
+            metamobVerified: false,
         });
         expect(visitor.pseudo).toBeNull();
         expect(visitor.classe).toBeNull();
         expect(visitor.level).toBeNull();
+        expect(visitor.metamobPseudo).toBeNull();
+    });
+
+    it("n'a AUCUN chemin pour recopier la clé Metamob, même si on la lui passe", () => {
+        // L'objet d'entrée porte la clé : la recopie est champ par champ, donc elle meurt ici.
+        const leaky = {
+            pseudoDofus: "MonIop",
+            classe: "iop",
+            dofusServerId: 295,
+            dofusLevel: 200,
+            successPoints: 1,
+            metamobPseudo: "MonMetamob",
+            metamobVerified: true,
+            metamobApiKey: "cle-secrete-qui-ne-doit-pas-sortir",
+        };
+        const visitor = toPublicGuideVisitor(leaky);
+        expect(JSON.stringify(visitor)).not.toContain("cle-secrete");
+        expect(Object.keys(visitor)).not.toContain("metamobApiKey");
     });
 });
 
-describe("Bandeau du guide — jamais de données privées, jamais pour un anonyme", () => {
+
+describe("État Metamob — trois cas, décidés par une règle pure", () => {
+    it("rien de lié quand le pseudo manque, vérifié ou non", () => {
+        expect(metamobState({ metamobPseudo: null, metamobVerified: true })).toBe("none");
+        expect(metamobState(null)).toBe("none");
+        expect(metamobState(undefined)).toBe("none");
+    });
+
+    it("lié mais non vérifié quand le pseudo existe sans vérification", () => {
+        expect(metamobState({ metamobPseudo: "MonMetamob", metamobVerified: false })).toBe("linked");
+    });
+
+    it("vérifié seulement quand l'API a confirmé le lien", () => {
+        expect(metamobState({ metamobPseudo: "MonMetamob", metamobVerified: true })).toBe("verified");
+    });
+});
+
+describe("Tuile du guide — jamais de données privées, jamais pour un anonyme", () => {
     const page = stripComments(read(PAGE));
     const client = stripComments(read(CLIENT));
 
@@ -63,15 +127,23 @@ describe("Bandeau du guide — jamais de données privées, jamais pour un anony
         expect(page).toContain("visitor={guideVisitor}");
     });
 
-    it("le bandeau n'est rendu que si l'identité existe", () => {
+    it("l'identité n'est rendue que si elle existe", () => {
+        // La tuile garde ce garde : un anonyme ne voit ni pseudo, ni serveur du compte, ni
+        // niveau, ni points de succès, ni porte vers l'espace visiteur.
         expect(client).toContain("{visitor ? (");
         expect(client).toContain("visitor?: PublicGuideVisitor | null");
     });
 
-    it("aucune donnée privée dans le bandeau ni dans le DTO", () => {
-        const lib = stripComments(read("src/lib/public-guide-visitor.ts"));
-        for (const code of [client, lib]) {
-            expect(code).not.toMatch(/metamob/i);
+    it("aucune donnée privée dans la tuile ni dans le DTO", () => {
+        const lib = stripComments(read(LIB));
+        for (const [name, code] of [["client", client], ["lib", lib]] as const) {
+            // Toute occurrence `metamob*` doit être dans la liste blanche : une clé, un slug,
+            // un serveur ou un horodatage Metamob ajouté demain casse ce test.
+            const found = code.match(/metamob[\w]*/gi) ?? [];
+            const unknown = [...new Set(found.map((m) => m.toLowerCase()))].filter(
+                (m) => !METAMOB_ALLOWED.includes(m)
+            );
+            expect(unknown, `${name} expose un identifiant Metamob inattendu`).toEqual([]);
             expect(code).not.toMatch(/altPseudos/);
             expect(code).not.toMatch(/userId/);
         }

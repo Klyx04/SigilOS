@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 07/11/2026 (suite 3) — **Harnais : un skill `responsive` vérifiable** — branche `docs/skill-responsive`
+
+> **Demande user (verbatim)** : « je cherche à créer un skill dans le plugin cline […] pour avoir les meilleures règles cutting edge de responsive », puis « creuse l'internet », et « tout doit être responsive sans exception ».
+> **Sources (creusées en ligne, pas de mémoire)** : MDN *Responsive web design* (mobile-first, breakpoints dictés par le contenu, `<meta viewport>`, images/typo fluides) · web.dev *The large, small, and dynamic viewport units* (`svh`/`lvh`/`dvh`, Baseline Chrome 108 / Safari 15.4 / Firefox 101 ; `100vw` ignore les scrollbars ; le clavier virtuel n'affecte pas les unités) · `GoogleChrome/modern-web-guidance` (des skills **prouvés par évaluations** : une règle non vérifiable n'est pas une règle) · le dépôt (`docs/RULES.md` § UI, Tailwind **v4 CSS-first** sans `tailwind.config.js`, échelle de texte en tokens dans `@theme`).
+> **Fait** : `.cline/skills/responsive/SKILL.md` (8 règles non négociables, interdits mesurés, **vérification obligatoire** 390/768/1 024/1 440 + zoom 200 % + `scrollWidth <= clientWidth`) · `references/tailwind-v4.md` (variantes mobile-first, breakpoints par défaut, container queries, 6 pièges Tailwind) · `references/sigilos.md` (4 largeurs du dépôt, 7 pièges **déjà payés**, DA/tokens) · ligne ajoutée au tableau des skills de `docs/agents/harnais.md`.
+> **Preuves** : `harness-config` **9 ✓** (frontmatter valide, `name` = dossier, description sans `": "`) · **aucun code produit touché** · aucune migration.
+> **Reste** : le skill est **déclaratif** — sa vérification reste manuelle. Piste mesurée : un test Playwright à 320/390/768/1 024/1 440 qui échoue sur `scrollWidth > clientWidth` (à cadrer comme lot séparé).
+> **Rotation** : bloc « 06/11/2026 (suite 10) — écrans alignés sur l'interne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 07/11/2026 (suite 2) — **Guide public : alignement réglable, mules, en-tête (V2a-4/V2a-5)** — branche `feat/rush-public-surface-ui`
 
 > **Demande user (verbatim)** : « le bandeau avec les trois alignement […] doit disparaitre > le conseil aussi », « mon espace visiteur doit bouger ailleurs […] dans le gros bandeau », « pk pas juste rendre cliquable son pseudo pour changer de perso », « peut-on lancer un rush sur un mule déclaré en mode connecté ? », « Alignement : pas cliquable pour changer comme l'interne », « Metamob : idem », « l'image floue […] renommer en aventure rush sylvestre + icône du dofus », « l'affichage niveau et succès est moche en bas, prends la place à droite », « espace vide entre rush live et ouvrir overlay », « une vrai icône pour ouvrir overlay », « tout doit être responsive ».
@@ -54,14 +64,6 @@
 > **Reste** : **V1d** (progression en base — décision d'emplacement texte à trancher) → V1e → **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur `/visiteurs`, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
 > **Rotation** : bloc « 06/11/2026 (suite 5) — coque publique (D-V14) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 06/11/2026 (suite 10) — **Espace visiteur : les écrans alignés sur l'interne** — branche `feat/visiteur-succes`
-
-> **Demande user (verbatim)** : « moi j'aurai voulu l'interface semblable à l'interne (conserve ton design) sans le bouton créer groupe », « le lien vers sa fiche publique », « les images des boss », « ajoute les avis », « le bouton anomalie cliqué n'est pas flagrant », « les métiers reprend l'interface interne profil guilde », « icône laide du choix du serveur, plus grande », « doublon des icônes affichées serveur et classe ».
-> **Mesures** : ① l'icône était rendue **deux fois** (une dans `SelectTrigger`, une rejouée par `SelectValue` depuis l'item) ; ② les avis de recherche sont des `Bounty` (`isBountyMonster`, 96 lignes), **sans aucun succès** ; ③ `DOFUS_JOBS`/`JOB_CATEGORIES` portent déjà les quatre catégories et les icônes des métiers ; ④ l'état actif `bg-elevated` était indistinguable du fond.
-> **Fait** : onglet Succès en **liste + fiche** (vignette du boss, niveau, progression, tranche à gauche ; succès en grille, « Tout cocher / Tout décocher », lien fiche à droite), portée **Donjons / Avis**, action `togglePublicDungeonAchievementsGroup` (garde, 20/min, donjon relu), aucun bouton de groupe ; onglet **Métiers** refait sur `jobs-grid.tsx` (onglets par catégorie, cartes, icônes réelles) ; icônes serveur/classe en `size-6` et **doublon supprimé** ; états actifs des filtres en `warning`.
-> **Preuves** : `visitor-succes-brackets` **21** · `visitor-metiers-ui` **5** · `visitor-assets` **6** · suite **629 fichiers / 6 636 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : V1d (progression en base) → V1e (ladder) → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440 sur Succès (deux portées) et Métiers, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
-> **Rotation** : bloc « 06/11/2026 (suite 4) — porte d'entrée (D-V13) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -143,6 +143,24 @@ Garde-fou : `tests/unit/ui-tokens-dj.test.ts` verrouille les surfaces DJ/Quête.
 
 ---
 
+## 📐 Responsive — le skill, et le cliquet
+
+Toute UI, tout layout, tout composant et **tout correctif d'affichage** passent par le skill
+`.cline/skills/responsive/` (règles + références `tailwind-v4.md` et `sigilos.md`). Il n'est pas
+optionnel : c'est la seule façon d'éviter qu'un écran neuf réintroduise un anti-pattern déjà payé.
+
+- **Quatre largeurs de contrôle** : 390 / 768 / 1 024 / 1 440 — plus **320 px** pour le reflow.
+  Une livraison UI cite les largeurs réellement contrôlées, sinon ce n'est pas une vérification.
+- **Aucune largeur fixe de conteneur** : `w-[min(…,calc(100vw-2rem))]`, jamais `w-[420px]` seul ;
+  un enfant de flex qui refuse de rétrécir reçoit `min-w-0`.
+- **Hauteur d'écran** : `svh` / `dvh`, jamais `100vh` ni `h-screen` (barre d'URL mobile).
+- **Cliquet** : `tests/unit/responsive-guard.test.ts` plafonne `100vh`, `h-screen` et les largeurs
+  fixes > 400 px. Le budget ne peut que **descendre** ; un lot qui corrige baisse le budget dans le
+  même commit. Ce n'est pas un big bang : **452 fichiers sur 799** utilisent déjà des variantes
+  responsive, le cliquet empêche la régression pendant qu'on corrige écran par écran.
+
+---
+
 ## ⚡ Performance de défilement
 
 - **Jamais de `backdrop-filter` sur une surface de défilement** : barre `sticky`, en-tête fixe, carte répétée. Le flou est recalculé à chaque frame ; un fond opaque ou légèrement translucide suffit.

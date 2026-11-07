@@ -133,7 +133,7 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `node-runtime` | avis de sécurité Node, conteneur plus vieux que `.nvmrc` | la procédure `.nvmrc` → images → rebuild bêta/prod |
 | `discord-api` | toute nouveauté/modif/suppression côté Discord (commande, permission, salon, bouton, modale, intent) | la vérification doc officielle + types installés + `GET` de mesure **avant** de coder |
 | `sigilos-da-wakfu` | tout habillage visuel du Rush (overlay, guide public, guide membre), puis passation au dashboard | la DA « Gouache Wakfu » : tokens `--da-*`, signatures, contraste, coût de rendu, règle « habillage seul » |
-| `responsive` | toute UI, layout, page, composant, classe Tailwind ou bug d'affichage mobile/tablette/desktop | les 8 règles non négociables (mobile-first, aucune largeur fixe, `svh`/`dvh`, reflow à 320 px) **et** la vérification obligatoire 390 / 768 / 1 024 / 1 440 + zoom 200 % |
+| `responsive` | toute UI, layout, page, composant, classe Tailwind ou bug d'affichage mobile/tablette/desktop | `.cline/skills/responsive/` — les 8 règles non négociables (mobile-first, aucune largeur fixe, `svh`/`dvh`, reflow à 320 px) **et** la vérification obligatoire 390 / 768 / 1 024 / 1 440 + zoom 200 % ; cliquet `tests/unit/responsive-guard.test.ts` |
 
 Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même

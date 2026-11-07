@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 07/11/2026 (suite 4) — **Responsive : le skill devient un cliquet vérifié** — branche `chore/responsive-guard`
+
+> **Questions user (verbatim)** : « le skill on veut qu'il soit employé systématiquement sur les nouveautés les modifs de code etc non ? » et « quid du responsive non en place actuellement ça mérite un chantier titanesque ? ».
+> **Mesure — « titanesque » se chiffre** : `100vh` **21** · `h-screen` **48** · largeurs fixes > 400 px **57** (dont 12 décors à 1 600 / 2 500 px) — mais **452 fichiers sur 799** utilisent déjà des variantes responsive. Ce n'est donc pas une refonte : c'est un **cliquet**, écran par écran, qui ne remonte jamais.
+> **Fait** : `tests/unit/responsive-guard.test.ts` — plafonds mesurés ; un compteur qui **dépasse** échoue, et un budget **oublié** échoue aussi (le lot qui corrige doit le baisser) ; le skill est **routé** par `docs/RULES.md` § Responsive, `AGENTS.md` §2 et `docs/agents/harnais.md` — le test vérifie ce routage, parce qu'un skill qu'on ne route pas est mort.
+> **Preuves** : `responsive-guard` **4** · `harness-config` **9** · aucune ligne produit touchée · aucune migration.
+> **Reste** : les chantiers (rang 57) — **V2a-2** Progression Communautaire → **V2a-4 reste** (modale d'entrée + tour) → **V2a-5 reste** (« Réinitialiser ») → **V2a-6** → V2b → V2c → V2d → V3 ; côté responsive, corriger les 57 largeurs > 400 px **par écran prioritaire** en baissant le budget à chaque fois.
+> **Rotation** : bloc « 06/11/2026 (suite 11) — annuaire des visiteurs (V2e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 07/11/2026 (suite 3) — **Harnais : un skill `responsive` vérifiable** — branche `docs/skill-responsive`
 
 > **Demande user (verbatim)** : « je cherche à créer un skill dans le plugin cline […] pour avoir les meilleures règles cutting edge de responsive », puis « creuse l'internet », et « tout doit être responsive sans exception ».
@@ -55,14 +65,6 @@
 > **Reste** : **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. Limite assumée : `resources` (5ᵉ clé locale) reste locale. **Ops** : `npx prisma migrate deploy` en **bêta** + redémarrer `npm run dev` (client Prisma régénéré).
 > **Rotation** : bloc « 06/11/2026 (suite 6) — assets (D-V15) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 06/11/2026 (suite 11) — **Annuaire des visiteurs (V2e)** — branche `feat/visiteur-annuaire`
-
-> **Demande user (verbatim)** : « moi je veux qu'on continue et avance les chantier profil perso landing, annuaire landing (dispo uniquement connecté) le guide rush loggé discord visiteur ».
-> **Mesures** : ① `/guilds` existe (annuaire public des **guildes**), aucune route visiteur ; ② `PublicProfile` porte déjà `showOnDirectory` (fermé), `dofusServerId` obligatoire et `PublicProfession` — l'annuaire ne demande **aucune migration** ; ③ `PublicHeader` rend `localizedNav`, donc un lien conditionnel suffit sans nouvelle coque ; ④ la landing redirige **tout** compte connecté (QG ou espace visiteur) : une section « visiteurs » sur `/` n'aurait été vue de personne — l'entrée vit donc dans l'en-tête, pas sur la landing.
-> **Fait** : `/visiteurs` + `/visiteurs/<id>` (connectés seulement, `noindex`), filtres classe/métier **sans JavaScript** (`<details>` + assets réels), recherche bornée 40, pagination par curseur `id` ; règles pures `src/lib/public-directory.ts`, requêtes `src/server/public-directory.ts` (`showOnDirectory` + serveur du lecteur, **aucun `guildId`**) ; DTO sans mule / Metamob / `userId` ; **barre publique regroupée** (Guides + Guildes + Visiteurs sous « Explorer », « Guides »/« Guildes » voisins étant illisibles) avec **un asset Dofus par entrée**, menu `<details>` natif (liens dans le HTML, donc indexables).
-> **Preuves** : `visitor-directory` **18** · `public-header-nav` **6** · `tsc` 0 · ESLint 0 erreur · ROADMAP **61 266 / 61 440** · **aucune migration**.
-> **Reste** : **V1d** (progression en base — décision d'emplacement texte à trancher) → V1e → **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur `/visiteurs`, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
-> **Rotation** : bloc « 06/11/2026 (suite 5) — coque publique (D-V14) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

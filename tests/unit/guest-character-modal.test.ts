@@ -117,9 +117,15 @@ describe("Guide public — la modale remplace le panneau inline", () => {
     expect(pub).not.toMatch(/t\.rushGuide\.selectServer/);
   });
 
-  it("le bouton de personnage est un bouton du registre, visible dans le panneau", () => {
+  it("le changement de personnage part du NOM, et il est déclenchable (V2a-5)", () => {
     const pub = codeOf(PUBLIC);
+    // Demande user du 07/11/2026 : « choisir mon personnage : mal placé également, pk
+    // pas juste rendre cliquable son pseudo pour changer de perso ». Le bouton
+    // « Changer de personnage » a donc disparu : le nom EST le déclencheur, et il reste
+    // un vrai `<button>` (clavier + lecteur d'écran).
     expect(pub).toMatch(/Choisir mon personnage/);
-    expect(pub).toMatch(/Changer de personnage/);
+    expect(pub).not.toMatch(/Changer de personnage/);
+    expect(pub).toMatch(/onClick=\{openCharacterForm\}/);
+    expect(pub).toMatch(/activeName \?\? \([^)]*Choisir mon personnage/);
   });
 });

@@ -55,6 +55,7 @@ const PUBLIC_PROFILE_SELECT = {
     metamobApiKey: true,
     metamobVerified: true,
     alignment: true,
+    alignmentOrder: true,
     alignmentLevel: true,
     dofusLevel: true,
     successPoints: true,

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { UserRound, Check, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDofusPseudo } from "@/lib/utils";
-import { DOFUS_CLASSES, getDofusServerImage } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, getClass, getDofusServerImage } from "@/lib/dofus-assets";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import { PSEUDO_MAX_LENGTH, pseudoError } from "@/lib/pseudo-validation";
 import type { GuestCharacter } from "@/lib/guest-progress";
@@ -19,6 +19,15 @@ interface GuestCharacterModalProps {
   /** Retire le personnage déclaré (retour à la progression du navigateur). */
   onRemove?: () => void;
   locale?: "fr" | "en";
+  /**
+   * V2a-4 — **mules déclarées** du profil visiteur (`PublicProfile.altPseudos`, déjà
+   * publiques dans l'annuaire). Demande user : « la modale de changement de perso propose
+   * encore de créer une classe, un nom et un serveur alors qu'elle doit proposer juste les
+   * mules existantes si une mule est déclarée ». Un clic remplit pseudo + classe.
+   */
+  mules?: Array<{ pseudo: string; classe?: string | null }>;
+  /** Serveur du profil : les mules déclarées y vivent (elles n'ont pas de serveur propre). */
+  defaultServerId?: number | null;
 }
 
 /**
@@ -42,6 +51,8 @@ export function GuestCharacterModal({
   onSubmit,
   onRemove,
   locale = "fr",
+  mules,
+  defaultServerId,
 }: GuestCharacterModalProps) {
   const en = locale === "en";
   const [classId, setClassId] = useState<string | null>(null);
@@ -61,6 +72,8 @@ export function GuestCharacterModal({
   // Un personnage a un NOM : la classe + le pseudo valide sont exigés, le serveur
   // reste facultatif (il ne sert qu'à distinguer deux persos homonymes).
   const canSave = !!classId && pseudo.trim().length > 0 && !pseudoErr;
+
+  const declaredMules = mules ?? [];
 
   const servers = useMemo(
     () =>
@@ -95,6 +108,53 @@ export function GuestCharacterModal({
 
         {/* Corps */}
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+          {/* Mules déclarées (V2a-4) : déjà publiques, et la progression en base est clé
+              par personnage — inutile de faire ressaisir classe / pseudo / serveur. */}
+          {declaredMules.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {en ? "My declared characters" : "Mes personnages déclarés"}
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {declaredMules.map((mule) => {
+                  const icon = mule.classe ? getClass(mule.classe) : null;
+                  const active = pseudo.trim().toLowerCase() === mule.pseudo.toLowerCase();
+                  return (
+                    <button
+                      key={mule.pseudo}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        setPseudo(mule.pseudo);
+                        if (mule.classe) setClassId(mule.classe);
+                        if (defaultServerId) setServerId(defaultServerId);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 rounded-[4px] border px-2.5 py-1.5 transition-colors cursor-pointer",
+                        active
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border bg-surface text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+                      )}
+                    >
+                      {icon ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={icon.icon} alt="" className="h-6 w-6 object-contain" loading="lazy" />
+                      ) : (
+                        <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      )}
+                      <span className="text-[11px] font-semibold">{mule.pseudo}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[10px] text-muted-foreground">
+                {en
+                  ? "Or declare another one below — each character keeps its own progress."
+                  : "Ou déclare-en un autre ci-dessous — chaque personnage garde sa progression."}
+              </p>
+            </section>
+          )}
+
           {/* Classes */}
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

@@ -23,9 +23,24 @@ export type PublicGuideVisitor = {
     metamobPseudo: string | null;
     /** Lien Metamob vérifié par l'API ? La clé, elle, reste dans `metamobApiKey` côté serveur. */
     metamobVerified: boolean;
+    /** Alignement déclaré (V2a-4) : `bontarien` | `brakmarien` | `neutre`, sinon `null`. */
+    alignment: string | null;
+    /** Id de l'Ordre dans la cité (`-1` à `-5`…), `null` pour un neutre sans Ordre. */
+    alignmentOrder: string | null;
+    /**
+     * Mules **déclarées** par le visiteur. Elles sont déjà publiques (fiche `/visiteurs/<id>`)
+     * et servent à lancer le rush sur un autre personnage : la progression en base est clé
+     * par emplacement (`characterSlot`), donc une mule est un emplacement comme un autre.
+     */
+    mules: PublicGuideMule[];
 };
 
-/** Profil public (DTO étanche) → identité de la tuile. Sept champs, pas un de plus. */
+export type PublicGuideMule = {
+    pseudo: string;
+    classe: string | null;
+};
+
+/** Profil public (DTO étanche) → identité de la tuile. Aucune fuite : recopie nommée. */
 export function toPublicGuideVisitor(profile: {
     pseudoDofus: string | null;
     classe: string | null;
@@ -34,6 +49,9 @@ export function toPublicGuideVisitor(profile: {
     successPoints: number | null;
     metamobPseudo: string | null;
     metamobVerified: boolean;
+    alignment: string | null;
+    alignmentOrder: string | null;
+    altPseudos: ReadonlyArray<{ pseudo: string; classe?: string | null }>;
 }): PublicGuideVisitor {
     return {
         pseudo: profile.pseudoDofus,
@@ -43,6 +61,11 @@ export function toPublicGuideVisitor(profile: {
         successPoints: profile.successPoints,
         metamobPseudo: profile.metamobPseudo,
         metamobVerified: profile.metamobVerified,
+        alignment: profile.alignment,
+        alignmentOrder: profile.alignmentOrder,
+        mules: profile.altPseudos
+            .filter((mule) => typeof mule?.pseudo === "string" && mule.pseudo.length > 0)
+            .map((mule) => ({ pseudo: mule.pseudo, classe: mule.classe ?? null })),
     };
 }
 

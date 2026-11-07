@@ -55,15 +55,17 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
     it("la page publique sert l'avis d'arrivée au lieu du guide interactif", () => {
         expect(PAGE).toMatch(/\{isUnderConstruction \? \(/);
         // 05/11/2026 : le bandeau est passé DANS le client (une seule carte avec le
-        // panneau de contrôle), il transmet donc l'image d'ambiance en prop et le
-        // client se ferme sur lui-même. Même intention : le guide interactif n'est
-        // rendu que dans la branche `else` du drapeau public.
+        // panneau de contrôle) et le client se ferme sur lui-même. Même intention : le
+        // guide interactif n'est rendu que dans la branche `else` du drapeau public.
+        // V2a-5 (07/11/2026) : plus de prop `heroArt` — l'image de fond du bandeau est
+        // supprimée (demande user), le client porte le Dofus et le titre lui-même.
         expect(PAGE).toMatch(
-            // Le verrou porte sur la **branche** rendue (guide interactif, pas l'avis de chantier)
-            // et sur les trois props historiques ; `[^>]*` tolère les props ajoutées depuis
-            // (V1d : `isConnected`), sans relâcher l'assertion.
-            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\} heroArt=\{heroArt\}[^>]*\/>/
+            // Le verrou porte sur la **branche** rendue (guide interactif, pas l'avis de
+            // chantier) et sur les props historiques ; `[^>]*` tolère les props ajoutées
+            // depuis (V1d : `isConnected`, V2a-1 : `visitor`), sans relâcher l'assertion.
+            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\}[^>]*\/>/
         );
+        expect(PAGE).not.toMatch(/heroArt/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionTitle/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionHint/);
         // Promesses de contenu (chips « ~370 étapes ») et FAQ masquées : on n'annonce que le dispo.

@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import {
   ChevronDown,
   ChevronUp,
-  Sparkles,
   Check,
   Users,
   ArrowRight,
@@ -29,7 +28,6 @@ import {
   Lock,
   ClipboardList,
   RotateCcw,
-  AlertTriangle,
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,11 +36,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/lib/i18n/client";
 import type { RushMilestone, RushSequence, RushDungeonRef } from "@/types/rush-guide-types";
-import { getClass } from "@/lib/dofus-assets";
+import { getAlignment, getClass } from "@/lib/dofus-assets";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import {
@@ -82,7 +87,6 @@ import {
   resetMyRushProgress,
   saveMyRushProgress,
 } from "@/app/guides/rush-sylvestre/_actions/rush-progress";
-import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -125,6 +129,7 @@ import { alignmentCrest } from "@/lib/rush-guide-view";
 // Modale « Mon personnage » (pictos de classe, vignettes de serveur, pseudo validé
 // par la règle partagée du profil) — le choix n'est plus un panneau replié.
 import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
+import { PublicAlignmentModal } from "./PublicAlignmentModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
 
 interface QuestBlock {
@@ -229,13 +234,6 @@ interface PublicRushGuideClientProps {
   };
   milestones: RushMilestone[];
   /**
-   * Bandeau de la page, rendu côté serveur (fil d'Ariane, titre, image) : il est
-   * passé en enfant pour vivre DANS la coque `data-da` — sinon il resterait hors
-   * de la portée de la DA et garderait les tokens « Carnet ».
-   */
-  /** Image d'ambiance du bandeau (bloc courant ou visuel du guide), servie par la page. */
-  heroArt: string;
-  /**
    * V1d — session visiteur présente ? Non connecté ⇒ le guide reste **100 % local**
    * (aucun appel réseau), exactement comme avant.
    */
@@ -248,6 +246,19 @@ interface PublicRushGuideClientProps {
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
+
+/**
+ * Les trois cités du guide public (V2a-5). Le choix est **purement local** : il ne
+ * conditionne que la route affichée (`resolveRushRoute`), aucune donnée de guilde.
+ * Il vivait dans un bandeau de trois boutons au-dessus des tuiles — demande user du
+ * 07/11/2026 : « le bandeau avec les trois alignements doit disparaître ». Il vit
+ * désormais dans « Options », en sous-menu radio (clavier + `aria-checked` gérés).
+ */
+const ROUTE_CAMPS: Array<{ value: "bontarien" | "brakmarien" | null; label: string; icon: string }> = [
+  { value: "bontarien", label: "Bontarien", icon: "/ordres/bonta.png" },
+  { value: null, label: "Neutre", icon: "/ordres/neutre.png" },
+  { value: "brakmarien", label: "Brâkmarien", icon: "/ordres/brakmar.png" },
+];
 
 /** Nom officiel d'un serveur à partir de son identifiant (null si inconnu). */
 function guestServerLabel(serverId: number | null | undefined): string | null {
@@ -315,7 +326,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt, isConnected = false, visitor = null }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConnected = false, visitor = null }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -330,11 +341,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
   // guilde n'est lue ni affichée (pas de liste de membres, pas de progression d'autrui).
   // Le filtre s'applique AVANT la vue, les prérequis et l'agrégation des ressources.
   const routeStorageKey = `sigilos_rush_route_${guide.slug}`;
+  /** Ordre du choix LOCAL : le camp pilote la route, l'Ordre est ce qu'affiche la modale. */
+  const routeOrderKey = `sigilos_rush_route_order_${guide.slug}`;
   const [routeCamp, setRouteCamp] = useState<"bontarien" | "brakmarien" | null>(() => {
     if (typeof window === "undefined") return null;
     try {
       const stored = localStorage.getItem(routeStorageKey);
       return stored === "bontarien" || stored === "brakmarien" ? stored : null;
+    } catch {
+      return null;
+    }
+  });
+  const [routeOrder, setRouteOrder] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(routeOrderKey);
     } catch {
       return null;
     }
@@ -351,6 +372,26 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
       }
     },
     [routeStorageKey]
+  );
+  /**
+   * V2a-4 — alignement **local** du visiteur non connecté : le même geste que pour un
+   * compte (cité → Ordre), sans aucune écriture serveur. La cité met à jour la route
+   * (`resolveRushRoute`), l'Ordre est conservé pour la modale et l'affichage.
+   */
+  const handleLocalAlignment = useCallback(
+    (value: { alignment: "bontarien" | "brakmarien" | "neutre"; alignmentOrder: string | null }) => {
+      handleRouteChange(value.alignment === "neutre" ? null : value.alignment);
+      const order = value.alignment === "neutre" ? null : value.alignmentOrder;
+      setRouteOrder(order);
+      if (typeof window === "undefined") return;
+      try {
+        if (order) localStorage.setItem(routeOrderKey, order);
+        else localStorage.removeItem(routeOrderKey);
+      } catch {
+        /* stockage indisponible : le choix reste valable pour la session */
+      }
+    },
+    [handleRouteChange, routeOrderKey]
   );
   const milestones = useMemo(
     () => resolveRushRoute(rawMilestones, { camp: routeCamp }),
@@ -408,6 +449,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
   );
   // Modale « Mon personnage » : elle porte son propre brouillon jusqu'à validation.
   const [characterOpen, setCharacterOpen] = useState(false);
+  /** V2a-4 — modale « Mon alignement » (cité + Ordre, écrits sur le profil visiteur). */
+  const [alignmentOpen, setAlignmentOpen] = useState(false);
 
   // Overlay Floating Window state
   const [pipWin, setPipWin] = useState<Window | null>(null);
@@ -1270,39 +1313,50 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           n'a qu'une tuile. L'identité du COMPTE reste gardée par `visitor` (un
           anonyme ne la voit pas), mais elle se lit désormais DANS la tuile. */}
       <header className="da-guide-hero">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
         <div className="da-guide-hero-inner">
           <nav aria-label="Fil d'Ariane" className="da-guide-hero-crumb">
             <Link href="/guides" className="da-kicker">
               ← {t.rushGuide.breadcrumbGuides}
             </Link>
           </nav>
-          <h1 className="da-logo" aria-label={t.rushGuide.title}>
-            <span className="da-logo-a" aria-hidden="true">Rush</span>
-            <span className="da-logo-b" aria-hidden="true">Sylvestre</span>
+          {/* L'icône du Dofus partage la LIGNE du titre (V2a-5, retour user : « pk l'icône
+              du dofus sylvestre n'est pas aligné et grossis à la taille du titre »).
+              « AVENTURE » reste au-dessus, le mot et le Dofus sont centrés ensemble. */}
+          <h1 className="da-logo" aria-label={locale === "en" ? "Sylvan Rush adventure" : "Aventure Rush Sylvestre"}>
+            <span className="da-logo-a" aria-hidden="true">
+              {locale === "en" ? "Adventure" : "Aventure"}
+            </span>
+            <span className="da-logo-line">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/module-dofus/Dofus_Sylvestre.png"
+                alt=""
+                aria-hidden="true"
+                width={96}
+                height={96}
+                className="da-guide-hero-dofus"
+              />
+              <span className="da-logo-b" aria-hidden="true">
+                {locale === "en" ? "Sylvan Rush" : "Rush Sylvestre"}
+              </span>
+            </span>
           </h1>
+          {/* La porte de l'espace visiteur vit ICI depuis V2a-5 — demande user : « mon
+              espace visiteur doit bouger ailleurs, dans le gros bandeau Rush Sylvestre
+              bien visible cliquable ». Anonyme ⇒ pas de porte (aucun compte à ouvrir). */}
+          {visitor ? (
+            <Link href="/espace-visiteur/general" className="da-guide-hero-cta">
+              {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
+            </Link>
+          ) : null}
         </div>
         <div className="da-guide-controls">
-      {/* ── BARRE DU HAUT — contexte + outils de contenu ─────────────────────
-          MÊME ANATOMIE que le panneau du guide interne (05/11/2026) : le contexte et
-          les outils secondaires en haut, les TUILLES au milieu, la recherche et les
-          réglages, puis la progression en barre pleine largeur en bas.
-          V2a-3 (07/11/2026) : cette barre garde les outils de CONTENU (Ressources,
-          Pense-bête) ; la densité est passée dans « Options », avec les réglages. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="inline-flex items-center gap-1.5 text-xs text-warning">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>
-              Conseillé dès le <b className="font-mono font-medium">Niv. 200</b>
-            </span>
-          </span>
-          {/* Route d'alignement : choix LOCAL du visiteur (aucune donnée de guilde). */}
-          <PublicRouteChoice value={routeCamp} onChange={handleRouteChange} />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+      {/* ── BARRE DU HAUT — les outils de CONTENU ────────────────────────────
+          V2a-5 (07/11/2026) — demande user : « le bandeau avec les trois alignements
+          bonta brak neutre doit disparaître, le conseil aussi ». Les deux sont partis :
+          « Ma cité » vit dans « Options » (le choix pilote toujours la route, il n'est
+          plus au premier plan) et le conseil « Niv. 200 » n'est plus affiché nulle part. */}
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-2.5 sm:px-5">
           <button
             type="button"
             onClick={() => setShowResources(true)}
@@ -1336,7 +1390,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           {/* L'interrupteur de densité a quitté cette barre en V2a-3 : il vit dans
               « Options », la rangée sous les tuiles, avec les réglages — pas avec les
               outils de contenu (Ressources, Pense-bête). Même état, même effet. */}
-        </div>
       </div>
 
       {/* ── TUILLES — les CINQ de l'interne (V2a-3) : personnage actif · alignement ·
@@ -1372,59 +1425,55 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
               className="h-8 w-8 shrink-0 rounded-[3px] border border-border object-cover"
             />
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] text-muted-foreground">
               {locale === "en" ? "Active character" : "Personnage actif"}
             </p>
-            {activeName ? (
-              <span className="block truncate text-xs font-semibold text-foreground">{activeName}</span>
-            ) : (
+            {/* Le nom à gauche, les deux chiffres À DROITE sur la même ligne (retour user :
+                « l'affichage niveau et succès est moche en bas, prends la place à droite »).
+                `flex-wrap` : sous 390 px ils passent sous le nom au lieu de déborder. */}
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              {/* Le NOM est le déclencheur du changement (V2a-5 — demande user : « pk pas
+                  juste rendre cliquable son pseudo pour changer de perso »). Un vrai
+                  <button> : clavier et lecteur d'écran le voient, contrairement à une div. */}
+              <button
+                type="button"
+                onClick={openCharacterForm}
+                className="min-w-0 max-w-full truncate text-left text-xs font-semibold text-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-accent"
+                title={
+                  locale === "en"
+                    ? "Class + nickname + server: each character keeps their own progress"
+                    : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"
+                }
+              >
+                {activeName ?? (locale === "en" ? "Choose my character" : "Choisir mon personnage")}
+              </button>
+              {/* Identité du COMPTE — `visitor` est le SEUL garde. */}
+              {visitor ? (
+                <span
+                  className="ml-auto shrink-0 text-[11px] text-muted-foreground"
+                  title={
+                    locale === "en"
+                      ? `Level ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} success points`
+                      : `Niveau ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} points de succès`
+                  }
+                >
+                  <span className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</span>{" "}
+                  {locale === "en" ? "lvl" : "niv."}
+                  <span aria-hidden="true"> · </span>
+                  <span className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</span>{" "}
+                  {locale === "en" ? "SP" : "pts"}
+                </span>
+              ) : null}
+            </div>
+            {!activeName && (
               <span className="block text-[11px] text-muted-foreground">
                 {locale === "en"
                   ? "Progress saved for this browser"
                   : "Progression enregistrée pour ce navigateur"}
               </span>
             )}
-            {/* Identité du COMPTE — `visitor` est le SEUL garde : un anonyme ne voit
-                ni niveau, ni points de succès, ni porte vers l'espace visiteur. */}
-            {visitor ? (
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                <span>
-                  {locale === "en" ? "Level" : "Niveau"}{" "}
-                  <b className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</b>
-                </span>
-                <span aria-hidden="true">·</span>
-                <span>
-                  <b className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</b>{" "}
-                  {locale === "en" ? "success points" : "points de succès"}
-                </span>
-                <span aria-hidden="true">·</span>
-                <Link
-                  href="/espace-visiteur/general"
-                  className="underline underline-offset-2 transition-colors hover:text-foreground"
-                >
-                  {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
-                </Link>
-              </span>
-            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={openCharacterForm}
-            className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            title={
-              locale === "en"
-                ? "Class + nickname + server: each character keeps their own progress"
-                : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"
-            }
-          >
-            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>
-              {hasGuestCharacter(character)
-                ? locale === "en" ? "Change character" : "Changer de personnage"
-                : locale === "en" ? "Choose my character" : "Choisir mon personnage"}
-            </span>
-          </button>
           {hasGuestCharacter(character) && (
             <button
               type="button"
@@ -1446,57 +1495,105 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
             initial={character}
             locale={locale}
             onSubmit={(next) => applyGuestCharacter(next)}
+            mules={visitor?.mules ?? []}
+            defaultServerId={visitor?.serverId ?? null}
+          />
+          {/* V2a-4 — l'alignement se règle pour TOUT LE MONDE : écrit sur le profil quand
+              un compte est connecté, conservé localement (et appliqué à la route) sinon. */}
+          <PublicAlignmentModal
+            open={alignmentOpen}
+            onClose={() => setAlignmentOpen(false)}
+            alignment={visitor?.alignment ?? routeCamp}
+            alignmentOrder={visitor?.alignmentOrder ?? routeOrder}
+            locale={locale}
+            localOnly={!visitor}
+            onLocalSave={handleLocalAlignment}
           />
         </div>
 
-        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
-
-        {/* Alignement — ce que le guide a DÉJÀ donné, recalculé à chaque coche. */}
-        <div className="flex min-w-0 items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={rushView.alignment?.crestSrc ?? alignmentCrest(null)}
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 shrink-0 object-contain"
-          />
-          <div className="min-w-0">
-            <p className="text-[11px] text-muted-foreground">
-              {locale === "en" ? "Alignment" : "Alignement"}
-            </p>
-            {rushView.alignment ? (
-              <span className="block truncate text-xs font-semibold text-foreground">
-                {rushView.alignment.label}
-                {rushView.alignment.level > 0 && (
-                  <>
-                    {" "}
-                    <span className="reg-mono font-normal text-muted-foreground">
-                      · {locale === "en" ? "tier" : "tranche"} {rushView.alignment.level}
+        {/* Alignement — V2a-4 : cliquable pour TOUT LE MONDE. Connecté, la modale écrit
+            `PublicProfile.alignment` ; anonyme, le choix reste local et pilote la route
+            (demande user : « le mode non connecté alignement pas cliquable chef »).
+            Sans choix déclaré, la tuile montre ce que le guide a DÉJÀ donné (les quêtes). */}
+        {(() => {
+          const declared = visitor?.alignment
+            ? getAlignment(visitor.alignment)
+            : routeCamp
+              ? getAlignment(routeCamp)
+              : null;
+          const label = declared?.name ?? rushView.alignment?.label ?? (locale === "en" ? "Neutral" : "Neutre");
+          const tier = rushView.alignment?.level ?? 0;
+          const crest = declared?.icon ?? rushView.alignment?.crestSrc ?? alignmentCrest(null);
+          const body = (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={crest}
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 object-contain"
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">
+                  {locale === "en" ? "Alignment" : "Alignement"}
+                </p>
+                <span className="block truncate text-xs font-semibold text-foreground">
+                  {label}
+                  {tier > 0 && (
+                    <>
+                      {" "}
+                      <span className="reg-mono font-normal text-muted-foreground">
+                        · {locale === "en" ? "tier" : "tranche"} {tier}
+                      </span>
+                    </>
+                  )}
+                  {!declared && !rushView.alignment && (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · {locale === "en" ? "no alignment quest yet" : "aucune quête validée"}
                     </span>
-                  </>
-                )}
-              </span>
-            ) : (
-              <span className="block truncate text-xs font-semibold text-foreground">
-                {locale === "en" ? "Neutral" : "Neutre"}
-                <span className="font-normal text-muted-foreground">
-                  {" "}
-                  · {locale === "en" ? "no alignment quest yet" : "aucune quête validée"}
+                  )}
                 </span>
-              </span>
-            )}
-          </div>
-        </div>
+              </div>
+            </>
+          );
+          return (
+            <button
+              type="button"
+              onClick={() => setAlignmentOpen(true)}
+              title={locale === "en" ? "Set my alignment" : "Changer mon alignement"}
+              className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
+            >
+              {body}
+            </button>
+          );
+        })()}
 
-        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
-
-        {/* Metamob — ce que le PROFIL déclare, rien de plus (V2a-3). Pseudo et état
-            viennent de `visitor` (`metamobPseudo` + `metamobVerified`, fusionnés par
-            `metamobState`) : aucune clé d'API, aucun appel réseau, aucune collection
-            inventée. Sans visiteur, pas de tuile — il n'y a pas de source. */}
         {visitor ? (
-          <div className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+        ) : null}
+
+        {/* Metamob — ce que le PROFIL déclare, rien de plus (V2a-3), et c'est CLIQUABLE
+            depuis V2a-5 (demande user : « idem pas cliquable pour changer comme
+            l'interne »). Le geste ouvre l'espace visiteur, qui porte déjà le formulaire
+            et les actions (`updatePublicMetamob` / `verifyPublicMetamob`) : on ne duplique
+            ni le formulaire ni l'action, et le client public n'importe toujours AUCUN
+            `@/server/` (verrou `rush-public-parity`). */}
+        {visitor ? (
+          <Link
+            href="/espace-visiteur/general"
+            className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
+            title={
+              metamob === "none"
+                ? locale === "en"
+                  ? "Link my Metamob account from my visitor space"
+                  : "Lier mon compte Metamob depuis mon espace visiteur"
+                : locale === "en"
+                  ? "Manage my Metamob link from my visitor space"
+                  : "Gérer ma liaison Metamob depuis mon espace visiteur"
+            }
+          >
             {/* Asset Ocre du jeu, posé NU (le même que le guide interne). */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -1508,41 +1605,65 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
             />
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Metamob</p>
-              <span className="block truncate text-xs font-semibold text-foreground">{metamobLabel}</span>
+              <span
+                className={cn(
+                  "block truncate text-xs font-semibold",
+                  metamob === "none"
+                    ? "text-muted-foreground underline decoration-dotted underline-offset-2"
+                    : "text-foreground"
+                )}
+              >
+                {metamob === "none"
+                  ? locale === "en"
+                    ? "link my Metamob →"
+                    : "lier mon Metamob →"
+                  : metamobLabel}
+              </span>
+            </div>
+          </Link>
+        ) : null}
+
+        {visitor ? (
+          <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+        ) : null}
+
+        {/* Rush Live — l'ÉTAT RÉEL, jamais un compteur (V2a-3), et **connectés
+            seulement** depuis V2a-5 : demande user « le mode non connecté n'aura juste
+            pas le rush live ni metamob ». Le visiteur n'a aucune room de présence avant
+            V2c (room par serveur, consentement `showPresence`) : la tuile le dit. Ce
+            n'est pas un bouton : il n'y a rien à ouvrir, donc pas de contrôle mort — et
+            surtout pas « 0 en ligne », qui serait un mensonge. */}
+        {visitor ? (
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/dofus/modules/guild.png"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              className="h-8 w-8 shrink-0 object-contain"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">Rush Live</p>
+              <span className="block truncate text-xs font-semibold text-muted-foreground">
+                {locale === "en" ? "presence unavailable" : "présence indisponible"}
+              </span>
             </div>
           </div>
         ) : null}
 
-        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+        {visitor ? (
+          <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
+        ) : null}
 
-        {/* Rush Live — l'ÉTAT RÉEL, jamais un compteur (V2a-3). Le visiteur n'a aucune
-            room de présence avant V2c (room par serveur, consentement `showPresence`) :
-            la tuile le dit. Ce n'est pas un bouton : il n'y a rien à ouvrir, donc pas de
-            contrôle mort — et surtout pas « 0 en ligne », qui serait un mensonge. */}
-        <div className="flex min-w-0 items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/assets/dofus/modules/guild.png"
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            className="h-8 w-8 shrink-0 object-contain"
-          />
-          <div className="min-w-0">
-            <p className="text-[11px] text-muted-foreground">Rush Live</p>
-            <span className="block truncate text-xs font-semibold text-muted-foreground">
-              {locale === "en" ? "presence unavailable" : "présence indisponible"}
-            </span>
-          </div>
-        </div>
-
-        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
-
-        {/* Lancer l'overlay en jeu — une seule action mise en avant par écran. */}
+        {/* Lancer l'overlay en jeu — une seule action mise en avant par écran. Plus de
+            `ml-auto` : il créait un grand vide entre « Rush Live » et le bouton (retour
+            user). Le bouton suit la rangée, et l'icône est le picto RÉEL du module Guide
+            (`/assets/dofus/modules/guide.png`) — plus le glyphe générique `Sparkles`. */}
         <button
           type="button"
           onClick={handleLaunchOverlay}
-          className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-success px-3 py-1.5 text-xs font-medium text-success-foreground transition-colors hover:bg-success/90"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-success px-3 py-1.5 text-xs font-medium text-success-foreground transition-colors hover:bg-success/90"
           title={
             locale === "en"
               ? "Displays a floating mini-window always on top over Dofus"
@@ -1550,7 +1671,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           }
           aria-label={locale === "en" ? "Open the overlay" : "Ouvrir l'overlay"}
         >
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/dofus/modules/guide.png"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="h-3.5 w-3.5 shrink-0 object-contain"
+          />
           <span>{locale === "en" ? "Open Overlay" : "Ouvrir Overlay"}</span>
         </button>
       </div>
@@ -1619,6 +1747,55 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
                   : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}
               </span>
             </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="my-1 h-px bg-border" />
+
+            {/* « Ma cité » — sortie du bandeau en V2a-5 (demande user : « le bandeau avec
+                les trois alignements doit disparaître »). Le choix pilote TOUJOURS la
+                route (`resolveRushRoute`) : il ne disparaît pas, il descend d'un cran.
+                Sous-menu radio : clavier et `aria-checked` gérés par Radix. */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex cursor-pointer items-center justify-between gap-2.5 rounded-[4px] px-2.5 py-2 text-xs font-semibold">
+                <span className="flex items-center gap-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={ROUTE_CAMPS.find((c) => c.value === routeCamp)?.icon ?? "/ordres/neutre.png"}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-4 w-4 object-contain"
+                  />
+                  {locale === "en" ? "My city" : "Ma cité"}
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent
+                {...daScope}
+                className="da-portal min-w-[12rem] rounded-[4px] border border-border bg-background p-1.5"
+              >
+                <DropdownMenuLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {locale === "en" ? "My city" : "Ma cité"}
+                </DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={routeCamp ?? "neutre"}
+                  onValueChange={(value) =>
+                    handleRouteChange(
+                      (value === "neutre" ? null : value) as "bontarien" | "brakmarien" | null
+                    )
+                  }
+                >
+                  {ROUTE_CAMPS.map((camp) => (
+                    <DropdownMenuRadioItem
+                      key={camp.value ?? "neutre"}
+                      value={camp.value ?? "neutre"}
+                      className="cursor-pointer gap-2 rounded-[4px] px-2.5 py-1.5 text-xs font-semibold"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={camp.icon} alt="" aria-hidden="true" className="h-3.5 w-3.5 object-contain" />
+                      {camp.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

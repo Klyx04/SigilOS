@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 07/11/2026 (suite 2) — **Guide public : alignement réglable, mules, en-tête (V2a-4/V2a-5)** — branche `feat/rush-public-surface-ui`
+
+> **Demande user (verbatim)** : « le bandeau avec les trois alignement […] doit disparaitre > le conseil aussi », « mon espace visiteur doit bouger ailleurs […] dans le gros bandeau », « pk pas juste rendre cliquable son pseudo pour changer de perso », « peut-on lancer un rush sur un mule déclaré en mode connecté ? », « Alignement : pas cliquable pour changer comme l'interne », « Metamob : idem », « l'image floue […] renommer en aventure rush sylvestre + icône du dofus », « l'affichage niveau et succès est moche en bas, prends la place à droite », « espace vide entre rush live et ouvrir overlay », « une vrai icône pour ouvrir overlay », « tout doit être responsive ».
+> **Mesures** : ① `PublicProfile.alignment` **n'avait aucune action** (l'interne passe par `resetRushAlignment(guildId, …)` — pas de `guildId` visiteur) ⇒ chaîne complète à créer ; ② `PublicProfileView` ne portait **pas** `alignmentOrder` (ajouté au DTO **et** au `select`) ; ③ `AlignmentChoiceForm` (interne) est câblé sur les actions de **guilde** ⇒ formulaire visiteur dédié ; ④ les filets `<span>` des tuiles étaient rendus **hors** des gardes `visitor` ⇒ les trois tirets orphelins vus chez l'anonyme ; ⑤ la progression est clé par `characterSlot` (texte) ⇒ une mule est un emplacement comme un autre.
+> **Fait** : « Ma cité » → sous-menu radio de « Options » (`PublicRouteChoice` supprimé, orphelin) · conseil « Niv. 200 » retiré des **deux** surfaces · « Mon espace visiteur » dans le bandeau du titre · pseudo cliquable · **Metamob cliquable** · **alignement cliquable** (`updatePublicAlignment` + `PublicAlignmentModal`, Ordre vérifié contre la cité) · **mules déclarées** dans la modale personnage · anonyme = ni Metamob ni Rush Live **et plus aucun filet orphelin** · en-tête : image de fond supprimée, « Aventure Rush Sylvestre », **Dofus sur la ligne du titre** (`da-logo-line`), porte visiteur · tuile : chiffres **à droite**, plus de `ml-auto` sur Overlay, **picto réel** `modules/guide.png`.
+> **Preuves** : `public-alignment` **10** · `rush-public-parity` **46** · `public-guide-visitor` **10** · suite **635 fichiers / 6 710 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V2a-2** (Progression Communautaire — « l'avancement des dofus entre visiteurs du même serveur » n'existe pas encore) → **V2a-4 reste** (modale d'entrée + tour) → **V2a-5 reste** (« Réinitialiser » dans la barre) → V2a-6 → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 024 / 1 440, connecté **et** anonyme.
+> **Rotation** : bloc « 06/11/2026 (suite 9) — l'onglet Succès (V1i) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 07/11/2026 — **Guide Rush public : la surface connectée alignée sur l'interne (V2a-3)** — branche `feat/rush-public-connecte`
 
 > **Demande user (verbatim)** : « UI UX encore mauvaise », « je voudrais ceci [vue interne] » — puis, devant les trois schémas d'anatomie, « 1 · Fusion ».
@@ -54,14 +64,6 @@
 > **Rotation** : bloc « 06/11/2026 (suite 4) — porte d'entrée (D-V13) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 06/11/2026 (suite 9) — **Espace visiteur : l'onglet Succès (V1i)** — branche `feat/visiteur-succes`
-
-> **Demande user (verbatim)** : reprise sur le prochain lot documenté (« un peu paumé là », puis validation du plan V1i).
-> **Mesures** : ① `LEVEL_PRESETS` vivait **privé** dans `SuccesTracker.tsx` (l. 76-82) et ses libellés affichaient « Niv. 1-200+ » pour la tranche « Tous » ; ② la page visiteur ne lisait ni `level`, ni `slug`, ni `imageUrl`/`challenge.iconUrl` ; ③ `/boss/[dungeonId]` accepte le **slug** et redirige en 308 vers le canonique ; ④ `PublicDungeonAchievement` porte déjà `@@unique([publicProfileId, dungeonAchievementId])` — `skipDuplicates` est sûr.
-> **Fait** : règle pure `src/lib/succes-level-brackets.ts` (5 tranches, résolution **stricte** côté serveur, borne `SUCCES_DUNGEONS_TAKE = 200`) ; tracker interne migré sur un **id de tranche** (plus de liste locale, libellés corrigés) ; action `togglePublicDungeonAchievementsBracket` (Zod borné, 5/min, `where` sur le profil public, cibles relues, `createMany skipDuplicates`) ; onglet visiteur : filtre par tranche, bascule « Valider / Décocher la tranche », icône réelle par succès, lien `/boss/<slug>`.
-> **Preuves** : `visitor-succes-brackets` **15** · 10 verrous visiteurs **88 ✓** · suite **628 fichiers / 6 623 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : V1d (progression en base) → V1e (sync ladder) → V2a-e → V3. **Ops** : contrôles 390 / 768 / 1 440 sur `/espace-visiteur/succes`, compte sans admin, puis `PUBLIC_VISITOR_ENTRY=1`.
-> **Rotation** : bloc « 06/11/2026 (suite 3) — plafond de guildes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -86,7 +86,7 @@ export function PublicCommunityPanel({ milestones }: { milestones: CommunityMile
                 </p>
             ) : null}
 
-            {members.length > 0 && stats.length > 0 ? (
+            {stats.length > 0 ? (
                 <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {stats.map((stat) => {
                         const meta = DOFUS_META[stat.id];
@@ -136,6 +136,11 @@ export function PublicCommunityPanel({ milestones }: { milestones: CommunityMile
                     <DialogTitle>
                         {selectedMeta?.label ?? "Progression"} — où en sont les membres
                     </DialogTitle>
+                    {(selected?.members.length ?? 0) === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">
+                            Aucun membre n a encore coché de quête sur ce Dofus.
+                        </p>
+                    ) : null}
                     <ul className="mt-2 space-y-1.5">
                         {(selected?.members ?? []).map((member) => (
                             <li

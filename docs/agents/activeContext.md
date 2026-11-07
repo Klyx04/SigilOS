@@ -6,13 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 06/11/2026 (suite 12) — **Espace visiteur : la synchro ladder (V1e)** — branche `feat/visiteur-ladder`
+## 📝 Session 06/11/2026 (suite 12) — **Espace visiteur : ladder (V1e) + progression en base (V1d)** — branches `feat/visiteur-ladder`, `feat/visiteur-progression`
 
 > **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
-> **Mesure** : le snapshot Ankama vivait **inline** dans `updateUserProfile` (`profile-actions.ts` l. 843-887) ; `PublicProfile.dofusLevel/totalXp/successPoints/lastLadderSync` existaient mais **personne ne les remplissait** ⇒ l'annuaire affichait « — ».
-> **Fait** : noyau extrait dans `src/server/ladder-snapshot.ts` (bornes dures, fail-open, timeout court) et réutilisé **deux fois** côté visiteur : enregistrer son identité, ou vérifier **son propre** pseudo (rafraîchit les profils créés avant V1e). `classe` n'est **jamais** écrite depuis le ladder (libellé ↔ id).
-> **Preuves** : `ladder-snapshot` **8** · `public-profile-actions` 11 · `visitor-verifications` 8 · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : **V1d** (progression en base, décision « emplacement texte » inline) → **V2a** (guide connecté + Progression Communautaire). **Ops** : `npm run dev`, ouvrir Identité, « Vérifier » son pseudo, contrôler que niveau/points remontent dans `/visiteurs`.
+> **Mesures** : ① le snapshot Ankama vivait **inline** dans `updateUserProfile` (`profile-actions.ts` l. 843-887) ; `PublicProfile.dofusLevel/totalXp/successPoints/lastLadderSync` existaient mais **personne ne les remplissait** ⇒ annuaire à « — » ; ② `PublicRushProgress.characterSlot` était un **`Int`** quand les trois tables `PlayerGuide*` portent une **chaîne** (`"PRINCIPAL"` / pseudo) et que la clé invitée est un texte (`pseudo-serveur`) ; ③ la table était **vide par construction** (aucun writer).
+> **Fait (V1e)** : noyau extrait dans `src/server/ladder-snapshot.ts` (bornes dures, fail-open, timeout 6 s), branché deux fois côté visiteur (enregistrer l'identité, vérifier **son propre** pseudo). `classe` jamais écrite depuis le ladder (libellé ↔ id).
+> **Fait (V1d)** : Zod borné `src/lib/public-rush-progress.ts` (300 blocs / 500 étapes / 2 000 donjons), store `src/server/rush-public-store.ts` (garde, rate limit, `guideId` constant, `skipDuplicates`), actions minces ; guide : adoption **une fois par emplacement**, miroir débouncé 2 s, reset ciblé, **aucun appel** si non connecté ; **migration** `20270128000000_public_rush_progress_slot_text` (Int → String, **D-V20**).
+> **Preuves** : `ladder-snapshot` **8** · `public-rush-progress` **15** · `public-profile-schema` **16** · `tsc` 0 · ESLint 0 erreur · **1 migration** (298 au total).
+> **Reste** : **V2a** (guide connecté + Progression Communautaire) → V2b → V2c → V2d → V3. Limite assumée : `resources` (5ᵉ clé locale) reste locale. **Ops** : `npx prisma migrate deploy` en **bêta** + redémarrer `npm run dev` (client Prisma régénéré).
 > **Rotation** : bloc « 06/11/2026 (suite 6) — assets (D-V15) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 06/11/2026 (suite 11) — **Annuaire des visiteurs (V2e)** — branche `feat/visiteur-annuaire`

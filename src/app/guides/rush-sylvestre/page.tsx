@@ -204,7 +204,7 @@ export default async function PublicRushSylvestrePage() {
         </div>
         ) : (
           <>
-            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} />
+            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} isConnected={!!session?.user} />
 
             {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
                 pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}

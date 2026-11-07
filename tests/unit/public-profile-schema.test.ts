@@ -74,6 +74,15 @@ describe("Espace visiteur — isolation et consentement", () => {
         );
     });
 
+    it("l'emplacement est une chaîne, comme les trois tables internes", () => {
+        // Un entier obligerait à inventer un index : il se décale dès que la liste des mules
+        // change, et la progression saute d'un personnage à l'autre (mesure du 06/11/2026).
+        expect(modelBody("PublicRushProgress")).toMatch(/characterSlot\s+String\s+@default\("PRINCIPAL"\)/);
+        for (const model of ["PlayerGuideProgress", "PlayerGuideResourceCheck", "PlayerGuideDungeonState"]) {
+            expect(modelBody(model)).toMatch(/characterSlot\s+String\s+@default\("PRINCIPAL"\)/);
+        }
+    });
+
     it("les métiers sont normalisés et indexés pour le filtre", () => {
         const body = modelBody("PublicProfession");
         expect(body).toMatch(/@@unique\(\[publicProfileId, metierId\]\)/);

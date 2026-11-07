@@ -62,6 +62,7 @@ const PUBLIC_PROFILE_SELECT = {
     lastLadderSync: true,
     showOnDirectory: true,
     showPresence: true,
+    showRushProgress: true,
     createdAt: true,
     updatedAt: true,
 } as const;

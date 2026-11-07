@@ -45,6 +45,7 @@ export type PublicProfileView = {
     lastLadderSync: Date | null;
     showOnDirectory: boolean;
     showPresence: boolean;
+    showRushProgress: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -76,6 +77,7 @@ export type PublicProfileRow = {
     lastLadderSync: Date | null;
     showOnDirectory: boolean;
     showPresence: boolean;
+    showRushProgress: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -136,6 +138,7 @@ export function toPublicProfileView(
         lastLadderSync: row.lastLadderSync,
         showOnDirectory: row.showOnDirectory,
         showPresence: row.showPresence,
+        showRushProgress: row.showRushProgress,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };

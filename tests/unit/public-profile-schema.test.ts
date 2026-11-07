@@ -62,10 +62,11 @@ describe("Espace visiteur — isolation et consentement", () => {
         expect(body).not.toMatch(/dofusServerId\s+Int\?/);
     });
 
-    it("les deux consentements sont fermés par défaut", () => {
+    it("les trois consentements sont fermés par défaut", () => {
         const body = modelBody("PublicProfile");
         expect(body).toMatch(/showOnDirectory\s+Boolean\s+@default\(false\)/);
         expect(body).toMatch(/showPresence\s+Boolean\s+@default\(false\)/);
+        expect(body).toMatch(/showRushProgress\s+Boolean\s+@default\(false\)/);
     });
 
     it("la progression est unique par (profil, guide, personnage)", () => {

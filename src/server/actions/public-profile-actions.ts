@@ -474,6 +474,7 @@ export async function updatePublicSettings(raw: unknown): Promise<ActionResult> 
             data: {
                 showOnDirectory: parsed.data.showOnDirectory,
                 showPresence: parsed.data.showPresence,
+                showRushProgress: parsed.data.showRushProgress,
             },
         });
         revalidatePath(PATHS.reglages);
@@ -686,6 +687,7 @@ export type PublicProfileExport = {
         metamobVerified: boolean;
         showOnDirectory: boolean;
         showPresence: boolean;
+        showRushProgress: boolean;
     };
     professions: { id: string; level: number }[];
     dungeonAchievements: { dungeonAchievementId: string; completedAt: string }[];
@@ -744,6 +746,7 @@ export async function exportPublicProfile(): Promise<ExportResult> {
                     metamobVerified: profile.metamobVerified,
                     showOnDirectory: profile.showOnDirectory,
                     showPresence: profile.showPresence,
+                    showRushProgress: profile.showRushProgress,
                 },
                 professions: professions.map((row) => ({ id: row.metierId, level: row.level })),
                 dungeonAchievements: achievements.map((row) => ({

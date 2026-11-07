@@ -130,6 +130,7 @@ export const publicProfessionsSchema = z
 export const publicSettingsSchema = z.object({
     showOnDirectory: z.boolean(),
     showPresence: z.boolean(),
+    showRushProgress: z.boolean(),
 });
 
 export const publicMetamobSchema = z.object({

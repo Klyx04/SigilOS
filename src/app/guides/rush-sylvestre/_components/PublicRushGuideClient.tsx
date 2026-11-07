@@ -78,6 +78,7 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
+import { PublicCommunityPanel } from "./PublicCommunityPanel";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
 import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
@@ -130,6 +131,7 @@ import { alignmentCrest } from "@/lib/rush-guide-view";
 // par la règle partagée du profil) — le choix n'est plus un panneau replié.
 import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
+import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
 
 interface QuestBlock {
@@ -326,6 +328,9 @@ function ResetProgressButton({
   );
 }
 
+/** Drapeau local de l accueil de premiere arrivee (V2a-4) : une seule fois par navigateur. */
+const ONBOARDING_FLAG = "sigilos:rush-public-onboarded";
+
 export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConnected = false, visitor = null }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
@@ -451,6 +456,48 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const [characterOpen, setCharacterOpen] = useState(false);
   /** V2a-4 — modale « Mon alignement » (cité + Ordre, écrits sur le profil visiteur). */
   const [alignmentOpen, setAlignmentOpen] = useState(false);
+
+  /* V2a-4 — accueil de première arrivée (trois étapes, une seule fois par navigateur).
+     Il ENCHAÎNE les deux sélecteurs existants : aucun second formulaire à maintenir. */
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(null);
+  const [onboardingFlow, setOnboardingFlow] = useState<"character" | "alignment" | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage.getItem(ONBOARDING_FLAG)) return;
+    } catch {
+      return; // stockage indisponible : pas d accueil, jamais un blocage
+    }
+    const timer = setTimeout(() => setOnboardingStep(1), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const finishOnboarding = () => {
+    try {
+      window.localStorage.setItem(ONBOARDING_FLAG, "1");
+    } catch {
+      /* le drapeau est un confort : son absence ne bloque jamais la lecture */
+    }
+    setOnboardingStep(null);
+    setOnboardingFlow(null);
+  };
+
+  const closeCharacterModal = () => {
+    setCharacterOpen(false);
+    if (onboardingFlow === "character") {
+      setOnboardingFlow(null);
+      setOnboardingStep(2);
+    }
+  };
+
+  const closeAlignmentModal = () => {
+    setAlignmentOpen(false);
+    if (onboardingFlow === "alignment") {
+      setOnboardingFlow(null);
+      setOnboardingStep(3);
+    }
+  };
 
   // Overlay Floating Window state
   const [pipWin, setPipWin] = useState<Window | null>(null);
@@ -1348,6 +1395,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             <Link href="/espace-visiteur/general" className="da-guide-hero-cta">
               {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
             </Link>
+          ) : !isConnected ? (
+            /* V2a-6 — invitation DISCRÈTE au profil visiteur : un lien, jamais une modale
+               forcée. La lecture du guide reste entièrement libre. */
+            <Link href="/espace-visiteur/general" className="da-guide-hero-cta">
+              {locale === "en" ? "Create my visitor profile →" : "Créer mon profil visiteur →"}
+            </Link>
           ) : null}
         </div>
         <div className="da-guide-controls">
@@ -1491,7 +1544,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           )}
           <GuestCharacterModal
             open={characterOpen}
-            onClose={() => setCharacterOpen(false)}
+            onClose={closeCharacterModal}
             initial={character}
             locale={locale}
             onSubmit={(next) => applyGuestCharacter(next)}
@@ -1502,12 +1555,36 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               un compte est connecté, conservé localement (et appliqué à la route) sinon. */}
           <PublicAlignmentModal
             open={alignmentOpen}
-            onClose={() => setAlignmentOpen(false)}
+            onClose={closeAlignmentModal}
             alignment={visitor?.alignment ?? routeCamp}
             alignmentOrder={visitor?.alignmentOrder ?? routeOrder}
             locale={locale}
             localOnly={!visitor}
             onLocalSave={handleLocalAlignment}
+          />
+          {/* V2a-4 — accueil de première arrivée : trois étapes qui enchaînent les deux
+              sélecteurs ci-dessus. Jamais forcé : « Passer » ferme et l accueil ne revient
+              plus (drapeau local). */}
+          <PublicOnboardingModal
+            open={onboardingStep !== null}
+            step={onboardingStep ?? 1}
+            locale={locale}
+            onPickCharacter={() => {
+              setOnboardingFlow("character");
+              setOnboardingStep(null);
+              setCharacterOpen(true);
+            }}
+            onPickAlignment={() => {
+              setOnboardingFlow("alignment");
+              setOnboardingStep(null);
+              setAlignmentOpen(true);
+            }}
+            onNext={() => setOnboardingStep(2)}
+            onFinish={finishOnboarding}
+            onSkip={finishOnboarding}
+            onBack={() =>
+              setOnboardingStep((step) => (step && step > 1 ? ((step - 1) as OnboardingStep) : step))
+            }
           />
         </div>
 
@@ -1748,6 +1825,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               </span>
             </DropdownMenuItem>
 
+            {/* V2a-4 — l accueil est REJOUABLE : même modale, même drapeau, aucune donnée
+                perdue. Il ne s ouvre plus tout seul une fois le drapeau posé. */}
+            <DropdownMenuItem
+              onSelect={() => setOnboardingStep(1)}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
+            >
+              <HelpCircle className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-xs font-semibold">
+                {locale === "en" ? "Replay the welcome tour" : "Revoir l accueil"}
+              </span>
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator className="my-1 h-px bg-border" />
 
             {/* « Ma cité » — sortie du bandeau en V2a-5 (demande user : « le bandeau avec
@@ -1832,6 +1921,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       </div>
     </div>
       </header>
+      {/* ── PROGRESSION COMMUNAUTAIRE (V2a-2) — visiteurs du même serveur qui ont coché
+          « Publier ma progression de rush » (D-V21). Pleine largeur, sous le bloc Progression.
+          Absente pour l anonyme : le serveur se résout côté serveur, jamais depuis le navigateur. */}
+      {isConnected ? (
+        <div className="px-4 pb-4 sm:px-5 lg:px-6">
+          <PublicCommunityPanel totalMilestones={milestones.length} />
+        </div>
+      ) : null}
       <div className="da-guide-grid">
         {/* Sommaire : colonne de gauche, au langage du dock. Le MÊME composant
             servira au guide interne (E4) : aucune variante « public ». */}

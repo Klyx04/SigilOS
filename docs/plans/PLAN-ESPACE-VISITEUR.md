@@ -47,6 +47,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 | Qui regarde ↓ / affiché → | consentant (`showOnDirectory = true`) | non consentant |
 |---|---|---|
 | **Visiteur** (guide / overlay public) | ✅ pseudo, classe, Dofus + étape, tag `Visiteur` ou `Guilde` | ❌ invisible |
+| **Visiteur connecté** (panneau Progression Communautaire) | ✅ nom de personnage, blocs terminés, donjons cochés — **si** `showRushProgress = true` | ❌ absent du panneau, même présent dans l'annuaire |
 | **Membre** (guide / overlay interne) | ✅ idem | ✅ **ses propres collègues** uniquement (comportement actuel, inchangé) |
 
 Filtre = **même serveur**. Le serveur d'un visiteur vient de `PublicProfile.dofusServerId`, celui d'une
@@ -63,6 +64,7 @@ pas de demande d'aide, pas de chat.
 | **D-V18** | **Annuaire privé** : `/visiteurs` et `/visiteurs/<id>` exigent une **session valide + un profil public** ; le serveur lu est **celui du profil**, jamais un paramètre d'URL | un compte sans profil obtient l'écran « crée ton profil », pas la liste — conséquence assumée : un membre de guilde sans profil visiteur ne lit pas l'annuaire (D-V3, aucune lecture inter-guilde). `showOnDirectory: true` est dans **chaque** requête ; 404 sur un profil non consentant ou d'un autre serveur |
 | **D-V19** | **Champs publics** de la fiche : pseudo, serveur, classe, niveau, points de succès, guilde déclarée, métiers, présentation, objectifs, **nombre** de succès de donjons | jamais les mules (`altPseudos`), jamais Metamob, jamais `userId` : les trois sont **absents du `select`**, donc un champ non lu ne peut pas fuir. Aucun agrégat de progression (D-V8) |
 | **D-V20** | `PublicRushProgress.characterSlot` est une **chaîne** — `"PRINCIPAL"` ou le slug du personnage — comme les trois tables `PlayerGuide*` | migration `20270128000000_public_rush_progress_slot_text` (table **vide** : aucune perte). Un index entier se décale dès que la liste des mules change : la progression aurait sauté d'un personnage à l'autre |
+| **D-V21** | **Progression Communautaire = consentement distinct** — `PublicProfile.showRushProgress` (défaut `false`) | publier ses blocs, sa quête en cours et ses donjons cochés à tout le serveur n'est ni « figurer dans l'annuaire » (`showOnDirectory`) ni « être vu en ligne » (`showPresence`) : réutiliser l'un des deux publierait des progressions **déjà en base** sans consentement. Le panneau exige `showRushProgress` **seul**, n'affiche qu'un nom de personnage et deux compteurs — jamais `userId` ni `publicProfileId` |
 
 ## 2. Blocage mesuré avant tout code
 

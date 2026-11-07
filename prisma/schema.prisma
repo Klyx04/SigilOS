@@ -943,6 +943,9 @@ model PublicProfile {
   /// Consentement **présence temps réel** (D9) — distinct : figurer dans l'annuaire
   /// n'autorise pas à afficher « en ligne maintenant ».
   showPresence         Boolean  @default(false)
+  /// Consentement **progression de rush** (D-V21) — distinct : publier ses blocs,
+  /// sa quête en cours et ses donjons cochés n'est pas « figurer dans l'annuaire ».
+  showRushProgress     Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   user                 User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -951,6 +954,7 @@ model PublicProfile {
   achievements         PublicDungeonAchievement[]
 
   @@index([dofusServerId, showOnDirectory])
+  @@index([dofusServerId, showRushProgress])
   @@index([lastLadderSync])
 }
 

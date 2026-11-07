@@ -45,6 +45,7 @@ function row(overrides: Partial<PublicProfileRow> = {}): PublicProfileRow {
         lastLadderSync: null,
         showOnDirectory: false,
         showPresence: false,
+        showRushProgress: false,
         createdAt: new Date("2026-11-06T00:00:00Z"),
         updatedAt: new Date("2026-11-06T00:00:00Z"),
         ...overrides,

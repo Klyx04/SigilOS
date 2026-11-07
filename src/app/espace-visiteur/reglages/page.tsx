@@ -15,6 +15,7 @@ export default async function ReglagesPage() {
             <SettingsForm
                 showOnDirectory={profile.showOnDirectory}
                 showPresence={profile.showPresence}
+                showRushProgress={profile.showRushProgress}
             />
             <ExportDeleteCard />
         </div>

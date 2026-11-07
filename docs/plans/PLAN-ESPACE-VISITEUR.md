@@ -232,6 +232,53 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   requis → qui l'a coché, qui l'a « à faire » (`resolveSequenceDungeons` +
   `PublicRushProgress.dungeonChecks`).
 - `GuildStatusPanel` extrait en composant partagé (interne + public), jamais dupliqué.
+- **Renommé « Progression Communautaire »** (demande du 06/11) : la version publique ne parle
+  jamais de « guilde ».
+
+### V2a — refonte de la surface Rush public (brief du 06/11/2026)
+
+> Retour user (verbatim) : « UI UX encore mauvaise », « la 1ere arrivée doit lui ouvrir une modale
+> avec choix classe > alignement > lancer le rush », « tour guidé complet à créer et rejouable via
+> un bouton (tour une seule fois) », « reset son rush avec un bouton », « l'image de fond […] est
+> flou, renomme en Rush Dofus Sylvestre […] ajoute l'icône du dofus sylvestre à coté », « ma cité
+> […] mange de la place bêtement », « je voudrais ceci [vue interne] », « rush live : uniquement les
+> visiteurs connectés du même serveur ? », « encourage […] à proposer la création de son profil ».
+
+**Constat mesuré.** Le guide public **connecté** rend aujourd'hui **exactement** la même surface que
+l'anonyme (seul un bandeau d'identité a été ajouté en V2a-1). La vue cible est celle de l'**interne**.
+Deux causes mesurées pour l'en-tête : ① `.da-guide-hero-art` n'a **aucun `filter: blur`** — le flou
+vient de l'**agrandissement** d'une source basse résolution (`object-fit: cover`) ; ② un système de
+tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayButton`) — on le
+**réutilise**, on n'en crée pas un second.
+
+**V2a-3 — surface connectée alignée sur l'interne**
+- Bloc du haut : Personnage actif · Alignement · Metamob · Rush Live · Ouvrir Overlay.
+- **Rush Live = visiteurs connectés du même serveur uniquement**, consentement `showPresence`
+  (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c** ;
+  V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé.
+- **Alignement** : `PublicProfile.alignment` existe en base mais **aucune action ne l'écrit**
+  (mesuré) → bouton « renseigner » dans la modale de première arrivée (V2a-4), pas une tuile vide.
+- **Metamob** : pseudo + « vérifié » (données déjà présentes côté visiteur) ; jamais la clé.
+- Bloc **« Rechercher une quête » + Options** entre le haut et la progression (anatomie interne).
+- Le guide lui-même (blocs, coches, donjons, ressources) reste **le même composant partagé** :
+  la parité est verrouillée par `rush-public-parity`, aucun composant dupliqué.
+
+**V2a-4 — première arrivée (non connecté et connecté)**
+- Modale d'entrée : **classe → alignement → lancer le rush**, puis **tour guidé complet**.
+- Tour **rejouable** par un bouton « Revoir le tour », et **une seule fois** en automatique
+  (drapeau local par visiteur). Réutilise `ModuleTourReplayButton` + `tour-provider`.
+- « Ma cité » (Bontarien / Neutre / Brâkmarien, `PublicRouteChoice`) quitte la barre : elle vit
+  dans la modale et reste un **chip compact** ensuite (elle « mange de la place » aujourd'hui).
+
+**V2a-5 — en-tête du guide**
+- Titre **« Rush Dofus Sylvestre »** + **icône du Dofus Sylvestre** à côté (`Dofus_Sylvestre.png`).
+- Image de fond **nette** : source haute résolution dédiée (le flou actuel est un agrandissement,
+  pas un effet) — sinon fond uni + visuel du Dofus.
+- Bouton **« Réinitialiser »** visible et explicite (il existe, à remonter dans la barre).
+
+**V2a-6 — invitation au profil (anonyme)**
+- Le guide non connecté **encourage** à créer son profil visiteur (progression sauvegardée,
+  qui a coché quoi, présence) — sans bloquer la lecture : CTA discret, jamais une modale forcée.
 
 **V2b — Succès Donjons visiteurs** (**D-V9**)
 - Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement

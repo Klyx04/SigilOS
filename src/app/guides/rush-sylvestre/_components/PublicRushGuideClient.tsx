@@ -68,6 +68,7 @@ import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuest
 import { resolveRushRoute } from "@/lib/rush-route";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
+import type { PublicGuideVisitor } from "@/lib/public-guide-visitor";
 import {
   adoptMyRushProgress,
   loadMyRushProgress,
@@ -232,6 +233,11 @@ interface PublicRushGuideClientProps {
    * (aucun appel réseau), exactement comme avant.
    */
   isConnected?: boolean;
+  /**
+   * V2a — identité du visiteur connecté (5 scalaires, DTO étanche). `null` pour un anonyme :
+   * aucun bandeau, aucune requête, le guide reste exactement ce qu'il était.
+   */
+  visitor?: PublicGuideVisitor | null;
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
@@ -302,7 +308,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt, isConnected = false }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroArt, isConnected = false, visitor = null }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -958,6 +964,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
   // reprise du libellé dans les messages (remise à zéro).
   const characterClass = character?.classId ? getClass(character.classId) : null;
+  /** V2a — classe du visiteur **connecté** (celle du profil, pas du personnage invité). */
+  const visitorClass = visitor?.classe ? getClass(visitor.classe) : null;
   const characterLabel = character
     ? [character.pseudo || characterClass?.name || "Personnage", guestServerLabel(character.serverId)]
         .filter(Boolean)
@@ -1227,6 +1235,60 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, heroAr
           est rendu par le client : c'est ici qu'il trouve son état (route, filtre,
           personnage) sans redescendre par des props. */}
       <header className="da-guide-hero">
+        {/* ── V2a — BANDEAU DU VISITEUR CONNECTÉ ───────────────────────────────
+            Trois informations et une porte : qui est là (classe + pseudo), son serveur,
+            ses deux chiffres publics (niveau, points de succès — remplis par V1e), et le
+            lien vers son espace. Aucune donnée de guilde, aucune liste de membres.
+            Anonyme (`visitor === null`) ⇒ rien n'est rendu, la page reste identique. */}
+        {visitor ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface/60 px-4 py-2.5 sm:px-5">
+            <span className="flex min-w-0 items-center gap-2">
+              {visitorClass ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={visitorClass.icon}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-7 w-7 shrink-0 object-contain"
+                />
+              ) : null}
+              <span className="min-w-0">
+                <span className="block text-[11px] text-muted-foreground">
+                  {locale === "en" ? "Active character" : "Personnage actif"}
+                </span>
+                <span className="block truncate text-sm font-semibold text-foreground">
+                  {visitor.pseudo ?? (locale === "en" ? "Visitor" : "Visiteur")}
+                </span>
+              </span>
+            </span>
+
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              {getDofusServerImage(visitor.serverId) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getDofusServerImage(visitor.serverId)!}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4 shrink-0 rounded object-cover border border-black/30"
+                />
+              ) : null}
+              <span className="truncate">{guestServerLabel(visitor.serverId) ?? ""}</span>
+            </span>
+
+            <span className="text-xs text-muted-foreground">
+              {locale === "en" ? "Level" : "Niveau"}{" "}
+              <b className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</b>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {locale === "en" ? "Success points" : "Points de succès"}{" "}
+              <b className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</b>
+            </span>
+
+            <Link href="/espace-visiteur/general" className="da-kicker ml-auto shrink-0">
+              {locale === "en" ? "My visitor space →" : "Mon espace visiteur →"}
+            </Link>
+          </div>
+        ) : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroArt} alt="" aria-hidden="true" className="da-guide-hero-art" />
         <div className="da-guide-hero-inner">

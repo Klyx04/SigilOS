@@ -217,12 +217,21 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
 ### V2 — Visibilité communautaire
 
 **V2a — guide public connecté** (**D-V12**)
-- Bandeau de l'interne : **5 tuiles** (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay).
-- Recherche + **Options** **entre** le bloc Rush et le bloc Progression.
-- Bloc **Progression Communautaire** : `GuildStatusPanel` extrait en composant partagé, alimenté par les
-  profils **consentants** du même serveur ; détail **par bloc** ; donjons requis → qui l'a coché,
-  qui l'a « à faire » (`resolveSequenceDungeons` + `PublicRushProgress.dungeonChecks`).
-- Non connecté : mode local actuel **inchangé**.
+
+*V2a-1 — bandeau du visiteur — livré le 06/11/2026*
+- Bandeau au-dessus du guide : classe + pseudo, serveur (icône + nom), **niveau** et **points de
+  succès** (remplis par V1e), lien vers l'espace visiteur. Cinq scalaires
+  (`src/lib/public-guide-visitor.ts`), jamais de mule / Metamob / `userId`.
+- Page : `getPublicAccount()` **uniquement s'il y a une session** ; anonyme ⇒ aucune requête,
+  aucun bandeau, guide inchangé. Les tuiles qui dépendent d'une guilde (Metamob, Rush Live)
+  restent hors du public : elles n'ont pas de source côté visiteur.
+- Verrou `tests/unit/public-guide-visitor.test.ts` (6 cas).
+
+*V2a-2 — Progression Communautaire — **à faire***
+- Bloc alimenté par les profils **consentants** du même serveur ; détail **par bloc** ; donjons
+  requis → qui l'a coché, qui l'a « à faire » (`resolveSequenceDungeons` +
+  `PublicRushProgress.dungeonChecks`).
+- `GuildStatusPanel` extrait en composant partagé (interne + public), jamais dupliqué.
 
 **V2b — Succès Donjons visiteurs** (**D-V9**)
 - Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement

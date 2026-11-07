@@ -48,6 +48,8 @@ export async function loadPublicCommunity(): Promise<CommunityResult> {
             select: {
                 characterName: true,
                 completedMilestones: true,
+                completedSteps: true,
+                currentStep: true,
                 dungeonChecks: true,
                 updatedAt: true,
                 profile: { select: { pseudoDofus: true } },
@@ -61,6 +63,8 @@ export async function loadPublicCommunity(): Promise<CommunityResult> {
             const member = toCommunityMember({
                 characterName: row.characterName,
                 completedMilestones: row.completedMilestones,
+                completedSteps: row.completedSteps,
+                currentStep: row.currentStep,
                 dungeonChecks: row.dungeonChecks,
                 updatedAt: row.updatedAt,
                 pseudoDofus: row.profile.pseudoDofus,

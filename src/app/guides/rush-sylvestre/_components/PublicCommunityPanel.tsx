@@ -1,31 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Users } from "lucide-react";
 import { loadCommunityProgress } from "../_actions/public-community";
+import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
 import {
-    memberCompletion,
-    sortCommunityMembers,
+    communityDofusStats,
     type CommunityMember,
+    type CommunityMilestoneLike,
 } from "@/lib/rush-community-progress";
+
+const DOFUS_META = dofusMetaIndex();
 
 type PanelState =
     | { status: "loading" }
     | { status: "ready"; members: CommunityMember[] }
     | { status: "error"; message: string };
 
-function countLabel(count: number, singular: string, plural: string): string {
-    return `${count} ${count > 1 ? plural : singular}`;
-}
-
 /**
  * Panneau **Progression Communautaire** du guide public (V2a-2).
  *
- * Il n'affiche que les visiteurs du serveur du lecteur qui ont coché « Publier ma progression
- * de rush » (D-V21) : la liste vient d'une action colocalisée, jamais d'une lecture directe
- * (`@/server/` est interdit dans ce client). Aucun nom de compte, aucun identifiant : le
- * serveur ne renvoie qu'un nom de personnage et deux compteurs.
+ * Il reproduit le panneau interne par Dofus (D-V8) : un bloc par Dofus, le pourcentage de
+ * jalons couverts par au moins un membre, puis chaque membre situé **à la quête**
+ * (`memberDofusProgress`, la même règle que l interne).
+ *
+ * Deux invariants de confidentialité : la liste ne contient que les visiteurs du serveur du
+ * lecteur qui ont coché « Publier ma progression de rush » (D-V21), et le serveur ne renvoie
+ * qu un nom de personnage + des compteurs — jamais `userId` ni `publicProfileId`.
+ *
+ * ⚠️ Conteneur **vertical** volontaire : `.da-card` est un flex horizontal (icône + texte), il
+ * ne peut pas porter un titre puis une liste (mesure du 08/11/2026).
  */
-export function PublicCommunityPanel({ totalMilestones }: { totalMilestones: number }) {
+export function PublicCommunityPanel({ milestones }: { milestones: CommunityMilestoneLike[] }) {
     const [state, setState] = useState<PanelState>({ status: "loading" });
 
     useEffect(() => {
@@ -44,65 +50,103 @@ export function PublicCommunityPanel({ totalMilestones }: { totalMilestones: num
         };
     }, []);
 
-    const members =
-        state.status === "ready" ? sortCommunityMembers(state.members, totalMilestones) : [];
+    const members = state.status === "ready" ? state.members : [];
+    const stats = state.status === "ready" ? communityDofusStats(members, milestones) : [];
 
     return (
-        <section className="da-card" aria-labelledby="public-community-title">
-            <h2 id="public-community-title" className="da-title">
-                Progression Communautaire
-            </h2>
-            <p className="da-kicker">Les visiteurs de ton serveur qui partagent leur progression.</p>
+        <section
+            className="rounded-[6px] border border-border bg-surface p-4"
+            aria-labelledby="public-community-title"
+        >
+            <header className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <h2 id="public-community-title" className="text-xs font-medium text-foreground">
+                        Progression Communautaire
+                    </h2>
+                </div>
+                {members.length > 0 ? (
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                        {members.length} {members.length > 1 ? "membres" : "membre"}
+                    </span>
+                ) : null}
+            </header>
 
             {state.status === "loading" ? (
-                <p className="da-state">Chargement de la progression du serveur…</p>
+                <p className="text-[11px] text-muted-foreground">Chargement de la progression du serveur…</p>
             ) : null}
 
             {state.status === "error" ? (
-                <p className="da-state" role="status">
+                <p role="status" className="text-[11px] text-muted-foreground">
                     {state.message}
                 </p>
             ) : null}
 
             {state.status === "ready" && members.length === 0 ? (
-                <p className="da-state">
+                <p className="text-[11px] text-muted-foreground">
                     Personne ne partage encore sa progression sur ton serveur. Chacun l active dans
                     les réglages de son espace visiteur.
                 </p>
             ) : null}
 
-            {members.length > 0 ? (
-                <ul className="mt-3 space-y-3">
-                    {members.map((member) => {
-                        const pct = memberCompletion(member, totalMilestones);
+            {stats.length > 0 ? (
+                <div className="space-y-2.5">
+                    {stats.map((stat) => {
+                        const meta = DOFUS_META[stat.id];
+                        const label = meta?.label ?? stat.id;
                         return (
-                            <li key={`${member.name}-${member.updatedAt}`}>
+                            <div key={stat.id} className="rounded-[4px] border border-border bg-background p-3">
                                 <div className="flex items-baseline justify-between gap-3">
-                                    <strong>{member.name}</strong>
-                                    <span className="text-sm" style={{ color: "var(--da-muted0)" }}>
-                                        {countLabel(member.completedMilestones.length, "bloc", "blocs")}
-                                        {" · "}
-                                        {countLabel(member.dungeonDone.length, "donjon", "donjons")}
+                                    <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
+                                        {meta ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={meta.imageUrl}
+                                                alt=""
+                                                aria-hidden="true"
+                                                className="h-4 w-4 shrink-0 object-contain"
+                                            />
+                                        ) : null}
+                                        <span className="truncate">{label}</span>
+                                    </span>
+                                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                                        {stat.pct} % · {stat.completedMilestones}/{stat.totalMilestones}
                                     </span>
                                 </div>
                                 <div
-                                    className="mt-1 h-1.5 overflow-hidden rounded-[4px]"
-                                    style={{ background: "var(--da-line0)" }}
+                                    className="mt-1 h-1.5 overflow-hidden rounded-[2px] bg-elevated"
                                     role="progressbar"
                                     aria-valuemin={0}
                                     aria-valuemax={100}
-                                    aria-valuenow={pct}
-                                    aria-label={`Avancement de ${member.name}`}
+                                    aria-valuenow={stat.pct}
+                                    aria-label={`Avancement ${label}`}
                                 >
-                                    <div
-                                        className="h-full rounded-[4px]"
-                                        style={{ width: `${pct}%`, background: "var(--da-acc)" }}
+                                    <span
+                                        className="block h-full bg-success"
+                                        style={{ width: `${stat.pct}%` }}
                                     />
                                 </div>
-                            </li>
+                                <ul className="mt-2 space-y-1">
+                                    {stat.members.map((member) => (
+                                        <li
+                                            key={member.name}
+                                            className="flex items-baseline justify-between gap-3 text-[11px]"
+                                        >
+                                            <strong className="truncate font-semibold text-foreground">
+                                                {member.name}
+                                            </strong>
+                                            <span className="truncate text-muted-foreground">
+                                                {member.current
+                                                    ? `${member.current} · ${member.currentIndex}/${member.total}`
+                                                    : "Dofus terminé"}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         );
                     })}
-                </ul>
+                </div>
             ) : null}
         </section>
     );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { loadCommunityProgress } from "../_actions/public-community";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
 import {
@@ -20,19 +21,18 @@ type PanelState =
 /**
  * Panneau **Progression Communautaire** du guide public (V2a-2).
  *
- * Il reproduit le panneau interne par Dofus (D-V8) : un bloc par Dofus, le pourcentage de
- * jalons couverts par au moins un membre, puis chaque membre situé **à la quête**
- * (`memberDofusProgress`, la même règle que l interne).
+ * Même forme que le panneau interne (`GuildStatusPanel`) : une **rangée de pastilles**
+ * Dofus (icône nue + libellé + filet + %), et le détail par membre dans une modale au clic.
+ * Une pile de cartes pleine largeur avait été livrée le 08/11/2026 : elle écrasait la page
+ * (douze blocs vides) et ne ressemblait pas à l interne — mesure, pas goût.
  *
- * Deux invariants de confidentialité : la liste ne contient que les visiteurs du serveur du
- * lecteur qui ont coché « Publier ma progression de rush » (D-V21), et le serveur ne renvoie
- * qu un nom de personnage + des compteurs — jamais `userId` ni `publicProfileId`.
- *
- * ⚠️ Conteneur **vertical** volontaire : `.da-card` est un flex horizontal (icône + texte), il
- * ne peut pas porter un titre puis une liste (mesure du 08/11/2026).
+ * Deux invariants de confidentialité : seuls les visiteurs du serveur du lecteur qui ont coché
+ * « Publier ma progression de rush » (D-V21) arrivent ici, et le serveur ne renvoie qu un nom
+ * de personnage + des compteurs — jamais `userId` ni `publicProfileId`.
  */
 export function PublicCommunityPanel({ milestones }: { milestones: CommunityMilestoneLike[] }) {
     const [state, setState] = useState<PanelState>({ status: "loading" });
+    const [openDofusId, setOpenDofusId] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -52,25 +52,22 @@ export function PublicCommunityPanel({ milestones }: { milestones: CommunityMile
 
     const members = state.status === "ready" ? state.members : [];
     const stats = state.status === "ready" ? communityDofusStats(members, milestones) : [];
+    const selected = stats.find((stat) => stat.id === openDofusId) ?? null;
+    const selectedMeta = selected ? DOFUS_META[selected.id] : null;
 
     return (
-        <section
-            className="rounded-[6px] border border-border bg-surface p-4"
-            aria-labelledby="public-community-title"
-        >
-            <header className="mb-3 flex items-center justify-between gap-3">
+        <div className="rounded-[6px] border border-border bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                    <h2 id="public-community-title" className="text-xs font-medium text-foreground">
+                    <span className="text-xs font-medium text-foreground">
                         Progression Communautaire
-                    </h2>
-                </div>
-                {members.length > 0 ? (
-                    <span className="text-[11px] tabular-nums text-muted-foreground">
-                        {members.length} {members.length > 1 ? "membres" : "membre"}
                     </span>
-                ) : null}
-            </header>
+                </div>
+                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                    {members.length} membre{members.length > 1 ? "s" : ""}
+                </span>
+            </div>
 
             {state.status === "loading" ? (
                 <p className="text-[11px] text-muted-foreground">Chargement de la progression du serveur…</p>
@@ -89,65 +86,73 @@ export function PublicCommunityPanel({ milestones }: { milestones: CommunityMile
                 </p>
             ) : null}
 
-            {stats.length > 0 ? (
-                <div className="space-y-2.5">
+            {members.length > 0 && stats.length > 0 ? (
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {stats.map((stat) => {
                         const meta = DOFUS_META[stat.id];
                         const label = meta?.label ?? stat.id;
+                        const isAllDone =
+                            stat.completedMilestones === stat.totalMilestones && stat.totalMilestones > 0;
                         return (
-                            <div key={stat.id} className="rounded-[4px] border border-border bg-background p-3">
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
-                                        {meta ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={meta.imageUrl}
-                                                alt=""
-                                                aria-hidden="true"
-                                                className="h-4 w-4 shrink-0 object-contain"
-                                            />
-                                        ) : null}
-                                        <span className="truncate">{label}</span>
-                                    </span>
-                                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                                        {stat.pct} % · {stat.completedMilestones}/{stat.totalMilestones}
-                                    </span>
-                                </div>
-                                <div
-                                    className="mt-1 h-1.5 overflow-hidden rounded-[2px] bg-elevated"
-                                    role="progressbar"
-                                    aria-valuemin={0}
-                                    aria-valuemax={100}
-                                    aria-valuenow={stat.pct}
-                                    aria-label={`Avancement ${label}`}
+                            <button
+                                key={stat.id}
+                                type="button"
+                                onClick={() => setOpenDofusId(stat.id)}
+                                aria-label={`Voir où en sont les membres sur le Dofus ${label} — ${stat.pct} %, ${stat.members.length} membre(s)`}
+                                title={`${label} — ${stat.pct} % — cliquer pour le détail par membre`}
+                                className="relative flex w-[78px] shrink-0 cursor-pointer flex-col items-center gap-1 rounded-[4px] border border-transparent p-1.5 text-center transition-colors hover:border-border"
+                            >
+                                {meta ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={meta.imageUrl} alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+                                ) : null}
+                                <span
+                                    className={`max-w-full truncate text-[11px] leading-tight ${
+                                        isAllDone ? "text-success" : "text-muted-foreground"
+                                    }`}
                                 >
-                                    <span
-                                        className="block h-full bg-success"
-                                        style={{ width: `${stat.pct}%` }}
+                                    {label}
+                                </span>
+                                <div className="h-1 w-full overflow-hidden rounded-[2px] bg-elevated">
+                                    <div
+                                        className="h-full rounded-[2px] transition-all duration-300"
+                                        style={{
+                                            width: `${stat.pct}%`,
+                                            background: isAllDone ? "var(--success)" : meta?.color,
+                                        }}
                                     />
                                 </div>
-                                <ul className="mt-2 space-y-1">
-                                    {stat.members.map((member) => (
-                                        <li
-                                            key={member.name}
-                                            className="flex items-baseline justify-between gap-3 text-[11px]"
-                                        >
-                                            <strong className="truncate font-semibold text-foreground">
-                                                {member.name}
-                                            </strong>
-                                            <span className="truncate text-muted-foreground">
-                                                {member.current
-                                                    ? `${member.current} · ${member.currentIndex}/${member.total}`
-                                                    : "Dofus terminé"}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                                <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                                    {stat.pct}%
+                                </span>
+                            </button>
                         );
                     })}
                 </div>
             ) : null}
-        </section>
+
+            <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setOpenDofusId(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogTitle>
+                        {selectedMeta?.label ?? "Progression"} — où en sont les membres
+                    </DialogTitle>
+                    <ul className="mt-2 space-y-1.5">
+                        {(selected?.members ?? []).map((member) => (
+                            <li
+                                key={member.name}
+                                className="flex items-baseline justify-between gap-3 text-[11px]"
+                            >
+                                <strong className="truncate font-semibold text-foreground">{member.name}</strong>
+                                <span className="truncate text-muted-foreground">
+                                    {member.current
+                                        ? `${member.current} · ${member.currentIndex}/${member.total}`
+                                        : "Dofus terminé"}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }

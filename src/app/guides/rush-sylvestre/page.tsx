@@ -10,6 +10,8 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getPublicGuideDetail } from "@/server/actions/optimized-guide-actions";
+import { getPublicAccount } from "@/server/public-account";
+import { toPublicGuideVisitor } from "@/lib/public-guide-visitor";
 import { PublicRushGuideClient } from "./_components/PublicRushGuideClient";
 import { DaWakfuFilters } from "@/components/da/DaWakfuFilters";
 import { getServerI18n } from "@/lib/i18n/server";
@@ -76,6 +78,13 @@ export default async function PublicRushSylvestrePage() {
   }
 
   const guide = guideRes.guide as any;
+
+  /**
+   * V2a — identité du visiteur connecté, lue **une seule fois** et **jamais** pour un anonyme
+   * (aucune requête en plus sur le chemin public). Le DTO ne transporte que cinq scalaires.
+   */
+  const visitorAccount = session?.user ? await getPublicAccount() : null;
+  const guideVisitor = visitorAccount ? toPublicGuideVisitor(visitorAccount.profile) : null;
   /**
    * 🚧 Drapeau PUBLIC (`isPublicUnderConstruction`, toggle `/god/rush-sylvestre`) : la page PUBLIQUE
    * n'affiche pas le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue
@@ -204,7 +213,7 @@ export default async function PublicRushSylvestrePage() {
         </div>
         ) : (
           <>
-            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} isConnected={!!session?.user} />
+            <PublicRushGuideClient guide={guide} milestones={milestones} heroArt={heroArt} isConnected={!!session?.user} visitor={guideVisitor} />
 
             {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
                 pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 06/11/2026 (suite 13) — **Guide public : le bandeau du visiteur (V2a-1)** — branche `feat/visiteur-guide-connecte`
+
+> **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
+> **Mesures** : ① le guide public ne savait pas **qui** le lisait (aucune identité, même connecté) ; ② `PublicProfile.dofusLevel/successPoints` sont remplis depuis V1e — le bandeau peut donc afficher des chiffres réels ; ③ les tuiles de l'interne qui dépendent d'une guilde (Metamob, Rush Live) **n'ont aucune source** côté visiteur : les rendre aurait été un mensonge.
+> **Fait** : bandeau au-dessus du guide (classe + pseudo, serveur icône + nom, niveau, points de succès, lien espace visiteur) ; DTO de **cinq scalaires** (`src/lib/public-guide-visitor.ts`) ; `getPublicAccount()` appelé **seulement s'il y a une session** — anonyme = zéro requête, guide inchangé.
+> **Preuves** : `public-guide-visitor` **6** · `rush-public-parity` 39 (le client n'importe toujours aucun `@/server/`) · suite **634 fichiers / 6 692 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : **V2a-2** (Progression Communautaire : `GuildStatusPanel` partagé, profils consentants du même serveur, donjons requis) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur le guide connecté (bandeau) et anonyme (rien ne change).
+> **Rotation** : bloc « 06/11/2026 (suite 7) — vérifications (D-V16) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 06/11/2026 (suite 12) — **Espace visiteur : ladder (V1e) + progression en base (V1d)** — branches `feat/visiteur-ladder`, `feat/visiteur-progression`
 
 > **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
@@ -55,14 +64,7 @@
 > **Rotation** : bloc « 06/11/2026 (suite 2) — les six écrans (V1c) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 06/11/2026 (suite 7) — **Espace visiteur : les vérifications (D-V16)** — branche `feat/visiteur-verifications`
 
-> **Demande user (verbatim)** : « v1h oui et enchaine ensuite » — vérification du pseudo ladder Ankama + repli manuel du toggle God, et vérification du pseudo/clé Metamob comme l'interne.
-> **Mesures** : ① `checkPseudoExistsOnLadder` vivait **privée** dans `profile-actions.ts` et `verifyDofusPseudo` exige `getUserContext(guildId)` (membre) ⇒ inutilisable pour un visiteur ; ② `updatePublicMetamob` renvoyait la vérification au worker de V1e (`metamobVerified = false`) ; ③ le toggle God (`PlatformConfig.ladderManualFallback`) existait mais n'était lu que par l'interne.
-> **Fait** : helper **extrait** dans `src/server/ladder-pseudo.ts` (une seule mesure pour les deux vies) ; actions `verifyPublicPseudo` (garde session, Zod, rate limit 10/min, toggle God puis ladder) et `verifyPublicMetamob` (garde compte, rate limit 5/min, `/v1/me`, écriture `where: { userId }`) ; boutons « Vérifier » dans Identité, Mules (serveur du profil) et Metamob ; messages uniques via `src/lib/pseudo-verification.ts` (fail-open assumé).
-> **Preuves** : `visitor-verifications` **8** · suite **627 fichiers / 6 608 tests ✓** · `tsc` 0 · ESLint 0 erreur · `harness-config` 9 ✓ · **aucune migration**.
-> **Reste** : **V1i** — onglet Succès (tranches de niveau, icônes, validation par tranche, liens vers les fiches boss) → V1d → V1e → V2a-e → V3.
-> **Rotation** : bloc « 06/11/2026 (suite) — double cross-check » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -955,6 +955,11 @@ export type PublicOcreMonster = {
     levelMin: number;
     levelMax: number;
     step: number;
+    /**
+     * Nature de la cible. Metamob ne la donne pas toujours : on retombe sur « archimonstre »
+     * (l'immense majorité d'une quête Ocre), et l'onglet « Tout » reste exhaustif.
+     */
+    type: "boss" | "archimonstre";
 };
 
 export type PublicOcreProgress =
@@ -979,6 +984,7 @@ type MetamobQuestMonsterLike = {
     level_min?: number | null;
     level_max?: number | null;
     step?: number | null;
+    type?: string | null;
 };
 
 /** DTO borné : jamais la réponse brute de Metamob ne part vers le client. */
@@ -986,6 +992,8 @@ function toPublicOcreMonster(monster: MetamobQuestMonsterLike): PublicOcreMonste
     const id = Number(monster.monster_id ?? monster.id ?? 0);
     if (!Number.isFinite(id) || id <= 0) return null;
     const label = typeof monster.name === "string" ? monster.name : monster.name?.fr ?? "";
+    const rawType = String(monster.type ?? "").toLowerCase();
+    const isBoss = rawType.includes("boss") || rawType.includes("guardian") || rawType.includes("gardien");
     return {
         id,
         name: label.slice(0, 120),
@@ -994,6 +1002,7 @@ function toPublicOcreMonster(monster: MetamobQuestMonsterLike): PublicOcreMonste
         levelMin: Number(monster.level_min ?? 0),
         levelMax: Number(monster.level_max ?? 0),
         step: Number(monster.step ?? 0),
+        type: isBoss ? "boss" : "archimonstre",
     };
 }
 

@@ -123,6 +123,18 @@ export function ocreMonsterImage(id: number): string {
   return `${OCRE_MONSTER_IMAGE_DIR}/${id}.webp`;
 }
 
+/**
+ * Repli **livré avec le dépôt** : `public/assets/dofus/monsters/{id}.png`.
+ *
+ * Mesure du 08/11 : les vignettes viennent du cache siphonné (`/uploads/assets-dofus/monsters`,
+ * `.webp`), alors que le dépôt porte aussi des `.png` dans `assets/dofus/monsters`. Deux dossiers,
+ * deux extensions, un seul lu — les monstres présents uniquement en `.png` restaient donc sur le
+ * picto générique. On tente le PNG **avant** le picto.
+ */
+export function ocreMonsterLegacyImage(id: number): string {
+  return `/assets/dofus/monsters/${id}.png`;
+}
+
 /** Repli local (picto du jeu) d'une cible — jamais une URL distante. */
 export function ocreMonsterIcon(type?: string | null): string {
   return OCRE_MONSTER_ICONS[String(type ?? "").toLowerCase()] ?? OCRE_MONSTER_ICONS.monstre;

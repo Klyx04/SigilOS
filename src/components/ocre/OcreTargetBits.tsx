@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Minus, Plus, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ocreMonsterIcon, ocreMonsterImage, ocreStateLabel } from "@/lib/ocre-soul-stones";
+import { ocreMonsterIcon, ocreMonsterImage, ocreMonsterLegacyImage, ocreStateLabel } from "@/lib/ocre-soul-stones";
 
 /**
  * Briques PARTAGÉES d'une cible de la Quête Ocre (archimonstre / gardien) :
@@ -12,7 +12,7 @@ import { ocreMonsterIcon, ocreMonsterImage, ocreStateLabel } from "@/lib/ocre-so
  * même comportement d'écriture partout.
  */
 
-/** Vignette d'un monstre : WebP LOCAL, repli sur nos pictos du jeu (jamais de réseau). */
+/** Vignette d'un monstre : WebP LOCAL, puis PNG du dépôt, puis nos pictos (jamais de réseau). */
 export function OcreMonsterThumb({
   id,
   type,
@@ -25,19 +25,18 @@ export function OcreMonsterThumb({
   dimmed?: boolean;
   className?: string;
 }) {
-  const src = ocreMonsterImage(id);
-  const fallback = ocreMonsterIcon(type);
-  const [current, setCurrent] = useState(src);
+  const chain = [ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)];
+  const [step, setStep] = useState(0);
 
-  useEffect(() => setCurrent(src), [src]);
+  useEffect(() => setStep(0), [id, type]);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={current}
+      src={chain[Math.min(step, chain.length - 1)]}
       alt=""
       loading="lazy"
-      onError={() => { if (current !== fallback) setCurrent(fallback); }}
+      onError={() => setStep((current) => (current < chain.length - 1 ? current + 1 : current))}
       className={cn("shrink-0 object-contain", dimmed && "opacity-70", className ?? "h-8 w-8")}
     />
   );

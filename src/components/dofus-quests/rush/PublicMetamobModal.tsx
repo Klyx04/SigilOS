@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PUBLIC_METAMOB_KEY_MAX, PUBLIC_METAMOB_PSEUDO_MAX } from "@/lib/public-profile-input";
-import { cn } from "@/lib/utils";
+import { useOcreWriteQueue } from "@/hooks/use-ocre-write-queue";
+import OcreQuestPanel from "@/components/ocre/OcreQuestPanel";
+import type { OcreMonsterLite } from "@/lib/ocre-soul-stones";
 import {
     getPublicOcreProgress,
     patchPublicOcreMonster,
@@ -17,16 +20,19 @@ import {
 } from "@/server/actions/public-profile-actions";
 
 /**
- * Metamob du guide public — **sans quitter le guide**.
+ * Metamob du guide public — **sans quitter le guide** (demande du 08/11/2026).
  *
- * Demande user du 08/11/2026 : « le clic sur Metamob dans le rush public connecté […] sinon ça
- * ouvre la modale de setup de son metamob directement sans aller dans son profil ». Le geste
- * menait à `/espace-visiteur/general` ; il ouvre maintenant le formulaire ici.
+ * Trois changements du 08/11 (soir), après retour à l'écran :
+ *   • la liste est le **panneau partagé** `OcreQuestPanel` — même recherche, mêmes onglets
+ *     Gardiens / Archis, mêmes libellés et même stepper ±1 que le guide interne. La version
+ *     « Marquer » n'existe plus ;
+ *   • une fois le compte **vérifié**, les champs pseudo/clé sont **repliés** derrière un bouton
+ *     « Modifier » : on ne redemande plus un secret à chaque visite ;
+ *   • l'écriture passe par la **même file** que l'interne (`useOcreWriteQueue`, envoi injecté =
+ *     `patchPublicOcreMonster`) : debounce 650 ms, sérialisée, avec accusé « Enregistré ».
  *
- * ⚠️ Ce composant est le **voisin** de `PublicRushGuideClient`, pas lui : le verrou
- * `rush-public-parity` interdit `@/server/` **dans le client public**, et il n'est pas affaibli.
- * Un import d'action serveur n'embarque aucun code serveur (Next n'y met qu'une référence POST),
- * et l'action garde sa propre garde de session — le bouton n'existe que pour un compte connecté.
+ * ⚠️ Volet `rush-public-parity` : ce composant est le **voisin** de `PublicRushGuideClient`, pas
+ * lui — l'import d'action serveur reste confiné ici, comme avant.
  */
 export function PublicMetamobModal({
     open,
@@ -44,11 +50,8 @@ export function PublicMetamobModal({
     const [apiKey, setApiKey] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    /**
-     * Quête Ocre — « l'objectif de lier son Metamob, c'est surtout pour suivre sa quête dans le
-     * rush » (08/11/2026). Lecture à l'ouverture, puis patch monstre par monstre : la valeur
-     * affichée est **celle que Metamob renvoie après relecture**, jamais notre optimisme.
-     */
+    /** Compte vérifié : le formulaire ne s'ouvre que sur demande explicite. */
+    const [editing, setEditing] = useState(!verified);
     const [quest, setQuest] = useState<{
         total: number;
         captured: number;
@@ -57,7 +60,10 @@ export function PublicMetamobModal({
     } | null>(null);
     const [questError, setQuestError] = useState<string | null>(null);
     const [questLoading, setQuestLoading] = useState(false);
-    const [patchingId, setPatchingId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (open) setEditing(!verified);
+    }, [open, verified]);
 
     useEffect(() => {
         if (!open || !metamobPseudo) return;
@@ -87,31 +93,40 @@ export function PublicMetamobModal({
         };
     }, [open, metamobPseudo]);
 
-    const patchMonster = async (monster: PublicOcreMonster, quantity: number) => {
-        setPatchingId(monster.id);
-        const result = await patchPublicOcreMonster({ monsterId: monster.id, quantity });
-        setPatchingId(null);
-        if (!result.success) {
-            setQuestError(result.error);
-            return;
-        }
-        setQuestError(null);
-        // Double cross-check : on affiche la valeur CONFIRMÉE par Metamob, pas `quantity`.
-        if (result.monster) {
-            const confirmed = result.monster;
-            setQuest((current) => {
-                if (!current) return current;
-                const monsters = current.monsters.map((entry) =>
-                    entry.id === confirmed.id ? confirmed : entry
-                );
-                return {
-                    ...current,
-                    monsters,
-                    captured: monsters.filter((entry) => entry.owned > 0).length,
-                };
-            });
-        }
-    };
+    /** Même forme que l'interne : c'est ce qui permet de partager le panneau. */
+    const liteMonsters: OcreMonsterLite[] = useMemo(
+        () =>
+            (quest?.monsters ?? []).map((monster) => ({
+                id: monster.id,
+                type: monster.type,
+                owned: monster.owned,
+                nameFr: monster.name,
+                // Le panneau n'affiche que `owned` (via `ocreStateLabel`) : l'état brut n'est là
+                // que pour satisfaire la forme partagée.
+                state: monster.owned > 0 ? "owned" : "missing",
+            })),
+        [quest]
+    );
+
+    const send = useCallback(async (monsterId: number, quantity: number) => {
+        const result = await patchPublicOcreMonster({ monsterId, quantity });
+        if (!result.success) throw new Error(result.error);
+        // Double cross-check : la valeur rendue est celle RELUE chez Metamob.
+        return result.monster?.owned;
+    }, []);
+
+    const {
+        monsters: list,
+        adoptServerList,
+        changeQuantity,
+        pendingIds,
+        busy,
+        notice,
+    } = useOcreWriteQueue({ monsters: liteMonsters, send });
+
+    useEffect(() => {
+        adoptServerList(liteMonsters);
+    }, [liteMonsters, adoptServerList]);
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -134,120 +149,111 @@ export function PublicMetamobModal({
 
     return (
         <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-            <DialogContent className="w-[min(30rem,calc(100vw-2rem))] rounded-lg border border-border bg-background p-0">
-                <div className="border-b border-border p-4">
-                    <DialogTitle className="text-sm font-semibold text-foreground">Metamob</DialogTitle>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                        {metamobPseudo
-                            ? `Compte lié : ${metamobPseudo}${verified ? " · vérifié" : " · à vérifier"}.`
-                            : "Lie ton compte Metamob : le pseudo est vérifié auprès de Metamob avant d'être enregistré."}
-                    </p>
+            <DialogContent className="w-[min(34rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-background p-0">
+                <div className="flex min-w-0 items-start justify-between gap-3 border-b border-border p-3 sm:p-4">
+                    <div>
+                        <DialogTitle className="text-sm font-semibold text-foreground">Metamob</DialogTitle>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                            {metamobPseudo
+                                ? `Compte lié : ${metamobPseudo}${verified ? " · vérifié" : " · à vérifier"}.`
+                                : "Lie ton compte Metamob pour suivre ta quête Ocre dans le rush."}
+                        </p>
+                    </div>
+                    {verified && !editing ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditing(true)}
+                            className="shrink-0 gap-1 text-xs"
+                        >
+                            <Pencil className="h-3 w-3" />
+                            Modifier
+                        </Button>
+                    ) : null}
                 </div>
 
-                {/* Quête Ocre — le motif même de la liaison Metamob en public : la suivre ici,
-                    sans repasser par le profil. */}
+                {/* Quête Ocre — même panneau que le guide interne (recherche, onglets, stepper). */}
                 {metamobPseudo ? (
-                    <div className="space-y-2 border-b border-border p-4">
-                        <div className="flex items-baseline justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Quête Ocre
-                            </p>
-                            {quest ? (
-                                <span className="text-[11px] tabular-nums text-foreground">
-                                    {quest.captured} / {quest.total}
-                                </span>
-                            ) : null}
-                        </div>
+                    <div className="min-w-0 space-y-3 border-b border-border p-3 sm:p-4">
                         {questLoading ? (
-                            <p className="text-[11px] text-muted-foreground">Lecture de ta quête…</p>
-                        ) : null}
-                        {questError ? <p className="text-[11px] text-warning">{questError}</p> : null}
-                        {quest ? (
-                            <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
-                                {quest.monsters.map((monster) => {
-                                    const caught = monster.owned > 0;
-                                    return (
-                                        <li
-                                            key={monster.id}
-                                            className="flex items-center justify-between gap-2 rounded-[4px] border border-border bg-surface px-2 py-1"
-                                        >
-                                            <span
-                                                className={cn(
-                                                    "min-w-0 truncate text-[11px]",
-                                                    caught ? "text-foreground" : "text-muted-foreground"
-                                                )}
-                                            >
-                                                {monster.name}
-                                                <span className="ml-1 text-[10px] opacity-70">
-                                                    Niv. {monster.levelMin}
-                                                </span>
-                                            </span>
-                                            <button
-                                                type="button"
-                                                disabled={patchingId === monster.id}
-                                                onClick={() => void patchMonster(monster, caught ? 0 : 1)}
-                                                className={cn(
-                                                    "shrink-0 rounded-[4px] border px-2 py-0.5 text-[10px] font-semibold transition-colors",
-                                                    caught
-                                                        ? "border-success/40 bg-success/10 text-success"
-                                                        : "border-border bg-background text-muted-foreground hover:text-foreground"
-                                                )}
-                                            >
-                                                {patchingId === monster.id
-                                                    ? "…"
-                                                    : caught
-                                                      ? "Capturé"
-                                                      : "Marquer"}
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                            <p className="text-xs text-muted-foreground">Lecture de ta quête Metamob…</p>
+                        ) : questError ? (
+                            <p role="alert" className="text-xs text-danger">
+                                {questError}
+                            </p>
+                        ) : quest ? (
+                            <>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {quest.characterName ? `${quest.characterName} · ` : ""}
+                                    {quest.captured}/{quest.total} capturés
+                                </p>
+                                <OcreQuestPanel
+                                    monsters={list}
+                                    busy={busy}
+                                    notice={notice}
+                                    pendingIds={pendingIds}
+                                    onStep={(monster, delta) => changeQuantity(monster, delta)}
+                                />
+                            </>
                         ) : null}
                     </div>
                 ) : null}
 
-                <form onSubmit={submit} className="space-y-3 p-4">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="public-metamob-pseudo">Pseudo Metamob</Label>
-                        <Input
-                            id="public-metamob-pseudo"
-                            value={pseudo}
-                            onChange={(event) => setPseudo(event.target.value)}
-                            maxLength={PUBLIC_METAMOB_PSEUDO_MAX}
-                            autoComplete="off"
-                            disabled={saving}
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="public-metamob-key">Clé d&apos;API (si le profil est privé)</Label>
-                        <Input
-                            id="public-metamob-key"
-                            type="password"
-                            value={apiKey}
-                            onChange={(event) => setApiKey(event.target.value)}
-                            maxLength={PUBLIC_METAMOB_KEY_MAX}
-                            autoComplete="new-password"
-                            placeholder={verified ? "Laisser vide pour conserver la clé actuelle" : "Colle ta clé Metamob"}
-                            disabled={saving}
-                        />
-                    </div>
+                {editing ? (
+                    <form onSubmit={submit} className="space-y-3 p-3 sm:p-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="public-metamob-pseudo">Pseudo Metamob</Label>
+                            <Input
+                                id="public-metamob-pseudo"
+                                value={pseudo}
+                                onChange={(event) => setPseudo(event.target.value)}
+                                maxLength={PUBLIC_METAMOB_PSEUDO_MAX}
+                                autoComplete="off"
+                                disabled={saving}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="public-metamob-key">Clé d&apos;API (si le profil est privé)</Label>
+                            <Input
+                                id="public-metamob-key"
+                                type="password"
+                                value={apiKey}
+                                onChange={(event) => setApiKey(event.target.value)}
+                                maxLength={PUBLIC_METAMOB_KEY_MAX}
+                                autoComplete="new-password"
+                                placeholder={
+                                    verified ? "Laisser vide pour conserver la clé actuelle" : "Colle ta clé Metamob"
+                                }
+                                disabled={saving}
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                                La clé reste côté serveur (chiffrée) : elle n&apos;est jamais renvoyée à l&apos;écran.
+                            </p>
+                        </div>
 
-                    {error ? (
-                        <p role="alert" className="text-sm text-danger">
-                            {error}
-                        </p>
-                    ) : null}
+                        {error ? (
+                            <p role="alert" className="text-sm text-danger">
+                                {error}
+                            </p>
+                        ) : null}
 
-                    <div className="flex justify-end gap-2 pt-1">
-                        <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+                        <div className="flex justify-end gap-2 pt-1">
+                            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+                                Fermer
+                            </Button>
+                            <Button type="submit" disabled={saving}>
+                                {saving ? "Enregistrement…" : "Enregistrer"}
+                            </Button>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="flex justify-end p-4">
+                        <Button type="button" variant="ghost" onClick={onClose}>
                             Fermer
                         </Button>
-                        <Button type="submit" disabled={saving}>
-                            {saving ? "Enregistrement…" : "Enregistrer"}
-                        </Button>
                     </div>
-                </form>
+                )}
             </DialogContent>
         </Dialog>
     );

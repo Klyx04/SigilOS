@@ -31,11 +31,17 @@ export interface OcreWriteNotice {
 }
 
 export interface UseOcreWriteQueueOptions {
-  guildId: string;
+  /** Guilde de l'appelant. Absent côté **visiteur** (aucune guilde) : `send` est alors requis. */
+  guildId?: string;
   /** Liste initiale (données serveur, shape overlay). */
   monsters: OcreMonsterLite[];
   /** Copies exigées par la quête (`parallelQuests`, ≥ 1). */
   requiredCopies?: number;
+  /**
+   * Écriture personnalisée. Par défaut : l'action de **guilde**
+   * (`updateUserMonsterQuantityAction`). Le visiteur branche ici `patchPublicOcreMonster`.
+   */
+  send?: (monsterId: number, quantity: number) => Promise<number | undefined>;
 }
 
 export interface UseOcreWriteQueueResult {
@@ -58,6 +64,7 @@ export function useOcreWriteQueue({
   guildId,
   monsters: initialMonsters,
   requiredCopies = 1,
+  send,
 }: UseOcreWriteQueueOptions): UseOcreWriteQueueResult {
   const [monsters, setMonsters] = useState<OcreMonsterLite[]>(initialMonsters);
   const [pendingIds, setPendingIds] = useState<number[]>([]);
@@ -85,7 +92,8 @@ export function useOcreWriteQueue({
       onSent: (monsterId, confirmed) => {
         setMonsters((prev) => applyOcreQuantity(prev, monsterId, confirmed, copiesRef.current));
         setPendingIds((prev) => prev.filter((id) => id !== monsterId));
-        setNotice(null);
+        // Accusé de réception : sans lui l'écran restait muet (« on ne sait pas si ça marche »).
+        setNotice({ kind: "info", text: "Enregistré sur Metamob ✓" });
       },
       onError: (monsterId, message, revertTo) => {
         if (typeof revertTo === "number") {
@@ -102,8 +110,13 @@ export function useOcreWriteQueue({
     };
   }, []);
 
-  // Envoi réel : action serveur dédiée (PATCH Metamob côté serveur, rate-limité).
+  // Envoi réel : `send` fourni (visiteur) ou action de guilde (membre).
   useEffect(() => {
+    if (send) {
+      sendRef.current = send;
+      return;
+    }
+    if (!guildId) return;
     sendRef.current = async (monsterId, quantity) => {
       const { updateUserMonsterQuantityAction } = await import("@/server/actions/ocre-actions");
       const res = await updateUserMonsterQuantityAction({ guildId, monsterId, quantity });
@@ -115,7 +128,7 @@ export function useOcreWriteQueue({
       }
       return res.data?.quantity;
     };
-  }, [guildId]);
+  }, [guildId, send]);
 
   const adoptServerList = useCallback((next: OcreMonsterLite[]) => {
     queueRef.current?.clear();

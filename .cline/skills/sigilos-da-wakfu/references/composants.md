@@ -10,7 +10,7 @@ Ordre vertical **inchangé** (ne pas réordonner, ne pas fusionner) :
 
 | Ordre | Composant réel | Classes DA | Ce qui change |
 |---|---|---|---|
-| 1 | `RushOverlayHeader` | `.da-hero`, `.da-hero-img`, `.da-kicker`, `.da-logo`, `.da-stage`, `.da-meta`, `.da-track`, `.da-pips` | image du bloc + voiles, titre condensé, jauge 9 px, frise de stade |
+| 1 | `RushOverlayHeader` | `.da-hero`, `.da-hero-img`, `.da-kicker`, `.da-meta`, `.da-track` | image du bloc + voiles, surtitre, jauge 9 px — **plus** de titre visible ni de frise de stade (F8, 08/11/2026) ; le `h1` est masqué (`sr-only`) |
 | 2 | `RushOverlaySearch` | `.da-search` | champ « rough », touche `/` |
 | 3 | `RushOverlayChapterBar` | `.da-dock`, `.da-medal`, `.da-dock-label`, `.da-plank[data-size="mini"]`, `.da-node` | médaillon 26 px, titre 13 px **jamais tronqué**, compteur 40 × 28, nœud « tout le chapitre » |
 | 3b | `RushOverlayActions` | `.da-actions`, `.da-btn`, `.da-badge` | `Reprendre` (planche pleine, cible = `[data-state="next"]` de la liste) + `Ressources n/N` **du bloc affiché** — **seul** point d'entrée de la modale |

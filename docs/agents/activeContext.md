@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 08/11/2026 (suite) — **V2f : l'overlay respire (F8→F11)** — branche `fix/overlay-v2f-f8-f11`
+
+> **Demande user (verbatim)** : « vire les losanges quel interet on a deja un % non ? » — et, pour le reste du lot, le brief V2f du 08/11 (F8 « retirer Rush Sylvestre et Graine », F9 « supprimer le bandeau de rappel sous les filtres », F10 « clignotement du mode clair », F11 « z-index de la fenêtre de retour + lien Discord »).
+> **Mesures** : ① « Graine » n'était pas un libellé écrit dans le bandeau mais le **palier 0** de `rush-dofus-stage`, affiché par la frise (palier `wide` seulement) ; ② le « rappel » sous Toutes/En cours/Faites/Verrouillées est `.da-banner`, qui redisait le titre du chapitre (dock) **et** son avancement (dock + jauge) ; ③ le clignotement venait de `localStorage` lu dans un `useEffect` — un cadre sombre était peint avant la bascule ; ④ le panneau de retour était monté **dans** `<header class="da-hero">` (`position: relative; overflow: hidden`) : il passait sous le contenu quel que soit son `z-index`.
+> **Fait** : frise et titre visible retirés (le `h1` reste en `sr-only`) · `.da-stage`/`.da-pips` et `rush-dofus-stage.ts` supprimés (plus aucun consommateur — pas de code mort) · `.da-banner*` retiré, la **description** du bloc conservée · thème lu dans un *layout effect* isomorphe, donc avant peinture · panneau monté par l'**hôte** en fin de racine + lien `NEXT_PUBLIC_DISCORD_INVITE_URL`.
+> **Preuves** : `rush-overlay-v2f` **8** · `da-wakfu` et `rush-da-grimoire` **repointés (inversés), pas affaiblis** · suite **638 fichiers / 6 743 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : V2f — **F12→F15** (assets du menu, vérif pseudo bloquante, Metamob `/v1/me`) → **F1/F2/F3/F4/F5/F6** (bandeau Dofus anonyme, export/import, espacement, prérequis repliables, « ce que tu perds ») → F7, F16, F17 → V2a-4 reste (tour) → V2b/c/d → V3. **Ops** : contrôle 390 / 768 / 1 440 de l'overlay (bandeau, mode clair, fenêtre de retour).
+> **Rotation** : bloc « 06/11/2026 (suite 13) — Guide public : le bandeau du visiteur (V2a-1) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 08/11/2026 — **Progression Communautaire + accueil public** — branche `feat/visiteur-v2a-2-progression-communautaire`
 
 > **Décision tranchée (D-V21)** : la progression de rush publiée aux visiteurs du même serveur a son **propre consentement** — `PublicProfile.showRushProgress`, `false` par défaut. Ni `showOnDirectory` (« figurer dans l'annuaire ») ni `showPresence` (« être vu en ligne ») ne couvraient cette finalité : les réutiliser aurait publié des progressions **déjà en base** sans consentement.
@@ -52,13 +61,3 @@
 > **Preuves** : `public-guide-visitor` **10** (liste blanche des identifiants `metamob*`, clé non recopiable même passée en entrée, `metamobState` ×3) · `rush-public-parity` **42** (ordre des 5 tuiles, Rush Live honnête, recherche+Options entre tuiles et progression) · suite **634 fichiers / 6 699 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : **V2a-2** (Progression Communautaire) → **V2a-4** (modale classe → alignement → lancer, tour rejouable ; « Revoir le tour » ira dans **Options**) → **V2a-5** (titre « Rush Dofus Sylvestre » + icône + image nette + « Ma cité » compacte + « Réinitialiser » remonté) → **V2a-6** (CTA profil anonyme) → V2b → V2c → V2d → V3. **Ops** : contrôles 390 / 768 / 1 440 sur le guide connecté, le guide anonyme, `/visiteurs` et la barre « Explorer ».
 > **Rotation** : bloc « 06/11/2026 (suite 8) — Reprise documentée : l'ordre et le prochain lot » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 06/11/2026 (suite 13) — **Guide public : le bandeau du visiteur (V2a-1)** — branche `feat/visiteur-guide-connecte`
-
-> **Demande user (verbatim)** : « fais les 3 » (V1e, V1d, V2a).
-> **Mesures** : ① le guide public ne savait pas **qui** le lisait (aucune identité, même connecté) ; ② `PublicProfile.dofusLevel/successPoints` sont remplis depuis V1e — le bandeau peut donc afficher des chiffres réels ; ③ les tuiles de l'interne qui dépendent d'une guilde (Metamob, Rush Live) **n'ont aucune source** côté visiteur : les rendre aurait été un mensonge.
-> **Fait** : bandeau au-dessus du guide (classe + pseudo, serveur icône + nom, niveau, points de succès, lien espace visiteur) ; DTO de **cinq scalaires** (`src/lib/public-guide-visitor.ts`) ; `getPublicAccount()` appelé **seulement s'il y a une session** — anonyme = zéro requête, guide inchangé.
-> **Preuves** : `public-guide-visitor` **6** · `rush-public-parity` 39 (le client n'importe toujours aucun `@/server/`) · suite **634 fichiers / 6 692 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : **V2a-3** (surface connectée = anatomie interne) → **V2a-2** (Progression Communautaire) → **V2a-4/5/6** (modale classe>alignement>lancer + tour rejouable, en-tête « Rush Dofus Sylvestre » + image nette + « Ma cité » compacte, CTA profil anonyme) → V2b → V2c → V2d → V3. **Brief UI complet du 06/11 : `PLAN-ESPACE-VISITEUR.md` §5 « refonte de la surface Rush public ».** Limite assumée : `resources` reste locale. **Ops** : contrôles 390 / 768 / 1 440 sur le guide connecté (bandeau) et anonyme.
-> **Rotation** : bloc « 06/11/2026 (suite 7) — vérifications (D-V16) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

@@ -37,12 +37,12 @@ import { DaThemeProvider } from "@/components/da/da-theme";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { useDaRail } from "@/components/da/use-da-rail";
 import { OverlayToaster } from "@/components/rush/overlay-toast";
-import { safeImageUrl } from "@/lib/security";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
+import { RushOverlayFeedbackPanel } from "./components/RushOverlayFeedbackPanel";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
@@ -124,6 +124,17 @@ type Props = {
   selfOrder?: string | null;
 };
 
+/**
+ * `useLayoutEffect` côté navigateur, `useEffect` au rendu serveur.
+ *
+ * F10 — le thème de l'overlay vit dans `localStorage`, que le serveur ne connaît pas.
+ * Le lire dans un `useEffect` laissait peindre un premier cadre sombre avant de basculer
+ * en clair : c'est le clignotement du mode clair. Un *layout effect* s'exécute après le
+ * commit DOM mais **avant** la peinture — le thème est posé avant le premier pixel.
+ */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export default function GuideOverlayClient({
   guildId = "public",
   guide,
@@ -187,7 +198,8 @@ export default function GuideOverlayClient({
   // composants ne le reçoivent plus en prop : ceux qui sortent de l'arbre
   // (portails) lisent le contexte `DaThemeProvider`.
   const [lightMode, setLightMode] = useState<boolean>(false);
-  useEffect(() => {
+  // F10 : avant peinture, pas après (voir `useIsomorphicLayoutEffect`).
+  useIsomorphicLayoutEffect(() => {
     try {
       const saved = localStorage.getItem("sigil_overlay_theme");
       if (saved === "light") setLightMode(true);
@@ -211,6 +223,8 @@ export default function GuideOverlayClient({
   const [showAlignment, setShowAlignment] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  // F11 : le panneau de retour est monté ICI (fin de racine), plus dans l'en-tête.
+  const [feedbackOpen, setFeedbackOpen] = useState<boolean>(false);
 
   // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
@@ -621,7 +635,6 @@ export default function GuideOverlayClient({
 
   const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
-  const currentMsDoneCount = currentMsSeqs.filter((s) => currentMsDoneSeqs.has(s.id)).length;
 
   // Image de Dofus associée au guide ou au milestone
   const dofusImage = useMemo(() => {
@@ -1214,14 +1227,6 @@ export default function GuideOverlayClient({
     ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
-  // Le chapitre courant est-il validé ? (lu par la barre de chapitre via `completedIds`)
-  const currentMsTotal = currentMsSeqs.length;
-
-  // Décor du bandeau : l'image du bloc, posée par le God. Elle est rendue en
-  // `contain` à droite (jamais étirée ni rognée) — une scène comme une icône s'y
-  // inscrivent sans déformation, et le dégradé du bloc reste dessous.
-  const bannerArt = currentMs?.imageUrl ? safeImageUrl(currentMs.imageUrl) : "";
-
   // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
   // La règle vit dans `src/lib/rush-da-theme.ts` : le guide plein écran applique
   // la MÊME (parité public ↔ interne), donc plus de copie locale.
@@ -1373,7 +1378,7 @@ export default function GuideOverlayClient({
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
             onOpenTutorial={() => setShowTutorial(true)}
-            bugContext={overlayBugContext}
+            onOpenFeedback={() => setFeedbackOpen(true)}
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
@@ -1418,52 +1423,15 @@ export default function GuideOverlayClient({
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
           <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} />
 
-          {/* Bandeau du bloc courant + écriteau — signature de la DA. Il annonce la
-              partie du guide (image posée par le God dans `imageUrl`, repli dégradé)
-              et son avancement en planches. Masqué si le bloc n'a aucune étape. */}
-          {currentMs && currentMsTotal > 0 ? (
+          {/* F9 — le bandeau du bloc courant (image + titre + écriteau « N/M ») est
+              retiré : le dock juste au-dessus porte déjà le titre du chapitre et son
+              avancement, et la jauge du haut porte le total. La **description** reste :
+              c'est la seule à dire ce que le chapitre regroupe. */}
+          {currentMs?.description ? (
             <div className="px-3 pt-3">
-              <div
-                className="da-banner"
-                data-block={daBlock}
-              >
-                {bannerArt ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={bannerArt}
-                    alt=""
-                    aria-hidden="true"
-                    className="da-banner-art"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : null}
-                <div className="da-banner-text">
-                  <div>
-                    <h2>{currentMs.title || "Bloc en cours"}</h2>
-                    {currentMs.subtitle ? <small>{currentMs.subtitle}</small> : null}
-                  </div>
-                  <div
-                    className="da-plank"
-                    role="img"
-                    aria-label={`${currentMsDoneCount} étapes validées sur ${currentMsTotal}`}
-                  >
-                    <i />
-                    <b />
-                    <span>
-                      {currentMsDoneCount}/{currentMsTotal}
-                    </span>
-                  </div>
-                </div>
+              <div className="da-blockdesc">
+                <RushRichText text={currentMs.description} />
               </div>
-              {/* Description du bloc — perdue depuis la refonte, elle est la seule à
-                  dire ce que le chapitre regroupe (maquette : `.blockdesc`). */}
-              {currentMs.description ? (
-                <div className="da-blockdesc">
-                  <RushRichText text={currentMs.description} />
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -1698,6 +1666,20 @@ export default function GuideOverlayClient({
           selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? selfOrder}
           mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
           onClose={() => setShowAlignment(false)}
+        />
+      )}
+      {/* ══ PANNEAU « SIGNALER UN BUG » (F11) ══
+          Monté ICI, en fin de racine : dans l'en-tête il était enfermé par `.da-hero`
+          (`position: relative; overflow: hidden`) et passait sous le contenu, quel que
+          soit son `z-index`. Ici il est le dernier enfant de la racine `data-theme` —
+          donc au-dessus, dans le bon document (PiP comprise), avec les bons jetons. */}
+      {feedbackOpen && !isGuest && (
+        <RushOverlayFeedbackPanel
+          guildId={guildId}
+          sourcePage={`guide:overlay:${guide.slug}`}
+          targetSlug={guide.slug}
+          context={overlayBugContext}
+          onClose={() => setFeedbackOpen(false)}
         />
       )}
     </div>

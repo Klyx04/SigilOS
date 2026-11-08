@@ -278,14 +278,17 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(css).toMatch(/\.da-blockdesc\s*\{/);
     });
 
-    it("le palier `wide` fait 276 px (plafonné à 30 vh) et la frise de stade est montée", () => {
+    it("le palier `wide` fait 276 px (plafonné à 30 vh) et ne porte plus de frise de stade", () => {
         // 276 px est la valeur de la maquette ; `30vh` l'empêche de manger un écran
         // court (PiP de 870 px : 276 px de hero, c'était un tiers de la fenêtre).
         expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*min\(276px,\s*30vh\)/);
-        expect(css).toMatch(/\.da-stage\s*\{/);
+        // F8 (08/11/2026) : la frise est RETIRÉE — le pourcentage et la jauge disaient
+        // déjà la même chose, et son palier 0 s'appelait « Graine ». La garde s'inverse
+        // plutôt que de disparaître : plus de `.da-stage`, plus de règle de stade.
+        expect(css).not.toMatch(/\.da-stage\s*\{/);
+        expect(css).not.toMatch(/\.da-pips\s*\{/);
         const header = readFileSync(HEADER, "utf8");
-        expect(header).toMatch(/dofusStage\(overallPct\)/);
-        expect(header).toMatch(/RUSH_DOFUS_STAGE_COUNT/);
+        expect(header).not.toMatch(/dofusStage|RUSH_DOFUS_STAGE/);
         // L'hôte décide du palier : `wide` dès 900 px de haut (30 vh de hero max).
         expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 900 \? "wide"/);
     });
@@ -360,22 +363,23 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(readFileSync(DOCK, "utf8")).not.toMatch(/dofus\.imageUrl/);
     });
 
-    it("la frise de stade est réservée au palier `wide` (hauteur utile en PiP)", () => {
-        expect(readFileSync(HEADER, "utf8")).toMatch(/\{level === "wide" && \(/);
+    it("la frise de stade a quitté le palier `wide` (F8), le gabarit reste", () => {
+        // F8 (08/11/2026) : la frise était la SEULE chose réservée à `wide`. Elle part —
+        // le verrou s'inverse au lieu de disparaître ; le gabarit, lui, ne bouge pas.
+        expect(readFileSync(HEADER, "utf8")).not.toMatch(/\{level === "wide" && \(/);
         // Le hero `normal` reprend un gabarit court : 112 px au lieu de 132.
         expect(css).toMatch(/\.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*112px/);
     });
 
-    it("le bandeau du bloc est plus court et l'image le REMPLIT", () => {
-        const banner = css.match(/\.da-banner\s*\{([^}]*)\}/)?.[1] ?? "";
-        expect(banner).toMatch(/height:\s*96px/);
-        // Image rectangulaire du God : elle remplit le bandeau (`cover`), le voile
-        // `::after` garde le texte lisible. Jamais d'étirement.
-        const art = css.match(/\.da-banner-art\s*\{([^}]*)\}/)?.[1] ?? "";
-        expect(art).toMatch(/object-fit:\s*cover/);
-        expect(art).toMatch(/width:\s*100%/);
-        expect(art).toMatch(/height:\s*100%/);
-        expect(readFileSync(SHELL, "utf8")).toMatch(/className="da-banner-art"/);
+    it("le bandeau du bloc est retiré : le dock et la jauge portent déjà l'information", () => {
+        // F9 (08/11/2026) — le bandeau redisait le titre du chapitre (dock) et son
+        // avancement (dock + jauge). Il part ; la **description** reste, seule à dire
+        // ce que le chapitre regroupe (verrou ci-dessus).
+        expect(css).not.toMatch(/\.da-banner\s*\{/);
+        expect(css).not.toMatch(/\.da-banner-art\s*\{/);
+        const shell = readFileSync(SHELL, "utf8");
+        expect(shell).not.toMatch(/da-banner/);
+        expect(shell).toMatch(/className="da-blockdesc"/);
     });
 
     it("les conseils dépliables sont des LISTES À PUCES (maquette)", () => {

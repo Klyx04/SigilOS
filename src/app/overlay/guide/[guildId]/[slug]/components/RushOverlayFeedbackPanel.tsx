@@ -1,11 +1,18 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { Bug, X, Send, MapPin } from "lucide-react";
+import { Bug, X, Send, MapPin, ExternalLink } from "lucide-react";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
+
+/**
+ * Serveur d'entraide (F11) — **même** variable publique que le pied de page et la
+ * landing. Aucun secret : c'est une invitation publique, inlinée au build.
+ */
+const DISCORD_INVITE_URL =
+  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
 interface RushOverlayFeedbackPanelProps {
   guildId: string;
@@ -110,6 +117,18 @@ export function RushOverlayFeedbackPanel({
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Ton retour est transmis directement à l'équipe (tracker interne + Discord). Choisis une catégorie :
           </p>
+
+          {/* F11 — la porte du support, depuis le panneau : un retour qui demande un
+              échange n'a pas à faire sortir de l'overlay pour trouver le Discord. */}
+          <a
+            href={DISCORD_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground motion-reduce:transition-none"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {"Besoin d'aide ? Rejoindre le Discord support"}
+          </a>
 
           {context && (
             <div className="flex items-start gap-2 rounded-[4px] border border-border bg-surface px-3 py-2">

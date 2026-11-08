@@ -2,13 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { Sun, Moon, ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
-import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
-import { RUSH_DOFUS_STAGE_COUNT, dofusStage } from "@/lib/rush-dofus-stage";
 import { useDaTheme } from "@/components/da/da-theme";
 
 import { useOverlayToast } from "@/components/rush/overlay-toast";
+
+/**
+ * Serveur Discord d'entraide — **même** variable publique que le pied de page
+ * (`galactic-footer.tsx`) et la landing (`AccessRequestModal.tsx`). F11 : le retour
+ * de l'overlay doit pouvoir mener au support, y compris pour un invité.
+ */
+const DISCORD_INVITE_URL =
+  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
 interface RushOverlayHeaderProps {
   guideName: string;
@@ -22,8 +28,12 @@ interface RushOverlayHeaderProps {
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
   onOpenTutorial: () => void;
-  /** Étape courante (ex: "Chapitre 3 · Quête X") pré-remplie dans le retour bug */
-  bugContext?: string;
+  /**
+   * Ouvre le panneau de retour (F11). Le panneau est monté par l'**hôte**, en fin
+   * de racine : dans l'en-tête il était enfermé par `.da-hero`
+   * (`position: relative; overflow: hidden`) et passait sous le contenu.
+   */
+  onOpenFeedback?: () => void;
   /** Personnage courant affiché (pseudo + classe + main/mule) */
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   /** Réinitialise toute la progression du guide */
@@ -73,7 +83,7 @@ export function RushOverlayHeader({
   hideCompleted,
   onToggleHideCompleted,
   onOpenTutorial,
-  bugContext,
+  onOpenFeedback,
   character,
   onResetGuide,
   className,
@@ -93,8 +103,6 @@ export function RushOverlayHeader({
   const toast = useOverlayToast();
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
-  // Panneau de retour intégré à l'overlay (jamais la modale dashboard).
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
   const [moreOpen, setMoreOpen] = useState(false);
   // Détection de largeur étroite → on groupe les actions secondaires dans un menu ⋯.
@@ -113,16 +121,6 @@ export function RushOverlayHeader({
   const level = density ?? (narrow ? "tight" : "normal");
   const compact = level === "tight";
   const roomy = level !== "tight";
-  // Frise de stade du Dofus (même règle pure que partout : cinq paliers).
-  const stage = dofusStage(overallPct);
-
-  /* ── DA « Gouache Wakfu » : titre et surtitre ────────────────────────────
-     « Rush Sylvestre » se scinde comme dans la maquette : le premier mot en
-     surtitre espacé, le reste en grand condensé. Aucun libellé n'est réécrit :
-     on ne fait que répartir les mots déjà fournis par la donnée. */
-  const titleWords = guideName.trim().split(/\s+/).filter(Boolean);
-  const titleLead = titleWords.length > 1 ? titleWords[0] : "Rush";
-  const titleRest = titleWords.length > 1 ? titleWords.slice(1).join(" ") : guideName;
   const blockLabel =
     block === "emeraude"
       ? "Dofus Émeraude"
@@ -133,13 +131,16 @@ export function RushOverlayHeader({
       : "Bloc";
 
   // Retour / bug : le bouton vit dans le menu « ⋯ » (place libérée pour l'archimonstre),
-  // et reste un bouton direct quand l'overlay est large.
+  // et reste un bouton direct quand l'overlay est large. Le panneau lui-même est monté
+  // par l'hôte (F11) : ici on ne fait qu'ouvrir.
   const openFeedback = () => {
     if (isGuest) {
-      toast.info("Une remarque ou un bug ? Rejoignez notre Discord !", { duration: 2500 });
+      toast.info(`Une remarque ou un bug ? Rejoignez notre Discord : ${DISCORD_INVITE_URL}`, {
+        duration: 4000,
+      });
       return;
     }
-    setFeedbackOpen(true);
+    onOpenFeedback?.();
   };
 
   // Style commun des entrées du menu « plus » (dropdown) — DA « Grimoire ».
@@ -157,8 +158,8 @@ export function RushOverlayHeader({
     <header
       className={cn(
         // DA « Gouache Wakfu » : en-tête illustré — image du bloc actif, voile de
-        // lisibilité, surtitre, titre condensé. La structure et les 12 actions
-        // restent EXACTEMENT où elles étaient (habillage seul).
+        // lisibilité, surtitre. La structure et les 12 actions restent EXACTEMENT
+        // où elles étaient (habillage seul).
         "da-hero shrink-0",
         compact ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
         className
@@ -176,11 +177,10 @@ export function RushOverlayHeader({
             </span>
           )}
 
-          {/* Titre : premier mot en surtitre espacé, le reste en grand condensé. */}
-          <h1 className="da-logo">
-            <span className="da-logo-a">{titleLead}</span>
-            <span className="da-logo-b">{titleRest}</span>
-          </h1>
+          {/* F8 : plus de titre visible. « Rush Sylvestre » répétait le nom du guide
+              déjà porté par le dock, et le surtitre dit le bloc. Le titre reste dans
+              l'arbre pour les lecteurs d'écran — un en-tête sans `h1` n'en est plus un. */}
+          <h1 className="sr-only">{guideName}</h1>
 
           {/* Progression explicite */}
           <p className="da-meta mt-1">
@@ -200,19 +200,9 @@ export function RushOverlayHeader({
             <i style={{ width: `${Math.max(overallPct, 2)}%` }} />
           </div>
 
-          {/* Frise des stades du Dofus (maquette) : cinq losanges + le stade atteint.
-              Palier `wide` UNIQUEMENT — en `normal` elle coûtait 22 px de hauteur
-              utile pour une information que la jauge porte déjà. */}
-          {level === "wide" && (
-            <span className="da-stage">
-              <span className="da-pips" aria-hidden="true">
-                {Array.from({ length: RUSH_DOFUS_STAGE_COUNT }, (_, index) => (
-                  <i key={index} data-on={index <= stage.index ? "true" : "false"} />
-                ))}
-              </span>
-              <span>{stage.label}</span>
-            </span>
-          )}
+          {/* F8 : la frise de stades (5 losanges + nom du palier, « Graine » à 0 %)
+              est retirée — le pourcentage et la jauge disent la même chose, en plus
+              court. Un `wide` gagne la hauteur utile qu'elle occupait. */}
 
           {/* Personnage courant (masqué en overlay réduit) */}
           {character && roomy && (
@@ -309,16 +299,8 @@ export function RushOverlayHeader({
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Signaler un bug / retour — déplacé dans le menu « ⋯ » (place rendue à l'archimonstre) */}
-          {!isGuest && feedbackOpen && (
-            <RushOverlayFeedbackPanel
-              guildId={guildId}
-              sourcePage={`guide:overlay:${guideSlug}`}
-              targetSlug={guideSlug}
-              context={bugContext}
-              onClose={() => setFeedbackOpen(false)}
-            />
-          )}
+          {/* Signaler un bug / retour : le panneau est monté par l'hôte, en fin de
+              racine (F11) — dans ce header, `.da-hero` l'enfermait sous le contenu. */}
 
           {narrow ? (
             <>

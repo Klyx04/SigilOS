@@ -375,3 +375,30 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   passé brut à un composant client fuit la clé dans le payload RSC.
 - **Ne pas dupliquer `GuildStatusPanel`** : l'extraire en composant partagé (deux alimentations), sinon
   la parité guide interne / public se re-casse à la première évolution.
+
+**V2f — finitions demandées le 08/11/2026** *(brief du mainteneur, à ordonner)*
+
+*Guide public — anonyme*
+- **F1** Avancement **par Dofus** pour l anonyme, alimenté par la progression **locale** (mêmes clés d étapes), sans serveur.
+- **F2** Import/export du profil local : tout vit dans `localStorage` ; un nettoyage de cookies perd progression, cité et alignement. Proposer un **fichier** JSON (export/import), jamais une synchro serveur implicite.
+- **F3** Espacement des tuiles (Personnage / Alignement / Overlay trop serrées) et **Metamob remis dans l alignement** des tuiles.
+- **F4** Aérer la rangée « Rechercher une quête + Options ».
+- **F5** Dire à l anonyme ce qu il **perd** (communautaire, sauvegarde multi-appareils) près du CTA.
+- **F6** Prérequis nombreux : 12 chips illisibles → liste repliable.
+
+*Guide public — rendu*
+- **F7** Aspect « granuleux » du guide navigateur alors que l overlay est net (grain / filtre de la DA à vérifier).
+
+*Overlay*
+- **F8** Retirer « Rush Sylvestre » et « Graine » du bandeau (redondants).
+- **F9** Supprimer le bandeau de rappel sous Toutes / En cours / Faites / Verrouillées.
+- **F10** Mode clair : clignotement avant stabilisation.
+- **F11** Modale « Signaler un bug » : passe **sous** le contenu (z-index) + ajouter le lien du Discord support.
+
+*Espace visiteur connecté*
+- **F12** Menu : assets Dofus pour « Mes guildes », « Tableau de bord », « Mon espace visiteur ».
+- **F13** Création de profil : vérification du pseudo **bloquante avant** la création (mécanique de l interne), repli manuel si le God l autorise.
+- **F14** Metamob : refuser l enregistrement d une clé invalide (`/v1/me` avant écriture) ; la clé ne doit plus disparaître sans retour.
+- **F15** Mules : vérification du pseudo **bloquante** à l ajout.
+- **F16** Succès : bouton « mes succès sur ce boss » dans chaque donjon (guide navigateur, jamais l overlay) ; vue « succès en commun / qui peut faire quoi » sur `/visiteurs` (+ asset) ; même mécanique côté guide interne.
+- **F17** Métiers : l onglet Élevage fait bouger l écran ; lier métier ↔ quête (« qui a ce métier à ce niveau »).

@@ -158,3 +158,39 @@ describe("F11 — la fenêtre de retour passe devant et mène au support", () =>
         expect(read(PUBLIC_GUIDE)).toMatch(/feedbackSignedIn=\{!!visitor\}/);
     });
 });
+
+/**
+ * Demande du 08/11/2026 — « ajouter en public connecté dans l'overlay le bouton Metamob et sa
+ * gestion, iso interne ».
+ *
+ * L'overlay avait déjà une entrée Ocre/Metamob, mais `ocreEnabled` la coupe dès qu'on est sur la
+ * surface publique (`isGuest`, ou `guildId === "public"`) : un membre connecté n'avait donc aucun
+ * accès Metamob dans l'overlay. L'entrée ajoutée est **distincte** de l'Ocre — elle ne prétend
+ * pas montrer une progression Ocre qui n'existe pas sans guilde.
+ */
+describe("Metamob dans l'overlay public connecté", () => {
+    it("le bouton n'est rendu que sur la surface publique CONNECTÉE", () => {
+        const shell = read(SHELL);
+
+        // La condition est celle de F11 : `isGuest` dit la surface, `feedbackSignedIn` la session.
+        expect(shell).toMatch(/onOpenMetamob=\{\s*isGuest && feedbackSignedIn/);
+        expect(shell).toMatch(/metamobPseudo\?: string \| null/);
+    });
+
+    it("la modale est montée dans la racine de l'overlay (donc en PiP aussi)", () => {
+        const shell = read(SHELL);
+
+        // Même emplacement que le panneau de retour : dernier enfant de la racine `data-theme`.
+        expect(shell).toMatch(/<PublicMetamobModal[\s\S]{0,220}metamobPseudo=\{metamobPseudo \?\? null\}/);
+        expect(shell.indexOf("<PublicMetamobModal")).toBeGreaterThan(shell.indexOf("{feedbackOpen && ("));
+    });
+
+    it("l'en-tête rend une entrée Metamob distincte de l'entrée Ocre", () => {
+        const header = read(HEADER);
+
+        expect(header).toMatch(/\{onOpenMetamob && \(/);
+        expect(header).toMatch(/aria-label=\{metamobVerified \?/);
+        // Les deux entrées coexistent : l'une n'est pas le renommage de l'autre.
+        expect(header).toMatch(/\{onOpenOcre && \(/);
+    });
+});

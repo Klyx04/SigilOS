@@ -35,8 +35,8 @@ const SECTIONS = [
 ] as const;
 
 describe("profil — la table des onglets", () => {
-    it("porte exactement six groupes et les douze sections affichées, sans doublon", () => {
-        expect(PROFILE_TABS).toHaveLength(6);
+    it("porte exactement sept groupes et les douze sections affichées, sans doublon", () => {
+        expect(PROFILE_TABS).toHaveLength(7);
         const sections = PROFILE_TABS.flatMap((tab) => [...tab.members]);
         expect(sections.slice().sort()).toEqual([...SECTIONS].sort());
         expect(new Set(sections).size).toBe(sections.length);
@@ -62,7 +62,7 @@ describe("profil — résolution d'un onglet venu de l'extérieur", () => {
     it("chaque ancienne clé atterrit dans son groupe", () => {
         const expected: Record<string, string> = {
             overview: "synthese", intro: "synthese", achievements: "synthese",
-            combat: "equipement", skins: "equipement",
+            combat: "equipement", skins: "skins",
             dofus: "dofusdex",
             mules: "personnages", metiers: "personnages", artisanat: "personnages",
             planning: "planning", services: "planning",

@@ -196,7 +196,7 @@
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
 | 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (6 segments), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, **annuaire privé** par serveur, modération God | V1a→V1c, coque/assets/succès, V2e annuaire, V1e ladder, V1d progression, V2a-1/3/5 surface publique, V2a-4 alignement + mules + accueil, V2a-6 CTA, V2a-2 communautaire (D-V21), **V2f** (F8-F15, F17a livrés) — 06-08/11 ; **D-V1→D-V21** | **V2f** (F1-F7, F16, F17b) → V2a-4 reste (tour) → V2b → V2c → V2d → V3 | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (prochain : **V2f F16**) |
 | 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 | **E4 reporté** (chantier dédié) | skill | — |
-| 59 | `profil-refonte` | Profil dashboard : déslop, un accent, 6 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
+| 59 | `profil-refonte` | Profil dashboard : déslop, un accent, 7 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)

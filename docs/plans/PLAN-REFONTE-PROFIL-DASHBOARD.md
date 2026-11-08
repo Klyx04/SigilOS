@@ -86,7 +86,8 @@ Compteurs du cliquet : palette **81 → 30**, slop **~100 → 65**, rayons **56 
 | Onglet (clé) | Absorbe |
 |---|---|
 | **Synthèse** (`synthese`) | `overview` + `intro` + `achievements` (**Points de Succès**) |
-| **Équipement** (`equipement`) | `combat` (**builds**) + `skins` |
+| **Équipement** (`equipement`) | `combat` (**builds**) |
+| **Skins** (`skins`) | `skins` |
 | **Dofusdex** (`dofusdex`) | `dofus` |
 | **Personnages** (`personnages`) | `mules` + `metiers` + `artisanat` |
 | **Planning & services** (`planning`) | `planning` + `services` |
@@ -95,8 +96,7 @@ Compteurs du cliquet : palette **81 → 30**, slop **~100 → 65**, rayons **56 
 **P3-bis (retours du 08/11, après la première livraison) :**
 
 - l'onglet « Équipement » **n'était pas** l'équipement : il portait le Dofusdex (quêtes). Il devient
-  **Dofusdex**, et « Équipement » reprend ce qu'un joueur y cherche — **builds + skins** (les skins
-  n'avaient plus de place visible) ;
+  **Dofusdex**, « Équipement » reprend les **builds**, et **Skins retrouve son propre onglet** ;
 - le panneau **« Activité & Présence »** est **supprimé** (composant `profile-activity-tab.tsx`
   démonté puis supprimé) et remplacé, à la même place, par le bloc **« Points de Succès »**
   (`SuccessSync`, remonté de l'ancien onglet Succès vers Synthèse) ;

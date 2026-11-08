@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { UserCircle, Settings, ChevronLeft, ChevronRight, Palette } from "lucide-react";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -554,6 +554,7 @@ export function ProfileBentoGrid({
                             > = {
                                 synthese: { iconType: "lucide", LucideIcon: UserCircle },
                                 equipement: { iconType: "dofus", dofusIcon: "dungeon" },
+                                skins: { iconType: "lucide", LucideIcon: Palette },
                                 dofusdex: { iconType: "dofus", dofusIcon: "quest" },
                                 personnages: { iconType: "dofus", dofusIcon: "player" },
                                 planning: { iconType: "dofus", dofusIcon: "calendar" },
@@ -715,8 +716,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SKINS TAB */}
-                <TabsContent value="equipement" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("equipement") && (
+                <TabsContent value="skins" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("skins") && (
                         <div className="w-full">
                             <SkinLibrary 
                                 initialSkins={localProfile.skins || []}

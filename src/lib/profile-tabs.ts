@@ -1,5 +1,5 @@
 /**
- * Onglets du profil dashboard — **six groupes** pour les sections de l'écran (lot P3 de
+ * Onglets du profil dashboard — **sept groupes** pour les sections de l'écran (lot P3 de
  * `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md`).
  *
  * Pourquoi une règle pure : les clés d'origine vivent à trois endroits qui cassent ensemble si la
@@ -14,7 +14,8 @@
 
 export const PROFILE_TABS = [
     { id: "synthese", label: "Synthèse", members: ["overview", "intro", "achievements"] },
-    { id: "equipement", label: "Équipement", members: ["combat", "skins"] },
+    { id: "equipement", label: "Équipement", members: ["combat"] },
+    { id: "skins", label: "Skins", members: ["skins"] },
     { id: "dofusdex", label: "Dofusdex", members: ["dofus"] },
     { id: "personnages", label: "Personnages", members: ["mules", "metiers", "artisanat"] },
     { id: "planning", label: "Planning & services", members: ["planning", "services"] },

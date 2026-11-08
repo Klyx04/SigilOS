@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BRAND_ICONS } from "@/lib/source-icons";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
+import { metamobProfileUrl } from "@/lib/ocre-soul-stones";
 import { PUBLIC_METAMOB_KEY_MAX, PUBLIC_METAMOB_PSEUDO_MAX } from "@/lib/public-profile-input";
 import { useOcreWriteQueue } from "@/hooks/use-ocre-write-queue";
 import OcreQuestPanel from "@/components/ocre/OcreQuestPanel";
@@ -46,6 +50,13 @@ export function PublicMetamobModal({
     verified: boolean;
 }) {
     const router = useRouter();
+    /**
+     * **ISO avec le guide interne** : la modale publique emprunte la même portée de DA que
+     * `OcreProgressModal`. `PublicRushGuideClient` monte déjà `DaThemeProvider` : hors de cette
+     * surface, `daScopeProps` renvoie un objet vide et l'habillage produit reprend la main.
+     */
+    const daScope = daScopeProps(useDaTheme());
+    const profileUrl = metamobProfileUrl(metamobPseudo);
     const [pseudo, setPseudo] = useState(metamobPseudo ?? "");
     const [apiKey, setApiKey] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -149,33 +160,55 @@ export function PublicMetamobModal({
 
     return (
         <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-            <DialogContent className="w-[min(34rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-background p-0">
-                <div className="flex min-w-0 items-start justify-between gap-3 border-b border-border p-3 sm:p-4">
-                    <div>
-                        <DialogTitle className="text-sm font-semibold text-foreground">Metamob</DialogTitle>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                            {metamobPseudo
-                                ? `Compte lié : ${metamobPseudo}${verified ? " · vérifié" : " · à vérifier"}.`
-                                : "Lie ton compte Metamob pour suivre ta quête Ocre dans le rush."}
-                        </p>
+            <DialogContent
+                {...daScope}
+                overlayClassName="da-modal-scrim"
+                className="da-modal da-portal w-[min(34rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0 outline-none"
+            >
+                <DialogHeader className="da-modal-head space-y-3">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                        <DialogTitle className="da-modal-title flex items-center gap-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/assets/dofus/icons/archimonster.png" alt="" className="h-4 w-4 object-contain" />
+                            {metamobPseudo ? "Mon Ocre" : "Metamob"}
+                        </DialogTitle>
+                        <span className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="min-w-0 truncate">
+                                {metamobPseudo
+                                    ? `Metamob · ${metamobPseudo}${verified ? "" : " · à vérifier"}`
+                                    : "Compte non lié"}
+                            </span>
+                            {profileUrl && (
+                                <a
+                                    href={profileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label="Ouvrir mon profil Metamob"
+                                    title="Mon profil Metamob"
+                                    className="shrink-0 rounded-md p-1 transition-colors hover:bg-surface"
+                                >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={BRAND_ICONS.metamob.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
+                                </a>
+                            )}
+                            {verified && !editing ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setEditing(true)}
+                                    className="shrink-0 gap-1 px-2 text-[11px]"
+                                >
+                                    <Pencil className="h-3 w-3" />
+                                    Modifier
+                                </Button>
+                            ) : null}
+                        </span>
                     </div>
-                    {verified && !editing ? (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditing(true)}
-                            className="shrink-0 gap-1 text-xs"
-                        >
-                            <Pencil className="h-3 w-3" />
-                            Modifier
-                        </Button>
-                    ) : null}
-                </div>
 
                 {/* Quête Ocre — même panneau que le guide interne (recherche, onglets, stepper). */}
                 {metamobPseudo ? (
-                    <div className="min-w-0 space-y-3 border-b border-border p-3 sm:p-4">
+                    <div className="min-w-0 space-y-3 pb-1">
                         {questLoading ? (
                             <p className="text-xs text-muted-foreground">Lecture de ta quête Metamob…</p>
                         ) : questError ? (
@@ -199,6 +232,7 @@ export function PublicMetamobModal({
                         ) : null}
                     </div>
                 ) : null}
+                </DialogHeader>
 
                 {editing ? (
                     <form onSubmit={submit} className="space-y-3 p-3 sm:p-4">

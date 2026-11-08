@@ -90,6 +90,20 @@ describe("Espace visiteur — chaque action porte sa garde et son rate limit", (
         expect(ACTIONS).toMatch(/rateLimit\(`visitor:/);
     });
 
+    /**
+     * Règle Next, mesurée le 08/11/2026 : `export const PUBLIC_OCRE_MONSTERS_MAX` a cassé le
+     * **build** (« Only async functions are allowed to be exported in a "use server" file »)
+     * alors que `tsc` et Vitest passaient — la contrainte est appliquée par le bundler, pas par
+     * TypeScript. Un `export type` est effacé à la compilation, donc il reste autorisé.
+     */
+    it('un fichier "use server" n\'exporte que des fonctions async', () => {
+        expect(ACTIONS.trimStart().startsWith('"use server"')).toBe(true);
+        const offenders = [...ACTIONS.matchAll(/^export (const|let|var|class|function)\s/gm)].map(
+            (match) => match[0].trim()
+        );
+        expect(offenders, "export non-async interdit dans un fichier use server").toEqual([]);
+    });
+
     it("les écritures du profil visent `userId` (serveur), jamais un id client", () => {
         expect(ACTIONS).toMatch(/where: \{ userId: account\.userId \}/);
         expect(ACTIONS).toMatch(/where: \{ userId: visitor\.userId \}/);
@@ -176,6 +190,40 @@ describe("Espace visiteur — vérifications bloquantes avant écriture (F13/F14
         expect(mules.indexOf("checkPseudoExistsOnLadder(")).toBeLessThan(
             mules.indexOf("data: { altPseudos: mules }")
         );
+    });
+});
+
+/**
+ * Quête Ocre du visiteur — lecture **et** patch temps réel (demande du 08/11/2026 : « l'objectif
+ * de lier son Metamob en public connecté, c'est surtout pour suivre sa quête dans le rush »).
+ *
+ * Les deux verrous qui comptent : la clé ne sort jamais, et une écriture n'est jamais crue sur
+ * parole — elle est **relue**.
+ */
+describe("Quête Ocre du visiteur — lecture et patch", () => {
+    const blocks = actionBlocks();
+    const progress = blocks.find((block) => block.name === "getPublicOcreProgress")?.body ?? "";
+    const patch = blocks.find((block) => block.name === "patchPublicOcreMonster")?.body ?? "";
+
+    it("la lecture s'appuie sur la clé stockée et ne la renvoie jamais", () => {
+        expect(progress).toMatch(/readVisitorMetamob\(/);
+        expect(progress).toMatch(/getSelfQuestDetails\(/);
+        // Le DTO ne porte aucun champ de clé : `key:` n'apparaît pas dans le retour.
+        expect(progress).not.toMatch(/key:/);
+    });
+
+    it("le patch écrit par `bulkUpdateMonsters`, puis RELIT (double cross-check)", () => {
+        const write = patch.indexOf("bulkUpdateMonsters(");
+        const recheck = patch.indexOf("getSelfQuestDetails(", write);
+        expect(write).toBeGreaterThan(-1);
+        expect(recheck).toBeGreaterThan(write);
+        // C'est la valeur relue qui est rendue, pas la quantité demandée.
+        expect(patch).toMatch(/monster: updated/);
+    });
+
+    it("le patch est borné par Zod et rate-limité", () => {
+        expect(ACTIONS).toMatch(/quantity: z\.number\(\)\.int\(\)\.min\(0\)\.max\(30\)/);
+        expect(patch).toMatch(/limit\("ocre-patch"/);
     });
 });
 

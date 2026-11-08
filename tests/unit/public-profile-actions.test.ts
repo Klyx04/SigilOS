@@ -109,3 +109,49 @@ describe("Espace visiteur — chaque action porte sa garde et son rate limit", (
         expect(deleteBlock?.body).toMatch(/isSuperAdmin\(\)/);
     });
 });
+
+/**
+ * F13 / F14 / F15 (08/11/2026) — trois vérifications **bloquantes** demandées par le brief V2f.
+ *
+ * Ces verrous sont des verrous d'**ordre** : ce qui compte n'est pas qu'un helper soit appelé,
+ * mais qu'il le soit **avant l'écriture**. Un `checkPseudoExistsOnLadder` déplacé après le
+ * `create` passerait un test d'existence et laisserait pourtant créer un profil fantôme.
+ */
+describe("Espace visiteur — vérifications bloquantes avant écriture (F13/F14/F15)", () => {
+    const blocks = actionBlocks();
+    const create = blocks.find((block) => block.name === "createPublicProfile")?.body ?? "";
+    const metamob = blocks.find((block) => block.name === "updatePublicMetamob")?.body ?? "";
+    const mules = blocks.find((block) => block.name === "updatePublicMules")?.body ?? "";
+
+    it("F13 — la création interroge le ladder avant d'écrire le profil", () => {
+        const check = create.indexOf("checkPseudoExistsOnLadder(");
+        const write = create.indexOf("db.publicProfile.create");
+        expect(check).toBeGreaterThan(-1);
+        expect(write).toBeGreaterThan(check);
+        expect(create).toMatch(/isLadderManualFallbackEnabled\(\)/);
+    });
+
+    it("F14 — la clé Metamob est prouvée par /v1/me avant d'être écrite", () => {
+        const check = metamob.indexOf("getMetamobMe(key)");
+        const write = metamob.indexOf("db.publicProfile.update");
+        expect(check).toBeGreaterThan(-1);
+        expect(write).toBeGreaterThan(check);
+    });
+
+    it("F14 — une clé refusée laisse la clé précédente intacte (aucun retour à null)", () => {
+        expect(metamob).toMatch(/if \(!me\) return \{ success: false, error: METAMOB_KEY_REFUSED \}/);
+        // Le seul `= null` de la clé est le retrait VOLONTAIRE (champ vidé), jamais un échec.
+        expect(metamob).toMatch(/if \(key\.length === 0\) \{\s*data\.metamobApiKey = null;/);
+    });
+
+    it("F15 — seules les mules nouvelles passent au ladder, sur le serveur du profil", () => {
+        expect(mules).toMatch(/checkPseudoExistsOnLadder\(/);
+        expect(mules).toMatch(/!known\.has\(mule\.pseudo\.toLowerCase\(\)\)/);
+        expect(mules).toMatch(/account\.profile\.dofusServerId/);
+        // Le bloc de vérification précède l'écriture des mules.
+        expect(mules.indexOf("checkPseudoExistsOnLadder(")).toBeLessThan(
+            mules.indexOf("data: { altPseudos: mules }")
+        );
+    });
+});
+

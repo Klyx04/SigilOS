@@ -58,4 +58,24 @@ describe("Métiers visiteur — le référentiel fait foi", () => {
         expect(page).toContain("db.publicProfession.findMany");
         expect(page).not.toContain("metiers: true");
     });
+
+    /**
+     * F17 (08/11/2026) — « l'onglet Élevage fait bouger l'écran ».
+     *
+     * Mesure : `Élevage` ne déclare **qu'un** métier (`eleveur`) quand `Récolte` en a six et
+     * `Artisanat` sept. Un seul panneau monté à la fois ⇒ la hauteur du bloc change à chaque
+     * onglet (deux rangées → une), le bouton « Enregistrer mes métiers » remonte et l'écran
+     * avec. Les quatre panneaux occupent donc **la même cellule** de grille et restent montés
+     * (`forceMount`) en `visibility: hidden` : hauteur stable, panneaux inactifs hors de
+     * l'arbre d'accessibilité.
+     */
+    it("F17 — les quatre catégories occupent une seule cellule, l'onglet ne fait plus bouger l'écran", () => {
+        const form = read(FORM);
+
+        expect(form).toContain("forceMount");
+        expect(form).toContain("col-start-1 row-start-1");
+        expect(form).toContain("data-[state=inactive]:invisible");
+        // L'enveloppe `grid` doit entourer la boucle : une cellule pour les quatre panneaux.
+        expect(form).toMatch(/<div className="mt-4 grid">[\s\S]*CATEGORIES\.map[\s\S]*<\/TabsContent>/);
+    });
 });

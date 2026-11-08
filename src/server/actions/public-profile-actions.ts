@@ -48,6 +48,21 @@ type ActionResult = { success: true } | { success: false; error: string };
 const SESSION_EXPIRED = "Ta session a expiré. Reconnecte-toi pour continuer.";
 const RATE_LIMITED = "Trop de modifications d'affilée. Réessaie dans une minute.";
 
+/**
+ * F13/F15 (08/11/2026) — même refus pour un profil et pour une mule. Il ne dit que ce qu'on
+ * sait : le ladder a répondu qu'il ne connaît pas ce pseudo sur ce serveur.
+ */
+const PSEUDO_NOT_ON_LADDER =
+    "Ce pseudo n'apparaît pas au classement de ce serveur. Vérifie l'orthographe, la casse et le serveur choisi.";
+
+/**
+ * F14 (08/11/2026) — Metamob a refusé la clé (ou n'a pas répondu) : rien n'est écrit, donc la
+ * clé précédente reste en place. C'est exactement ce qui manquait : une clé invalide
+ * « disparaissait sans retour ».
+ */
+const METAMOB_KEY_REFUSED =
+    "Metamob n'a pas reconnu cette clé : elle n'a pas été enregistrée. Ta clé précédente, si tu en avais une, est conservée.";
+
 const PATHS = {
     general: "/espace-visiteur/general",
     mules: "/espace-visiteur/mules",
@@ -112,6 +127,24 @@ export async function createPublicProfile(raw: unknown): Promise<ActionResult> {
         select: { id: true },
     });
     if (existing) return { success: false, error: "Ton profil existe déjà." };
+
+    /**
+     * F13 (08/11/2026) — la vérification du pseudo est **bloquante avant** la création : un
+     * profil ouvert avec un pseudo absent du classement n'a ni niveau, ni succès, ni guilde,
+     * et l'annuaire le porte comme un trou.
+     *
+     * Seul `false` bloque. `checkPseudoExistsOnLadder` rend `null` quand le worker ladder est
+     * injoignable, et sa règle est explicitement **fail-open** (`src/server/ladder-pseudo.ts`) :
+     * bloquer là-dessus fermerait la création pendant toute panne du ladder. Le toggle God
+     * « Fallback Pseudo Manuel » court-circuite l'appel, comme pour `verifyPublicPseudo`.
+     */
+    if (!(await isLadderManualFallbackEnabled())) {
+        const found = await checkPseudoExistsOnLadder(
+            parsed.data.pseudoDofus,
+            String(parsed.data.dofusServerId)
+        );
+        if (found === false) return { success: false, error: PSEUDO_NOT_ON_LADDER };
+    }
 
     try {
         await db.publicProfile.create({
@@ -245,8 +278,35 @@ export async function updatePublicMetamob(raw: unknown): Promise<ActionResult> {
 
     if (parsed.data.apiKey !== undefined) {
         const key = parsed.data.apiKey.trim();
-        data.metamobApiKey = key.length > 0 ? key : null;
-        data.metamobVerified = false;
+
+        /**
+         * F14 (08/11/2026) — `/v1/me` **avant** l'écriture.
+         *
+         * Avant, la clé était écrite telle quelle et la vérification retombait à `false` :
+         * une clé invalide **remplaçait** une clé qui marchait, sans que rien ne le dise.
+         * Maintenant la clé n'est écrite que si Metamob la reconnaît, et le pseudo qu'il
+         * renvoie fait foi (même règle que `verifyPublicMetamob`).
+         *
+         * Fail-closed : Metamob injoignable ⇒ refus. Une clé non prouvée ne remplace pas une
+         * clé qui fonctionnait.
+         */
+        if (key.length === 0) {
+            data.metamobApiKey = null;
+            data.metamobVerified = false;
+        } else {
+            const me = await getMetamobMe(key).catch((error: unknown) => {
+                logger.warn("[Espace visiteur] Clé Metamob refusée à l'enregistrement", {
+                    err: error instanceof Error ? error.message : String(error),
+                });
+                return null;
+            });
+            if (!me) return { success: false, error: METAMOB_KEY_REFUSED };
+
+            data.metamobApiKey = key;
+            data.metamobVerified = true;
+            const pseudo = me.username.trim();
+            if (pseudo.length > 0) data.metamobPseudo = pseudo;
+        }
     }
 
     try {
@@ -368,6 +428,32 @@ export async function updatePublicMules(raw: unknown): Promise<ActionResult> {
 
     const limited = await limit("mules", account.userId, 20);
     if (limited) return limited;
+
+    /**
+     * F15 (08/11/2026) — vérification **bloquante** des mules **nouvelles**.
+     *
+     * On ne revérifie pas celles déjà déclarées : le ladder ne sert ici qu'à empêcher
+     * d'**ajouter** un pseudo qui n'existe pas. Même règle que F13 — seul `false` bloque,
+     * `null` (worker injoignable) laisse passer, et le toggle God « Fallback Pseudo Manuel »
+     * court-circuite l'appel.
+     *
+     * Le serveur est celui du profil, lu côté serveur : il n'est jamais fourni par le client.
+     */
+    if (!(await isLadderManualFallbackEnabled())) {
+        const known = new Set(account.profile.altPseudos.map((mule) => mule.pseudo.toLowerCase()));
+        const fresh = parsed.data.filter((mule) => !known.has(mule.pseudo.toLowerCase()));
+        const serverId = String(account.profile.dofusServerId);
+        const checks = await Promise.all(
+            fresh.map((mule) => checkPseudoExistsOnLadder(mule.pseudo, serverId))
+        );
+        const rejected = fresh.find((_mule, index) => checks[index] === false);
+        if (rejected) {
+            return {
+                success: false,
+                error: `« ${rejected.pseudo} » n'apparaît pas au classement de ce serveur. Vérifie l'orthographe, la casse et le serveur choisi.`,
+            };
+        }
+    }
 
     try {
         const mules = parsed.data.map((mule) => ({

@@ -128,13 +128,13 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "bottom"
     },
     {
-        target: '[data-tour="profile-tab-overview"]',
+        target: '[data-tour="profile-tab-synthese"]',
         title: "Ton profil en général",
         description: "Retrouve ta présentation, ta classe et tes informations visibles par la guilde.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-metiers"]',
+        target: '[data-tour="profile-tab-personnages"]',
         title: "Tes métiers",
         description: "Indique tes métiers actifs pour que la guilde sache à qui s'adresser pour des crafts.",
         placement: "right"
@@ -147,26 +147,19 @@ const PROFILE_STEPS: TourStep[] = [
         module: "availability"
     },
     {
-        target: '[data-tour="profile-tab-combat"]',
+        target: '[data-tour="profile-tab-equipement"]',
         title: "Tes builds",
         description: "Ajoute tes liens Dofusbook ou DofusCreator pour partager tes équipements et ta progression.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-dofus"]',
+        target: '[data-tour="profile-tab-dofusdex"]',
         title: "Quêtes Dofus",
         description: "Suis ta progression sur les quêtes des Dofus directement depuis ton profil.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-activity"]',
-        title: "Présence & Feed",
-        description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
-        placement: "right",
-        module: "missions"
-    },
-    {
-        target: '[data-tour="profile-tab-settings"]',
+        target: '[data-tour="profile-tab-reglages"]',
         title: "Tes préférences",
         description: "Personnalise la réception de tes notifications et la visibilité de ton activité.",
         placement: "right"
@@ -1483,10 +1476,6 @@ export function TourProvider({
             }
         }
         if (step.requiresPerm && user && user[step.requiresPerm] === false) return false;
-        // Si le mode vitrine des missions est activé (missionVitrineMode), masquer Présence & Feed
-        if (step.target === '[data-tour="profile-tab-activity"]' && (user?.missionVitrineMode || (modules && !modules.missions))) {
-            return false;
-        }
         return true;
     });
 

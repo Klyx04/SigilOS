@@ -61,7 +61,7 @@ export function AlignmentSection({
     };
 
     return (
-        <div className="p-4 bg-surface/40 backdrop-blur-md rounded-xl border border-border transition-all hover:border-border-strong group">
+        <div className="p-4 bg-surface/60 rounded-xl border border-border transition-colors hover:border-border-strong group">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -82,7 +82,7 @@ export function AlignmentSection({
                     )}
                 </div>
 
-                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-elevated p-4 mb-1 transition-colors group-hover:border-border shadow-sm">
+                <div className="relative">
                     <div className="flex items-center gap-4">
                         <div className={cn(
                             "relative flex items-center justify-center w-16 h-16 rounded-xl border shadow-lg shrink-0 overflow-hidden",
@@ -113,7 +113,7 @@ export function AlignmentSection({
                             <div className="flex items-center gap-2">
                                 <Badge 
                                     className={cn(
-                                        "text-caption uppercase font-black tracking-widest",
+                                        "text-caption font-medium",
                                         alignment === "bontarien" ? "bg-info/20 text-info border-info/30" : 
                                         alignment === "brakmarien" ? "bg-danger/20 text-danger border-danger/30" : 
                                         "bg-elevated text-muted-foreground border-border"
@@ -122,18 +122,18 @@ export function AlignmentSection({
                                     {currentAlignment?.name || "Neutre"}
                                 </Badge>
                                 {alignmentLevel !== null && alignmentLevel > 0 && (
-                                    <span className="text-caption font-bold text-muted-foreground">
+                                    <span className="text-caption font-medium text-muted-foreground">
                                         Niveau {alignmentLevel}
                                     </span>
                                 )}
                             </div>
 
-                            <h4 className="text-lg font-black text-foreground italic tracking-tight uppercase">
+                            <h4 className="text-lg font-semibold text-foreground">
                                 {currentOrder ? currentOrder.name : "Aucun ordre"}
                             </h4>
 
                             {alignment && alignmentOrder && (
-                                <p className="text-xs font-bold text-info/80 uppercase tracking-widest">
+                                <p className="text-xs font-medium text-info/80">
                                     {getLevelTitle(alignment, alignmentOrder, alignmentLevel || 0)}
                                 </p>
                             )}
@@ -141,16 +141,16 @@ export function AlignmentSection({
                     </div>
                 </div>
 
-                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-3xl overflow-hidden shadow-2xl">
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-xl overflow-hidden shadow-2xl">
                     <DialogHeader className="p-8 pb-4 border-b border-border shrink-0">
-                        <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Alignement & Ordres</DialogTitle>
+                        <DialogTitle className="text-2xl font-semibold tracking-tight">Alignement & Ordres</DialogTitle>
                         <DialogDescription className="text-base text-muted-foreground">Choisissez votre camp et votre spécialisation.</DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
                         {/* Alignment Selection */}
                         <section className="space-y-4">
-                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
                                 <Shield className="w-4 h-4" /> 1. Choisir l'Alignement
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -162,7 +162,7 @@ export function AlignmentSection({
                                             if (align.id === "neutre") setSelectedOrder(null);
                                         }}
                                         className={cn(
-                                            "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
+                                            "relative group flex flex-col items-center gap-4 p-6 rounded-xl border-2 transition-colors duration-300 overflow-hidden",
                                             selectedAlignment === align.id
                                                 ? "border-info/50 bg-info/10"
                                                 : "border-border bg-surface/40 hover:bg-surface/60 hover:border-border"
@@ -182,7 +182,7 @@ export function AlignmentSection({
                                             />
                                         </div>
                                         <span className={cn(
-                                            "font-black uppercase tracking-widest text-sm italic",
+                                            "font-semibold text-sm",
                                             selectedAlignment === align.id ? "text-foreground" : "text-muted-foreground"
                                         )}>
                                             {align.name}
@@ -202,7 +202,7 @@ export function AlignmentSection({
                             <>
                                 {/* Order Selection (Moved before level for better flow) */}
                                 <section className="space-y-4">
-                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
                                         <Sparkles className="w-4 h-4" /> 2. Choisir l'Ordre
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -213,7 +213,7 @@ export function AlignmentSection({
                                                     key={order.id}
                                                     onClick={() => setSelectedOrder(order.id)}
                                                     className={cn(
-                                                        "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 h-full",
+                                                        "relative group flex flex-col items-center gap-4 p-6 rounded-xl border-2 transition-colors duration-300 h-full",
                                                         isSelected
                                                             ? "border-warning/50 bg-warning/10"
                                                             : "border-border bg-surface/40 hover:bg-surface/60 hover:border-border"
@@ -229,7 +229,7 @@ export function AlignmentSection({
                                                     </div>
                                                     <div className="text-center space-y-1">
                                                         <span className={cn(
-                                                            "font-black uppercase tracking-tighter text-sm block leading-tight",
+                                                            "font-semibold text-sm block leading-tight",
                                                             isSelected ? "text-foreground" : "text-muted-foreground"
                                                         )}>
                                                             {order.name}

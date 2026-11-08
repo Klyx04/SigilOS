@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, Settings, ChevronLeft, ChevronRight, Palette } from "lucide-react";
+import { UserCircle, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Palette } from "lucide-react";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -553,6 +553,7 @@ export function ProfileBentoGrid({
                                 | { iconType: 'lucide'; LucideIcon: React.ElementType }
                             > = {
                                 synthese: { iconType: "lucide", LucideIcon: UserCircle },
+                                presentation: { iconType: "lucide", LucideIcon: LayoutDashboard },
                                 equipement: { iconType: "dofus", dofusIcon: "dungeon" },
                                 skins: { iconType: "lucide", LucideIcon: Palette },
                                 dofusdex: { iconType: "dofus", dofusIcon: "quest" },
@@ -656,8 +657,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* INTRODUCTION / PRESENTATION TAB */}
-                <TabsContent value="synthese" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("synthese") && (
+                <TabsContent value="presentation" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("presentation") && (
                         <PresentationCard
                             introduction={localProfile.introduction || ""}
                             objectifs={localProfile.objectifs || ""}

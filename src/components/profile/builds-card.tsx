@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Megaphone, Calendar } from "lucide-react";
+import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Calendar } from "lucide-react";
+import { DiscordIcon } from "@/components/shared/icons";
 import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -394,7 +395,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             className="p-2 bg-surface/80 hover:bg-info text-info hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                             title="Partager sur Discord"
                                         >
-                                            <Megaphone className="w-3.5 h-3.5" />
+                                            <DiscordIcon className="w-3.5 h-3.5" />
                                         </button>
                                     )}
                                     {!readOnly && (

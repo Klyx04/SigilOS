@@ -85,11 +85,12 @@ Compteurs du cliquet : palette **81 → 30**, slop **~100 → 65**, rayons **56 
 
 | Onglet (clé) | Absorbe |
 |---|---|
-| **Synthèse** (`synthese`) | `overview` + `intro` + `achievements` (**Points de Succès**) |
+| **Synthèse** (`synthese`) | `overview` + `achievements` (**Points de Succès**) |
+| **Présentation** (`presentation`) | `intro` |
 | **Équipement** (`equipement`) | `combat` (**builds**) |
 | **Skins** (`skins`) | `skins` |
 | **Dofusdex** (`dofusdex`) | `dofus` |
-| **Personnages** (`personnages`) | `mules` + `metiers` + `artisanat` |
+| **Mules et métiers** (`personnages`) | `mules` + `metiers` + `artisanat` |
 | **Planning & services** (`planning`) | `planning` + `services` |
 | **Réglages** (`reglages`) | `settings` |
 
@@ -101,7 +102,11 @@ Compteurs du cliquet : palette **81 → 30**, slop **~100 → 65**, rayons **56 
   démonté puis supprimé) et remplacé, à la même place, par le bloc **« Points de Succès »**
   (`SuccessSync`, remonté de l'ancien onglet Succès vers Synthèse) ;
 - `?tab=activity` reste résolu par `RETIRED_SECTIONS` → Synthèse, et l'étape de tutoriel
-  « Présence & Feed » a été retirée avec son filtre.
+  « Présence & Feed » a été retirée avec son filtre ;
+- **P3-ter** : « Présentation » redevient un **onglet** (Synthèse ne garde que l'identité et les
+  points de succès), « Personnages » est renommé **« Mules et métiers »** (la clé `personnages`
+  reste, pour ne pas casser les liens), et le partage Discord d'un build porte l'**icône Discord**
+  (`DiscordIcon`) au lieu d'un mégaphone.
 
 La table vit dans **`src/lib/profile-tabs.ts`** (règle pure, `tests/unit/profile-tabs.test.ts` **10
 cas**) : le bento ne porte plus que l'icône de chaque groupe.

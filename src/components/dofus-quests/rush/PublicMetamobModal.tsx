@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PUBLIC_METAMOB_KEY_MAX, PUBLIC_METAMOB_PSEUDO_MAX } from "@/lib/public-profile-input";
-import { updatePublicMetamob } from "@/server/actions/public-profile-actions";
+import { cn } from "@/lib/utils";
+import {
+    getPublicOcreProgress,
+    patchPublicOcreMonster,
+    updatePublicMetamob,
+    type PublicOcreMonster,
+} from "@/server/actions/public-profile-actions";
 
 /**
  * Metamob du guide public — **sans quitter le guide**.
@@ -38,6 +44,74 @@ export function PublicMetamobModal({
     const [apiKey, setApiKey] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    /**
+     * Quête Ocre — « l'objectif de lier son Metamob, c'est surtout pour suivre sa quête dans le
+     * rush » (08/11/2026). Lecture à l'ouverture, puis patch monstre par monstre : la valeur
+     * affichée est **celle que Metamob renvoie après relecture**, jamais notre optimisme.
+     */
+    const [quest, setQuest] = useState<{
+        total: number;
+        captured: number;
+        characterName: string | null;
+        monsters: PublicOcreMonster[];
+    } | null>(null);
+    const [questError, setQuestError] = useState<string | null>(null);
+    const [questLoading, setQuestLoading] = useState(false);
+    const [patchingId, setPatchingId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!open || !metamobPseudo) return;
+        let alive = true;
+        setQuestLoading(true);
+        setQuestError(null);
+        void getPublicOcreProgress()
+            .then((result) => {
+                if (!alive) return;
+                if (!result.success) {
+                    setQuest(null);
+                    setQuestError(result.error);
+                    return;
+                }
+                setQuest({
+                    total: result.total,
+                    captured: result.captured,
+                    characterName: result.characterName,
+                    monsters: result.monsters,
+                });
+            })
+            .finally(() => {
+                if (alive) setQuestLoading(false);
+            });
+        return () => {
+            alive = false;
+        };
+    }, [open, metamobPseudo]);
+
+    const patchMonster = async (monster: PublicOcreMonster, quantity: number) => {
+        setPatchingId(monster.id);
+        const result = await patchPublicOcreMonster({ monsterId: monster.id, quantity });
+        setPatchingId(null);
+        if (!result.success) {
+            setQuestError(result.error);
+            return;
+        }
+        setQuestError(null);
+        // Double cross-check : on affiche la valeur CONFIRMÉE par Metamob, pas `quantity`.
+        if (result.monster) {
+            const confirmed = result.monster;
+            setQuest((current) => {
+                if (!current) return current;
+                const monsters = current.monsters.map((entry) =>
+                    entry.id === confirmed.id ? confirmed : entry
+                );
+                return {
+                    ...current,
+                    monsters,
+                    captured: monsters.filter((entry) => entry.owned > 0).length,
+                };
+            });
+        }
+    };
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -69,6 +143,69 @@ export function PublicMetamobModal({
                             : "Lie ton compte Metamob : le pseudo est vérifié auprès de Metamob avant d'être enregistré."}
                     </p>
                 </div>
+
+                {/* Quête Ocre — le motif même de la liaison Metamob en public : la suivre ici,
+                    sans repasser par le profil. */}
+                {metamobPseudo ? (
+                    <div className="space-y-2 border-b border-border p-4">
+                        <div className="flex items-baseline justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Quête Ocre
+                            </p>
+                            {quest ? (
+                                <span className="text-[11px] tabular-nums text-foreground">
+                                    {quest.captured} / {quest.total}
+                                </span>
+                            ) : null}
+                        </div>
+                        {questLoading ? (
+                            <p className="text-[11px] text-muted-foreground">Lecture de ta quête…</p>
+                        ) : null}
+                        {questError ? <p className="text-[11px] text-warning">{questError}</p> : null}
+                        {quest ? (
+                            <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
+                                {quest.monsters.map((monster) => {
+                                    const caught = monster.owned > 0;
+                                    return (
+                                        <li
+                                            key={monster.id}
+                                            className="flex items-center justify-between gap-2 rounded-[4px] border border-border bg-surface px-2 py-1"
+                                        >
+                                            <span
+                                                className={cn(
+                                                    "min-w-0 truncate text-[11px]",
+                                                    caught ? "text-foreground" : "text-muted-foreground"
+                                                )}
+                                            >
+                                                {monster.name}
+                                                <span className="ml-1 text-[10px] opacity-70">
+                                                    Niv. {monster.levelMin}
+                                                </span>
+                                            </span>
+                                            <button
+                                                type="button"
+                                                disabled={patchingId === monster.id}
+                                                onClick={() => void patchMonster(monster, caught ? 0 : 1)}
+                                                className={cn(
+                                                    "shrink-0 rounded-[4px] border px-2 py-0.5 text-[10px] font-semibold transition-colors",
+                                                    caught
+                                                        ? "border-success/40 bg-success/10 text-success"
+                                                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                                                )}
+                                            >
+                                                {patchingId === monster.id
+                                                    ? "…"
+                                                    : caught
+                                                      ? "Capturé"
+                                                      : "Marquer"}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 <form onSubmit={submit} className="space-y-3 p-4">
                     <div className="space-y-1.5">

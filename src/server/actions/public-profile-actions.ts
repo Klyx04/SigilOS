@@ -20,7 +20,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
-import { getMetamobMe, verifyMetamobUser, MetamobApiError } from "@/lib/metamob-client";
+import { getMetamobMe, verifyMetamobUser, MetamobApiError, listSelfQuests, getSelfQuestDetails, bulkUpdateMonsters } from "@/lib/metamob-client";
 import { ORDERS } from "@/lib/dofus-assets";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
@@ -855,6 +855,15 @@ type ExportResult =
     | { success: true; data: PublicProfileExport }
     | { success: false; error: string };
 
+/** La clé du visiteur : lue (déchiffrée par le hook Prisma), **jamais** renvoyée au client. */
+async function readVisitorMetamob(userId: string) {
+    const row = await db.publicProfile.findUnique({
+        where: { userId },
+        select: { metamobApiKey: true, metamobPseudo: true },
+    });
+    return { key: row?.metamobApiKey?.trim() || null, pseudo: row?.metamobPseudo ?? null };
+}
+
 /**
  * Export RGPD : JSON lisible, **borné**, sans clé Metamob (elle n'est même pas sélectionnée).
  */
@@ -916,6 +925,185 @@ export async function exportPublicProfile(): Promise<ExportResult> {
     } catch (error) {
         logger.error("[Espace visiteur] Export impossible", { error });
         return { success: false, error: "Impossible de générer ton export pour l'instant." };
+    }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────────
+ * Quête Ocre du visiteur — LECTURE et PATCH temps réel (demande du 08/11/2026).
+ *
+ * « l'objectif de pouvoir lier son Metamob en mode public connecté, c'est surtout pour suivre
+ * sa quête directement dans le rush ». Aucune action de `ocre-actions.ts` n'est réutilisable :
+ * elle est scopée `guildId`, et le visiteur n'en a pas.
+ *
+ * Le chemin d'ÉCRITURE existe déjà dans le client (`bulkUpdateMonsters` →
+ * `PATCH /v1/quests/{slug}/monsters`, patch scopé au `monster_id`) : on s'appuie dessus, on ne
+ * recopie aucun `fetch`.
+ * ─────────────────────────────────────────────────────────────────────────────── */
+
+export const PUBLIC_OCRE_MONSTERS_MAX = 200;
+
+export type PublicOcreMonster = {
+    id: number;
+    name: string;
+    owned: number;
+    quantity: number;
+    levelMin: number;
+    levelMax: number;
+    step: number;
+};
+
+export type PublicOcreProgress =
+    | {
+          success: true;
+          questSlug: string;
+          characterName: string | null;
+          total: number;
+          captured: number;
+          monsters: PublicOcreMonster[];
+      }
+    | { success: false; error: string };
+
+/** Champs lus sur une réponse Metamob — type **structurel** : l'API reste une source externe. */
+type MetamobQuestMonsterLike = {
+    id?: number | null;
+    monster_id?: number | null;
+    name?: { fr?: string | null } | string | null;
+    owned?: number | null;
+    amount?: number | null;
+    quantity?: number | null;
+    level_min?: number | null;
+    level_max?: number | null;
+    step?: number | null;
+};
+
+/** DTO borné : jamais la réponse brute de Metamob ne part vers le client. */
+function toPublicOcreMonster(monster: MetamobQuestMonsterLike): PublicOcreMonster | null {
+    const id = Number(monster.monster_id ?? monster.id ?? 0);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    const label = typeof monster.name === "string" ? monster.name : monster.name?.fr ?? "";
+    return {
+        id,
+        name: label.slice(0, 120),
+        owned: Number(monster.owned ?? 0),
+        quantity: Number(monster.quantity ?? monster.amount ?? 1),
+        levelMin: Number(monster.level_min ?? 0),
+        levelMax: Number(monster.level_max ?? 0),
+        step: Number(monster.step ?? 0),
+    };
+}
+
+/** La quête Ocre du compte : même heuristique que `getSelfQuestDetails`, appliquée une fois. */
+async function resolveVisitorOcreSlug(pseudo: string, key: string): Promise<string | null> {
+    const quests = await listSelfQuests(pseudo, key);
+    const ocre = quests.find(
+        (quest) => (quest.quest_template?.monster_count ?? 0) > 200 || quest.quest_template?.id === 1
+    );
+    return ocre?.slug ?? quests[0]?.slug ?? null;
+}
+
+/** Progression Ocre du visiteur — lecture seule, bornée, sans clé dans la réponse. */
+export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("ocre-read", account.userId, 10);
+    if (limited) return { success: false, error: limited.error };
+
+    const { key, pseudo } = await readVisitorMetamob(account.userId);
+    if (!key) return { success: false, error: "Enregistre ta clé d'API Metamob pour suivre ta quête." };
+    const name = pseudo ?? account.profile.pseudoDofus;
+    if (!name) return { success: false, error: "Renseigne ton pseudo Metamob." };
+
+    try {
+        const slug = await resolveVisitorOcreSlug(name, key);
+        if (!slug) return { success: false, error: "Aucune quête trouvée sur ce compte Metamob." };
+
+        const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
+        const monsters = (details.monsters as unknown as MetamobQuestMonsterLike[])
+            .map(toPublicOcreMonster)
+            .filter((monster): monster is PublicOcreMonster => monster !== null)
+            .slice(0, PUBLIC_OCRE_MONSTERS_MAX);
+
+        return {
+            success: true,
+            questSlug: details.slug ?? slug,
+            characterName: details.character_name ?? null,
+            total: details.pagination?.total ?? monsters.length,
+            captured: monsters.filter((monster) => monster.owned > 0).length,
+            monsters,
+        };
+    } catch (error) {
+        logger.warn("[Espace visiteur] Progression Ocre illisible", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return {
+            success: false,
+            error:
+                error instanceof MetamobApiError && error.code === "UNAUTHORIZED"
+                    ? "Metamob refuse ta clé : vérifie-la dans ton espace visiteur."
+                    : "Impossible de lire ta quête Metamob pour l'instant.",
+        };
+    }
+}
+
+const publicOcrePatchSchema = z.object({
+    monsterId: z.number().int().positive(),
+    quantity: z.number().int().min(0).max(30),
+});
+
+export type PublicOcrePatchResult =
+    | { success: true; monster: PublicOcreMonster | null }
+    | { success: false; error: string };
+
+/**
+ * **Patch temps réel** d'un monstre de la quête Ocre, puis **double cross-check**.
+ *
+ * L'écriture passe par `bulkUpdateMonsters` (patch scopé au `monster_id`, jamais un patch
+ * global — c'est la leçon de #180). Et on ne croit pas notre propre optimisme : la quête est
+ * **relue** juste après, et c'est la valeur renvoyée par Metamob qui est rendue au client.
+ */
+export async function patchPublicOcreMonster(raw: unknown): Promise<PublicOcrePatchResult> {
+    const parsed = publicOcrePatchSchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("ocre-patch", account.userId, 60);
+    if (limited) return { success: false, error: limited.error };
+
+    const { key, pseudo } = await readVisitorMetamob(account.userId);
+    if (!key) return { success: false, error: "Aucune clé Metamob enregistrée." };
+    const name = pseudo ?? account.profile.pseudoDofus;
+    if (!name) return { success: false, error: "Renseigne ton pseudo Metamob." };
+
+    try {
+        const slug = await resolveVisitorOcreSlug(name, key);
+        if (!slug) return { success: false, error: "Quête Metamob introuvable." };
+
+        await bulkUpdateMonsters(
+            slug,
+            [{ monster_id: parsed.data.monsterId, quantity: parsed.data.quantity }],
+            { guildApiKey: key }
+        );
+
+        // Double cross-check : relecture, et c'est l'API qui fait foi.
+        const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
+        const updated =
+            (details.monsters as unknown as MetamobQuestMonsterLike[])
+                .map(toPublicOcreMonster)
+                .find((monster) => monster?.id === parsed.data.monsterId) ?? null;
+
+        revalidatePath(PATHS.general);
+        return { success: true, monster: updated };
+    } catch (error) {
+        logger.warn("[Espace visiteur] Patch Ocre refusé", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return {
+            success: false,
+            error: "Metamob n'a pas accepté la modification. Réessaie dans un instant.",
+        };
     }
 }
 

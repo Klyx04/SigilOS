@@ -16,9 +16,12 @@ import { join } from "node:path";
 import {
     COMMUNITY_MAX_MILESTONES,
     memberCompletion,
+    communityDofusStats,
+    readCommunitySteps,
     sortCommunityMembers,
     toCommunityMember,
     type CommunityMember,
+    type CommunityMilestoneLike,
     type CommunityRow,
 } from "@/lib/rush-community-progress";
 
@@ -33,6 +36,8 @@ function row(overrides: Partial<CommunityRow> = {}): CommunityRow {
     return {
         characterName: "Iopette",
         completedMilestones: ["ms-1", "ms-2"],
+        completedSteps: {},
+        currentStep: null,
         dungeonChecks: { "seq-1::d-1": "done", "seq-1::d-2": "todo" },
         updatedAt: new Date("2026-11-07T10:00:00Z"),
         pseudoDofus: "Compte",
@@ -44,6 +49,8 @@ function member(name: string, done: number, updatedAt = "2026-11-07T10:00:00.000
     return {
         name,
         completedMilestones: Array.from({ length: done }, (_, index) => `ms-${index}`),
+        completedSteps: [],
+        currentStep: null,
         dungeonDone: [],
         updatedAt,
     };
@@ -117,5 +124,81 @@ describe("Progression Communautaire — affichage", () => {
         const input = [member("B", 1), member("A", 5)];
         sortCommunityMembers(input, 10);
         expect(input.map((entry) => entry.name)).toEqual(["B", "A"]);
+    });
+});
+
+const MILESTONES: CommunityMilestoneLike[] = [
+    {
+        id: "ms-1",
+        title: "Bloc 1",
+        chapterLabel: "Départ",
+        dofusId: "sylvestre",
+        sequences: [{ subGuideRef: "q-1", subGuideName: "Quête 1", stepFrom: 1, stepTo: 2 }],
+    },
+    {
+        id: "ms-2",
+        title: "Bloc 2",
+        chapterLabel: "Départ",
+        dofusId: "sylvestre",
+        sequences: [{ subGuideRef: "q-2", subGuideName: "Quête 2", stepFrom: null, stepTo: null }],
+    },
+    {
+        id: "ms-3",
+        title: "Bloc 3",
+        chapterLabel: "Autre",
+        dofusId: "pourpre",
+        sequences: [{ subGuideRef: "q-3", subGuideName: "Quête 3", stepFrom: null, stepTo: null }],
+    },
+];
+
+function memberWith(
+    name: string,
+    completedMilestones: string[],
+    completedSteps: string[],
+    currentStep: string | null = null
+): CommunityMember {
+    return { name, completedMilestones, completedSteps, currentStep, dungeonDone: [], updatedAt: "2026-11-08T10:00:00.000Z" };
+}
+
+describe("Progression Communautaire — par Dofus (D-V8)", () => {
+    it("les étapes sont aplaties depuis le Json par bloc", () => {
+        expect(readCommunitySteps({ "ms-1": ["q-1-1", "q-1-2"], "ms-2": "pas un tableau" })).toEqual([
+            "q-1-1",
+            "q-1-2",
+        ]);
+        expect(readCommunitySteps(null)).toEqual([]);
+    });
+    it("un bloc est couvert dès qu au moins un membre l a terminé", () => {
+        const stats = communityDofusStats(
+            [memberWith("A", ["ms-1"], []), memberWith("B", [], [])],
+            MILESTONES
+        );
+        const sylvestre = stats.find((stat) => stat.id === "sylvestre");
+        expect(sylvestre?.totalMilestones).toBe(2);
+        expect(sylvestre?.completedMilestones).toBe(1);
+        expect(sylvestre?.pct).toBe(50);
+    });
+    it("chaque membre est situé à la quête, comme l interne", () => {
+        const stats = communityDofusStats(
+            [memberWith("A", ["ms-1"], ["q-1-1", "q-1-2"], "q-2-1")],
+            MILESTONES
+        );
+        const sylvestre = stats.find((stat) => stat.id === "sylvestre");
+        const row = sylvestre?.members[0];
+        expect(row?.done).toBe(1);
+        expect(row?.total).toBe(2);
+        expect(row?.current).toBe("Quête 2");
+        expect(row?.currentIndex).toBe(2);
+    });
+    it("les Dofus les plus fournis d abord, les membres les plus avancés en tête", () => {
+        const stats = communityDofusStats(
+            [memberWith("A", [], []), memberWith("B", ["ms-3"], ["q-3-all"], null)],
+            MILESTONES
+        );
+        expect(stats.map((stat) => stat.id)).toEqual(["sylvestre", "pourpre"]);
+        expect(stats[1].members[0].name).toBe("B");
+    });
+    it("un guide sans Dofus ne produit aucune statistique", () => {
+        expect(communityDofusStats([memberWith("A", ["ms-1"], [])], [])).toEqual([]);
     });
 });

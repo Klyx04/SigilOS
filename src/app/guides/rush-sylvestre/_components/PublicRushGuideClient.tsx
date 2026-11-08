@@ -1926,7 +1926,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           Absente pour l anonyme : le serveur se résout côté serveur, jamais depuis le navigateur. */}
       {isConnected ? (
         <div className="px-4 pb-4 sm:px-5 lg:px-6">
-          <PublicCommunityPanel totalMilestones={milestones.length} />
+          <PublicCommunityPanel milestones={rawMilestones} />
         </div>
       ) : null}
       <div className="da-guide-grid">

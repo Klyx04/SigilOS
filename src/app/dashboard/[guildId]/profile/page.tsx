@@ -10,7 +10,6 @@ import type { AvailabilityMap } from "@/lib/dofus-assets";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ProfileTourReplayButton } from "@/components/profile/profile-tour-replay-button";
-import { UserCircle } from "lucide-react";
 
 export default async function ProfilePage({ params, searchParams }: {
     params: Promise<{ guildId: string }>;
@@ -92,7 +91,7 @@ export default async function ProfilePage({ params, searchParams }: {
                 <UnifiedModuleHeader
                     title="Mon Profil"
                     description="Gérez votre identité de guilde, votre classe et vos métiers."
-                    imageSrc="/assets/ui/icons/profile.png"
+                    imageSrc="/assets/dofus/modules/character.png"
                     backHref={`/dashboard/${guildId}`}
                     actions={<ProfileTourReplayButton />}
                 />

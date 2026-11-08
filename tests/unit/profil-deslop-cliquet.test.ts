@@ -65,7 +65,6 @@ const BUDGET: Record<string, Record<Counter, number>> = {
     "src/components/profile/legendary-pet-toggle.tsx": { palette: 0, slop: 0, rayon: 0 },
     "src/components/profile/metamob-link.tsx": { palette: 0, slop: 0, rayon: 0 },
     "src/components/profile/presentation-card.tsx": { palette: 0, slop: 0, rayon: 0 },
-    "src/components/profile/profile-activity-tab.tsx": { palette: 0, slop: 0, rayon: 1 },
     // P2 : 50 classes de palette (9 familles pour 12 onglets) → 0, une seule teinte d'accent.
     "src/components/profile/profile-bento-grid.tsx": { palette: 0, slop: 1, rayon: 1 },
     "src/components/profile/profile-dofus-tab.tsx": { palette: 0, slop: 0, rayon: 2 },

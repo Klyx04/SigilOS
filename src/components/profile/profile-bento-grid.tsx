@@ -16,7 +16,6 @@ import { IntroductionCard } from "./introduction-card";
 import { PresentationCard } from "./presentation-card";
 import { ProfileDofusTab } from "./profile-dofus-tab";
 import { ProfileServicesTab } from "./profile-services-tab";
-import { ProfileActivityTab } from "./profile-activity-tab";
 import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
@@ -25,13 +24,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Settings, Hammer, Wrench, Activity, ChevronLeft, ChevronRight, Palette } from "lucide-react";
+import { UserCircle, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 import { metierIds, type MetierEntry } from "@/lib/metiers";
 import { useTour } from "@/components/tour/tour-provider";
+import {
+    DEFAULT_PROFILE_TAB,
+    PROFILE_TABS,
+    isProfileGroupEmpty,
+    profileGroupOf,
+    resolveProfileTab,
+    type ProfileTabId,
+} from "@/lib/profile-tabs";
 
 /**
  * Onglet actif du profil : **une seule teinte d'accent** pour tout l'écran (`docs/RULES.md` § UI).
@@ -175,8 +182,9 @@ export function ProfileBentoGrid({
                 : { ...prev, pseudoDofus: profile.pseudoDofus, classe: profile.classe }
         );
     }, [profile.pseudoDofus, profile.classe]);
-    const initialTab = initialTabProp || searchParams.get("tab") || "overview";
-    const [activeTab, setActiveTab] = useState(initialTab);
+    // Un lien périmé (`?tab=artisanat`) atterrit dans son groupe, jamais sur un onglet fantôme.
+    const initialTab = resolveProfileTab(initialTabProp || searchParams.get("tab"));
+    const [activeTab, setActiveTab] = useState<ProfileTabId>(initialTab);
     const tabsScrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
@@ -211,16 +219,17 @@ export function ProfileBentoGrid({
 
     // Synchronize activeTab with onboarding tour phase & active step target
     useEffect(() => {
-        if (tourPhase === "profile" && activeStepData?.target) {
-            const target = activeStepData.target;
-            if (target.includes("metiers")) setActiveTab("metiers");
-            else if (target.includes("planning")) setActiveTab("planning");
-            else if (target.includes("combat")) setActiveTab("combat");
-            else if (target.includes("dofus")) setActiveTab("dofus");
-            else if (target.includes("activity")) setActiveTab("activity");
-            else if (target.includes("settings")) setActiveTab("settings");
-            else if (target.includes("profile-header") || target.includes("profile-class") || target.includes("overview")) setActiveTab("overview");
+        if (tourPhase !== "profile" || !activeStepData?.target) return;
+        const target = activeStepData.target;
+        // `[data-tour="profile-tab-metiers"]` → `metiers` → groupe « Personnages ».
+        if (target.includes("profile-tab-")) {
+            const section = target.split("profile-tab-")[1].replace(/[^a-z]/g, "");
+            setActiveTab(resolveProfileTab(section));
+            return;
         }
+        // Le tutoriel vise aussi des blocs de contenu (`profile-planning`), pas seulement des onglets.
+        if (target.includes("profile-planning")) setActiveTab(profileGroupOf("planning") ?? DEFAULT_PROFILE_TAB);
+        else setActiveTab(DEFAULT_PROFILE_TAB);
     }, [activeStepData, tourPhase]);
 
     /**
@@ -264,11 +273,9 @@ export function ProfileBentoGrid({
         canViewOcre = true, 
         canViewSonges = true, 
         canViewLadder = true, 
-        canViewMissions = true,
         canSyncLadder = false,
         // #137 — fail-closed : sans valeur fournie, la capture OCR (Manuel) reste masquée.
         canManualSyncLadder = false,
-        missionVitrineMode = false,
     } = permissions;
 
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([initialTab]));
@@ -280,37 +287,16 @@ export function ProfileBentoGrid({
         });
     }, [activeTab]);
 
-    // Sync state if URL param changes (optional but good for UX)
+    // Change d'onglet depuis l'URL (retour arrière, lien partagé) : les anciennes clés sont résolues.
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab) {
-            setActiveTab(tab);
-        }
+        if (tab) setActiveTab(resolveProfileTab(tab));
     }, [searchParams]);
-
-    // Module Disponibilités inactif → l'onglet planning est masqué : repousse vers overview
-    useEffect(() => {
-        if (!canViewPlanning && activeTab === "planning") {
-            setActiveTab("overview");
-        }
-    }, [activeTab, canViewPlanning]);
 
     const displayName = discordNickname || profile.pseudoDofus || "Voyageur";
 
-    const isVitrineActive = missionVitrineMode;
-
-    // Si la vitrine est active, l'onglet "Présence & Feed" est masqué : on repousse
-    // l'onglet actif vers "overview" s'il pointait vers un onglet désormais invisible
-    // (évite un contenu affiché sans onglet visible, ex. via ?tab=activity dans l'URL).
-    useEffect(() => {
-        if (isVitrineActive && activeTab === "activity") {
-            setActiveTab("overview");
-        }
-    }, [isVitrineActive, activeTab]);
-
     // Compute empty section flags for readOnly mode (hide tabs/sections that have no data)
     const isEmpty: Record<string, boolean> = {
-        activity: !canViewMissions || isVitrineActive,
         combat: readOnly && (!localProfile.dofusBookLinks || localProfile.dofusBookLinks.length === 0),
         skins: readOnly && (!localProfile.skins || localProfile.skins.length === 0),
         mules: readOnly && (!localProfile.altPseudos || localProfile.altPseudos.length === 0),
@@ -336,6 +322,26 @@ export function ProfileBentoGrid({
     // canEdit logic: Édition autorisée uniquement sur son propre profil (readOnly === false).
     const canEdit = !readOnly;
     const targetUserId = undefined;
+
+    /**
+     * Un groupe n'est proposé que s'il porte au moins une section visible. Les trois rustines
+     * d'origine (module Disponibilités inactif, vitrine des missions, lien `?tab=` périmé) sont
+     * remplacées par **une** garde — sans elle, on affiche un contenu sans onglet actif.
+     */
+    const hasServices = !readOnly || !!(localProfile as any).activeServices?.length;
+    const visibleTabs = PROFILE_TABS.filter((tab) => {
+        if (tab.id === "reglages" && !canEdit) return false;
+        if (tab.id === "planning" && !canViewPlanning && !hasServices) return false;
+        return !isProfileGroupEmpty(tab.id, isEmpty);
+    });
+    const visibleTabIds = visibleTabs.map((tab) => tab.id).join(",");
+
+    useEffect(() => {
+        if (!visibleTabIds.split(",").includes(activeTab)) setActiveTab(DEFAULT_PROFILE_TAB);
+    }, [activeTab, visibleTabIds]);
+
+    /** Changeur d'onglet qui accepte les **anciennes** clés (`SuccessSync` renvoie `overview`). */
+    const changeTab = useCallback((tab: string) => setActiveTab(resolveProfileTab(tab)), []);
 
     // Handlers
     const handleClassSave = async (mainClass: string, pseudo: string) => {
@@ -505,7 +511,7 @@ export function ProfileBentoGrid({
             </div>
 
             {/* Sigma 2026 Sleek Glass Navigation Bar */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+            <Tabs value={activeTab} onValueChange={changeTab} className="w-full space-y-6">
                 <div className="sticky top-20 z-30 w-full min-w-0 relative">
                     {/* Scroll shadow + arrow — left */}
                     <div className={cn(
@@ -527,8 +533,6 @@ export function ProfileBentoGrid({
                     >
                         <TabsList className="bg-transparent inline-flex flex-row items-center gap-1 h-auto justify-start border-none min-w-max p-0">
                         {(() => {
-                            const hasServices = !readOnly || ((localProfile as any).activeServices && (localProfile as any).activeServices.length > 0);
-
                             // iconType: 'dofus' = DofusUiIcon asset, 'lucide' = composant Lucide
                             type TabDef = {
                                 id: string;
@@ -538,22 +542,28 @@ export function ProfileBentoGrid({
                                 | { iconType: 'lucide'; LucideIcon: React.ElementType }
                             );
 
-                            // Une seule teinte d'accent pour tous les onglets : `ACTIVE_TAB_CLASSES`.
-                            const ALL_TABS: TabDef[] = [
-                                { id: "overview",      label: "Général",       iconType: "lucide",  LucideIcon: UserCircle },
-                                { id: "intro",         label: "Présentation",  iconType: "lucide",  LucideIcon: LayoutDashboard },
-                                { id: "dofus",         label: "Quêtes",        iconType: "dofus",   dofusIcon: "quest" },
-                                { id: "combat",        label: "Stuffs",        iconType: "dofus",   dofusIcon: "dungeon" },
-                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette },
-                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player" },
-                                { id: "achievements",  label: "Succès",        iconType: "dofus",   dofusIcon: "success" },
-                                { id: "metiers",       label: "Métiers",       iconType: "lucide",  LucideIcon: Hammer },
-                                { id: "artisanat",     label: "Légendaire",    iconType: "dofus",   dofusIcon: "chest" },
-                                { id: "activity",      label: "Activité",      iconType: "lucide",  LucideIcon: Activity },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName }] : []),
-                                ...(hasServices ? [{ id: "services", label: "Services", iconType: "lucide" as const, LucideIcon: Wrench }] : []),
-                                ...(canEdit ? [{ id: "settings", label: "Réglages", iconType: "lucide" as const, LucideIcon: Settings }] : []),
-                            ].filter(t => !isEmpty[t.id]) as TabDef[];
+                            /**
+                             * Six onglets (P3) : la liste, les libellés et l'appartenance des treize
+                             * sections vivent dans `src/lib/profile-tabs.ts` (règle pure, testée).
+                             * Ici, l'icône seulement — et une seule teinte d'accent pour tous.
+                             */
+                            const TAB_ICONS: Record<
+                                ProfileTabId,
+                                | { iconType: 'dofus'; dofusIcon: DofusUiIconName }
+                                | { iconType: 'lucide'; LucideIcon: React.ElementType }
+                            > = {
+                                synthese: { iconType: "lucide", LucideIcon: UserCircle },
+                                equipement: { iconType: "dofus", dofusIcon: "dungeon" },
+                                dofusdex: { iconType: "dofus", dofusIcon: "quest" },
+                                personnages: { iconType: "dofus", dofusIcon: "player" },
+                                planning: { iconType: "dofus", dofusIcon: "calendar" },
+                                reglages: { iconType: "lucide", LucideIcon: Settings },
+                            };
+                            const ALL_TABS: TabDef[] = visibleTabs.map((tab) => ({
+                                id: tab.id,
+                                label: tab.label,
+                                ...TAB_ICONS[tab.id],
+                            }));
 
                             return ALL_TABS.map((tab) => {
                                 const isActive = activeTab === tab.id;
@@ -604,7 +614,7 @@ export function ProfileBentoGrid({
                 {/* Main Content Area (Full Width) */}
                 <div className="min-w-0 space-y-8">
                 {/* OVERVIEW TAB */}
-                <TabsContent value="overview" className="animate-in fade-in duration-300">
+                <TabsContent value="synthese" className="animate-in fade-in duration-300">
                     <div id="profile-edit-section" className="flex flex-col gap-6">
                         {/* Classes */}
                         <div data-tour="profile-class">
@@ -645,8 +655,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* INTRODUCTION / PRESENTATION TAB */}
-                <TabsContent value="intro" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("intro") && (
+                <TabsContent value="synthese" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("synthese") && (
                         <PresentationCard
                             introduction={localProfile.introduction || ""}
                             objectifs={localProfile.objectifs || ""}
@@ -668,8 +678,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* DOFUS PROGRESSION TAB */}
-                <TabsContent value="dofus" className="min-h-[60vh] animate-in fade-in duration-300">
-                    {visitedTabs.has("dofus") && (
+                <TabsContent value="dofusdex" className="min-h-[60vh] animate-in fade-in duration-300">
+                    {visitedTabs.has("dofusdex") && (
                         <ProfileDofusTab
                             guildId={guildId}
                             profileId={localProfile.id}
@@ -679,8 +689,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SERVICES TAB */}
-                <TabsContent value="services" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("services") && (
+                <TabsContent value="planning" className="animate-in fade-in duration-300">
+                    {hasServices && visitedTabs.has("planning") && (
                         <ProfileServicesTab
                             guildId={guildId}
                             activeServices={(localProfile as any).activeServices || []}
@@ -689,26 +699,9 @@ export function ProfileBentoGrid({
                     )}
                 </TabsContent>
 
-                {/* ACTIVITY & PRESENCE TAB */}
-                <TabsContent value="activity" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("activity") && (
-                        <ProfileActivityTab
-                            lastSeen={(localProfile as any).lastSeen || (localProfile as any).lastActivityAt}
-                            lastActivityAt={localProfile.lastActivityAt}
-                            xp={stats.xp}
-                            contributionPoints={(localProfile as any).contributionPoints || 0}
-                            validatedMissionsCount={stats.missionsValidated}
-                            weeklyMissions={stats.weeklyMissions}
-                            weeklyXp={stats.weeklyXp}
-                            displayName={displayName}
-                            canViewMissions={canViewMissions}
-                        />
-                    )}
-                </TabsContent>
-
                 {/* COMBAT TAB (Stuffs) */}
-                <TabsContent value="combat" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("combat") && (
+                <TabsContent value="equipement" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("equipement") && (
                         <div className="w-full">
                             <BuildsCard
                                 links={localProfile.dofusBookLinks as any || []}
@@ -722,8 +715,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SKINS TAB */}
-                <TabsContent value="skins" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("skins") && (
+                <TabsContent value="equipement" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("equipement") && (
                         <div className="w-full">
                             <SkinLibrary 
                                 initialSkins={localProfile.skins || []}
@@ -736,8 +729,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* MULES TAB */}
-                <TabsContent value="mules" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("mules") && (
+                <TabsContent value="personnages" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("personnages") && (
                         <div className="w-full">
                             <AltPseudos
                                 altPseudos={localProfile.altPseudos as any || []}
@@ -751,7 +744,9 @@ export function ProfileBentoGrid({
 
                 {/* PLANNING TAB */}
                 <TabsContent value="planning" className="animate-in fade-in duration-300 flex flex-col gap-6">
-                    {visitedTabs.has("planning") && (
+                    {/* Fail-closed : le groupe « Planning & services » peut être ouvert pour Services
+                        seul, donc la permission se vérifie **dans** le contenu, pas sur l'onglet. */}
+                    {canViewPlanning && visitedTabs.has("planning") && (
                         <>
                             {/* #4 — Lien vers l'agenda de guilde depuis le planning perso */}
                             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -798,8 +793,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* ACHIEVEMENTS TAB */}
-                <TabsContent value="achievements" className="animate-in fade-in duration-300">
-                    {visitedTabs.has("achievements") && (
+                <TabsContent value="synthese" className="animate-in fade-in duration-300">
+                    {visitedTabs.has("synthese") && (
                         <SuccessSync
                             pseudoDofus={localProfile.pseudoDofus}
                             guildId={guildId}
@@ -807,7 +802,7 @@ export function ProfileBentoGrid({
                             successPoints={localProfile.successPoints}
                             lastUpdate={localProfile.lastLadderUpdate}
                             readOnly={!canEdit}
-                            onTabChange={setActiveTab}
+                            onTabChange={changeTab}
                             onSuccess={(points) => {
                                 setLocalProfile(prev => ({
                                     ...prev,
@@ -822,8 +817,8 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                  {/* MÉTIERS TAB */}
-                 <TabsContent value="metiers" className="animate-in fade-in duration-300">
-                     {visitedTabs.has("metiers") && (
+                 <TabsContent value="personnages" className="animate-in fade-in duration-300">
+                     {visitedTabs.has("personnages") && (
                          <JobsGrid
                              jobs={localProfile.metiers || []}
                              forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
@@ -835,8 +830,8 @@ export function ProfileBentoGrid({
                  </TabsContent>
 
                  {/* ARTISANAT TAB */}
-                 <TabsContent value="artisanat" className="animate-in fade-in duration-300">
-                     {visitedTabs.has("artisanat") && (
+                 <TabsContent value="personnages" className="animate-in fade-in duration-300">
+                     {visitedTabs.has("personnages") && (
                          <div className="space-y-12">
                              <LegendaryCrafting 
                                  guildId={guildId}
@@ -864,8 +859,8 @@ export function ProfileBentoGrid({
 
                 {/* SETTINGS TAB */}
                 {canEdit && (
-                    <TabsContent value="settings" className="animate-in fade-in duration-300">
-                        {visitedTabs.has("settings") && (
+                    <TabsContent value="reglages" className="animate-in fade-in duration-300">
+                        {visitedTabs.has("reglages") && (
                             <UserSettings
                                 guildId={guildId}
                                 guildName={guildName || "la guilde"}

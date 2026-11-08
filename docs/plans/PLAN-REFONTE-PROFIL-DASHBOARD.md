@@ -1,5 +1,5 @@
 ---
-description: Profil dashboard — audit mesuré (couleurs de palette, rayons, marqueurs slop), cliquet de non-régression, une seule teinte d'accent, regroupement des 13 onglets, en-tête ; P1/P2 livrés le 08/11/2026
+description: Profil dashboard — audit mesuré (couleurs de palette, rayons, marqueurs slop), cliquet de non-régression, une seule teinte d'accent, 13 onglets ramenés à 6, en-tête ; P1 → P4 livrés le 08/11/2026
 ---
 
 # 🎨 Refonte du profil dashboard
@@ -8,7 +8,8 @@ description: Profil dashboard — audit mesuré (couleurs de palette, rayons, ma
 > `Mon Profil` (`/dashboard/<guildId>/profile`). Il ne duplique pas l'ordre d'exécution
 > (rang **59** de `docs/ROADMAP.md`) ni les règles générales d'UI (`docs/RULES.md` § UI).
 >
-> **Dernière MAJ : 08/11/2026** — **P1** (cliquet) et **P2** (tokens du bento) livrés.
+> **Dernière MAJ : 08/11/2026** — **P1** (cliquet), **P2** (accent), **P2-bis** (trois cartes),
+> **P3** (6 onglets) et **P4** (en-tête) livrés.
 
 ## 1. Périmètre mesuré (08/11/2026)
 
@@ -80,45 +81,64 @@ d'onglets, invisible sur la capture. Mesure des trois cartes (`class-display`, `
 
 Compteurs du cliquet : palette **81 → 30**, slop **~100 → 65**, rayons **56 → 48**.
 
-### P3 — onglets 13 → 6 (à cadrer)
+### P3 — onglets 13 → 6 (livré le 08/11/2026)
 
-Proposition **à confirmer**, pas une évidence :
-
-| Nouvel onglet | Absorbe |
+| Onglet (clé) | Absorbe |
 |---|---|
-| Synthèse | `overview` + `activity` |
-| Identité & combat | `intro` + `combat` + `achievements` |
-| Équipement | `dofus` + `skins` |
-| Personnages | `mules` + `metiers` + `artisanat` |
-| Planning & services | `planning` + `services` |
-| Réglages | `settings` |
+| **Synthèse** (`synthese`) | `overview` + `intro` + `achievements` (**Points de Succès**) |
+| **Équipement** (`equipement`) | `combat` (**builds**) + `skins` |
+| **Dofusdex** (`dofusdex`) | `dofus` |
+| **Personnages** (`personnages`) | `mules` + `metiers` + `artisanat` |
+| **Planning & services** (`planning`) | `planning` + `services` |
+| **Réglages** (`reglages`) | `settings` |
 
-**Coût mesuré, à traiter dans le lot :**
+**P3-bis (retours du 08/11, après la première livraison) :**
 
-- les onglets sont **deep-linkables** (`page.tsx:23` lit `searchParams.tab`) ⇒ table
-  **ancien → nouveau** obligatoire, sinon les liens en circulation meurent ;
-- le **tutoriel** pilote les onglets par clé (`profile-bento-grid.tsx`, mapping étape → `setActiveTab`) ;
-- `tests/unit/tour-overlay-viewport.test.ts` verrouille la barre (`overflow-x-auto`, `min-w-max`,
-  préfixe `profile-tab-`, `tabsScrollRef`, bornes, `scrollTo`) : verrou à **préserver**.
+- l'onglet « Équipement » **n'était pas** l'équipement : il portait le Dofusdex (quêtes). Il devient
+  **Dofusdex**, et « Équipement » reprend ce qu'un joueur y cherche — **builds + skins** (les skins
+  n'avaient plus de place visible) ;
+- le panneau **« Activité & Présence »** est **supprimé** (composant `profile-activity-tab.tsx`
+  démonté puis supprimé) et remplacé, à la même place, par le bloc **« Points de Succès »**
+  (`SuccessSync`, remonté de l'ancien onglet Succès vers Synthèse) ;
+- `?tab=activity` reste résolu par `RETIRED_SECTIONS` → Synthèse, et l'étape de tutoriel
+  « Présence & Feed » a été retirée avec son filtre.
 
-### P4 — l'en-tête (à faire)
+La table vit dans **`src/lib/profile-tabs.ts`** (règle pure, `tests/unit/profile-tabs.test.ts` **10
+cas**) : le bento ne porte plus que l'icône de chaque groupe.
 
-`page.tsx` utilise `imageSrc="/assets/ui/icons/profile.png"` : l'asset **existe**, ce n'est pas un
-fichier manquant mais un **choix** d'icône UI là où la DA attend un asset Dofus. Candidat cohérent :
-`public/assets/dofus/modules/character.png` (déjà utilisé par le menu compte depuis F12).
+**Trois pièges mesurés, traités dans le lot :**
+
+- **Liens entrants** — `resolveProfileTab` accepte une clé de groupe **ou** une ancienne section
+  (`?tab=artisanat` → `personnages`) et ne renvoie jamais un onglet inexistant ; `SuccessSync`
+  (`onTabChange('overview')`) passe par le même résolveur.
+- **Tutoriel** — ses cibles d'onglet ont été réécrites (`profile-tab-metiers` →
+  `profile-tab-personnages`, `profile-tab-dofus` → `profile-tab-dofusdex`, etc.), et l'étape
+  « Présence & Feed » a disparu avec le panneau qu'elle montrait.
+- **RBAC fail-closed** — le groupe « Planning & services » peut s'ouvrir pour Services seul : la
+  permission ne peut plus être portée par l'onglet. `canViewPlanning` et `hasServices` sont vérifiés
+  **dans** le contenu (`tests/unit/profile-tabs.test.ts` le verrouille).
+
+Le verrou `tests/unit/tour-overlay-viewport.test.ts` (barre défilable, bornes, `scrollTo`) est
+**resté vert sans être modifié**.
+
+### P4 — l'en-tête (livré le 08/11/2026)
+
+`page.tsx` utilisait `imageSrc="/assets/ui/icons/profile.png"` : l'asset existait, mais c'était une
+icône d'interface là où la DA attend un asset de jeu. Remplacé par
+`/assets/dofus/modules/character.png` (le même picto que le menu compte depuis F12).
 
 ## 3. Verrous à ne pas casser
 
 | Verrou | Ce qu'il protège |
 |---|---|
 | `tests/unit/profil-deslop-cliquet.test.ts` | plafonds par fichier, dans les deux sens |
+| `tests/unit/profile-tabs.test.ts` | six groupes couvrant les treize sections, liens périmés résolus, gardes RBAC du groupe Planning, cibles du tutoriel existantes |
 | `tests/unit/tour-overlay-viewport.test.ts` | barre d'onglets défilable + bulle du tutoriel dans la fenêtre |
 | `tests/unit/profile-identite-honnete.test.ts` | un refus d'enregistrement ne ressemble jamais à un succès (chaînes exactes dans `class-display` **et** le bento) |
 
 ## 4. Reste après ce lot
 
-- **P3** puis **P4** (ordre libre, P3 est le seul lot structurel).
-- **5 fichiers** portent encore une palette en dur (**30** classes) : `availability-heatmap` 13,
+- **P2-ter — 5 fichiers** portent encore une palette en dur (**30** classes) : `availability-heatmap` 13,
   `achievement-validation-queue` 11, `hero-header` 3, `success-sync` 2, `add-build-modal` 1.
 - **~65** marqueurs slop, menés par `success-sync` 11, `skin-library` 9, `add-build-modal` 8,
   `profile-services-tab` 8, `builds-card` 7, `introduction-card` 7.

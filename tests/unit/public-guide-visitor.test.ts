@@ -34,6 +34,11 @@ const METAMOB_ALLOWED = [
     "metamobstate",
     // Libellé affiché par la tuile (« lié · vérifié »), dérivé de la règle pure.
     "metamoblabel",
+    // 08/11/2026 — noms d'**UI** seulement : le composant voisin qui porte le formulaire et
+    // l'état d'ouverture de sa modale. Aucune donnée : une clé, un slug, un serveur ou un
+    // horodatage Metamob ajouté demain fait toujours échouer ce test.
+    "metamobmodal",
+    "metamobopen",
 ];
 
 describe("Tuile du guide — sept scalaires, rien d'autre", () => {

@@ -130,6 +130,8 @@ import { alignmentCrest } from "@/lib/rush-guide-view";
 // Modale « Mon personnage » (pictos de classe, vignettes de serveur, pseudo validé
 // par la règle partagée du profil) — le choix n'est plus un panneau replié.
 import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
+import { CharacterSwitchModal } from "@/components/dofus-quests/rush/CharacterSwitchModal";
+import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
 import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
@@ -454,6 +456,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
   // Modale « Mon personnage » : elle porte son propre brouillon jusqu'à validation.
   const [characterOpen, setCharacterOpen] = useState(false);
+  /** Bascule de personnage (compte connecté) — distincte du formulaire de l'anonyme. */
+  const [switchOpen, setSwitchOpen] = useState(false);
+  /** Metamob — la modale s'ouvre **ici**, sans passer par l'espace visiteur. */
+  const [metamobOpen, setMetamobOpen] = useState(false);
   /** V2a-4 — modale « Mon alignement » (cité + Ordre, écrits sur le profil visiteur). */
   const [alignmentOpen, setAlignmentOpen] = useState(false);
 
@@ -1191,9 +1197,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
 
   // Ouvrir la modale : elle repart du personnage déclaré (aucun état à préparer ici).
+  /**
+   * Bascule ou création ? Un **compte** a déjà son personnage et ses mules en base : on lui ouvre
+   * la bascule (demande du 08/11/2026 — « cette modale est destinée au visiteur non connecté »).
+   * L'anonyme, lui, n'a que le formulaire local, et c'est normal.
+   */
   const openCharacterForm = useCallback(() => {
+    if (visitor && (visitor.mules?.length ?? 0) > 0) {
+      setSwitchOpen(true);
+      return;
+    }
     setCharacterOpen(true);
-  }, []);
+  }, [visitor]);
 
   // Toggle chapter expansion
   const toggleChapter = (msId: string) => {
@@ -1580,6 +1595,37 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             mules={visitor?.mules ?? []}
             defaultServerId={visitor?.serverId ?? null}
           />
+          {/* Bascule de personnage du COMPTE (demande du 08/11/2026) : la modale ci-dessus est
+              le formulaire de l'anonyme (localStorage) ; un compte, lui, choisit parmi ce qui
+              existe déjà en base. */}
+          <CharacterSwitchModal
+            open={switchOpen}
+            onClose={() => setSwitchOpen(false)}
+            locale={locale}
+            mainCharacter={
+              visitor?.pseudo ? { pseudo: visitor.pseudo, classe: visitor.classe ?? null } : null
+            }
+            mules={visitor?.mules ?? []}
+            activePseudo={hasGuestCharacter(character) ? characterLabel : visitor?.pseudo ?? null}
+            onPickMain={() => {
+              setSwitchOpen(false);
+              applyGuestCharacter(null);
+            }}
+            onPickMule={(mule) => {
+              setSwitchOpen(false);
+              applyGuestCharacter({
+                classId: mule.classe ?? null,
+                pseudo: mule.pseudo,
+                serverId: visitor?.serverId ?? null,
+              });
+            }}
+          />
+          <PublicMetamobModal
+            open={metamobOpen}
+            onClose={() => setMetamobOpen(false)}
+            metamobPseudo={visitor?.metamobPseudo ?? null}
+            verified={metamob === "verified"}
+          />
           {/* V2a-4 — l'alignement se règle pour TOUT LE MONDE : écrit sur le profil quand
               un compte est connecté, conservé localement (et appliqué à la route) sinon. */}
           <PublicAlignmentModal
@@ -1680,24 +1726,24 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
         ) : null}
 
-        {/* Metamob — ce que le PROFIL déclare, rien de plus (V2a-3), et c'est CLIQUABLE
-            depuis V2a-5 (demande user : « idem pas cliquable pour changer comme
-            l'interne »). Le geste ouvre l'espace visiteur, qui porte déjà le formulaire
-            et les actions (`updatePublicMetamob` / `verifyPublicMetamob`) : on ne duplique
-            ni le formulaire ni l'action, et le client public n'importe toujours AUCUN
-            `@/server/` (verrou `rush-public-parity`). */}
+        {/* Metamob — ce que le PROFIL déclare, rien de plus (V2a-3), CLIQUABLE depuis V2a-5.
+            Demande du 08/11/2026 : le geste doit ouvrir la modale **ici**, « sans aller dans
+            son profil ». Il ouvre `PublicMetamobModal` (composant voisin), qui porte le
+            formulaire et appelle `updatePublicMetamob` : ce fichier-ci n'importe toujours
+            AUCUN `@/server/` (verrou `rush-public-parity` intact). */}
         {visitor ? (
-          <Link
-            href="/espace-visiteur/general"
+          <button
+            type="button"
+            onClick={() => setMetamobOpen(true)}
             className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
             title={
               metamob === "none"
                 ? locale === "en"
-                  ? "Link my Metamob account from my visitor space"
-                  : "Lier mon compte Metamob depuis mon espace visiteur"
+                  ? "Link my Metamob account"
+                  : "Lier mon compte Metamob"
                 : locale === "en"
-                  ? "Manage my Metamob link from my visitor space"
-                  : "Gérer ma liaison Metamob depuis mon espace visiteur"
+                  ? "Manage my Metamob link"
+                  : "Gérer ma liaison Metamob"
             }
           >
             {/* Asset Ocre du jeu, posé NU (le même que le guide interne). */}
@@ -1726,7 +1772,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                   : metamobLabel}
               </span>
             </div>
-          </Link>
+          </button>
         ) : null}
 
         {visitor ? (

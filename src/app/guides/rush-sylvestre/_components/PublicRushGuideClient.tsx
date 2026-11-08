@@ -1077,6 +1077,20 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const activeServerId =
     hasGuestCharacter(character) && character?.serverId ? character.serverId : visitor?.serverId ?? null;
   const activeName = hasGuestCharacter(character) ? characterLabel : visitor?.pseudo ?? null;
+  /**
+   * Demande user du 08/11/2026 — « si je n'ai que mon main sans mule à ajouter, le pseudo doit
+   * pas être cliquable ; sinon il doit proposer une modale pour changer de personnage ».
+   *
+   * Mesure : le pseudo ouvrait **toujours** la modale « Mon personnage », c'est-à-dire un
+   * formulaire de **création** (classe + serveur + nom) — la porte de l'anonyme, qui enregistre
+   * dans `localStorage`. Un compte connecté sans mule n'a pourtant **rien** à changer : on lui
+   * proposait de créer un personnage alors que le sien est déjà en base.
+   *
+   * Trois cas conservés : anonyme ⇒ cliquable (c'est sa seule porte) ; connecté **avec** mules ⇒
+   * cliquable (la modale liste d'abord « Mes personnages déclarés ») ; connecté **sans** mule ⇒
+   * le pseudo redevient du texte.
+   */
+  const canSwitchCharacter = !visitor || (visitor.mules?.length ?? 0) > 0;
 
   /**
    * V2a-3 — libellé Metamob : TROIS états sortis de la règle pure `metamobState`
@@ -1489,18 +1503,33 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               {/* Le NOM est le déclencheur du changement (V2a-5 — demande user : « pk pas
                   juste rendre cliquable son pseudo pour changer de perso »). Un vrai
                   <button> : clavier et lecteur d'écran le voient, contrairement à une div. */}
-              <button
-                type="button"
-                onClick={openCharacterForm}
-                className="min-w-0 max-w-full truncate text-left text-xs font-semibold text-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-accent"
-                title={
-                  locale === "en"
-                    ? "Class + nickname + server: each character keeps their own progress"
-                    : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"
-                }
-              >
-                {activeName ?? (locale === "en" ? "Choose my character" : "Choisir mon personnage")}
-              </button>
+              {canSwitchCharacter ? (
+                <button
+                  type="button"
+                  onClick={openCharacterForm}
+                  className="min-w-0 max-w-full truncate text-left text-xs font-semibold text-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-accent"
+                  title={
+                    locale === "en"
+                      ? "Class + nickname + server: each character keeps their own progress"
+                      : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"
+                  }
+                >
+                  {activeName ?? (locale === "en" ? "Choose my character" : "Choisir mon personnage")}
+                </button>
+              ) : (
+                /* Connecté sans mule : rien à changer, donc rien à cliquer (demande du
+                   08/11/2026). Le pseudo reste lisible, sans affordance de bouton. */
+                <span
+                  className="min-w-0 max-w-full truncate text-left text-xs font-semibold text-foreground"
+                  title={
+                    locale === "en"
+                      ? "Declare a mule in your visitor space to switch character"
+                      : "Déclare une mule dans ton espace visiteur pour changer de personnage"
+                  }
+                >
+                  {activeName}
+                </span>
+              )}
               {/* Identité du COMPTE — `visitor` est le SEUL garde. */}
               {visitor ? (
                 <span

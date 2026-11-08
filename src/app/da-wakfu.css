@@ -423,16 +423,23 @@
 /* ── Filtres : texte seul, compteur en petit, actif = trait de pinceau ───── */
 .da-filters {
   display: flex;
-  gap: 1.1rem;
+  flex-wrap: wrap;
+  /* Quatre libellés courts : **centrés**, et jamais de bande scrollable
+     horizontale — sur une PiP de 250 px, ils passaient sous le bord. */
+  justify-content: center;
+  align-items: center;
+  gap: .5rem .9rem;
+  /* De l'air par rapport au dock au-dessus et à la liste en dessous (retour user
+     du 08/11/2026 : la rangée était collée au reste). */
+  margin: .85rem .75rem 1rem;
+  padding-bottom: .45rem;
   border-bottom: 1.5px solid var(--da-ln);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .da-filters button {
   position: relative;
   flex: none;
-  padding: .5rem 0 .55rem;
+  padding: .55rem .3rem .6rem;
   border: 0;
   background: none;
   color: var(--da-muted);
@@ -465,95 +472,6 @@
   height: 3px;
   background: var(--da-acc);
   clip-path: polygon(0 30%, 8% 0, 100% 40%, 94% 100%, 0 85%);
-}
-
-/* ── Bannière de bloc ────────────────────────────────────────────────────── */
-.da-banner {
-  position: relative;
-  /* 96 px : le bandeau annonce le bloc, il ne mange pas la première carte —
-     122 px sur une PiP courte repoussaient la liste sous la ligne de flottaison. */
-  height: 96px;
-  overflow: hidden;
-  background: var(--da-field) center / cover no-repeat;
-  border: 1.5px solid var(--da-outline);
-  border-radius: 3px 12px 3px 12px;
-}
-
-/* Décor du bloc : l'image posée par le God REMPLIT le bandeau (rectangulaire,
-   `cover` centré) — le texte garde sa lisibilité grâce au voile `::after`, qui
-   est peint au-dessus de l'image. Aucun étirement : `cover` recadre. */
-.da-banner-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  pointer-events: none;
-}
-
-.da-banner::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: 3px 12px 3px 12px;
-  background:
-    linear-gradient(to top, rgb(0 0 0 / .72), transparent 62%),
-    linear-gradient(to right, rgb(0 0 0 / .35), transparent 55%);
-}
-
-/* Repli sans image d'ambiance : les dégradés du bloc, jamais un trou noir. */
-.da-banner[data-block="emeraude"] {
-  background-image:
-    radial-gradient(60% 80% at 30% 60%, #53703a, transparent 70%),
-    linear-gradient(#273034, #1a211f);
-}
-
-.da-banner[data-block="ocre"] {
-  background-image:
-    radial-gradient(50% 90% at 35% 40%, #e5ad5c, transparent 70%),
-    linear-gradient(#53402c, #251d15);
-}
-
-.da-banner[data-block="cauchemar"] {
-  background-image:
-    radial-gradient(55% 80% at 40% 55%, #2b6b7d, transparent 72%),
-    linear-gradient(#16262c, #0d171b);
-}
-
-.da-banner-text {
-  position: absolute;
-  z-index: 2;
-  right: .875rem;
-  bottom: .75rem;
-  left: 1rem;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: .6rem;
-}
-
-.da-banner-text h2 {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  color: #fff;
-  font: 700 22px/.95 var(--da-font-title);
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  text-shadow: 0 2px 0 var(--da-outline), 0 4px 12px rgb(0 0 0 / .66);
-}
-
-.da-banner-text small {
-  display: block;
-  margin-top: .25rem;
-  color: #e8ece0;
-  font: 600 11px var(--da-font-text);
-  letter-spacing: .04em;
-  text-shadow: 0 1px 4px #000;
 }
 
 /* ── Écriteau en planches — LA signature, compteurs de bloc uniquement ───── */
@@ -948,7 +866,14 @@
 /* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
 .da-hero {
   position: relative;
-  overflow: hidden;
+  /* Au-dessus du dock (sticky, empilé à 30) : ses enfants sont plafonnés à 2
+     (voir `.da-hero > *` plus bas), donc le menu « ⋯ » — un panneau `absolute
+     top-full z-50` — était enfermé dans un contexte SOUS le dock et se faisait
+     recouvrir. Le header reste en flux : il ne chevauche rien.
+     PAS de rognage ici (retiré le 08/11/2026) : il coupait ce même menu. Rien ne le
+     justifiait — `.da-hero-img` est un `background` sur une boîte `inset: 0`, donc
+     il ne déborde jamais de son parent. */
+  z-index: 40;
   border-bottom: 1.5px solid var(--da-ln);
   background: var(--da-field);
 }
@@ -1139,37 +1064,6 @@
   border-radius: 9px 0 9px 0;
   background: var(--da-acc);
   transform: rotate(45deg);
-}
-
-/* Frise des stades du Dofus : cinq losanges + le nom du stade atteint.
-   Réservée au palier `wide` (≥ 820 px de haut) : en `normal`, elle coûtait ~22 px
-   de hauteur utile pour une information que la jauge porte déjà. */
-.da-stage {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  margin-top: .35rem;
-  color: var(--da-muted);
-  font: 700 9.5px var(--da-font-text);
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 3px rgb(0 0 0 / .7);
-}
-
-.da-pips { display: inline-flex; gap: .25rem; }
-
-.da-pips i {
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid var(--da-acc2);
-  border-radius: 9px 0 9px 0;
-  background: transparent;
-  transform: rotate(45deg);
-}
-
-.da-pips i[data-on="true"] {
-  border-color: var(--da-acc);
-  background: var(--da-acc);
 }
 
 /* ── Qualité : la PiP passe au-dessus du jeu, on coupe le coût inutile ───── */

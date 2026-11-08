@@ -1,11 +1,18 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { Bug, X, Send, MapPin } from "lucide-react";
+import { Bug, X, Send, MapPin, ExternalLink } from "lucide-react";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
+
+/**
+ * Serveur d'entraide (F11) — **même** variable publique que le pied de page et la
+ * landing. Aucun secret : c'est une invitation publique, inlinée au build.
+ */
+const DISCORD_INVITE_URL =
+  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
 interface RushOverlayFeedbackPanelProps {
   guildId: string;
@@ -13,6 +20,14 @@ interface RushOverlayFeedbackPanelProps {
   targetSlug?: string;
   /** Étape/position calculée pré-remplie dans le retour */
   context?: string;
+  /**
+   * Visiteur **non connecté** : la modale ne montre que le Discord. `submitQuestFeedbackAction`
+   * exige une session — des catégories qui ne pourraient pas partir seraient un mensonge.
+   *
+   * Distinct de `isGuest` de l'overlay : le guide public code celui-ci en dur à `true`
+   * alors que la page connaît la session (`feedbackSignedIn`).
+   */
+  onlyDiscord?: boolean;
   onClose: () => void;
 }
 
@@ -31,6 +46,7 @@ export function RushOverlayFeedbackPanel({
   sourcePage,
   targetSlug,
   context,
+  onlyDiscord = false,
   onClose,
 }: RushOverlayFeedbackPanelProps) {
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
@@ -107,81 +123,122 @@ export function RushOverlayFeedbackPanel({
 
         {/* Corps scrollable */}
         <div className="flex-1 space-y-3 overflow-y-auto px-3.5 py-3">
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Ton retour est transmis directement à l'équipe (tracker interne + Discord). Choisis une catégorie :
-          </p>
+          {/* F11 — le support vit DANS la modale (et non dans un toast qui affichait
+              l'URL brute). Une capture d'écran ne passe pas par ce formulaire : elle
+              demande un **post sur le Discord**, seul canal qui accepte un fichier et
+              garde le fil de la discussion. */}
+          <div className="space-y-1.5 rounded-[4px] border border-border bg-surface px-3 py-2.5">
+            <p className="text-[11px] font-semibold text-foreground">Discord Sigilos</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {onlyDiscord
+                ? "Pour signaler un bug, ouvre un post dans le canal associé : décris le problème et joins ta capture d'écran."
+                : "Pour joindre une capture d'écran, ouvre un post dans le canal associé : ce formulaire-ci part sans pièce jointe."}
+            </p>
+            <a
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-accent motion-reduce:transition-none"
+            >
+              <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+              Rejoindre le Discord Sigilos
+            </a>
+          </div>
 
-          {context && (
-            <div className="flex items-start gap-2 rounded-[4px] border border-border bg-surface px-3 py-2">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">Position</p>
-                <p className="break-words text-[11px] font-medium text-foreground">{context}</p>
+          {/* Visiteur **non connecté** : le Discord, rien d'autre.
+              `submitQuestFeedbackAction` exige une session — afficher des catégories
+              qui ne pourraient pas partir serait un mensonge. */}
+          {onlyDiscord ? null : (
+            <>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Choisis une catégorie et décris ton retour : il part directement à l&apos;équipe.
+              </p>
+
+              {context && (
+                <div className="flex items-start gap-2 rounded-[4px] border border-border bg-surface px-3 py-2">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Position</p>
+                    <p className="break-words text-[11px] font-medium text-foreground">{context}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Catégories */}
+              <div className="grid gap-1.5">
+                {FEEDBACK_TYPES.map((type) => {
+                  const meta = FEEDBACK_LABELS[type];
+                  const selected = selectedType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setSelectedType(type)}
+                      aria-pressed={selected}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-colors",
+                        selected
+                          ? "border-warning/50 bg-warning/10 text-foreground"
+                          : "border-border bg-surface text-foreground hover:border-border-strong hover:bg-elevated"
+                      )}
+                    >
+                      <span className="shrink-0 text-sm" aria-hidden="true">{meta.emoji}</span>
+                      <span className="text-[11px] font-medium leading-tight">{meta.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label htmlFor="overlay-feedback-desc" className="text-[11px] text-muted-foreground">
+                  Description
+                </label>
+                <textarea
+                  id="overlay-feedback-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
+                  placeholder="Explique brièvement ton problème ou ton idée…"
+                  rows={4}
+                  className="w-full resize-none rounded-[4px] border border-border bg-surface px-3 py-2 text-xs text-foreground outline-none placeholder:text-subtle-foreground focus:border-warning/50"
+                />
+                <p className="text-right text-[11px] tabular-nums text-muted-foreground">{description.length}/2000</p>
+              </div>
+            </>
           )}
-
-          {/* Catégories */}
-          <div className="grid gap-1.5">
-            {FEEDBACK_TYPES.map((type) => {
-              const meta = FEEDBACK_LABELS[type];
-              const selected = selectedType === type;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setSelectedType(type)}
-                  aria-pressed={selected}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-colors",
-                    selected
-                      ? "border-warning/50 bg-warning/10 text-foreground"
-                      : "border-border bg-surface text-foreground hover:border-border-strong hover:bg-elevated"
-                  )}
-                >
-                  <span className="shrink-0 text-sm" aria-hidden="true">{meta.emoji}</span>
-                  <span className="text-[11px] font-medium leading-tight">{meta.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <label htmlFor="overlay-feedback-desc" className="text-[11px] text-muted-foreground">
-              Description
-            </label>
-            <textarea
-              id="overlay-feedback-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
-              placeholder="Explique brièvement ton problème ou ton idée…"
-              rows={4}
-              className="w-full resize-none rounded-[4px] border border-border bg-surface px-3 py-2 text-xs text-foreground outline-none placeholder:text-subtle-foreground focus:border-warning/50"
-            />
-            <p className="text-right text-[11px] tabular-nums text-muted-foreground">{description.length}/2000</p>
-          </div>
         </div>
 
-        {/* Pied */}
+        {/* Pied — un seul bouton pour un visiteur non connecté : il n'y a rien à envoyer. */}
         <div className="flex shrink-0 gap-2 border-t border-border bg-background/60 px-3.5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isPending}
-            className="flex-1 rounded-[4px] py-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isPending || !selectedType || !description.trim()}
-            className="inline-flex flex-[2] items-center justify-center gap-1.5 rounded-[4px] bg-accent py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Send className="h-3.5 w-3.5" aria-hidden="true" />
-            {isPending ? "Envoi…" : "Envoyer"}
-          </button>
+          {onlyDiscord ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-[4px] bg-accent py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+            >
+              Fermer
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isPending}
+                className="flex-1 rounded-[4px] py-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isPending || !selectedType || !description.trim()}
+                className="inline-flex flex-[2] items-center justify-center gap-1.5 rounded-[4px] bg-accent py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                {isPending ? "Envoi…" : "Envoyer"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

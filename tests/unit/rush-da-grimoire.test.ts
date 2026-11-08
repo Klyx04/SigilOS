@@ -22,30 +22,39 @@ import { readFileSync } from "node:fs";
 const HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
 const CHAPTER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 const SHELL = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const PUBLIC_GUIDE = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
 
 const codeOf = (path: string) => readFileSync(path, "utf8");
 
 const SLOP = /bg-gradient|backdrop-blur|\bshadow-2xl\b|drop-shadow|\bfont-black\b|animate-pulse/;
 
 describe("DA « Grimoire Sylvestre » — en-tête", () => {
-    it("le titre est un serif d'or souligné d'un filet, pas un `font-black`", () => {
-        const src = codeOf(HEADER);
-        // DA « Gouache Wakfu » : le titre se scinde comme la maquette —
-        // premier mot en surtitre espacé, le reste en grand condensé.
-        expect(src).toMatch(/<h1 className="da-logo">/);
-        expect(src).toMatch(/className="da-logo-a"/);
-        expect(src).toMatch(/className="da-logo-b"/);
+    it("le titre reste un serif d'or souligné d'un filet, pas un `font-black`", () => {
+        // F8 (08/11/2026) : l'OVERLAY ne rend plus de titre visible — « Rush Sylvestre »
+        // redisait un nom que le dock porte déjà. Il garde un `h1` **masqué**, sans quoi
+        // l'en-tête n'aurait plus de titre du tout pour les lecteurs d'écran.
+        const header = codeOf(HEADER);
+        expect(header).toMatch(/<h1 className="sr-only">\{guideName\}<\/h1>/);
+        expect(header).not.toMatch(/da-logo/);
+        // La découpe du titre (surtitre + condensé) reste tenue LÀ OÙ ELLE EST RENDUE :
+        // le guide public garde son titre.
+        const pub = codeOf(PUBLIC_GUIDE);
+        expect(pub).toMatch(/className="da-logo-line"/);
+        expect(pub).toMatch(/className="da-logo-b"/);
     });
 
     it("aucun slop : ni dégradé, ni verre, ni ombre diffuse, ni `font-black`", () => {
         expect(codeOf(HEADER)).not.toMatch(SLOP);
     });
 
-    it("la jauge globale est un trait d'or à losange et respecte `motion-reduce`", () => {
+    it("la jauge globale est unique et porte la DA (plus de doublon « Grimoire »)", () => {
         const src = codeOf(HEADER);
-        expect(src).toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
-        expect(src).toMatch(/bg-gold transition-\[width\] duration-150 ease-out motion-reduce:transition-none/);
-        expect(src).toMatch(/rotate-45 bg-gold/);
+        // F8 (08/11/2026) : deux jauges étaient empilées dans l'en-tête — `.da-track`
+        // (DA Gouache Wakfu) et l'ancienne jauge « Grimoire » (trait Tailwind pleine
+        // largeur + losange en bout). Une seule reste : celle de la DA.
+        expect(src).toMatch(/className="da-track"/);
+        expect(src).not.toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
+        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(1);
     });
 });
 

@@ -76,6 +76,7 @@ docs/
 │   ├── PLAN-REFONTE-ONBOARDING.md
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
 │   ├── PLAN-REFONTE-GOD-GUILDES.md refonte God « Guildes & Users » : 12 chantiers, 7 lots
+│   ├── PLAN-TICKETS-GOD.md        module tickets d'exploitation : `?tab=tickets`, UI à refondre, `ticket-bot` à revoir (brief 08/11/2026)
 │   ├── AMORCE-REFONTE-GOD-GUILDES.md  amorce d'exécution de la refonte God
 │   ├── PLAN-RAID.md                raid : clôture/no-show, strat, overlay, données (relevé mesuré 01/10/2026)
 │   ├── MODULE-RUSH-SYLVESTRE.md    module Rush Sylvestre : carte des fichiers + chantiers (agrégateur)

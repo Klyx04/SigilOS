@@ -165,7 +165,7 @@ export function PublicMetamobModal({
             <DialogContent
                 {...daScope}
                 overlayClassName="da-modal-scrim"
-                className="da-modal da-portal w-[min(34rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0 outline-none"
+                className="da-modal da-portal max-h-[85svh] w-[min(34rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0 outline-none"
             >
                 <DialogHeader className="da-modal-head space-y-3">
                     <div className="flex min-w-0 items-center justify-between gap-3">
@@ -207,10 +207,13 @@ export function PublicMetamobModal({
                             ) : null}
                         </span>
                     </div>
+                </DialogHeader>
 
-                {/* Quête Ocre — même panneau que le guide interne (recherche, onglets, stepper). */}
-                {metamobPseudo ? (
-                    <div className="min-w-0 space-y-3 pb-1">
+                {/* Quête Ocre — même panneau que le guide interne (recherche, filtres, stepper).
+                    En édition, la liste laisse la place au formulaire : `.da-modal` est en
+                    `overflow: hidden`, un corps plus haut que la fenêtre serait coupé. */}
+                {editing ? null : metamobPseudo ? (
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
                         {questLoading ? (
                             <p className="text-xs text-muted-foreground">Lecture de ta quête Metamob…</p>
                         ) : questError ? (
@@ -234,7 +237,6 @@ export function PublicMetamobModal({
                         ) : null}
                     </div>
                 ) : null}
-                </DialogHeader>
 
                 {editing ? (
                     <form onSubmit={submit} className="space-y-3 p-3 sm:p-4">
@@ -283,7 +285,7 @@ export function PublicMetamobModal({
                             </Button>
                         </div>
                     </form>
-                ) : (
+                ) : metamobPseudo ? null : (
                     <div className="flex justify-end p-4">
                         <Button type="button" variant="ghost" onClick={onClose}>
                             Fermer

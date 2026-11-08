@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLink, Eye, EyeOff, Info, RefreshCw, Search, X } from "lucide-react";
+import { ExternalLink, Info, RefreshCw, Search, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { OcreMonsterThumb, OcreTargetStepper } from "@/components/ocre/OcreTargetBits";
@@ -47,7 +47,8 @@ export default function OcreQuestPanel({
 }) {
     const [query, setQuery] = useState("");
     const [tab, setTab] = useState<Tab>("all");
-    const [hideOwned, setHideOwned] = useState(false);
+    /** État de possession — remplace l'ancien bouton « Masquer les possédés » (un seul sens). */
+    const [status, setStatus] = useState<"all" | "owned" | "missing">("all");
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -59,7 +60,8 @@ export default function OcreQuestPanel({
                 `${m.nameFr} ${m.zone ?? ""} ${m.subzone ?? ""}`.toLowerCase().includes(q)
             );
         }
-        if (hideOwned) out = out.filter((m) => m.owned <= 0);
+        if (status === "owned") out = out.filter((m) => m.owned > 0);
+        if (status === "missing") out = out.filter((m) => m.owned <= 0);
         // À capturer d'abord (c'est l'action), puis par nom.
         return [...out].sort((a, b) => {
             const aNeeded = a.owned <= 0 ? 0 : 1;
@@ -67,7 +69,7 @@ export default function OcreQuestPanel({
             if (aNeeded !== bNeeded) return aNeeded - bNeeded;
             return a.nameFr.localeCompare(b.nameFr, "fr");
         });
-    }, [monsters, query, tab, hideOwned]);
+    }, [monsters, query, tab, status]);
 
     const bossOwned = bossCount?.gathered ?? monsters.filter((m) => m.type === "boss" && m.owned > 0).length;
     const archiOwned = archiCount?.gathered ?? monsters.filter((m) => m.type === "archimonstre" && m.owned > 0).length;
@@ -147,16 +149,26 @@ export default function OcreQuestPanel({
                         <span className="tabular-nums opacity-80">{countByTab(t)}</span>
                     </button>
                 ))}
-                <button
-                    type="button"
-                    onClick={() => setHideOwned((v) => !v)}
-                    aria-pressed={hideOwned}
-                    className={cn(segCls(hideOwned), "ml-auto")}
-                    title={hideOwned ? "Afficher aussi ceux déjà capturés" : "Masquer ceux déjà capturés"}
-                >
-                    {hideOwned ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                    <span className="whitespace-nowrap">{hideOwned ? "Masqués" : "Masquer les possédés"}</span>
-                </button>
+                <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                    {(["all", "owned", "missing"] as const).map((s) => (
+                        <button
+                            key={s}
+                            type="button"
+                            onClick={() => setStatus(s)}
+                            aria-pressed={status === s}
+                            className={segCls(status === s)}
+                            title={
+                                s === "all"
+                                    ? "Toutes les cibles"
+                                    : s === "owned"
+                                        ? "Uniquement celles déjà possédées"
+                                        : "Uniquement celles encore à capturer"
+                            }
+                        >
+                            {s === "all" ? "Tous" : s === "owned" ? "Possédés" : "Manquants"}
+                        </button>
+                    ))}
+                </span>
             </div>
 
             {/* Retour d'écriture DANS le panneau (mêmes règles partout). */}
@@ -182,9 +194,11 @@ export default function OcreQuestPanel({
                     <p className="px-2 py-10 text-center text-sm text-muted-foreground">
                         {query
                             ? "Aucune cible ne correspond à la recherche."
-                            : hideOwned
+                            : status === "missing"
                                 ? "Tout est déjà capturé."
-                                : "Aucune cible dans cette catégorie."}
+                                : status === "owned"
+                                    ? "Rien de capturé pour l'instant."
+                                    : "Aucune cible dans cette catégorie."}
                     </p>
                 ) : (
                     <div className="min-w-0 space-y-1">

@@ -68,7 +68,7 @@ export default function OcreProgressModal({
             <DialogContent
                 {...daScope}
                 overlayClassName="da-modal-scrim"
-                className="da-modal da-portal max-w-lg gap-0 p-0 outline-none"
+                className="da-modal da-portal max-h-[85svh] max-w-lg gap-0 p-0 outline-none"
             >
                 <DialogHeader className="da-modal-head space-y-3">
                     <div className="flex items-center justify-between gap-3">

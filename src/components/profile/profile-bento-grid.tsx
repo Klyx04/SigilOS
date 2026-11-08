@@ -33,6 +33,16 @@ import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/
 import { metierIds, type MetierEntry } from "@/lib/metiers";
 import { useTour } from "@/components/tour/tour-provider";
 
+/**
+ * Onglet actif du profil : **une seule teinte d'accent** pour tout l'écran (`docs/RULES.md` § UI).
+ * Les douze onglets portaient auparavant une couleur par domaine — neuf familles de palette
+ * (`emerald`, `sky`, `amber`, `rose`, `yellow`, `fuchsia`, `orange`, `indigo`, `teal`) pour un seul
+ * écran. Le verrou `tests/unit/profil-deslop-cliquet.test.ts` interdit le retour d'une classe de
+ * palette en dur ici.
+ */
+const ACTIVE_TAB_CLASSES = "bg-accent/15 border-accent/30 text-accent shadow-xs";
+const ACTIVE_TAB_ICON_CLASSES = "text-accent";
+
 interface ProfileBentoGridProps {
     profile: {
         id: string;
@@ -523,27 +533,26 @@ export function ProfileBentoGrid({
                             type TabDef = {
                                 id: string;
                                 label: string;
-                                activeColor: string;
-                                bgActive: string;
                             } & (
                                 | { iconType: 'dofus'; dofusIcon: DofusUiIconName }
                                 | { iconType: 'lucide'; LucideIcon: React.ElementType }
                             );
 
+                            // Une seule teinte d'accent pour tous les onglets : `ACTIVE_TAB_CLASSES`.
                             const ALL_TABS: TabDef[] = [
-                                { id: "overview",      label: "Général",       iconType: "lucide",  LucideIcon: UserCircle,     activeColor: "text-emerald-400", bgActive: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/15" },
-                                { id: "intro",         label: "Présentation",  iconType: "lucide",  LucideIcon: LayoutDashboard,activeColor: "text-sky-400",     bgActive: "bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-sm shadow-sky-500/15" },
-                                { id: "dofus",         label: "Quêtes",        iconType: "dofus",   dofusIcon: "quest",         activeColor: "text-amber-400",  bgActive: "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/15" },
-                                { id: "combat",        label: "Stuffs",        iconType: "dofus",   dofusIcon: "dungeon",       activeColor: "text-rose-400",   bgActive: "bg-rose-500/20 border-rose-500/40 text-rose-300 shadow-sm shadow-rose-500/15" },
-                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette,        activeColor: "text-accent",     bgActive: "bg-accent/15 border-accent/30 text-accent shadow-xs" },
-                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player",        activeColor: "text-accent",     bgActive: "bg-accent/15 border-accent/30 text-accent shadow-xs" },
-                                { id: "achievements",  label: "Succès",        iconType: "dofus",   dofusIcon: "success",       activeColor: "text-yellow-400", bgActive: "bg-yellow-500/20 border-yellow-500/40 text-yellow-300 shadow-sm shadow-yellow-500/15" },
-                                { id: "metiers",       label: "Métiers",       iconType: "lucide",  LucideIcon: Hammer,         activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" },
-                                { id: "artisanat",     label: "Légendaire",    iconType: "dofus",   dofusIcon: "chest",         activeColor: "text-fuchsia-400",bgActive: "bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300 shadow-sm shadow-fuchsia-500/15" },
-                                { id: "activity",      label: "Activité",      iconType: "lucide",  LucideIcon: Activity,       activeColor: "text-indigo-400", bgActive: "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 shadow-sm shadow-indigo-500/15" },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName, activeColor: "text-teal-400", bgActive: "bg-teal-500/20 border-teal-500/40 text-teal-300 shadow-sm shadow-teal-500/15" }] : []),
-                                ...(hasServices ? [{ id: "services", label: "Services", iconType: "lucide" as const, LucideIcon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" }] : []),
-                                ...(canEdit ? [{ id: "settings", label: "Réglages", iconType: "lucide" as const, LucideIcon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground shadow-sm" }] : []),
+                                { id: "overview",      label: "Général",       iconType: "lucide",  LucideIcon: UserCircle },
+                                { id: "intro",         label: "Présentation",  iconType: "lucide",  LucideIcon: LayoutDashboard },
+                                { id: "dofus",         label: "Quêtes",        iconType: "dofus",   dofusIcon: "quest" },
+                                { id: "combat",        label: "Stuffs",        iconType: "dofus",   dofusIcon: "dungeon" },
+                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette },
+                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player" },
+                                { id: "achievements",  label: "Succès",        iconType: "dofus",   dofusIcon: "success" },
+                                { id: "metiers",       label: "Métiers",       iconType: "lucide",  LucideIcon: Hammer },
+                                { id: "artisanat",     label: "Légendaire",    iconType: "dofus",   dofusIcon: "chest" },
+                                { id: "activity",      label: "Activité",      iconType: "lucide",  LucideIcon: Activity },
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName }] : []),
+                                ...(hasServices ? [{ id: "services", label: "Services", iconType: "lucide" as const, LucideIcon: Wrench }] : []),
+                                ...(canEdit ? [{ id: "settings", label: "Réglages", iconType: "lucide" as const, LucideIcon: Settings }] : []),
                             ].filter(t => !isEmpty[t.id]) as TabDef[];
 
                             return ALL_TABS.map((tab) => {
@@ -556,7 +565,7 @@ export function ProfileBentoGrid({
                                         className={cn(
                                             "relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border cursor-pointer shrink-0 select-none",
                                             isActive
-                                                ? cn(tab.bgActive)
+                                                ? ACTIVE_TAB_CLASSES
                                                 : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-surface-hover/80 hover:border-border/40"
                                         )}
                                     >
@@ -567,7 +576,7 @@ export function ProfileBentoGrid({
                                                 className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-50")}
                                             />
                                         ) : (
-                                            <tab.LucideIcon className={cn("w-3.5 h-3.5 transition-colors shrink-0", isActive ? tab.activeColor : "text-muted-foreground/60")} />
+                                            <tab.LucideIcon className={cn("w-3.5 h-3.5 transition-colors shrink-0", isActive ? ACTIVE_TAB_ICON_CLASSES : "text-muted-foreground/60")} />
                                         )}
                                         <span>{tab.label}</span>
                                     </TabsTrigger>

@@ -171,7 +171,7 @@ export function MetamobLink({
     };
 
     return (
-        <div className="p-4 bg-surface/40 backdrop-blur-md rounded-xl border border-border transition-all hover:border-border-strong group">
+        <div className="p-4 bg-surface/60 rounded-xl border border-border transition-colors hover:border-border-strong group">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
                     <div className="relative w-4 h-4 opacity-80">
@@ -189,7 +189,7 @@ export function MetamobLink({
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 bg-background border-border">
-                                    <DropdownMenuLabel className="text-foreground font-bold uppercase tracking-widest text-caption">Mon compte Metamob</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-foreground font-medium text-caption">Mon compte Metamob</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="bg-surface" />
                                     <DropdownMenuItem asChild>
                                         <a href={`https://www.metamob.fr/profile/${encodeURIComponent(currentPseudo)}`} target="_blank" rel="noopener noreferrer" className="cursor-pointer text-foreground">
@@ -243,25 +243,25 @@ export function MetamobLink({
                 )}
             </div>
 
-            <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-elevated p-4 shadow-sm">
+            <div className="relative">
                 <div className="relative flex items-center gap-4">
-                    <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-elevated border border-border shadow-md shrink-0">
+                    <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-elevated border border-border shrink-0">
                         <div className={cn("relative h-8 w-8 transition-all", !isLinked && "opacity-40 grayscale")}>
-                            <Image src="/assets/icons/ocre.png" alt="Dofus Ocre" fill sizes="32px" className="object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                            <Image src="/assets/icons/ocre.png" alt="Dofus Ocre" fill sizes="32px" className="object-contain" />
                         </div>
                         {isLinked && <div className="absolute -bottom-1 -right-1 bg-surface rounded-full border border-border p-0.5"><CheckCircle2 className="w-3.5 h-3.5 text-success" /></div>}
                     </div>
                     <div className="flex-1 space-y-1.5">
                         <div className="flex items-baseline gap-2">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest shrink-0">Pseudo</span>
-                            <span className="text-lg font-black text-warning italic tracking-tight">{isLinked ? currentPseudo : "Non relié"}</span>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest shrink-0">Pseudo</span>
+                            <span className="text-lg font-semibold text-warning">{isLinked ? currentPseudo : "Non relié"}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest shrink-0">Statut</span>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest shrink-0">Statut</span>
                             {isLinked ? (
-                                <span className="text-sm font-black text-foreground">{mounted && metamobLastSync ? `Synchronisé ${formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}` : metamobLastSync ? "Synchronisé" : "En attente"}</span>
+                                <span className="text-sm font-medium text-foreground">{mounted && metamobLastSync ? `Synchronisé ${formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}` : metamobLastSync ? "Synchronisé" : "En attente"}</span>
                             ) : (
-                                <span className="text-caption font-bold text-muted-foreground uppercase italic">Liaison requise</span>
+                                <span className="text-caption font-medium text-muted-foreground">Liaison requise</span>
                             )}
                         </div>
                     </div>
@@ -316,13 +316,13 @@ export function MetamobLink({
             }}>
                 <DialogContent className="sm:max-w-2xl bg-background border-border shadow-2xl p-0 gap-0">
                     <DialogHeader className="p-8 border-b border-border">
-                        <DialogTitle className="text-2xl font-black text-foreground flex items-center gap-3"><Link2 className="h-6 w-6 text-warning" />Lier votre compte Metamob</DialogTitle>
+                        <DialogTitle className="text-2xl font-semibold text-foreground flex items-center gap-3"><Link2 className="h-6 w-6 text-warning" />Lier votre compte Metamob</DialogTitle>
                     </DialogHeader>
                     <div className="p-8 space-y-6">
                         <div className="flex items-center gap-4">
-                            <div className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase", linkStep === 1 ? "bg-warning/20 text-warning" : "bg-success/20 text-success")}>1. Pseudo</div>
+                            <div className={cn("px-4 py-2 rounded-xl text-xs font-semibold", linkStep === 1 ? "bg-warning/20 text-warning" : "bg-success/20 text-success")}>1. Pseudo</div>
                             <div className="flex-1 h-0.5 bg-elevated" />
-                            <div className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase", linkStep === 2 ? "bg-warning/20 text-warning" : "bg-surface text-muted-foreground")}>2. Clé API</div>
+                            <div className={cn("px-4 py-2 rounded-xl text-xs font-semibold", linkStep === 2 ? "bg-warning/20 text-warning" : "bg-surface text-muted-foreground")}>2. Clé API</div>
                         </div>
                         {linkStep === 1 ? (
                             <div className="space-y-4">

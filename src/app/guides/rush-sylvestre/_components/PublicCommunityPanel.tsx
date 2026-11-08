@@ -12,6 +12,8 @@ import {
 } from "@/lib/rush-community-progress";
 
 const DOFUS_META = dofusMetaIndex();
+/** Dofus connus — meme filtre que l interne : les ids hors referentiel sont ignores. */
+const KNOWN_DOFUS_IDS = new Set(Object.keys(DOFUS_META));
 
 type PanelState =
     | { status: "loading" }
@@ -51,7 +53,7 @@ export function PublicCommunityPanel({ milestones }: { milestones: CommunityMile
     }, []);
 
     const members = state.status === "ready" ? state.members : [];
-    const stats = state.status === "ready" ? communityDofusStats(members, milestones) : [];
+    const stats = state.status === "ready" ? communityDofusStats(members, milestones, KNOWN_DOFUS_IDS) : [];
     const selected = stats.find((stat) => stat.id === openDofusId) ?? null;
     const selectedMeta = selected ? DOFUS_META[selected.id] : null;
 

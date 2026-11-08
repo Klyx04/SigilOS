@@ -170,11 +170,17 @@ export type CommunityDofusStat = {
  */
 export function communityDofusStats(
     members: CommunityMember[],
-    milestones: readonly CommunityMilestoneLike[]
+    milestones: readonly CommunityMilestoneLike[],
+    /** Dofus **connus** du referentiel : un `dofusId` hors liste est ignore, comme
+     *  l interne (`GuildStatusPanel` : `if (!def) return;`). Des jalons portent des ids
+     *  qui ne sont pas des Dofus (`six-sur-six`, `quatre-sur-six`) : sans ce filtre ils
+     *  apparaissaient en pastilles parasites (mesure du 08/11/2026). */
+    allowedDofusIds?: ReadonlySet<string>
 ): CommunityDofusStat[] {
     const byDofus = new Map<string, { ids: Set<string>; quests: DofusQuestRef[] }>();
     for (const ms of milestones) {
         if (!ms.dofusId) continue;
+        if (allowedDofusIds && !allowedDofusIds.has(ms.dofusId)) continue;
         const entry = byDofus.get(ms.dofusId) ?? { ids: new Set<string>(), quests: [] };
         entry.ids.add(ms.id);
         for (const seq of ms.sequences) {

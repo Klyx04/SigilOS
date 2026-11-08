@@ -198,6 +198,22 @@ describe("Progression Communautaire — par Dofus (D-V8)", () => {
         expect(stats.map((stat) => stat.id)).toEqual(["sylvestre", "pourpre"]);
         expect(stats[1].members[0].name).toBe("B");
     });
+    it("un dofusId hors referentiel est ignore, comme dans l interne", () => {
+        const allowed = new Set(["sylvestre", "pourpre"]);
+        const withParasite: CommunityMilestoneLike[] = [
+            ...MILESTONES,
+            {
+                id: "ms-4",
+                title: "Parasite",
+                chapterLabel: "Parasite",
+                dofusId: "six-sur-six",
+                sequences: [{ subGuideRef: "q-4", subGuideName: "Quete 4", stepFrom: null, stepTo: null }],
+            },
+        ];
+        const stats = communityDofusStats([memberWith("A", [], [])], withParasite, allowed);
+        expect(stats.map((stat) => stat.id)).toEqual(["sylvestre", "pourpre"]);
+    });
+
     it("un guide sans Dofus ne produit aucune statistique", () => {
         expect(communityDofusStats([memberWith("A", ["ms-1"], [])], [])).toEqual([]);
     });

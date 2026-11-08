@@ -90,15 +90,43 @@ export function MulesForm({ mules, serverId }: { mules: DeclaredMule[]; serverId
         setList(list.filter((mule) => mule.pseudo !== pseudo));
     };
 
+    /**
+     * F15 (08/11/2026) — « j'ajoute, j'enregistre, et après refresh il n'y a rien ».
+     *
+     * Mesure : le brouillon n'était persisté que par « Ajouter ». Un visiteur qui remplissait la
+     * ligne puis cliquait « Enregistrer mes mules » envoyait la **liste vide** — toast vert, zéro
+     * mule en base, et l'écran se vidait au refresh. L'enregistrement inclut désormais le
+     * brouillon en cours : un seul geste suffit, « Ajouter » ne sert plus qu'à en préparer
+     * plusieurs.
+     */
     const handleSave = async () => {
         setError(null);
+
+        const pendingPseudo = draft.pseudo.trim();
+        const next = [...list];
+        const alreadyListed = list.some((mule) => mule.pseudo.toLowerCase() === pendingPseudo.toLowerCase());
+        if (pendingPseudo && !alreadyListed) {
+            if (next.length >= PUBLIC_MULES_MAX) {
+                setError(`Maximum ${PUBLIC_MULES_MAX} mules.`);
+                return;
+            }
+            const level = Number(draft.level);
+            next.push({
+                pseudo: pendingPseudo,
+                classe: draft.classe || null,
+                level: Number.isInteger(level) && level >= 1 && level <= 200 ? level : null,
+            });
+        }
+
         setSaving(true);
-        const result = await updatePublicMules(list);
+        const result = await updatePublicMules(next);
         setSaving(false);
         if (!result.success) {
             setError(result.error);
             return;
         }
+        setList(next);
+        setDraft(EMPTY_DRAFT);
         toast.success("Mules enregistrées.");
         router.refresh();
     };

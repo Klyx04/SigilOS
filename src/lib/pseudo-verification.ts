@@ -2,11 +2,14 @@
  * Pseudo Dofus — **règle pure** du retour de vérification (aucune I/O).
  *
  * Le profil interne et l'espace visiteur parlent du même ladder ; le **message** doit être
- * le même partout. Trois cas, dont deux qui n'empêchent pas l'enregistrement :
+ * le même partout. Cette fonction ne décide **pas** si l'enregistrement passe : depuis le
+ * 08/11/2026 `createPublicProfile` et `updatePublicMules` **refusent** un pseudo introuvable.
+ * Les quatre issues :
  *  · `manual` : le toggle God « Fallback Pseudo Manuel » est actif ⇒ pas de contrôle ;
  *  · `found === true` : le pseudo existe sur le serveur choisi ;
- *  · `found === false` : introuvable (orthographe, serveur, personnage récent) ;
- *  · `found === null` : worker indisponible (fail-open) — on enregistre, on revérifiera.
+ *  · `found === false` : introuvable (orthographe, serveur, personnage récent) ⇒ refus ;
+ *  · `found === null` : worker indisponible — la création passe encore (fail-open documenté
+ *    dans `src/server/ladder-pseudo.ts`), et le message ne promet donc rien.
  */
 
 export type PseudoVerificationFacts = {
@@ -32,11 +35,11 @@ export function describePseudoVerification(facts: PseudoVerificationFacts): Pseu
     if (facts.found === false) {
         return {
             tone: "warning",
-            message: "Pseudo introuvable sur ce serveur. Tu peux quand même l'enregistrer.",
+            message: "Pseudo introuvable sur ce serveur : vérifie l'orthographe, la casse et le serveur choisi.",
         };
     }
     return {
         tone: "warning",
-        message: "Vérification indisponible pour l'instant. Tu peux enregistrer, elle sera refaite plus tard.",
+        message: "Vérification indisponible pour l'instant — le contrôle sera refait plus tard.",
     };
 }

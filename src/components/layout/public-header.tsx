@@ -17,10 +17,11 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass, UserRound } from "lucide-react";
+import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass } from "lucide-react";
 import type { User } from "next-auth";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
+import { GameIcon } from "@/components/shared/game-icon";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -592,14 +593,17 @@ export function PublicHeader({
                                                 onSelect={(event) => event.preventDefault()}
                                                 className="cursor-pointer"
                                             >
-                                                <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
+                                                <GameIcon
+                                                    src="/assets/dofus/modules/guild.png"
+                                                    className="mr-2 h-4 w-4"
+                                                />
                                                 {t.nav.myGuilds}
                                             </DropdownMenuItem>
                                         </DashboardDrawer>
                                     )}
                                     <DropdownMenuItem asChild className="cursor-pointer">
                                         <Link href={dashboardHref}>
-                                            <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
+                                            <GameIcon src="/assets/dofus/game-icons/house.png" className="mr-2 h-4 w-4" />
                                             {t.nav.dashboard}
                                         </Link>
                                     </DropdownMenuItem>
@@ -608,7 +612,10 @@ export function PublicHeader({
                                         pas de `guildId`. */}
                                     <DropdownMenuItem asChild className="cursor-pointer">
                                         <Link href="/espace-visiteur/general">
-                                            <UserRound className="w-4 h-4 mr-2" aria-hidden="true" />
+                                            <GameIcon
+                                                src="/assets/dofus/modules/character.png"
+                                                className="mr-2 h-4 w-4"
+                                            />
                                             {t.nav.visitorSpace}
                                         </Link>
                                     </DropdownMenuItem>

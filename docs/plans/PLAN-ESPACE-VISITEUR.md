@@ -384,6 +384,20 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 > ④ **F11** — la modale de retour s ouvre pour **tout le monde** (plus de toast qui affichait l URL brute). Un visiteur **non connecté** n y voit que l encart **Discord Sigilos** — lien cliquable + « ouvre un post dans le canal associé » pour les captures — et un seul bouton Fermer. Un **compte connecté** garde le formulaire complet (catégories, position, description). Comme `isGuest` est codé en dur à `true` par le guide public, la session lui est transmise **séparément** (`feedbackSignedIn`), et le panneau reçoit `onlyDiscord = isGuest && !feedbackSignedIn`. Le panneau est monté **hors** de `.da-hero` (il y était rogné, et ses enfants sont plafonnés à `z-index: 2` sous le dock `sticky` à 30).
 > ⑤ **Destination d un retour** — `submitQuestFeedbackAction` écrit un `SystemIssue`, notifie le God (`USER_FEEDBACK`) et pousse un embed Discord (`questFeedbackChannelId`, repli `godNotifyChannelId`). Le **tri côté God** (un seul endroit `?tab=tickets`, refonte UI/UX, module `ticket-bot` à revoir) est consigné dans `docs/plans/PLAN-TICKETS-GOD.md`.
 
+> **Livré le 08/11/2026 (suite de session)** — **F12** le menu compte reprend l'asset de la barre
+> (`modules/guild.png`, `game-icons/house.png`, `modules/character.png` : deux `LayoutDashboard`
+> identiques et un `UserRound` disparaissent) ; **F13** `createPublicProfile` interroge le ladder
+> **avant** d'écrire (seul `false` bloque, `null` reste fail-open, toggle God honoré) ; **F14**
+> `updatePublicMetamob` prouve la clé par `/v1/me` **avant** écriture — une clé refusée ne remplace
+> plus une clé qui marchait (fail-closed, l'ancienne est conservée) ; **F15** seules les mules
+> **nouvelles** passent au ladder, sur le serveur du profil ; **F17 (1/2)** l'onglet Métiers ne fait
+> plus bouger l'écran (les quatre panneaux occupent une seule cellule : Élevage = **1** métier contre
+> 6 et 7 ailleurs).
+> **Reste** : **F16** (« mes succès sur ce boss » par donjon + vue « succès en commun » sur
+> `/visiteurs`) · **F17 (2/2)** « qui a ce métier à ce niveau » — l'annuaire filtre **déjà** par
+> `metier` (`buildVisitorDirectoryWhere`), il manque `?niveau=` ;
+> `PublicProfession` porte déjà `@@index([metierId, level])`, la donnée est prête.
+
 *Guide public — anonyme*
 - **F1** Avancement **par Dofus** pour l anonyme, alimenté par la progression **locale** (mêmes clés d étapes), sans serveur.
 - **F2** Import/export du profil local : tout vit dans `localStorage` ; un nettoyage de cookies perd progression, cité et alignement. Proposer un **fichier** JSON (export/import), jamais une synchro serveur implicite.

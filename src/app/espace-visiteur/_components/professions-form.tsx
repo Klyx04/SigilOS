@@ -105,8 +105,21 @@ export function ProfessionsForm({ professions }: { professions: { id: string; le
                         ))}
                     </TabsList>
 
+                    {/* Toutes les catégories vivent dans **la même cellule** de grille : la hauteur
+                        du bloc ne dépend donc plus de l'onglet actif. Mesure du 08/11/2026 —
+                        « Élevage » ne déclare qu'**un** métier quand Récolte en a six, Artisanat
+                        sept : passer à cet onglet retirait une rangée entière, faisait remonter le
+                        bouton « Enregistrer mes métiers » et l'écran avec. Les panneaux inactifs
+                        restent montés (`forceMount`) mais en `visibility: hidden` — donc invisibles,
+                        hors de l'arbre d'accessibilité, et sans effet sur la hauteur. */}
+                    <div className="mt-4 grid">
                     {CATEGORIES.map((category) => (
-                        <TabsContent key={category} value={category} className="mt-4 focus-visible:outline-none">
+                        <TabsContent
+                            key={category}
+                            value={category}
+                            forceMount
+                            className="col-start-1 row-start-1 focus-visible:outline-none data-[state=inactive]:block data-[state=inactive]:invisible"
+                        >
                             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                                 {DOFUS_JOBS[category].map((job) => {
                                     const active = job.id in levels;
@@ -158,6 +171,7 @@ export function ProfessionsForm({ professions }: { professions: { id: string; le
                             </div>
                         </TabsContent>
                     ))}
+                    </div>
                 </Tabs>
 
                 {error ? (

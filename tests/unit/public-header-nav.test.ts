@@ -71,4 +71,25 @@ describe("Barre publique — les entrées sont regroupées et illustrées", () =
         expect(code).toContain("href={item.href}");
         expect(code).toContain("<Link");
     });
+
+    /**
+     * F12 (08/11/2026) — « Menu : assets Dofus pour “Mes guildes”, “Tableau de bord”, “Mon espace
+     * visiteur” ».
+     *
+     * Mesure : le menu du compte affichait **deux fois la même** icône générique
+     * (`LayoutDashboard` pour « Mes guildes » *et* « Tableau de bord ») et un glyphe `UserRound`
+     * pour l'espace visiteur — alors que les trois assets existent déjà dans la même barre
+     * (`modules/guild.png`, `game-icons/house.png`, `modules/character.png`). Une destination
+     * doit se reconnaître à son icône, pas à la lecture du libellé.
+     */
+    it("F12 — le menu du compte illustre chaque destination avec l'asset de la barre", () => {
+        const code = read(HEADER);
+
+        expect(code).toContain('import { GameIcon } from "@/components/shared/game-icon"');
+        expect(code).toMatch(/src="\/assets\/dofus\/modules\/guild\.png"[\s\S]{0,220}\{t\.nav\.myGuilds\}/);
+        expect(code).toMatch(/src="\/assets\/dofus\/game-icons\/house\.png"[\s\S]{0,220}\{t\.nav\.dashboard\}/);
+        expect(code).toMatch(/src="\/assets\/dofus\/modules\/character\.png"[\s\S]{0,220}\{t\.nav\.visitorSpace\}/);
+        // Plus aucun glyphe générique dans ce menu.
+        expect(code).not.toContain("<UserRound");
+    });
 });

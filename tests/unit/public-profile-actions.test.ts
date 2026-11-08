@@ -131,6 +131,16 @@ describe("Espace visiteur — vérifications bloquantes avant écriture (F13/F14
         expect(create).toMatch(/isLadderManualFallbackEnabled\(\)/);
     });
 
+    it("F13 — l'édition de l'identité vérifie aussi, et seulement si pseudo ou serveur change", () => {
+        const identity = blocks.find((block) => block.name === "updatePublicIdentity")?.body ?? "";
+        const check = identity.indexOf("checkPseudoExistsOnLadder(");
+        const write = identity.indexOf("db.publicProfile.update");
+        expect(check).toBeGreaterThan(-1);
+        expect(write).toBeGreaterThan(check);
+        // La condition évite d'appeler le worker pour un simple changement de classe ou de guilde.
+        expect(identity).toMatch(/pseudoChanged \|\| serverChanged/);
+    });
+
     it("F14 — la clé Metamob est prouvée par /v1/me avant d'être écrite", () => {
         const check = metamob.indexOf("getMetamobMe(key)");
         const write = metamob.indexOf("db.publicProfile.update");

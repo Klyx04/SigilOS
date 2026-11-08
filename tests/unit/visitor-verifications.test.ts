@@ -28,17 +28,21 @@ describe("Vérification du pseudo — les quatre issues, un seul message", () =>
         expect(describePseudoVerification({ found: true, manual: false }).tone).toBe("success");
     });
 
-    it("pseudo introuvable : avertissement, sans bloquer l'enregistrement", () => {
+    it("pseudo introuvable : avertissement, et le message ne promet pas que ça passera", () => {
         const outcome = describePseudoVerification({ found: false, manual: false });
         expect(outcome.tone).toBe("warning");
         expect(outcome.message).toContain("introuvable");
-        expect(outcome.message).toContain("enregistrer");
+        // Renversé le 08/11/2026 : l'ancien texte (« Tu peux quand même l'enregistrer »)
+        // contredisait le refus serveur de `createPublicProfile` et `updatePublicMules`.
+        expect(outcome.message).not.toContain("enregistrer");
     });
 
     it("worker indisponible : avertissement, jamais un refus (fail-open)", () => {
         const outcome = describePseudoVerification({ found: null, manual: false });
         expect(outcome.tone).toBe("warning");
         expect(outcome.message).toContain("indisponible");
+        // Même raison : le message ne doit plus dire « Tu peux enregistrer ».
+        expect(outcome.message).not.toContain("Tu peux");
     });
 
     it("toggle God « Fallback Pseudo Manuel » : contrôle court-circuité", () => {
@@ -79,5 +83,22 @@ describe("Câblage des vérifications", () => {
         expect(read(IDENTITY)).toMatch(/verifyPublicPseudo\(\{ pseudo, dofusServerId/);
         expect(read(MULES)).toMatch(/verifyPublicPseudo\(\{ pseudo, dofusServerId: serverId \}/);
         expect(read(METAMOB)).toMatch(/verifyPublicMetamob\(\)/);
+    });
+
+    /**
+     * F15 (08/11/2026) — « j'ajoute, j'enregistre, et après refresh il n'y a rien ».
+     *
+     * Le brouillon n'était persisté que par « Ajouter » : remplir la ligne puis cliquer
+     * « Enregistrer mes mules » envoyait la **liste vide**. Toast vert, zéro mule en base.
+     */
+    it("F15 — « Enregistrer mes mules » inclut le brouillon en cours", () => {
+        const form = read(MULES);
+        const block = form.slice(form.indexOf("const handleSave"), form.indexOf("return (", form.indexOf("const handleSave")));
+
+        expect(block).toMatch(/draft\.pseudo\.trim\(\)/);
+        expect(block).toMatch(/next\.push\(/);
+        expect(block).toMatch(/updatePublicMules\(next\)/);
+        // Le chemin « liste seule » est celui qui perdait la saisie : il ne doit plus exister.
+        expect(block).not.toMatch(/updatePublicMules\(list\)/);
     });
 });

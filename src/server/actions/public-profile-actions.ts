@@ -177,6 +177,27 @@ export async function updatePublicIdentity(raw: unknown): Promise<ActionResult> 
     if (limited) return limited;
 
     /**
+     * F13 (08/11/2026, suite) — **l'édition** vérifie aussi, et c'était le trou : la création
+     * bloquait, pas le formulaire « Identité ». Changer son pseudo pour un nom absent du
+     * classement vidait silencieusement niveau, XP et points de succès (le snapshot ladder ne
+     * trouve rien et n'écrit que ce qu'il trouve).
+     *
+     * On ne vérifie que si le **pseudo ou le serveur** change : enregistrer sa classe ou son
+     * nom de guilde ne doit pas dépendre de la disponibilité du worker. Même règle qu'à la
+     * création — seul `false` bloque, `null` reste fail-open, toggle God honoré.
+     */
+    const pseudoChanged =
+        parsed.data.pseudoDofus.toLowerCase() !== (account.profile.pseudoDofus ?? "").toLowerCase();
+    const serverChanged = parsed.data.dofusServerId !== account.profile.dofusServerId;
+    if ((pseudoChanged || serverChanged) && !(await isLadderManualFallbackEnabled())) {
+        const found = await checkPseudoExistsOnLadder(
+            parsed.data.pseudoDofus,
+            String(parsed.data.dofusServerId)
+        );
+        if (found === false) return { success: false, error: PSEUDO_NOT_ON_LADDER };
+    }
+
+    /**
      * Snapshot ladder immédiat (V1e) : le visiteur qui enregistre son pseudo récupère son
      * niveau, son XP et ses points de succès — sans quoi l'annuaire affiche « — ».
      *

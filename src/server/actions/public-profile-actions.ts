@@ -940,7 +940,12 @@ export async function exportPublicProfile(): Promise<ExportResult> {
  * recopie aucun `fetch`.
  * ─────────────────────────────────────────────────────────────────────────────── */
 
-export const PUBLIC_OCRE_MONSTERS_MAX = 200;
+/**
+ * Borne de lecture de la quête (200 monstres). **Constante privée** : un fichier `"use server"`
+ * n'autorise que des exports de fonctions async — un `export const` casse le build Next
+ * (« Only async functions are allowed to be exported in a "use server" file »).
+ */
+const PUBLIC_OCRE_MONSTERS_MAX = 200;
 
 export type PublicOcreMonster = {
     id: number;

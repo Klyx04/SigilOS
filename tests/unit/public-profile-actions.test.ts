@@ -90,6 +90,20 @@ describe("Espace visiteur — chaque action porte sa garde et son rate limit", (
         expect(ACTIONS).toMatch(/rateLimit\(`visitor:/);
     });
 
+    /**
+     * Règle Next, mesurée le 08/11/2026 : `export const PUBLIC_OCRE_MONSTERS_MAX` a cassé le
+     * **build** (« Only async functions are allowed to be exported in a "use server" file »)
+     * alors que `tsc` et Vitest passaient — la contrainte est appliquée par le bundler, pas par
+     * TypeScript. Un `export type` est effacé à la compilation, donc il reste autorisé.
+     */
+    it('un fichier "use server" n\'exporte que des fonctions async', () => {
+        expect(ACTIONS.trimStart().startsWith('"use server"')).toBe(true);
+        const offenders = [...ACTIONS.matchAll(/^export (const|let|var|class|function)\s/gm)].map(
+            (match) => match[0].trim()
+        );
+        expect(offenders, "export non-async interdit dans un fichier use server").toEqual([]);
+    });
+
     it("les écritures du profil visent `userId` (serveur), jamais un id client", () => {
         expect(ACTIONS).toMatch(/where: \{ userId: account\.userId \}/);
         expect(ACTIONS).toMatch(/where: \{ userId: visitor\.userId \}/);

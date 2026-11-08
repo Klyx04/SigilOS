@@ -43,6 +43,7 @@ import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem"
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayFeedbackPanel } from "./components/RushOverlayFeedbackPanel";
+import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
@@ -94,6 +95,12 @@ type Props = {
    * peut envoyer (`submitQuestFeedbackAction` exige une session).
    */
   feedbackSignedIn?: boolean;
+  /**
+   * Metamob de la surface publique connectée (demande du 08/11/2026). `undefined` = la surface
+   * ne gère pas Metamob (overlay de guilde) ; une valeur ⇒ le bouton est rendu, iso interne.
+   */
+  metamobPseudo?: string | null;
+  metamobVerified?: boolean;
   /**
    * Préfixe des trois clés de progression invité. La page publique le calcule en
    * fonction du PERSONNAGE déclaré (classe + pseudo + serveur) ; l'overlay ne
@@ -151,6 +158,8 @@ export default function GuideOverlayClient({
   character,
   isGuest = false,
   feedbackSignedIn = false,
+  metamobPseudo,
+  metamobVerified = false,
   guestStoragePrefix,
   pinned = true,
   ocre = null,
@@ -233,6 +242,8 @@ export default function GuideOverlayClient({
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   // F11 : le panneau de retour est monté ICI (fin de racine), plus dans l'en-tête.
   const [feedbackOpen, setFeedbackOpen] = useState<boolean>(false);
+  /** Liaison Metamob de la surface publique connectée (demande du 08/11/2026). */
+  const [metamobOpen, setMetamobOpen] = useState<boolean>(false);
 
   // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
@@ -1393,6 +1404,10 @@ export default function GuideOverlayClient({
             block={daBlock}
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
+            onOpenMetamob={
+              isGuest && feedbackSignedIn ? () => setMetamobOpen(true) : undefined
+            }
+            metamobVerified={metamobVerified}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
           />
 
@@ -1691,6 +1706,15 @@ export default function GuideOverlayClient({
           onClose={() => setFeedbackOpen(false)}
         />
       )}
+      {/* Metamob de la surface publique connectée — monté au MÊME endroit que le panneau de
+          retour, pour la même raison : dernier enfant de la racine `data-theme`, donc dans le
+          bon document (PiP comprise) et avec les jetons de la DA. */}
+      <PublicMetamobModal
+        open={metamobOpen}
+        onClose={() => setMetamobOpen(false)}
+        metamobPseudo={metamobPseudo ?? null}
+        verified={metamobVerified}
+      />
     </div>
       {/* Toaster de l'overlay : monté SOUS la portée `data-da` pour hériter des
           jetons (Sonner le positionne en `fixed`, mais ses variables viennent de

@@ -3037,6 +3037,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             // 08/11/2026 : `isGuest={true}` est codé en dur ici, il ne dit donc RIEN de
             // la session — d'où cette seconde information, explicite.
             feedbackSignedIn={!!visitor}
+            // Metamob dans l'overlay (demande du 08/11/2026) : la surface publique connectée
+            // reçoit l'état du profil ; l'overlay rend son bouton et sa modale lui-même, donc
+            // en PiP aussi (même raison que le panneau de retour).
+            metamobPseudo={visitor?.metamobPseudo ?? null}
+            metamobVerified={metamob === "verified"}
             pinned={pipPinned}
             // L'overlay lit EXACTEMENT les mêmes clés que la page (donc la progression
             // du personnage déclaré), et affiche son icône de classe dans son en-tête.

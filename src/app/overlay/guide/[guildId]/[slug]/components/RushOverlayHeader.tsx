@@ -45,6 +45,16 @@ interface RushOverlayHeaderProps {
   ocre?: { missing: number; percent: number } | null;
   /** Ouvre le panneau Quête Ocre. Sans ce callback, le bouton n'est jamais rendu. */
   onOpenOcre?: () => void;
+  /**
+   * Metamob sur la surface **publique connectée** (demande du 08/11/2026 : « ajouter en
+   * public connecté dans l'overlay le bouton Metamob et sa gestion, iso interne »).
+   *
+   * Même emplacement et même habillage que le bouton Ocre de l'interne, mais il n'ouvre pas
+   * la Quête Ocre (aucune progression Ocre sans guilde) : il ouvre la liaison Metamob.
+   */
+  onOpenMetamob?: () => void;
+  /** Compte Metamob déjà vérifié (pastille verte) — sinon la pastille dit « à lier ». */
+  metamobVerified?: boolean;
   /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
   onOpenAlignment?: () => void;
   /**
@@ -82,6 +92,8 @@ export function RushOverlayHeader({
   isGuest = false,
   ocre,
   onOpenOcre,
+  onOpenMetamob,
+  metamobVerified = false,
   onOpenAlignment,
   block = "emeraude",
 }: RushOverlayHeaderProps) {
@@ -268,6 +280,38 @@ export function RushOverlayHeader({
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
               ))}
+            </button>
+          )}
+
+          {/* Metamob — surface PUBLIQUE connectée (demande du 08/11/2026). Même place et même
+              habillage que le bouton Ocre de l'interne ; il ouvre la liaison Metamob, pas la
+              Quête Ocre (sans guilde, il n'y a aucune progression Ocre à montrer). */}
+          {onOpenMetamob && (
+            <button
+              type="button"
+              onClick={onOpenMetamob}
+              aria-label={metamobVerified ? "Mon compte Metamob (vérifié)" : "Lier mon compte Metamob"}
+              title={metamobVerified ? "Compte Metamob lié et vérifié" : "Lier mon compte Metamob"}
+              className={cn(actionBtnGold, "relative")}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/dofus/icons/archimonster.png"
+                alt=""
+                className="w-3.5 h-3.5 object-contain"
+              />
+              <span
+                className={cn(
+                  "absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full grid place-items-center",
+                  metamobVerified ? "bg-success text-background" : "bg-warning text-background"
+                )}
+              >
+                {metamobVerified ? (
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                ) : (
+                  <span className="text-[9px] font-bold leading-none">!</span>
+                )}
+              </span>
             </button>
           )}
 

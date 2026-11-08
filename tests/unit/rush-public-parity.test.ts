@@ -247,12 +247,23 @@ describe("Panneau public — la MÊME anatomie que le guide interne", () => {
   it("les CINQ tuiles de l'interne, dans l'ordre, chacune avec sa VRAIE source (V2a-3)", () => {
     // Anatomie du guide interne : Personnage actif · Alignement · Metamob · Rush Live ·
     // Ouvrir Overlay. L'ordre compte — c'est lui qui rend le panneau lisible d'un coup.
-    const order = ["Personnage actif", "Alignement", "Metamob", "Rush Live", "Ouvrir Overlay"];
-    const positions = order.map((title) => PUB.indexOf(title));
-    order.forEach((title, i) => {
+    //
+    // 08/11/2026 — l'ancre de « Metamob » est le **libellé rendu** (`>Metamob</p>`), pas le mot
+    // seul : la tuile a reçu un état et un composant voisin, et `indexOf("Metamob")` tombait
+    // désormais sur l'import, donc avant « Alignement ». L'ancre est plus précise qu'avant, pas
+    // plus permissive : elle ne peut matcher que la tuile.
+    const order: Array<[string, RegExp]> = [
+      ["Personnage actif", /Personnage actif/],
+      ["Alignement", /Alignement/],
+      ["Metamob", />Metamob<\/p>/],
+      ["Rush Live", /Rush Live/],
+      ["Ouvrir Overlay", /Ouvrir Overlay/],
+    ];
+    const positions = order.map(([, pattern]) => PUB.search(pattern));
+    order.forEach(([title], i) => {
       expect(positions[i], `${title} absent du panneau`).toBeGreaterThan(-1);
       if (i > 0) {
-        expect(positions[i], `${title} n'est pas rendu après ${order[i - 1]}`).toBeGreaterThan(
+        expect(positions[i], `${title} n'est pas rendu après ${order[i - 1][0]}`).toBeGreaterThan(
           positions[i - 1]
         );
       }

@@ -423,16 +423,23 @@
 /* ── Filtres : texte seul, compteur en petit, actif = trait de pinceau ───── */
 .da-filters {
   display: flex;
-  gap: 1.1rem;
+  flex-wrap: wrap;
+  /* Quatre libellés courts : **centrés**, et jamais de bande scrollable
+     horizontale — sur une PiP de 250 px, ils passaient sous le bord. */
+  justify-content: center;
+  align-items: center;
+  gap: .5rem .9rem;
+  /* De l'air par rapport au dock au-dessus et à la liste en dessous (retour user
+     du 08/11/2026 : la rangée était collée au reste). */
+  margin: .85rem .75rem 1rem;
+  padding-bottom: .45rem;
   border-bottom: 1.5px solid var(--da-ln);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .da-filters button {
   position: relative;
   flex: none;
-  padding: .5rem 0 .55rem;
+  padding: .55rem .3rem .6rem;
   border: 0;
   background: none;
   color: var(--da-muted);
@@ -859,7 +866,14 @@
 /* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
 .da-hero {
   position: relative;
-  overflow: hidden;
+  /* Au-dessus du dock (sticky, empilé à 30) : ses enfants sont plafonnés à 2
+     (voir `.da-hero > *` plus bas), donc le menu « ⋯ » — un panneau `absolute
+     top-full z-50` — était enfermé dans un contexte SOUS le dock et se faisait
+     recouvrir. Le header reste en flux : il ne chevauche rien.
+     PAS de rognage ici (retiré le 08/11/2026) : il coupait ce même menu. Rien ne le
+     justifiait — `.da-hero-img` est un `background` sur une boîte `inset: 0`, donc
+     il ne déborde jamais de son parent. */
+  z-index: 40;
   border-bottom: 1.5px solid var(--da-ln);
   background: var(--da-field);
 }

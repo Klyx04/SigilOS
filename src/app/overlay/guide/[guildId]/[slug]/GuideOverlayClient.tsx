@@ -88,6 +88,13 @@ type Props = {
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
   /**
+   * Un **compte** est-il connecté sur cette surface ? Distinct de `isGuest`, que le
+   * guide public code en dur à `true` : un membre connecté y lit le même overlay.
+   * Sert au seul panneau de retour — sans quoi il n'aurait que le Discord alors qu'il
+   * peut envoyer (`submitQuestFeedbackAction` exige une session).
+   */
+  feedbackSignedIn?: boolean;
+  /**
    * Préfixe des trois clés de progression invité. La page publique le calcule en
    * fonction du PERSONNAGE déclaré (classe + pseudo + serveur) ; l'overlay ne
    * devine rien : il lit exactement le même emplacement (voir `@/lib/guest-progress`).
@@ -143,6 +150,7 @@ export default function GuideOverlayClient({
   altPseudo = null,
   character,
   isGuest = false,
+  feedbackSignedIn = false,
   guestStoragePrefix,
   pinned = true,
   ocre = null,
@@ -1673,12 +1681,13 @@ export default function GuideOverlayClient({
           (`position: relative; overflow: hidden`) et passait sous le contenu, quel que
           soit son `z-index`. Ici il est le dernier enfant de la racine `data-theme` —
           donc au-dessus, dans le bon document (PiP comprise), avec les bons jetons. */}
-      {feedbackOpen && !isGuest && (
+      {feedbackOpen && (
         <RushOverlayFeedbackPanel
           guildId={guildId}
           sourcePage={`guide:overlay:${guide.slug}`}
           targetSlug={guide.slug}
           context={overlayBugContext}
+          onlyDiscord={isGuest && !feedbackSignedIn}
           onClose={() => setFeedbackOpen(false)}
         />
       )}

@@ -27,6 +27,7 @@ import { existsSync, readFileSync } from "node:fs";
 const HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
 const SHELL = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
 const PANEL = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayFeedbackPanel.tsx";
+const PUBLIC_GUIDE = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
 const STAGE_MODULE = "src/lib/rush-dofus-stage.ts";
 const STAGE_TEST = "tests/unit/rush-dofus-stage.test.ts";
 
@@ -62,6 +63,23 @@ describe("F9 — le rappel sous les filtres est retiré, la description reste", 
     });
 });
 
+describe("F4 — la rangée de filtres est centrée et aérée", () => {
+    it("quatre onglets au centre, avec de l'air autour", () => {
+        // Retour user (08/11/2026) : « aère le bloc de 4 onglets, centre et aère par
+        // rapport au reste ». La rangée était collée au dock, alignée à gauche, en
+        // bande scrollable (`overflow-x: auto`) que la PiP coupait.
+        const css = read("src/app/da-wakfu.css");
+        const filters = css.match(/\.da-filters\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(filters, "règle `.da-filters` absente").not.toBe("");
+        expect(filters).toMatch(/justify-content:\s*center/);
+        expect(filters).toMatch(/margin:/);
+        expect(filters).toMatch(/gap:/);
+        // Plus de bande scrollable : quatre libellés courts passent à la ligne.
+        expect(filters).toMatch(/flex-wrap:\s*wrap/);
+        expect(filters).not.toMatch(/overflow-x:\s*auto/);
+    });
+});
+
 describe("F10 — le thème clair est posé avant la peinture", () => {
     it("la lecture de `localStorage` passe par un layout effect", () => {
         const shell = read(SHELL);
@@ -82,9 +100,61 @@ describe("F11 — la fenêtre de retour passe devant et mène au support", () =>
         expect(header).not.toMatch(/feedbackOpen/);
     });
 
-    it("le panneau porte le lien du Discord support", () => {
+    it("la fenêtre de retour s'ouvre pour TOUT LE MONDE, invité compris", () => {
+        // Retour user (08/11/2026) : en invité, le bouton affichait un toast avec l'URL
+        // brute du Discord et plus aucune option. La modale est la seule porte : elle
+        // porte les catégories (membre) et le lien + la consigne captures (invité).
+        const shell = read(SHELL);
+        expect(shell).toMatch(/\{feedbackOpen && \(/);
+        expect(shell).not.toMatch(/feedbackOpen && !isGuest/);
+        expect(shell).toMatch(/<RushOverlayFeedbackPanel/);
+        expect(shell).toMatch(/isGuest=\{isGuest\}/);
+        // L'en-tête n'affiche plus l'URL en clair dans un toast.
+        expect(read(HEADER)).not.toMatch(/DISCORD_INVITE_URL|NEXT_PUBLIC_DISCORD_INVITE_URL/);
+    });
+
+    it("le menu « ⋯ » passe devant le dock (contextes d'empilement)", () => {
+        // Retour user (08/11/2026) : le menu s'ouvrait DERRIÈRE le contenu. Deux causes
+        // mesurées, deux corrections distinctes :
+        //  ① `.da-hero { overflow: hidden }` rognait son panneau `absolute top-full` ;
+        //  ② `.da-hero > *:not(.da-hero-img)` plafonne ses enfants à `z-index: 2`,
+        //     alors que `.da-dock` est `sticky` à `z-index: 30` ⇒ le menu, enfermé
+        //     dans le contexte du header, passait SOUS le dock.
+        const css = read("src/app/da-wakfu.css");
+        const hero = css.match(/\.da-hero\s*\{([^}]*)\}/)?.[1] ?? "";
+        const dock = css.match(/\.da-dock\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(hero, "règle `.da-hero` absente").not.toBe("");
+        expect(dock, "règle `.da-dock` absente").not.toBe("");
+        expect(hero).not.toMatch(/overflow:\s*hidden/);
+        // La vraie déclaration est la DERNIÈRE du bloc : un commentaire peut citer
+        // un z-index sans que ce soit une règle.
+        const zOf = (block: string) =>
+            Number([...block.matchAll(/z-index:\s*(\d+)/g)].at(-1)?.[1] ?? "0");
+        expect(zOf(hero), "le header doit dépasser le dock").toBeGreaterThan(zOf(dock));
+        // Le menu est bien un panneau déclenché par le bouton « ⋯ ».
+        expect(read(HEADER)).toMatch(/top-full right-0 mt-1 z-50/);
+    });
+
+    it("en visiteur non connecté, la modale ne porte QUE le Discord", () => {
         const panel = read(PANEL);
-        expect(panel).toMatch(/NEXT_PUBLIC_DISCORD_INVITE_URL/);
-        expect(panel).toMatch(/Rejoindre le Discord support/);
+        expect(panel).toMatch(/Rejoindre le Discord Sigilos/);
+        // Une capture ne passe pas par le formulaire : elle demande un post.
+        expect(panel).toMatch(/ouvre un post dans le canal associé/);
+        // Décision du 08/11/2026 : le visiteur non connecté ne voit que la modale
+        // qui mène au Discord. Le formulaire est derrière `!onlyDiscord`
+        // (`submitQuestFeedbackAction` exige une session), et le pied n'a qu'un bouton.
+        expect(panel).toMatch(/onlyDiscord\?: boolean/);
+        expect(panel).toMatch(/\{onlyDiscord \? null : \(/);
+        expect(panel).toMatch(/Pour signaler un bug, ouvre un post dans le canal associé/);
+        expect(panel).toMatch(/Fermer/);
+    });
+
+    it("un membre connecté garde le formulaire, même sur l'overlay du guide public", () => {
+        // `isGuest` est codé en dur à `true` par le guide public : il ne dit rien de la
+        // session. Le panneau reçoit donc `onlyDiscord = isGuest && !feedbackSignedIn`,
+        // et le guide public transmet `!!visitor`.
+        expect(read(SHELL)).toMatch(/onlyDiscord=\{isGuest && !feedbackSignedIn\}/);
+        expect(read(SHELL)).toMatch(/feedbackSignedIn\?: boolean/);
+        expect(read(PUBLIC_GUIDE)).toMatch(/feedbackSignedIn=\{!!visitor\}/);
     });
 });

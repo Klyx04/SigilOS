@@ -31,7 +31,7 @@ export function RushOverlayQuestFilter({
     <div
       role="group"
       aria-label="Filtrer les quêtes"
-      className="da-filters mx-3 mt-2"
+      className="da-filters"
     >
       {OPTIONS.map((option) => {
         const active = value === option.value;

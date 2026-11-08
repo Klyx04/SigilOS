@@ -6,16 +6,6 @@ import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { useDaTheme } from "@/components/da/da-theme";
 
-import { useOverlayToast } from "@/components/rush/overlay-toast";
-
-/**
- * Serveur Discord d'entraide — **même** variable publique que le pied de page
- * (`galactic-footer.tsx`) et la landing (`AccessRequestModal.tsx`). F11 : le retour
- * de l'overlay doit pouvoir mener au support, y compris pour un invité.
- */
-const DISCORD_INVITE_URL =
-  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
-
 interface RushOverlayHeaderProps {
   guideName: string;
   guideSlug: string;
@@ -99,8 +89,6 @@ export function RushOverlayHeader({
   // contexte) — plus aucune prop de thème à faire descendre.
   const da = useDaTheme();
   const light = da?.theme === "light";
-  // Toaster de l'overlay quand il y en a un (PiP), global sinon.
-  const toast = useOverlayToast();
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
@@ -132,14 +120,9 @@ export function RushOverlayHeader({
 
   // Retour / bug : le bouton vit dans le menu « ⋯ » (place libérée pour l'archimonstre),
   // et reste un bouton direct quand l'overlay est large. Le panneau lui-même est monté
-  // par l'hôte (F11) : ici on ne fait qu'ouvrir.
+  // par l'hôte (F11) — il s'ouvre pour **tout le monde**, invité compris : c'est là que
+  // vivent les catégories, le lien du Discord et la consigne « captures d'écran ».
   const openFeedback = () => {
-    if (isGuest) {
-      toast.info(`Une remarque ou un bug ? Rejoignez notre Discord : ${DISCORD_INVITE_URL}`, {
-        duration: 4000,
-      });
-      return;
-    }
     onOpenFeedback?.();
   };
 
@@ -426,27 +409,9 @@ export function RushOverlayHeader({
         </div>
       </div>
 
-      {/* Barre de progression globale — jauge d'or 2 px, losange en bout (DA « Grimoire »). */}
-      <div
-        className="relative h-[2px] w-full overflow-hidden rounded-full bg-elevated"
-        role="progressbar"
-        aria-valuenow={overallPct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Progression globale : ${overallPct}%`}
-      >
-        <div
-          className="relative h-full rounded-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
-          style={{ width: `${overallPct}%` }}
-        >
-          {overallPct > 0 && (
-            <span
-              aria-hidden="true"
-              className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold"
-            />
-          )}
-        </div>
-      </div>
+      {/* F8 — l'ancienne jauge « Grimoire » (trait pleine largeur + losange en bout)
+          faisait DOUBLON avec `.da-track`, la jauge de la DA Gouache Wakfu juste
+          au-dessus : deux barres identiques empilées. Une seule jauge désormais. */}
     </header>
   );
 }

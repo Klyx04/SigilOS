@@ -47,11 +47,14 @@ describe("DA « Grimoire Sylvestre » — en-tête", () => {
         expect(codeOf(HEADER)).not.toMatch(SLOP);
     });
 
-    it("la jauge globale est un trait d'or à losange et respecte `motion-reduce`", () => {
+    it("la jauge globale est unique et porte la DA (plus de doublon « Grimoire »)", () => {
         const src = codeOf(HEADER);
-        expect(src).toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
-        expect(src).toMatch(/bg-gold transition-\[width\] duration-150 ease-out motion-reduce:transition-none/);
-        expect(src).toMatch(/rotate-45 bg-gold/);
+        // F8 (08/11/2026) : deux jauges étaient empilées dans l'en-tête — `.da-track`
+        // (DA Gouache Wakfu) et l'ancienne jauge « Grimoire » (trait Tailwind pleine
+        // largeur + losange en bout). Une seule reste : celle de la DA.
+        expect(src).toMatch(/className="da-track"/);
+        expect(src).not.toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
+        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(1);
     });
 });
 

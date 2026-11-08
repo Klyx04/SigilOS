@@ -378,6 +378,8 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 
 **V2f — finitions demandées le 08/11/2026** *(brief du mainteneur, à ordonner)*
 
+> **Décisions tranchées le 08/11/2026** : ① **F2** = export **et** import d un fichier JSON, dans l interface anonyme ; aucun secret dedans. ② **F13/F15** = vérification du pseudo **bloquante avant** création (espace et mule), repli manuel seulement si le God l active. ③ **Pas de Metamob anonyme** : la clé API est un secret, elle reste chiffrée en base derrière un compte ; le CTA (F5) dit ce que l anonyme perd.
+
 *Guide public — anonyme*
 - **F1** Avancement **par Dofus** pour l anonyme, alimenté par la progression **locale** (mêmes clés d étapes), sans serveur.
 - **F2** Import/export du profil local : tout vit dans `localStorage` ; un nettoyage de cookies perd progression, cité et alignement. Proposer un **fichier** JSON (export/import), jamais une synchro serveur implicite.

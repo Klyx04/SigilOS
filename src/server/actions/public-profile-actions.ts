@@ -20,7 +20,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
-import { getMetamobMe } from "@/lib/metamob-client";
+import { getMetamobMe, verifyMetamobUser, MetamobApiError } from "@/lib/metamob-client";
 import { ORDERS } from "@/lib/dofus-assets";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
@@ -62,6 +62,17 @@ const PSEUDO_NOT_ON_LADDER =
  */
 const METAMOB_KEY_REFUSED =
     "Metamob n'a pas reconnu cette clé : elle n'a pas été enregistrée. Ta clé précédente, si tu en avais une, est conservée.";
+
+/**
+ * Même modèle que l'interne (`linkOcreAccount`, `src/server/actions/ocre-actions.ts` l. 297) :
+ * le **pseudo** est prouvé par Metamob avant écriture, et c'est la **casse renvoyée par l'API**
+ * qui est stockée. Un profil Metamob public suffit — la clé ne sert qu'au profil privé.
+ */
+const METAMOB_PSEUDO_NOT_FOUND =
+    "Ce pseudo Metamob n'existe pas : vérifie l'orthographe sur metamob.fr.";
+const METAMOB_PSEUDO_PRIVATE =
+    "Ce profil Metamob est privé : ajoute ta clé d'API pour prouver qu'il est bien à toi.";
+const METAMOB_UNAVAILABLE = "Metamob n'a pas répondu : réessaie dans un instant.";
 
 const PATHS = {
     general: "/espace-visiteur/general",
@@ -278,8 +289,13 @@ export async function updatePublicAlignment(raw: unknown): Promise<ActionResult>
 }
 
 /**
- * Metamob : pseudo et clé. La clé n'est **jamais relue** ; la changer invalide la
- * vérification (`metamobVerified = false`), c'est le worker de V1e qui la rétablit.
+ * Metamob : pseudo **et** clé sont prouvés avant écriture.
+ *
+ * · une nouvelle clé passe par `/v1/me` (fail-closed) et le pseudo qu'il renvoie fait foi ;
+ * · un pseudo seul est prouvé par une lecture **publique** de Metamob — même mécanique que
+ *   `linkOcreAccount` côté guilde —, la clé déjà stockée servant de repli pour un profil privé.
+ *
+ * La clé n'est **jamais relue** vers l'écran : seul `hasMetamobApiKey` sort du serveur.
  */
 export async function updatePublicMetamob(raw: unknown): Promise<ActionResult> {
     const parsed = publicMetamobSchema.safeParse(raw);
@@ -327,6 +343,41 @@ export async function updatePublicMetamob(raw: unknown): Promise<ActionResult> {
             data.metamobVerified = true;
             const pseudo = me.username.trim();
             if (pseudo.length > 0) data.metamobPseudo = pseudo;
+        }
+    } else {
+        /**
+         * Pas de nouvelle clé : `/v1/me` est donc hors de portée. On prouve le **pseudo** comme
+         * l'interne — lecture publique sur Metamob, avec la clé déjà enregistrée en repli si le
+         * profil est privé. Un pseudo non prouvé n'est plus enregistré : c'est le trou de la
+         * capture du 08/11 (`Wylaen` → `Wylansqcsqcs` accepté sans aucun contrôle).
+         */
+        const wanted = emptyToNull(parsed.data.metamobPseudo);
+        if (wanted) {
+            const row = await db.publicProfile.findUnique({
+                where: { userId: account.userId },
+                select: { metamobApiKey: true },
+            });
+            const storedKey = row?.metamobApiKey?.trim() || undefined;
+            try {
+                const proven = await verifyMetamobUser(wanted, { guildApiKey: storedKey });
+                if (!proven) return { success: false, error: METAMOB_UNAVAILABLE };
+                // Casse de l'API, jamais celle tapée (même règle que `linkOcreAccount`).
+                data.metamobPseudo = proven.pseudo;
+                data.metamobVerified = true;
+            } catch (error) {
+                if (error instanceof MetamobApiError) {
+                    if (error.code === "NOT_FOUND") {
+                        return { success: false, error: METAMOB_PSEUDO_NOT_FOUND };
+                    }
+                    if (error.code === "UNAUTHORIZED") {
+                        return { success: false, error: METAMOB_PSEUDO_PRIVATE };
+                    }
+                }
+                logger.warn("[Espace visiteur] Pseudo Metamob non prouvé", {
+                    err: error instanceof Error ? error.message : String(error),
+                });
+                return { success: false, error: METAMOB_UNAVAILABLE };
+            }
         }
     }
 

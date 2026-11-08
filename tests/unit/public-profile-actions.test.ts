@@ -148,6 +148,20 @@ describe("Espace visiteur — vérifications bloquantes avant écriture (F13/F14
         expect(write).toBeGreaterThan(check);
     });
 
+    /**
+     * F14 (08/11/2026, suite) — « même chose pour Metamob » : le **pseudo seul** était accepté
+     * sans contrôle. L'interne (`linkOcreAccount`) prouve toujours le pseudo par une lecture
+     * Metamob ; on fait pareil ici, et la casse stockée est celle de l'API.
+     */
+    it("F14 — un pseudo Metamob seul est prouvé par l'API avant écriture", () => {
+        const check = metamob.indexOf("verifyMetamobUser(");
+        expect(check).toBeGreaterThan(-1);
+        expect(metamob.indexOf("db.publicProfile.update")).toBeGreaterThan(check);
+        expect(metamob).toMatch(/data\.metamobPseudo = proven\.pseudo/);
+        expect(metamob).toMatch(/METAMOB_PSEUDO_NOT_FOUND/);
+        expect(metamob).toMatch(/METAMOB_PSEUDO_PRIVATE/);
+    });
+
     it("F14 — une clé refusée laisse la clé précédente intacte (aucun retour à null)", () => {
         expect(metamob).toMatch(/if \(!me\) return \{ success: false, error: METAMOB_KEY_REFUSED \}/);
         // Le seul `= null` de la clé est le retrait VOLONTAIRE (champ vidé), jamais un échec.

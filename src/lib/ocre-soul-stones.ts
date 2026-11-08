@@ -140,6 +140,18 @@ export function ocreMonsterIcon(type?: string | null): string {
   return OCRE_MONSTER_ICONS[String(type ?? "").toLowerCase()] ?? OCRE_MONSTER_ICONS.monstre;
 }
 
+/**
+ * Nature d'une cible de quête Ocre, à partir du libellé Metamob (« Archimonstre », « Gardien »).
+ *
+ * Règle **pure** et partagée : le guide interne et l'espace visiteur doivent produire le même
+ * classement, sinon les compteurs « Gardiens / Archis » divergent d'une surface à l'autre.
+ * Tout libellé inconnu tombe sur `archimonstre` — l'immense majorité d'une quête Ocre.
+ */
+export function classifyOcreType(label: string | null | undefined): "boss" | "archimonstre" {
+  const value = String(label ?? "").toLowerCase();
+  return value.includes("gardien") || value.includes("boss") ? "boss" : "archimonstre";
+}
+
 // -----------------------------------------------------------------------------
 // PIERRES D'ÂME
 // -----------------------------------------------------------------------------

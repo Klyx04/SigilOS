@@ -33,6 +33,7 @@ import {
   ocreMonsterIcon,
   ocreMonsterImage,
   ocreStateLabel,
+  classifyOcreType,
   soulStoneForLevel,
   soulStoneLevelLabel,
   toOcrePanelData,
@@ -471,6 +472,21 @@ describe("rendu réel — pas ±1 d'une cible (brique partagée)", () => {
   it("n'autorise pas le retrait sous zéro", () => {
     expect(html).toMatch(/<button type="button" disabled="" aria-label="Retirer un exemplaire \(Metamob\)"/);
     expect(htmlOwned).toMatch(/<button type="button" aria-label="Retirer un exemplaire \(Metamob\)"/);
+  });
+});
+
+describe("nature d'une cible Ocre — règle partagée interne / public", () => {
+  it("reconnaît les gardiens et les archimonstres", () => {
+    expect(classifyOcreType("Gardien")).toBe("boss");
+    expect(classifyOcreType("Boss")).toBe("boss");
+    expect(classifyOcreType("Archimonstre")).toBe("archimonstre");
+  });
+
+  it("un libellé inconnu ou absent tombe sur archimonstre (aucune cible perdue)", () => {
+    expect(classifyOcreType(null)).toBe("archimonstre");
+    expect(classifyOcreType(undefined)).toBe("archimonstre");
+    expect(classifyOcreType("")).toBe("archimonstre");
+    expect(classifyOcreType("Truc bizarre")).toBe("archimonstre");
   });
 });
 

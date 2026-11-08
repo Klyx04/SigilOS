@@ -112,6 +112,8 @@ export function PublicMetamobModal({
                 type: monster.type,
                 owned: monster.owned,
                 nameFr: monster.name,
+                ...(monster.zone ? { zone: monster.zone } : {}),
+                ...(monster.subzone ? { subzone: monster.subzone } : {}),
                 // Le panneau n'affiche que `owned` (via `ocreStateLabel`) : l'état brut n'est là
                 // que pour satisfaire la forme partagée.
                 state: monster.owned > 0 ? "owned" : "missing",

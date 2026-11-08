@@ -20,7 +20,9 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
-import { getMetamobMe, verifyMetamobUser, MetamobApiError, listSelfQuests, getSelfQuestDetails, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { getMetamobMe, verifyMetamobUser, MetamobApiError, listSelfQuests, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { redis } from "@/lib/redis";
+import { classifyOcreType } from "@/lib/ocre-soul-stones";
 import { ORDERS } from "@/lib/dofus-assets";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
@@ -941,11 +943,14 @@ export async function exportPublicProfile(): Promise<ExportResult> {
  * ─────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Borne de lecture de la quête (200 monstres). **Constante privée** : un fichier `"use server"`
+ * Borne de lecture de la quête (400 monstres). **Constante privée** : un fichier `"use server"`
  * n'autorise que des exports de fonctions async — un `export const` casse le build Next
  * (« Only async functions are allowed to be exported in a "use server" file »).
+ *
+ * 400 et non 200 : la quête Ocre d'un personnage compte **337** cibles (mesure du 08/11) — la
+ * borne précédente tronquait la liste alors que le guide interne, lui, l'affiche entière.
  */
-const PUBLIC_OCRE_MONSTERS_MAX = 200;
+const PUBLIC_OCRE_MONSTERS_MAX = 400;
 
 export type PublicOcreMonster = {
     id: number;
@@ -956,10 +961,13 @@ export type PublicOcreMonster = {
     levelMax: number;
     step: number;
     /**
-     * Nature de la cible. Metamob ne la donne pas toujours : on retombe sur « archimonstre »
-     * (l'immense majorité d'une quête Ocre), et l'onglet « Tout » reste exhaustif.
+     * Nature de la cible, lue sur le **template Metamob** (même source que le guide interne).
+     * Faute de type connu, on retombe sur « archimonstre » (l'immense majorité d'une quête Ocre).
      */
     type: "boss" | "archimonstre";
+    /** Zone et sous-zone (`/v1/quests/{slug}/zones`), comme la ligne du guide interne. */
+    zone?: string;
+    subzone?: string;
 };
 
 export type PublicOcreProgress =
@@ -984,16 +992,82 @@ type MetamobQuestMonsterLike = {
     level_min?: number | null;
     level_max?: number | null;
     step?: number | null;
-    type?: string | null;
+    /** Tantôt une chaîne, tantôt un objet localisé selon l'endpoint Metamob. */
+    type?: string | { name?: { fr?: string | null } | null } | null;
 };
 
 /** DTO borné : jamais la réponse brute de Metamob ne part vers le client. */
-function toPublicOcreMonster(monster: MetamobQuestMonsterLike): PublicOcreMonster | null {
+/** Libellé d'un `type` Metamob, qui arrive tantôt en chaîne, tantôt en objet localisé. */
+function metamobTypeLabel(value: MetamobQuestMonsterLike["type"]): string {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    return value.name?.fr ?? "";
+}
+
+/**
+ * Zones des archimonstres — **même endpoint et même clé de cache** que le guide interne
+ * (`ocre-actions.ts`), pour que les deux surfaces affichent la même ligne `zone · subzone`.
+ *
+ * Best-effort assumé : un échec laisse la ligne vide, il ne prive pas le visiteur de sa quête.
+ */
+async function loadPublicOcreZones(
+    slug: string,
+    apiKey: string
+): Promise<Map<string, { zone?: string; subzone?: string }>> {
+    const out = new Map<string, { zone?: string; subzone?: string }>();
+    const cacheKey = `metamob:archi-zones:${slug}`;
+    try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            const parsed = JSON.parse(cached) as Record<string, { zone?: string; subzone?: string }>;
+            for (const [name, value] of Object.entries(parsed)) out.set(name, value);
+            return out;
+        }
+
+        const res = await fetch(
+            `https://www.metamob.fr/api/v1/quests/${encodeURIComponent(slug)}/zones?monster_type_id=3`,
+            {
+                headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+                signal: AbortSignal.timeout(8000),
+            }
+        );
+        if (!res.ok) return out;
+
+        const json = (await res.json()) as {
+            data?: Array<{
+                name?: { fr?: string };
+                subzones?: Array<{ name?: { fr?: string }; monsters?: Array<{ name?: { fr?: string } }> }>;
+            }>;
+        };
+        const store: Record<string, { zone?: string; subzone?: string }> = {};
+        for (const zone of json.data ?? []) {
+            for (const sub of zone.subzones ?? []) {
+                for (const monster of sub.monsters ?? []) {
+                    const label = monster.name?.fr?.toLowerCase().trim();
+                    if (!label || store[label]) continue;
+                    store[label] = { zone: zone.name?.fr, subzone: sub.name?.fr };
+                    out.set(label, store[label]);
+                }
+            }
+        }
+        if (Object.keys(store).length > 0) {
+            await redis.set(cacheKey, JSON.stringify(store), "EX", 7200).catch(() => {});
+        }
+    } catch {
+        /* best-effort */
+    }
+    return out;
+}
+
+function toPublicOcreMonster(
+    monster: MetamobQuestMonsterLike,
+    meta?: ReadonlyMap<string, { type: "boss" | "archimonstre"; zone?: string; subzone?: string }>
+): PublicOcreMonster | null {
     const id = Number(monster.monster_id ?? monster.id ?? 0);
     if (!Number.isFinite(id) || id <= 0) return null;
     const label = typeof monster.name === "string" ? monster.name : monster.name?.fr ?? "";
-    const rawType = String(monster.type ?? "").toLowerCase();
-    const isBoss = rawType.includes("boss") || rawType.includes("guardian") || rawType.includes("gardien");
+    const known = meta?.get(label.toLowerCase().trim());
+    const isBoss = metamobTypeLabel(monster.type).toLowerCase().includes("gardien");
     return {
         id,
         name: label.slice(0, 120),
@@ -1002,7 +1076,9 @@ function toPublicOcreMonster(monster: MetamobQuestMonsterLike): PublicOcreMonste
         levelMin: Number(monster.level_min ?? 0),
         levelMax: Number(monster.level_max ?? 0),
         step: Number(monster.step ?? 0),
-        type: isBoss ? "boss" : "archimonstre",
+        type: known?.type ?? (isBoss ? "boss" : "archimonstre"),
+        ...(known?.zone ? { zone: known.zone } : {}),
+        ...(known?.subzone ? { subzone: known.subzone } : {}),
     };
 }
 
@@ -1033,8 +1109,39 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
         if (!slug) return { success: false, error: "Aucune quête trouvée sur ce compte Metamob." };
 
         const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
+
+        /**
+         * **ISO avec le guide interne** : la nature des cibles vient du template Metamob et les
+         * zones de `/v1/quests/{slug}/zones` — exactement les deux sources qu'utilise
+         * `getMyOcreProgress` pour les membres. Best-effort intégral : sans elles, la liste reste
+         * utilisable (une seule liste, pas d'onglets faux).
+         */
+        const meta = new Map<string, { type: "boss" | "archimonstre"; zone?: string; subzone?: string }>();
+        const templateId = details.quest_template?.id;
+        if (templateId) {
+            try {
+                const template = await getQuestTemplateMonsters(templateId, {
+                    guildApiKey: key,
+                    limit: PUBLIC_OCRE_MONSTERS_MAX,
+                });
+                for (const entry of template) {
+                    const label = entry.name?.fr?.toLowerCase().trim();
+                    if (!label) continue;
+                    meta.set(label, { type: classifyOcreType(entry.type?.name?.fr) });
+                }
+            } catch (error) {
+                logger.warn("[Espace visiteur] Template Ocre illisible", {
+                    err: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        const zones = await loadPublicOcreZones(details.slug ?? slug, key);
+        for (const [label, value] of zones) {
+            meta.set(label, { type: meta.get(label)?.type ?? "archimonstre", ...value });
+        }
+
         const monsters = (details.monsters as unknown as MetamobQuestMonsterLike[])
-            .map(toPublicOcreMonster)
+            .map((monster) => toPublicOcreMonster(monster, meta))
             .filter((monster): monster is PublicOcreMonster => monster !== null)
             .slice(0, PUBLIC_OCRE_MONSTERS_MAX);
 
@@ -1105,7 +1212,7 @@ export async function patchPublicOcreMonster(raw: unknown): Promise<PublicOcrePa
         const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
         const updated =
             (details.monsters as unknown as MetamobQuestMonsterLike[])
-                .map(toPublicOcreMonster)
+                .map((monster) => toPublicOcreMonster(monster))
                 .find((monster) => monster?.id === parsed.data.monsterId) ?? null;
 
         revalidatePath(PATHS.general);

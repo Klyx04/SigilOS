@@ -453,6 +453,22 @@ describe("câblage — overlay interne seulement", () => {
     expect(read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx")).toContain("toOcrePanelData(");
   });
 
+  it("la page du guide convertit les monstres AVANT de les passer au client (sinon imageUrl est perdu)", () => {
+    // Mesure du 09/11/2026 : `ocreMonsters = monsters` passait les objets bruts au panneau,
+    // donc `imageUrl` n'existait jamais et la vignette retombait sur les replis 404.
+    const page = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx");
+    expect(page).toContain("toOcrePanelData({ monsters }).monsters");
+    expect(page).not.toContain("ocreMonsters = monsters;");
+  });
+
+  it("le bandeau des guides « par Dofus » fait la MÊME conversion (iso partout)", () => {
+    // Mesure du 09/11/2026 : le bandeau castait les monstres bruts
+    // (`as unknown as OcreMonsterLite[]`), donc même défaut sur `/quetes-dofus/<dofus>`.
+    const banner = read("src/components/dofus-quests/DofusQuestBanner.tsx");
+    expect(banner).toContain("toOcrePanelData({ monsters: ocreRes.data.monsters }).monsters");
+    expect(banner).not.toContain("as unknown as OcreMonsterLite[]");
+  });
+
   it("l'écriture passe par la file partagée, bornée côté serveur (rate limit + pause)", () => {
     const hook = read("src/hooks/use-ocre-write-queue.ts");
     const modal = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx");

@@ -321,6 +321,14 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(src).not.toContain("resolveDofusAssetImageUrl(\"monsters\", norm.id)");
   });
 
+  it("nomme les cibles sans image résolue (diagnostic, jamais un identifiant de membre)", () => {
+    // Une cible sans image doit être NOMMÉE dans les logs : sans ça, « la vignette est un picto »
+    // ne dit pas si la ligne manque en base, si la graphie diverge ou si `imageUrl` est nulle.
+    const src = read("src/server/actions/ocre-actions.ts");
+    expect(src).toContain('logger.warn("[getMyOcreProgress] cibles sans image résolue"');
+    expect(src).toContain("unresolved,");
+  });
+
   it("les vignettes viennent du WebP local, le repli de nos pictos du jeu", () => {
     expect(ocreMonsterImage(301)).toBe("/uploads/assets-dofus/monsters/301.webp");
     expect(ocreMonsterIcon("archimonstre")).toBe("/assets/dofus/icons/archimonster.png");

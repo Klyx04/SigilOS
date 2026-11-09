@@ -12,6 +12,7 @@ import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
 import { resolveRushRoute } from "@/lib/rush-route";
 import { resolveDofusClassId } from "@/lib/dofus-assets";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 
 type Props = {
     params: Promise<{ guildId: string; slug: string }>;
@@ -148,7 +149,12 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 // Build lists of captured monster IDs and names for dungeon detection
                 const monsters = ocreRes.data.monsters;
                 if (Array.isArray(monsters)) {
-                    ocreMonsters = monsters;
+                    // ⚠️ Le panneau consomme des `OcreMonsterLite` : `toOcrePanelData` est la SEULE
+                    // conversion qui pose `imageUrl` (image interne résolue par le serveur). Passer
+                    // les monstres bruts laissait `imageUrl` indéfini ⇒ repli `/uploads/…webp` puis
+                    // `/assets/dofus/…png` (404 mesurés le 09/11/2026) et picto générique, alors que
+                    // `getMyOcreProgress` fournissait déjà la bonne image.
+                    ocreMonsters = toOcrePanelData({ monsters }).monsters;
                     const captured = monsters.filter((m: any) => m.owned != null && m.owned > 0);
                     capturedOcreMonsterIds = captured.map((m: any) => m.id);
                     capturedMonsterNames = captured

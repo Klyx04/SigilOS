@@ -5,6 +5,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
 import { assertSafeUrl } from '@/lib/image-downloader';
+import { logger } from '@/lib/logger';
 
 // 🛡️ Garde-fou mémoire : limite Sharp pour éviter tout crash V8 OOM lors de rafales
 if (typeof (sharp as any)?.cache === 'function') {
@@ -172,8 +173,16 @@ export async function GET(
                         });
                     }
                 }
-            } catch {
+            } catch (error) {
                 // Source injoignable → placeholder : jamais l'image d'un AUTRE monstre.
+                // 🔎 On LOGGUE la cause : un `catch` muet a déjà caché une panne totale de
+                // téléchargement (mesure du 09/11/2026 : TOUS les sprites renvoyaient le
+                // placeholder 1×1 alors que l'amont répondait 200, 20 Ko).
+                logger.warn('[assets-dofus] téléchargement du sprite impossible', {
+                    type: assetType,
+                    id: safeId,
+                    error: String(error),
+                });
             }
             return placeholderResponse();
         }

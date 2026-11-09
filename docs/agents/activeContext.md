@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 09/11/2026 (suite 4) — **Deux bruits Sentry : 429 Metamob et clé chiffrée** — branche `fix/sentry-bruit-429-krala`
+
+> **Constat user** : deux Issues à chaque passage — `[updateUserMonsterQuantityAction] Error: Trop de requêtes` et `[Calendar] Failed to sync Krala counts in list: Erreur 400 de l'API`.
+> **Mesures** : ① `updateUserMonsterQuantityAction` appelait `logger.error(...)` **avant** de distinguer un 429 Metamob, alors que le retour porte déjà `retryAfterMs: 30_000` et que le client met sa file en pause — cas **prévu**, pas une panne ; ② `calendar-actions.ts` passait `userProfile.metamobApiKey` **brute** à `getKralamoureEvents` : la clé est **chiffrée en base** (`decrypt` est utilisé par `getMyOcreProgress` et `updateUserMonsterQuantityAction`), donc l'amont répondait **400**. `event-actions.ts` avait le même défaut latent (il importait `decrypt` sans l'appliquer à cette clé).
+> **Fait** : le 429 est loggué en `warn` (le `logger.error` ne couvre plus que les vrais échecs) · le calendrier et les événements **déchiffrent** la clé avant l'appel, sinon n'envoient aucun en-tête · l'échec Krala du calendrier passe en `warn` (config utilisateur / amont, pas le produit), aligné sur `getGuildKralamoureEvents` (mesure du 18/10/2026).
+> **Preuves** : `sentry-bruit-metamob` **3** (neuf) · suite **644 fichiers / 6 868 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : confirmer dans Sentry que `JAVASCRIPT-NEXTJS-2M` / `-2N` cessent d'arriver après déploiement ; sinon la cause est ailleurs et il faudra la stack exacte.
+> **Rotation** : bloc « 08/11/2026 (suite 2) — V2f : le menu, les vérifications, l'onglet Élevage (F12→F17) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 09/11/2026 (suite 2) — **Rôles Discord du cycle de vie d'essai (V1)** — branche `feat/roles-essai-v1`
 
 > **Demande user (verbatim)** : « J'aimerai pouvoir propose en option l'ajout d'un rôle discord quand on met quelqu'un à l'essai depuis sa modale membre … un second settings à la fin d'essai : pouvoir ajouter un rôle automatiquement / en supprimer un ».
@@ -52,17 +62,9 @@
 > **Fait** : **F12** menu compte sur `modules/guild.png`, `game-icons/house.png`, `modules/character.png` (`UserRound` supprimé) · **F13** `checkPseudoExistsOnLadder` **avant** le `create` — seul `false` bloque, `null` reste fail-open (`ladder-pseudo.ts`), toggle God honoré · **F14** `/v1/me` **avant** écriture, fail-closed, le pseudo renvoyé fait foi · **F15** seules les mules **nouvelles** passent au ladder, sur `account.profile.dofusServerId` (jamais un id client) · **F17a** les quatre panneaux de métiers occupent une seule cellule (`forceMount` + `visibility: hidden`).
 > **Preuves** : `public-profile-actions` **15** (+4 verrous d'**ordre** : le helper doit précéder l'écriture) · `public-header-nav` **8** · `visitor-metiers-ui` **6** · périmètre visiteur **53** verts · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : **F16** (bouton « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`) · **F17b** « qui a ce métier à ce niveau » (l'annuaire filtre déjà par `metier` ; il manque `?niveau=` — `PublicProfession` porte déjà `@@index([metierId, level])`) · **F1→F7** · V2a-4 reste (tour) → V2b/c/d → V3. **Ops** : contrôle 390 / 768 / 1 440 du menu compte et de l'onglet Métiers — les quatre onglets doivent laisser « Enregistrer mes métiers » immobile.
-> **Rotation** : bloc « 07/11/2026 — Guide Rush public (V2a-3) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+> **Rotation** : bloc « 08/11/2026 (suite) — V2f : l'overlay respire (F8→F11) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 08/11/2026 (suite) — **V2f : l'overlay respire (F8→F11)** — branche `fix/overlay-v2f-f8-f11`
-
-> **Demande user (verbatim)** : « vire les losanges quel interet on a deja un % non ? » — et, pour le reste du lot, le brief V2f du 08/11 (F8 « retirer Rush Sylvestre et Graine », F9 « supprimer le bandeau de rappel sous les filtres », F10 « clignotement du mode clair », F11 « z-index de la fenêtre de retour + lien Discord »).
-> **Mesures** : ① « Graine » n'était pas un libellé écrit dans le bandeau mais le **palier 0** de `rush-dofus-stage`, affiché par la frise (palier `wide` seulement) ; ② le « rappel » sous Toutes/En cours/Faites/Verrouillées est `.da-banner`, qui redisait le titre du chapitre (dock) **et** son avancement (dock + jauge) ; ③ le clignotement venait de `localStorage` lu dans un `useEffect` — un cadre sombre était peint avant la bascule ; ④ le panneau de retour était monté **dans** `<header class="da-hero">` (`position: relative; overflow: hidden`) : il passait sous le contenu quel que soit son `z-index`.
-> **Fait** : frise et titre visible retirés (le `h1` reste en `sr-only`) · `.da-stage`/`.da-pips` et `rush-dofus-stage.ts` supprimés (plus aucun consommateur — pas de code mort) · `.da-banner*` retiré, la **description** du bloc conservée · thème lu dans un *layout effect* isomorphe, donc avant peinture · panneau monté par l'**hôte** en fin de racine. **Retours en cours de session** : doublon de jauges supprimé (l'ancienne « Grimoire » pleine largeur vivait sous `.da-track`) · menu « ⋯ » devant le dock (`z-index: 40` sur `.da-hero`, dont les enfants sont plafonnés à 2 face au dock `sticky` à 30) · rangée Toutes/En cours/Faites/Verrouillées **centrée et aérée** (plus de bande scrollable) · modale de retour : **non connecté = Discord seul**, compte connecté = formulaire complet, via `onlyDiscord = isGuest && !feedbackSignedIn` (le guide public code `isGuest={true}` en dur, il transmet donc `!!visitor`).
-> **Preuves** : `rush-overlay-v2f` **12** · `da-wakfu` et `rush-da-grimoire` **repointés (inversés), pas affaiblis** · suite **638 fichiers / 6 746 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : V2f — **F12→F15** (assets du menu, vérif pseudo bloquante, Metamob `/v1/me`) → **F1/F2/F3/F4/F5/F6** (bandeau Dofus anonyme, export/import, espacement, prérequis repliables, « ce que tu perds ») → F7, F16, F17 → V2a-4 reste (tour) → V2b/c/d → V3. **Consigné, non codé** : `docs/plans/PLAN-TICKETS-GOD.md` (un seul endroit `?tab=tickets`, refonte UI/UX, retours visiteurs identifiables, `ticket-bot` à revoir) → rattaché au rang 24 `god-refonte`. **Ops** : contrôle 390 / 768 / 1 440 de l'overlay (bandeau, mode clair, menu, fenêtre de retour) et du guide public.
-> **Rotation** : bloc « 08/11/2026 — Progression Communautaire + accueil public » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 > **Rotation** : bloc « 06/11/2026 (suite 12) — ladder (V1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

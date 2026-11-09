@@ -129,7 +129,12 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     let kralaEvents: any[] = [];
     if (userProfile?.metamobServerId) {
         const cacheKey = `krala:events:${userProfile.metamobServerId}`;
-        const apiKey = userProfile.metamobApiKey;
+        // 🔑 La clé API est **chiffrée en base** : envoyée brute, elle fait répondre
+        // « Erreur 400 de l'API » (mesure Sentry du 09/11/2026, `JAVASCRIPT-NEXTJS-2N`).
+        // Même règle que `getMyOcreProgress` : on déchiffre, sinon pas d'en-tête.
+        const apiKey = userProfile.metamobApiKey
+            ? (decrypt(userProfile.metamobApiKey) || undefined)
+            : undefined;
         
         try {
             // Check Redis cache first (short TTL: 60s)

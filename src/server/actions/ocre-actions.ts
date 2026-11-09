@@ -2282,10 +2282,17 @@ export async function updateUserMonsterQuantityAction(rawData: {
 
         return { success: true, data: { quantity } };
     } catch (error: any) {
-        logger.error("[updateUserMonsterQuantityAction] Error:", error);
+        // 429 Metamob : cas **PRÉVU** (l'utilisateur enchaîne les pas ±1), pas une panne. En
+        // `error`, chaque rate limit créait une Issue Sentry alors que le client met sa file en
+        // pause (`retryAfterMs`) — mesure du 09/11/2026. `warn` = tracé, hors Sentry.
+        const isMetamobRateLimit = error instanceof MetamobApiError && error.code === "RATE_LIMIT";
+        if (isMetamobRateLimit) {
+            logger.warn("[updateUserMonsterQuantityAction] Metamob rate limit", { code: error.code });
+        } else {
+            logger.error("[updateUserMonsterQuantityAction] Error:", error);
+        }
         // 429 Metamob : on demande au client de lever le pied (pause de la file) plutôt
         // que de relancer les écritures qui repartiraient en rate limit.
-        const isMetamobRateLimit = error instanceof MetamobApiError && error.code === "RATE_LIMIT";
         return {
             success: false,
             error: error?.message || "Erreur lors de la mise à jour Metamob",

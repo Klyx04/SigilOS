@@ -225,5 +225,12 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
         expect(ACTIONS).toMatch(/quantity: z\.number\(\)\.int\(\)\.min\(0\)\.max\(30\)/);
         expect(patch).toMatch(/limit\("ocre-patch"/);
     });
+
+    it("transporte l'image résolue (proxy interne), jamais un hôte tiers", () => {
+        // Même règle que le guide interne : une URL DofusDB devient une URL **interne**.
+        expect(ACTIONS).toContain("internalDofusDbImageUrl(monster.imageUrl ?? monster.image)");
+        // Le DTO ne publie l'image que si elle a pu être résolue.
+        expect(ACTIONS).toContain("...(image ? { imageUrl: image } : {})");
+    });
 });
 

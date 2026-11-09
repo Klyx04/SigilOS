@@ -210,7 +210,7 @@ export default function OcreQuestPanel({
                                     m.owned > 0 ? "border-border" : "border-warning/25"
                                 )}
                             >
-                                <OcreMonsterThumb id={m.id} type={m.type} dimmed={m.owned > 0} className="h-8 w-8" />
+                                <OcreMonsterThumb id={m.id} type={m.type} imageUrl={m.imageUrl ?? null} dimmed={m.owned > 0} className="h-8 w-8" />
 
                                 <div className="flex min-w-0 flex-1 flex-col">
                                     <span className="truncate text-xs font-semibold text-foreground">{m.nameFr}</span>

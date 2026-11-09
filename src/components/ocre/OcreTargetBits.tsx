@@ -12,23 +12,28 @@ import { ocreMonsterIcon, ocreMonsterImage, ocreMonsterLegacyImage, ocreStateLab
  * même comportement d'écriture partout.
  */
 
-/** Vignette d'un monstre : WebP LOCAL, puis PNG du dépôt, puis nos pictos (jamais de réseau). */
+/** Vignette d'un monstre : image résolue par le serveur, puis WebP LOCAL, puis PNG du dépôt, puis nos pictos (jamais de réseau codé ici). */
 export function OcreMonsterThumb({
   id,
   type,
+  imageUrl,
   dimmed = false,
   className,
 }: {
   id: number;
   type?: string | null;
+  /** Image **déjà résolue côté serveur** (donnée, pas un chemin codé dans ce module). */
+  imageUrl?: string | null;
   /** Cible déjà capturée : vignette légèrement atténuée. */
   dimmed?: boolean;
   className?: string;
 }) {
-  const chain = [ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)];
+  const chain = [imageUrl, ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)].filter(
+    (src): src is string => typeof src === "string" && src.length > 0
+  );
   const [step, setStep] = useState(0);
 
-  useEffect(() => setStep(0), [id, type]);
+  useEffect(() => setStep(0), [id, type, imageUrl]);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -37,6 +42,13 @@ export function OcreMonsterThumb({
       alt=""
       loading="lazy"
       onError={() => setStep((current) => (current < chain.length - 1 ? current + 1 : current))}
+      onLoad={(event) => {
+        // Le proxy interne renvoie un PNG **transparent 1×1** (200, jamais 404) quand la source
+        // manque : ce n'est pas une vignette. On passe au repli suivant plutôt que d'afficher un vide.
+        if (event.currentTarget.naturalWidth <= 1) {
+          setStep((current) => (current < chain.length - 1 ? current + 1 : current));
+        }
+      }}
       className={cn("shrink-0 object-contain", dimmed && "opacity-70", className ?? "h-8 w-8")}
     />
   );

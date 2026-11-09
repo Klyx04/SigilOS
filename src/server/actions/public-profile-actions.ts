@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
 import { getMetamobMe, verifyMetamobUser, MetamobApiError, listSelfQuests, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { redis } from "@/lib/redis";
 import { classifyOcreType } from "@/lib/ocre-soul-stones";
 import { ORDERS } from "@/lib/dofus-assets";
@@ -968,6 +969,12 @@ export type PublicOcreMonster = {
     /** Zone et sous-zone (`/v1/quests/{slug}/zones`), comme la ligne du guide interne. */
     zone?: string;
     subzone?: string;
+    /**
+     * Image **interne** (proxy) dérivée d'une URL DofusDB de la source — même règle que le guide
+     * interne (`internalDofusDbImageUrl`). Absente quand la source n'en fournit pas d'exploitable :
+     * le panneau retombe alors sur nos fichiers locaux, puis sur le picto.
+     */
+    imageUrl?: string;
 };
 
 export type PublicOcreProgress =
@@ -994,6 +1001,10 @@ type MetamobQuestMonsterLike = {
     step?: number | null;
     /** Tantôt une chaîne, tantôt un objet localisé selon l'endpoint Metamob. */
     type?: string | { name?: { fr?: string | null } | null } | null;
+    /** Id DofusDB et URL d'image amont : présents sur l'endpoint de quête (même réponse que l'interne). */
+    dofusdbId?: number | null;
+    imageUrl?: string | null;
+    image?: string | null;
 };
 
 /** DTO borné : jamais la réponse brute de Metamob ne part vers le client. */
@@ -1068,6 +1079,9 @@ function toPublicOcreMonster(
     const label = typeof monster.name === "string" ? monster.name : monster.name?.fr ?? "";
     const known = meta?.get(label.toLowerCase().trim());
     const isBoss = metamobTypeLabel(monster.type).toLowerCase().includes("gardien");
+    // Même règle que le guide interne : une URL DofusDB passe par le proxy (espace apparence).
+    // Une URL d'un autre hôte ne devient JAMAIS une image du DOM.
+    const image = internalDofusDbImageUrl(monster.imageUrl ?? monster.image);
     return {
         id,
         name: label.slice(0, 120),
@@ -1079,6 +1093,7 @@ function toPublicOcreMonster(
         type: known?.type ?? (isBoss ? "boss" : "archimonstre"),
         ...(known?.zone ? { zone: known.zone } : {}),
         ...(known?.subzone ? { subzone: known.subzone } : {}),
+        ...(image ? { imageUrl: image } : {}),
     };
 }
 

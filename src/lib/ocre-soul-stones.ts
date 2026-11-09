@@ -22,6 +22,8 @@
  *   • repli     : nos pictos du jeu (`/assets/dofus/icons/…`) — jamais une URL distante.
  */
 
+import { isSafeDofusImageSrc } from "@/lib/dofus-image-url";
+
 // -----------------------------------------------------------------------------
 // TYPES (shape « lite » : ce qui voyage de la page vers l'overlay, sérialisable)
 // -----------------------------------------------------------------------------
@@ -41,6 +43,13 @@ export interface OcreMonsterLite {
   step?: number | null;
   zone?: string | null;
   subzone?: string | null;
+  /**
+   * Image **résolue par le serveur** (proxy interne, espace d'apparence `sprite=1`), transportée
+   * comme une **donnée** : aucun composant ne code ce chemin, donc la règle « aucune dépendance
+   * distante en dur dans le module Ocre » reste tenue. `null` ⇒ le composant retombe sur nos
+   * fichiers locaux, puis sur le picto du jeu.
+   */
+  imageUrl?: string | null;
 }
 
 /** Données de la quête Ocre utiles à l'overlay (mêmes chiffres que le dashboard). */
@@ -138,6 +147,22 @@ export function ocreMonsterLegacyImage(id: number): string {
 /** Repli local (picto du jeu) d'une cible — jamais une URL distante. */
 export function ocreMonsterIcon(type?: string | null): string {
   return OCRE_MONSTER_ICONS[String(type ?? "").toLowerCase()] ?? OCRE_MONSTER_ICONS.monstre;
+}
+
+/**
+ * Image **serveur** utilisable dans le DOM : uniquement un chemin **interne** et sain.
+ *
+ * Mesure du 09/11/2026 (journal navigateur, modale « Mon Ocre ») : la vignette ne tentait que
+ * deux fichiers locaux (`/uploads/assets-dofus/monsters/<id>.webp`, absent, puis
+ * `assets/dofus/monsters/<id>.png`, qui ne couvre que 31 monstres pour 337 cibles) ⇒ **404 en
+ * série** et picto générique. Le serveur, lui, résout déjà la bonne image
+ * (`internalDofusDbImageUrl`, espace d'apparence `sprite=1`) ; elle arrive donc ici comme une
+ * **donnée**. On n'accepte que le **relatif interne** : une URL absolue (même DofusDB, même
+ * Metamob) ne doit jamais finir dans le `src` d'un `<img>`.
+ */
+export function ocreMonsterImageUrl(raw?: string | null): string | null {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  return value.startsWith("/") && isSafeDofusImageSrc(value) ? value : null;
 }
 
 /**
@@ -282,7 +307,7 @@ export function buildOcrePlan(data: Pick<OcrePanelData, "monsters" | "currentSte
  * (actions serveur). Typé structurellement pour ne rien importer du serveur ici.
  */
 export interface OcreProgressSource {
-  monsters?: Array<Partial<OcreMonsterLite> & { id: number; nameFr?: string; name?: string }> | null;
+  monsters?: Array<Partial<OcreMonsterLite> & { id: number; nameFr?: string; name?: string; image?: string | null }> | null;
   questInfo?: {
     currentStep?: number;
     totalSteps?: number;
@@ -309,6 +334,7 @@ export function toOcrePanelData(src: OcreProgressSource | null | undefined): Ocr
     step: Number(m.step ?? 0),
     zone: m.zone ?? null,
     subzone: m.subzone ?? null,
+    imageUrl: ocreMonsterImageUrl(m.image),
   }));
 
   const lastSync = src?.lastSync instanceof Date

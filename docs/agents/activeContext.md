@@ -15,6 +15,15 @@
 > **Reste** : confirmer dans Sentry que `JAVASCRIPT-NEXTJS-2M` / `-2N` cessent d'arriver après déploiement ; sinon la cause est ailleurs et il faudra la stack exacte.
 > **Rotation** : bloc « 08/11/2026 (suite 2) — V2f : le menu, les vérifications, l'onglet Élevage (F12→F17) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
+## 📝 Session 09/11/2026 (suite 3) — **Vignettes Ocre iso partout + proxy qui dit pourquoi il échoue** — branche `fix/ocre-vignettes-guide-payload`
+
+> **Demande user (verbatim)** : « le probleme est aussi présent dans le bandeau metamob des par dofus … j'ai un pb certain asset s'affiche tjrs pas dans l'overlay non plus … le fix doit etre global partout et iso ».
+> **Mesures (bêta `8fde214b`, déploiement automatique confirmé)** : ① `page.tsx` du guide faisait `ocreMonsters = monsters` et `DofusQuestBanner` castait les monstres bruts (`as unknown as OcreMonsterLite[]`) ⇒ **`imageUrl` n'existait jamais** sur ces deux surfaces, donc repli `.webp`/`.png` (404) malgré le correctif d'`getMyOcreProgress`. ② Tous les sprites `?sprite=1` renvoient le placeholder (`X-SigilOS-Placeholder: 1`, **118 octets**) alors que `api.dofusdb.fr/img/monsters/<n>.png` répond **200, ~20 Ko** — et `monsters/646` (entité) répond **404** (« No record found ») : le nombre est bien un `gfxId`. ③ `Archimonstre` contient bien les cibles (ex. `Blop Griotte Royal` = `img/monsters/646.png`), donc le rapprochement par nom fonctionne ; l'écart « Kaskapointe »/« Kaskapoin**th**e » reste un cas de graphie à traiter séparément.
+> **Fait** : les **deux surfaces** qui perdaient l'image passent désormais par la même conversion `toOcrePanelData` (source unique, iso) ; la route `/api/assets-dofus` **logge la cause** d'un échec de téléchargement (le `catch` muet cachait une panne totale de siphonnage), le placeholder restant un PNG 1×1 transparent `no-store`.
+> **Preuves** : `rush-overlay-ocre` **48** (+2 verrous iso) · `assets-dofus-diagnostic` **2** (neuf) · suite **644 fichiers / 6 869 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : lire `logs app` après déploiement pour nommer la cause du refus de téléchargement (SSRF/DNS/`sharp`/budget), puis corriger au bon étage ; traiter les graphies de noms divergentes (« Kaskapointe »).
+> **Rotation** : bloc « 08/11/2026 (suite) — V2f : l'overlay respire (F8→F11) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 
 ## 📝 Session 09/11/2026 (suite 2) — **Rôles Discord du cycle de vie d'essai (V1)** — branche `feat/roles-essai-v1`
 
@@ -55,14 +64,7 @@
 > **Reste** : **P2-ter** — 5 fichiers portent encore 30 classes de palette (`availability-heatmap` 13, `achievement-validation-queue` 11, `hero-header` 3, `success-sync` 2, `add-build-modal` 1) et ~65 marqueurs slop. **Ops** : contrôles 390 / 768 / 1 024 / 1 440 des 8 onglets, et **rejouer le tutoriel profil** (cibles changées, étape « Présence & Feed » retirée).
 > **Rotation** : bloc « 07/11/2026 (suite 2) — Guide public : alignement réglable (V2a-4/V2a-5) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 08/11/2026 (suite 2) — **V2f : le menu, les vérifications, l'onglet Élevage (F12→F17)** — branche `feat/visiteur-v2f-f12-f17`
 
-> **Demande user (verbatim)** : « enchaine tout jusqua f17 compris » — sur le brief V2f du 08/11 (F12 assets du menu, F13 vérif pseudo bloquante à la création, F14 Metamob `/v1/me` avant écriture, F15 vérif pseudo bloquante sur les mules, F16 succès par donjon, F17 Élevage + métier ↔ quête).
-> **Mesures** : ① le menu compte affichait **deux fois** `LayoutDashboard` (« Mes guildes » *et* « Tableau de bord ») plus `UserRound` pour l'espace visiteur, alors que les trois assets existent déjà dans la **même** barre ; ② `createPublicProfile` écrivait le profil **sans** interroger le ladder ; ③ `updatePublicMetamob` écrivait la clé **puis** la marquait non vérifiée — une clé invalide remplaçait donc une clé qui marchait, sans retour ; ④ `updatePublicMules` n'interrogeait rien ; ⑤ « Élevage » ne déclare **qu'un** métier (`eleveur`) contre six (Récolte) et sept (Artisanat) : un seul panneau monté ⇒ la hauteur changeait à chaque onglet et le bouton « Enregistrer mes métiers » remontait avec l'écran.
-> **Fait** : **F12** menu compte sur `modules/guild.png`, `game-icons/house.png`, `modules/character.png` (`UserRound` supprimé) · **F13** `checkPseudoExistsOnLadder` **avant** le `create` — seul `false` bloque, `null` reste fail-open (`ladder-pseudo.ts`), toggle God honoré · **F14** `/v1/me` **avant** écriture, fail-closed, le pseudo renvoyé fait foi · **F15** seules les mules **nouvelles** passent au ladder, sur `account.profile.dofusServerId` (jamais un id client) · **F17a** les quatre panneaux de métiers occupent une seule cellule (`forceMount` + `visibility: hidden`).
-> **Preuves** : `public-profile-actions` **15** (+4 verrous d'**ordre** : le helper doit précéder l'écriture) · `public-header-nav` **8** · `visitor-metiers-ui` **6** · périmètre visiteur **53** verts · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : **F16** (bouton « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`) · **F17b** « qui a ce métier à ce niveau » (l'annuaire filtre déjà par `metier` ; il manque `?niveau=` — `PublicProfession` porte déjà `@@index([metierId, level])`) · **F1→F7** · V2a-4 reste (tour) → V2b/c/d → V3. **Ops** : contrôle 390 / 768 / 1 440 du menu compte et de l'onglet Métiers — les quatre onglets doivent laisser « Enregistrer mes métiers » immobile.
-> **Rotation** : bloc « 08/11/2026 (suite) — V2f : l'overlay respire (F8→F11) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

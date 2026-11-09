@@ -13,6 +13,7 @@ import {
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import AlignmentModal from "./AlignmentModal";
 import OcreProgressModal, { type OcreMonsterLite } from "./OcreProgressModal";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { QuestFeedbackButton } from "./QuestFeedbackButton";
 import { DofusPageOptions } from "./DofusPageOptions";
 
@@ -133,7 +134,11 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
                             archis: ocreRes.data.stats.archis,
                         });
                         if (Array.isArray(ocreRes.data.monsters)) {
-                            setOcreMonsters(ocreRes.data.monsters as unknown as OcreMonsterLite[]);
+                            // ⚠️ MÊME conversion que le guide : `toOcrePanelData` est la seule à poser
+                            // `imageUrl` (image interne résolue serveur). Passer les monstres bruts
+                            // laissait la vignette sur les replis 404 (mesure du 09/11/2026, bandeau
+                            // des guides « par Dofus »).
+                            setOcreMonsters(toOcrePanelData({ monsters: ocreRes.data.monsters }).monsters);
                         }
                     }
                 }

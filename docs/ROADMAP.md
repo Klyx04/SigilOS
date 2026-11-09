@@ -5,30 +5,9 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 08/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 09/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
-
-- **Livré le 05/11/2026 — Rush : studio God en 3 panneaux (E1, `feat/rush-editor-e1`, PR #1257).**
-  Studio **sorti de `src/app/god/**`** (app file = ré-export, `77/77` inchangé) ; arbre / contenu /
-  inspecteur, barre unique + recherche, filtres, `Ctrl+K`, garde de saisie, responsive **1024/768** ;
-  **plus aucun formulaire dans la liste** (l'inspecteur monte les formulaires tels quels) ; règles
-  pures `src/lib/rush-editor-selection.ts`. **Preuves** : Rush **857 ✓** · suite **6 384 ✓** ·
-  `tsc` 0 · ESLint 0 erreur · **aucune migration** ; DA **674 → 644** occurrences. **Reste** :
-  E2 → E3 → E4 → E5 (détail : `REFONTE-EDITEUR-RUSH.md` §3 « Reste de E1 »).
-
-- **Livré le 05/11/2026 — Rush : le déplacement d'une quête réparé (branche `fix/rush-move-sequence`).**
-  **Bug mesuré** : le bouton « Déplacer vers » était **invisible** (le formulaire ne recevait qu'un seul bloc, donc `milestones.length > 1` toujours faux) et, appelé, il ne changeait **pas** `milestoneId` et remettait `alignOrderCode`/`alignLevelReq`/`classReq`/`isSuccess`/`icon`/`metamobMonsterId` à `null`/`false` (perte de route). **Fait** : action dédiée `moveRushSequence` (Zod borné, **60/min**, transaction, bloc cible relu dans le **même** guide, séparateur et bloc Conseil/Tips refusés, no-op si même bloc) qui n'écrit **que** `milestoneId` + `order` (règle pure `nextSequenceOrder`) ; studio rebranché (liste complète des blocs) + mise à jour optimiste. **Preuves** : `rush-move-sequence` **10** · Rush **65 / 805 ✓** · suite **602 / 6 332 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Reste** : refonte de l'éditeur (E1→E5, `docs/plans/REFONTE-EDITEUR-RUSH.md`) et split des blocs bêta.
-
-- **Livré le 04/11/2026 — Rush : 25 conseils écrits depuis les contraintes Tougli (branche `feat/rush-brakmarien`).**
-  ① **Le script ne pouvait pas viser les séquences importées depuis God** : il prenait ses cibles dans le **dataset de seed** (335 séquences, **0** Brâkmarien) alors que les 121 Brâkmarien vivent **uniquement en base** ⇒ `--apply` écrivait **0**. Correctif : `NoteTarget.questIds` + index par **id DofusDB** dans `rush-notes.ts` (l'id tranche, le nom reste le repli) et `correlate-rush-notes.ts` calcule **deux jeux de cibles** (dataset + base).
-  ② **25 conseils écrits** en base locale (**dataset inchangé** : ces quêtes n'y sont pas) — **19 Brâkmarien** + **6 Bontarien**, 28 contraintes (`needPlayer` 24, `job` 6) ; **2ᵉ passage = 0 écriture**. Une note qui cite encore `&n` n'est jamais appliquée.
-  ③ **Reste 194 conseils** (mesuré) : **98 Brâkmarien** (aucune source : Tougli n'a aucun texte de quête, Dofusyelle ne couvre que Bonta), **42 Bontarien**, **54 hors route**.
-  **Preuves** : `rush-notes` **13** · `tsc` 0 · ESLint 0 erreur · **aucune migration**. **Ops** : `--sql` (patch additif, n'écrit que sur un `tips` vide) sur la bêta ; les 98 Brâkmarien attendent un texte du propriétaire.
-
-
-
-
 
 - ⏳ **En attente de prod (26/10/2026)** — la **bêta** tourne `dev` `2a06ef26` (**287 migrations**, `sigilos-beta`) ; la
   **prod** reste sur `main` `66040052` (**267 migrations** ⇒ **20 en attente**). Lots non déployés : calendrier/membres/
@@ -39,121 +18,7 @@
   `siphon-item-conditions?apply=1` (264) ; ④ un `data-watch` manuel (pose le filigrane des panoplies) ; ⑤ les lignes de
   crontab prod (`docs/MAINTENANCE.md` § Tâches planifiées — **une seule** `data-watch`, elle existe déjà sur le VPS).
   ⚠️ La crontab du VPS vise `beta.sigilos.fr` (`APP_URL`). Détail ordonné : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1.
-- **Livré le 26/10/2026 — Bonus de panoplie recalculés dans une variante (lot A de l'amorce stuff/variantes).**
-  Mesures : ① `GET /item-sets/242` (Danathor) → `effects` est un **tableau indexé par palier** (`index = pièces − 1`),
-  ligne `{ characteristic, from, effectId }` ; **56 ko par panoplie** (elle embarque ses objets complets), 940 au
-  total ≈ **53 Mo**, et `$select` **n'est pas supporté** ; ② `GET /characteristics` (**123 entrées**) tranche le
-  mapping : `85` = « Poussée (fixe) » = une **réduction** (`rp`), `84` = dommages de poussée (`dp`) — le code rendait
-  `dp` pour `85`, donc une panoplie « Ré Poussée » créditait les dommages ; ③ la pagination **perdait la dernière
-  page** (900/940) parce que `skip` était avancé **avant** le test de fin. Fait : table `GameItemSet` (migration
-  additive `20270120000000_item_sets`, `id` = id DofusDB, `tiers` JSONB normalisé), siphon `src/lib/item-sets-siphon.ts`
-  + `npm run siphon:item-sets` (**938 panoplies** écrites, **2 refus** explicites — `38` absent du référentiel, `121`
-  hors modèle —, **2ᵉ passage = 0 écriture**), règle pure `src/lib/dofus-set-bonuses.ts` (≥ 2 pièces **distinctes**,
-  **palier le plus haut**, jamais d'addition) **extraite du parseur** (une seule vérité), `applyVariantsToBuild(base,
-  variants, itemSets)` qui **retire** les bonus d'origine puis réapplique les nouveaux **via le mapping de stats
-  existant** (aucune règle dupliquée), résolution serveur bornée `src/server/build-item-sets.ts` branchée sur la
-  galerie et les **2** pages de profil, et `saveBuildVariant` qui évalue les conditions d'objet sur les stats
-  **effectives** (au lieu de celles du stuff d'origine). Fail-closed : panoplie inconnue ou contexte incohérent ⇒ la
-  variante n'est **pas calculée** (« Panoplie indisponible ») et le serveur **refuse** l'enregistrement. Verrou
-  `dofus-set-bonuses` **5 → 24** (dont la pagination et le payload réel mesuré). Suite **5 442 ✓ / 517 fichiers**,
-  `tsc` 0, ESLint 0 erreur. **1 migration additive.** ⚠️ **Ops** :
-  `migrate deploy` + `generate`, `npm run siphon:item-sets -- --apply`, redémarrage de l'app.
 
-
-
-- **Livré le 26/10/2026 — Pods, veille des conditions et finitions (lots B, C, E de l'amorce stuff/variantes).**
-  Mesures : ① **Pods** — le payload Dofusbook ne porte **aucun poids** ; Dofusbook affiche **1950** (build
-  `22329554`, Force **190**) et **1250** (build `23582119`, Force **50**) ⇒ `1000 + 5 × Force` colle aux **deux**
-  exactement : c'est une **capacité**, pas une charge (`GameItem.realWeight` inutile) ; l'API restant bloquée par
-  le WAF (403), la page n'a pas pu servir de 3ᵉ point — la formule est donc prouvée sur 2 builds et verrouillée
-  par test. ② **Veille** — en base : **264** objets conditionnés (conforme au mesure du 25/10), **403** atomes,
-  **12** non évaluables (`Être abonné` 8, `Niveau d'alignement` 2, `Être niveau {0} ou plus` 1, `Kamas` 1) et **13**
-  types d'objet hors `VARIANT_SLOTS` ; **2ᵉ passe : `changed=false`, 0 nouveauté** (aucun bruit hebdomadaire).
-  Fait : règle pure `src/lib/dofus-pods.ts` (`1000 + 5 × Force` + pods d'objets, `—` si Force inconnue), parser qui
-  somme les pods d'équipement (`stats.pod`), `applyVariantsToBuild` qui déplace la capacité avec la Force ; atomes de
-  condition (`listConditionAtoms`) + agrégateur pur `src/lib/item-conditions-watch.ts` (par élément **et** opérateur)
-  + instantané Redis (`game-data:watch:item-conditions`) + branchement au cron **`data-watch`** (dry-run, aucune
-  écriture métier) qui **alerte le God sur la nouveauté seule** ; `unknownVariantItemTypes` (types hors slots
-  **signalés**, jamais devinés) ; **contrat de payload** verrouillé (deux formes d'`element`, relations `{and, or}`,
-  opérateurs mesurés) avec deux corrections fail-closed : **relation inconnue ⇒ refus** (elle passait pour un ET) et
-  **`int_value`/Force absents ⇒ refus** (`Number(null) === 0` faisait satisfaire « PA > -1 » et affichait `1000` de
-  pods). Finitions **actées** (résistances secondaires hors carte, `% Do Finaux` inchangé, `criterions`/`twoHanded`
-  sans passe complète). Verrous : `dofus-pods` **7** · `item-conditions-watch` **7** · `dofus-conditions` **+4 cas** ·
-  `dofus-variant-rules` **+2 cas**. Suite **5 461 ✓ / 519 fichiers**, `tsc` 0, ESLint 0 erreur. **Aucune migration.**
-
-- **Livré le 25/10/2026 — Synchro Dofusbook : `force` de bout en bout, stats `ii`/`ic` comptées, correspondances DofusDB prouvées.** Mesures : ① le worker CF mettait **toute** réponse 2xx en cache **24 h** (clé stable) et **ignorait `force`** ⇒ un item retiré sur Dofusbook restait affiché, et `storeClientDofusbookPreview` redatait `updatedAt` sans changement ; ② `processDofusbookRawData` ne mappait que `ini`/`invo` alors que les payloads — **et les panoplies** — portent **`ii`/`ic`** (`Panoplie de Danathor` = `ii+500@2`) ⇒ initiative bloquée au socle `level×5` (**1000** au lieu de **1788**), invocation à **1** ; ③ **siphon réel** du build `1awml` (id `23582119`, 35 ko) : `cloths[].effects[].count/value`, `items[].constraints` ; ④ **DofusDB porte les mêmes données** (`items/{ankamaId}` → `itemSetId`/`itemSet.name.fr` ; `/item-sets/{id}` → paliers `characteristic`+`from`, ex. `c44=500` initiative, `c26=1` invocation, `c79=5` tacle) ⇒ **aucune dépendance à Dofusbook pour être souverain**. Fait : `force` propagé (`bakeDofusbookFromBrowser(url, guildId, { force })` → `&force=1` → worker sans lecture de cache, `cf.cacheTtl: 0`, TTL **60 s**), `changed` renvoyé par l'action (plus de `updatedAt` menteur), mapping `ii`/`ic` (`sp`/`at` explicitement ignorés : sorts/atouts). Verrou `dofusbook-sync-force` **7**. Suite **5 371 ✓ / 513 fichiers**, `tsc` 0, ESLint 0 erreur. **Aucune migration.** ⚠️ **Ops** : redéployer le worker (`wrangler deploy` dans `cloudflare-workers/dofusbook-proxy`) sinon le cache 24 h reste actif.
-
-- **Livré le 25/10/2026 — Succès : les doubles boss redeviennent cochables (« Donjon validé »), et l'écran respire.** Mesure : « Comte et Klime / Nileza / Sylargh / Missiz Frizz » affichaient « Succès — 0/0 » et **aucune coche** n'était possible (DofusDB ne liste pas leurs succès ⇒ le seed ne créait aucune ligne). Fait : le pseudo-succès `donjon-valide` est **réintroduit de façon ciblée** — rendu **uniquement** quand il est le **seul** succès du donjon (`visibleDungeonAchievements`, règle pure ; la décision du 11/10 reste vraie partout ailleurs), appliqué aux 3 lectures (hub, annuaire, fiche boss) ; rattrapage idempotent `scripts/backfill-dungeon-completion.ts` (**dry-run par défaut**, `--apply`, crée le challenge s'il a été purgé) + seed ; **mesuré en local** : 4 donjons sans succès reçoivent la coche, les 4 doubles boss la portent déjà. Bouton « Chercher un groupe » avec **vrai asset** Dofus (`game-icons/crossed-swords.png`) dans les 3 écrans ; CTA en `bg-elevated` + `border-border-strong` (fin du sombre sur sombre), sans `font-black` ni `uppercase tracking-wide`. Verrous `dungeon-completion` **7** + `succes-ui-deslop` **4**.
-
-- **Livré le 26/10/2026 — Plafonds PA/PM/**PO/Invocations** et refus de variante **explicite** (retour utilisateur sur captures).**
-  Constats : ① un familier **+1 PA** sur un build à 12 PA affichait **13 PA** — « impossible normalement sur
-  Dofus ». Ce n'est **pas** un siphon (le +1 PA est réel) mais des **règles manquantes** : un build ne dépasse
-  pas **12 PA**, **6 PM**, **6 PO** ni **6 invocations** (Dofus Wiki, `Characteristic` § Action Point / Movement
-  Point / Range / Summons — « the bonus will not be included »). ② le badge « Panoplie indisponible » ne disait
-  **pas sa cause** — impossible de distinguer « données non synchronisées » d'une donnée réellement absente.
-  Mesures : la garde de cohérence **passe** sur le build signalé (*panda air* : 3/3), donc le badge venait d'un
-  **rendu antérieur au siphon** ; **252 / 264** conditions d'objet sont évaluées, les **12** refusées sont des
-  propriétés hors build (abonnement 8, alignement 2, kamas 1, niveau `{0}` exotique 1) ; le trophée *Dévastateur
-  Feu majeur* (`Bonus de panoplies < 2`) est **refusé dès 2 panoplies** — règle du jeu, pas blocage.
-  Fait : règle pure `src/lib/dofus-caps.ts` (4 plafonds) appliquée à l'**affichage** (badge, pastilles, fiche)
-  avec le point excédentaire **dit** (« +1 ignoré (plafond 12) ») — le total brut reste en données ; conditions
-  d'objet jugées sur la valeur **plafonnée** ; `explainVariantRefusal` distingue **3 causes** (contexte absent /
-  panoplie inconnue / contexte incohérent) avec **noms** et action, dans le badge + l'infobulle ; **rattrapage**
-  du contexte par la miniature (`getVariantItemSets`, lecture seule, 64 ids max, membres seulement).
-  Verrous `dofus-caps` **6** · `dofus-set-bonuses` **+4 cas** (refus motivés). Suite **5 471 ✓ / 520 fichiers**,
-  `tsc` 0, ESLint 0 erreur. **Aucune migration.**
-- **Livré le 26/10/2026 — Variante **partagée** (image OG + embed Discord) et veille des conditions **visible côté God**.**
-- **Livré le 26/10/2026 — Siphon des panoplies **exécutable en production** (route cron + curseur).**
-  Constat mesuré : l'image de prod est un **build standalone** (le `Dockerfile` ne copie que `scripts/` et
-  `.next/standalone`) ⇒ **ni `tsx` ni alias `@/`** dans le conteneur : `scripts/siphon-item-sets.ts` ne peut pas y
-  tourner, et le référentiel restait **vide en bêta** (variantes refusées, faute de paliers). Fait : route
-  **`GET /api/cron/siphon-item-sets`** (`x-cron-secret`, **dry-run par défaut**, `pages` borné pour rester sous les
-  timeouts de proxy, `startSkip`/`nextSkip` pour enchaîner) qui exécute le **même cœur** `siphonItemSetsCore` —
-  aucune logique dupliquée, aucun SSH. Ops : `curl -H "x-cron-secret: $CRON_SECRET"
-  ".../api/cron/siphon-item-sets?apply=1"`. Verrou `dofus-set-bonuses` **+2 cas** (reprise + garde de la route).
-  Le script local reste la voie de dev (`npm run siphon:item-sets -- --apply`).
-- **Livré le 26/10/2026 — Maintien long terme : la veille **entretient** au lieu de seulement alerter.**
-  Trois trous mesurés, trois fermés (détail et chiffres : `docs/agents/activeContext.md`). ① `data-watch` ne
-  relançait la veille ciblée que `if (hasNews)` — un rééquilibrage de stats (3.7) ne bouge **aucun compteur** :
-  l'entretien devient inconditionnel (seule la **notification** reste conditionnée). ② `GameItemSet` n'était
-  rafraîchi par **rien** ⇒ `src/server/item-sets-refresh.ts` (passe ciblée `updatedAt[$gt]`, filigrane Redis
-  sans TTL posé seulement sur passe complète, bornée, fail-open). ③ le siphon des conditions échoue **dans le
-  conteneur** (`@prisma/driver-adapter-utils` absent du build standalone) ⇒ porté dans l'app
-  (`src/lib/item-conditions-siphon.ts` + route + script enveloppe) : **plus aucune tâche manuelle**.
-  `docs/MAINTENANCE.md` gagne les **deux lignes de crontab** et le tableau « ce qui suit le jeu tout seul / ce
-  qui reste humain ». Verrous : `item-sets-refresh` **6** · `item-conditions-siphon` **7** ·
-  `normalizeSince` **2** · `data-watch` **+1** (contrat « stocks alignés » inversé, motif écrit).
-
-  Deux restes de l'amorce soldés : ① l'arbitrage du 23/10 (« afficher la variante avec un tag explicite ») est
-  appliqué par **une seule règle** (`resolveVariantPreview`) : l'image OG montre les icônes de la variante + un
-  badge **VARIANTE**, l'embed Discord met `· 🟡 Variante` dans le titre, affiche les stats **effectives** et liste
-  les objets remplacés (6 max) ; le tag n'est posé **que si le calcul a réussi** (fail-closed). ② la veille des
-  conditions a son **bandeau dans le Tableau God** (`getItemConditionsWatch`, réservé à `canAccessGameData`) :
-  objets conditionnés, atomes non évaluables (élément + opérateur), types hors variantes, date du calcul —
-  **lecture seule**, la source reste le cron `data-watch`. Verrou `dofus-variant-sharing` **5**. **Aucune migration.**
-
-- **Livré le 26/10/2026 — Relais Dofusbook **redéployé** : `force` contourne enfin le cache.**
-  Mesure avant : l'URL signée appelée avec `force=1` renvoyait **`X-SigilOS-Cache: HIT`** (au lieu de `BYPASS`) et
-  le **même** payload que sans drapeau ⇒ la version **déployée** du worker était antérieure au correctif du 25/10
-  (le code du dépôt était bon). Vérifié **en local** d'abord (`wrangler dev --local` : `MISS` → `HIT` → **`BYPASS`**),
-  puis **déployé** (`wrangler deploy`, même nom `test-dofusbook`, **version `175b2e54`**) et **contrôlé en
-  production** (`force=1` → `BYPASS` ✔, `X-Proxied-By: SigilOS-CF-Worker`). ⚠️ **En-tête de diagnostic corrigé** :
-  c'est **`X-SigilOS-Cache`**, pas `X-Cache` (une mesure précédente avait conclu à tort « pas notre worker »).
-  ⚠️ **Blocage source constaté juste après** : Dofusbook répond **403** sur le `BYPASS`, **aussi depuis une IP
-  résidentielle et sur sa page d'accueil** ⇒ blocage **temporaire de la source** (bot-management / limiteur),
-  pas un défaut du relais : l'app conserve les dernières données connues et l'annonce. **Aucun code applicatif
-  changé par ce lot** (hors le message de l'UI et le `logger.warn` du tour précédent).
-
-
-
-
-- **Harnais (24/10/2026)** — une règle manquait : **on ne touche pas à Discord sans avoir vérifié la source officielle**. Ajouts : `.clinerules/06-discord.md` (règle scopée, toujours chargée sur `src/app/api/discord/**`, `src/server/discord.ts`, `src/lib/discord/**`, tickets, `services/discord-bot/**`), skill `.cline/skills/discord-api/SKILL.md` (doc → types installés → `GET` de mesure → code, + pièges mesurés) et `docs/agents/discord-module.md` **§0** (le « pourquoi » : une donnée absente n'est pas une impossibilité). Table `harnais.md` et §2 d'`AGENTS.md` mis à jour. Verrou `harness-config` inchangé (frontmatter, `name` = dossier, `paths:`).
-
-- **Prochaine étape** : **S1 — le contenu** (séries bontarienne/brâkmarienne, 30 quêtes d'Ordre, 19 classes, prérequis) — l'outil de saisie est prêt. **Livré le 23/10/2026 (une PR)** : ① **S4-1 vue Branches à 2 étages** (cité → Ordre, paires alignées par position, manques, cible **100 / 102**, orphelins signalés) — règle pure `src/lib/rush-branches.ts` + onglet God ; ② **passifs d'objets souverains** (effet natif **1175** → sort DofusDB, **117 sorts** siphonnés, `src/data/item-passives.json`, repli inventé Prysmaradite **supprimé**, description officielle des Prysmaradites dans la bibliothèque) ; ③ **peinture de la simulation réparée** (trou **rendu**, cloisonnement **par carte**, cases hors grille écartées) ; ④ **variantes proposées par le joueur** (persistées dans `dofusBookLinks[].variants`, bascule **Stuff ⇄ Variante** sur la miniature **et** la modale, stats/dégâts recalculés, synchro Dofusbook intacte) ; ⑤ **coche « fait »** des succès de donjon de la fiche boss (y compris **double boss**), table `UserDungeonAchievement` déjà en base. **Verrous** : `rush-branches` 9 · `item-passives` 8 + `dofus-passives` 4 · `sim-peinture` 8 · `dofus-variants-saved` 11 · `boss-achievement-check` 8 → **suite 5 086 ✓ / 480 fichiers**. **Aucune migration.**
-- **Rush — parité guide interne/public (22/10/2026)** : trois écarts mesurés puis corrigés — ① le **rail de droite** ne suivait pas le scroll (deux boîtes de défilement intermédiaires, `overflow-hidden` + `overflow-y-auto`, annulaient le `sticky` ; le seul scrolleur est `<main data-scroll-container>`) ; ② les **positions** manquaient dans le guide interne (regex locale sur `pos_tags` au lieu de `getSequenceCoord`, qui lit aussi titre/tips/note), et l'en-tête d'un bloc à **une seule quête** affiche désormais la sienne (`blockHeaderCoord`) ; ③ **« qui peut aider » (S4) retiré** — badge interne seul, affichait « 0 peut aider » et coûtait un appel serveur par quête. **Le suivi entre membres reviendra en onglet dédié** (`D-G1`). Verrous : `rush-guide-rail-bloquee` **8** · `rush-guide-utils` **55** · `rush-public-parity` **38** · suite **4 913 ✓**. PR **#1089** (porte aussi le lot « rappels de raid J-1 / 24 h » de la session parallèle).
-- **Prod 22/10/2026 — remise en état** : l'ordre des migrations était faux depuis le 10/10 (`add_component_stats` altérait une table créée un mois plus tard) → **32 migrations appliquées** avec succès sur la prod, 6 conteneurs `Healthy` en **Node 24.22.1**, `api/health` **200**. Deux correctifs sont poussés mais **pas encore actifs en prod** : le seed des donjons (colonne `slug` requise) et la vitrine Caddy (les `/images/*` répondaient `200 text/html` → carrés blancs). **Op** : `./scripts/deploy-cd.sh prod 6604005`, puis `curl -I https://sigilos.fr/images/songes-bosses/3828_Protozorreur.png` = `200 image/png`.
-- **Rush Sylvestre — coche donjon + guide réparé (21/10/2026)** : les deux sources sont mesurées et figées (Tougli **100 / 102** séries + 30 Ordres + 19 classes ; Dofusyelle **57 étapes / 21 prépa / 40 saves / 62 succès**) · **union ressources 584**, donjons 99 + 83 (67 slugs identiques) · **verrou de donjons livré de bout en bout** : règle pure, table `PlayerGuideDungeonState` (**une coche par quête × donjon**), refus à la validation (quête **et** bloc), coche **DANS la quête** (pastille `Donjon ×N` → panneau ouvert) sur l'overlay (interne et invité), le dashboard et le guide public, **décocher un donjon dévalide la quête** (S0-7) · **guide interne réparé** : pagination par chapitre (23 pages fantômes → une page par chapitre/libellé), sommaire retiré, rail de droite réellement collant, prérequis ciblé visible. **Ops** : jouer la migration `20270115000000` en bêta puis prod (déjà en local). **Prochain lot** : `S0-6` (case « optionnel » par donjon dans God — sans elle tout donjon est requis) → `S4-1` (vue Branches 2 étages) → `S1` (contenu). Organisation complète : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
-- **Rush — overlay : verrou de donjons et notifications (22/10/2026)** : trois défauts mesurés puis corrigés — ① une quête dont un **donjon requis** n'était pas coché restait **cochable** (le verrou de l'overlay ne testait que les prérequis) → clic renvoyé au serveur → « erreur de synchronisation » ; ② ce message s'affichait **hors de l'overlay** (le `toast` de sonner rendait dans le Toaster du document hôte, pas dans le portail PiP) ; ③ la modale donjons était fade. Livrés : `missingRequiredDungeons` (clé + nom) + verrou composé **avec états chargés d'emblée**, mention « Donjons requis non validés » **avec les vignettes** des donjons manquants (clic = ouvre le panneau **en ciblant** le donjon), Toaster **dédié** `rush-overlay` dans le portail, et refonte de la carte donjon (aplats d'état, vignette 40 px, barre de progression). Verrou : `rush-overlay-dungeon-gate` **12 cas**. ⚠️ Restent hors périmètre : les sélecteurs **Ordre / Classe** côté joueur (voir §7 du présent fichier).
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
 
@@ -194,8 +59,8 @@
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (6 segments), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, **annuaire privé** par serveur, modération God | V1a→V1c, coque/assets/succès, V2e annuaire, V1e ladder, V1d progression, V2a-1/3/5 surface publique, V2a-4 alignement + mules + accueil, V2a-6 CTA, V2a-2 communautaire (D-V21), **V2f** (F8-F15, F17a livrés) — 06-08/11 ; **D-V1→D-V21** | **V2f** (F1-F7, F16, F17b) → V2a-4 reste (tour) → V2b → V2c → V2d → V3 | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (prochain : **V2f F16**) |
-| 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 | **E4 reporté** (chantier dédié) | skill | — |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (6 segments), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, **annuaire privé** par serveur, modération God | V1a→V1c, coque/assets/succès, V2e annuaire, V1e ladder, V1d progression, V2a-1/3/5 surface publique, V2a-4 alignement + mules + accueil, V2a-6 CTA, V2a-2 communautaire (D-V21), **V2f** (F8-F15, F17a livrés) — 06-08/11 · **Ocre public ISO** (panneau partagé, options ISO, lecture 400) 09/11 ; **D-V1→D-V21** | **V2f** (F1-F7, F16, F17b) → V2a-4 reste (tour) → V2b → V2c → V2d → V3 | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (prochain : **F17b**) |
+| 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 59 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 
 
@@ -312,6 +177,16 @@
 | `DASH-IMG` | Présentation — images **contrôlées** : éditeur (URL/base64/collage) + règlement sans image côté serveur | 30/10/2026 |
 | `rush-ressources` | Rush — ressources par quête : 81 séquences, 252 tags, 390 → 485 (`mergeItemTags`, script dry-run/`--sql`) | 04/11/2026 |
 | `songes-cloture` | Songes — clôture : `abandonDreamRun` (garde d'état + purge du post Discord), calendrier J+7/15/20/21 réparé (activité réelle, `updatedAt` figé, `IN_PROGRESS` inclus), rattrapage des embeds orphelins, refus par cause + garde avant la modale | 05/11/2026 |
+| `RUSH-MOVE` | Rush — déplacement de quête : action `moveRushSequence` (Zod borné 60/min, bloc cible relu dans le **même** guide, séparateur et bloc Conseil refusés, no-op si même bloc) qui n'écrit **que** `milestoneId` + `order` ; règle pure `nextSequenceOrder`, studio rebranché — verrou `rush-move-sequence` **10** | 05/11/2026 |
+| `RUSH-NOTES-25` | Conseils — cibles calculées sur **deux jeux** (dataset + base, `NoteTarget.questIds`, `scripts/correlate-rush-notes.ts`) : **25 notes** écrites (19 Brâkmarien, 6 Bontarien), **2ᵉ passage = 0** ; reste **194** (98 Brâkmarien sans source) | 04/11/2026 |
+| `BOSS-DOUBLE` | Succès — les doubles boss redeviennent cochables (`visibleDungeonAchievements`, rendu seulement s'il est le **seul** succès du donjon) + rattrapage idempotent `backfill-dungeon-completion` — verrous `dungeon-completion` **7** · `succes-ui-deslop` **4** | 25/10/2026 |
+| `DOFUS-CAPS` | Builds — plafonds **12 PA / 6 PM / 6 PO / 6 invocations** (`src/lib/dofus-caps.ts`) appliqués à l'affichage, point excédentaire **dit** ; refus de variante motivé (`explainVariantRefusal`, 3 causes) — verrou `dofus-caps` **6** | 26/10/2026 |
+| `DOFUSBOOK-FORCE` | Dofusbook — `force` de bout en bout (worker sans cache, TTL 60 s, `changed` renvoyé, stats `ii`/`ic` comptées) puis relais **redéployé** (`175b2e54`, en-tête `X-SigilOS-Cache`) — verrou `dofusbook-sync-force` **7** | 25-26/10/2026 |
+| `DONJON-ETAT` | Rush — coche donjon de bout en bout : table `PlayerGuideDungeonState` (**une coche par quête × donjon**, migration `20270115000000`), refus à la validation (quête **et** bloc), décocher un donjon **dévalide** la quête | 21/10/2026 |
+| `RUSH-OVERLAY-DONJON` | Overlay — verrou de donjons requis (`missingRequiredDungeons` + vignettes, clic ciblé), Toaster **dédié** dans le portail PiP, carte donjon refaite — verrou `rush-overlay-dungeon-gate` **12** | 22/10/2026 |
+| `harnais-discord` | Harnais — règle scopée `.clinerules/06-discord.md`, skill `discord-api`, §0 de `docs/agents/discord-module.md` : « une donnée absente n'est pas une impossibilité » | 24/10/2026 |
+| `PROD-MIGRATIONS` | Prod — ordre des migrations réparé (`add_component_stats` altérait une table créée un mois plus tard) : **32 migrations** appliquées, 6 conteneurs `Healthy` en Node 24.22.1, `api/health` 200 | 22/10/2026 |
+
 
 ## 6. Archives et mémoire froide
 

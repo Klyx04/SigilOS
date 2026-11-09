@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 06/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)**.
+> **Dernière MAJ : 09/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11).
 
 ## 1. Décisions verrouillées
 
@@ -229,7 +229,10 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   restent hors du public : elles n'ont pas de source côté visiteur.
 - Verrou `tests/unit/public-guide-visitor.test.ts` (6 cas).
 
-*V2a-2 — Progression Communautaire — **à faire***
+*V2a-2 — Progression Communautaire — livré le 08/11/2026*
+- Consentement **propre** : `PublicProfile.showRushProgress` (**D-V21**), `false` par défaut, colonne indexée
+  par migration additive ; règle pure `rush-community-progress`, serveur du lecteur **imposé**, nom de
+  personnage seulement.
 - Bloc alimenté par les profils **consentants** du même serveur ; détail **par bloc** ; donjons
   requis → qui l'a coché, qui l'a « à faire » (`resolveSequenceDungeons` +
   `PublicRushProgress.dungeonChecks`).
@@ -277,7 +280,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   entre tuiles et progression) · `public-guide-visitor` **10** (7 scalaires, liste blanche des
   identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
-**V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement le 07/11/2026*
+**V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement : 07/11 (alignement, mules) puis 08/11 (accueil en 3 étapes)*
 - **Alignement réglable — fait**, pour **tout le monde**. Connecté : action `updatePublicAlignment`
   (`src/server/actions/public-profile-actions.ts` + schéma `publicAlignmentSchema`), appelée par
   l'action colocalisée `_actions/public-alignment.ts` (le client public n'importe toujours aucun
@@ -289,7 +292,9 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **Mules déclarées — fait.** `altPseudos` entre dans `PublicGuideVisitor` (`mules: {pseudo, classe}[]`,
   déjà publique dans l'annuaire) et `GuestCharacterModal` les propose en un clic ; la progression en base
   étant clé par `characterSlot`, une mule est un emplacement comme un autre.
-- **Reste** : la modale d'entrée **classe → alignement → lancer le rush**, puis le **tour guidé complet**.
+- **Accueil de première arrivée — fait le 08/11/2026** : 3 étapes qui délèguent aux sélecteurs existants
+  (drapeau local, rejouable via Options). **Reste** : le **tour guidé spotlight** (le `TourProvider`
+  n'est monté que dans le dashboard — lot séparé).
 - Tour **rejouable** par un bouton « Revoir le tour », et **une seule fois** en automatique
   (drapeau local par visiteur). Réutilise `ModuleTourReplayButton` + `tour-provider`.
 - « Ma cité » (Bontarien / Neutre / Brâkmarien, `PublicRouteChoice`) quitte la barre : elle vit
@@ -309,7 +314,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   supprimé) ; **Metamob est cliquable** → espace visiteur (le formulaire et les actions y sont
   déjà : aucun import `@/server/` dans le client) ; **le guide anonyme n'affiche ni Metamob ni
   Rush Live**.
-- Bouton **« Réinitialiser »** visible et explicite (il existe, à remonter dans la barre). **Reste.**
+- Bouton **« Réinitialiser »** : **mesuré le 08/11** — il est déjà dans la barre, rien à coder.
 - **Reste aussi** : l'**alignement** cliquable comme l'interne. Mesuré : `PublicProfile.alignment`
   existe mais **aucune action ne l'écrit** et l'interne passe par `resetRushAlignment(guildId, …)`
   (pas de `guildId` côté visiteur) → il faut une action `updatePublicAlignment` (V2a-4), pas une
@@ -318,9 +323,10 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   Mesuré : la progression en base est clé par `characterSlot` (texte), donc **c'est possible** ;
   il manque seulement la liste des mules dans le sélecteur (V2a-4).
 
-**V2a-6 — invitation au profil (anonyme)**
+**V2a-6 — invitation au profil (anonyme) — livré le 08/11/2026**
 - Le guide non connecté **encourage** à créer son profil visiteur (progression sauvegardée,
   qui a coché quoi, présence) — sans bloquer la lecture : CTA discret, jamais une modale forcée.
+  **Fait** : CTA anonyme « Créer mon profil visiteur ».
 
 **V2b — Succès Donjons visiteurs** (**D-V9**)
 - Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
@@ -376,13 +382,56 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **Ne pas dupliquer `GuildStatusPanel`** : l'extraire en composant partagé (deux alimentations), sinon
   la parité guide interne / public se re-casse à la première évolution.
 
-**V2f — finitions demandées le 08/11/2026** *(brief du mainteneur, à ordonner)*
+**V2f — finitions demandées le 08/11/2026** *(livré en deux lots le 08/11 : F8→F11, puis F12→F15 + F17a ; reste F1→F7, F16, F17b)*
 
 > **Décisions tranchées le 08/11/2026** : ① **F2** = export **et** import d un fichier JSON, dans l interface anonyme ; aucun secret dedans. ② **F13/F15** = vérification du pseudo **bloquante avant** création (espace et mule), repli manuel seulement si le God l active. ③ **Pas de Metamob anonyme** : la clé API est un secret, elle reste chiffrée en base derrière un compte ; le CTA (F5) dit ce que l anonyme perd.
 
 > **Décisions complétées le 08/11/2026 (retours en cours de session)** :
 > ④ **F11** — la modale de retour s ouvre pour **tout le monde** (plus de toast qui affichait l URL brute). Un visiteur **non connecté** n y voit que l encart **Discord Sigilos** — lien cliquable + « ouvre un post dans le canal associé » pour les captures — et un seul bouton Fermer. Un **compte connecté** garde le formulaire complet (catégories, position, description). Comme `isGuest` est codé en dur à `true` par le guide public, la session lui est transmise **séparément** (`feedbackSignedIn`), et le panneau reçoit `onlyDiscord = isGuest && !feedbackSignedIn`. Le panneau est monté **hors** de `.da-hero` (il y était rogné, et ses enfants sont plafonnés à `z-index: 2` sous le dock `sticky` à 30).
 > ⑤ **Destination d un retour** — `submitQuestFeedbackAction` écrit un `SystemIssue`, notifie le God (`USER_FEEDBACK`) et pousse un embed Discord (`questFeedbackChannelId`, repli `godNotifyChannelId`). Le **tri côté God** (un seul endroit `?tab=tickets`, refonte UI/UX, module `ticket-bot` à revoir) est consigné dans `docs/plans/PLAN-TICKETS-GOD.md`.
+
+**V2f — ce qui est livré (mesuré, 08/11/2026)**
+
+- **F8** — frise et palier « Graine » retirés (le `h1` reste en `sr-only`), `.da-stage`/`.da-pips` et
+  `rush-dofus-stage.ts` **supprimés** (plus aucun consommateur).
+- **F9** — bandeau de rappel sous Tous/En cours/Faites/Verrouillées retiré (`.da-banner*`), la
+  **description** du bloc conservée.
+- **F10** — clignotement du mode clair : thème lu dans un *layout effect* isomorphe, donc **avant peinture**.
+- **F11** — panneau de retour monté **hors** de `.da-hero` (il y était rogné) : non connecté = **Discord seul**,
+  compte connecté = formulaire complet (`onlyDiscord = isGuest && !feedbackSignedIn`).
+- **F12** — menu compte sur des assets du jeu : `modules/guild.png`, `game-icons/house.png`,
+  `modules/character.png` (`UserRound` supprimé).
+- **F13 / F15** — pseudo vérifié au **ladder avant** création (seul `false` bloque, `null` reste fail-open) ;
+  les mules **nouvelles** seulement, sur le serveur du profil.
+- **F14** — clé Metamob validée par `/v1/me` **avant** écriture, fail-closed ; le pseudo renvoyé fait foi.
+- **F17a** — les quatre panneaux de métiers occupent une seule cellule (`forceMount` + `visibility: hidden`).
+
+**V2f — ce qui reste**
+
+- **F1→F7** : bandeau Dofus anonyme, export **et** import d'un fichier JSON (aucun secret dedans),
+  espacement/aération, prérequis repliables, CTA « ce que tu perds » (pas de Metamob anonyme : la clé est
+  un secret qui reste chiffré en base derrière un compte), grain.
+- **F16** : « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`.
+- **F17b** : « qui a ce métier à ce niveau » (`?niveau=`) — l'annuaire filtre déjà par `metier` et
+  `PublicProfession` porte déjà `@@index([metierId, level])`.
+
+**Ocre public ISO — livré le 09/11/2026 (PR #1315)**
+
+- `OcreQuestPanel` devient la **source unique** : liste, recherche, onglets, stepper ±1 et retour
+  d'écriture ; la modale publique « Marquer » **disparaît**.
+- Peau **DA** sur la modale publique (`daScopeProps(useDaTheme())` — le guide monte déjà `DaThemeProvider`) ;
+  **clé Metamob repliée** derrière « Modifier » quand le compte est vérifié ; accusé « Enregistré sur Metamob ».
+- Options **Gardiens / Archis** + ligne **zone · subzone** (`/v1/quests/{slug}/zones`, **même** clé de cache
+  Redis que l'interne) ; lecture bornée **200 → 400** (la quête compte 337 cibles).
+- Écriture publique par `useOcreWriteQueue` à **envoi injecté** (`patchPublicOcreMonster`) : même file de
+  sérialisation, aucun chemin dupliqué. Règle pure `classifyOcreType`. Verrou `rush-overlay-ocre` **41**.
+
+**Hero de l'overlay — livré le 09/11/2026 (PR #1316)**
+
+- Sous **700 px de haut**, la densité `wide` est plafonnée à la hauteur de `normal` (**112 px**) : la bande
+  vide de **276 px** disparaît, la liste remonte d'environ **170 px**. CSS seul, grand écran intact,
+  aucun contenu, bouton ni libellé déplacé. Verrou `da-wakfu` **+2** (le plafond **et** la règle
+  `276px / 30vh` restent tenus).
 
 > **Livré le 08/11/2026 (suite de session)** — **F12** le menu compte reprend l'asset de la barre
 > (`modules/guild.png`, `game-icons/house.png`, `modules/character.png` : deux `LayoutDashboard`

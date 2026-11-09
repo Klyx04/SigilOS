@@ -59,3 +59,39 @@ describe("rôles du cycle de vie d'essai", () => {
         expect(interactions).toContain("const addRoleId = dashboardRoles.addRoleId");
     });
 });
+
+/**
+ * V2 (09/11/2026) — case « me montrer avant d'appliquer les rôles » : le serveur refuse une
+ * validation non confirmée, et les cases décochées retirent le geste correspondant.
+ */
+describe("V2 — confirmation avant d'appliquer les rôles", () => {
+    const lifecycle = read("src/server/actions/member-lifecycle-actions.ts");
+    const settings = read("src/server/actions/trial-end-actions.ts");
+    const dialog = read("src/components/admin/members/member-detail-dialog.tsx");
+
+    it("le serveur refuse une validation non confirmée quand le réglage l'exige", () => {
+        expect(lifecycle).toContain("const needsRoleConfirmation =");
+        expect(lifecycle).toContain("guild.trialConfirmRoleChange === true");
+        expect(lifecycle).toContain("validated.data.rolesConfirmed !== true");
+        expect(lifecycle).toContain("Confirmation des rôles requise avant de valider l'essai.");
+    });
+
+    it("les cases décochées ne déclenchent pas le geste correspondant", () => {
+        expect(lifecycle).toContain("guild.confirmedRoleId && validated.data.applyConfirmedRole !== false");
+        expect(lifecycle).toContain("guild.trialRoleId && validated.data.removeTrialRole !== false");
+    });
+
+    it("le réglage est persisté, relu, et borné (booléen)", () => {
+        expect(settings).toContain("trialConfirmRoleChange: confirmRoleChange");
+        expect(settings).toContain("confirmRoleChange: config?.trialConfirmRoleChange ?? false");
+        expect(settings).toContain("confirmRoleChange?: boolean");
+    });
+
+    it("la fiche membre charge les règles et n'écrit qu'après confirmation", () => {
+        expect(dialog).toContain("getTrialRoleRules(guildId)");
+        expect(dialog).toContain("trialRoleRules?.confirmBeforeApply && rolesAtStake");
+        expect(dialog).toContain("setRoleConfirmOpen(true)");
+        expect(dialog).toContain("rolesConfirmed: true,");
+        expect(dialog).toContain("handleConfirmTrialRoles");
+    });
+});

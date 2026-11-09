@@ -33,6 +33,7 @@ export async function getTrialEndSettings(
         trialDurationDays: number;
         trialRoleId: string | null;
         confirmedRoleId: string | null;
+        confirmRoleChange: boolean;
     }>
 > {
     try {
@@ -46,6 +47,7 @@ export async function getTrialEndSettings(
                 trialDurationDays: true,
                 trialRoleId: true,
                 confirmedRoleId: true,
+                trialConfirmRoleChange: true,
             },
         });
         return {
@@ -55,6 +57,7 @@ export async function getTrialEndSettings(
                 trialDurationDays: config?.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
                 trialRoleId: config?.trialRoleId || null,
                 confirmedRoleId: config?.confirmedRoleId || null,
+                confirmRoleChange: config?.trialConfirmRoleChange ?? false,
             },
         };
     } catch (error) {
@@ -71,7 +74,9 @@ export async function updateTrialEndSettings(
      * Rôles du cycle de vie — **facultatifs**. `undefined` = ne pas toucher au réglage existant
      * (un enregistrement du seul salon ne doit pas effacer un rôle) ; `null` = retirer le rôle.
      */
-    roles?: { trialRoleId?: string | null; confirmedRoleId?: string | null }
+    roles?: { trialRoleId?: string | null; confirmedRoleId?: string | null },
+    /** V2 : exiger (ou non) une confirmation des cases avant d'appliquer les rôles. */
+    confirmRoleChange?: boolean
 ): Promise<ActionResponse> {
     try {
         const user = await getUserContext(guildId);
@@ -132,6 +137,7 @@ export async function updateTrialEndSettings(
                 ...(duration !== undefined ? { trialDurationDays: duration } : {}),
                 ...(trialRoleId !== undefined ? { trialRoleId } : {}),
                 ...(confirmedRoleId !== undefined ? { confirmedRoleId } : {}),
+                ...(confirmRoleChange !== undefined ? { trialConfirmRoleChange: confirmRoleChange } : {}),
             },
         });
         return { success: true };

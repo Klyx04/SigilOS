@@ -557,6 +557,10 @@ model GuildConfig {
   arrivingRoleId                   String?
   trialRoleId                      String?
   confirmedRoleId                  String?
+  /// V2 du cycle de vie (09/11/2026) : quand c'est vrai, la validation d'un essai demande une
+  /// confirmation explicite (cases à cocher) avant d'appliquer les rôles sur Discord.
+  /// Défaut `false` = comportement d'un seul clic, comme avant.
+  trialConfirmRoleChange           Boolean                 @default(false)
   recruitmentWelcomeTemplate       String?
   // ── Chantier Y — « Rôles automatiques par ancienneté » (lot Y-1 : données + règles pures) ──
   // Paliers `seuil en jours → rôles Discord`, salon de l'annonce et message

@@ -10,6 +10,7 @@ import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/
 import { getTrialEndSettings, updateTrialEndSettings } from "@/server/actions/trial-end-actions";
 import { getAssignableTrialRoles } from "@/server/actions/member-lifecycle-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /**
  * 🎓 Réglage du salon **fin d'essai**.
@@ -23,6 +24,7 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
     const [trialDurationDays, setTrialDurationDays] = useState(14);
     const [trialRoleId, setTrialRoleId] = useState("");
     const [confirmedRoleId, setConfirmedRoleId] = useState("");
+    const [confirmRoleChange, setConfirmRoleChange] = useState(false);
     const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -41,6 +43,7 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                 setTrialDurationDays(res.data.trialDurationDays);
                 setTrialRoleId(res.data.trialRoleId || "");
                 setConfirmedRoleId(res.data.confirmedRoleId || "");
+                setConfirmRoleChange(res.data.confirmRoleChange === true);
             }
             if (rolesRes.success && rolesRes.data) {
                 setRoles(rolesRes.data.map((role) => ({ id: role.id, name: role.name })));
@@ -54,10 +57,16 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
 
     const handleSave = () => {
         startTransition(async () => {
-            const result = await updateTrialEndSettings(guildId, channelId.trim() || null, trialDurationDays, {
-                trialRoleId: trialRoleId || null,
-                confirmedRoleId: confirmedRoleId || null,
-            });
+            const result = await updateTrialEndSettings(
+                guildId,
+                channelId.trim() || null,
+                trialDurationDays,
+                {
+                    trialRoleId: trialRoleId || null,
+                    confirmedRoleId: confirmedRoleId || null,
+                },
+                confirmRoleChange
+            );
             if (result.success) {
                 toast.success("Réglages de fin d'essai enregistrés.");
             } else {
@@ -186,6 +195,26 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                     Seuls les rôles situés sous le rôle du bot et sous ton rôle le plus haut sur Discord sont
                     proposés. Un rôle laissé sur « Aucun rôle » n&apos;est jamais touché.
                 </p>
+                <label
+                    htmlFor="confirm-role-change"
+                    className="flex items-start gap-3 rounded-xl border border-border bg-surface/60 p-3"
+                >
+                    <Checkbox
+                        id="confirm-role-change"
+                        checked={confirmRoleChange}
+                        onCheckedChange={(checked) => setConfirmRoleChange(checked === true)}
+                        className="mt-0.5"
+                    />
+                    <span className="space-y-1">
+                        <span className="block text-xs font-medium text-foreground">
+                            Me montrer avant d&apos;appliquer les rôles
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                            À la validation d&apos;un essai, une fenêtre récapitule les rôles ajoutés et retirés —
+                            tu peux décocher un geste pour ce membre précis.
+                        </span>
+                    </span>
+                </label>
                 <div className="flex justify-end">
                     <Button
                         onClick={handleSave}

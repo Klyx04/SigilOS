@@ -688,6 +688,24 @@ export async function getMyOcreProgress(
                 const skeletonNameMap = new Map<string, QuestMonster>();
                 masterList.forEach(m => { if (m.name?.fr) skeletonNameMap.set(m.name.fr.toLowerCase().trim(), m); });
 
+                // 🔎 Diagnostic (09/11/2026) : trois cibles (Blops royaux) restaient sans image
+                // alors que `Archimonstre` semble les connaître. On NOMME les cibles sans image
+                // résolue — nom de monstre uniquement, jamais un identifiant de membre — pour
+                // trancher entre « absente de la table », « graphie divergente » et « imageUrl
+                // nulle en base ». `warn` : c'est un manque de donnée, pas une panne produit.
+                if (masterList.length > 0) {
+                    const unresolved = masterList
+                        .map((m) => m.name?.fr || "")
+                        .filter((name) => name && !nameToImageMap.has(imageKey(name)))
+                        .slice(0, 10);
+                    if (unresolved.length > 0) {
+                        logger.warn("[getMyOcreProgress] cibles sans image résolue", {
+                            total: masterList.length,
+                            unresolved,
+                        });
+                    }
+                }
+
                 userQuestData.forEach(m => {
                     let tid = m.monster_id ?? (m as any).monster?.id ?? m.id;
                     if (skeletonMonsters.length > 0 && !skeletonIdMap.has(tid)) {

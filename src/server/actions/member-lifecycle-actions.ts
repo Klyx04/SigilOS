@@ -128,6 +128,11 @@ const updateConfigSchema = z.object({
 const trialStateSchema = z.object({
     validated: z.boolean(),
     trialEndsAt: z.string().datetime().nullable().optional(),
+    /** V2 : le staff a confirmé les cases (obligatoire quand le réglage l'exige). */
+    rolesConfirmed: z.boolean().optional(),
+    /** V2 : cases de la fenêtre de confirmation — `false` = ne pas appliquer ce geste. */
+    applyConfirmedRole: z.boolean().optional(),
+    removeTrialRole: z.boolean().optional(),
 });
 
 const departureSchema = z.object({
@@ -712,7 +717,15 @@ export async function getMemberRegistryDiscordIndex(
 export async function setMemberTrialState(
     guildId: string,
     subject: RegistrySubject,
-    input: { validated: boolean; trialEndsAt?: string | null }
+    input: {
+        validated: boolean;
+        trialEndsAt?: string | null;
+        /** V2 : le staff a confirmé la fenêtre (obligatoire si le réglage l'exige). */
+        rolesConfirmed?: boolean;
+        /** V2 : cases de la fenêtre — `false` = ne pas appliquer ce geste. */
+        applyConfirmedRole?: boolean;
+        removeTrialRole?: boolean;
+    }
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
@@ -732,9 +745,22 @@ export async function setMemberTrialState(
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            // Rôles du cycle de vie : facultatifs (null = aucun geste Discord à cette étape).
+            select: { id: true, trialRoleId: true, confirmedRoleId: true, trialConfirmRoleChange: true }
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // V2 — confirmation explicite : quand le réglage l'exige, on REFUSE d'écrire tant que le
+        // staff n'a pas validé les cases. Fail-closed : jamais un geste Discord non confirmé,
+        // et l'état d'essai n'est pas validé en douce.
+        const needsRoleConfirmation =
+            validated.data.validated === true &&
+            guild.trialConfirmRoleChange === true &&
+            (guild.trialRoleId !== null || guild.confirmedRoleId !== null) &&
+            validated.data.rolesConfirmed !== true;
+        if (needsRoleConfirmation) {
+            return { success: false, error: "Confirmation des rôles requise avant de valider l'essai." };
+        }
 
         const target = resolveRegistryTarget(subject);
         const trialEndsAt = validated.data.validated
@@ -744,12 +770,31 @@ export async function setMemberTrialState(
               : null;
         const data = { trialValidated: validated.data.validated, trialEndsAt };
 
+        // Snowflake Discord de la cible : seule valeur utilisable pour un geste de rôle.
+        let targetDiscordId: string | null = null;
+
         if (target.kind === "profile") {
             const profile = await db.userProfile.findFirst({
                 where: { id: target.profileId, guildId: guild.id },
-                select: { id: true, pseudoDofus: true, discordNickname: true, trialValidated: true, trialEndsAt: true },
+                select: {
+                    id: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
+                    trialValidated: true,
+                    trialEndsAt: true,
+                    user: {
+                        select: {
+                            accounts: {
+                                where: { provider: "discord" },
+                                select: { providerAccountId: true },
+                                take: 1,
+                            },
+                        },
+                    },
+                },
             });
             if (!profile) return { success: false, error: "Profil membre introuvable" };
+            targetDiscordId = profile.user?.accounts?.[0]?.providerAccountId ?? null;
 
             await db.userProfile.update({ where: { id: profile.id }, data });
 
@@ -768,6 +813,7 @@ export async function setMemberTrialState(
                 },
             });
         } else {
+            targetDiscordId = target.discordId;
             const entry = await db.memberRegistryEntry.upsert({
                 where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
                 create: { guildId: guild.id, discordId: target.discordId, ...data },
@@ -787,14 +833,43 @@ export async function setMemberTrialState(
             });
         }
 
+        // ─── Rôles Discord (optionnels) ────────────────────────────────────────
+        // `trialRoleId` / `confirmedRoleId` sont facultatifs : sans eux, aucun geste Discord
+        // (comportement historique). L'état d'essai est écrit même si Discord refuse, mais on ne
+        // rend JAMAIS un « ok » optimiste : chaque refus est remonté dans le message.
+        const roleOutcomes: string[] = [];
+        if (targetDiscordId) {
+            const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
+            const roleReason = validated.data.validated ? "SigilOS — essai validé" : "SigilOS — essai démarré";
+            if (validated.data.validated) {
+                // Cases de la fenêtre de confirmation : `false` = le staff a décoché ce geste.
+                if (guild.confirmedRoleId && validated.data.applyConfirmedRole !== false) {
+                    const applied = await addGuildMemberRole(guildId, targetDiscordId, guild.confirmedRoleId, roleReason);
+                    roleOutcomes.push(applied.success ? "+ rôle confirmé" : `⚠️ rôle confirmé non ajouté : ${applied.error}`);
+                }
+                if (guild.trialRoleId && validated.data.removeTrialRole !== false) {
+                    const removed = await removeGuildMemberRole(guildId, targetDiscordId, guild.trialRoleId, roleReason);
+                    roleOutcomes.push(removed.success ? "− rôle d'essai" : `⚠️ rôle d'essai non retiré : ${removed.error}`);
+                }
+            } else if (guild.trialRoleId) {
+                const applied = await addGuildMemberRole(guildId, targetDiscordId, guild.trialRoleId, roleReason);
+                roleOutcomes.push(applied.success ? "+ rôle d'essai" : `⚠️ rôle d'essai non ajouté : ${applied.error}`);
+            }
+        } else if (guild.trialRoleId || guild.confirmedRoleId) {
+            roleOutcomes.push("⚠️ aucun compte Discord lié : rôle non appliqué");
+        }
+
         // Sans revalidation, la liste `/admin/members` reste servie depuis le cache de
         // rendu : la fiche rouvre l'ANCIENNE date et le bandeau n'affiche pas la
         // reprogrammation, même après `router.refresh()` (mesuré le 29/10/2026).
         revalidatePath(`/dashboard/${guildId}/admin/members`);
 
+        const baseMessage = validated.data.validated ? "Essai validé" : "Essai mis à jour";
         return {
             success: true,
-            data: { message: validated.data.validated ? "Essai validé" : "Essai mis à jour" },
+            data: {
+                message: roleOutcomes.length > 0 ? `${baseMessage} · ${roleOutcomes.join(" · ")}` : baseMessage,
+            },
         };
     } catch (err: unknown) {
         logger.error("[setMemberTrialState] Erreur:", err);
@@ -807,6 +882,105 @@ export async function setMemberTrialState(
  */
 export async function validateMemberTrial(guildId: string, subject: RegistrySubject): Promise<ActionResponse<{ message: string }>> {
     return setMemberTrialState(guildId, subject, { validated: true });
+}
+
+/**
+ * Rôles Discord que le staff connecté peut **réellement** poser sur un membre (cycle de vie).
+ *
+ * Mesure du 09/11/2026 (doc Discord « Permissions » + `discord-api-types`) : un rôle au-dessus
+ * ou au même niveau que le rôle le plus haut du bot répond **403**, et un staff non
+ * administrateur ne doit agir que sous son propre rôle le plus haut. On ne propose donc jamais
+ * un rôle qui échouera : `@everyone`, rôles gérés par une intégration et rôles hors plafond
+ * sont écartés par la règle pure `filterAssignableRoles`.
+ *
+ * Fail-closed : Discord indisponible ⇒ liste vide (le réglage reste « Aucun rôle »).
+ */
+export async function getAssignableTrialRoles(
+    guildId: string
+): Promise<ActionResponse<Array<{ id: string; name: string; color: number; position: number }>>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    try {
+        const { fetchGuildRoles, fetchGuildMember, fetchCurrentBotUser } = await import("@/server/discord");
+        const { filterAssignableRoles, highestRolePosition } = await import("@/lib/discord/assignable-roles");
+
+        const [roles, botUser] = await Promise.all([
+            fetchGuildRoles(guildId, { excludeManaged: false }),
+            fetchCurrentBotUser(),
+        ]);
+        if (!botUser) return { success: true, data: [] };
+
+        const [botMember, staffMember] = await Promise.all([
+            fetchGuildMember(guildId, botUser.id).catch(() => null),
+            ctx.discordId ? fetchGuildMember(guildId, ctx.discordId).catch(() => null) : Promise.resolve(null),
+        ]);
+
+        const botPosition = highestRolePosition(botMember?.roles ?? [], roles);
+        // Administrateur du dashboard : aucun plafond lié à ses rôles — seul le bot borne.
+        const staffPosition = ctx.isAdmin
+            ? Number.POSITIVE_INFINITY
+            : highestRolePosition(staffMember?.roles ?? [], roles);
+
+        const assignable = filterAssignableRoles(roles, { guildId, botPosition, staffPosition });
+        return {
+            success: true,
+            data: assignable.map((role) => ({
+                id: role.id,
+                name: role.name,
+                color: role.color,
+                position: role.position,
+            })),
+        };
+    } catch (error) {
+        logger.error("[getAssignableTrialRoles] Erreur:", error);
+        return { success: false, error: "Impossible de récupérer les rôles attribuables" };
+    }
+}
+
+/**
+ * Règles de rôle lues par la fiche membre **avant** une validation d'essai (V2).
+ *
+ * La fiche n'est pas forcément admin : lecture bornée à `isAdmin || canManageMembers`, et on ne
+ * transporte que ce qu'il faut pour la fenêtre de confirmation. Elle **ne remplace pas** la garde
+ * serveur : `setMemberTrialState` refuse toute validation non confirmée (`rolesConfirmed`) quand
+ * `confirmBeforeApply` est vrai.
+ */
+export async function getTrialRoleRules(
+    guildId: string
+): Promise<
+    ActionResponse<{ confirmBeforeApply: boolean; trialRoleId: string | null; confirmedRoleId: string | null }>
+> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { trialRoleId: true, confirmedRoleId: true, trialConfirmRoleChange: true },
+        });
+        return {
+            success: true,
+            data: {
+                confirmBeforeApply: config?.trialConfirmRoleChange ?? false,
+                trialRoleId: config?.trialRoleId || null,
+                confirmedRoleId: config?.confirmedRoleId || null,
+            },
+        };
+    } catch (error) {
+        logger.error("[getTrialRoleRules] Erreur:", error);
+        return { success: false, error: "Impossible de charger les règles de rôle" };
+    }
 }
 
 /**
@@ -833,7 +1007,7 @@ export async function recordMemberDeparture(
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, trialRoleId: true }
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
@@ -906,6 +1080,16 @@ export async function recordMemberDeparture(
             newValue: { status: targetStatus, reason: data.reason, category: data.category },
             metadata: { memberName }
         });
+
+        // Rôle d'essai : un départ ne doit pas laisser le membre porter le rôle du cycle de vie
+        // d'essai. Optionnel (sans réglage, aucun geste) et jamais bloquant pour l'archivage.
+        if (guild.trialRoleId && discordId) {
+            const { removeGuildMemberRole } = await import("@/server/discord");
+            const removed = await removeGuildMemberRole(guildId, discordId, guild.trialRoleId, "SigilOS — départ");
+            if (!removed.success) {
+                logger.warn("[recordMemberDeparture] rôle d'essai non retiré", { error: removed.error });
+            }
+        }
 
         // Carte Discord du cycle de vie : les boutons « Archiver » / « Exclure » de la fiche
         // n'envoyaient RIEN, alors que la synchro automatique notifie déjà (mesure du

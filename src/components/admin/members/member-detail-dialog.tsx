@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -78,6 +79,7 @@ import {
     recordMemberDeparture,
     reintegrateMember,
     setMemberTrialState,
+    getTrialRoleRules,
     updateMemberAlts,
     updateMemberRecruiter,
     updateMemberRegistryComment,
@@ -221,6 +223,20 @@ export function MemberDetailDialog({
     const [ankamaId, setAnkamaId] = useState(row?.ankamaId ?? "");
     const [joinedAt, setJoinedAt] = useState(row?.joinedAt ? row.joinedAt.slice(0, 10) : "");
     const [trialEndsAt, setTrialEndsAt] = useState(row?.trial?.endsAt ? row.trial.endsAt.slice(0, 10) : "");
+    /**
+     * V2 — règles de rôle du cycle de vie, lues à l'ouverture de la fiche : quand
+     * `confirmBeforeApply` est vrai, « Valider l'essai » ouvre une confirmation au lieu
+     * d'appliquer directement (la garde serveur refuse de toute façon une validation non
+     * confirmée, donc l'écran ne peut pas contourner le réglage).
+     */
+    const [trialRoleRules, setTrialRoleRules] = useState<{
+        confirmBeforeApply: boolean;
+        trialRoleId: string | null;
+        confirmedRoleId: string | null;
+    } | null>(null);
+    const [roleConfirmOpen, setRoleConfirmOpen] = useState(false);
+    const [applyConfirmedRole, setApplyConfirmedRole] = useState(true);
+    const [removeTrialRole, setRemoveTrialRole] = useState(true);
     const [departureReason, setDepartureReason] = useState("");
     const [departureCategory, setDepartureCategory] =
         useState<"VOLUNTARY" | "INACTIVITY" | "BEHAVIOR" | "OTHER">("VOLUNTARY");
@@ -297,6 +313,29 @@ export function MemberDetailDialog({
             cancelled = true;
         };
     }, [open, displayedDiscordId, guildId, canManageMembers]);
+
+    /**
+     * V2 — règles de rôle du cycle de vie : lues à l'ouverture de la fiche, pour savoir si
+     * « Valider l'essai » doit d'abord demander une confirmation. Échec de lecture ⇒ `null`
+     * (comportement V1), et la garde serveur reste la seule autorité.
+     */
+    useEffect(() => {
+        if (!open || !canManageMembers) {
+            setTrialRoleRules(null);
+            return;
+        }
+        let cancelled = false;
+        getTrialRoleRules(guildId)
+            .then((res) => {
+                if (!cancelled && res.success && res.data) setTrialRoleRules(res.data);
+            })
+            .catch(() => {
+                if (!cancelled) setTrialRoleRules(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, guildId, canManageMembers]);
 
     if (!row) {
         return null;
@@ -386,15 +425,44 @@ export function MemberDetailDialog({
         );
     }
 
+    /**
+     * Valide l'essai. V2 : quand le réglage l'exige et qu'un rôle est concerné, on ouvre d'abord
+     * la fenêtre de confirmation — l'écriture n'est faite qu'au clic sur « Confirmer ».
+     */
     function handleSaveTrial() {
+        if (!row) return;
+        const rolesAtStake = !!(trialRoleRules?.confirmedRoleId || trialRoleRules?.trialRoleId);
+        if (trialRoleRules?.confirmBeforeApply && rolesAtStake) {
+            setApplyConfirmedRole(true);
+            setRemoveTrialRole(true);
+            setRoleConfirmOpen(true);
+            return;
+        }
+        run(
+            () =>
+                setMemberTrialState(guildId, subject, {
+                    validated: true,
+                    trialEndsAt: trialEndsAt ? new Date(`${trialEndsAt}T00:00:00.000Z`).toISOString() : null,
+                    rolesConfirmed: true,
+                }),
+            "Essai validé"
+        );
+    }
+
+    /** Applique la validation avec les gestes **cochés** dans la fenêtre de confirmation. */
+    function handleConfirmTrialRoles() {
         if (!row) return;
         run(
             () =>
                 setMemberTrialState(guildId, subject, {
                     validated: true,
                     trialEndsAt: trialEndsAt ? new Date(`${trialEndsAt}T00:00:00.000Z`).toISOString() : null,
+                    rolesConfirmed: true,
+                    applyConfirmedRole,
+                    removeTrialRole,
                 }),
-            "Essai validé"
+            "Essai validé",
+            () => setRoleConfirmOpen(false)
         );
     }
 
@@ -1342,6 +1410,75 @@ export function MemberDetailDialog({
                     onSuccess={() => onChanged?.()}
                 />
             )}
+            {/* V2 — confirmation des rôles avant de valider l'essai (réglage « me montrer avant »). */}
+            <Dialog open={roleConfirmOpen} onOpenChange={setRoleConfirmOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Valider l&apos;essai et appliquer les rôles ?</DialogTitle>
+                        <DialogDescription>
+                            Décoche un geste pour ce membre précis. Rien n&apos;est appliqué avant
+                            « Confirmer ».
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        {trialRoleRules?.confirmedRoleId && (
+                            <label
+                                htmlFor="confirm-add-role"
+                                className="flex items-start gap-3 rounded-lg border border-border bg-surface/60 p-3"
+                            >
+                                <Checkbox
+                                    id="confirm-add-role"
+                                    checked={applyConfirmedRole}
+                                    onCheckedChange={(checked) => setApplyConfirmedRole(checked === true)}
+                                    className="mt-0.5"
+                                />
+                                <span className="space-y-1">
+                                    <span className="block text-xs font-medium text-foreground">
+                                        Ajouter le rôle confirmé
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                        {roleNames.get(trialRoleRules.confirmedRoleId) ?? "rôle configuré"}
+                                    </span>
+                                </span>
+                            </label>
+                        )}
+                        {trialRoleRules?.trialRoleId && (
+                            <label
+                                htmlFor="confirm-remove-role"
+                                className="flex items-start gap-3 rounded-lg border border-border bg-surface/60 p-3"
+                            >
+                                <Checkbox
+                                    id="confirm-remove-role"
+                                    checked={removeTrialRole}
+                                    onCheckedChange={(checked) => setRemoveTrialRole(checked === true)}
+                                    className="mt-0.5"
+                                />
+                                <span className="space-y-1">
+                                    <span className="block text-xs font-medium text-foreground">
+                                        Retirer le rôle d&apos;essai
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                        {roleNames.get(trialRoleRules.trialRoleId) ?? "rôle configuré"}
+                                    </span>
+                                </span>
+                            </label>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setRoleConfirmOpen(false)}
+                            disabled={isPending}
+                        >
+                            Annuler
+                        </Button>
+                        <Button onClick={handleConfirmTrialRoles} disabled={isPending}>
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Confirmer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

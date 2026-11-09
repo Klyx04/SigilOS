@@ -203,7 +203,10 @@ déclaré, `decideSignInAccess`, garde `requirePublicAccount`, interrupteur `PUB
   efface aussi la base. **Non connecté : aucun appel réseau**, le `localStorage` reste la source (D1).
 - **Migration** `20270128000000_public_rush_progress_slot_text` : `characterSlot` Int → String
   (**D-V20**), table vide par construction.
-- Limite assumée : `resources` (5ᵉ clé locale) n'a **pas** de colonne — elle reste locale jusqu'à V2a.
+- Limite assumée : `resources` (5ᵉ clé locale) n'a **pas** de colonne — **mesuré le 09/11/2026** :
+  `PublicRushProgress` n'a **aucun** champ `resources` (seuls `completedMilestones`, `completedSteps`,
+  `bookmarks`, `dungeonChecks`, `currentStep` existent). La clé reste donc locale, y compris pour un
+  visiteur connecté.
 - Verrou `tests/unit/public-rush-progress.test.ts` (15 cas) + parité de schéma (16).
 
 **V1e — synchro ladder — livré le 06/11/2026**
@@ -328,7 +331,8 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   qui a coché quoi, présence) — sans bloquer la lecture : CTA discret, jamais une modale forcée.
   **Fait** : CTA anonyme « Créer mon profil visiteur ».
 
-**V2b — Succès Donjons visiteurs** (**D-V9**)
+**V2b — Succès Donjons visiteurs** (**D-V9**) — **absorbé par F16** : un seul lot, pas deux. F16 porte à la
+fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue « succès en commun » sur `/visiteurs`.
 - Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
   (réemploi de la vue « Succès Commun » interne).
 
@@ -452,7 +456,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **F2** Import/export du profil local : tout vit dans `localStorage` ; un nettoyage de cookies perd progression, cité et alignement. Proposer un **fichier** JSON (export/import), jamais une synchro serveur implicite.
 - **F3** Espacement des tuiles (Personnage / Alignement / Overlay trop serrées) et **Metamob remis dans l alignement** des tuiles.
 - **F4** Aérer la rangée « Rechercher une quête + Options ».
-- **F5** Dire à l'anonyme ce qu'il **perd** (communautaire, sauvegarde multi-appareils) près du CTA.
+- **F5** Dire à l'anonyme ce qu'il **perd** (communautaire, sauvegarde multi-appareils) près du CTA — **recouvre le CTA de V2a-6** : un seul geste à coder.
 - **F6** Prérequis nombreux : 12 chips illisibles → liste repliable.
 
 *Guide public — rendu*

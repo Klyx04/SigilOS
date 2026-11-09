@@ -52,6 +52,11 @@
 
 ## 3. Lots E1 → E5
 
+> ⚠️ **Trois « E4 » coexistent dans la doc** : ① ici, **E4 = DA God du studio** (ci-dessous) ;
+> ② la **passation E4 de la DA Wakfu** (rang 58, `docs/ROADMAP.md`) ; ③ l'**étape E4 du lot T-3**
+> (suppression d'un bloc par `Dialog` Radix, PR #857, `PLAN-REFONTE-RUSH-SYLVESTRE.md`). Toujours
+> qualifier : « E4 studio », « E4 DA Wakfu », « étape E4 ».
+
 | Lot | Contenu | Taille |
 |---|---|---|
 | **E1 — Squelette** — **livré le 05/11/2026** | Shell 3 panneaux, arbre persistant, recherche/filtres, sélection, barre unique, Ctrl+K, garde de sauvegarde, responsive (arbre en `Sheet` < 1024, inspecteur en `Sheet` < 768). Les formulaires existants sont **montés tels quels** dans l'inspecteur : on ne réécrit rien encore. **Livré dans** `src/components/god/rush-editor/**` (`RushEditorShell`, `RushEditorTopbar`, `RushEditorTree`, `RushEditorInspector`, `RushEditorCommandPalette`, `useRushEditorSelection`) + `src/lib/rush-editor-selection.ts` ; l'app file est un ré-export. | L (1-2 PR) |

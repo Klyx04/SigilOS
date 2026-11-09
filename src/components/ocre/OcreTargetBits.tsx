@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Minus, Plus, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ocreMonsterIcon, ocreMonsterImage, ocreMonsterLegacyImage, ocreStateLabel } from "@/lib/ocre-soul-stones";
+import { ocreMonsterThumbChain, ocreStateLabel } from "@/lib/ocre-soul-stones";
 
 /**
  * Briques PARTAGÉES d'une cible de la Quête Ocre (archimonstre / gardien) :
@@ -12,7 +12,7 @@ import { ocreMonsterIcon, ocreMonsterImage, ocreMonsterLegacyImage, ocreStateLab
  * même comportement d'écriture partout.
  */
 
-/** Vignette d'un monstre : image résolue par le serveur, puis WebP LOCAL, puis PNG du dépôt, puis nos pictos (jamais de réseau codé ici). */
+/** Vignette d'un monstre : image résolue par le serveur, puis PNG du dépôt, puis nos pictos (la chaîne est une règle pure, testée). */
 export function OcreMonsterThumb({
   id,
   type,
@@ -28,9 +28,7 @@ export function OcreMonsterThumb({
   dimmed?: boolean;
   className?: string;
 }) {
-  const chain = [imageUrl, ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)].filter(
-    (src): src is string => typeof src === "string" && src.length > 0
-  );
+  const chain = ocreMonsterThumbChain(id, type, imageUrl);
   const [step, setStep] = useState(0);
 
   useEffect(() => setStep(0), [id, type, imageUrl]);

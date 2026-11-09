@@ -50,7 +50,7 @@ import {
     type QuestSettings,
 } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
-import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
+import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -653,6 +653,34 @@ export async function getMyOcreProgress(
                     }
                 } catch { /* silent — zones are best-effort */ }
 
+                // ===========================================================================
+                // IMAGES — la table de référence locale porte l'URL de l'image de chaque cible.
+                // Mesure du 09/11/2026 (panneau « Mon Ocre », bêta) : l'`id` du panneau est un id
+                // **Metamob**, pas un id d'entité de jeu — `347` n'existe pas côté source d'images
+                // (`No record found for id '347'`) et `2508` y désigne un AUTRE monstre. Le proxy
+                // interne répondait donc un PNG transparent 1×1 (118 octets) ou la mauvaise
+                // créature. L'URL que portait la donnée était celle de Metamob, un hôte distant que
+                // `ocreMonsterImageUrl` refuse par design ⇒ vignette vide puis 404 en série.
+                // On résout donc l'image **par nom** depuis `Archimonstre` (même source que
+                // `getZoneArchmonsters`) : le proxy la sert dans l'espace d'apparence.
+                // ===========================================================================
+                const nameToImageMap = new Map<string, string>(); // archiNameFr dé-accentué → URL interne
+                // Même normalisation que `getZoneArchmonsters` (NFD sans accents) : deux graphies
+                // d'un même nom ne doivent pas priver la cible de son image.
+                const imageKey = (s: string) =>
+                    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                try {
+                    const ocreArchis = await db.archimonstre.findMany({
+                        where: { type: { in: ["archimonstre", "boss"] } },
+                        select: { name: true, imageUrl: true, dofusdbId: true },
+                    });
+                    for (const a of ocreArchis) {
+                        const internal = internalDofusDbImageUrl(a.imageUrl)
+                            ?? normalizeDofusAssetStoredUrl("monsters", a.imageUrl, a.dofusdbId);
+                        if (internal) nameToImageMap.set(imageKey(a.name), internal);
+                    }
+                } catch { /* silent — visuels best-effort, le picto du jeu reste le repli */ }
+
                 // Mapping
                 const masterList = skeletonMonsters.length > 0 ? skeletonMonsters : userQuestData;
                 const userMap = new Map<number, QuestMonster>();
@@ -686,6 +714,10 @@ export async function getMyOcreProgress(
                     const szVal = nameToSubzoneMap.get(zoneKey);
                     if (zVal) norm.zone = zVal;
                     if (szVal) norm.subzone = szVal;
+                    // Image interne (proxy) résolue par NOM : elle remplace l'URL distante de
+                    // Metamob, qui ne doit jamais finir dans le DOM (cf. bloc IMAGES ci-dessus).
+                    const imgVal = nameToImageMap.get(imageKey(norm.nameFr));
+                    if (imgVal) norm.image = imgVal;
 
                     finalMonsters.push(norm);
                     cT++;

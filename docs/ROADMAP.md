@@ -193,6 +193,8 @@
 | `DOFUSBOOK-FORCE` | Dofusbook — `force` de bout en bout (worker sans cache, TTL 60 s, `changed` renvoyé, stats `ii`/`ic` comptées) puis relais **redéployé** (`175b2e54`, en-tête `X-SigilOS-Cache`) — verrou `dofusbook-sync-force` **7** | 25-26/10/2026 |
 | `DONJON-ETAT` | Rush — coche donjon de bout en bout : table `PlayerGuideDungeonState` (**une coche par quête × donjon**, migration `20270115000000`), refus à la validation (quête **et** bloc), décocher un donjon **dévalide** la quête | 21/10/2026 |
 | `RUSH-OVERLAY-DONJON` | Overlay — verrou de donjons requis (`missingRequiredDungeons` + vignettes, clic ciblé), Toaster **dédié** dans le portail PiP, carte donjon refaite — verrou `rush-overlay-dungeon-gate` **12** | 22/10/2026 |
+| `OCRE-VIGNETTES` | Quête Ocre — vignettes : l'image est résolue **par nom** dans `Archimonstre` puis proxifiée (espace apparence `?sprite=1`), au lieu de l'id Metamob (347 = introuvable, 2508 = un autre monstre) et de l'URL Metamob distante que `ocreMonsterImageUrl` refuse ; chaîne de repli extraite en règle pure `ocreMonsterThumbChain` (plus de 404 `.webp` par vignette) — verrou `rush-overlay-ocre` **46** | 09/11/2026 |
+
 | `harnais-discord` | Harnais — règle scopée `.clinerules/06-discord.md`, skill `discord-api`, §0 de `docs/agents/discord-module.md` : « une donnée absente n'est pas une impossibilité » | 24/10/2026 |
 | `PROD-MIGRATIONS` | Prod — ordre des migrations réparé (`add_component_stats` altérait une table créée un mois plus tard) : **32 migrations** appliquées, 6 conteneurs `Healthy` en Node 24.22.1, `api/health` 200 | 22/10/2026 |
 

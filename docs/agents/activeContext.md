@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 09/11/2026 (suite) — **Ocre : la vignette vient de la table locale, jamais de l'id Metamob** — branche `fix/ocre-vignettes-archis-boss`
+
+> **Demande user (verbatim)** : « je comprends pas on vient de passer un fix session précédente mais tjrs ko sur le vps pour les images des archi et des boss dans les boutons metamob sur sigilos (overlay, rush sylvestre, par dofus etc) ».
+> **Mesures (VPS, clé `agent-ro2` en lecture seule)** : bêta = `8869dfcf`, 4 conteneurs `Up 7 minutes` ⇒ le `#1324` **était bien déployé** (pas un retard de déploiement). `curl` : `/uploads/assets-dofus/monsters/347.webp` → **404** · `/assets/dofus/monsters/347.png` → **404** (**0** des 17 ids vus en console n'existe au dépôt) · `/api/assets-dofus/monsters/347` → 200 mais **118 octets** = PNG transparent 1×1 · `/api/assets-dofus/monsters/2508` → **4 596 octets** de WebP. Côté source d'images : `monsters/347` → `No record found`, et `2508` = **« Kirevam »**, un AUTRE monstre que « Kiroyal le Sirupeux ». `sigilos.fr` (prod) sert une **page d'attente statique** (`Last-Modified 24/09/2026`, `/assets/maintenance.css`) : hors sujet.
+> **Cause racine** : `getMyOcreProgress` → `normalizeQuestMonster` pose `image` = URL **Metamob** absolue, que `ocreMonsterImageUrl` refuse par design ⇒ `imageUrl === null` sur les **337** cibles ; la chaîne retombait sur `.webp` puis `.png` (404) puis picto. Le `#1324` avait ajouté le maillon `imageUrl` **sans source**, et l'`id` affiché est un id **Metamob** : le proxy par id d'entité renvoie soit un 1×1, soit **l'image d'un autre monstre**.
+> **Fait** : `getMyOcreProgress` résout l'image **par nom** dans `Archimonstre` (`type in archimonstre|boss` → `internalDofusDbImageUrl`, espace apparence `?sprite=1`, repli `normalizeDofusAssetStoredUrl` sur `dofusdbId`) et l'écrit dans `norm.image` ; la chaîne de vignette devient la **règle pure** `ocreMonsterThumbChain(id, type, imageUrl)` — le WebP local `/uploads/…` n'est plus retenté quand le serveur a résolu l'image (un 404 de moins par vignette) ; `OcreTargetBits` ne code plus aucun chemin.
+> **Preuves** : `rush-overlay-ocre` **46** (2 cas neufs + 1 repointé, jamais affaibli) · suite **641 fichiers / 6 847 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : contrôle à l'œil après déploiement bêta (modale « Mon Ocre » de l'overlay **et** du dashboard, filtres Gardiens/Archis) — une cible sans ligne dans `Archimonstre` garde le picto (comportement inchangé, aucun 404). **Ops** : `./scripts/deploy-cd.sh beta` (action humaine).
+> **Rotation** : bloc « 07/11/2026 (suite 4) — Responsive : le skill devient un cliquet vérifié » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 09/11/2026 — **Ocre public ISO + hero de l'overlay plafonné** — PR #1315 · #1316
 
 > **Demandes** : ① « Metamob public ISO avec l'interne » — panneau unique, peau DA, options Gardiens/Archis + zones, filtres Tous/Possédés/Manquants, clé repliée, accusé d'écriture ; ② la **bande vide de 276 px** du hero de l'overlay en fenêtre courte.
@@ -51,11 +62,3 @@
 > **Preuves** : `rush-community-progress` **12** · `rush-public-onboarding` **6** · `public-profile-schema` **16** · `public-profile-view` **7** · `rush-public-parity` **45** · `tsc` 0 · ESLint 0 erreur · **1 migration**.
 > **Reste** : **V2a-4 reste** (tour guidé spotlight) → V2b → V2c → V2d → V3. **Ops** : `npx prisma migrate deploy` + `npx prisma generate` en local, puis redémarrer `npm run dev` ; bêta par `./scripts/deploy-cd.sh beta`.
 > **Rotation** : bloc « 06/11/2026 (suite 12) — ladder (V1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 07/11/2026 (suite 4) — **Responsive : le skill devient un cliquet vérifié** — branche `chore/responsive-guard`
-
-> **Questions user (verbatim)** : « le skill on veut qu'il soit employé systématiquement sur les nouveautés les modifs de code etc non ? » et « quid du responsive non en place actuellement ça mérite un chantier titanesque ? ».
-> **Mesure — « titanesque » se chiffre** : `100vh` **21** · `h-screen` **48** · largeurs fixes > 400 px **57** (dont 12 décors à 1 600 / 2 500 px) — mais **452 fichiers sur 799** utilisent déjà des variantes responsive. Ce n'est donc pas une refonte : c'est un **cliquet**, écran par écran, qui ne remonte jamais.
-> **Fait** : `tests/unit/responsive-guard.test.ts` — plafonds mesurés ; un compteur qui **dépasse** échoue, et un budget **oublié** échoue aussi (le lot qui corrige doit le baisser) ; le skill est **routé** par `docs/RULES.md` § Responsive, `AGENTS.md` §2 et `docs/agents/harnais.md` — le test vérifie ce routage, parce qu'un skill qu'on ne route pas est mort.
-> **Preuves** : `responsive-guard` **4** · `harness-config` **9** · aucune ligne produit touchée · aucune migration.
-> **Reste** : les chantiers (rang 57) — **V2a-2** Progression Communautaire → **V2a-4 reste** (modale d'entrée + tour) → **V2a-5 reste** (« Réinitialiser ») → **V2a-6** → V2b → V2c → V2d → V3 ; côté responsive, corriger les 57 largeurs > 400 px **par écran prioritaire** en baissant le budget à chaque fois.
-> **Rotation** : bloc « 06/11/2026 (suite 11) — annuaire des visiteurs (V2e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

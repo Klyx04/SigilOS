@@ -28,9 +28,12 @@ const MAX_LIMIT = 200;
  * de la requête**. Tant que ce cache n'est pas rempli, chaque vignette dépend d'un service qu'on
  * ne maîtrise pas — et une panne de téléchargement se traduit par un picto générique.
  *
- * Cette route **remplit le frigo** : pour chaque `Archimonstre` de type `archimonstre` ou `boss`
- * qui porte une image, elle écrit le WebP dans l'**espace apparence** (`<gfx>.sprite.webp`), la
- * clé que le proxy sert déjà. Ensuite, plus aucun appel réseau n'est nécessaire pour l'afficher.
+ * Cette route **remplit le frigo** : pour chaque `Archimonstre` qui porte une image (`archimonstre`,
+ * `boss` **et** `monstre`), elle écrit le WebP dans l'**espace apparence** (`<gfx>.sprite.webp`),
+ * la clé que le proxy sert déjà. Ensuite, plus aucun appel réseau n'est nécessaire pour l'afficher.
+ *
+ * Rejouable après chaque mise à jour de contenu : seules les **nouvelles** apparences sont
+ * téléchargées (les fichiers présents sont sautés).
  *
  * Idempotente : un fichier de plus de `MIN_SPRITE_BYTES` est sauté (aucune requête réseau).
  * Dry-run par défaut ; écrire exige `?apply=1`.
@@ -62,9 +65,11 @@ export async function GET(req: NextRequest) {
 
     try {
         const rows = await db.archimonstre.findMany({
-            // La clé est le NOM côté affichage, mais ici on ne dépend que de l'image : on prend
-            // les deux familles qui portent les cibles de la quête Ocre (archis + gardiens).
-            where: { type: { in: ["archimonstre", "boss"] }, imageUrl: { not: null } },
+            // **Tous** les types : la table porte les archis, les boss ET les monstres du
+            // bestiaire. Le lot S1 ne couvrait que `archimonstre|boss` (la quête Ocre) ; pour
+            // pouvoir couper le téléchargement dans le proxy sans multiplier les pictos, il faut
+            // que **tout** ce que l'app affiche soit déjà dans le cache.
+            where: { imageUrl: { not: null } },
             select: { name: true, imageUrl: true },
             orderBy: { name: "asc" },
         });

@@ -65,4 +65,11 @@ describe("route cron de siphon — contrat", () => {
         // Jamais l'ancienne clé d'entité `${id}.webp` : elle servirait une autre créature.
         expect(src).not.toContain("${cleanId}.webp");
     });
+
+    it("couvre TOUS les types de monstres (pas seulement la quête Ocre)", () => {
+        // Pour pouvoir couper le téléchargement dans le proxy sans multiplier les pictos, le
+        // cache doit contenir tout ce que l'app affiche : archis, boss **et** monstres.
+        expect(src).toContain("where: { imageUrl: { not: null } }");
+        expect(src).not.toContain('type: { in: ["archimonstre", "boss"] }');
+    });
 });

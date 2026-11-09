@@ -311,7 +311,9 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     // AUTRE monstre). L'image doit donc venir de `Archimonstre`, résolue par nom puis proxifiée.
     const src = read("src/server/actions/ocre-actions.ts");
     expect(src).toContain("db.archimonstre.findMany");
-    expect(src).toContain('type: { in: ["archimonstre", "boss"] }');
+    // Aucun filtre `type` : la clé est le NOM (mesure du 09/11/2026, 4 Blops royaux non résolus).
+    expect(src).toContain("where: { OR: [{ imageUrl: { not: null } }, { dofusdbId: { not: null } }] }");
+    expect(src).not.toContain('type: { in: ["archimonstre", "boss"] }');
     expect(src).toContain("const imgVal = nameToImageMap.get(imageKey(norm.nameFr))");
     expect(src).toContain("if (imgVal) norm.image = imgVal");
     expect(src).toContain("internalDofusDbImageUrl(a.imageUrl)");

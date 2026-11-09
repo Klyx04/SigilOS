@@ -671,7 +671,12 @@ export async function getMyOcreProgress(
                     s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                 try {
                     const ocreArchis = await db.archimonstre.findMany({
-                        where: { type: { in: ["archimonstre", "boss"] } },
+                        // ⚠️ Aucun filtre `type` : la clé de rapprochement est le **nom**, et un
+                        // même nom désigne la même créature. Mesure du 09/11/2026 (bêta) : les
+                        // 4 Blops royaux restaient « sans image résolue » alors que la table les
+                        // connaît — leur `type` varie selon la source du seed (`boss` ici,
+                        // `monstre` ailleurs), et un `where` par type les rendait invisibles.
+                        where: { OR: [{ imageUrl: { not: null } }, { dofusdbId: { not: null } }] },
                         select: { name: true, imageUrl: true, dofusdbId: true },
                     });
                     for (const a of ocreArchis) {

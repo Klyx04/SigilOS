@@ -882,6 +882,14 @@
 .da-hero[data-density="normal"] { min-height: 112px; }
 .da-hero[data-density="tight"] { min-height: 80px; }
 
+/* Fenêtre COURTE — le PiP de l'overlay. Mesure du 09/11/2026 : en densité « wide »,
+   276 px étaient réservés pour ~100 px de contenu (titre + barre + présence), d'où une
+   bande vide qui volait la liste des quêtes. On plafonne à la densité « normal » quand
+   la hauteur disponible est faible ; le grand écran garde ses 276 px. */
+@media (max-height: 700px) {
+  .da-hero[data-density="wide"] { min-height: 112px; }
+}
+
 .da-hero-img {
   position: absolute;
   inset: 0;

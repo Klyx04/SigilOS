@@ -157,6 +157,19 @@ describe("DA Gouache Wakfu — contraste AA (4,5:1)", () => {
     }
 });
 
+describe("DA Gouache Wakfu — le hero ne mange pas la liste en fenêtre courte", () => {
+    it("plafonne la densité « wide » sous 700 px de haut (PiP de l'overlay)", () => {
+        // Mesure du 09/11/2026 : 276 px réservés pour ~100 px de contenu ⇒ bande vide.
+        expect(css).toMatch(
+            /@media \(max-height:\s*700px\)\s*\{\s*\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*112px/
+        );
+    });
+
+    it("le grand écran garde sa hauteur (la règle générale n'est pas touchée)", () => {
+        expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*min\(276px,\s*30vh\)/);
+    });
+});
+
 describe("DA Gouache Wakfu — coût de rendu", () => {
     it("aucun filtre sur les bords de carte hors qualité haute", () => {
         expect(css).toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{\s*filter:\s*url\(#da-rough\)/);

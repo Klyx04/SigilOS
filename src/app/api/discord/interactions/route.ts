@@ -3125,6 +3125,7 @@ export async function POST(request: NextRequest) {
                             select: {
                                 id: true,
                                 trialDurationDays: true,
+                                trialRoleId: true,
                                 rolesMapping: true,
                                 usersMapping: true,
                                 slashCommandPermissions: {
@@ -3291,6 +3292,21 @@ export async function POST(request: NextRequest) {
                         if (removeRoleId) {
                             const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue (modale)");
                             roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
+                        }
+
+                        // Rôle d'essai : MÊME source que la fiche membre (`GuildConfig.trialRoleId`,
+                        // réglé dans Paramètres ▸ Fin d'essai). Optionnel — sans réglage, aucun geste,
+                        // donc le comportement historique de la commande est conservé à l'identique.
+                        if (needsTrial && guildConfig.trialRoleId) {
+                            const trialRole = await addGuildMemberRole(
+                                guild_id,
+                                targetId,
+                                guildConfig.trialRoleId,
+                                "SigilOS /valider-recrue (essai)"
+                            );
+                            roleOutcomes.push(
+                                trialRole.success ? "+ rôle d'essai" : `⚠️ rôle d'essai non ajouté : ${trialRole.error}`
+                            );
                         }
 
                         const { createAuditLog } = await import("@/server/actions/audit-actions");

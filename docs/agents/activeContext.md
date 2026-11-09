@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 09/11/2026 (suite 2) — **Rôles Discord du cycle de vie d'essai (V1)** — branche `feat/roles-essai-v1`
+
+> **Demande user (verbatim)** : « J'aimerai pouvoir propose en option l'ajout d'un rôle discord quand on met quelqu'un à l'essai depuis sa modale membre … un second settings à la fin d'essai : pouvoir ajouter un rôle automatiquement / en supprimer un ».
+> **Mesure** : le socle existait déjà et n'était **pas branché** — `GuildConfig.arrivingRoleId` / `trialRoleId` / `confirmedRoleId` (migration `20261012000000`), `getGuildLifecycleData` qui les expose, `updateMemberLifecycleConfig` qui les écrit, et `addGuildMemberRole` / `removeGuildMemberRole` (`src/server/discord.ts`, `PUT|DELETE …/members/{u}/roles/{r}`, fail-closed, `X-Audit-Log-Reason`). Il manquait **l'UI**, la **persistance dans les réglages** et **l'application**. Constat de sécurité : `getGuildRoles` (bonus) est ouvert à tout membre et **ne filtre pas la hiérarchie** → inutilisable ici. `/valider-recrue` porte déjà les rôles d'**arrivée** (`addRoleId` / `removeRoleId`, panneau `SlashCommandsRbacPanel`) : aucune 2ᵉ source créée.
+> **Décision (user)** : validation **automatique** (la case « me montrer avant » part en V2, avec une migration) ; `/valider-recrue` applique **aussi** `trialRoleId` quand elle démarre un essai, **sans changer sa modale**.
+> **Fait** : règle pure `filterAssignableRoles` / `highestRolePosition` (`src/lib/discord/assignable-roles.ts`) — `@everyone`, rôles `managed` et tout rôle ≥ `min(bot, staff)` écartés, fail-closed si la position du bot est inconnue ; action `getAssignableTrialRoles` (RBAC `isAdmin || canManageMembers`, positions bot + staff lues en direct) ; `updateTrialEndSettings` persiste `trialRoleId` / `confirmedRoleId` (`undefined` = ne pas toucher, `null` = retirer) et **refuse** un rôle non attribuable ; `setMemberTrialState` applique `+ trialRoleId` au démarrage, `+ confirmedRoleId` / `− trialRoleId` à la validation, chaque refus Discord remonté dans le message (jamais un faux « ok ») ; un départ retire le rôle d'essai sans bloquer l'archivage ; écran **Paramètres ▸ Fin d'essai** = 2 sélecteurs Radix thémés (tokens, aucun contrôle natif).
+> **Preuves** : `assignable-roles` **7** + `trial-roles` **5** (neufs) · `membres-essai-fixes` / `registre-membres-b2` verts (verrou « pas de `valider-recrue` dans cet écran » respecté) · suite **643 fichiers / 6 857 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste (V2)** : case « me montrer avant d'appliquer » (colonne `trialConfirmRoleChange`, migration additive) + fenêtre de confirmation ; override ponctuel des rôles dans la modale membre. **Ops** : contrôler Paramètres ▸ Fin d'essai sur 390 / 768 / 1440, puis déployer la bêta.
+> **Rotation** : bloc « 07/11/2026 (suite 4) — Responsive : le skill devient un cliquet vérifié » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 09/11/2026 — **Ocre public ISO + hero de l'overlay plafonné** — PR #1315 · #1316
 
 > **Demandes** : ① « Metamob public ISO avec l'interne » — panneau unique, peau DA, options Gardiens/Archis + zones, filtres Tous/Possédés/Manquants, clé repliée, accusé d'écriture ; ② la **bande vide de 276 px** du hero de l'overlay en fenêtre courte.
@@ -51,11 +62,3 @@
 > **Preuves** : `rush-community-progress` **12** · `rush-public-onboarding` **6** · `public-profile-schema` **16** · `public-profile-view` **7** · `rush-public-parity` **45** · `tsc` 0 · ESLint 0 erreur · **1 migration**.
 > **Reste** : **V2a-4 reste** (tour guidé spotlight) → V2b → V2c → V2d → V3. **Ops** : `npx prisma migrate deploy` + `npx prisma generate` en local, puis redémarrer `npm run dev` ; bêta par `./scripts/deploy-cd.sh beta`.
 > **Rotation** : bloc « 06/11/2026 (suite 12) — ladder (V1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 07/11/2026 (suite 4) — **Responsive : le skill devient un cliquet vérifié** — branche `chore/responsive-guard`
-
-> **Questions user (verbatim)** : « le skill on veut qu'il soit employé systématiquement sur les nouveautés les modifs de code etc non ? » et « quid du responsive non en place actuellement ça mérite un chantier titanesque ? ».
-> **Mesure — « titanesque » se chiffre** : `100vh` **21** · `h-screen` **48** · largeurs fixes > 400 px **57** (dont 12 décors à 1 600 / 2 500 px) — mais **452 fichiers sur 799** utilisent déjà des variantes responsive. Ce n'est donc pas une refonte : c'est un **cliquet**, écran par écran, qui ne remonte jamais.
-> **Fait** : `tests/unit/responsive-guard.test.ts` — plafonds mesurés ; un compteur qui **dépasse** échoue, et un budget **oublié** échoue aussi (le lot qui corrige doit le baisser) ; le skill est **routé** par `docs/RULES.md` § Responsive, `AGENTS.md` §2 et `docs/agents/harnais.md` — le test vérifie ce routage, parce qu'un skill qu'on ne route pas est mort.
-> **Preuves** : `responsive-guard` **4** · `harness-config` **9** · aucune ligne produit touchée · aucune migration.
-> **Reste** : les chantiers (rang 57) — **V2a-2** Progression Communautaire → **V2a-4 reste** (modale d'entrée + tour) → **V2a-5 reste** (« Réinitialiser ») → **V2a-6** → V2b → V2c → V2d → V3 ; côté responsive, corriger les 57 largeurs > 400 px **par écran prioritaire** en baissant le budget à chaque fois.
-> **Rotation** : bloc « 06/11/2026 (suite 11) — annuaire des visiteurs (V2e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

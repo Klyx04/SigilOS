@@ -22,22 +22,39 @@ const trialDurationSchema = z.number().int().min(1).max(90);
  * réautorise donc un embed à la nouvelle date.
  */
 
+/** Identifiant de rôle Discord : snowflake borné (jamais une chaîne libre). */
+const roleIdSchema = z.string().regex(/^\d{5,25}$/, "Identifiant de rôle invalide").nullable();
+
 export async function getTrialEndSettings(
     guildId: string
-): Promise<ActionResponse<{ channelId: string | null; trialDurationDays: number }>> {
+): Promise<
+    ActionResponse<{
+        channelId: string | null;
+        trialDurationDays: number;
+        trialRoleId: string | null;
+        confirmedRoleId: string | null;
+    }>
+> {
     try {
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated || !user.isAdmin) return { success: false, error: "Admin requis" };
 
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { trialEndNotifyChannelId: true, trialDurationDays: true },
+            select: {
+                trialEndNotifyChannelId: true,
+                trialDurationDays: true,
+                trialRoleId: true,
+                confirmedRoleId: true,
+            },
         });
         return {
             success: true,
             data: {
                 channelId: config?.trialEndNotifyChannelId || null,
                 trialDurationDays: config?.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
+                trialRoleId: config?.trialRoleId || null,
+                confirmedRoleId: config?.confirmedRoleId || null,
             },
         };
     } catch (error) {
@@ -49,7 +66,12 @@ export async function getTrialEndSettings(
 export async function updateTrialEndSettings(
     guildId: string,
     channelId: string | null,
-    trialDurationDays?: number
+    trialDurationDays?: number,
+    /**
+     * Rôles du cycle de vie — **facultatifs**. `undefined` = ne pas toucher au réglage existant
+     * (un enregistrement du seul salon ne doit pas effacer un rôle) ; `null` = retirer le rôle.
+     */
+    roles?: { trialRoleId?: string | null; confirmedRoleId?: string | null }
 ): Promise<ActionResponse> {
     try {
         const user = await getUserContext(guildId);
@@ -70,11 +92,46 @@ export async function updateTrialEndSettings(
             duration = parsed.data;
         }
 
+        // Rôles : forme bornée, puis **attribuabilité réelle** (hiérarchie Discord). Un rôle
+        // hors plafond ferait échouer chaque geste en 403 : on refuse à l'enregistrement.
+        let trialRoleId: string | null | undefined;
+        let confirmedRoleId: string | null | undefined;
+        if (roles?.trialRoleId !== undefined) {
+            const parsed = roleIdSchema.safeParse(roles.trialRoleId);
+            if (!parsed.success) return { success: false, error: "Rôle d'essai invalide." };
+            trialRoleId = parsed.data;
+        }
+        if (roles?.confirmedRoleId !== undefined) {
+            const parsed = roleIdSchema.safeParse(roles.confirmedRoleId);
+            if (!parsed.success) return { success: false, error: "Rôle confirmé invalide." };
+            confirmedRoleId = parsed.data;
+        }
+
+        const requestedRoleIds = [trialRoleId, confirmedRoleId].filter(
+            (id): id is string => typeof id === "string" && id.length > 0
+        );
+        if (requestedRoleIds.length > 0) {
+            const { getAssignableTrialRoles } = await import("./member-lifecycle-actions");
+            const assignable = await getAssignableTrialRoles(guildId);
+            if (!assignable.success || !assignable.data) {
+                return { success: false, error: assignable.error || "Impossible de vérifier les rôles Discord." };
+            }
+            const allowed = new Set(assignable.data.map((role) => role.id));
+            if (requestedRoleIds.some((id) => !allowed.has(id))) {
+                return {
+                    success: false,
+                    error: "Ce rôle n'est pas attribuable : il est au-dessus du bot ou au-dessus de ton rôle le plus haut sur Discord.",
+                };
+            }
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: {
                 trialEndNotifyChannelId: next,
                 ...(duration !== undefined ? { trialDurationDays: duration } : {}),
+                ...(trialRoleId !== undefined ? { trialRoleId } : {}),
+                ...(confirmedRoleId !== undefined ? { confirmedRoleId } : {}),
             },
         });
         return { success: true };

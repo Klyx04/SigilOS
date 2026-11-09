@@ -8,6 +8,8 @@ import { Loader2, Save, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/shared/DiscordChannelPicker";
 import { getTrialEndSettings, updateTrialEndSettings } from "@/server/actions/trial-end-actions";
+import { getAssignableTrialRoles } from "@/server/actions/member-lifecycle-actions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * 🎓 Réglage du salon **fin d'essai**.
@@ -19,16 +21,29 @@ import { getTrialEndSettings, updateTrialEndSettings } from "@/server/actions/tr
 export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
     const [channelId, setChannelId] = useState("");
     const [trialDurationDays, setTrialDurationDays] = useState(14);
+    const [trialRoleId, setTrialRoleId] = useState("");
+    const [confirmedRoleId, setConfirmedRoleId] = useState("");
+    const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
+    /** Sentinelle Radix : un `<SelectItem>` ne peut pas porter la valeur vide. */
+    const NONE = "__none__";
+    const toValue = (roleId: string) => (roleId ? roleId : NONE);
+    const toRoleId = (value: string) => (value === NONE ? "" : value);
+
     useEffect(() => {
         let active = true;
-        getTrialEndSettings(guildId).then((res) => {
+        Promise.all([getTrialEndSettings(guildId), getAssignableTrialRoles(guildId)]).then(([res, rolesRes]) => {
             if (!active) return;
             if (res.success && res.data) {
                 setChannelId(res.data.channelId || "");
                 setTrialDurationDays(res.data.trialDurationDays);
+                setTrialRoleId(res.data.trialRoleId || "");
+                setConfirmedRoleId(res.data.confirmedRoleId || "");
+            }
+            if (rolesRes.success && rolesRes.data) {
+                setRoles(rolesRes.data.map((role) => ({ id: role.id, name: role.name })));
             }
             setIsLoading(false);
         });
@@ -39,7 +54,10 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
 
     const handleSave = () => {
         startTransition(async () => {
-            const result = await updateTrialEndSettings(guildId, channelId.trim() || null, trialDurationDays);
+            const result = await updateTrialEndSettings(guildId, channelId.trim() || null, trialDurationDays, {
+                trialRoleId: trialRoleId || null,
+                confirmedRoleId: confirmedRoleId || null,
+            });
             if (result.success) {
                 toast.success("Réglages de fin d'essai enregistrés.");
             } else {
@@ -109,6 +127,65 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                     allowedTypes={DISCORD_FORUM_CHANNEL_TYPES}
                     allowEmptyLabel="Aucun (notifications désactivées)"
                 />
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="trial-role"
+                            className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                        >
+                            Rôle d&apos;essai (optionnel)
+                        </label>
+                        <Select value={toValue(trialRoleId)} onValueChange={(value) => setTrialRoleId(toRoleId(value))}>
+                            <SelectTrigger id="trial-role" className="w-full rounded-xl border-border bg-surface">
+                                <SelectValue placeholder="Aucun rôle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Aucun rôle</SelectItem>
+                                {roles.map((role) => (
+                                    <SelectItem key={role.id} value={role.id}>
+                                        {role.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Ajouté quand l&apos;essai démarre, depuis la fiche du membre comme au démarrage
+                            d&apos;essai par commande.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="confirmed-role"
+                            className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                        >
+                            Rôle confirmé (optionnel)
+                        </label>
+                        <Select
+                            value={toValue(confirmedRoleId)}
+                            onValueChange={(value) => setConfirmedRoleId(toRoleId(value))}
+                        >
+                            <SelectTrigger id="confirmed-role" className="w-full rounded-xl border-border bg-surface">
+                                <SelectValue placeholder="Aucun rôle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Aucun rôle</SelectItem>
+                                {roles.map((role) => (
+                                    <SelectItem key={role.id} value={role.id}>
+                                        {role.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Ajouté à la validation de l&apos;essai, avec retrait du rôle d&apos;essai.
+                        </p>
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Seuls les rôles situés sous le rôle du bot et sous ton rôle le plus haut sur Discord sont
+                    proposés. Un rôle laissé sur « Aucun rôle » n&apos;est jamais touché.
+                </p>
                 <div className="flex justify-end">
                     <Button
                         onClick={handleSave}

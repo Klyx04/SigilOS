@@ -14,6 +14,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
+import { decrypt } from "@/lib/encryption";
 import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
 import { shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import {
@@ -233,13 +234,22 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                     const results = await getKralamoureEvents({
                         serverId: userProfile.metamobServerId,
                         from: start.toISOString(),
-                        guildApiKey: userProfile.metamobApiKey,
+                        // 🔑 La clé API est **chiffrée en base** : envoyée brute, elle fait
+                        // répondre « Erreur 400 de l'API » (mesure Sentry du 09/11/2026,
+                        // `JAVASCRIPT-NEXTJS-2N`, 400 sur `/v1/kralove`). Même règle que
+                        // `getMyOcreProgress` : on déchiffre, sinon pas d'en-tête.
+                        guildApiKey: userProfile.metamobApiKey
+                            ? decrypt(userProfile.metamobApiKey) || undefined
+                            : undefined,
                         revalidate: 60 // 1 minute cache
                     });
                     if (results) liveKralaEvents = results;
                 }
             } catch (err) {
-                logger.error("[Calendar] Failed to sync Krala counts in list:", err);
+                // Configuration utilisateur (clé absente/invalide) ou amont indisponible :
+                // ce n'est PAS une panne du produit — `warn`, hors Sentry (même règle que
+                // `getGuildKralamoureEvents`, mesure du 18/10/2026).
+                logger.warn("[Calendar] Failed to sync Krala counts in list", err);
             }
         }
 

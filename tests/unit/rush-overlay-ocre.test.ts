@@ -33,6 +33,7 @@ import {
   ocreMonsterIcon,
   ocreMonsterImage,
   ocreStateLabel,
+  classifyOcreType,
   soulStoneForLevel,
   soulStoneLevelLabel,
   toOcrePanelData,
@@ -474,15 +475,34 @@ describe("rendu réel — pas ±1 d'une cible (brique partagée)", () => {
   });
 });
 
+describe("nature d'une cible Ocre — règle partagée interne / public", () => {
+  it("reconnaît les gardiens et les archimonstres", () => {
+    expect(classifyOcreType("Gardien")).toBe("boss");
+    expect(classifyOcreType("Boss")).toBe("boss");
+    expect(classifyOcreType("Archimonstre")).toBe("archimonstre");
+  });
+
+  it("un libellé inconnu ou absent tombe sur archimonstre (aucune cible perdue)", () => {
+    expect(classifyOcreType(null)).toBe("archimonstre");
+    expect(classifyOcreType(undefined)).toBe("archimonstre");
+    expect(classifyOcreType("")).toBe("archimonstre");
+    expect(classifyOcreType("Truc bizarre")).toBe("archimonstre");
+  });
+});
+
 describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => {
   const modal = read("src/components/dofus-quests/OcreProgressModal.tsx");
+  /** Depuis le partage avec le public, la liste vit dans le panneau commun. */
+  const panel = read("src/components/ocre/OcreQuestPanel.tsx");
   const bits = read("src/components/ocre/OcreTargetBits.tsx");
   const css = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/guide-styles.css");
 
   it("consomme le hook partagé et les briques partagées (aucune écriture directe)", () => {
     expect(modal).toContain("useOcreWriteQueue");
-    expect(modal).toContain("<OcreTargetStepper");
-    expect(modal).toContain("<OcreMonsterThumb");
+    // La modale monte le panneau commun, et c'est LUI qui rend les briques partagées.
+    expect(modal).toContain("<OcreQuestPanel");
+    expect(panel).toContain("<OcreTargetStepper");
+    expect(panel).toContain("<OcreMonsterThumb");
     expect(modal).not.toContain("updateUserMonsterQuantityAction");
     expect(modal).not.toContain("toast."); // retour d'écriture DANS la modale
   });
@@ -499,6 +519,7 @@ describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => 
 
   it("n'affiche que nos vignettes locales (aucune image Metamob dans le DOM)", () => {
     expect(modal).not.toContain("src={m.image}");
+    expect(panel).not.toContain("src={m.image}");
     expect(bits).toContain("ocreMonsterImage(id)");
     expect(bits).toContain("ocreStateLabel(owned, requiredCopies)"); // libellé : source unique
   });

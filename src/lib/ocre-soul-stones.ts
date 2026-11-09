@@ -123,9 +123,33 @@ export function ocreMonsterImage(id: number): string {
   return `${OCRE_MONSTER_IMAGE_DIR}/${id}.webp`;
 }
 
+/**
+ * Repli **livré avec le dépôt** : `public/assets/dofus/monsters/{id}.png`.
+ *
+ * Mesure du 08/11 : les vignettes viennent du cache siphonné (`/uploads/assets-dofus/monsters`,
+ * `.webp`), alors que le dépôt porte aussi des `.png` dans `assets/dofus/monsters`. Deux dossiers,
+ * deux extensions, un seul lu — les monstres présents uniquement en `.png` restaient donc sur le
+ * picto générique. On tente le PNG **avant** le picto.
+ */
+export function ocreMonsterLegacyImage(id: number): string {
+  return `/assets/dofus/monsters/${id}.png`;
+}
+
 /** Repli local (picto du jeu) d'une cible — jamais une URL distante. */
 export function ocreMonsterIcon(type?: string | null): string {
   return OCRE_MONSTER_ICONS[String(type ?? "").toLowerCase()] ?? OCRE_MONSTER_ICONS.monstre;
+}
+
+/**
+ * Nature d'une cible de quête Ocre, à partir du libellé Metamob (« Archimonstre », « Gardien »).
+ *
+ * Règle **pure** et partagée : le guide interne et l'espace visiteur doivent produire le même
+ * classement, sinon les compteurs « Gardiens / Archis » divergent d'une surface à l'autre.
+ * Tout libellé inconnu tombe sur `archimonstre` — l'immense majorité d'une quête Ocre.
+ */
+export function classifyOcreType(label: string | null | undefined): "boss" | "archimonstre" {
+  const value = String(label ?? "").toLowerCase();
+  return value.includes("gardien") || value.includes("boss") ? "boss" : "archimonstre";
 }
 
 // -----------------------------------------------------------------------------

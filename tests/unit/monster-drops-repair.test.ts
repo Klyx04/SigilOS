@@ -10,8 +10,12 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+    MONSTER_DISCOVER_LIMIT_DEFAULT,
+    MONSTER_DISCOVER_LIMIT_MAX,
     discoverMonsterFiches,
+    monsterDiscoverLimit,
     removeEmptyDuplicateRows,
     repairMonsterDrops,
     type RepairMonsterRow,
@@ -233,7 +237,36 @@ describe("repairMonsterDrops — réparation bornée", () => {
     it("une lecture de base en échec rend un rapport vide, sans jeter", async () => {
         const db = { monsterStat: { findMany: vi.fn().mockRejectedValue(new Error("base morte")) } };
         const report = await repairMonsterDrops({ db, fetchStats: vi.fn(), persist: vi.fn() });
+
         expect(report).toMatchObject({ scanned: 0, repaired: 0, failed: 0, deferred: false });
         expect(report.details[0]).toContain("lecture des fiches impossible");
     });
 });
+
+/**
+ * Rail de comblement (09/11/2026) — le filigrane de la veille ne recule jamais : une fiche
+ * ratée (repli Unity, quota) était sautée définitivement. Ce rail repart du **catalogue**
+ * avec son propre curseur. On verrouille la borne et le câblage nocturne.
+ */
+describe("rail de comblement — plafond et câblage", () => {
+    it("borne le plafond par nuit (valeur d'env invalide ⇒ défaut, jamais 0)", () => {
+        expect(monsterDiscoverLimit(undefined)).toBe(MONSTER_DISCOVER_LIMIT_DEFAULT);
+        expect(monsterDiscoverLimit("")).toBe(MONSTER_DISCOVER_LIMIT_DEFAULT);
+        expect(monsterDiscoverLimit(0)).toBe(MONSTER_DISCOVER_LIMIT_DEFAULT);
+        expect(monsterDiscoverLimit("abc")).toBe(MONSTER_DISCOVER_LIMIT_DEFAULT);
+        expect(monsterDiscoverLimit(12)).toBe(12);
+        expect(monsterDiscoverLimit(9999)).toBe(MONSTER_DISCOVER_LIMIT_MAX);
+    });
+
+    it("le cron nocturne exécute le rail avec son propre curseur", () => {
+        const route = readFileSync("src/app/api/cron/sync-monster-stats/route.ts", "utf8");
+        expect(route).toContain("discoverMonsterFiches");
+        expect(route).toContain("monsterDiscoverLimit()");
+        // État distinct de la veille : deux curseurs qui ne se marchent pas dessus.
+        expect(route).toContain('const DISCOVER_STATE = "MONSTER_DISCOVER"');
+        expect(route).toContain("setGameDataVeilleState(DISCOVER_STATE");
+        // Le catalogue est la source du balayage, pas la page DofusDB filtrée par le filigrane.
+        expect(route).toContain("knownNames");
+    });
+});
+

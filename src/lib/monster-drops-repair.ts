@@ -306,6 +306,28 @@ export interface DiscoverMonsterFichesReport {
 /** Monstres examinés par passage quand l'appelant n'impose pas de borne. */
 export const DISCOVER_FICHES_DEFAULT_LIMIT = 200;
 
+/**
+ * Plafond **par nuit** du rail de comblement (réglable par `.env`, borné).
+ *
+ * Mesure du 09/11/2026 : le filigrane de la veille ne recule jamais, et il avance **même quand
+ * la fiche échoue** (repli Unity) — un monstre raté (ex. Abrakne, id 650, filigrane à 3 283)
+ * n'est donc **jamais** retenté. Ce rail-ci repart du **catalogue** par id, ignore ce qui est
+ * déjà complet et répare le reste, sans toucher au filigrane.
+ *
+ * 40 par défaut : chaque nom sans fiche complète coûte 1 à 3 requêtes DofusDB sur un budget
+ * partagé de 30 req/min. Le rail s'arrête de lui-même (`deferred`) quand ce budget est épuisé,
+ * donc la borne sert à **ne pas rallonger la nuit**, pas à éviter une rafale.
+ */
+export const MONSTER_DISCOVER_LIMIT_DEFAULT = 40;
+export const MONSTER_DISCOVER_LIMIT_MAX = 200;
+
+/** Borne effective du rail de comblement : valeur d'env bornée, sinon le défaut (jamais 0). */
+export function monsterDiscoverLimit(raw: string | number | null | undefined = process.env.MONSTER_DISCOVER_LIMIT): number {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return MONSTER_DISCOVER_LIMIT_DEFAULT;
+    return Math.min(MONSTER_DISCOVER_LIMIT_MAX, Math.max(1, Math.floor(n)));
+}
+
 export async function discoverMonsterFiches(
     options: DiscoverMonsterFichesOptions,
 ): Promise<DiscoverMonsterFichesReport> {

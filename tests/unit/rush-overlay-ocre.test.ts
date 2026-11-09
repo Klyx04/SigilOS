@@ -32,6 +32,7 @@ import {
   ocreLocalState,
   ocreMonsterIcon,
   ocreMonsterImage,
+  ocreMonsterImageUrl,
   ocreStateLabel,
   classifyOcreType,
   soulStoneForLevel,
@@ -251,6 +252,36 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
       expect(src, rel).not.toMatch(/dofusdb\.[a-z]{2,}/i);
       expect(src, rel).not.toContain("/api/assets-dofus");
     }
+  });
+
+  it("l'image résolue par le serveur passe AVANT nos fichiers locaux", () => {
+    const upstream =
+      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+    // Relatif interne ⇒ accepté tel quel (aucune requête distante depuis le navigateur).
+    expect(ocreMonsterImageUrl(upstream)).toBe(upstream);
+    // URL absolue (DofusDB, Metamob, n'importe quel hôte) ⇒ refusée : jamais dans le DOM.
+    expect(ocreMonsterImageUrl("https://api.dofusdb.fr/img/monsters/90.png")).toBeNull();
+    expect(ocreMonsterImageUrl("https://metamob.fr/x.png")).toBeNull();
+    expect(ocreMonsterImageUrl("")).toBeNull();
+
+    const data = toOcrePanelData({
+      monsters: [
+        { id: 2508, nameFr: "Kiroyal le Sirupeux", type: "archimonstre", owned: 0, state: "MANQUANT", image: upstream },
+        { id: 2509, nameFr: "Sans image sûre", type: "archimonstre", owned: 0, state: "MANQUANT", image: "https://metamob.fr/x.png" },
+      ],
+    });
+    expect(data.monsters[0].imageUrl).toBe(upstream);
+    expect(data.monsters[1].imageUrl).toBeNull();
+
+    // La chaîne du composant : image serveur → WebP local → PNG du dépôt → picto du jeu.
+    const bitsSrc = read("src/components/ocre/OcreTargetBits.tsx");
+    const questPanelSrc = read("src/components/ocre/OcreQuestPanel.tsx");
+    const overlaySrc = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx");
+    expect(bitsSrc).toContain("imageUrl, ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)");
+    // Le placeholder du proxy (PNG 1×1) ne doit pas laisser une vignette vide.
+    expect(bitsSrc).toContain("naturalWidth <= 1");
+    expect(questPanelSrc).toContain("imageUrl={m.imageUrl ?? null}");
+    expect(overlaySrc).toContain("imageUrl={t.imageUrl ?? null}");
   });
 
   it("les vignettes viennent du WebP local, le repli de nos pictos du jeu", () => {
@@ -517,7 +548,7 @@ describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => 
     expect(codeOnly(modal)).not.toContain("rounded-[2rem]");
   });
 
-  it("n'affiche que nos vignettes locales (aucune image Metamob dans le DOM)", () => {
+  it("aucune image Metamob brute dans le DOM (l'image sûre arrive du serveur)", () => {
     expect(modal).not.toContain("src={m.image}");
     expect(panel).not.toContain("src={m.image}");
     expect(bits).toContain("ocreMonsterImage(id)");

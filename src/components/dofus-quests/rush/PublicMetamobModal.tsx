@@ -112,6 +112,7 @@ export function PublicMetamobModal({
                 type: monster.type,
                 owned: monster.owned,
                 nameFr: monster.name,
+                ...(monster.imageUrl ? { imageUrl: monster.imageUrl } : {}),
                 ...(monster.zone ? { zone: monster.zone } : {}),
                 ...(monster.subzone ? { subzone: monster.subzone } : {}),
                 // Le panneau n'affiche que `owned` (via `ocreStateLabel`) : l'état brut n'est là

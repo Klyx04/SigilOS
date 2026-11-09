@@ -435,7 +435,7 @@ export function RushOverlayOcreModal({ guildId, onClose, initial, state = "ready
                         t.needed ? "border-warning/25" : "border-border"
                       )}
                     >
-                      <OcreMonsterThumb id={t.id} type={t.type} dimmed={!t.needed} />
+                      <OcreMonsterThumb id={t.id} type={t.type} imageUrl={t.imageUrl ?? null} dimmed={!t.needed} />
 
                       <div className="min-w-0 flex-1">
                         <button

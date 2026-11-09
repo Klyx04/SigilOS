@@ -15,7 +15,7 @@ Une image est **souveraine** quand les quatre conditions sont vraies :
 | 3 | Le **serveur** ne fait aucun appel réseau pour servir une image | aucun `fetch` sortant dans le chemin de requête |
 | 4 | **Toute** cible a son fichier chez nous | script de couverture = 0 manquant sur le périmètre |
 
-Aujourd'hui : **1 est tenu, 2 partiellement, 3 et 4 ne le sont pas.**
+Aujourd'hui : **1 est tenu, 2 partiellement, 3 non, 4 partiel (447 archis/boss siphonnés le 09/11)**.
 
 ## 1. Constat mesuré (09/11/2026, bêta `8fde214b`)
 
@@ -90,6 +90,56 @@ sur un cache rempli par chance.
 | `souverainete-visuels` (étendu) | une URL amont dans une URL produite pour le DOM |
 | `assets-dofus-route` (étendu) | un `fetch` sortant dans la route proxy |
 | `assets-coverage` (neuf) | un périmètre (Ocre d'abord) qui n'est pas à 100 % de fichiers présents |
+
+## 8. Nouveau contenu DofusDB — la chaîne de rafraîchissement
+
+**Le siphon est rejouable et ne coûte que le delta** : la route saute tout fichier déjà présent
+(`alreadyThere`), donc une nouvelle apparence n'est téléchargée qu'une fois, quelle que soit la
+fréquence à laquelle on relance. La question n'est donc pas « comment ne pas re-télécharger », mais
+**« comment savoir qu'il y a du nouveau, et où »**.
+
+### 8.1 Ce qui existe (mesuré le 09/11/2026)
+
+| Maillon | État |
+|---|---|
+| Détection des nouveautés | `data-watch` (cron hebdo) compare les totaux DofusDB — **items, donjons, quêtes uniquement** : les **monstres ne sont pas surveillés** |
+| Référentiel `Archimonstre` (nom, `imageUrl`, niveau, zone) | **seed** + **auto-heal** : une recherche God qui trouve un monstre absent en local l'insère (`game-data-actions.ts`) ⇒ **aucun siphon automatique** |
+| Cache d'images | `GET /api/cron/siphon-monster-assets` (lot S1) — idempotent, dry-run par défaut |
+| Couverture | **aucun** script ; on ne sait pas, à un instant donné, ce qui manque |
+
+### 8.2 La chaîne cible
+
+1. **Détecter** — étendre `data-watch` aux **monstres** (total `monsters` chez DofusDB vs
+   `Archimonstre`), avec alerte God **seulement sur nouveauté** (jamais de bruit hebdo).
+2. **Ingérer les données** — pour chaque nouveau monstre : `name`, `imageUrl` (donc `gfxId`),
+   `level`, `zone`. Aujourd'hui seule une recherche God le fait : c'est le trou de la chaîne.
+3. **Ingérer les images** — relancer `siphon-monster-assets` (boucle `offset` jusqu'à
+   `remaining: 0`). Coût = nombre de nouvelles apparences uniquement.
+4. **Vérifier** — `assets-coverage` (lot S3) liste les `Archimonstre` sans fichier ; le job échoue
+   si la couverture n'est pas à 100 % sur le périmètre affiché.
+
+### 8.3 La décision à trancher pour S2 (le couperet réseau)
+
+Couper le téléchargement rend la souveraineté **définitive**, mais un monstre **inconnu du cache**
+n'a plus d'image jusqu'au prochain siphon. Trois modes possibles, à choisir explicitement :
+
+| Mode | Comportement | Souveraineté |
+|---|---|---|
+| **Strict** | aucun `fetch` sortant ; fichier absent ⇒ picto | 100 % — prix : picto temporaire sur du nouveau contenu |
+| **Secours borné** | `fetch` **uniquement** si le fichier manque, limité (ex. 10/min) + alerte God | ~99 % — aucun picto, mais une dépendance résiduelle |
+| **Hybride** | strict par défaut (drapeau `ASSETS_REMOTE_FETCH=false`), activable à la main pendant une MAJ | 100 % en régime, 100 % contrôlé pendant les MAJ |
+
+**Recommandation** : **hybride** + cron **quotidien** de `siphon-monster-assets`. En pratique le
+drapeau ne s'active qu'autour d'une mise à jour de contenu, et la couverture est vérifiée par S3.
+
+### 8.4 Ce que ça implique côté ops
+
+- Un **cron quotidien** (ou hebdo après `data-watch`) qui lance la boucle de siphon ; sans lui, le
+  mode strict laisse des pictos sur les nouveautés.
+- Une **alerte** quand `assets-coverage` détecte un manque (God → Système, ou Sentry `warn`).
+- Une **revue** : après chaque grosse MAJ Dofus (nouvelle extension), relancer une passe complète
+  et contrôler le rapport `failed: 0`.
+
 
 ## 5. Critères de sortie (Definition of Done)
 

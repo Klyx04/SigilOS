@@ -223,7 +223,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 export default withSentryConfig(nextConfig, {
   // For all available options, see:

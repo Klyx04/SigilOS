@@ -18,12 +18,16 @@
  */
 import * as Sentry from "@sentry/nextjs";
 import { COMMON_IGNORE_ERRORS } from "@/lib/sentry-ignores";
+import { SENTRY_DATA_COLLECTION } from "@/lib/sentry-data-collection";
 
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
     // Only enable in production
     enabled: process.env.NODE_ENV === "production",
+
+    // 🔒 Collecte fermée (v11 : les défauts envoient cookies, en-têtes et corps — non).
+    dataCollection: SENTRY_DATA_COLLECTION,
 
     // Performance monitoring
     tracesSampleRate: 0.1, // 10% of transactions

@@ -384,11 +384,11 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 
 **V2f — finitions demandées le 08/11/2026** *(livré en deux lots le 08/11 : F8→F11, puis F12→F15 + F17a ; reste F1→F7, F16, F17b)*
 
-> **Décisions tranchées le 08/11/2026** : ① **F2** = export **et** import d un fichier JSON, dans l interface anonyme ; aucun secret dedans. ② **F13/F15** = vérification du pseudo **bloquante avant** création (espace et mule), repli manuel seulement si le God l active. ③ **Pas de Metamob anonyme** : la clé API est un secret, elle reste chiffrée en base derrière un compte ; le CTA (F5) dit ce que l anonyme perd.
+> **Décisions tranchées le 08/11/2026** : ① **F2** = export **et** import d'un fichier JSON, dans l'interface anonyme ; aucun secret dedans. ② **F13/F15** = vérification du pseudo **bloquante avant** création (espace et mule), repli manuel seulement si le God l'active. ③ **Pas de Metamob anonyme** : la clé API est un secret, elle reste chiffrée en base derrière un compte ; le CTA (F5) dit ce que l'anonyme perd.
 
 > **Décisions complétées le 08/11/2026 (retours en cours de session)** :
-> ④ **F11** — la modale de retour s ouvre pour **tout le monde** (plus de toast qui affichait l URL brute). Un visiteur **non connecté** n y voit que l encart **Discord Sigilos** — lien cliquable + « ouvre un post dans le canal associé » pour les captures — et un seul bouton Fermer. Un **compte connecté** garde le formulaire complet (catégories, position, description). Comme `isGuest` est codé en dur à `true` par le guide public, la session lui est transmise **séparément** (`feedbackSignedIn`), et le panneau reçoit `onlyDiscord = isGuest && !feedbackSignedIn`. Le panneau est monté **hors** de `.da-hero` (il y était rogné, et ses enfants sont plafonnés à `z-index: 2` sous le dock `sticky` à 30).
-> ⑤ **Destination d un retour** — `submitQuestFeedbackAction` écrit un `SystemIssue`, notifie le God (`USER_FEEDBACK`) et pousse un embed Discord (`questFeedbackChannelId`, repli `godNotifyChannelId`). Le **tri côté God** (un seul endroit `?tab=tickets`, refonte UI/UX, module `ticket-bot` à revoir) est consigné dans `docs/plans/PLAN-TICKETS-GOD.md`.
+> ④ **F11** — la modale de retour s'ouvre pour **tout le monde** (plus de toast qui affichait l'URL brute). Un visiteur **non connecté** n'y voit que l'encart **Discord Sigilos** — lien cliquable + « ouvre un post dans le canal associé » pour les captures — et un seul bouton Fermer. Un **compte connecté** garde le formulaire complet (catégories, position, description). Comme `isGuest` est codé en dur à `true` par le guide public, la session lui est transmise **séparément** (`feedbackSignedIn`), et le panneau reçoit `onlyDiscord = isGuest && !feedbackSignedIn`. Le panneau est monté **hors** de `.da-hero` (il y était rogné, et ses enfants sont plafonnés à `z-index: 2` sous le dock `sticky` à 30).
+> ⑤ **Destination d'un retour** — `submitQuestFeedbackAction` écrit un `SystemIssue`, notifie le God (`USER_FEEDBACK`) et pousse un embed Discord (`questFeedbackChannelId`, repli `godNotifyChannelId`). Le **tri côté God** (un seul endroit `?tab=tickets`, refonte UI/UX, module `ticket-bot` à revoir) est consigné dans `docs/plans/PLAN-TICKETS-GOD.md`.
 
 **V2f — ce qui est livré (mesuré, 08/11/2026)**
 
@@ -452,7 +452,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **F2** Import/export du profil local : tout vit dans `localStorage` ; un nettoyage de cookies perd progression, cité et alignement. Proposer un **fichier** JSON (export/import), jamais une synchro serveur implicite.
 - **F3** Espacement des tuiles (Personnage / Alignement / Overlay trop serrées) et **Metamob remis dans l alignement** des tuiles.
 - **F4** Aérer la rangée « Rechercher une quête + Options ».
-- **F5** Dire à l anonyme ce qu il **perd** (communautaire, sauvegarde multi-appareils) près du CTA.
+- **F5** Dire à l'anonyme ce qu'il **perd** (communautaire, sauvegarde multi-appareils) près du CTA.
 - **F6** Prérequis nombreux : 12 chips illisibles → liste repliable.
 
 *Guide public — rendu*
@@ -466,8 +466,8 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 
 *Espace visiteur connecté*
 - **F12** Menu : assets Dofus pour « Mes guildes », « Tableau de bord », « Mon espace visiteur ».
-- **F13** Création de profil : vérification du pseudo **bloquante avant** la création (mécanique de l interne), repli manuel si le God l autorise.
-- **F14** Metamob : refuser l enregistrement d une clé invalide (`/v1/me` avant écriture) ; la clé ne doit plus disparaître sans retour.
+- **F13** Création de profil : vérification du pseudo **bloquante avant** la création (mécanique de l'interne), repli manuel si le God l'autorise.
+- **F14** Metamob : refuser l'enregistrement d'une clé invalide (`/v1/me` avant écriture) ; la clé ne doit plus disparaître sans retour.
 - **F15** Mules : vérification du pseudo **bloquante** à l ajout.
 - **F16** Succès : bouton « mes succès sur ce boss » dans chaque donjon (guide navigateur, jamais l overlay) ; vue « succès en commun / qui peut faire quoi » sur `/visiteurs` (+ asset) ; même mécanique côté guide interne.
-- **F17** Métiers : l onglet Élevage fait bouger l écran ; lier métier ↔ quête (« qui a ce métier à ce niveau »).
+- **F17** Métiers : l'onglet Élevage fait bouger l'écran ; lier métier ↔ quête (« qui a ce métier à ce niveau »).

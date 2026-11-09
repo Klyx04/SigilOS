@@ -21,6 +21,15 @@
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
+- 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
+  - [ ] **lun** — F17b · V-H · finitions anonymes (F3/F4/F7) · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
+  - [ ] **mar** — F1 · F2 · F5+F6
+  - [ ] **mer** — F16 (= V2b) · V2a-4 reste (tour spotlight)
+  - [ ] **jeu** — T-4 (O14 · O15 · G7/G8/G9) · transverses + 4 `prompt()` · V-C · V-D2 · drop `alignOrderReq`
+  - [ ] **ven** — studio E2 (inspecteur quête) · V2c (Rush Live visiteurs)
+  - [ ] **sam** — V2d (ladder serveur) · E3 (bloc/masse/problèmes) · V3 (God visiteurs)
+  - [ ] **S2** — T-5 · T-6 · bloc B · E4/E5 studio · lot D · E4 DA Wakfu · colonne `resources` · `questDbIds`
+  **Dépend de toi** : captures G7/G8/G9/O15 · nom de `33380` · 98 textes Brâkmarien · 2×100 + 30 quêtes.
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
 

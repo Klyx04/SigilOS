@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 09/11/2026 (suite 6) — **Rang 61 · S1 : le frigo d'images se remplit hors ligne** — branche `feat/souverainete-s1-siphon-monstres`
+
+> **Demande user (verbatim)** : « remplis le frigo : les 456 images d'archimonstres et de boss ».
+> **Mesure préalable** : le stockage est **déjà** un volume persistant (`assets-beta-data` / `assets-prod-data`, monté sur `/app/public/uploads/assets-dofus`, commenté « sinon remis à ~0 à chaque deploy ») — aucune décision de stockage à prendre, R2 n'apporterait rien (une instance, ~9 Mo).
+> **Fait** : règle pure `gfxIdFromDofusDbImageUrl` / `spriteAssetFileName` (`src/lib/dofus-monster-assets.ts`) — l'espace **apparence** uniquement (`<gfx>.sprite.webp`), jamais la clé d'entité ; route `GET /api/cron/siphon-monster-assets` (fail-closed `CRON_SECRET`, **dry-run par défaut**, `limit` 1–200, `offset`, concurrence 4) qui remplit le cache des `Archimonstre` `archimonstre|boss` et rapporte `total / alreadyThere / siphoned / failed / remaining`.
+> **Piège désamorcé** : le placeholder du proxy pèse **118 octets** — un seuil à 100 l'aurait pris pour une vignette valide et le siphon n'aurait **jamais** rien rempli. `MIN_SPRITE_BYTES = 500`.
+> **Preuves** : `siphon-monster-assets` **6** (neufs) · suite **6 879 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste (S2)** : le proxy cesse de télécharger pour les monstres (lecteur de cache + liste God des manquants) ; `?url=` retiré du DOM ; script de couverture. **Ops** : déployer, puis lancer la route 5 fois (`limit=100`) — action humaine, elle écrit sur le volume.
+> **Rotation** : bloc « 09/11/2026 — Ocre public ISO + hero de l'overlay plafonné » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 09/11/2026 (suite 5) — **Le proxy images est réparé ; les cibles sans image sont nommées** — branche `fix/ocre-cibles-sans-image`
 
 > **Constat user (verbatim)** : « les 4 blops sont encore ko on dirait » — après le déploiement de `1f18c008`.
@@ -53,17 +64,10 @@
 > **Fait** : `getMyOcreProgress` résout l'image **par nom** dans `Archimonstre` (`type in archimonstre|boss` → `internalDofusDbImageUrl`, espace apparence `?sprite=1`, repli `normalizeDofusAssetStoredUrl` sur `dofusdbId`) et l'écrit dans `norm.image` ; la chaîne de vignette devient la **règle pure** `ocreMonsterThumbChain(id, type, imageUrl)` — le WebP local `/uploads/…` n'est plus retenté quand le serveur a résolu l'image (un 404 de moins par vignette) ; `OcreTargetBits` ne code plus aucun chemin.
 > **Preuves** : `rush-overlay-ocre` **46** (2 cas neufs + 1 repointé, jamais affaibli) · suite **641 fichiers / 6 847 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : contrôle à l'œil après déploiement bêta (modale « Mon Ocre » de l'overlay **et** du dashboard, filtres Gardiens/Archis) — une cible sans ligne dans `Archimonstre` garde le picto (comportement inchangé, aucun 404). **Ops** : `./scripts/deploy-cd.sh beta` (action humaine).
-> **Rotation** : bloc « 07/11/2026 (suite 4) — Responsive : le skill devient un cliquet vérifié » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+> **Rotation** : bloc « 09/11/2026 — Ocre public ISO + hero de l'overlay plafonné (PR #1315 · #1316) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 09/11/2026 — **Ocre public ISO + hero de l'overlay plafonné** — PR #1315 · #1316
 
-> **Demandes** : ① « Metamob public ISO avec l'interne » — panneau unique, peau DA, options Gardiens/Archis + zones, filtres Tous/Possédés/Manquants, clé repliée, accusé d'écriture ; ② la **bande vide de 276 px** du hero de l'overlay en fenêtre courte.
-> **Mesures** : ① la modale publique montait sa **propre** version de la quête Ocre (« Marquer ») quand l'interne a un panneau complet (liste, recherche, onglets, stepper ±1, retour d'écriture) ; ② la lecture publique était **bornée à 200** cibles pour une quête qui en compte **337** ⇒ troncature silencieuse ; ③ `.da-hero` en densité `wide` impose `min-height: min(276px, 30vh)` alors que le PiP n'a que **~100 px** de contenu ⇒ **~170 px** volés à la liste des quêtes (`flex-1`).
-> **Fait** : **#1315** (mergée `bbf21678`) — `OcreQuestPanel` porte liste, recherche, onglets, stepper et retour d'écriture, et **les deux guides le montent** (la version publique « Marquer » disparaît) ; `daScopeProps(useDaTheme())` sur la modale publique (le guide monte déjà `DaThemeProvider`) ; compte vérifié ⇒ **clé repliée** derrière « Modifier » ; accusé « Enregistré sur Metamob » (debounce 650 ms déjà en place) ; onglets **Gardiens / Archis** + ligne **zone · subzone** (`/v1/quests/{slug}/zones`, **même** clé de cache Redis que l'interne) ; lecture **200 → 400** ; repli `.png` du dépôt avant le picto générique ; écriture publique par `useOcreWriteQueue` à **envoi injecté** (`patchPublicOcreMonster`) — même file, aucun chemin dupliqué ; règle pure `classifyOcreType`. **#1316** (mergée `ccf03710`) — `@media (max-height: 700px)` plafonne `wide` à la hauteur de `normal` (**112 px**) : CSS seul, grand écran intact, aucun contenu, bouton ni libellé déplacé.
-> **Preuves** : `rush-overlay-ocre` **41** (repointé, pas affaibli) · `da-wakfu` **+2** (le plafond existe **et** la règle `276px / 30vh` reste intacte) · suite **640 fichiers / 6 840 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : V2f **F1→F7** (bandeau Dofus anonyme, export/import JSON, espacement, prérequis repliables, « ce que tu perds ») · **F16** (succès par donjon + succès en commun) · **F17b** (`?niveau=`) · **V2a-4 reste** (tour spotlight public) → V2b → V2c → V2d → V3 · profil **P2-ter** (30 classes de palette, 65 marqueurs slop). **Ops** : contrôle **390 px** de la modale publique, PiP court (~700 px) et grand écran.
-> **Rotation** : bloc « 08/11/2026 (suite 3) — Profil dashboard : cliquet, un accent, 8 onglets (P1 → P4) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

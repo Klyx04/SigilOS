@@ -166,6 +166,30 @@ export function ocreMonsterImageUrl(raw?: string | null): string | null {
 }
 
 /**
+ * Chaîne de repli d'une vignette de cible Ocre — **règle pure**, une seule source pour l'overlay
+ * et la modale « Mon Ocre ».
+ *
+ * Mesure du 09/11/2026 (bêta) : quand le serveur a résolu l'image, le premier repli local
+ * (`/uploads/…/<id>.webp`) ne peut PAS exister — ce dossier est indexé par un id d'entité de jeu,
+ * alors que l'`id` d'une cible Ocre est un id Metamob (mesuré : 404 en série, un par vignette).
+ * On ne le retente donc que lorsque le serveur n'a rien résolu ; le PNG du dépôt puis le picto du
+ * jeu restent, eux, toujours tentés (ce sont des fichiers que nous livrons).
+ */
+export function ocreMonsterThumbChain(
+  id: number,
+  type?: string | null,
+  imageUrl?: string | null
+): string[] {
+  const internal = ocreMonsterImageUrl(imageUrl);
+  return [
+    internal,
+    internal ? null : ocreMonsterImage(id),
+    ocreMonsterLegacyImage(id),
+    ocreMonsterIcon(type),
+  ].filter((src): src is string => typeof src === "string" && src.length > 0);
+}
+
+/**
  * Nature d'une cible de quête Ocre, à partir du libellé Metamob (« Archimonstre », « Gardien »).
  *
  * Règle **pure** et partagée : le guide interne et l'espace visiteur doivent produire le même

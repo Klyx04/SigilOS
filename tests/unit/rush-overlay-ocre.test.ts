@@ -33,6 +33,7 @@ import {
   ocreMonsterIcon,
   ocreMonsterImage,
   ocreMonsterImageUrl,
+  ocreMonsterThumbChain,
   ocreStateLabel,
   classifyOcreType,
   soulStoneForLevel,
@@ -273,15 +274,51 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(data.monsters[0].imageUrl).toBe(upstream);
     expect(data.monsters[1].imageUrl).toBeNull();
 
-    // La chaîne du composant : image serveur → WebP local → PNG du dépôt → picto du jeu.
+    // La chaîne du composant : image serveur → PNG du dépôt → picto du jeu (règle pure ci-dessous).
     const bitsSrc = read("src/components/ocre/OcreTargetBits.tsx");
     const questPanelSrc = read("src/components/ocre/OcreQuestPanel.tsx");
     const overlaySrc = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx");
-    expect(bitsSrc).toContain("imageUrl, ocreMonsterImage(id), ocreMonsterLegacyImage(id), ocreMonsterIcon(type)");
+    expect(bitsSrc).toContain("ocreMonsterThumbChain(id, type, imageUrl)");
     // Le placeholder du proxy (PNG 1×1) ne doit pas laisser une vignette vide.
     expect(bitsSrc).toContain("naturalWidth <= 1");
     expect(questPanelSrc).toContain("imageUrl={m.imageUrl ?? null}");
     expect(overlaySrc).toContain("imageUrl={t.imageUrl ?? null}");
+  });
+
+  it("ne retente pas un WebP local quand l'image serveur est résolue (404 mesuré)", () => {
+    const upstream =
+      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+
+    // Image serveur connue ⇒ on ne demande PAS /uploads/…/<id Metamob>.webp (il n'existe pas).
+    const resolved = ocreMonsterThumbChain(2508, "archimonstre", upstream);
+    expect(resolved[0]).toBe(upstream);
+    expect(resolved).not.toContain("/uploads/assets-dofus/monsters/2508.webp");
+    expect(resolved).toContain("/assets/dofus/monsters/2508.png");
+    expect(resolved[resolved.length - 1]).toBe("/assets/dofus/icons/archimonster.png");
+
+    // Sans image serveur, la chaîne historique est conservée (le cache siphonné peut exister).
+    const unresolvable = ocreMonsterThumbChain(301, "boss", null);
+    expect(unresolvable[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+
+    // Une URL absolue (Metamob ou autre hôte) n'est jamais une étape de la chaîne.
+    const unsafe = ocreMonsterThumbChain(301, "boss", "https://www.metamob.fr/img/monsters/x.png");
+    expect(unsafe).not.toContain("https://www.metamob.fr/img/monsters/x.png");
+    expect(unsafe[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+  });
+
+  it("la progression Ocre résout l'image par NOM depuis la table locale, pas par l'id Metamob", () => {
+    // Mesure du 09/11/2026 : l'id du panneau est un id Metamob (347 → introuvable, 2508 → un
+    // AUTRE monstre). L'image doit donc venir de `Archimonstre`, résolue par nom puis proxifiée.
+    const src = read("src/server/actions/ocre-actions.ts");
+    expect(src).toContain("db.archimonstre.findMany");
+    expect(src).toContain('type: { in: ["archimonstre", "boss"] }');
+    expect(src).toContain("const imgVal = nameToImageMap.get(imageKey(norm.nameFr))");
+    expect(src).toContain("if (imgVal) norm.image = imgVal");
+    expect(src).toContain("internalDofusDbImageUrl(a.imageUrl)");
+    // La clé de rapprochement ignore les accents (même règle que `getZoneArchmonsters`).
+    expect(src).toContain('s.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim()');
+    // Aucune image construite depuis l'id du monstre affiché (espace d'entité ≠ id Metamob).
+    expect(src).not.toContain("resolveDofusAssetImageUrl(\"monsters\", norm.id)");
   });
 
   it("les vignettes viennent du WebP local, le repli de nos pictos du jeu", () => {
@@ -551,7 +588,10 @@ describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => 
   it("aucune image Metamob brute dans le DOM (l'image sûre arrive du serveur)", () => {
     expect(modal).not.toContain("src={m.image}");
     expect(panel).not.toContain("src={m.image}");
-    expect(bits).toContain("ocreMonsterImage(id)");
+    // La chaîne de vignette est une règle PURE (`src/lib`), consommée par le composant :
+    // les replis locaux ne vivent donc qu'à un seul endroit.
+    expect(bits).toContain("ocreMonsterThumbChain(id, type, imageUrl)");
+    expect(read("src/lib/ocre-soul-stones.ts")).toContain("ocreMonsterImage(id)");
     expect(bits).toContain("ocreStateLabel(owned, requiredCopies)"); // libellé : source unique
   });
 });

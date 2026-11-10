@@ -98,6 +98,10 @@ interface RushOverlayQuestListItemProps {
     onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
     ensureLoaded: () => void;
   };
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état ocre inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
 }
 
 /**
@@ -128,6 +132,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   guildId,
   isNext = false,
   dungeonActions,
+  capturedOcreNames,
+  onOpenOcre,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
@@ -292,6 +298,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   others={dungeonActions?.others}
                   onSet={dungeonActions?.onSet}
                   onEnsureLoaded={dungeonActions?.ensureLoaded}
+                  capturedOcreNames={capturedOcreNames}
+                  onOpenOcre={onOpenOcre}
                 >
                   <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — cliquer pour cocher fait / à faire">
                     {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le

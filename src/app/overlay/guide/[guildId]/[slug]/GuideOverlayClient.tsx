@@ -601,6 +601,13 @@ export default function GuideOverlayClient({
   // L'entrée Ocre ne dépend plus des DONNÉES : un membre non lié doit pouvoir ouvrir le
   // panneau et lier son compte. Le mode invité et le guide public restent exclus.
   const ocreEnabled = !isGuest && !!guildId && guildId !== "public";
+  // V-H — captures Metamob du membre, dérivées du payload Ocre déjà chargé (aucun
+  // appel réseau supplémentaire). Liste vide ⇒ `unknown` : jamais un faux « à capturer ».
+  const capturedOcreNames = useMemo(
+    () => (ocre?.monsters ?? []).filter((m) => m.owned > 0).map((m) => m.nameFr),
+    [ocre]
+  );
+  const openOcre = ocreEnabled ? () => setShowOcre(true) : undefined;
   const ocreSummary = useMemo(() => {
     if (!ocreEnabled || !ocre) return null;
     const plan = buildOcrePlan(ocre);
@@ -1544,6 +1551,8 @@ export default function GuideOverlayClient({
                         onOpenDetail={() => setDetailSeq({ ms, seq })}
                         bookmarkers={bookmarkersBySeq.get(seq.id) || []}
                         onOpenBookmarkers={() => openSeqMembers(seq)}
+                        capturedOcreNames={capturedOcreNames}
+                        onOpenOcre={openOcre}
                       />
                     </React.Fragment>
                   );
@@ -1602,6 +1611,8 @@ export default function GuideOverlayClient({
                       onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
                       bookmarkers={bookmarkersBySeq.get(seq.id) || []}
                       onOpenBookmarkers={() => openSeqMembers(seq)}
+                      capturedOcreNames={capturedOcreNames}
+                      onOpenOcre={openOcre}
                     />
                   </React.Fragment>
                 );
@@ -1661,6 +1672,8 @@ export default function GuideOverlayClient({
           hideProvidedResources={hideCompleted}
           checkedKeys={resourceChecks}
           onToggleResourceCheck={handleToggleResourceCheck}
+          capturedOcreNames={capturedOcreNames}
+          onOpenOcre={openOcre}
           onClose={() => setDetailSeq(null)}
         />
       )}

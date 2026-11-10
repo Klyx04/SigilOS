@@ -40,6 +40,8 @@ export function RushQuestDungeonsPanel({
   footer,
   className,
   highlightKey = null,
+  capturedOcreNames,
+  onOpenOcre,
 }: {
   /** La quête concernée — la coche ne vaut QUE pour elle. */
   seq: RushSequence;
@@ -56,6 +58,10 @@ export function RushQuestDungeonsPanel({
   className?: string;
   /** Donjon à mettre en avant à l'ouverture (clic sur son icône dans la ligne de quête). */
   highlightKey?: string | null;
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
 }) {
   const dungeons = useMemo(() => getDungeons(seq), [seq]);
   const progress = useMemo(
@@ -125,6 +131,8 @@ export function RushQuestDungeonsPanel({
         others={others}
         highlightKey={highlightKey}
         onSet={onSet ? (dungeonKey, state) => onSet(seq.id, dungeonKey, state) : undefined}
+        capturedOcreNames={capturedOcreNames}
+        onOpenOcre={onOpenOcre}
       />
 
       {footer ? <div className="mt-1.5 border-t border-border pt-1.5">{footer}</div> : null}

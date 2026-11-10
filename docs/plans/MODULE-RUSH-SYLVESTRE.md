@@ -321,9 +321,13 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Dépendances** : — · **Statut** : **livré (V-G)** — la modale propose le lien ; le chemin est couvert par `rush-overlay-ocre-link`.
 
 ### H — Donjons « ocre à capturer » : état + ouverture
+
 - **Existant** : tag `ocre_dungeon` (God, `isDungeonOcre`) · progression Metamob (`getOwnQuestMonsters`, `findMonsterOwnersAction`, `OcreProgressData`).
-- **Changement** : à côté du badge ocre → **« capturé ✓ / à capturer »** (tous les monstres du donjon possédés) ; chaque donjon ocre **cliquable** → fenêtre Ocre (`RushOverlayOcreModal` / `OcreProgressModal` / `DofusOcreMetamob`) ; non lié → ouvre **G**.
-- **Dépendances** : **G** (**livré**) · **Statut** : **à faire**.
+- **Changement** : à côté du badge ocre → **« capturé ✓ / à capturer »** ; chaque donjon ocre **cliquable** → fenêtre Ocre (`RushOverlayOcreModal` / `OcreProgressModal` / `DofusOcreMetamob`) ; non lié → ouvre **G**.
+- **Dépendances** : **G** (**livré**) · **Statut** : **livré le 10/11/2026 (V-H)**.
+- **Mesure préalable** : le schéma n'a **aucune relation `Dungeon → Monster`**. Le rapprochement se fait donc sur le **nom du boss** du donjon (repli : nom du donjon), normalisé (`src/lib/ocre-dungeons.ts`, comparaison exacte, pas `includes`). La version stricte « tous les monstres du donjon » exigera une table Donjon → Monstres alimentée par DofusDB (**migration ⇒ accord**) : lot séparé, non ouvert.
+- **Câblage** : la carte partagée `RushOverlayDungeonCard` porte l'état et le bouton ; le panneau, la popover et la fiche détail transmettent les deux props ; le **dashboard** alimente avec `capturedMonsterNames` et ouvre `OcreProgressModal`, l'**overlay** dérive les captures de `ocre.monsters` et ouvre `RushOverlayOcreModal` ; le **guide public** ne reçoit aucune action. `getDungeons` marque désormais **un** donjon par tag (`isOcreTagged`), plus toute la séquence.
+- **Preuves** : `ocre-dungeons` **15** (règle, rendu réel, câblage) · suite **647 fichiers / 6 905 tests** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 
 ## 3. Ordre d'exécution
 

@@ -252,6 +252,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 }) {
   const capturedMonsterSet=React.useContext(CapturedMonsterCtx);
   const capturedMonsterNames=React.useContext(CapturedMonsterNamesCtx);
+  const onOpenOcre=React.useContext(OpenOcreCtx);
   const scrollToPrereq=React.useContext(ScrollToPrereqCtx);
   const activeSeqId = React.useContext(ActiveSeqIdCtx);
   const nextSeqId = React.useContext(NextSeqIdCtx);
@@ -606,6 +607,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             others={dungeonActions.others}
             onSet={dungeonActions.onSet}
             onClose={() => setDungeonsOpen(false)}
+            capturedOcreNames={capturedMonsterNames}
+            onOpenOcre={onOpenOcre}
             footer={
               allDungeons[0] ? (
                 <button
@@ -672,6 +675,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           hideProvidedResources={!!hideSeqCompleted}
           checkedKeys={resourceChecks}
           onToggleResourceCheck={onToggleResourceCheck}
+          capturedOcreNames={capturedMonsterNames}
+          onOpenOcre={onOpenOcre}
           onClose={() => setDetailOpen(false)}
         />,
         document.body
@@ -1111,6 +1116,9 @@ function isInfoSequence(seq: Sequence): boolean {
 // ─── Contexts ────────────────────────────────────────────────────────────────
 const CapturedMonsterCtx=React.createContext<Set<number>>(new Set);
 const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
+// V-H — ouverture de la fenêtre Ocre depuis un donjon ocre du guide (dashboard).
+// Un contexte évite de traverser `ChapterBlock` / `MilestoneRow` / `SequenceRow`.
+const OpenOcreCtx=React.createContext<(() => void) | undefined>(undefined);
 const ScrollToPrereqCtx=React.createContext<(name:string, targetSeqId?:string|null)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
@@ -1334,6 +1342,8 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [resetModalOpen,setResetModalOpen]=useState(false);
   const [resetLoading,setResetLoading]=useState(false);
   const [ocreModalOpen,setOcreModalOpen]=useState(false);
+  // V-H — callback stable : la valeur du contexte ne doit pas re-rendre toutes les lignes.
+  const openOcre=useCallback(()=>setOcreModalOpen(true),[]);
   const [rushLiveModalOpen,setRushLiveModalOpen]=useState(false);
   const [penseBeteOpen,setPenseBeteOpen]=useState(false);
   // ── Ressources à prévoir (bouton du module) + coches MANUELLES « déjà préparé » ──
@@ -2119,7 +2129,7 @@ const timelineItems=useMemo(()=>{
   };
 
 
-  return(<><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
       `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
       `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
@@ -2763,7 +2773,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider>
+   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
 
 
 </>);}

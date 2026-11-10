@@ -33,6 +33,10 @@ interface RushOverlayQuestDetailModalProps {
    * les trois surfaces (guide public, guide interne, overlay).
    */
   hideProvidedResources?: boolean;
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état ocre inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
 }
 
 /**
@@ -60,6 +64,8 @@ export function RushOverlayQuestDetailModal({
   hideProvidedResources = false,
   checkedKeys,
   onToggleResourceCheck,
+  capturedOcreNames,
+  onOpenOcre,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -200,7 +206,12 @@ export function RushOverlayQuestDetailModal({
 
             {dungeons.length > 0 && (
               <section className="py-3">
-                <RushOverlayDungeonCard dungeons={dungeons} guildId={guildId} />
+                <RushOverlayDungeonCard
+                  dungeons={dungeons}
+                  guildId={guildId}
+                  capturedOcreNames={capturedOcreNames}
+                  onOpenOcre={onOpenOcre}
+                />
               </section>
             )}
 

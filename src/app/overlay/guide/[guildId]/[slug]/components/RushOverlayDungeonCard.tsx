@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { isPublicOverlay } from "./overlay-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
+import { ocreDungeonCapture, type OcreDungeonCaptureState } from "@/lib/ocre-dungeons";
 import {
   dungeonKeyOf,
   occurrenceState,
@@ -54,6 +55,13 @@ interface RushOverlayDungeonCardProps {
   onSet?: (dungeonKey: string, state: RushDungeonState | null) => void;
   /** Donjon à mettre en avant (celui qu'on vient de cliquer dans la ligne de quête). */
   highlightKey?: string | null;
+  /**
+   * V-H — noms des monstres déjà capturés (Metamob). Absents ou vides ⇒ état `unknown` :
+   * on n'affiche jamais « à capturer » sans preuve (compte non lié).
+   */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre ; sans callback, le badge reste informatif. */
+  onOpenOcre?: () => void;
 }
 
 /** Un bouton d'état, style commun aux deux valeurs. */
@@ -109,6 +117,8 @@ export function RushOverlayDungeonCard({
   others = [],
   onSet,
   highlightKey = null,
+  capturedOcreNames,
+  onOpenOcre,
 }: RushOverlayDungeonCardProps) {
   if (dungeons.length === 0) return null;
   const isPublic = isPublicOverlay(guildId);
@@ -149,6 +159,8 @@ export function RushOverlayDungeonCard({
               todo={key ? todoByKey.get(key) ?? [] : []}
               highlighted={!!key && key === highlightKey}
               onSet={onSet && key ? (next) => onSet(key, next) : undefined}
+              ocreState={dj.isOcre ? ocreDungeonCapture(dj, capturedOcreNames) : null}
+              onOpenOcre={onOpenOcre}
             />
           );
         })}
@@ -167,6 +179,8 @@ function DungeonRow({
   todo,
   highlighted = false,
   onSet,
+  ocreState = null,
+  onOpenOcre,
 }: {
   dj: DungeonInfo;
   href: string | null;
@@ -177,6 +191,10 @@ function DungeonRow({
   onSet?: (state: RushDungeonState | null) => void;
   /** Cible d'une ouverture depuis la ligne de quête : anneau + mise en vue. */
   highlighted?: boolean;
+  /** V-H — état Metamob du donjon ocre (`null` = pas un donjon ocre). */
+  ocreState?: OcreDungeonCaptureState | null;
+  /** V-H — ouvre la fenêtre Ocre (le bouton n'est rendu que si l'état est connu). */
+  onOpenOcre?: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const rowRef = React.useRef<HTMLDivElement>(null);
@@ -214,8 +232,15 @@ function DungeonRow({
           <DoorOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         )}
         {dj.isOcre && (
-          <span className="absolute -top-px -right-px rounded-[3px] border border-warning/40 bg-warning/15 px-1 text-[9px] font-semibold leading-4 text-warning">
-            Ocre
+          <span
+            className={cn(
+              "absolute -top-px -right-px rounded-[3px] border px-1 text-[9px] font-semibold leading-4",
+              ocreState === "captured"
+                ? "border-success/40 bg-success/15 text-success"
+                : "border-warning/40 bg-warning/15 text-warning"
+            )}
+          >
+            Ocre{ocreState === "captured" ? " ✓" : ocreState === "to-capture" ? " !" : ""}
           </span>
         )}
         {state === "done" && (
@@ -236,6 +261,11 @@ function DungeonRow({
         <span className="block truncate text-[11px] text-muted-foreground">
           {dj.name || "Donjon"}
           {todo.length > 0 ? ` · à faire : ${todo.join(", ")}` : ""}
+          {ocreState === "captured"
+            ? " · Ocre : capturé"
+            : ocreState === "to-capture"
+              ? " · Ocre : à capturer"
+              : ""}
         </span>
       </span>
       <ExternalLink
@@ -266,6 +296,48 @@ function DungeonRow({
       ) : (
         <div className="group flex min-w-0 flex-1 items-center gap-2.5">{inner}</div>
       )}
+
+      {/* V-H — le donjon ocre ouvre la fenêtre Ocre (Metamob). L'état est déjà dit
+          dans la sous-ligne ; ce bouton compact ne porte que l'action, avec un
+          `aria-label` complet (la fenêtre PiP n'a pas de place pour un libellé long). */}
+      {ocreState && onOpenOcre ? (
+        <button
+          type="button"
+          onClick={onOpenOcre}
+          aria-label={
+            ocreState === "captured"
+              ? `Quête Ocre : ${bossDisplayName} déjà capturé — ouvrir le suivi`
+              : ocreState === "to-capture"
+                ? `Quête Ocre : ${bossDisplayName} à capturer — ouvrir le suivi`
+                : "Quête Ocre : ouvrir le suivi Metamob"
+          }
+          title={
+            ocreState === "captured"
+              ? `${bossDisplayName} est déjà capturé — ouvrir la Quête Ocre`
+              : ocreState === "to-capture"
+                ? `${bossDisplayName} reste à capturer — ouvrir la Quête Ocre`
+                : "Ouvrir la Quête Ocre (compte Metamob non lié ou données indisponibles)"
+          }
+          className={cn(
+            "grid h-6 w-6 shrink-0 place-items-center rounded-[4px] border transition-colors",
+            ocreState === "captured"
+              ? "border-success/40 bg-success/10 text-success hover:bg-success/15"
+              : ocreState === "to-capture"
+                ? "border-warning/40 bg-warning/10 text-warning hover:bg-warning/15"
+                : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
+          )}
+        >
+          {/* L'asset du jeu porte l'identité Ocre ; la couleur du cadre et le badge
+              de la vignette disent l'état. Icône seule : la PiP n'a pas de largeur. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/icons/ocre.png"
+            alt=""
+            className="h-3 w-3 object-contain"
+            aria-hidden="true"
+          />
+        </button>
+      ) : null}
 
       {/* Les DEUX états : « fait » débloque la quête, « à faire » dit aux autres
           qu'on compte le faire. Aucune case binaire : l'absence = pas décidé. */}

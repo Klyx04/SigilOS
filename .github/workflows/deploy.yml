@@ -61,7 +61,12 @@ jobs:
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # ⚠️ `GITHUB_TOKEN` seul ne suffit plus : mesuré le 09/11/2026 (run 42707337374), le
+          # build réussit puis le push est refusé — `403 Forbidden` sur le HEAD des blobs, puis
+          # `denied: permission_denied: write_package`. Le repli sur `GHCR_PAT` (PAT avec
+          # `write:packages`, déjà prévu en tête de ce fichier) rétablit l'écriture ; il suffit de
+          # créer le secret. Sans PAT, le comportement reste celui d'avant (aucune régression).
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       # ───────────────────────────────────────────────────
       # Déterminer le suffixe (beta/prod) selon la branche

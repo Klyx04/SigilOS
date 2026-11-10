@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 10/11/2026 (suite) — **Rang 57 · F17b : l'annuaire sait demander un métier à un niveau** — branche `feat/visiteur-filtre-niveau`
+
+> **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → choix explicite : **le filtre niveau d'abord**, puis l'Ocre.
+> **Mesure préalable** : l'annuaire ne connaissait que `q`, `classe`, `metier`, `cursor` ; le `where` filtrait le métier **sans niveau** ; le verrou `visitor-directory` exigeait **2** `<FilterMenu>`. La donnée était prête : `PublicProfession` porte `@@index([metierId, level])` et les niveaux sont bornés **1..200**.
+> **Fait** : `niveau` borné (entier 1..200, lu **seulement** avec un métier valide), `where` en `level: { gte }` (« au moins ce niveau »), lien qui conserve le niveau et le retire avec le métier ; 3ᵉ menu « Niveau » (paliers 50/100/150/200) rendu **seulement** quand un métier est actif, via le `FilterMenu` partagé (exclusivité, Échap, clic extérieur) ; libellés fr/en.
+> **Preuves** : `visitor-directory` **25** (+7) · suite **646 fichiers / 6 890 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : contrôle visuel 390 / 768 / 1 440 ; `PUBLIC_VISITOR_ENTRY=1` en bêta ; puis **V-H** (donjons ocre « capturé / à capturer »), **F16**, **F1→F7**.
+> **Rotation** : bloc « 09/11/2026 (suite 2) — Rôles Discord du cycle de vie d'essai (V1) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 10/11/2026 — **Souveraineté S1b + S2 : le frigo est plein, le fil réseau est coupé** — branche `feat/souverainete-s2-hybride`
 
 > **Décision user** : « remplis le frigo : les 456 images d'archimonstres et de boss », puis **mode hybride** pour S2.
@@ -56,27 +66,3 @@
 > **Rotation** : bloc « 08/11/2026 (suite) — V2f : l'overlay respire (F8→F11) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 09/11/2026 (suite 2) — **Rôles Discord du cycle de vie d'essai (V1)** — branche `feat/roles-essai-v1`
-
-> **Demande user (verbatim)** : « J'aimerai pouvoir propose en option l'ajout d'un rôle discord quand on met quelqu'un à l'essai depuis sa modale membre … un second settings à la fin d'essai : pouvoir ajouter un rôle automatiquement / en supprimer un ».
-> **Mesure** : le socle existait déjà et n'était **pas branché** — `GuildConfig.arrivingRoleId` / `trialRoleId` / `confirmedRoleId` (migration `20261012000000`), `getGuildLifecycleData` qui les expose, `updateMemberLifecycleConfig` qui les écrit, et `addGuildMemberRole` / `removeGuildMemberRole` (`src/server/discord.ts`, `PUT|DELETE …/members/{u}/roles/{r}`, fail-closed, `X-Audit-Log-Reason`). Il manquait **l'UI**, la **persistance dans les réglages** et **l'application**. Constat de sécurité : `getGuildRoles` (bonus) est ouvert à tout membre et **ne filtre pas la hiérarchie** → inutilisable ici. `/valider-recrue` porte déjà les rôles d'**arrivée** (`addRoleId` / `removeRoleId`, panneau `SlashCommandsRbacPanel`) : aucune 2ᵉ source créée.
-> **Décision (user)** : validation **automatique** (la case « me montrer avant » part en V2, avec une migration) ; `/valider-recrue` applique **aussi** `trialRoleId` quand elle démarre un essai, **sans changer sa modale**.
-> **Fait** : règle pure `filterAssignableRoles` / `highestRolePosition` (`src/lib/discord/assignable-roles.ts`) — `@everyone`, rôles `managed` et tout rôle ≥ `min(bot, staff)` écartés, fail-closed si la position du bot est inconnue ; action `getAssignableTrialRoles` (RBAC `isAdmin || canManageMembers`, positions bot + staff lues en direct) ; `updateTrialEndSettings` persiste `trialRoleId` / `confirmedRoleId` (`undefined` = ne pas toucher, `null` = retirer) et **refuse** un rôle non attribuable ; `setMemberTrialState` applique `+ trialRoleId` au démarrage, `+ confirmedRoleId` / `− trialRoleId` à la validation, chaque refus Discord remonté dans le message (jamais un faux « ok ») ; un départ retire le rôle d'essai sans bloquer l'archivage ; écran **Paramètres ▸ Fin d'essai** = 2 sélecteurs Radix thémés (tokens, aucun contrôle natif).
-> **Preuves** : `assignable-roles` **7** + `trial-roles` **9** (neufs) · `membres-essai-fixes` / `registre-membres-b2` / `deslop-membres` verts (verrou « pas de `valider-recrue` dans cet écran » respecté) · suite **643 fichiers / 6 861 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **V2 (même branche)** : case **« Me montrer avant d'appliquer les rôles »**, persistée par `GuildConfig.trialConfirmRoleChange` — **migration additive** `20261109000000_add_trial_confirm_role_change`, défaut `false` (aucune guilde ne change de comportement). `setMemberTrialState` **refuse** toute validation non confirmée quand elle est active (fail-closed via `rolesConfirmed`), et la fiche membre ouvre une fenêtre à cases (`applyConfirmedRole` / `removeTrialRole`) : décocher un geste ne l'applique pas. Garde de déslop respectée (rayon `rounded-lg`, pas `rounded-xl` dans la fiche).
-> **Reste** : contrôle à l'œil (Paramètres ▸ Fin d'essai **et** fiche membre, 390 / 768 / 1440). **Ops** : `npx prisma migrate deploy` sur la bêta puis la prod, et redémarrer `npm run dev` en local (le client Prisma est régénéré).
-> **Rotation** : bloc « 09/11/2026 (suite) — Ocre : la vignette vient de la table locale » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
-
-
-
-
-> **Rotation** : bloc « 06/11/2026 (suite 12) — ladder (V1e) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

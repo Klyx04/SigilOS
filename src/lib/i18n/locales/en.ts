@@ -509,6 +509,8 @@ export const en: Translations = {
         jobFilter: "Profession",
         allClasses: "All classes",
         allJobs: "All professions",
+        levelFilter: "Level",
+        allLevels: "All levels",
         apply: "Filter",
         reset: "Reset filters",
         countZero: "No visible visitors",

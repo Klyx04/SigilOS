@@ -12,6 +12,7 @@ import path from "node:path";
 import {
     MIN_SPRITE_BYTES,
     gfxIdFromDofusDbImageUrl,
+    isRemoteSpriteFetchEnabled,
     spriteAssetFileName,
     spriteAssetUrl,
 } from "@/lib/dofus-monster-assets";
@@ -71,5 +72,34 @@ describe("route cron de siphon — contrat", () => {
         // cache doit contenir tout ce que l'app affiche : archis, boss **et** monstres.
         expect(src).toContain("where: { imageUrl: { not: null } }");
         expect(src).not.toContain('type: { in: ["archimonstre", "boss"] }');
+    });
+});
+
+/**
+ * Mode hybride (rang 61, lot S2) : par défaut le proxy **ne sort plus** pour un sprite.
+ * `ASSETS_REMOTE_FETCH=true` rallume le réseau à la main, le temps d'une mise à jour de contenu.
+ */
+describe("mode hybride — l'interrupteur réseau du proxy", () => {
+    it("par défaut, le réseau est coupé (aucune valeur, ou valeur non exacte)", () => {
+        expect(isRemoteSpriteFetchEnabled({})).toBe(false);
+        expect(isRemoteSpriteFetchEnabled({ ASSETS_REMOTE_FETCH: "" })).toBe(false);
+        expect(isRemoteSpriteFetchEnabled({ ASSETS_REMOTE_FETCH: "1" })).toBe(false);
+        expect(isRemoteSpriteFetchEnabled({ ASSETS_REMOTE_FETCH: "TRUE" })).toBe(false);
+        expect(isRemoteSpriteFetchEnabled({ ASSETS_REMOTE_FETCH: "yes" })).toBe(false);
+    });
+
+    it("seule la valeur exacte `true` rallume le réseau", () => {
+        expect(isRemoteSpriteFetchEnabled({ ASSETS_REMOTE_FETCH: "true" })).toBe(true);
+    });
+
+    it("la route sert le fichier siphonné AVANT de consulter l'interrupteur", () => {
+        const route = readFileSync(
+            path.join(process.cwd(), "src/app/api/assets-dofus/[type]/[id]/route.ts"),
+            "utf8"
+        );
+        const serveLocal = route.indexOf("if (fs.existsSync(localFilePath))");
+        const gate = route.indexOf("if (!isRemoteSpriteFetchEnabled())");
+        expect(serveLocal).toBeGreaterThan(-1);
+        expect(gate).toBeGreaterThan(serveLocal);
     });
 });

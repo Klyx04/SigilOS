@@ -289,6 +289,10 @@ describe("GET /api/assets-dofus/monsters/{gfx}?sprite=1 — espace d'APPARENCE (
     const SPRITE_URL = "https://api.dofusdb.fr/img/monsters/90.png";
 
     it("sert le fichier amont TEL QUEL (l'API monstre n'est jamais interrogée) + cache `.sprite.webp`", async () => {
+        // ⚠️ Depuis le lot S2 (mode hybride), le réseau est **coupé par défaut** pour un sprite :
+        // ce cas teste la position « rallumée » (`ASSETS_REMOTE_FETCH=true`), celle qu'on prend
+        // le temps d'une mise à jour de contenu.
+        vi.stubEnv("ASSETS_REMOTE_FETCH", "true");
         const calls: string[] = [];
         const fetchMock = vi.fn((url: any) => {
             calls.push(String(url));
@@ -307,6 +311,23 @@ describe("GET /api/assets-dofus/monsters/{gfx}?sprite=1 — espace d'APPARENCE (
         // Le piège mesuré : `/monsters/90` (API entité) ne doit JAMAIS être appelé ici.
         expect(calls).toEqual([SPRITE_URL]);
         expect(String(mockWriteFile.mock.calls[0][0])).toMatch(/[\\/]90\.sprite\.webp$/);
+        vi.unstubAllEnvs();
+    });
+
+    it("réseau coupé par défaut : sprite absent du cache ⇒ placeholder, AUCUN appel réseau", async () => {
+        // C'est la souveraineté : le proxy ne sort plus, même avec un `?url=` valide.
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(
+            req(`http://localhost/api/assets-dofus/monsters/90?url=${encodeURIComponent(SPRITE_URL)}&sprite=1`),
+            ctx("monsters", "90")
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("x-sigilos-placeholder")).toBe("1");
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("sans `?url=` exploitable : placeholder — on ne devine jamais un monstre par ce nombre", async () => {

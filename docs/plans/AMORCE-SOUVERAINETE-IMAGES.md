@@ -132,6 +132,12 @@ n'a plus d'image jusqu'au prochain siphon. Trois modes possibles, à choisir exp
 **Recommandation** : **hybride** + cron **quotidien** de `siphon-monster-assets`. En pratique le
 drapeau ne s'active qu'autour d'une mise à jour de contenu, et la couverture est vérifiée par S3.
 
+> ✅ **Décision du 10/11/2026 : hybride retenu.** `ASSETS_REMOTE_FETCH` (défaut `false`, seule la
+> valeur exacte `true` rallume le réseau) gate **uniquement** l'espace apparence (`?sprite=1`). Le
+> fichier siphonné est servi **avant** le contrôle ; s'il manque, picto + `logger.warn`. Les autres
+> chemins du proxy (items, sorts, succès, id d'entité) restent inchangés tant qu'ils ne sont pas
+> siphonnés. Le siphon cron n'est pas concerné : il garde le droit d'aller chercher les manquants.
+
 ### 8.4 Ce que ça implique côté ops
 
 - Un **cron quotidien** (ou hebdo après `data-watch`) qui lance la boucle de siphon ; sans lui, le

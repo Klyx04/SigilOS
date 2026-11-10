@@ -41,3 +41,21 @@ export function spriteAssetUrl(gfxId: string | number): string {
  * jamais le cache. 500 laisse passer toute vraie image (4–20 Ko) et rejette le placeholder.
  */
 export const MIN_SPRITE_BYTES = 500;
+
+/**
+ * Interrupteur du **mode hybride** (rang 61, lot S2).
+ *
+ * Par défaut (`false`), le proxy **ne sort plus** sur Internet pour un sprite : il sert le
+ * fichier siphonné, sinon le picto. C'est ce qui rend la souveraineté réelle — un sprite manquant
+ * ne dépend plus d'un service tiers.
+ *
+ * `ASSETS_REMOTE_FETCH=true` rallume le téléchargement à la volée **sans redéployer** : c'est la
+ * position à prendre le temps d'une mise à jour de contenu, puis à recouper. Volontairement
+ * strict : seule la valeur exacte `true` active le réseau (`1`, `yes`, `TRUE` ne comptent pas).
+ *
+ * ⚠️ Ne concerne que l'**espace apparence** (`?sprite=1`). Les autres chemins du proxy (items,
+ * sorts, succès, id d'entité) gardent leur comportement tant qu'ils ne sont pas siphonnés.
+ */
+export function isRemoteSpriteFetchEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.ASSETS_REMOTE_FETCH === "true";
+}

@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 10/11/2026 — **Souveraineté S1b + S2 : le frigo est plein, le fil réseau est coupé** — branche `feat/souverainete-s2-hybride`
+
+> **Décision user** : « remplis le frigo : les 456 images d'archimonstres et de boss », puis **mode hybride** pour S2.
+> **Mesures** : ① siphon complet exécuté sur la bêta — **2 294 apparences**, `remaining: 0`, **1** seul 404 amont (`2179` « Membre de la Maoufia », sprite inexistant) ; ② après redéploiement, le volume **persiste** (`646` → 5 482 o), donc `assets-beta-data` fait son travail ; ③ un sprite en cache répond **0,122 s** contre **0,413 s** pour un téléchargement à la volée.
+> **Fait** : `ASSETS_REMOTE_FETCH` (`src/lib/dofus-monster-assets.ts`, règle pure testée) — défaut **`false`** : le proxy ne sort **plus** pour un sprite, il sert le fichier siphonné, sinon le picto (`logger.warn`). Seule la valeur exacte `true` rallume le réseau, **sans redéployer**, le temps d'une MAJ de contenu. Le contrôle se fait **après** le service du fichier local, et **uniquement** pour l'espace apparence (`?sprite=1`) : items, sorts, succès et id d'entité gardent leur comportement actuel. Variable documentée dans `.env.example`.
+> **Preuves** : `siphon-monster-assets` **10** · `assets-dofus-route` **19** (1 cas repointé sur l'interrupteur rallumé + 1 cas neuf « réseau coupé ⇒ aucun fetch ») · suite **646 fichiers / 0 échec** · `tsc` 0 · aucune migration.
+> **Reste (S3/S4)** : script de couverture + alerte (une cible sans fichier doit être visible), cron quotidien de siphon, `?url=` retiré du DOM. **Ops** : déployer, puis vérifier qu'un sprite absent renvoie le placeholder **sans** requête sortante.
+> **Rotation** : bloc « 09/11/2026 (suite 6) — S1 : le frigo se remplit hors ligne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 09/11/2026 (suite 6) — **Rang 61 · S1 : le frigo d'images se remplit hors ligne** — branche `feat/souverainete-s1-siphon-monstres`
 
 > **Demande user (verbatim)** : « remplis le frigo : les 456 images d'archimonstres et de boss ».
@@ -55,16 +65,9 @@
 > **Preuves** : `assignable-roles` **7** + `trial-roles` **9** (neufs) · `membres-essai-fixes` / `registre-membres-b2` / `deslop-membres` verts (verrou « pas de `valider-recrue` dans cet écran » respecté) · suite **643 fichiers / 6 861 tests ✓** · `tsc` 0 · ESLint 0 erreur.
 > **V2 (même branche)** : case **« Me montrer avant d'appliquer les rôles »**, persistée par `GuildConfig.trialConfirmRoleChange` — **migration additive** `20261109000000_add_trial_confirm_role_change`, défaut `false` (aucune guilde ne change de comportement). `setMemberTrialState` **refuse** toute validation non confirmée quand elle est active (fail-closed via `rolesConfirmed`), et la fiche membre ouvre une fenêtre à cases (`applyConfirmedRole` / `removeTrialRole`) : décocher un geste ne l'applique pas. Garde de déslop respectée (rayon `rounded-lg`, pas `rounded-xl` dans la fiche).
 > **Reste** : contrôle à l'œil (Paramètres ▸ Fin d'essai **et** fiche membre, 390 / 768 / 1440). **Ops** : `npx prisma migrate deploy` sur la bêta puis la prod, et redémarrer `npm run dev` en local (le client Prisma est régénéré).
+> **Rotation** : bloc « 09/11/2026 (suite) — Ocre : la vignette vient de la table locale » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 09/11/2026 (suite) — **Ocre : la vignette vient de la table locale, jamais de l'id Metamob** — branche `fix/ocre-vignettes-archis-boss`
 
-> **Demande user (verbatim)** : « je comprends pas on vient de passer un fix session précédente mais tjrs ko sur le vps pour les images des archi et des boss dans les boutons metamob sur sigilos (overlay, rush sylvestre, par dofus etc) ».
-> **Mesures (VPS, clé `agent-ro2` en lecture seule)** : bêta = `8869dfcf`, 4 conteneurs `Up 7 minutes` ⇒ le `#1324` **était bien déployé** (pas un retard de déploiement). `curl` : `/uploads/assets-dofus/monsters/347.webp` → **404** · `/assets/dofus/monsters/347.png` → **404** (**0** des 17 ids vus en console n'existe au dépôt) · `/api/assets-dofus/monsters/347` → 200 mais **118 octets** = PNG transparent 1×1 · `/api/assets-dofus/monsters/2508` → **4 596 octets** de WebP. Côté source d'images : `monsters/347` → `No record found`, et `2508` = **« Kirevam »**, un AUTRE monstre que « Kiroyal le Sirupeux ». `sigilos.fr` (prod) sert une **page d'attente statique** (`Last-Modified 24/09/2026`, `/assets/maintenance.css`) : hors sujet.
-> **Cause racine** : `getMyOcreProgress` → `normalizeQuestMonster` pose `image` = URL **Metamob** absolue, que `ocreMonsterImageUrl` refuse par design ⇒ `imageUrl === null` sur les **337** cibles ; la chaîne retombait sur `.webp` puis `.png` (404) puis picto. Le `#1324` avait ajouté le maillon `imageUrl` **sans source**, et l'`id` affiché est un id **Metamob** : le proxy par id d'entité renvoie soit un 1×1, soit **l'image d'un autre monstre**.
-> **Fait** : `getMyOcreProgress` résout l'image **par nom** dans `Archimonstre` (`type in archimonstre|boss` → `internalDofusDbImageUrl`, espace apparence `?sprite=1`, repli `normalizeDofusAssetStoredUrl` sur `dofusdbId`) et l'écrit dans `norm.image` ; la chaîne de vignette devient la **règle pure** `ocreMonsterThumbChain(id, type, imageUrl)` — le WebP local `/uploads/…` n'est plus retenté quand le serveur a résolu l'image (un 404 de moins par vignette) ; `OcreTargetBits` ne code plus aucun chemin.
-> **Preuves** : `rush-overlay-ocre` **46** (2 cas neufs + 1 repointé, jamais affaibli) · suite **641 fichiers / 6 847 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste** : contrôle à l'œil après déploiement bêta (modale « Mon Ocre » de l'overlay **et** du dashboard, filtres Gardiens/Archis) — une cible sans ligne dans `Archimonstre` garde le picto (comportement inchangé, aucun 404). **Ops** : `./scripts/deploy-cd.sh beta` (action humaine).
-> **Rotation** : bloc « 09/11/2026 — Ocre public ISO + hero de l'overlay plafonné (PR #1315 · #1316) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

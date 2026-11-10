@@ -44,6 +44,8 @@ export function RushOverlayDungeonPopover({
   open: openProp,
   onOpenChange,
   targetKey = null,
+  capturedOcreNames,
+  onOpenOcre,
   children,
 }: {
   /** La quête de la ligne — porte l'identité de l'occurrence. */
@@ -67,6 +69,10 @@ export function RushOverlayDungeonPopover({
   onOpenChange?: (open: boolean) => void;
   /** Donjon à mettre en avant à l'ouverture. */
   targetKey?: string | null;
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
   children: React.ReactNode;
 }) {
   // Thème : le portail vit hors de l'arbre de la fenêtre, il réapplique la classe
@@ -163,6 +169,8 @@ export function RushOverlayDungeonPopover({
               others={others}
               highlightKey={targetKey}
               onSet={onSet}
+              capturedOcreNames={capturedOcreNames}
+              onOpenOcre={onOpenOcre}
               onClose={() => setOpen(false)}
             />
           </div>

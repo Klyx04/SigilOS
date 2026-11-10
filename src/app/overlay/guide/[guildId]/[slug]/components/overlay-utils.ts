@@ -282,6 +282,21 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
   const seqAny = seq as any;
   const result: DungeonInfo[] = [];
 
+  // V-H — un tag `ocre_dungeon` désigne UN donjon (`name` = id, slug ou nom selon la
+  // source God). L'ancien test marquait TOUS les donjons de la séquence dès qu'un tag
+  // existait : un donjon ocre voisin rendait les autres « ocre » à tort.
+  const isOcreTagged = (dungeon: {
+    id?: string | null;
+    slug?: string | null;
+    name?: string | null;
+  }) =>
+    (seq.activityTags ?? []).some(
+      (tag) =>
+        tag.type === "ocre_dungeon" &&
+        !!tag.name &&
+        (tag.name === dungeon.id || tag.name === dungeon.slug || tag.name === dungeon.name)
+    );
+
   // Donjon singulier
   if (seq.dungeon) {
     result.push({
@@ -290,7 +305,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
       name: seq.dungeon.name,
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
-      isOcre: false,
+      isOcre: isOcreTagged(seq.dungeon as any),
       isOptional: seq.dungeon.isOptional === true,
     });
   }
@@ -305,7 +320,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
           name: d.name,
           bossName: d.bossName,
           imageUrl: d.imageUrl,
-          isOcre: !!(seq.activityTags?.some((t) => t.type === "ocre_dungeon")),
+          isOcre: isOcreTagged(d),
           isOptional: (d as any).isOptional === true,
         });
       }
@@ -318,7 +333,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
       name: undefined,
       bossName: undefined,
       imageUrl: undefined,
-      isOcre: !!(seq.activityTags?.some((t) => t.type === "ocre_dungeon")),
+      isOcre: (seq.activityTags ?? []).some((tag) => tag.type === "ocre_dungeon"),
     });
   }
 

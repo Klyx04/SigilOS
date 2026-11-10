@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 10/11/2026 (suite 2) — **Rang 10 · V-H : les donjons ocre disent « capturé / à capturer » et ouvrent le suivi** — branche `feat/rush-ocre-dungeon-state`
+
+> **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → après F17b, **V-H** (donjons ocre).
+> **Mesure préalable** : le schéma n'a **aucune relation `Dungeon → Monster`** ; l'ancien dashboard comparait les noms avec `includes` (faux positif « Bouftou » vs « Bouftou Royal ») et `getDungeons` marquait **tous** les donjons d'une séquence dès qu'un tag `ocre_dungeon` existait. La progression Metamob (`OcrePanelData.monsters`) est déjà dans le payload de l'overlay et du dashboard.
+> **Fait** : règle pure `src/lib/ocre-dungeons.ts` (`normalizeOcreDungeonName`, `ocreDungeonCapture` → `captured | to-capture | unknown`) ; la carte partagée `RushOverlayDungeonCard` affiche « Ocre : capturé / à capturer » (sous-ligne) et un bouton qui ouvre la fenêtre Ocre ; `RushQuestDungeonsPanel`, la popover et la fiche détail transmettent `capturedOcreNames` / `onOpenOcre` ; le dashboard alimente avec `capturedMonsterNames` (contexte `OpenOcreCtx` → `OcreProgressModal`), l'overlay dérive les captures de `ocre.monsters` (aucun appel réseau) et ouvre `RushOverlayOcreModal` ; le guide **public** ne reçoit aucune action. `getDungeons` marque **un** donjon par tag (`isOcreTagged`). **Aucune migration.**
+> **Preuves** : `ocre-dungeons` **15** (règle, rendu réel, câblage) · suite **647 fichiers / 6 905 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Reste** : contrôle visuel du panneau donjon (dashboard + overlay PiP, 390 / 768 / 1 440) avec un compte Metamob lié **et** non lié ; version stricte « tous les monstres du donjon » = table Donjon → Monstres (migration ⇒ accord), non ouverte. Ensuite : **V-C**, **F16**, **F1→F7**.
+> **Rotation** : bloc « 09/11/2026 (suite 3) — Vignettes Ocre iso partout + proxy qui dit pourquoi il échoue » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 10/11/2026 (suite) — **Rang 57 · F17b : l'annuaire sait demander un métier à un niveau** — branche `feat/visiteur-filtre-niveau`
 
 > **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → choix explicite : **le filtre niveau d'abord**, puis l'Ocre.
@@ -55,14 +65,4 @@
 > **Preuves** : `sentry-bruit-metamob` **3** (neuf) · suite **644 fichiers / 6 868 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
 > **Reste** : confirmer dans Sentry que `JAVASCRIPT-NEXTJS-2M` / `-2N` cessent d'arriver après déploiement ; sinon la cause est ailleurs et il faudra la stack exacte.
 > **Rotation** : bloc « 08/11/2026 (suite 2) — V2f : le menu, les vérifications, l'onglet Élevage (F12→F17) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 09/11/2026 (suite 3) — **Vignettes Ocre iso partout + proxy qui dit pourquoi il échoue** — branche `fix/ocre-vignettes-guide-payload`
-
-> **Demande user (verbatim)** : « le probleme est aussi présent dans le bandeau metamob des par dofus … j'ai un pb certain asset s'affiche tjrs pas dans l'overlay non plus … le fix doit etre global partout et iso ».
-> **Mesures (bêta `8fde214b`, déploiement automatique confirmé)** : ① `page.tsx` du guide faisait `ocreMonsters = monsters` et `DofusQuestBanner` castait les monstres bruts (`as unknown as OcreMonsterLite[]`) ⇒ **`imageUrl` n'existait jamais** sur ces deux surfaces, donc repli `.webp`/`.png` (404) malgré le correctif d'`getMyOcreProgress`. ② Tous les sprites `?sprite=1` renvoient le placeholder (`X-SigilOS-Placeholder: 1`, **118 octets**) alors que `api.dofusdb.fr/img/monsters/<n>.png` répond **200, ~20 Ko** — et `monsters/646` (entité) répond **404** (« No record found ») : le nombre est bien un `gfxId`. ③ `Archimonstre` contient bien les cibles (ex. `Blop Griotte Royal` = `img/monsters/646.png`), donc le rapprochement par nom fonctionne ; l'écart « Kaskapointe »/« Kaskapoin**th**e » reste un cas de graphie à traiter séparément.
-> **Fait** : les **deux surfaces** qui perdaient l'image passent désormais par la même conversion `toOcrePanelData` (source unique, iso) ; la route `/api/assets-dofus` **logge la cause** d'un échec de téléchargement (le `catch` muet cachait une panne totale de siphonnage), le placeholder restant un PNG 1×1 transparent `no-store`.
-> **Preuves** : `rush-overlay-ocre` **48** (+2 verrous iso) · `assets-dofus-diagnostic` **2** (neuf) · suite **644 fichiers / 6 869 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : lire `logs app` après déploiement pour nommer la cause du refus de téléchargement (SSRF/DNS/`sharp`/budget), puis corriger au bon étage ; traiter les graphies de noms divergentes (« Kaskapointe »).
-> **Rotation** : bloc « 08/11/2026 (suite) — V2f : l'overlay respire (F8→F11) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
 

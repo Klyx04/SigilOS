@@ -15,7 +15,7 @@ Une image est **souveraine** quand les quatre conditions sont vraies :
 | 3 | Le **serveur** ne fait aucun appel réseau pour servir une image | aucun `fetch` sortant dans le chemin de requête |
 | 4 | **Toute** cible a son fichier chez nous | script de couverture = 0 manquant sur le périmètre |
 
-Aujourd'hui : **1 est tenu, 2 partiellement, 3 non, 4 partiel (447 archis/boss siphonnés le 09/11)**.
+Aujourd'hui : **1 est tenu, 2 partiellement, 3 non, 4 tenu pour les monstres** — 2 294 apparences siphonnées le 10/11/2026 (`remaining: 0`, 1 seul 404 amont : `2179` « Membre de la Maoufia »), volume persistant vérifié après redéploiement (`646` → 5 482 o).
 
 ## 1. Constat mesuré (09/11/2026, bêta `8fde214b`)
 

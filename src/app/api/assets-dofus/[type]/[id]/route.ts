@@ -5,6 +5,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
 import { assertSafeUrl } from '@/lib/image-downloader';
+import { isRemoteSpriteFetchEnabled } from '@/lib/dofus-monster-assets';
 import { logger } from '@/lib/logger';
 
 // 🛡️ Garde-fou mémoire : limite Sharp pour éviter tout crash V8 OOM lors de rafales
@@ -150,6 +151,17 @@ export async function GET(
         if (spriteNamespace) {
             const spriteUrl = getAllowedRemoteUrl(req.nextUrl.searchParams.get('url'));
             if (!spriteUrl) return placeholderResponse();
+            // 🧊 Mode hybride (rang 61, lot S2) : par défaut le proxy **ne sort plus** pour un
+            // sprite. Le fichier siphonné a déjà été servi à l'étape 1 ; s'il manque, on rend le
+            // picto au lieu d'appeler l'amont — c'est ce qui rend la souveraineté réelle.
+            // `ASSETS_REMOTE_FETCH=true` rallume le téléchargement à la volée, sans redéployer.
+            if (!isRemoteSpriteFetchEnabled()) {
+                logger.warn('[assets-dofus] sprite absent du cache, réseau coupé', {
+                    type: assetType,
+                    id: safeId,
+                });
+                return placeholderResponse();
+            }
             try {
                 await assertSafeUrl(spriteUrl);
                 // SSRF : aucune redirection suivie — une 3xx sortirait de l'allowlist.

@@ -14,6 +14,9 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
     PUBLIC_DIRECTORY_JOBS_ON_CARD,
+    PUBLIC_DIRECTORY_JOB_LEVEL_MAX,
+    PUBLIC_DIRECTORY_JOB_LEVEL_MIN,
+    PUBLIC_DIRECTORY_JOB_LEVELS,
     PUBLIC_DIRECTORY_PAGE_SIZE,
     PUBLIC_DIRECTORY_SEARCH_MAX,
     buildVisitorDirectoryHref,
@@ -80,11 +83,60 @@ describe("Annuaire des visiteurs — filtres bornés, jamais bloquants", () => {
         expect(parseVisitorDirectoryFilters({ classe: ["iop", "feca"] }).classe).toBe("iop");
     });
 
+    it("lit le niveau minimum quand un métier est présent", () => {
+        expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: "100" })).toEqual({
+            metier: "forgeron",
+            niveau: 100,
+        });
+        expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: " 150 " }).niveau).toBe(
+            150
+        );
+    });
+
+    it("ignore un niveau sans métier, hors bornes ou non numérique", () => {
+        expect(parseVisitorDirectoryFilters({ niveau: "100" })).toEqual({});
+        expect(parseVisitorDirectoryFilters({ metier: "astronaute", niveau: "100" })).toEqual({});
+        expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: "0" })).toEqual({
+            metier: "forgeron",
+        });
+        expect(
+            parseVisitorDirectoryFilters({
+                metier: "forgeron",
+                niveau: String(PUBLIC_DIRECTORY_JOB_LEVEL_MAX + 1),
+            })
+        ).toEqual({ metier: "forgeron" });
+        expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: "cent" })).toEqual({
+            metier: "forgeron",
+        });
+        expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: ["100", "150"] }).niveau).toBe(
+            100
+        );
+    });
+
+    it("propose des paliers dans les bornes d'un métier", () => {
+        expect(
+            PUBLIC_DIRECTORY_JOB_LEVELS.every(
+                (level) => level >= PUBLIC_DIRECTORY_JOB_LEVEL_MIN && level <= PUBLIC_DIRECTORY_JOB_LEVEL_MAX
+            )
+        ).toBe(true);
+    });
+
     it("recalcule l'URL complète et n'oublie jamais un filtre actif", () => {
         expect(buildVisitorDirectoryHref({ q: "ta kasha", classe: "iop" })).toBe(
             "/visiteurs?q=ta+kasha&classe=iop"
         );
         expect(buildVisitorDirectoryHref({})).toBe("/visiteurs");
+    });
+
+    it("garde le niveau dans l'URL et le retire avec le métier", () => {
+        expect(buildVisitorDirectoryHref({ metier: "forgeron", niveau: 100 })).toBe(
+            "/visiteurs?metier=forgeron&niveau=100"
+        );
+        // Le niveau sans métier n'a aucun sens : il ne doit pas survivre au retrait du métier.
+        expect(buildVisitorDirectoryHref({ niveau: 100 })).toBe("/visiteurs");
+        expect(
+            buildVisitorDirectoryHref({ q: "ta kasha", classe: "iop", metier: "forgeron", niveau: 150 })
+        ).toBe("/visiteurs?q=ta+kasha&classe=iop&metier=forgeron&niveau=150");
     });
 });
 
@@ -100,6 +152,18 @@ describe("Annuaire des visiteurs — le périmètre est dans la requête", () =>
         expect(buildVisitorDirectoryWhere(295, { metier: "forgeron" }).professions).toEqual({
             some: { metierId: "forgeron" },
         });
+    });
+
+    it("filtre le niveau comme un minimum (au moins ce niveau)", () => {
+        expect(
+            buildVisitorDirectoryWhere(295, { metier: "forgeron", niveau: 100 }).professions
+        ).toEqual({
+            some: { metierId: "forgeron", level: { gte: 100 } },
+        });
+    });
+
+    it("un niveau sans métier ne filtre rien", () => {
+        expect(buildVisitorDirectoryWhere(295, { niveau: 100 }).professions).toBeUndefined();
     });
 
     it("une recherche ne cherche que dans le pseudo et la guilde déclarée", () => {
@@ -220,9 +284,13 @@ describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
         expect(menu).toContain('event.key !== "Escape"');
         // Le panneau s'ancre à droite sur grand écran (il débordait de la fenêtre).
         expect(menu).toContain("lg:left-auto lg:right-0");
-        // Les deux filtres passent par ce composant, aucun `<details>` en double.
+        // Les trois filtres (classe, métier, niveau) passent par ce composant, aucun
+        // `<details>` en double. Le menu « niveau » n'est rendu qu'avec un métier actif.
         const filters = stripComments(read("src/app/visiteurs/_components/visitor-filters.tsx"));
-        expect((filters.match(/<FilterMenu/g) ?? []).length).toBe(2);
+        expect((filters.match(/<FilterMenu/g) ?? []).length).toBe(3);
         expect(filters).not.toContain("<details");
+        expect(filters).toContain("filters.metier && (");
+        expect(filters).toContain("PUBLIC_DIRECTORY_JOB_LEVELS.map");
+        expect(filters).toContain('name="niveau"');
     });
 });

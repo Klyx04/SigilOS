@@ -31,6 +31,15 @@ export const PUBLIC_DIRECTORY_SEARCH_MAX = 40;
 /** Métiers affichés sur une ligne de liste (la fiche les montre tous). */
 export const PUBLIC_DIRECTORY_JOBS_ON_CARD = 4;
 
+/**
+ * Paliers proposés par le filtre « métier + niveau » (F17b). Le niveau d'un métier
+ * Dofus va de 1 à 200 (`PublicProfession.level`) ; l'URL accepte n'importe quelle
+ * valeur de cette plage, les paliers ne sont que l'offre de l'écran.
+ */
+export const PUBLIC_DIRECTORY_JOB_LEVELS = [50, 100, 150, 200] as const;
+export const PUBLIC_DIRECTORY_JOB_LEVEL_MIN = 1;
+export const PUBLIC_DIRECTORY_JOB_LEVEL_MAX = 200;
+
 /** Longueur maximale d'un identifiant de curseur (cuid Prisma). */
 const CURSOR_MAX = 64;
 
@@ -44,11 +53,14 @@ export type VisitorDirectoryFilters = {
     q?: string;
     classe?: string;
     metier?: string;
+    /** Niveau **minimum** du métier filtré — n'a de sens qu'avec `metier`. */
+    niveau?: number;
     cursor?: string;
 };
 
 const rawSearchSchema = z.string().max(PUBLIC_DIRECTORY_SEARCH_MAX * 10);
 const rawLabelSchema = z.string().max(40);
+const rawLevelSchema = z.string().max(4).regex(/^\d{1,3}$/);
 const rawCursorSchema = z.string().max(CURSOR_MAX);
 
 /**
@@ -85,6 +97,19 @@ export function parseVisitorDirectoryFilters(
     const metier = rawLabelSchema.safeParse(first(raw?.metier));
     if (metier.success && ALLOWED_JOB_IDS.has(metier.data)) out.metier = metier.data;
 
+    // F17b — le niveau n'a de sens qu'avec un métier : seul, il est ignoré (pas de
+    // « tous les métiers à partir du niveau 100 », qui ne veut rien dire).
+    const rawNiveau = first(raw?.niveau);
+    const niveau = rawLevelSchema.safeParse(
+        typeof rawNiveau === "string" ? rawNiveau.trim() : rawNiveau
+    );
+    if (out.metier && niveau.success) {
+        const value = Number(niveau.data);
+        if (value >= PUBLIC_DIRECTORY_JOB_LEVEL_MIN && value <= PUBLIC_DIRECTORY_JOB_LEVEL_MAX) {
+            out.niveau = value;
+        }
+    }
+
     const cursor = rawCursorSchema.safeParse(first(raw?.cursor));
     if (cursor.success && isPublicProfileId(cursor.data)) out.cursor = cursor.data;
 
@@ -96,7 +121,11 @@ export function buildVisitorDirectoryHref(filters: VisitorDirectoryFilters): str
     const params = new URLSearchParams();
     if (filters.q) params.set("q", filters.q);
     if (filters.classe) params.set("classe", filters.classe);
-    if (filters.metier) params.set("metier", filters.metier);
+    if (filters.metier) {
+        params.set("metier", filters.metier);
+        // Le niveau suit le métier : sans métier, il n'a plus de sens.
+        if (filters.niveau) params.set("niveau", String(filters.niveau));
+    }
     if (filters.cursor) params.set("cursor", filters.cursor);
     const query = params.toString();
     return query ? `/visiteurs?${query}` : "/visiteurs";
@@ -114,7 +143,18 @@ export function buildVisitorDirectoryWhere(
         showOnDirectory: true,
         dofusServerId: viewerServerId,
         ...(filters.classe ? { classe: filters.classe } : {}),
-        ...(filters.metier ? { professions: { some: { metierId: filters.metier } } } : {}),
+        ...(filters.metier
+            ? {
+                  professions: {
+                      some: {
+                          metierId: filters.metier,
+                          // F17b — « qui a ce métier à ce niveau » = au moins ce niveau
+                          // (`@@index([metierId, level])` porte la requête).
+                          ...(filters.niveau ? { level: { gte: filters.niveau } } : {}),
+                      },
+                  },
+              }
+            : {}),
         ...(filters.q
             ? {
                   OR: [

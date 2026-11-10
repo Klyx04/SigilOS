@@ -416,8 +416,17 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
   espacement/aération, prérequis repliables, CTA « ce que tu perds » (pas de Metamob anonyme : la clé est
   un secret qui reste chiffré en base derrière un compte), grain.
 - **F16** : « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`.
-- **F17b** : « qui a ce métier à ce niveau » (`?niveau=`) — l'annuaire filtre déjà par `metier` et
-  `PublicProfession` porte déjà `@@index([metierId, level])`.
+
+**F17b — annuaire « métier + niveau » — livré le 10/11/2026**
+
+- `?metier=forgeron&niveau=100` filtre les profils dont la profession est **au moins** à ce niveau
+  (`level: { gte }`, porté par l'index existant `@@index([metierId, level])`).
+- Le niveau n'est lu **que** si un métier valide est présent : `?niveau=100` seul est ignoré, et
+  `buildVisitorDirectoryHref` le retire quand le métier disparaît. Bornes **1..200**, texte et
+  valeurs hors plage ignorés (fail-soft, jamais une page blanche).
+- Écran : 3ᵉ menu « Niveau » (paliers 50/100/150/200), rendu **seulement** avec un métier actif, via
+  le `FilterMenu` existant (exclusivité, Échap, clic extérieur) — aucun contrôle natif.
+- Verrou `tests/unit/visitor-directory.test.ts` **25** (+7) · aucun test désactivé · **aucune migration**.
 
 **Ocre public ISO — livré le 09/11/2026 (PR #1315)**
 
@@ -447,9 +456,8 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 > plus bouger l'écran (les quatre panneaux occupent une seule cellule : Élevage = **1** métier contre
 > 6 et 7 ailleurs).
 > **Reste** : **F16** (« mes succès sur ce boss » par donjon + vue « succès en commun » sur
-> `/visiteurs`) · **F17 (2/2)** « qui a ce métier à ce niveau » — l'annuaire filtre **déjà** par
-> `metier` (`buildVisitorDirectoryWhere`), il manque `?niveau=` ;
-> `PublicProfession` porte déjà `@@index([metierId, level])`, la donnée est prête.
+> `/visiteurs`). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
+> voir « F17b » ci-dessus).
 
 *Guide public — anonyme*
 - **F1** Avancement **par Dofus** pour l anonyme, alimenté par la progression **locale** (mêmes clés d étapes), sans serveur.

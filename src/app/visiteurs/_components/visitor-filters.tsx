@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DOFUS_CLASSES, DOFUS_JOBS, getClass, getJob } from "@/lib/dofus-assets";
 import {
+    PUBLIC_DIRECTORY_JOB_LEVELS,
     PUBLIC_DIRECTORY_SEARCH_MAX,
     buildVisitorDirectoryHref,
     type VisitorDirectoryFilters,
@@ -16,9 +17,10 @@ import { FilterMenu } from "./filter-menu";
 const ALL_JOBS = Object.values(DOFUS_JOBS).flatMap((category) => [...category]);
 
 /**
- * Filtres de l'annuaire : un formulaire GET pour la recherche, deux menus pour la classe et le
- * métier. Pourquoi pas un `<select>` : la règle de la maison interdit les contrôles natifs non
- * thémés, et `SelectValue` rejoue le contenu de l'item (piège mesuré le 06/11 : icône deux fois).
+ * Filtres de l'annuaire : un formulaire GET pour la recherche, trois menus pour la classe, le
+ * métier et — seulement quand un métier est actif — le niveau minimum (F17b). Pourquoi pas un
+ * `<select>` : la règle de la maison interdit les contrôles natifs non thémés, et `SelectValue`
+ * rejoue le contenu de l'item (piège mesuré le 06/11 : icône deux fois).
  *
  * Les **liens** sont rendus ici, côté serveur ; seul le comportement d'ouverture/fermeture vit
  * dans `FilterMenu` (client). Chaque lien recalcule l'URL complète
@@ -34,7 +36,7 @@ export function VisitorFilters({
 }) {
     const activeClass = filters.classe ? getClass(filters.classe) : undefined;
     const activeJob = filters.metier ? getJob(filters.metier) : undefined;
-    const hasFilters = Boolean(filters.q || filters.classe || filters.metier);
+    const hasFilters = Boolean(filters.q || filters.classe || filters.metier || filters.niveau);
 
     const linkClass = (active: boolean) =>
         `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
@@ -46,6 +48,9 @@ export function VisitorFilters({
             <form method="get" action="/visiteurs" className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 {filters.classe && <input type="hidden" name="classe" value={filters.classe} />}
                 {filters.metier && <input type="hidden" name="metier" value={filters.metier} />}
+                {filters.niveau && (
+                    <input type="hidden" name="niveau" value={filters.niveau} />
+                )}
                 <div className="space-y-1.5">
                     <Label htmlFor="directory-q" className="text-xs text-muted-foreground">
                         {labels.searchLabel}
@@ -69,7 +74,11 @@ export function VisitorFilters({
             <div className="flex flex-wrap items-center gap-2">
                 <FilterMenu icon={activeClass?.icon} label={activeClass?.name ?? labels.allClasses}>
                     <Link
-                        href={buildVisitorDirectoryHref({ q: filters.q, metier: filters.metier })}
+                        href={buildVisitorDirectoryHref({
+                            q: filters.q,
+                            metier: filters.metier,
+                            niveau: filters.niveau,
+                        })}
                         className={linkClass(!filters.classe)}
                     >
                         {labels.allClasses}
@@ -81,6 +90,7 @@ export function VisitorFilters({
                                 q: filters.q,
                                 classe: classe.id,
                                 metier: filters.metier,
+                                niveau: filters.niveau,
                             })}
                             className={linkClass(filters.classe === classe.id)}
                         >
@@ -104,6 +114,7 @@ export function VisitorFilters({
                                 q: filters.q,
                                 classe: filters.classe,
                                 metier: job.id,
+                                niveau: filters.niveau,
                             })}
                             className={linkClass(filters.metier === job.id)}
                         >
@@ -112,6 +123,44 @@ export function VisitorFilters({
                         </Link>
                     ))}
                 </FilterMenu>
+
+                {/* F17b — le niveau n'apparaît qu'avec un métier : « à partir de quel niveau
+                    ce crafter peut-il travailler ? ». Le menu hérite de l'exclusivité des deux
+                    autres (`FilterMenu`). */}
+                {filters.metier && (
+                    <FilterMenu
+                        label={
+                            filters.niveau
+                                ? `${labels.levelFilter} ${filters.niveau}+`
+                                : labels.levelFilter
+                        }
+                    >
+                        <Link
+                            href={buildVisitorDirectoryHref({
+                                q: filters.q,
+                                classe: filters.classe,
+                                metier: filters.metier,
+                            })}
+                            className={linkClass(!filters.niveau)}
+                        >
+                            {labels.allLevels}
+                        </Link>
+                        {PUBLIC_DIRECTORY_JOB_LEVELS.map((level) => (
+                            <Link
+                                key={level}
+                                href={buildVisitorDirectoryHref({
+                                    q: filters.q,
+                                    classe: filters.classe,
+                                    metier: filters.metier,
+                                    niveau: level,
+                                })}
+                                className={linkClass(filters.niveau === level)}
+                            >
+                                {labels.levelFilter} {level}+
+                            </Link>
+                        ))}
+                    </FilterMenu>
+                )}
 
                 {hasFilters && (
                     <Link href="/visiteurs" className="reg-link text-sm">

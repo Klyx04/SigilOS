@@ -519,6 +519,8 @@ export const fr = {
         jobFilter: "Métier",
         allClasses: "Toutes les classes",
         allJobs: "Tous les métiers",
+        levelFilter: "Niveau",
+        allLevels: "Tous les niveaux",
         apply: "Filtrer",
         reset: "Réinitialiser les filtres",
         countZero: "Aucun visiteur visible",

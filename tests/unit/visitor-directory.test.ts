@@ -48,6 +48,7 @@ const ROW: VisitorDirectoryRow = {
     dofusServerId: 295,
     declaredGuildName: "Les Veilleurs",
     dofusLevel: 200,
+    totalXp: 0n,
     successPoints: 12_345,
     updatedAt: new Date("2026-11-06T10:00:00Z"),
     professions: [

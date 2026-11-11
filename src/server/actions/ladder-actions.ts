@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { z } from "zod";
 import { withCache } from "@/lib/cache";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { applyLadderSearch } from "@/lib/ladder-utils";
 import {
     computeDiscordPresenceStats,
@@ -807,7 +808,7 @@ export async function getGeneralLadder(
                     discordImage: p.user.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
-                    dofusLevel: p.dofusLevel || undefined,
+                    dofusLevel: toTotalDofusLevel(p.dofusLevel, p.totalXp) ?? undefined,
                     totalXpBigInt: p.totalXp?.toString() || "0",
                     value: 0,
                     isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),

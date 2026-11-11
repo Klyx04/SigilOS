@@ -28,9 +28,10 @@ const PROFILE_ACTIONS = "src/server/actions/profile-actions.ts";
 const PUBLIC_ACTIONS = "src/server/actions/public-profile-actions.ts";
 
 describe("Snapshot ladder — les valeurs du tiers sont bornées", () => {
-    it("le niveau reste dans 1..300, entier", () => {
+    it("le niveau reste dans 1..400, entier", () => {
         expect(normalizeLadderLevel(0)).toBe(1);
-        expect(normalizeLadderLevel(301)).toBe(300);
+        expect(normalizeLadderLevel(301)).toBe(301);
+        expect(normalizeLadderLevel(401)).toBe(400);
         expect(normalizeLadderLevel("200")).toBe(200);
         expect(normalizeLadderLevel(12.9)).toBe(12);
         expect(normalizeLadderLevel(null)).toBeUndefined();

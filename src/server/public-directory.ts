@@ -14,6 +14,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { getPublicSession } from "@/server/public-account";
 import {
     PUBLIC_DIRECTORY_PAGE_SIZE,
@@ -70,6 +71,7 @@ export async function resolveDirectoryViewer(): Promise<DirectoryAccess> {
             pseudoDofus: true,
             classe: true,
             dofusLevel: true,
+            totalXp: true,
             successPoints: true,
             showOnDirectory: true,
             _count: {
@@ -92,7 +94,7 @@ export async function resolveDirectoryViewer(): Promise<DirectoryAccess> {
             serverId: profile.dofusServerId,
             pseudo: profile.pseudoDofus,
             classe: profile.classe,
-            level: profile.dofusLevel,
+            level: toTotalDofusLevel(profile.dofusLevel, profile.totalXp),
             successPoints: profile.successPoints,
             achievements: profile._count.achievements,
             jobs: profile._count.professions,
@@ -128,12 +130,13 @@ const LIST_SELECT_BASE = {
     dofusServerId: true,
     declaredGuildName: true,
     dofusLevel: true,
+    totalXp: true,
     successPoints: true,
     updatedAt: true,
     _count: { select: { achievements: true } },
 } satisfies Prisma.PublicProfileSelect;
 
-function listSelect(jobFilter?: string): Prisma.PublicProfileSelect {
+function listSelect(jobFilter?: string) {
     return {
         ...LIST_SELECT_BASE,
         professions: jobFilter

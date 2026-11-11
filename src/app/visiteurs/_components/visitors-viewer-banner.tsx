@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GameIcon } from "@/components/shared/game-icon";
 import { getClass } from "@/lib/dofus-assets";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import { visitorProfileHref } from "@/lib/public-directory";
 import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import type { DirectoryViewer } from "@/server/public-directory";
@@ -36,7 +37,7 @@ export function VisitorsViewerBanner({
         },
         {
             label: labels.hub.metricLevel,
-            value: viewer.level ?? "—",
+            value: formatDofusLevel(viewer.level),
             icon: "/assets/dofus/game-icons/experience.png",
         },
         {

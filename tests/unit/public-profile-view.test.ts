@@ -41,6 +41,7 @@ function row(overrides: Partial<PublicProfileRow> = {}): PublicProfileRow {
         alignmentOrder: null,
         alignmentLevel: 0,
         dofusLevel: 200,
+        totalXp: 0n,
         successPoints: 100,
         lastLadderSync: null,
         showOnDirectory: false,

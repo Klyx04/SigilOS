@@ -41,6 +41,8 @@ import { Worker, Queue, Job } from "bullmq";
 import { defaultQueueOptions } from "../lib/queue/metamob-queue";
 import { db } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { toTotalDofusLevel } from "../lib/dofus-level";
+import { normalizeLadderLevel } from "../server/ladder-snapshot";
 import {
     buildLadderWorkerMessage,
     buildLadderWorkerFields,
@@ -327,9 +329,6 @@ async function processLadderSync(job: Job) {
 
             if (succesData?.found && typeof succesData.points === "number") {
                 updateData.successPoints = succesData.points;
-                if (typeof succesData.level === "number") {
-                    updateData.dofusLevel = succesData.level;
-                }
             }
 
             if (generalData?.found) {
@@ -338,14 +337,23 @@ async function processLadderSync(job: Job) {
                     const cleanXp = generalData.totalXp.replace(/\D/g, "").slice(0, 15);
                     if (cleanXp) updateData.totalXp = BigInt(cleanXp);
                 }
-                if (generalData.level && !updateData.dofusLevel) {
-                    updateData.dofusLevel = Math.min(Math.max(Number(generalData.level), 1), 300);
-                }
                 if (generalData.classe) {
                     // SECURITY FIX (F-26): bound class name length (Dofus classes are short)
                     updateData.classe = String(generalData.classe).slice(0, 50);
                 }
             }
+
+            // Niveau **total** (200 + Oméga) : le ladder renvoie le niveau Oméga (128),
+            // l'XP totale déjà stockée tranche. La fiche générale fait foi sur le niveau.
+            const ladderLevel = normalizeLadderLevel(
+                (generalData?.found ? generalData.level : undefined) ??
+                    (succesData?.found ? succesData.level : undefined)
+            );
+            const totalLevel = toTotalDofusLevel(
+                ladderLevel,
+                updateData.totalXp as bigint | undefined
+            );
+            if (totalLevel !== null) updateData.dofusLevel = totalLevel;
 
             // If neither ladder found this character, still stamp the sync time
             // so we don't re-try them within 22h

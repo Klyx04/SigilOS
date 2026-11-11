@@ -82,6 +82,7 @@ import { PublicCommunityPanel } from "./PublicCommunityPanel";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
 import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import {
   adoptMyRushProgress,
   loadMyRushProgress,
@@ -1569,11 +1570,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                   className="ml-auto shrink-0 text-[11px] text-muted-foreground"
                   title={
                     locale === "en"
-                      ? `Level ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} success points`
-                      : `Niveau ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} points de succès`
+                      ? `Level ${formatDofusLevel(visitor.level)} · ${visitor.successPoints ?? "—"} success points`
+                      : `Niveau ${formatDofusLevel(visitor.level)} · ${visitor.successPoints ?? "—"} points de succès`
                   }
                 >
-                  <span className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</span>{" "}
+                  <span className="font-mono font-medium text-foreground">{formatDofusLevel(visitor.level)}</span>{" "}
                   {locale === "en" ? "lvl" : "niv."}
                   <span aria-hidden="true"> · </span>
                   <span className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</span>{" "}

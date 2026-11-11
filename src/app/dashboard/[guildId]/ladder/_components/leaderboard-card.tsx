@@ -7,6 +7,7 @@ import { discordAvatarErrorFallback, extractUserIdFromAvatarUrl, getDefaultDisco
 import { Crown, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClass } from "@/lib/dofus-assets";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import { DISCORD_PRESENCE_LABELS } from "@/lib/ladder-presence";
 
 type Props = {
@@ -174,7 +175,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         <div className="relative group/lv">
                             <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border group-hover/lv:border-info/50 transition-colors duration-200">
                                 <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-warning" : "text-foreground")}>
-                                    {entry.dofusLevel}
+                                    {formatDofusLevel(entry.dofusLevel)}
                                 </span>
                             </div>
                         </div>

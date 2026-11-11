@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getServerI18n } from "@/lib/i18n/server";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import { getPublicVisitor, resolveDirectoryViewer } from "@/server/public-directory";
 import { VisitorAccess } from "../_components/visitor-access";
 import { VisitorProfileCard } from "../_components/visitor-profile-card";
@@ -81,7 +82,7 @@ export default async function VisitorProfilePage({
                             <span className="text-sm text-muted-foreground">
                                 {candidate.classe?.name ?? ""}
                                 {candidate.server ? ` · ${candidate.server.name}` : ""}
-                                {` · ${labels.profile.level} ${candidate.level ?? "—"}`}
+                                {` · ${labels.profile.level} ${formatDofusLevel(candidate.level)}`}
                             </span>
                         </li>
                     ))}

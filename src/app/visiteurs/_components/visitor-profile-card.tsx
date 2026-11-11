@@ -1,4 +1,5 @@
 import { GameIcon } from "@/components/shared/game-icon";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import type { VisitorProfile } from "@/lib/public-directory";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
@@ -15,7 +16,7 @@ export function VisitorProfileCard({
     labels: Translations["visitorsPage"];
 }) {
     const summary = [
-        { label: labels.profile.level, value: profile.level ?? "—" },
+        { label: labels.profile.level, value: formatDofusLevel(profile.level) },
         { label: labels.profile.successPoints, value: profile.successPoints ?? "—" },
         { label: labels.profile.achievements, value: profile.achievements },
     ];

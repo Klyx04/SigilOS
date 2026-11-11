@@ -18,6 +18,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { getClass, getJob } from "@/lib/dofus-assets";
 import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import { ALLOWED_JOB_IDS } from "@/lib/public-profile-input";
@@ -187,6 +188,8 @@ export type VisitorDirectoryRow = {
     dofusServerId: number;
     declaredGuildName: string | null;
     dofusLevel: number | null;
+    /** BigInt lu uniquement pour convertir le niveau Oméga en niveau total. */
+    totalXp: bigint | null;
     successPoints: number | null;
     updatedAt: Date;
     professions: ReadonlyArray<{ metierId: string; level: number }>;
@@ -258,7 +261,7 @@ export function toVisitorDirectoryEntry(row: VisitorDirectoryRow): VisitorDirect
         classe: classe ? { id: classe.id, name: classe.name, icon: classe.icon } : null,
         server: resolveServer(row.dofusServerId),
         guildName: row.declaredGuildName,
-        level: row.dofusLevel,
+        level: toTotalDofusLevel(row.dofusLevel, row.totalXp),
         successPoints: row.successPoints,
         jobs: resolveJobs(row.professions, PUBLIC_DIRECTORY_JOBS_ON_CARD),
         achievements: row._count.achievements,

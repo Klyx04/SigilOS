@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -1031,7 +1032,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
             <div className="gch-opt-icon mule">{mule.classe ? (() => { const d = getClass(mule.classe); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Users className="w-3 h-3 text-blue-400"/>}</div>
             <div className="flex flex-col text-left">
               <span className="text-xs font-bold">{mule.pseudo}</span>
-              <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
+              <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{formatDofusLevel(mule.level)} {mule.classe ? "• " + mule.classe : ""}</span>
             </div>
           </DropdownMenuItem>
         ))}

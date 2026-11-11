@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getServerI18n } from "@/lib/i18n/server";
 import { GameIcon } from "@/components/shared/game-icon";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import {
     buildVisitorDirectoryHref,
     parseVisitorDirectoryFilters,
@@ -175,7 +176,7 @@ async function DirectoryList({
                                         </span>
                                     </th>
                                     <td className="hidden align-middle text-sm text-muted-foreground sm:table-cell">
-                                        {entry.level ?? "—"}
+                                        {formatDofusLevel(entry.level)}
                                     </td>
                                     <td className="hidden align-middle md:table-cell">
                                         {filters.metier && entry.jobs.length > 0 ? (

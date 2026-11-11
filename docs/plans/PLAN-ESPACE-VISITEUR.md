@@ -373,6 +373,9 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   **Registre Metamob** compact (pseudo, statut, menu vérifier/remplacer/délier) ; fiche lecture
   seule allégée (un bandeau de chiffres, Présentation/Objectifs en un panneau, métiers en chips).
   Reste l'affinage assets/hiérarchie, sans règle métier.
+  **Metamob Ocre (11/11)** : onglet et titre renommés, icône archimonstre, filtre Tous / Boss /
+  Archimonstres (`?type=`), monstres rangés par type avec icônes (types du template Metamob,
+  images `Archimonstre` par nom, repli bestiaire), en-tête allégé.
 - **Reportés** : nettoyage des images (V-C, le local n'a pas tous les donjons — le VPS est la
   référence), V-D2, route publique du bloc B, V2d, V3.
 

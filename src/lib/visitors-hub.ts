@@ -46,12 +46,16 @@ export const SHARED_SUCCES_KEY_MAX = 80;
  */
 export const SHARED_SUCCES_MEMBERS_SHOWN = 12;
 
+export type VisitorsHubTradeType = "boss" | "archimonstre";
+
 export type VisitorsHubSearch = {
     vue: VisitorsHubView;
     /** Donjon sélectionné (slug ou id) — seulement dans la vue « succes ». */
     donjon: string | null;
     /** Recherche de donjon — seulement dans la vue « succes » (la vue profils a son propre `q`). */
     q: string;
+    /** Filtre de la vue « echanges » : Boss / Archimonstres. */
+    type: VisitorsHubTradeType | null;
 };
 
 const RAW_SEARCH_MAX = SHARED_SUCCES_SEARCH_MAX * 10;
@@ -96,8 +100,13 @@ export function parseVisitorsHubSearch(
     );
     const q = qParsed.success ? qParsed.data.trim().slice(0, SHARED_SUCCES_SEARCH_MAX) : "";
 
-    if (vue !== "succes") return { vue, donjon: null, q: "" };
-    return { vue, donjon, q };
+    const rawType = first(raw?.type);
+    const type: VisitorsHubTradeType | null =
+        rawType === "boss" || rawType === "archimonstre" ? rawType : null;
+
+    if (vue !== "succes" && vue !== "echanges") return { vue, donjon: null, q: "", type: null };
+    if (vue === "succes") return { vue, donjon, q, type: null };
+    return { vue, donjon: null, q: "", type };
 }
 
 /**
@@ -109,6 +118,7 @@ export function buildVisitorsHubHref(input: {
     vue: VisitorsHubView;
     donjon?: string | null;
     q?: string | null;
+    type?: VisitorsHubTradeType | null;
 }): string {
     const params = new URLSearchParams();
     if (input.vue !== "profils") params.set("vue", input.vue);
@@ -116,6 +126,7 @@ export function buildVisitorsHubHref(input: {
         if (input.donjon) params.set("donjon", input.donjon);
         if (input.q) params.set("q", input.q);
     }
+    if (input.vue === "echanges" && input.type) params.set("type", input.type);
     const query = params.toString();
     return query ? `/visiteurs?${query}` : "/visiteurs";
 }

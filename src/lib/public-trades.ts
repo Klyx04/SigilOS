@@ -30,11 +30,17 @@ export const TRADE_MATCHES_CACHE_TTL = 120;
 /** La quête Ocre du compte change rarement : dix minutes suffisent. */
 export const TRADE_QUEST_CACHE_TTL = 600;
 
+export type TradeMonsterType = "boss" | "archimonstre" | "monstre";
+
 export type TradeMonster = {
     id: number;
     name: string;
     /** L'offre couvre entièrement le besoin. */
     coversNeed: boolean;
+    /** Type local (`Archimonstre.type`) — sert au filtre et au rangement Boss / Archimonstres. */
+    type: TradeMonsterType;
+    /** Image interne (proxy DofusDB) ou `null` : repli sur l'asset bestiaire. */
+    imageUrl: string | null;
 };
 
 export type TradePartner = {
@@ -52,8 +58,11 @@ export type TradePartner = {
     reciprocal: boolean;
     theyHave: TradeMonster[];
     theyHaveMore: number;
+    /** Reste à afficher **par type** (le filtre Boss / Archimonstres garde un compte juste). */
+    theyHaveMoreByType: Record<TradeMonsterType, number>;
     youHave: TradeMonster[];
     youHaveMore: number;
+    youHaveMoreByType: Record<TradeMonsterType, number>;
 };
 
 export type TradeBoard = {
@@ -75,6 +84,8 @@ export type TradeMatchMonsterInput = {
     id: number;
     name: string;
     coversNeed: boolean;
+    type?: TradeMonsterType;
+    imageUrl?: string | null;
 };
 
 export type TradeMatchInput = {
@@ -121,6 +132,19 @@ export function isSameTradeServer(
     return !!left && !!right && left === right;
 }
 
+/**
+ * Normalise un nom de monstre pour croiser l'API Metamob et la table locale
+ * `Archimonstre` : casse, accents et apostrophes ne doivent pas perdre l'icône/le type.
+ */
+export function normalizeMonsterName(value: string): string {
+    return String(value ?? "")
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’']/g, "'")
+        .toLocaleLowerCase("fr");
+}
+
 /** Ramène une liste de monstres à un DTO borné, sans doublon ni nom vide. */
 function toTradeMonsters(list: ReadonlyArray<TradeMatchMonsterInput>): TradeMonster[] {
     const out: TradeMonster[] = [];
@@ -130,10 +154,48 @@ function toTradeMonsters(list: ReadonlyArray<TradeMatchMonsterInput>): TradeMons
         if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue;
         const name = String(monster.name ?? "").trim().slice(0, 120);
         if (!name) continue;
+        const type: TradeMonsterType =
+            monster.type === "boss" ||
+            monster.type === "archimonstre" ||
+            monster.type === "monstre"
+                ? monster.type
+                : "monstre";
+        const imageUrl =
+            typeof monster.imageUrl === "string" && monster.imageUrl.length > 0
+                ? monster.imageUrl
+                : null;
         seen.add(id);
-        out.push({ id: Math.trunc(id), name, coversNeed: !!monster.coversNeed });
+        out.push({ id: Math.trunc(id), name, coversNeed: !!monster.coversNeed, type, imageUrl });
     }
     return out;
+}
+
+const PICK_ORDER: TradeMonsterType[] = ["boss", "archimonstre", "monstre"];
+
+/**
+ * Garde jusqu'à `TRADE_MONSTERS_SHOWN` monstres **par type** (Boss / Archimonstres /
+ * Monstres), bosses d'abord. Le reste est compté par type, pour que le filtre garde un
+ * « + N autres » juste.
+ */
+function pickMonsters(list: TradeMonster[]): {
+    shown: TradeMonster[];
+    more: number;
+    moreByType: Record<TradeMonsterType, number>;
+} {
+    const groups: Record<TradeMonsterType, TradeMonster[]> = {
+        boss: [],
+        archimonstre: [],
+        monstre: [],
+    };
+    for (const monster of list) groups[monster.type].push(monster);
+
+    const shown = PICK_ORDER.flatMap((type) => groups[type].slice(0, TRADE_MONSTERS_SHOWN));
+    const moreByType: Record<TradeMonsterType, number> = {
+        boss: Math.max(0, groups.boss.length - TRADE_MONSTERS_SHOWN),
+        archimonstre: Math.max(0, groups.archimonstre.length - TRADE_MONSTERS_SHOWN),
+        monstre: Math.max(0, groups.monstre.length - TRADE_MONSTERS_SHOWN),
+    };
+    return { shown, more: Math.max(0, list.length - shown.length), moreByType };
 }
 
 /**
@@ -176,9 +238,12 @@ export function buildTradeBoard(input: {
         const metamobPseudo = visitor.metamobPseudo?.trim();
         if (!metamobPseudo) continue;
 
-        const theyHave = toTradeMonsters(match.theyHaveYouWant);
-        const youHave = toTradeMonsters(match.youHaveTheyWant);
-        if (theyHave.length === 0 && youHave.length === 0) continue;
+        const theyHaveAll = toTradeMonsters(match.theyHaveYouWant);
+        const youHaveAll = toTradeMonsters(match.youHaveTheyWant);
+        if (theyHaveAll.length === 0 && youHaveAll.length === 0) continue;
+
+        const theyHave = pickMonsters(theyHaveAll);
+        const youHave = pickMonsters(youHaveAll);
 
         seen.add(key);
         all.push({
@@ -189,11 +254,13 @@ export function buildTradeBoard(input: {
             matchScore: Number.isFinite(match.matchScore)
                 ? Math.max(0, Math.trunc(match.matchScore))
                 : 0,
-            reciprocal: theyHave.length > 0 && youHave.length > 0,
-            theyHave: theyHave.slice(0, TRADE_MONSTERS_SHOWN),
-            theyHaveMore: Math.max(0, theyHave.length - TRADE_MONSTERS_SHOWN),
-            youHave: youHave.slice(0, TRADE_MONSTERS_SHOWN),
-            youHaveMore: Math.max(0, youHave.length - TRADE_MONSTERS_SHOWN),
+            reciprocal: theyHave.shown.length > 0 && youHave.shown.length > 0,
+            theyHave: theyHave.shown,
+            theyHaveMore: theyHave.more,
+            theyHaveMoreByType: theyHave.moreByType,
+            youHave: youHave.shown,
+            youHaveMore: youHave.more,
+            youHaveMoreByType: youHave.moreByType,
         });
     }
 

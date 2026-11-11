@@ -15,12 +15,14 @@
  */
 
 import { withCache } from "@/lib/cache";
+import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import {
     buildTradeBoard,
     classifyTradeFailure,
     isSameTradeServer,
+    normalizeMonsterName,
     publicTradesMatchesCacheKey,
     publicTradesQuestCacheKey,
     TRADE_MATCHES_CACHE_TTL,
@@ -28,15 +30,18 @@ import {
     TRADE_QUEST_CACHE_TTL,
     type TradeBoard,
     type TradeMatchInput,
+    type TradeMonsterType,
 } from "@/lib/public-trades";
 import {
     getOwnQuests,
     getQuestMatches,
+    getQuestTemplateMonsters,
     type MatchPartner,
     type UserQuest,
 } from "@/lib/metamob-client";
 import type { DirectoryViewer } from "@/server/public-directory";
 import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
+import { classifyOcreType } from "@/lib/ocre-soul-stones";
 import { pickVisitorOcreQuest, readVisitorMetamob } from "@/server/public-metamob";
 
 export type TradeQuest = {
@@ -74,7 +79,11 @@ function toQuest(quest: UserQuest): TradeQuest {
 }
 
 /** Ne garde que ce que l'écran affiche : ni avatar, ni dernière activité, ni quête du partenaire. */
-function toMatchInput(match: MatchPartner): TradeMatchInput {
+function toMatchInput(
+    match: MatchPartner,
+    typeByName: ReadonlyMap<string, TradeMonsterType>,
+    imageByName: ReadonlyMap<string, string | null>
+): TradeMatchInput {
     const monsters = (
         list: ReadonlyArray<{
             id: number;
@@ -82,11 +91,18 @@ function toMatchInput(match: MatchPartner): TradeMatchInput {
             covers_need?: boolean | null;
         }>
     ) =>
-        list.map((monster) => ({
-            id: monster.id,
-            name: monster.name?.fr || `Monstre #${monster.id}`,
-            coversNeed: !!monster.covers_need,
-        }));
+        list.map((monster) => {
+            const name = monster.name?.fr || `Monstre #${monster.id}`;
+            const normalized = normalizeMonsterName(name);
+            const image = imageByName.get(normalized);
+            return {
+                id: monster.id,
+                name,
+                coversNeed: !!monster.covers_need,
+                type: typeByName.get(normalized) ?? "monstre",
+                imageUrl: image ? internalDofusDbImageUrl(image) : null,
+            };
+        });
 
     return {
         username: match.user.username,
@@ -94,6 +110,37 @@ function toMatchInput(match: MatchPartner): TradeMatchInput {
         theyHaveYouWant: monsters(match.matches.they_have_you_want),
         youHaveTheyWant: monsters(match.matches.you_have_they_want),
     };
+}
+
+/**
+ * Types des monstres de la quête, lus sur le **template Metamob** (même source que la
+ * carte Ocre interne) : la table locale `Archimonstre` n'est pas fiable pour le type.
+ * Un échec du template n'est pas bloquant : les monstres tombent dans « Monstres ».
+ */
+async function loadOcreTypeMap(
+    quest: UserQuest,
+    key: string
+): Promise<ReadonlyMap<string, TradeMonsterType>> {
+    const templateId = quest.quest_template?.id;
+    if (!templateId) return new Map();
+    try {
+        const template = await getQuestTemplateMonsters(templateId, {
+            guildApiKey: key,
+            limit: 400,
+        });
+        const map = new Map<string, TradeMonsterType>();
+        for (const entry of template) {
+            const name = entry.name?.fr;
+            if (!name) continue;
+            map.set(normalizeMonsterName(name), classifyOcreType(entry.type?.name?.fr));
+        }
+        return map;
+    } catch (error) {
+        logger.warn("[Échanges visiteurs] Template Ocre illisible", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return new Map();
+    }
 }
 
 export async function getVisitorTrades(viewer: DirectoryViewer): Promise<VisitorTrades> {
@@ -157,7 +204,40 @@ export async function getVisitorTrades(viewer: DirectoryViewer): Promise<Visitor
         };
     }
 
-    const matches = raw.matches.map(toMatchInput);
+    const matchNames = Array.from(
+        new Set(
+            raw.matches.flatMap((match) => [
+                ...match.matches.they_have_you_want.map((monster) => monster.name?.fr ?? ""),
+                ...match.matches.you_have_they_want.map((monster) => monster.name?.fr ?? ""),
+            ])
+        )
+    )
+        .filter((name) => name.length > 0)
+        .slice(0, 1000);
+
+    const visualsPromise: Promise<Array<{ name: string; imageUrl: string | null }>> =
+        matchNames.length === 0
+            ? Promise.resolve([])
+            : db.archimonstre.findMany({
+                  where: {
+                      name: { in: matchNames, mode: "insensitive" },
+                      imageUrl: { not: null },
+                  },
+                  select: { name: true, imageUrl: true },
+                  take: 2000,
+              });
+
+    const [typeByName, visuals] = await Promise.all([
+        loadOcreTypeMap(quest, key),
+        visualsPromise,
+    ]);
+    const imageByName = new Map<string, string | null>(
+        visuals.map((visual) => [normalizeMonsterName(visual.name), visual.imageUrl])
+    );
+
+    const matches = raw.matches.map((match) =>
+        toMatchInput(match, typeByName, imageByName)
+    );
     const usernames = Array.from(
         new Set(matches.map((match) => match.username.trim()).filter(Boolean))
     ).slice(0, TRADE_MATCHES_LIMIT);

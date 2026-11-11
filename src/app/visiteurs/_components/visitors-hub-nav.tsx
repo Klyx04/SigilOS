@@ -34,7 +34,7 @@ export function VisitorsHubNav({
         {
             id: "echanges" as const,
             label: labels.hub.exchanges,
-            icon: "/assets/dofus/game-icons/shop.png",
+            icon: "/assets/dofus/icons/archimonster.png",
             href: buildVisitorsHubHref({ vue: "echanges" }),
         },
     ];

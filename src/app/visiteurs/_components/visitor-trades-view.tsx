@@ -7,9 +7,11 @@ import {
     TRADE_MATCHES_LIMIT,
     TRADE_PARTNERS_SHOWN,
     type TradeMonster,
+    type TradeMonsterType,
     type TradePartner,
 } from "@/lib/public-trades";
-import { buildVisitorsHubHref } from "@/lib/visitors-hub";
+import { buildVisitorsHubHref, type VisitorsHubTradeType } from "@/lib/visitors-hub";
+import { cn } from "@/lib/utils";
 import type { VisitorTrades } from "@/server/public-trades";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
@@ -87,45 +89,90 @@ export function VisitorTradesFallback({ labels }: { labels: Labels }) {
     );
 }
 
-/** Une colonne de monstres — bornée, avec le compte honnête du reste. */
+const MONSTER_TYPE_ORDER: Array<{
+    id: TradeMonsterType;
+    labelKey: "boss" | "archis" | "monster";
+}> = [
+    { id: "boss", labelKey: "boss" },
+    { id: "archimonstre", labelKey: "archis" },
+    { id: "monstre", labelKey: "monster" },
+];
+
+/** Icône de monstre : image interne (proxy) avec repli sur l'asset bestiaire. */
+function MonsterIcon({ src, name }: { src: string | null; name: string }) {
+    return (
+        <span
+            className="flex size-6 shrink-0 items-center justify-center rounded border border-border bg-background p-0.5"
+            title={name}
+        >
+            <GameIcon src={src ?? "/assets/dofus/modules/bestiary.png"} className="size-4" />
+        </span>
+    );
+}
+
+/** Une colonne de monstres : rangée par Boss / Archimonstres / Monstres, avec icônes. */
 function MonsterColumn({
     title,
     monsters,
     more,
+    moreByType,
     empty,
+    type,
     labels,
 }: {
     title: string;
     monsters: TradeMonster[];
     more: number;
+    moreByType: Record<TradeMonsterType, number>;
     empty: string;
+    type: VisitorsHubTradeType | null;
     labels: Labels;
 }) {
+    const groups = MONSTER_TYPE_ORDER.filter((group) => (type ? group.id === type : true))
+        .map((group) => ({
+            ...group,
+            items: monsters.filter((monster) => monster.type === group.id),
+        }))
+        .filter((group) => group.items.length > 0);
+    const remaining = type ? moreByType[type] : more;
+
     return (
         <div className="min-w-0">
             <p className="reg-eyebrow">{title}</p>
-            {monsters.length === 0 ? (
+            {groups.length === 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">{empty}</p>
             ) : (
-                <ul className="mt-1 space-y-0.5">
-                    {monsters.map((monster) => (
-                        <li
-                            key={monster.id}
-                            className="flex min-w-0 items-center gap-1.5 text-sm"
-                        >
-                            <span className="truncate text-foreground">{monster.name}</span>
-                            {monster.coversNeed ? (
-                                <span className="reg-tag shrink-0 text-success">
-                                    {labels.hub.trades.covers}
-                                </span>
-                            ) : null}
-                        </li>
+                <div className="mt-1 space-y-2">
+                    {groups.map((group) => (
+                        <div key={group.id}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                {labels.hub.trades[group.labelKey]}
+                            </p>
+                            <ul className="mt-0.5 space-y-0.5">
+                                {group.items.map((monster) => (
+                                    <li
+                                        key={monster.id}
+                                        className="flex min-w-0 items-center gap-1.5 text-sm"
+                                    >
+                                        <MonsterIcon src={monster.imageUrl} name={monster.name} />
+                                        <span className="truncate text-foreground">
+                                            {monster.name}
+                                        </span>
+                                        {monster.coversNeed ? (
+                                            <span className="reg-tag shrink-0 text-success">
+                                                {labels.hub.trades.covers}
+                                            </span>
+                                        ) : null}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
-            {more > 0 ? (
+            {remaining > 0 ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                    + {more} {labels.hub.others}
+                    + {remaining} {labels.hub.others}
                 </p>
             ) : null}
         </div>
@@ -137,7 +184,15 @@ function MonsterColumn({
  * moyen de contacter la personne pour l'échange (décision du 11/11/2026). La fiche SigilOS
  * reste la porte d'entrée pour le reste du profil public.
  */
-function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels }) {
+function PartnerRow({
+    partner,
+    type,
+    labels,
+}: {
+    partner: TradePartner;
+    type: VisitorsHubTradeType | null;
+    labels: Labels;
+}) {
     const trades = labels.hub.trades;
     const classe = partner.classe ? getClass(partner.classe) : undefined;
     const contact = metamobProfileUrl(partner.metamobPseudo);
@@ -184,14 +239,18 @@ function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels
                     title={trades.theyHave}
                     monsters={partner.theyHave}
                     more={partner.theyHaveMore}
+                    moreByType={partner.theyHaveMoreByType}
                     empty={trades.noneTheyHave}
+                    type={type}
                     labels={labels}
                 />
                 <MonsterColumn
                     title={trades.youHave}
                     monsters={partner.youHave}
                     more={partner.youHaveMore}
+                    moreByType={partner.youHaveMoreByType}
                     empty={trades.noneYouHave}
+                    type={type}
                     labels={labels}
                 />
             </div>
@@ -222,7 +281,15 @@ function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels
  * puis le tableau. Un échec de Metamob n'est jamais une page cassée : c'est un panneau qui
  * dit quoi faire.
  */
-export function VisitorTradesView({ state, labels }: { state: VisitorTrades; labels: Labels }) {
+export function VisitorTradesView({
+    state,
+    labels,
+    type = null,
+}: {
+    state: VisitorTrades;
+    labels: Labels;
+    type?: VisitorsHubTradeType | null;
+}) {
     const trades = labels.hub.trades;
 
     if (state.status === "no-metamob") {
@@ -249,7 +316,7 @@ export function VisitorTradesView({ state, labels }: { state: VisitorTrades; lab
             <InfoPanel
                 title={trades.title}
                 text={trades.unavailable}
-                cta={{ href: buildVisitorsHubHref({ vue: "echanges" }), label: trades.retry }}
+                cta={{ href: buildVisitorsHubHref({ vue: "echanges", type }), label: trades.retry }}
                 secondary={metamobLink(state.viewerMetamobPseudo, trades.openMetamob)}
             />
         );
@@ -266,62 +333,123 @@ export function VisitorTradesView({ state, labels }: { state: VisitorTrades; lab
 
     const { board, quest } = state;
     const profileUrl = metamobProfileUrl(state.viewerMetamobPseudo);
+    const visiblePartners = type
+        ? board.partners.filter((partner) =>
+              [...partner.theyHave, ...partner.youHave].some(
+                  (monster) => monster.type === type
+              )
+          )
+        : board.partners;
+    const shownCount = type ? visiblePartners.length : board.partnersCount;
+    const filters: Array<{
+        id: VisitorsHubTradeType | null;
+        label: string;
+        href: string;
+    }> = [
+        { id: null, label: trades.all, href: buildVisitorsHubHref({ vue: "echanges" }) },
+        {
+            id: "boss",
+            label: trades.boss,
+            href: buildVisitorsHubHref({ vue: "echanges", type: "boss" }),
+        },
+        {
+            id: "archimonstre",
+            label: trades.archis,
+            href: buildVisitorsHubHref({ vue: "echanges", type: "archimonstre" }),
+        },
+    ];
 
     return (
         <section className="mt-6 min-w-0" aria-label={trades.title}>
             <header className="border-b border-border pb-3">
-                <h2 className="text-lg font-semibold text-foreground">{trades.title}</h2>
-                <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
-                    {trades.desc}
-                </p>
-                <p className="reg-mono mt-2 text-xs text-muted-foreground">
-                    {replace(trades.questLabel, {
-                        name: quest.characterName,
-                        step: String(quest.currentStep),
-                    })}
-                </p>
-                {state.viewerMetamobPseudo ? (
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                        <span>
-                            {replace(trades.linkedAs, { pseudo: state.viewerMetamobPseudo })}
-                        </span>
-                        {profileUrl ? (
-                            <a
-                                href={profileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="reg-link"
-                            >
-                                {trades.openMetamob}
-                            </a>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                            <GameIcon
+                                src="/assets/dofus/icons/archimonster.png"
+                                className="size-5"
+                            />
+                            {trades.title}
+                        </h2>
+                        <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
+                            {trades.desc}
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="reg-mono text-[11px] text-muted-foreground">
+                            {shownCount}{" "}
+                            {shownCount === 1 ? trades.partnerOne : trades.partners} ·{" "}
+                            {board.apiTotal} {trades.apiMatches}
+                        </p>
+                        {board.capped ? (
+                            <p className="text-[11px] text-muted-foreground">
+                                {replace(trades.capped, { n: String(TRADE_MATCHES_LIMIT) })}
+                            </p>
                         ) : null}
+                    </div>
+                </div>
+
+                <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                        {replace(trades.questLabel, {
+                            name: quest.characterName,
+                            step: String(quest.currentStep),
+                        })}
+                    </span>
+                    {state.viewerMetamobPseudo ? (
+                        <>
+                            <span aria-hidden="true">·</span>
+                            <span>
+                                {replace(trades.linkedAs, {
+                                    pseudo: state.viewerMetamobPseudo,
+                                })}
+                            </span>
+                            {profileUrl ? (
+                                <a
+                                    href={profileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="reg-link"
+                                >
+                                    {trades.openMetamob}
+                                </a>
+                            ) : null}
+                        </>
+                    ) : null}
+                </p>
+
+                {state.hidden ? (
+                    <p className="mt-2 text-xs text-warning">{trades.hidden}</p>
+                ) : null}
+                {state.serverMismatch ? (
+                    <p className="mt-1 text-[11px] text-warning">
+                        {replace(trades.serverMismatch, { server: quest.serverName || "?" })}
                     </p>
                 ) : null}
-                <p className="mt-1 text-xs text-muted-foreground">{trades.privacyNote}</p>
+
+                <nav
+                    aria-label={trades.filterLabel}
+                    className="mt-3 flex flex-wrap items-center gap-1"
+                >
+                    {filters.map((filter) => {
+                        const active = type === filter.id || (filter.id === null && !type);
+                        return (
+                            <Link
+                                key={filter.label}
+                                href={filter.href}
+                                aria-current={active ? "page" : undefined}
+                                className={cn(
+                                    "inline-flex h-8 items-center rounded-md border border-border px-2.5 text-xs text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    active &&
+                                        "border-accent bg-elevated font-semibold text-foreground"
+                                )}
+                            >
+                                {filter.label}
+                            </Link>
+                        );
+                    })}
+                </nav>
             </header>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="reg-mono text-xs text-muted-foreground">
-                    {board.partnersCount} {trades.partners}
-                </span>
-                <span className="reg-mono text-xs text-muted-foreground">
-                    {board.apiTotal} {trades.apiMatches}
-                </span>
-            </div>
-
-            {state.hidden ? (
-                <p className="mt-2 text-xs text-warning">{trades.hidden}</p>
-            ) : null}
-            {state.serverMismatch ? (
-                <p className="mt-2 text-xs text-warning">
-                    {replace(trades.serverMismatch, { server: quest.serverName || "?" })}
-                </p>
-            ) : null}
-            {board.capped ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                    {replace(trades.capped, { n: String(TRADE_MATCHES_LIMIT) })}
-                </p>
-            ) : null}
 
             {board.apiMatches === 0 ? (
                 <p className="reg-callout mt-4 text-sm text-muted-foreground">
@@ -336,10 +464,19 @@ export function VisitorTradesView({ state, labels }: { state: VisitorTrades; lab
                         {trades.noPartnerHint}
                     </p>
                 </>
+            ) : visiblePartners.length === 0 ? (
+                <p className="reg-callout mt-4 text-sm text-muted-foreground">
+                    {trades.noType}
+                </p>
             ) : (
                 <ul className="mt-4 space-y-3">
-                    {board.partners.map((partner) => (
-                        <PartnerRow key={partner.profileId} partner={partner} labels={labels} />
+                    {visiblePartners.map((partner) => (
+                        <PartnerRow
+                            key={partner.profileId}
+                            partner={partner}
+                            type={type}
+                            labels={labels}
+                        />
                     ))}
                 </ul>
             )}
@@ -349,6 +486,7 @@ export function VisitorTradesView({ state, labels }: { state: VisitorTrades; lab
                     {replace(trades.displayCapped, { n: String(TRADE_PARTNERS_SHOWN) })}
                 </p>
             ) : null}
+            <p className="mt-3 text-[11px] text-muted-foreground">{trades.privacyNote}</p>
         </section>
     );
 }

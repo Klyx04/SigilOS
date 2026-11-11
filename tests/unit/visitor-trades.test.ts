@@ -134,6 +134,51 @@ describe("Croisement Metamob × profils du serveur", () => {
         expect(bob.youHave).toHaveLength(0);
     });
 
+    it("garde le type et l'icône, et groupe par boss / archimonstre", () => {
+        const typed = buildTradeBoard({
+            matches: [
+                {
+                    username: "alice-mm",
+                    matchScore: 4,
+                    theyHaveYouWant: [
+                        {
+                            id: 1,
+                            name: "Boss A",
+                            coversNeed: true,
+                            type: "boss",
+                            imageUrl: "/proxy/boss.png",
+                        },
+                        { id: 2, name: "Boss B", coversNeed: false, type: "boss" },
+                        { id: 3, name: "Boss C", coversNeed: false, type: "boss" },
+                        { id: 4, name: "Boss D", coversNeed: false, type: "boss" },
+                        {
+                            id: 5,
+                            name: "Archi A",
+                            coversNeed: false,
+                            type: "archimonstre",
+                        },
+                    ],
+                    youHaveTheyWant: [],
+                },
+            ],
+            visitors: VISITORS,
+            viewerProfileId: "p-wylaen",
+            viewerMetamobPseudo: "Wylaen",
+        });
+
+        const partner = typed.partners[0];
+        expect(partner.theyHave.map((monster) => monster.type)).toEqual([
+            "boss",
+            "boss",
+            "boss",
+            "archimonstre",
+        ]);
+        expect(partner.theyHave[0].imageUrl).toBe("/proxy/boss.png");
+        expect(partner.theyHaveMore).toBe(1);
+        expect(partner.theyHaveMoreByType.boss).toBe(1);
+        expect(partner.theyHaveMoreByType.archimonstre).toBe(0);
+    });
+
     it("conserve l'ordre de Metamob", () => {
         const ordered = buildTradeBoard({
             matches: [MATCHES[1], MATCHES[0]],
@@ -256,7 +301,7 @@ describe("Rendu des états", () => {
                 labels: fr.visitorsPage,
             })
         ).replace(/&#x27;/g, "'");
-        expect(html).toContain("Échanges Metamob");
+        expect(html).toContain("Metamob Ocre");
         expect(html).toContain("Alice");
         expect(html).toContain("alice-mm");
         expect(html).toContain("Il a ce que tu cherches");
@@ -301,8 +346,13 @@ describe("Bascule du hub — la troisième vue a son URL", () => {
             vue: "echanges",
             donjon: null,
             q: "",
+            type: null,
         });
+        expect(parseVisitorsHubSearch({ vue: "echanges", type: "boss" }).type).toBe("boss");
         expect(buildVisitorsHubHref({ vue: "echanges" })).toBe("/visiteurs?vue=echanges");
+        expect(buildVisitorsHubHref({ vue: "echanges", type: "archimonstre" })).toBe(
+            "/visiteurs?vue=echanges&type=archimonstre"
+        );
     });
 
     it("marque la vue active et garde les trois destinations", () => {
@@ -316,7 +366,8 @@ describe("Bascule du hub — la troisième vue a son URL", () => {
         expect(html).toContain("?vue=echanges");
         expect(html).toContain("Profils");
         expect(html).toContain("Succès en commun");
-        expect(html).toContain("Échanges");
+        expect(html).toContain("Metamob Ocre");
+        expect(html).toContain("archimonster.png");
     });
 });
 

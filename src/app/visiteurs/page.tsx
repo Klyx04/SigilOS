@@ -80,7 +80,11 @@ export default async function VisitorsPage({
                         <SharedSuccesSection viewer={access.viewer} hub={hub} labels={labels} />
                     ) : hub.vue === "echanges" ? (
                         <Suspense fallback={<VisitorTradesFallback labels={labels} />}>
-                            <VisitorTradesSection viewer={access.viewer} labels={labels} />
+                            <VisitorTradesSection
+                                viewer={access.viewer}
+                                hub={hub}
+                                labels={labels}
+                            />
                         </Suspense>
                     ) : (
                         <DirectoryList viewer={access.viewer} filters={filters} labels={labels} />

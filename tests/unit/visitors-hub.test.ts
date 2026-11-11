@@ -43,7 +43,12 @@ const MEMBERS: SharedSuccesMember[] = [
 
 describe("Recherche du hub — bornée, jamais bloquante", () => {
     it("retombe sur les profils quand la vue est absente ou inconnue", () => {
-        expect(parseVisitorsHubSearch(undefined)).toEqual({ vue: "profils", donjon: null, q: "" });
+        expect(parseVisitorsHubSearch(undefined)).toEqual({
+            vue: "profils",
+            donjon: null,
+            q: "",
+            type: null,
+        });
         expect(parseVisitorsHubSearch({ vue: "wow" }).vue).toBe("profils");
     });
 
@@ -52,13 +57,23 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             vue: "profils",
             donjon: null,
             q: "",
+            type: null,
         });
         expect(
             parseVisitorsHubSearch({ vue: "succes", donjon: "tournesol-affame", q: "  tour  " })
-        ).toEqual({ vue: "succes", donjon: "tournesol-affame", q: "tour" });
+        ).toEqual({ vue: "succes", donjon: "tournesol-affame", q: "tour", type: null });
         expect(
             parseVisitorsHubSearch({ vue: "echanges", donjon: "tournesol-affame", q: "tour" })
-        ).toEqual({ vue: "echanges", donjon: null, q: "" });
+        ).toEqual({ vue: "echanges", donjon: null, q: "", type: null });
+    });
+
+    it("ne garde le filtre de type que dans la vue échanges", () => {
+        expect(parseVisitorsHubSearch({ vue: "echanges", type: "boss" }).type).toBe("boss");
+        expect(parseVisitorsHubSearch({ vue: "echanges", type: "archimonstre" }).type).toBe(
+            "archimonstre"
+        );
+        expect(parseVisitorsHubSearch({ vue: "echanges", type: "wow" }).type).toBeNull();
+        expect(parseVisitorsHubSearch({ vue: "succes", type: "boss" }).type).toBeNull();
     });
 
     it("borne la recherche et refuse une clé de donjon invalide", () => {
@@ -80,6 +95,9 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
         expect(buildVisitorsHubHref({ vue: "profils", q: "iop", donjon: "x" })).toBe("/visiteurs");
         expect(buildVisitorsHubHref({ vue: "succes" })).toBe("/visiteurs?vue=succes");
         expect(buildVisitorsHubHref({ vue: "echanges" })).toBe("/visiteurs?vue=echanges");
+        expect(buildVisitorsHubHref({ vue: "echanges", type: "boss" })).toBe(
+            "/visiteurs?vue=echanges&type=boss"
+        );
         expect(
             buildVisitorsHubHref({ vue: "echanges", donjon: "x", q: "iop" })
         ).toBe("/visiteurs?vue=echanges");

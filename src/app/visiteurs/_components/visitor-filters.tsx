@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +17,35 @@ import { FilterMenu } from "./filter-menu";
 
 /** Tous les métiers, à plat, dans l'ordre des catégories du jeu. */
 const ALL_JOBS = Object.values(DOFUS_JOBS).flatMap((category) => [...category]);
+
+/**
+ * Une option de menu — **l'état actif doit se voir** : fond `elevated` (le panneau est
+ * en `surface`), texte renforcé, coche et `aria-current`. Retour user du 10/11 : le fond
+ * `surface` se confondait avec le panneau, l'option choisie était invisible.
+ */
+const optionClass = (active: boolean) =>
+    `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
+        active ? "bg-elevated font-semibold text-foreground" : "text-foreground hover:bg-surface"
+    }`;
+
+function OptionLink({
+    href,
+    active,
+    children,
+}: {
+    href: string;
+    active: boolean;
+    children: ReactNode;
+}) {
+    return (
+        <Link href={href} aria-current={active ? "true" : undefined} className={optionClass(active)}>
+            {children}
+            {active ? (
+                <Check className="ml-auto size-4 shrink-0 text-accent" aria-hidden="true" />
+            ) : null}
+        </Link>
+    );
+}
 
 /**
  * Filtres de l'annuaire : un formulaire GET pour la recherche, trois menus pour la classe, le
@@ -37,11 +68,6 @@ export function VisitorFilters({
     const activeClass = filters.classe ? getClass(filters.classe) : undefined;
     const activeJob = filters.metier ? getJob(filters.metier) : undefined;
     const hasFilters = Boolean(filters.q || filters.classe || filters.metier || filters.niveau);
-
-    const linkClass = (active: boolean) =>
-        `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
-            active ? "bg-surface font-semibold text-foreground" : "text-foreground hover:bg-surface"
-        }`;
 
     return (
         <div className="mt-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -73,18 +99,18 @@ export function VisitorFilters({
 
             <div className="flex flex-wrap items-center gap-2">
                 <FilterMenu icon={activeClass?.icon} label={activeClass?.name ?? labels.allClasses}>
-                    <Link
+                    <OptionLink
                         href={buildVisitorDirectoryHref({
                             q: filters.q,
                             metier: filters.metier,
                             niveau: filters.niveau,
                         })}
-                        className={linkClass(!filters.classe)}
+                        active={!filters.classe}
                     >
                         {labels.allClasses}
-                    </Link>
+                    </OptionLink>
                     {DOFUS_CLASSES.map((classe) => (
-                        <Link
+                        <OptionLink
                             key={classe.id}
                             href={buildVisitorDirectoryHref({
                                 q: filters.q,
@@ -92,23 +118,23 @@ export function VisitorFilters({
                                 metier: filters.metier,
                                 niveau: filters.niveau,
                             })}
-                            className={linkClass(filters.classe === classe.id)}
+                            active={filters.classe === classe.id}
                         >
                             <GameIcon src={classe.icon} className="size-5" />
                             {classe.name}
-                        </Link>
+                        </OptionLink>
                     ))}
                 </FilterMenu>
 
                 <FilterMenu icon={activeJob?.icon} label={activeJob?.name ?? labels.allJobs}>
-                    <Link
+                    <OptionLink
                         href={buildVisitorDirectoryHref({ q: filters.q, classe: filters.classe })}
-                        className={linkClass(!filters.metier)}
+                        active={!filters.metier}
                     >
                         {labels.allJobs}
-                    </Link>
+                    </OptionLink>
                     {ALL_JOBS.map((job) => (
-                        <Link
+                        <OptionLink
                             key={job.id}
                             href={buildVisitorDirectoryHref({
                                 q: filters.q,
@@ -116,11 +142,11 @@ export function VisitorFilters({
                                 metier: job.id,
                                 niveau: filters.niveau,
                             })}
-                            className={linkClass(filters.metier === job.id)}
+                            active={filters.metier === job.id}
                         >
                             <GameIcon src={job.icon} className="size-5" />
                             {job.name}
-                        </Link>
+                        </OptionLink>
                     ))}
                 </FilterMenu>
 
@@ -135,18 +161,18 @@ export function VisitorFilters({
                                 : labels.levelFilter
                         }
                     >
-                        <Link
+                        <OptionLink
                             href={buildVisitorDirectoryHref({
                                 q: filters.q,
                                 classe: filters.classe,
                                 metier: filters.metier,
                             })}
-                            className={linkClass(!filters.niveau)}
+                            active={!filters.niveau}
                         >
                             {labels.allLevels}
-                        </Link>
+                        </OptionLink>
                         {PUBLIC_DIRECTORY_JOB_LEVELS.map((level) => (
-                            <Link
+                            <OptionLink
                                 key={level}
                                 href={buildVisitorDirectoryHref({
                                     q: filters.q,
@@ -154,10 +180,10 @@ export function VisitorFilters({
                                     metier: filters.metier,
                                     niveau: level,
                                 })}
-                                className={linkClass(filters.niveau === level)}
+                                active={filters.niveau === level}
                             >
                                 {labels.levelFilter} {level}+
-                            </Link>
+                            </OptionLink>
                         ))}
                     </FilterMenu>
                 )}

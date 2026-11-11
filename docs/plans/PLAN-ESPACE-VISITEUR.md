@@ -368,6 +368,9 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   confirmer) ; le consentement sert à **être vu**, pas à recevoir.
 - **Chantier 4 — Finitions anonymes F1→F7** (voir ci-dessous).
 - **Chantier 5 — Studio E2** (`REFONTE-EDITEUR-RUSH.md` §3).
+- **Hors 5 chantiers (demande du 11/11/2026)** : **fiche visiteur — deslop** — les trois cartes
+  de chiffres, Présentation/Objectifs et Métiers sont des blocs empilés ; passe de reformatage,
+  de hiérarchie et d'assets à cadrer (aucune règle métier).
 - **Reportés** : nettoyage des images (V-C, le local n'a pas tous les donjons — le VPS est la
   référence), V-D2, route publique du bloc B, V2d, V3.
 

@@ -30,8 +30,8 @@
 
 > **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → choix explicite : **le filtre niveau d'abord**, puis l'Ocre.
 > **Mesure préalable** : l'annuaire ne connaissait que `q`, `classe`, `metier`, `cursor` ; le `where` filtrait le métier **sans niveau** ; le verrou `visitor-directory` exigeait **2** `<FilterMenu>`. La donnée était prête : `PublicProfession` porte `@@index([metierId, level])` et les niveaux sont bornés **1..200**.
-> **Fait** : `niveau` borné (entier 1..200, lu **seulement** avec un métier valide), `where` en `level: { gte }` (« au moins ce niveau »), lien qui conserve le niveau et le retire avec le métier ; 3ᵉ menu « Niveau » (paliers 50/100/150/200) rendu **seulement** quand un métier est actif, via le `FilterMenu` partagé (exclusivité, Échap, clic extérieur) ; libellés fr/en.
-> **Preuves** : `visitor-directory` **25** (+7) · suite **646 fichiers / 6 890 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Fait** : `niveau` borné (entier 1..200, lu **seulement** avec un métier valide), `where` en `level: { gte }` (« au moins ce niveau »), lien qui conserve le niveau et le retire avec le métier ; 3ᵉ menu « Niveau » (paliers 50/100/150/200) rendu **seulement** quand un métier est actif, via le `FilterMenu` partagé (exclusivité, Échap, clic extérieur) ; libellés fr/en. **UX (10/11, retour user)** : option active marquée (fond `elevated`, coche, `aria-current` — le fond `surface` était invisible sur le panneau) et menu **refermé** au clic (`onClickCapture`).
+> **Preuves** : `visitor-directory` **27** (+9) · suite **647 fichiers / 6 907 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : contrôle visuel 390 / 768 / 1 440 ; `PUBLIC_VISITOR_ENTRY=1` en bêta ; puis **V-H** (donjons ocre « capturé / à capturer »), **F16**, **F1→F7**.
 > **Rotation** : bloc « 09/11/2026 (suite 2) — Rôles Discord du cycle de vie d'essai (V1) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

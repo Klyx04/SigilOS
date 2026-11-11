@@ -12,6 +12,10 @@
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { VisitorFilters } from "@/app/visiteurs/_components/visitor-filters";
+import { fr } from "@/lib/i18n/locales/fr";
 import {
     PUBLIC_DIRECTORY_JOBS_ON_CARD,
     PUBLIC_DIRECTORY_JOB_LEVEL_MAX,
@@ -241,6 +245,29 @@ describe("Annuaire des visiteurs — aucun champ privé ne sort", () => {
             "successPoints",
             "updatedAt",
         ]);
+    });
+});
+
+describe("Annuaire des visiteurs — l'option active se voit et le menu se ferme", () => {
+    it("marque l'option active : fond elevated, coche et aria-current", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorFilters, {
+                filters: { metier: "forgeron" },
+                labels: fr.visitorsPage,
+            })
+        );
+        // Le panneau est en `surface` : le fond actif doit être `elevated`, sinon invisible.
+        expect(html).toContain('aria-current="true"');
+        expect(html).toContain("bg-elevated");
+        expect(html).toContain("lucide-check");
+        expect(html).toContain("Forgeron");
+    });
+
+    it("un clic sur une option ferme le menu avant la navigation", () => {
+        const menu = stripComments(read("src/app/visiteurs/_components/filter-menu.tsx"));
+        expect(menu).toContain("onClickCapture");
+        expect(menu).toContain('closest("a")');
+        expect(menu).toContain("setOpen(false)");
     });
 });
 

@@ -432,7 +432,10 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
   valeurs hors plage ignorés (fail-soft, jamais une page blanche).
 - Écran : 3ᵉ menu « Niveau » (paliers 50/100/150/200), rendu **seulement** avec un métier actif, via
   le `FilterMenu` existant (exclusivité, Échap, clic extérieur) — aucun contrôle natif.
-- Verrou `tests/unit/visitor-directory.test.ts` **25** (+7) · aucun test désactivé · **aucune migration**.
+- **UX (10/11, retour user)** : l'option active est **visible** (fond `elevated`, coche, `aria-current`) —
+  le fond `surface` se confondait avec le panneau ; un clic sur une option **ferme** le menu avant la
+  navigation (`onClickCapture`) au lieu de le laisser ouvert après la sélection.
+- Verrou `tests/unit/visitor-directory.test.ts` **27** (+9) · aucun test désactivé · **aucune migration**.
 
 **Ocre public ISO — livré le 09/11/2026 (PR #1315)**
 

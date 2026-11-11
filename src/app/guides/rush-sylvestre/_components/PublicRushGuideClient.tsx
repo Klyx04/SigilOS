@@ -133,6 +133,7 @@ import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharact
 import { CharacterSwitchModal } from "@/components/dofus-quests/rush/CharacterSwitchModal";
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { PublicOcreDungeonBridge } from "@/components/dofus-quests/rush/PublicOcreDungeonBridge";
+import { OverlayToastProvider } from "@/components/rush/overlay-toast";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
 import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
@@ -637,6 +638,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   useEffect(() => {
     if (openDungeonPanel || detailModalSeq) setOcreLoadRequested(true);
   }, [openDungeonPanel, detailModalSeq]);
+  // L'overlay a SA propre liste : on charge la progression Ocre dès qu'il s'ouvre,
+  // pour que son panneau donjon affiche le même état que la page.
+  useEffect(() => {
+    if (pipWin && visitor?.metamobPseudo) setOcreLoadRequested(true);
+  }, [pipWin, visitor?.metamobPseudo]);
   // Changement de personnage (ou adoption d'une progression anonyme) = changement
   // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
   useEffect(() => {
@@ -3043,8 +3049,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       {/* ── FLOATING OVERLAY PORTAL (fenêtre détachée active) ── */}
       {pipWin &&
         createPortal(
-          <GuideOverlayClient
-            key={storagePrefix}
+          <OverlayToastProvider>
+            <GuideOverlayClient
+              key={storagePrefix}
             guide={{
               id: guide.id,
               name: guide.name,
@@ -3064,6 +3071,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             // en PiP aussi (même raison que le panneau de retour).
             metamobPseudo={visitor?.metamobPseudo ?? null}
             metamobVerified={metamob === "verified"}
+            publicCapturedOcreNames={capturedOcreNames}
             pinned={pipPinned}
             // L'overlay lit EXACTEMENT les mêmes clés que la page (donc la progression
             // du personnage déclaré), et affiche son icône de classe dans son en-tête.
@@ -3073,7 +3081,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               classe: character?.classId ?? null,
               isMain: true,
             }}
-          />,
+          />
+          </OverlayToastProvider>,
           pipWin.document.body
         )}
     </>

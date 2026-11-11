@@ -131,7 +131,8 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge` pour le guide public connecté — verrou `ocre-dungeons` **19** | 10/11/2026 |
+| `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |
+| `OVERLAY-NOTIFS` | Overlay — un seul endroit pour les notifications : `OverlayToastProvider` monté dans le portail public (Toaster dédié sous `data-da`), `portalContainer` sur `DialogContent` pour la modale Ocre publique dans la PiP, `notifyBlockDone` (bloc validé / Dofus obtenu) — verrou `overlay-notifications` **4** | 10/11/2026 |
 
 | `VISITEUR-NIVEAU` | Annuaire des visiteurs — filtre **métier + niveau minimum** (`?niveau=`, `level: { gte }`, bornes 1..200), 3ᵉ menu rendu **seulement** avec un métier, URL qui retire le niveau avec le métier — verrou `visitor-directory` **25** | 10/11/2026 |
 

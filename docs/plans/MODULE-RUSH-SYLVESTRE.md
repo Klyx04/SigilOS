@@ -331,7 +331,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Mesure du 10/11 (cas Meulou)** : `Dungeon.isOcreQuest` est la source **fiable** — la quête « Culs Bottés » avait le drapeau `true` **sans** tag `ocre_dungeon`, donc V-H ne montrait rien. `getDungeons` lit désormais `isOcreQuest` puis le tag en **repli**, et les deux payloads (`getPublicGuideDetail` / `getOptimizedGuideDetail`) sélectionnent la colonne.
 - **Fiche détail** : les deux coches `Fait / À faire` y vivent **aussi**, avec la même source que le panneau (dashboard, overlay, guide public connecté). L'aperçu God reste en lecture seule.
 - **Guide public connecté (page)** : le pont voisin `PublicOcreDungeonBridge` charge `getPublicOcreProgress` **à la demande** (ouverture d'un panneau ou de la fiche), et le bouton ouvre `PublicMetamobModal` (même `OcreQuestPanel`), jamais la modale Ocre interne.
-- **Reste (mesuré le 10/11)** : l'**overlay public connecté** ouvre encore `PublicMetamobModal` **hors** de la PiP ; il lui faut le même panneau Ocre **dans** l'overlay (lot suivant). Même lot : toast de validation de bloc et événements « bloc validé / Dofus obtenu » en direct entre visiteurs du même serveur.
+- **Overlay public (10/11)** : `DialogContent` porte un `portalContainer` ; `PublicMetamobModal` est rendue dans le `body` de la **PiP** (même `OcreQuestPanel`), les captures du visiteur sont poussées par `publicCapturedOcreNames`, et `OverlayToastProvider` est monté dans le portail public (toasts dans la PiP, DA unique). `notifyBlockDone` toastifie un **bloc validé** / un **Dofus obtenu** dans `GuideOverlayClient`.
+- **Reste (mesuré le 10/11)** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = **V2c**, pas encore branché ; les toasts de la **page** publique restent des toasts de page, volontairement.
 
 ## 3. Ordre d'exécution
 

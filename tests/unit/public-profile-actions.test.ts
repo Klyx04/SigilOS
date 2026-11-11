@@ -221,6 +221,14 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
         expect(progress).not.toMatch(/key:/);
     });
 
+    it("la lecture renvoie l'étape, la progression et les deux barres", () => {
+        expect(progress).toContain("currentStep: details.current_step");
+        expect(progress).toContain("stepCount: details.quest_template?.step_count");
+        expect(progress).toContain("bosses: {");
+        expect(progress).toContain("archis: {");
+        expect(progress).toContain("progress: total > 0");
+    });
+
     it("le patch écrit par `bulkUpdateMonsters`, puis RELIT (double cross-check)", () => {
         const write = patch.indexOf("bulkUpdateMonsters(");
         const recheck = patch.indexOf("getSelfQuestDetails(", write);

@@ -7,11 +7,12 @@ const stripComments = (code: string) =>
     code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
 describe("Formulaire Metamob — fiche liée et déliement", () => {
-    it("une fois la clé liée, propose vérifier / remplacer / délier au lieu du champ", () => {
+    it("une fois la clé liée, propose le registre compact au lieu du champ", () => {
         const form = stripComments(FORM);
-        expect(form).toContain("Ton compte Metamob est lié");
+        expect(form).toContain("Registre Metamob");
+        expect(form).toContain("Clé vérifiée");
         expect(form).toContain("Remplacer la clé");
-        expect(form).toContain("Délier mon compte");
+        expect(form).toContain("Délier le compte");
         expect(form).toContain('setMode("form")');
         expect(form).toContain('setMode("unlink")');
     });

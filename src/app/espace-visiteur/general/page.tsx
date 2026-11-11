@@ -4,6 +4,7 @@ import { loadPublicProfileView, requirePublicSession } from "@/server/public-acc
 import { CreateProfileForm } from "../_components/create-profile-form";
 import { IdentityForm } from "../_components/identity-form";
 import { MetamobForm } from "../_components/metamob-form";
+import { VisitorOcreCard } from "../_components/visitor-ocre-card";
 
 export const metadata = {
     title: "Général — espace visiteur | SigilOS",
@@ -37,11 +38,22 @@ export default async function GeneralPage() {
                 declaredGuildName={profile.declaredGuildName}
             />
 
-            <MetamobForm
-                metamobPseudo={profile.metamobPseudo}
-                hasKey={profile.hasMetamobApiKey}
-                verified={profile.metamobVerified}
-            />
+            {profile.hasMetamobApiKey ? (
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                    <VisitorOcreCard />
+                    <MetamobForm
+                        metamobPseudo={profile.metamobPseudo}
+                        hasKey={profile.hasMetamobApiKey}
+                        verified={profile.metamobVerified}
+                    />
+                </div>
+            ) : (
+                <MetamobForm
+                    metamobPseudo={profile.metamobPseudo}
+                    hasKey={profile.hasMetamobApiKey}
+                    verified={profile.metamobVerified}
+                />
+            )}
         </div>
     );
 }

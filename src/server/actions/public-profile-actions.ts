@@ -983,8 +983,15 @@ export type PublicOcreProgress =
           success: true;
           questSlug: string;
           characterName: string | null;
+          serverName: string | null;
+          gameVersion: string | null;
+          currentStep: number;
+          stepCount: number | null;
           total: number;
           captured: number;
+          progress: number;
+          bosses: { gathered: number; total: number };
+          archis: { gathered: number; total: number };
           monsters: PublicOcreMonster[];
       }
     | { success: false; error: string };
@@ -1152,12 +1159,30 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
             .filter((monster): monster is PublicOcreMonster => monster !== null)
             .slice(0, PUBLIC_OCRE_MONSTERS_MAX);
 
+        const total = details.pagination?.total ?? monsters.length;
+        const captured = monsters.filter((monster) => monster.owned > 0).length;
+        const bosses = monsters.filter((monster) => monster.type === "boss");
+        const archis = monsters.filter((monster) => monster.type === "archimonstre");
+
         return {
             success: true,
             questSlug: details.slug ?? slug,
             characterName: details.character_name ?? null,
-            total: details.pagination?.total ?? monsters.length,
-            captured: monsters.filter((monster) => monster.owned > 0).length,
+            serverName: details.server?.name ?? null,
+            gameVersion: details.server?.game_version?.name ?? null,
+            currentStep: details.current_step ?? 0,
+            stepCount: details.quest_template?.step_count ?? null,
+            total,
+            captured,
+            progress: total > 0 ? Math.round((captured / total) * 100) : 0,
+            bosses: {
+                gathered: bosses.filter((monster) => monster.owned > 0).length,
+                total: bosses.length,
+            },
+            archis: {
+                gathered: archis.filter((monster) => monster.owned > 0).length,
+                total: archis.length,
+            },
             monsters,
         };
     } catch (error) {

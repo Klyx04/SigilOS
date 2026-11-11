@@ -596,6 +596,8 @@ export const fr = {
                 noMatch: "Metamob ne te propose aucun partenaire pour cette quête pour l'instant.",
                 noPartner:
                     "Les partenaires Metamob existent, mais aucun n'est un visiteur de ton serveur qui a accepté d'apparaître.",
+                noPartnerHint:
+                    "Un compte attendu peut aussi être absent s'il n'a pas activé « Afficher sur mon profil public » sur sa quête Metamob, ou s'il n'est pas dans les 50 premiers partenaires.",
                 reciprocal: "Échange réciproque",
                 score: "score",
                 theyHave: "Il a ce que tu cherches",
@@ -610,6 +612,8 @@ export const fr = {
         profile: {
             metaTitle: "Fiche visiteur | SigilOS",
             backToList: "← Tous les visiteurs",
+            ambiguousTitle: "Plusieurs visiteurs portent ce pseudo",
+            ambiguousDesc: "Choisis le profil correspondant à ton serveur.",
             level: "Niveau",
             successPoints: "Points de succès",
             achievements: "Succès de donjons",

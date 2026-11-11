@@ -16,6 +16,7 @@ import { VisitorTradesView } from "@/app/visiteurs/_components/visitor-trades-vi
 import {
     buildTradeBoard,
     classifyTradeFailure,
+    isSameTradeServer,
     normalizeMetamobPseudo,
     publicTradesMatchesCacheKey,
     publicTradesQuestCacheKey,
@@ -23,6 +24,7 @@ import {
     type TradeVisitorInput,
 } from "@/lib/public-trades";
 import { buildVisitorsHubHref, parseVisitorsHubSearch } from "@/lib/visitors-hub";
+import { visitorProfileHref } from "@/lib/public-directory";
 import type { VisitorTrades } from "@/server/public-trades";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -80,6 +82,15 @@ describe("Normalisation des pseudos Metamob", () => {
         expect(normalizeMetamobPseudo("  Alice-MM ")).toBe("alice-mm");
         expect(normalizeMetamobPseudo("ＡＬＩＣＥ")).toBe("alice");
         expect(normalizeMetamobPseudo(null)).toBe("");
+    });
+});
+
+describe("Serveur Metamob vs serveur SigilOS", () => {
+    it("compare les noms, pas les ids (Draconiros 12 vs 295)", () => {
+        expect(isSameTradeServer("Draconiros", "Draconiros")).toBe(true);
+        expect(isSameTradeServer("draconiros", "Draconiros")).toBe(true);
+        expect(isSameTradeServer("Tylezia", "Draconiros")).toBe(false);
+        expect(isSameTradeServer("", "Draconiros")).toBe(false);
     });
 });
 
@@ -252,7 +263,7 @@ describe("Rendu des états", () => {
         expect(html).toContain("Tu as ce qu'il cherche");
         expect(html).toContain("Échange réciproque");
         expect(html).toContain("https://www.metamob.fr/profile/alice-mm");
-        expect(html).toContain("/visiteurs/p-alice");
+        expect(html).toContain("/visiteurs/Alice");
         expect(html).not.toContain("metamobApiKey");
         expect(html).not.toContain("ghost-mm");
     });
@@ -280,6 +291,7 @@ describe("Rendu des états", () => {
             React.createElement(VisitorTradesView, { state, labels: fr.visitorsPage })
         ).replace(/&#x27;/g, "'");
         expect(html).toContain("aucun n'est un visiteur de ton serveur");
+        expect(html).toContain("Afficher sur mon profil public");
     });
 });
 
@@ -305,6 +317,28 @@ describe("Bascule du hub — la troisième vue a son URL", () => {
         expect(html).toContain("Profils");
         expect(html).toContain("Succès en commun");
         expect(html).toContain("Échanges");
+    });
+});
+
+describe("Fiche visiteur — URL lisible", () => {
+    it("préfère le pseudo et garde le cuid en repli", () => {
+        expect(
+            visitorProfileHref({ id: "cmw6s33jk0000hwog8qq95niy", pseudo: "Wylan" })
+        ).toBe("/visiteurs/Wylan");
+        expect(
+            visitorProfileHref({ id: "cmw6s33jk0000hwog8qq95niy", pseudo: "Jean Luc" })
+        ).toBe("/visiteurs/Jean%20Luc");
+        expect(
+            visitorProfileHref({ id: "cmw6s33jk0000hwog8qq95niy", pseudo: null })
+        ).toBe("/visiteurs/cmw6s33jk0000hwog8qq95niy");
+    });
+
+    it("la fiche accepte un pseudo, un cuid, et choisit en cas d'homonyme", () => {
+        const server = stripComments(read("src/server/public-directory.ts"));
+        expect(server).toContain('pseudoDofus: { equals: key, mode: "insensitive" }');
+        expect(server).toContain("take: 2");
+        expect(server).toContain("showOnDirectory: true");
+        expect(server).toContain("dofusServerId: viewer.serverId");
     });
 });
 

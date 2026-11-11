@@ -359,6 +359,9 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   `scripts/check-metamob-api.mjs` (clé **obligatoire**, pas de hook), siphon volatile
   `src/temp/metamob-api-siphon.mjs`. **Correctif mesuré** : `/v1/quests` (liste privée) n'était
   pas reconnu comme ressource utilisateur → cache partagé/circuit ouvert ; corrigé + test.
+  **Fiche visiteur** : URL `/visiteurs/<pseudo>` (cuid accepté en repli, choix si deux profils
+  du même serveur portent le pseudo) et formulaire Metamob en **fiche liée** (vérifier /
+  remplacer / délier) — aucun changement de schéma.
 - **Chantier 3 — Rush Live visiteurs** : SSE + Redis (pattern `src/lib/sse.ts`), room par
   `dofusServerId`, notifications bloc/Dofus dans le **guide navigateur** (même DA que l'overlay),
   `PublicProfile.showPresence` **activé par défaut** (migration + reprise des profils existants, à

@@ -101,6 +101,26 @@ export function normalizeMetamobPseudo(value: string | null | undefined): string
         .toLocaleLowerCase("fr");
 }
 
+/**
+ * Compare deux serveurs Dofus par leur **nom**, jamais par leur id : Metamob et SigilOS
+ * n'utilisent pas le même référentiel (Draconiros = 12 côté Metamob, 295 côté SigilOS).
+ * Mesuré le 11/11/2026 sur les deux comptes de test.
+ */
+export function isSameTradeServer(
+    questServerName: string | null | undefined,
+    viewerServerName: string | null | undefined
+): boolean {
+    const normalize = (value: string | null | undefined) =>
+        String(value ?? "")
+            .trim()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleLowerCase("fr");
+    const left = normalize(questServerName);
+    const right = normalize(viewerServerName);
+    return !!left && !!right && left === right;
+}
+
 /** Ramène une liste de monstres à un DTO borné, sans doublon ni nom vide. */
 function toTradeMonsters(list: ReadonlyArray<TradeMatchMonsterInput>): TradeMonster[] {
     const out: TradeMonster[] = [];

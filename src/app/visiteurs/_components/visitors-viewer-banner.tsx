@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GameIcon } from "@/components/shared/game-icon";
 import { getClass } from "@/lib/dofus-assets";
+import { visitorProfileHref } from "@/lib/public-directory";
 import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import type { DirectoryViewer } from "@/server/public-directory";
 import type { Translations } from "@/lib/i18n/locales/fr";
@@ -87,7 +88,10 @@ export function VisitorsViewerBanner({
                     {labels.hub.editProfile}
                 </Link>
                 {viewer.showOnDirectory ? (
-                    <Link href={`/visiteurs/${viewer.profileId}`} className="reg-link text-sm">
+                    <Link
+                        href={visitorProfileHref({ id: viewer.profileId, pseudo: viewer.pseudo })}
+                        className="reg-link text-sm"
+                    >
                         {labels.hub.viewPublicProfile}
                     </Link>
                 ) : (

@@ -196,22 +196,50 @@ export async function listPublicVisitors(
  * les conditions de visibilité font partie de la requête, pas d'un `if` après coup — un
  * profil non consentant est **introuvable**, jamais « trouvé puis masqué ».
  */
+function safeDecode(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+/**
+ * Fiche d'un visiteur du serveur. La clé peut être un **pseudo** (URL lisible) ou un
+ * cuid (anciens liens). Un pseudo porté par deux profils du même serveur rend les deux
+ * candidats : la page propose un choix, jamais un 404 silencieux.
+ */
 export async function getPublicVisitor(
     viewer: DirectoryViewer,
-    profileId: string
-): Promise<VisitorProfile | null> {
-    if (!isPublicProfileId(profileId)) return null;
+    profileKey: string
+): Promise<VisitorProfile | VisitorProfile[] | null> {
+    const key = safeDecode(profileKey).trim();
+    if (!key) return null;
 
-    const row = await db.publicProfile.findFirst({
+    if (isPublicProfileId(key)) {
+        const row = await db.publicProfile.findFirst({
+            where: {
+                id: key,
+                showOnDirectory: true,
+                dofusServerId: viewer.serverId,
+            },
+            select: PROFILE_SELECT,
+        });
+        if (row) return toVisitorProfile(row);
+    }
+
+    const rows = await db.publicProfile.findMany({
         where: {
-            id: profileId,
             showOnDirectory: true,
             dofusServerId: viewer.serverId,
+            pseudoDofus: { equals: key, mode: "insensitive" },
         },
         select: PROFILE_SELECT,
+        take: 2,
     });
-
-    return row ? toVisitorProfile(row) : null;
+    if (rows.length === 0) return null;
+    if (rows.length === 1) return toVisitorProfile(rows[0]);
+    return rows.map(toVisitorProfile);
 }
 
 /** Compteur affiché à l'écran (le seul agrégat autorisé — D-V8 interdit les stats agrégées). */

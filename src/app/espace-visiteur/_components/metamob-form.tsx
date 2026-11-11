@@ -12,9 +12,12 @@ import { PUBLIC_METAMOB_KEY_MAX, PUBLIC_METAMOB_PSEUDO_MAX } from "@/lib/public-
 import { updatePublicMetamob, verifyPublicMetamob } from "@/server/actions/public-profile-actions";
 import { VisitorSection } from "./visitor-section";
 
+type FormMode = "idle" | "form" | "unlink";
+
 /**
- * Metamob : pseudo + clé. La clé est **écrite chiffrée** par le hook Prisma et n'est
- * jamais relue par l'écran — seule son existence est affichée.
+ * Metamob : une **fiche liée** quand la clé existe (pseudo, état, vérifier / remplacer /
+ * délier), le formulaire seulement pour lier ou remplacer. La clé est **écrite chiffrée**
+ * par le hook Prisma et n'est jamais relue par l'écran — seule son existence est affichée.
  */
 export function MetamobForm({
     metamobPseudo,
@@ -26,12 +29,21 @@ export function MetamobForm({
     verified: boolean;
 }) {
     const router = useRouter();
+    const [mode, setMode] = useState<FormMode>("idle");
     const [pseudo, setPseudo] = useState(metamobPseudo ?? "");
     const [apiKey, setApiKey] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [unlinking, setUnlinking] = useState(false);
     const [checking, setChecking] = useState(false);
     const [checkMessage, setCheckMessage] = useState<{ tone: "success" | "warning"; text: string } | null>(null);
+
+    const resetForm = () => {
+        setMode("idle");
+        setApiKey("");
+        setError(null);
+        setCheckMessage(null);
+    };
 
     const handleVerifyKey = async () => {
         setCheckMessage(null);
@@ -66,14 +78,161 @@ export function MetamobForm({
         }
 
         setApiKey("");
+        setMode("idle");
         toast.success("Informations Metamob enregistrées.");
         router.refresh();
     };
 
+    const handleUnlink = async () => {
+        setError(null);
+        setUnlinking(true);
+        const result = await updatePublicMetamob({ metamobPseudo: "", apiKey: "" });
+        setUnlinking(false);
+
+        if (!result.success) {
+            setError(result.error);
+            return;
+        }
+
+        setPseudo("");
+        setApiKey("");
+        setCheckMessage(null);
+        setMode("idle");
+        toast.success("Compte Metamob délié.");
+        router.refresh();
+    };
+
+
+    if (hasKey && mode === "idle") {
+        return (
+            <VisitorSection
+                title="Metamob"
+                description="Ton compte Metamob est lié. La clé reste côté serveur : elle n'est jamais renvoyée à l'écran."
+            >
+                <div className="flex flex-wrap items-center gap-3">
+                    <img
+                        src="/assets/brands/metamob.png"
+                        alt=""
+                        className="size-10 shrink-0 object-contain"
+                    />
+                    <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Pseudo Metamob</p>
+                        <p className="truncate text-base font-semibold text-foreground">
+                            {metamobPseudo ?? "—"}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">Enregistrée</Badge>
+                        <Badge variant={verified ? "secondary" : "outline"}>
+                            {verified ? "Vérifiée" : "À vérifier"}
+                        </Badge>
+                    </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleVerifyKey}
+                        disabled={checking || unlinking}
+                    >
+                        {checking ? "Vérification…" : "Vérifier la clé"}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMode("form")}
+                        disabled={checking || unlinking}
+                    >
+                        Remplacer la clé
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-danger"
+                        onClick={() => setMode("unlink")}
+                        disabled={checking || unlinking}
+                    >
+                        Délier mon compte
+                    </Button>
+                </div>
+
+                {checkMessage ? (
+                    <p
+                        className={
+                            checkMessage.tone === "success"
+                                ? "mt-2 text-xs text-success"
+                                : "mt-2 text-xs text-warning"
+                        }
+                    >
+                        {checkMessage.text}
+                    </p>
+                ) : null}
+                {error ? (
+                    <p role="alert" className="mt-2 text-sm text-danger">
+                        {error}
+                    </p>
+                ) : null}
+            </VisitorSection>
+        );
+    }
+
+    if (mode === "unlink") {
+        return (
+            <VisitorSection
+                title="Metamob"
+                description="Délier ton compte Metamob de ton profil visiteur."
+            >
+                <p className="text-sm text-foreground">
+                    Ton pseudo et ta clé seront supprimés de ton profil visiteur. La vue
+                    « Échanges » ne pourra plus lire ta quête Metamob.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Tu pourras relier un compte à tout moment.
+                </p>
+                {error ? (
+                    <p role="alert" className="mt-3 text-sm text-danger">
+                        {error}
+                    </p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleUnlink}
+                        disabled={unlinking}
+                    >
+                        {unlinking ? "Déliement…" : "Confirmer le déliement"}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            setError(null);
+                            setMode("idle");
+                        }}
+                        disabled={unlinking}
+                    >
+                        Annuler
+                    </Button>
+                </div>
+            </VisitorSection>
+        );
+    }
+
     return (
         <VisitorSection
             title="Metamob"
-            description="Ton pseudo public et ta clé d'API. La clé reste côté serveur : elle n'est jamais renvoyée à l'écran."
+            description={
+                hasKey
+                    ? "Remplace ta clé ou ton pseudo. Une clé refusée ne remplace jamais celle qui fonctionne."
+                    : "Ton pseudo public et ta clé d'API. La clé reste côté serveur : elle n'est jamais renvoyée à l'écran."
+            }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -94,16 +253,7 @@ export function MetamobForm({
                         <Badge variant={hasKey ? "secondary" : "outline"}>
                             {hasKey ? "Enregistrée" : "Aucune clé"}
                         </Badge>
-                        {verified ? <Badge variant="secondary">Vérifiée</Badge> : null}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleVerifyKey}
-                            disabled={saving || checking || !hasKey}
-                        >
-                            {checking ? "Vérification…" : "Vérifier la clé"}
-                        </Button>
+                        {hasKey && verified ? <Badge variant="secondary">Vérifiée</Badge> : null}
                     </div>
                     <Input
                         id="metamob-key"
@@ -116,7 +266,9 @@ export function MetamobForm({
                         disabled={saving}
                     />
                     <p className="text-xs text-muted-foreground">
-                        Laisser vide conserve la clé existante. Une nouvelle clé devra être vérifiée.{" "}
+                        {hasKey
+                            ? "Laisser vide conserve la clé existante. Une nouvelle clé devra être vérifiée."
+                            : "Ta clé est vérifiée par Metamob avant d'être enregistrée."}{" "}
                         <a
                             href="https://www.metamob.fr/settings#api"
                             target="_blank"
@@ -127,12 +279,13 @@ export function MetamobForm({
                             <ExternalLink className="h-3 w-3" aria-hidden="true" />
                         </a>
                     </p>
-                    {checkMessage ? (
-                        <p className={checkMessage.tone === "success" ? "text-xs text-success" : "text-xs text-warning"}>
-                            {checkMessage.text}
-                        </p>
-                    ) : null}
                 </div>
+
+                {!hasKey && metamobPseudo ? (
+                    <p className="text-xs text-muted-foreground">
+                        Pseudo enregistré. Ajoute ta clé pour activer la vue « Échanges ».
+                    </p>
+                ) : null}
 
                 {error ? (
                     <p role="alert" className="text-sm text-danger">
@@ -140,9 +293,16 @@ export function MetamobForm({
                     </p>
                 ) : null}
 
-                <Button type="submit" disabled={saving}>
-                    {saving ? "Enregistrement…" : "Enregistrer Metamob"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button type="submit" disabled={saving}>
+                        {saving ? "Enregistrement…" : "Enregistrer Metamob"}
+                    </Button>
+                    {hasKey ? (
+                        <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
+                            Annuler
+                        </Button>
+                    ) : null}
+                </div>
             </form>
         </VisitorSection>
     );

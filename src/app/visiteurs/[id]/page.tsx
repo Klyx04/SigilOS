@@ -54,6 +54,42 @@ export default async function VisitorProfilePage({
     const profile = await getPublicVisitor(access.viewer, id);
     if (!profile) notFound();
 
+    if (Array.isArray(profile)) {
+        return (
+            <VisitorsShell
+                user={session?.user}
+                titleId="visiteur-titre"
+                backHref="/visiteurs"
+                backLabel={labels.profile.backToDirectory}
+            >
+                <Link href="/visiteurs" className="reg-link text-sm">
+                    {labels.profile.backToList}
+                </Link>
+                <VisitorsTitle id="visiteur-titre">{labels.profile.ambiguousTitle}</VisitorsTitle>
+                <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground">
+                    {labels.profile.ambiguousDesc}
+                </p>
+                <ul className="mt-4 space-y-2">
+                    {profile.map((candidate) => (
+                        <li
+                            key={candidate.id}
+                            className="reg-panel flex flex-wrap items-center gap-x-3 gap-y-1 p-3"
+                        >
+                            <Link href={`/visiteurs/${candidate.id}`} className="reg-link font-semibold">
+                                {candidate.pseudo ?? labels.anonymous}
+                            </Link>
+                            <span className="text-sm text-muted-foreground">
+                                {candidate.classe?.name ?? ""}
+                                {candidate.server ? ` · ${candidate.server.name}` : ""}
+                                {` · ${labels.profile.level} ${candidate.level ?? "—"}`}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </VisitorsShell>
+        );
+    }
+
     return (
         <VisitorsShell
             user={session?.user}

@@ -3,6 +3,7 @@ import { Trophy } from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
 import { Input } from "@/components/ui/input";
 import { getClass } from "@/lib/dofus-assets";
+import { visitorProfileHref } from "@/lib/public-directory";
 import { displayAchievementDescription } from "@/lib/challenge-description";
 import {
     SHARED_SUCCES_MEMBERS_SHOWN,
@@ -46,7 +47,7 @@ function MemberColumn({
                                     <GameIcon src={classe.icon} className="size-4 shrink-0" />
                                 ) : null}
                                 <Link
-                                    href={`/visiteurs/${member.id}`}
+                                    href={visitorProfileHref(member)}
                                     className="truncate text-foreground hover:text-accent"
                                 >
                                     {member.pseudo ?? labels.anonymous}

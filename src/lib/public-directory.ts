@@ -132,6 +132,16 @@ export function buildVisitorDirectoryHref(filters: VisitorDirectoryFilters): str
 }
 
 /**
+ * Lien vers une fiche visiteur : le **pseudo** quand il existe (lisible, partageable),
+ * le cuid en repli. La fiche accepte les deux ; un pseudo porté par deux profils du même
+ * serveur ouvre un choix, jamais un 404.
+ */
+export function visitorProfileHref(entry: { id: string; pseudo: string | null }): string {
+    const pseudo = entry.pseudo?.trim();
+    return pseudo ? `/visiteurs/${encodeURIComponent(pseudo)}` : `/visiteurs/${entry.id}`;
+}
+
+/**
  * `where` de l'annuaire. Le serveur est **imposé** par l'appelant (profil du lecteur) : aucun
  * chemin ne permet de lire un autre serveur, même en forgeant l'URL.
  */

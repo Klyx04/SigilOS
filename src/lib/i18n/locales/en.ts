@@ -586,6 +586,8 @@ export const en: Translations = {
                 noMatch: "Metamob has no partner for this quest yet.",
                 noPartner:
                     "Metamob partners exist, but none is a visitor on your server who agreed to appear.",
+                noPartnerHint:
+                    "An expected account may also be missing if it has not enabled “Show on my public profile” on its Metamob quest, or if it is not among the first 50 partners.",
                 reciprocal: "Reciprocal trade",
                 score: "score",
                 theyHave: "They have what you need",
@@ -600,6 +602,8 @@ export const en: Translations = {
         profile: {
             metaTitle: "Visitor profile | SigilOS",
             backToList: "← All visitors",
+            ambiguousTitle: "Several visitors share this pseudo",
+            ambiguousDesc: "Pick the profile that matches your server.",
             level: "Level",
             successPoints: "Success points",
             achievements: "Dungeon achievements",

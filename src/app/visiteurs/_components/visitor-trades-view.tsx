@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GameIcon } from "@/components/shared/game-icon";
 import { getClass } from "@/lib/dofus-assets";
 import { metamobProfileUrl } from "@/lib/ocre-soul-stones";
+import { visitorProfileHref } from "@/lib/public-directory";
 import {
     TRADE_MATCHES_LIMIT,
     TRADE_PARTNERS_SHOWN,
@@ -140,6 +141,7 @@ function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels
     const trades = labels.hub.trades;
     const classe = partner.classe ? getClass(partner.classe) : undefined;
     const contact = metamobProfileUrl(partner.metamobPseudo);
+    const profileHref = visitorProfileHref({ id: partner.profileId, pseudo: partner.pseudo });
 
     return (
         <li className="reg-panel p-4">
@@ -150,7 +152,7 @@ function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels
                     ) : null}
                     <div className="min-w-0">
                         <Link
-                            href={`/visiteurs/${partner.profileId}`}
+                            href={profileHref}
                             className="reg-link block max-w-full truncate text-sm font-semibold"
                         >
                             {partner.pseudo ?? labels.anonymous}
@@ -195,7 +197,7 @@ function PartnerRow({ partner, labels }: { partner: TradePartner; labels: Labels
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Link href={`/visiteurs/${partner.profileId}`} className="reg-link text-sm">
+                <Link href={profileHref} className="reg-link text-sm">
                     {trades.seeProfile}
                 </Link>
                 {contact ? (
@@ -326,9 +328,14 @@ export function VisitorTradesView({ state, labels }: { state: VisitorTrades; lab
                     {trades.noMatch}
                 </p>
             ) : board.partners.length === 0 ? (
-                <p className="reg-callout mt-4 text-sm text-muted-foreground">
-                    {trades.noPartner}
-                </p>
+                <>
+                    <p className="reg-callout mt-4 text-sm text-muted-foreground">
+                        {trades.noPartner}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {trades.noPartnerHint}
+                    </p>
+                </>
             ) : (
                 <ul className="mt-4 space-y-3">
                     {board.partners.map((partner) => (

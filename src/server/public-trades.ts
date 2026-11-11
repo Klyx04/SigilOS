@@ -20,6 +20,7 @@ import { db } from "@/lib/prisma";
 import {
     buildTradeBoard,
     classifyTradeFailure,
+    isSameTradeServer,
     publicTradesMatchesCacheKey,
     publicTradesQuestCacheKey,
     TRADE_MATCHES_CACHE_TTL,
@@ -35,6 +36,7 @@ import {
     type UserQuest,
 } from "@/lib/metamob-client";
 import type { DirectoryViewer } from "@/server/public-directory";
+import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import { pickVisitorOcreQuest, readVisitorMetamob } from "@/server/public-metamob";
 
 export type TradeQuest = {
@@ -191,13 +193,18 @@ export async function getVisitorTrades(viewer: DirectoryViewer): Promise<Visitor
         apiTotal: raw.total,
     });
 
+    const viewerServerName =
+        ALL_DOFUS_SERVER_ENTRIES.find((server) => server.id === viewer.serverId)?.name ?? "";
+
     return {
         status: "ready",
         viewerMetamobPseudo,
         quest: toQuest(quest),
         hidden: quest.show_trades === false,
         serverMismatch:
-            typeof quest.server?.id === "number" && quest.server.id !== viewer.serverId,
+            !!quest.server?.name &&
+            !!viewerServerName &&
+            !isSameTradeServer(quest.server.name, viewerServerName),
         board,
     };
 }

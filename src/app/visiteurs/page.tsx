@@ -7,6 +7,7 @@ import { GameIcon } from "@/components/shared/game-icon";
 import {
     buildVisitorDirectoryHref,
     parseVisitorDirectoryFilters,
+    visitorProfileHref,
     type VisitorDirectoryFilters,
 } from "@/lib/public-directory";
 import {
@@ -157,7 +158,7 @@ async function DirectoryList({
                                                 <GameIcon src={entry.classe.icon} className="size-7" />
                                             ) : null}
                                             <Link
-                                                href={`/visiteurs/${entry.id}`}
+                                                href={visitorProfileHref(entry)}
                                                 className="min-w-0 truncate text-foreground hover:text-accent"
                                             >
                                                 {entry.pseudo ?? labels.anonymous}
@@ -201,7 +202,7 @@ async function DirectoryList({
                                         )}
                                     </td>
                                     <td className="align-middle text-right">
-                                        <Link href={`/visiteurs/${entry.id}`} className="reg-link text-sm">
+                                        <Link href={visitorProfileHref(entry)} className="reg-link text-sm">
                                             {labels.viewProfile}
                                         </Link>
                                     </td>

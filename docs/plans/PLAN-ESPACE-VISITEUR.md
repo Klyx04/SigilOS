@@ -336,8 +336,14 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
   (réemploi de la vue « Succès Commun » interne).
 
-**V2c — Rush Live visiteurs**
+**V2c — Rush Live visiteurs** *(exigences du 10/11/2026, non commencé)*
 - Room par serveur, consentement `showPresence`, fail-soft.
+- Événements **par bloc** (pas par quête) : « bloc validé » et « Dofus obtenu » visibles dans l'overlay des
+  visiteurs **du même serveur** connectés, même DA et même emplacement que les toasts locaux.
+- **Déjà livré le 10/11** : toast local de bloc (`notifyBlockDone`) et hôte de notifications dans la PiP
+  (`OverlayToastProvider`, Toaster dédié). **Manque** : le flux temps réel public (canal par serveur, SSE/Redis),
+  le consentement `PublicProfile.showPresence` et la modération/rate limit.
+- Interne : `RushOverlayLiveToast` existe (événements de coéquipiers) ; le public n'a **aucun** flux.
 
 **V2d — Ladder serveur**
 - Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
@@ -386,7 +392,7 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - **Ne pas dupliquer `GuildStatusPanel`** : l'extraire en composant partagé (deux alimentations), sinon
   la parité guide interne / public se re-casse à la première évolution.
 
-**V2f — finitions demandées le 08/11/2026** *(livré en deux lots le 08/11 : F8→F11, puis F12→F15 + F17a ; reste F1→F7, F16, F17b)*
+**V2f — finitions demandées le 08/11/2026** *(livré en deux lots le 08/11 : F8→F11, puis F12→F15 + F17a ; **F17b livré le 10/11** ; reste F1→F7, F16)*
 
 > **Décisions tranchées le 08/11/2026** : ① **F2** = export **et** import d'un fichier JSON, dans l'interface anonyme ; aucun secret dedans. ② **F13/F15** = vérification du pseudo **bloquante avant** création (espace et mule), repli manuel seulement si le God l'active. ③ **Pas de Metamob anonyme** : la clé API est un secret, elle reste chiffrée en base derrière un compte ; le CTA (F5) dit ce que l'anonyme perd.
 

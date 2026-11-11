@@ -21,7 +21,6 @@
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
-- 🔀 **PR ouvertes (10/11)** — **#1342** (annuaire : option active visible + menu refermé) et **#1343** (`Dungeon.isOcreQuest`, coches dans la fiche détail, overlay public dans la PiP, toasts de bloc). **Les merger avant la prochaine session** : les docs de ces correctifs vivent sur leurs branches, pas encore sur `dev`.
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
   - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes (F3/F4/F7) · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
   - [ ] **mar** — F1 · F2 · F5+F6

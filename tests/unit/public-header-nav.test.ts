@@ -4,8 +4,9 @@
  * Le retour mesuré : « on peut pas laisser guide guilde en haut, c'est imbuvable ». Deux labels
  * quasi identiques côte à côte, et aucun repère visuel. La correction tient en trois règles :
  *
- * 1. **Guides, Guildes et Visiteurs** vivent dans un seul menu `Explorer` (`localizedNav.slice(2)`),
- *    plus deux liens de même allure à côté ;
+ * 1. **Guides et Guildes** vivent dans le menu `Explorer` ; **Visiteurs**, page privée,
+ *    est un lien direct pour les comptes connectés (décision du 11/11/2026 : trois entrées
+ *    dans un menu cachaient la seule page privée de la barre) ;
  * 2. chaque entrée porte un **asset Dofus réel** — et cet asset **existe sur disque** (même piège
  *    que `visitor-shell` : un chemin mort part en 404 `/_next/image`) ;
  * 3. le menu est un `<details>` **natif** : les liens restent dans le HTML servi, donc indexables.
@@ -22,13 +23,19 @@ const read = (path: string) => readFileSync(path, "utf8");
 const assetPath = (icon: string) => (icon.startsWith("/") ? `public${icon}` : `public/assets/dofus/game-icons/${icon}`);
 
 describe("Barre publique — les entrées sont regroupées et illustrées", () => {
-    it("Guides, Guildes et Visiteurs sont derrière un seul menu, pas trois liens voisins", () => {
+    it("Guides et Guildes restent dans Explorer ; Visiteurs est un lien direct pour les connectés", () => {
         const code = read(HEADER);
-        expect(code).toContain("localizedNav.slice(2)");
+        // « Explorer » ne contient plus que les deux entrées publiques.
+        expect(code).toContain('item.id === "guides" || item.id === "guildes"');
         expect(code).toContain("explorerItems.map");
         expect(code).toContain("{t.nav.explore}");
-        // Le seul lien direct restant est « Modules ».
-        expect(code).toContain("localizedNav.slice(1, 2)");
+        // « Visiteurs » est un lien direct (seulement pour un compte connecté).
+        expect(code).toContain('item.id === "modules" || item.id === "visiteurs"');
+        expect(code).toContain("directItems.map");
+        // « Modules » disparaît de la barre d'un compte connecté ; il reste pour l'anonyme.
+        expect(code).toContain("visibleNav");
+        expect(code).toContain('item.id !== "modules"');
+        expect(code).toContain("{visibleNav.map");
     });
 
     it("le menu est natif : aucun état JavaScript pour l'ouvrir", () => {

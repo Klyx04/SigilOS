@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getServerI18n } from "@/lib/i18n/server";
-import { PublicHeader } from "@/components/layout/public-header";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { GameIcon } from "@/components/shared/game-icon";
 import {
     buildVisitorDirectoryHref,
@@ -16,20 +14,29 @@ import {
     resolveDirectoryViewer,
     type DirectoryViewer,
 } from "@/server/public-directory";
+import { parseVisitorsHubSearch } from "@/lib/visitors-hub";
 import { VisitorAccess } from "./_components/visitor-access";
 import { VisitorFilters } from "./_components/visitor-filters";
+import { VisitorsHubNav } from "./_components/visitors-hub-nav";
+import { VisitorsShell, VisitorsTitle } from "./_components/visitors-shell";
+import { VisitorsViewerBanner } from "./_components/visitors-viewer-banner";
+import { SharedSuccesSection } from "./_components/shared-succes-section";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
 /**
- * Annuaire des visiteurs (V2e) — **route privée**.
+ * Hub « Communauté SigilOS » (V2e + F16) — **route privée**.
  *
- * `robots: noindex, nofollow` : la page n'existe que pour un compte connecté, et son contenu
- * dépend d'une session. L'indexer reviendrait à publier une page vide ou une redirection.
+ * Deux vues dans la même page : les profils consentants du serveur et les succès en
+ * commun. La vue vit dans l'URL (`?vue=succes`), jamais dans un état client : retour
+ * arrière, partage et rafraîchissement fonctionnent.
+ *
+ * `robots: noindex, nofollow` : la page n'existe que pour un compte connecté, et son
+ * contenu dépend d'une session. L'indexer reviendrait à publier une page vide.
  */
 export const metadata: Metadata = {
-    title: "Visiteurs de ton serveur | SigilOS",
+    title: "Communauté SigilOS | SigilOS",
     description:
-        "Annuaire privé des visiteurs Dofus : les joueurs de ton serveur qui ont choisi d'apparaître.",
+        "Les joueurs de ton serveur Dofus qui ont choisi d'apparaître, et les succès qu'ils ont validés.",
     robots: { index: false, follow: false },
 };
 
@@ -46,41 +53,35 @@ export default async function VisitorsPage({
     ]);
     const labels = t.visitorsPage;
     const filters = parseVisitorDirectoryFilters(params);
+    const hub = parseVisitorsHubSearch(params);
 
     return (
-        <div className="registre relative min-h-screen flex flex-col bg-background text-foreground">
-            <PublicHeader
-                user={session?.user}
-                activePage="visiteurs"
-                backHref="/"
-                backLabel={labels.backHome}
-            />
+        <VisitorsShell
+            user={session?.user}
+            titleId="visiteurs-titre"
+            backHref="/"
+            backLabel={labels.backHome}
+        >
+            <VisitorsTitle id="visiteurs-titre">{labels.title}</VisitorsTitle>
+            <p className="mt-4 max-w-[62ch] text-base text-muted-foreground leading-relaxed">
+                {labels.subtitle}
+            </p>
+            <p className="reg-mono mt-6 text-xs text-muted-foreground">{labels.privateNote}</p>
 
-            <main className="flex-1">
-                <section className="reg-section" aria-labelledby="visiteurs-titre">
-                    <div className="reg-shell">
-                        <h1
-                            id="visiteurs-titre"
-                            className="max-w-[36ch] text-[clamp(1.75rem,3.2vw,2.5rem)] font-bold leading-[1.12] tracking-tight text-foreground"
-                        >
-                            {labels.title}
-                        </h1>
-                        <p className="mt-4 max-w-[62ch] text-base text-muted-foreground leading-relaxed">
-                            {labels.subtitle}
-                        </p>
-                        <p className="reg-mono mt-6 text-xs text-muted-foreground">{labels.privateNote}</p>
-
-                        {access.status === "viewer" ? (
-                            <DirectoryList viewer={access.viewer} filters={filters} labels={labels} />
-                        ) : (
-                            <VisitorAccess variant={access.status} labels={labels} />
-                        )}
-                    </div>
-                </section>
-            </main>
-
-            <GalacticFooter />
-        </div>
+            {access.status === "viewer" ? (
+                <>
+                    <VisitorsViewerBanner viewer={access.viewer} labels={labels} />
+                    <VisitorsHubNav vue={hub.vue} labels={labels} />
+                    {hub.vue === "succes" ? (
+                        <SharedSuccesSection viewer={access.viewer} hub={hub} labels={labels} />
+                    ) : (
+                        <DirectoryList viewer={access.viewer} filters={filters} labels={labels} />
+                    )}
+                </>
+            ) : (
+                <VisitorAccess variant={access.status} labels={labels} />
+            )}
+        </VisitorsShell>
     );
 }
 
@@ -127,7 +128,7 @@ async function DirectoryList({
                                     {labels.tableLevel}
                                 </th>
                                 <th scope="col" className="hidden w-[11rem] md:table-cell">
-                                    {labels.tableJobs}
+                                    {labels.tableJobFiltered}
                                 </th>
                                 <th scope="col" className="hidden w-[12rem] lg:table-cell">
                                     {labels.tableGuild}
@@ -165,25 +166,32 @@ async function DirectoryList({
                                         {entry.level ?? "—"}
                                     </td>
                                     <td className="hidden align-middle md:table-cell">
-                                        {entry.jobs.length > 0 ? (
-                                            <span className="flex items-center gap-2">
-                                                {entry.jobs.map((job) => (
-                                                    <span
-                                                        key={job.id}
-                                                        className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-                                                        title={job.name}
-                                                    >
-                                                        <GameIcon src={job.icon} className="size-5" />
-                                                        {job.level}
-                                                    </span>
-                                                ))}
+                                        {filters.metier && entry.jobs.length > 0 ? (
+                                            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                                <GameIcon src={entry.jobs[0].icon} className="size-5" />
+                                                <span className="text-foreground">
+                                                    {entry.jobs[0].name}
+                                                </span>
+                                                <span className="reg-mono">
+                                                    {entry.jobs[0].level}
+                                                </span>
                                             </span>
                                         ) : (
                                             "—"
                                         )}
                                     </td>
                                     <td className="hidden align-middle text-sm text-muted-foreground lg:table-cell">
-                                        {entry.guildName ?? "—"}
+                                        {entry.guildName ? (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <GameIcon
+                                                    src="/assets/dofus/modules/guild.png"
+                                                    className="size-4"
+                                                />
+                                                {entry.guildName}
+                                            </span>
+                                        ) : (
+                                            "—"
+                                        )}
                                     </td>
                                     <td className="align-middle text-right">
                                         <Link href={`/visiteurs/${entry.id}`} className="reg-link text-sm">

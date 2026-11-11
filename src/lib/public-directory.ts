@@ -149,8 +149,11 @@ export function buildVisitorDirectoryWhere(
                       some: {
                           metierId: filters.metier,
                           // F17b — « qui a ce métier à ce niveau » = au moins ce niveau
-                          // (`@@index([metierId, level])` porte la requête).
-                          ...(filters.niveau ? { level: { gte: filters.niveau } } : {}),
+                          // (`@@index([metierId, level])` porte la requête). Le plancher **1**
+                          // est volontaire : un métier à 0 n'est pas une déclaration valide
+                          // (le niveau est obligatoire dans le profil) et ne doit ni apparaître
+                          // ni être filtrable.
+                          level: { gte: filters.niveau ?? PUBLIC_DIRECTORY_JOB_LEVEL_MIN },
                       },
                   },
               }

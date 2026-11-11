@@ -40,7 +40,8 @@ export function VisitorProfileCard({
                         ) : null}
                         {profile.classe ? <span>{profile.classe.name}</span> : null}
                         {profile.guildName ? (
-                            <span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <GameIcon src="/assets/dofus/modules/guild.png" className="size-4" />
                                 {labels.profile.guild} · {profile.guildName}
                             </span>
                         ) : null}

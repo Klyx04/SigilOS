@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 09/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11).
+> **Dernière MAJ : 11/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11).
 
 ## 1. Décisions verrouillées
 
@@ -331,10 +331,11 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   qui a coché quoi, présence) — sans bloquer la lecture : CTA discret, jamais une modale forcée.
   **Fait** : CTA anonyme « Créer mon profil visiteur ».
 
-**V2b — Succès Donjons visiteurs** (**D-V9**) — **absorbé par F16** : un seul lot, pas deux. F16 porte à la
-fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue « succès en commun » sur `/visiteurs`.
-- Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
-  (réemploi de la vue « Succès Commun » interne).
+**V2b — Succès Donjons visiteurs** (**D-V9**) — **absorbé par F16**, **livré le 11/11/2026** (hub `/visiteurs`, vue « Succès en commun »).
+- Vue « qui a quoi » entre visiteurs du **même serveur**, `showOnDirectory: true` dans chaque requête, bornée : 500 lignes de coches, **200 profils** affichés (au-delà, l'écran le dit), **12 membres par colonne** (le reste est compté).
+- La fiche publique d'un boss **reste en lecture seule** (décision du 11/11/2026) : le visiteur coche déjà ses succès dans `/espace-visiteur/succes`, un second chemin d'écriture n'apporterait rien.
+- Le **hub** rassemble Profils / Succès en commun dans `/visiteurs` (`?vue=succes`), avec une entrée dans la navigation de l'espace visiteur (7ᵉ onglet) — plus besoin de passer par « Explorer ».
+- Aucune migration. Verrou `tests/unit/visitors-hub.test.ts` **18**.
 
 **V2c — Rush Live visiteurs** *(exigences du 10/11/2026, non commencé)*
 - Room par serveur, consentement `showPresence`, fail-soft.
@@ -421,7 +422,7 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - **F1→F7** : bandeau Dofus anonyme, export **et** import d'un fichier JSON (aucun secret dedans),
   espacement/aération, prérequis repliables, CTA « ce que tu perds » (pas de Metamob anonyme : la clé est
   un secret qui reste chiffré en base derrière un compte), grain.
-- **F16** : « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`.
+- **F16** : ~~« mes succès sur ce boss » par donjon~~ **livré le 11/11/2026** — vue « succès en commun » sur `/visiteurs` (hub). La coche sur la fiche boss publique est **écartée** (le visiteur coche déjà dans `/espace-visiteur/succes`).
 
 **F17b — annuaire « métier + niveau » — livré le 10/11/2026**
 
@@ -464,8 +465,8 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 > **nouvelles** passent au ladder, sur le serveur du profil ; **F17 (1/2)** l'onglet Métiers ne fait
 > plus bouger l'écran (les quatre panneaux occupent une seule cellule : Élevage = **1** métier contre
 > 6 et 7 ailleurs).
-> **Reste** : **F16** (« mes succès sur ce boss » par donjon + vue « succès en commun » sur
-> `/visiteurs`). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
+> **Reste** : **F1→F7** (finitions anonymes). **F16** est livré le 11/11/2026 (hub + succès en
+> commun ; la coche sur la fiche boss publique est écartée). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
 > voir « F17b » ci-dessus).
 
 *Guide public — anonyme*
@@ -490,5 +491,5 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - **F13** Création de profil : vérification du pseudo **bloquante avant** la création (mécanique de l'interne), repli manuel si le God l'autorise.
 - **F14** Metamob : refuser l'enregistrement d'une clé invalide (`/v1/me` avant écriture) ; la clé ne doit plus disparaître sans retour.
 - **F15** Mules : vérification du pseudo **bloquante** à l ajout.
-- **F16** Succès : bouton « mes succès sur ce boss » dans chaque donjon (guide navigateur, jamais l overlay) ; vue « succès en commun / qui peut faire quoi » sur `/visiteurs` (+ asset) ; même mécanique côté guide interne.
+- **F16** Succès : ~~bouton « mes succès sur ce boss » dans chaque donjon~~ **livré le 11/11/2026** (vue « succès en commun » sur `/visiteurs`). La coche sur la fiche boss publique est **écartée** : `/espace-visiteur/succes` la porte déjà.
 - **F17** Métiers : l'onglet Élevage fait bouger l'écran ; lier métier ↔ quête (« qui a ce métier à ce niveau »).

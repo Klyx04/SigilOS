@@ -63,6 +63,15 @@ describe("Espace visiteur — entrées bornées", () => {
         expect(isKnownJobId("licorne")).toBe(false);
     });
 
+    it("refuse un métier sans niveau (0) — le niveau est obligatoire", () => {
+        expect(publicProfessionsSchema.safeParse([{ id: "forgeron", level: 0 }]).success).toBe(
+            false
+        );
+        expect(publicProfessionsSchema.safeParse([{ id: "forgeron", level: 1 }]).success).toBe(
+            true
+        );
+    });
+
     it("le nom de guilde déclaré garde sa règle (lettres, espace, apostrophe, tiret)", () => {
         const base = { dofusServerId: 295, pseudoDofus: "Testeur", classe: "iop" };
         expect(publicIdentitySchema.safeParse({ ...base, declaredGuildName: "Les Veilleurs" }).success).toBe(true);

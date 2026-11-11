@@ -265,8 +265,22 @@ export function PublicHeader({
             : []),
     ];
 
-    /** Le menu « Explorer » porte Guides, Guildes et Visiteurs (un seul point d'entrée). */
-    const explorerItems = localizedNav.slice(2);
+    // « Modules » est le catalogue public : inutile dans la barre d'un compte connecté
+    // (retour du 11/11/2026). « Visiteurs » n'existe que pour un compte connecté.
+    const visibleNav = user
+        ? localizedNav.filter((item) => item.id !== "modules")
+        : localizedNav;
+
+    // « Visiteurs » (renommé « Communauté SigilOS ») est une page privée : elle reste un
+    // lien direct pour un compte connecté. « Explorer » ne garde que les deux entrées
+    // publiques (retour du 11/11/2026 : trois entrées dans un menu cachaient la seule
+    // page privée de la barre).
+    const directItems = visibleNav.filter(
+        (item) => item.id === "modules" || item.id === "visiteurs"
+    );
+    const explorerItems = visibleNav.filter(
+        (item) => item.id === "guides" || item.id === "guildes"
+    );
     const explorerActive = explorerItems.some((item) => item.id === active);
 
     // Échap ferme les menus et repose le focus sur leur déclencheur ; un clic à l'extérieur
@@ -444,11 +458,12 @@ export function PublicHeader({
                             </div>
                         </details>
 
-                        {/* Lien direct : « Modules ». Puis « Explorer » regroupe Guides, Guildes
-                            et Visiteurs : « Guides » et « Guildes » côte à côte étaient illisibles
-                            (retour du 06/11). Menu natif `<details>` : les liens restent dans le
-                            HTML servi, donc indexables — aucun menu en JavaScript. */}
-                        {localizedNav.slice(1, 2).map((item) => (
+                        {/* Liens directs : « Modules » et, pour un compte connecté,
+                            « Visiteurs ». « Explorer » ne garde que Guides et Guildes :
+                            trois entrées dans un menu pour la seule page privée était trop
+                            caché (retour du 11/11/2026). Menu natif `<details>` : les liens
+                            restent dans le HTML servi, donc indexables — aucun menu en JS. */}
+                        {directItems.map((item) => (
                             <Link
                                 key={item.id}
                                 href={item.href}
@@ -664,7 +679,7 @@ export function PublicHeader({
                                         </div>
 
                                         <div className="space-y-0.5">
-                                            {localizedNav.map((item) =>
+                                            {visibleNav.map((item) =>
                                                 item.id === "dashboard" && !user ? (
                                                     <form key={item.id} action={loginWithDiscord}>
                                                         <button

@@ -33,6 +33,15 @@ export type DirectoryViewer = {
     profileId: string;
     /** Serveur du lecteur, résolu côté serveur : le seul périmètre lisible. */
     serverId: number;
+    /** Résumé **du lecteur** pour le bandeau du hub — sa propre fiche, rien de plus. */
+    pseudo: string | null;
+    classe: string | null;
+    level: number | null;
+    successPoints: number | null;
+    achievements: number;
+    jobs: number;
+    /** Le lecteur apparaît-il lui-même dans l'annuaire ? (lien « voir mon profil public ») */
+    showOnDirectory: boolean;
 };
 
 /**
@@ -55,13 +64,40 @@ export async function resolveDirectoryViewer(): Promise<DirectoryAccess> {
 
     const profile = await db.publicProfile.findUnique({
         where: { userId: session.userId },
-        select: { id: true, dofusServerId: true },
+        select: {
+            id: true,
+            dofusServerId: true,
+            pseudoDofus: true,
+            classe: true,
+            dofusLevel: true,
+            successPoints: true,
+            showOnDirectory: true,
+            _count: {
+                select: {
+                    achievements: true,
+                    // Les métiers à 0 ne sont pas des déclarations valides (niveau obligatoire) :
+                    // le compteur du bandeau doit dire la même chose que l'annuaire.
+                    professions: { where: { level: { gte: 1 } } },
+                },
+            },
+        },
     });
     if (!profile) return { status: "no-profile", userId: session.userId };
 
     return {
         status: "viewer",
-        viewer: { userId: session.userId, profileId: profile.id, serverId: profile.dofusServerId },
+        viewer: {
+            userId: session.userId,
+            profileId: profile.id,
+            serverId: profile.dofusServerId,
+            pseudo: profile.pseudoDofus,
+            classe: profile.classe,
+            level: profile.dofusLevel,
+            successPoints: profile.successPoints,
+            achievements: profile._count.achievements,
+            jobs: profile._count.professions,
+            showOnDirectory: profile.showOnDirectory,
+        },
     };
 }
 
@@ -78,8 +114,14 @@ const PROFILE_JOBS_ORDER: Prisma.PublicProfessionOrderByWithRelationInput[] = [
  * Liste blanche de la **liste**. Volontairement sans `metamobApiKey`, sans `altPseudos`
  * (mules) et sans `userId` : un champ absent du `select` ne peut pas fuir.
  * `introduction` / `objectifs` ne sont pas lus ici (24 profils × 800 caractères inutiles).
+ *
+ * Deux règles sur les métiers :
+ *  · on ne lit **jamais** un métier à 0 — le niveau est obligatoire dans le profil, un 0
+ *    est une donnée d'avant la règle, pas une déclaration ;
+ *  · quand un métier est filtré, on ne lit **que** celui-là : l'écran affiche « le métier
+ *    filtré et son niveau », pas les quatre autres (retour user du 11/11/2026).
  */
-const LIST_SELECT = {
+const LIST_SELECT_BASE = {
     id: true,
     pseudoDofus: true,
     classe: true,
@@ -88,20 +130,34 @@ const LIST_SELECT = {
     dofusLevel: true,
     successPoints: true,
     updatedAt: true,
-    professions: {
-        select: { metierId: true, level: true },
-        orderBy: PROFILE_JOBS_ORDER,
-        take: 6,
-    },
     _count: { select: { achievements: true } },
 } satisfies Prisma.PublicProfileSelect;
 
+function listSelect(jobFilter?: string): Prisma.PublicProfileSelect {
+    return {
+        ...LIST_SELECT_BASE,
+        professions: jobFilter
+            ? {
+                  where: { metierId: jobFilter, level: { gte: 1 } },
+                  select: { metierId: true, level: true },
+                  take: 1,
+              }
+            : {
+                  where: { level: { gte: 1 } },
+                  select: { metierId: true, level: true },
+                  orderBy: PROFILE_JOBS_ORDER,
+                  take: 6,
+              },
+    };
+}
+
 /** Liste blanche de la **fiche** : la même, plus la présentation et tous les métiers. */
 const PROFILE_SELECT = {
-    ...LIST_SELECT,
+    ...LIST_SELECT_BASE,
     introduction: true,
     objectifs: true,
     professions: {
+        where: { level: { gte: 1 } },
         select: { metierId: true, level: true },
         orderBy: PROFILE_JOBS_ORDER,
         take: 50,
@@ -119,7 +175,7 @@ export async function listPublicVisitors(
 ): Promise<{ items: VisitorDirectoryEntry[]; nextCursor: string | null }> {
     const rows = await db.publicProfile.findMany({
         where: buildVisitorDirectoryWhere(viewer.serverId, filters),
-        select: LIST_SELECT,
+        select: listSelect(filters.metier),
         orderBy: { id: "desc" },
         take: PUBLIC_DIRECTORY_PAGE_SIZE + 1,
         ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),

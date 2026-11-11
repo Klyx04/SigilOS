@@ -5,7 +5,7 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 09/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 11/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -24,7 +24,7 @@
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
   - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes (F3/F4/F7) · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
   - [ ] **mar** — F1 · F2 · F5+F6
-  - [ ] **mer** — F16 (= V2b) · V2a-4 reste (tour spotlight)
+  - [ ] **mer** — F16 hub + succès en commun ✅ 11/11 · V2a-4 reste (tour spotlight)
   - [ ] **jeu** — T-4 (O14 · O15 · G7/G8/G9) · transverses + 4 `prompt()` · V-C · V-D2 · drop `alignOrderReq`
   - [ ] **ven** — studio E2 (inspecteur quête) · V2c (Rush Live visiteurs)
   - [ ] **sam** — V2d (ladder serveur) · E3 (bloc/masse/problèmes) · V3 (God visiteurs)
@@ -68,7 +68,7 @@
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (6 segments), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, **annuaire privé** par serveur, modération God | V1a→V1c, coque/assets/succès, V2e annuaire, V1e ladder, V1d progression, V2a-1/3/5 surface publique, V2a-4 alignement + mules + accueil, V2a-6 CTA, V2a-2 communautaire (D-V21), **V2f** (F8-F15, F17a livrés) — 06-08/11 · **Ocre public ISO** (panneau partagé, options ISO, lecture 400) 09/11 · **F17b** (annuaire métier + niveau) 10/11 ; **D-V1→D-V21** | **V2f** (F1-F7, F16) → V2a-4 reste (tour) → V2b → V2c → V2d → V3 | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (prochain : **F16**) |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso `/espace-visiteur/<segment>` (6 segments), progression de rush en base, **Progression Communautaire** par serveur, **Succès Donjons** entre visiteurs, **annuaire privé** par serveur, modération God | V1a→V1c, coque/assets/succès, V2e annuaire, V1e ladder, V1d progression, V2a-1/3/5 surface publique, V2a-4 alignement + mules + accueil, V2a-6 CTA, V2a-2 communautaire (D-V21), **V2f** (F8-F15, F17a livrés) — 06-08/11 · **Ocre public ISO** (panneau partagé, options ISO, lecture 400) 09/11 · **F17b** (annuaire métier + niveau) 10/11 · **hub Communauté SigilOS + succès en commun** 11/11 ; **D-V1→D-V21** | **F1-F7** → V2a-4 reste (tour) → **Metamob (échanges)** → V2c → V2d → V3 | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — (prochain : **F1-F7**) |
 | 58 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 59 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : plus aucun appel réseau pour servir une image, cache complet siphonné, `?url=` retiré du DOM | **S1 + S1b + S2 livrés** · 2 294 apparences siphonnées (`remaining: 0`) · **mode hybride** : `ASSETS_REMOTE_FETCH` (défaut `false`) coupe le réseau pour l'espace apparence, rallumable sans redéployer · reste **S3** (couverture) et **S4** (cron + alerte) | **S3** → **S4** | `docs/plans/AMORCE-SOUVERAINETE-IMAGES.md` | — |

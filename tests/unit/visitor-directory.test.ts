@@ -152,9 +152,9 @@ describe("Annuaire des visiteurs — le périmètre est dans la requête", () =>
         expect(where).not.toHaveProperty("guildId");
     });
 
-    it("filtre le métier comme sous-relation du profil", () => {
+    it("filtre le métier comme sous-relation du profil, avec un niveau minimum de 1", () => {
         expect(buildVisitorDirectoryWhere(295, { metier: "forgeron" }).professions).toEqual({
-            some: { metierId: "forgeron" },
+            some: { metierId: "forgeron", level: { gte: 1 } },
         });
     });
 
@@ -286,6 +286,15 @@ describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
         expect(server).not.toContain("metamobApiKey");
         expect(server).not.toContain("altPseudos");
         expect(server).not.toContain("userId: true");
+    });
+
+    it("un métier à 0 n'est ni lu ni filtrable", () => {
+        // Le niveau est obligatoire dans le profil : la liste et la fiche ne lisent
+        // jamais un métier à 0, et le `where` du filtre impose un plancher de 1.
+        expect(server).toContain("level: { gte: 1 }");
+        expect(
+            JSON.stringify(buildVisitorDirectoryWhere(295, { metier: "forgeron" }))
+        ).toContain('"gte":1');
     });
 
     it("la liste est gardée, non indexée et bornée à une page", () => {

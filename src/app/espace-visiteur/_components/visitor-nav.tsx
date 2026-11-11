@@ -19,6 +19,9 @@ const SEGMENTS = [
     { href: "/espace-visiteur/presentation", label: "Présentation", icon: "parchment.png" },
     { href: "/espace-visiteur/succes", label: "Succès", icon: "trophy-1.png" },
     { href: "/espace-visiteur/metiers", label: "Métiers", icon: "hammer.png" },
+    // Hub « Communauté SigilOS » : la porte visible de `/visiteurs`, à côté de l'espace
+    // personnel. Le lien reste aussi dans « Explorer » pour les visiteurs connectés.
+    { href: "/visiteurs", label: "Communauté SigilOS", icon: "/assets/dofus/modules/character.png" },
     { href: "/espace-visiteur/reglages", label: "Réglages", icon: "/assets/nav/cog.png" },
 ] as const;
 
@@ -29,7 +32,9 @@ export function VisitorNav() {
         <nav aria-label="Sections de l'espace visiteur" className="mx-auto w-full max-w-6xl overflow-x-auto px-2">
             <ul className="flex min-w-max gap-1 pb-2">
                 {SEGMENTS.map((segment) => {
-                    const active = pathname === segment.href;
+                    const active =
+                        pathname === segment.href ||
+                        (segment.href === "/visiteurs" && pathname.startsWith("/visiteurs/"));
                     return (
                         <li key={segment.href}>
                             <Link

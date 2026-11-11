@@ -31,7 +31,14 @@ const CATEGORIES = Object.values(JOB_CATEGORIES);
 export function ProfessionsForm({ professions }: { professions: { id: string; level: number }[] }) {
     const router = useRouter();
     const [levels, setLevels] = useState<Record<string, number>>(() =>
-        Object.fromEntries(professions.map((entry) => [entry.id, entry.level]))
+        Object.fromEntries(
+            professions.map((entry) => [
+                entry.id,
+                // Niveau obligatoire (1..200) : une ancienne ligne à 0 est ramenée à 1.
+                // Le serveur refuse toujours 0 — l'utilisateur peut ajuster avant d'enregistrer.
+                entry.level >= 1 ? entry.level : 1,
+            ])
+        )
     );
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -80,7 +87,7 @@ export function ProfessionsForm({ professions }: { professions: { id: string; le
     return (
         <VisitorSection
             title="Métiers"
-            description={`Déclare tes métiers et leur niveau (${selectedCount} / ${PUBLIC_PROFESSIONS_MAX}). Ils servent au filtre de l'annuaire.`}
+            description={`Déclare tes métiers et leur niveau obligatoire (1 à 200) — ${selectedCount} / ${PUBLIC_PROFESSIONS_MAX}. Ils servent au filtre de l'annuaire.`}
         >
             <div className="space-y-4">
                 <div className="flex items-center gap-3">

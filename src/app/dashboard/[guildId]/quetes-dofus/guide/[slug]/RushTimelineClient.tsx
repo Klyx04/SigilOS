@@ -677,6 +677,10 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           onToggleResourceCheck={onToggleResourceCheck}
           capturedOcreNames={capturedMonsterNames}
           onOpenOcre={onOpenOcre}
+          dungeonStates={dungeonActions.states}
+          dungeonBusyKey={dungeonActions.busyKey}
+          dungeonOthers={dungeonActions.others}
+          onSetDungeon={dungeonActions.onSet}
           onClose={() => setDetailOpen(false)}
         />,
         document.body

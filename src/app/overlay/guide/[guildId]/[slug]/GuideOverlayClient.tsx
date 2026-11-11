@@ -124,6 +124,12 @@ type Props = {
    * propose la liaison (sans quoi l'overlay est un cul-de-sac pour un compte non lié).
    */
   ocreState?: "ready" | "not-linked" | "error";
+  /**
+   * V-H — captures Ocre du visiteur **public connecté**, chargées par le pont de la page
+   * (`PublicOcreDungeonBridge`). L'overlay ne fait aucun appel réseau : il reçoit la liste,
+   * et `ocre` reste réservé à l'overlay interne.
+   */
+  publicCapturedOcreNames?: readonly string[];
   /** Coches de ressources du membre (serveur, par personnage) — lu par la page. */
   initialResourceChecks?: string[];
   /**
@@ -164,6 +170,7 @@ export default function GuideOverlayClient({
   pinned = true,
   ocre = null,
   ocreState = "ready",
+  publicCapturedOcreNames,
   initialResourceChecks,
   selfAlignment = null,
   selfOrder = null,
@@ -603,11 +610,20 @@ export default function GuideOverlayClient({
   const ocreEnabled = !isGuest && !!guildId && guildId !== "public";
   // V-H — captures Metamob du membre, dérivées du payload Ocre déjà chargé (aucun
   // appel réseau supplémentaire). Liste vide ⇒ `unknown` : jamais un faux « à capturer ».
-  const capturedOcreNames = useMemo(
-    () => (ocre?.monsters ?? []).filter((m) => m.owned > 0).map((m) => m.nameFr),
-    [ocre]
-  );
-  const openOcre = ocreEnabled ? () => setShowOcre(true) : undefined;
+  // Surface publique : la liste vient du pont `PublicOcreDungeonBridge` (page).
+  const capturedOcreNames = useMemo(() => {
+    if (ocreEnabled) {
+      return (ocre?.monsters ?? []).filter((m) => m.owned > 0).map((m) => m.nameFr);
+    }
+    return [...(publicCapturedOcreNames ?? [])];
+  }, [ocre, ocreEnabled, publicCapturedOcreNames]);
+  // Interne : panneau Ocre de guilde. Public connecté : la modale publique, portée
+  // dans la PiP (`portalContainer`) — la même vue `OcreQuestPanel`, au même endroit.
+  const openOcre = ocreEnabled
+    ? () => setShowOcre(true)
+    : isGuest && feedbackSignedIn
+      ? () => setMetamobOpen(true)
+      : undefined;
   const ocreSummary = useMemo(() => {
     if (!ocreEnabled || !ocre) return null;
     const plan = buildOcrePlan(ocre);
@@ -814,6 +830,20 @@ export default function GuideOverlayClient({
 
 
   // ─── Mutations Optimistes ──────────────────────────────────────────────────
+  /**
+   * V-H — retour de **bloc** (pas de quête) : un toast dans l'overlay, à la même
+   * place et avec la même DA que les autres. Un bloc `DOFUS` annonce l'obtention.
+   */
+  const notifyBlockDone = useCallback(
+    (ms: RushMilestone) => {
+      toast.success(
+        ms.type === "DOFUS" ? `🍀 Dofus obtenu : ${ms.title}` : `Bloc validé : ${ms.title}`,
+        { duration: 2500 }
+      );
+    },
+    [toast]
+  );
+
   const handleToggleMs = useCallback(
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
@@ -865,7 +895,10 @@ export default function GuideOverlayClient({
             }
           } catch {}
         }
-        if (!was) goToNextMs();
+        if (!was) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
         return;
       }
       setLoadingIds((prev) => new Set([...prev, ms.id]));
@@ -887,7 +920,10 @@ export default function GuideOverlayClient({
           await setRushBookmark(guildId, ms.id, null, effectiveAltPseudo).catch(() => {});
         }
         // Chapitre complété d'un coup → passer automatiquement au suivant.
-        if (!was) goToNextMs();
+        if (!was) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
       } catch {
         setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevSteps);
@@ -905,7 +941,7 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
   );
 
   const handleToggleSeq = useCallback(
@@ -1023,7 +1059,10 @@ export default function GuideOverlayClient({
           } catch {}
         }
         // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre suivant.
-        if (!was && allChecked) goToNextMs();
+        if (!was && allChecked) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
         return;
       }
       try {
@@ -1065,7 +1104,10 @@ export default function GuideOverlayClient({
         // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre
         // suivant, exactement comme la case « tout le chapitre » : avant, l'utilisateur
         // restait bloqué sur un chapitre vide à 100 %.
-        if (!was && allChecked) goToNextMs();
+        if (!was && allChecked) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
       } catch {
         setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevMap);
@@ -1077,7 +1119,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -1674,6 +1716,10 @@ export default function GuideOverlayClient({
           onToggleResourceCheck={handleToggleResourceCheck}
           capturedOcreNames={capturedOcreNames}
           onOpenOcre={openOcre}
+          dungeonStates={dungeonActions?.states}
+          dungeonBusyKey={dungeonActions?.busyKey}
+          dungeonOthers={dungeonActions?.others}
+          onSetDungeon={dungeonActions?.onSet}
           onClose={() => setDetailSeq(null)}
         />
       )}
@@ -1727,6 +1773,7 @@ export default function GuideOverlayClient({
         onClose={() => setMetamobOpen(false)}
         metamobPseudo={metamobPseudo ?? null}
         verified={metamobVerified}
+        portalContainer={rootRef.current?.ownerDocument.body ?? null}
       />
     </div>
       {/* Toaster de l'overlay : monté SOUS la portée `data-da` pour hériter des

@@ -21,6 +21,7 @@
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
+- 🔀 **PR ouvertes (10/11)** — **#1342** (annuaire : option active visible + menu refermé) et **#1343** (`Dungeon.isOcreQuest`, coches dans la fiche détail, overlay public dans la PiP, toasts de bloc). **Les merger avant la prochaine session** : les docs de ces correctifs vivent sur leurs branches, pas encore sur `dev`.
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
   - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes (F3/F4/F7) · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
   - [ ] **mar** — F1 · F2 · F5+F6
@@ -102,7 +103,7 @@
 | 55 | `rush-restes` | Restes du 26/10 : **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et sort de `questDbIds` (écrit, seule la puce du studio God l'affiche) | mesuré le 26/10 | juger à l'écran puis trancher | — |
 | 56 | `live-discord` | Annonces de créateurs : live Twitch + nouvelle vidéo YouTube, **deux salons distincts** (Twitch / YouTube) + **deux interrupteurs** + ping par guilde, une annonce par session/vidéo (cron 5 min) | **livré** le 02/11/2026 · **scindé** le 04/11/2026 (salons et interrupteurs distincts, migration additive avec reprise du salon existant) | — (rien) | `docs/MAINTENANCE.md` | — |
 | 58 | `ui-dj` | DJ/Quête : DA landing sur `DjPostCreateModal`, `DjEditModal`, `DjFiltersBar`, `DungeonFinderClient` | ~90 occurrences | même passe que #1252 + `ui-tokens-dj` | `docs/RULES.md` § UI |
-| 59 | `god-rush-ux` | **Éditeur God Rush** : studio 3 panneaux (arbre / liste / inspecteur), Ctrl+K, filtres, inspecteur de quête, actions de masse, DA God | **E1 livré le 05/11/2026** : studio hors de `src/app/god/**`, 3 panneaux, arbre + recherche + filtres, `Ctrl+K`, garde de saisie, inspecteur (formulaires montés tels quels), responsive 1024/768 ; **644** occurrences DA restantes (674 avant) | **E2** (inspecteur quête) → E3 → E4 → E5 | `docs/plans/REFONTE-EDITEUR-RUSH.md` | — |
+| 59 | `god-rush-ux` | **Éditeur God Rush** : studio 3 panneaux (arbre / liste / inspecteur), Ctrl+K, filtres, inspecteur de quête, actions de masse, DA God | **E1 livré le 05/11/2026** : studio hors de `src/app/god/**`, 3 panneaux, arbre + recherche + filtres, `Ctrl+K`, garde de saisie, inspecteur (formulaires montés tels quels), responsive 1024/768 ; **644** occurrences DA restantes (674 avant) · **coque élargie le 10/11** (retour user) : 3 colonnes **≥ 1280** seulement, inspecteur **460–560 px**, arbre en `Sheet` < 1280 | **E2** (inspecteur quête) → E3 → E4 → E5 | `docs/plans/REFONTE-EDITEUR-RUSH.md` | — |
 | 60 | `standby-etendu` | Marché (`market-expire`), demandes de service (`cleanup-inactive-service-requests`) et sondages (`close-old-polls`) : **aucune pause** — ni bouton, ni colonne, l'expiration est subie | mesuré le 05/11/2026 (3 modèles avec `standBy` : `DjSearchPost`, `DreamRun`, `GuildEvent` ; les 3 autres n'en ont pas) | si demandé : colonne `standBy` sur 3 modèles (**migration**) + bouton + gardes de cron | `docs/MAINTENANCE.md` § Stand-by | — |
 
 
@@ -131,7 +132,8 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon — verrou `ocre-dungeons` **15** | 10/11/2026 |
+| `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |
+| `OVERLAY-NOTIFS` | Overlay — un seul endroit pour les notifications : `OverlayToastProvider` monté dans le portail public (Toaster dédié sous `data-da`), `portalContainer` sur `DialogContent` pour la modale Ocre publique dans la PiP, `notifyBlockDone` (bloc validé / Dofus obtenu) — verrou `overlay-notifications` **4** | 10/11/2026 |
 
 | `VISITEUR-NIVEAU` | Annuaire des visiteurs — filtre **métier + niveau minimum** (`?niveau=`, `level: { gte }`, bornes 1..200), 3ᵉ menu rendu **seulement** avec un métier, URL qui retire le niveau avec le métier · **UX** : option active marquée (fond `elevated`, coche, `aria-current`), menu refermé au clic — verrou `visitor-directory` **27** | 10/11/2026 |
 

@@ -43,11 +43,17 @@ export function PublicMetamobModal({
     onClose,
     metamobPseudo,
     verified,
+    portalContainer = null,
 }: {
     open: boolean;
     onClose: () => void;
     metamobPseudo: string | null;
     verified: boolean;
+    /**
+     * V-H — quand la modale est ouverte depuis l'overlay PiP, on porte son portail
+     * dans le `body` de la PiP (sinon Radix la rend dans la page hôte, hors overlay).
+     */
+    portalContainer?: HTMLElement | null;
 }) {
     const router = useRouter();
     /**
@@ -166,6 +172,7 @@ export function PublicMetamobModal({
             <DialogContent
                 {...daScope}
                 overlayClassName="da-modal-scrim"
+                portalContainer={portalContainer}
                 className="da-modal da-portal max-h-[85svh] w-[min(34rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0 outline-none"
             >
                 <DialogHeader className="da-modal-head space-y-3">

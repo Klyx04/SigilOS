@@ -13,6 +13,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { normalizeOcreDungeonName, ocreDungeonCapture } from "@/lib/ocre-dungeons";
 import { RushOverlayDungeonCard } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard";
+import { getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -116,6 +117,44 @@ describe("Donjon ocre — le rendu dit l'état et l'action", () => {
     });
 });
 
+describe("Donjon ocre — la colonne `Dungeon.isOcreQuest` fait foi", () => {
+    const base = {
+        id: "seq-1",
+        subGuideRef: "GP1",
+        subGuideName: "Qui botte le cul des Culs Bottés ?",
+        order: 1,
+        dungeon: {
+            id: "dj-meulou",
+            slug: "meulou",
+            name: "Tanière du Meulou",
+            bossName: "Meulou",
+            imageUrl: null,
+            isOcreQuest: true,
+            isOptional: false,
+        },
+        activityTags: [{ type: "donjon", name: "Tanière du Meulou" }],
+    } as any;
+
+    it("un donjon `isOcreQuest` sans tag ocre reste ocre (cas Meulou mesuré le 10/11)", () => {
+        expect(getDungeons(base)[0].isOcre).toBe(true);
+        expect(getDungeons(base)[0].isOcreQuest).toBe(true);
+    });
+
+    it("le tag `ocre_dungeon` reste un repli quand la colonne est fausse", () => {
+        const seq = {
+            ...base,
+            dungeon: { ...base.dungeon, isOcreQuest: false },
+            activityTags: [{ type: "ocre_dungeon", name: "dj-meulou" }],
+        };
+        expect(getDungeons(seq)[0].isOcre).toBe(true);
+    });
+
+    it("le payload des deux surfaces sélectionne la colonne", () => {
+        const actions = read("src/server/actions/optimized-guide-actions.ts");
+        expect((actions.match(/isOcreQuest: true/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    });
+});
+
 describe("Donjon ocre — câblage des surfaces (V-H)", () => {
     const CARD = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx";
     const PANEL = "src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx";
@@ -156,10 +195,26 @@ describe("Donjon ocre — câblage des surfaces (V-H)", () => {
         expect(overlay).toContain("onOpenOcre={openOcre}");
     });
 
-    it("le guide PUBLIC ne reçoit jamais l'action Ocre", () => {
+    it("le guide PUBLIC propose la même vue Ocre, via le pont voisin (pas la modale interne)", () => {
         const pub = read(PUBLIC);
-        expect(pub).not.toContain("capturedOcreNames");
-        expect(pub).not.toContain("onOpenOcre");
+        expect(pub).toContain("PublicOcreDungeonBridge");
+        expect(pub).toContain("capturedOcreNames={capturedOcreNames}");
+        expect(pub).toContain("onOpenOcre={() => setMetamobOpen(true)}");
+        // La modale interne reste interdite sur le public : c'est `PublicMetamobModal` qui s'ouvre.
+        expect(pub).not.toContain("RushOverlayOcreModal");
+        const bridge = read("src/components/dofus-quests/rush/PublicOcreDungeonBridge.tsx");
+        expect(bridge).toContain("getPublicOcreProgress");
+        expect(bridge).toContain("owned > 0");
+    });
+
+    it("la fiche détail porte les deux coches, avec la même source que le panneau", () => {
+        const detail = read(DETAIL);
+        expect(detail).toContain("dungeonStates");
+        expect(detail).toContain("onSetDungeon");
+        expect(detail).toContain("sequenceId={seq.id}");
+        expect(read(DASHBOARD)).toContain("dungeonStates={dungeonActions.states}");
+        expect(read(OVERLAY)).toContain("dungeonStates={dungeonActions?.states}");
+        expect(read(PUBLIC)).toContain("dungeonStates={dungeonStates}");
     });
 
     it("un tag ocre ne marque plus TOUS les donjons de la séquence", () => {

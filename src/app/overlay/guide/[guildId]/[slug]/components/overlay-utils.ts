@@ -274,6 +274,13 @@ export type DungeonInfo = {
   bossName: string | undefined;
   imageUrl: string | undefined;
   isOcre: boolean;
+  /**
+   * V-H — drapeau **fiable** de la table `Dungeon` (le donjon fait partie de la Quête Ocre).
+   * Le tag `ocre_dungeon` reste un **repli** : il peut manquer sur une séquence (mesure du
+   * 10/11 : Meulou avait `isOcreQuest: true` et aucun tag), et il peut être posé à la main
+   * dans le studio God.
+   */
+  isOcreQuest?: boolean;
   /** Optionnel : ne bloque pas la validation de la quête (verrou `rush-dungeons`). */
   isOptional?: boolean;
 };
@@ -299,13 +306,15 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
 
   // Donjon singulier
   if (seq.dungeon) {
+    const isOcreQuest = (seq.dungeon as any).isOcreQuest === true;
     result.push({
       id: (seq.dungeon as any).id,
       slug: (seq.dungeon as any).slug,
       name: seq.dungeon.name,
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
-      isOcre: isOcreTagged(seq.dungeon as any),
+      isOcre: isOcreQuest || isOcreTagged(seq.dungeon as any),
+      isOcreQuest,
       isOptional: seq.dungeon.isOptional === true,
     });
   }
@@ -314,13 +323,15 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
   if (Array.isArray(seqAny.dungeons)) {
     for (const d of seqAny.dungeons) {
       if (!result.find((r) => r.name === d.name)) {
+        const isOcreQuest = (d as any).isOcreQuest === true;
         result.push({
           id: (d as any).id,
           slug: (d as any).slug,
           name: d.name,
           bossName: d.bossName,
           imageUrl: d.imageUrl,
-          isOcre: isOcreTagged(d),
+          isOcre: isOcreQuest || isOcreTagged(d),
+          isOcreQuest,
           isOptional: (d as any).isOptional === true,
         });
       }

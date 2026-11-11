@@ -32,9 +32,10 @@ pas ; les textes sont **réécrits**, jamais recopiés.
 > **Pourquoi ici et pas une sixième doc** : un sujet = un fichier. Ce document porte déjà
 > l'organisation des chantiers Rush ; l'amorce en est la **tête de lecture**, pas une copie.
 
-**État mesuré au 04/11/2026** — mécanique **terminée** (S0), outillage God **fini** (S4), route
-**livrée** (G0 / L1 / L2 / L3), contenu **inégal** : Bontarien **100/100**, Ordres **5/5 × 6**,
-classes **19**, Brâkmarien **121 séquences importées** (cible **102**, l'écart venant des étapes
+**État mesuré au 04/11/2026** (contenu) · **V-H livré le 10/11/2026** (donjons ocre : `Dungeon.isOcreQuest`
+prioritaire, coches dans la fiche détail, guide public connecté, toasts d'overlay) — mécanique **terminée** (S0),
+outillage God **fini** (S4), route **livrée** (G0 / L1 / L2 / L3), contenu **inégal** : Bontarien **100/100**, Ordres
+**5/5 × 6**, classes **19**, Brâkmarien **121 séquences importées** (cible **102**, l'écart venant des étapes
 dédoublées/variantes). **Mesure neuve** : sur ces 121 séquences, **115 n'avaient AUCUN tag** — la
 route était là, le contenu ne l'était pas.
 
@@ -44,8 +45,8 @@ aucune source**. ② **V-D1 — les ressources par quête** : **390 → 485 ids*
 **252 tags** ajoutés (Brâkmarien **1 → 151 ids**), **2ᵉ passage = 0 écriture**, dataset
 **inchangé**, **aucune migration**.
 
-**Prochain lot : `V-H`** (donjons ocre « capturé / à capturer », `MODULE-RUSH-SYLVESTRE.md` § H),
-puis **V-C** (purge WebP — ops serveur). **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par
+**Prochain lot : `V-C`** (purge WebP — ops serveur), puis **E2** (inspecteur de quête,
+`REFONTE-EDITEUR-RUSH.md` §3). **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par
 étape) reste **ouvert**, à trancher. L'ordre **global** reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |

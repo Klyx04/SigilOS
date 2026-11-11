@@ -117,13 +117,19 @@ describe("overlay — la mini-modale des membres défile vraiment", () => {
 describe("overlay — enchaîner un chapitre et fermer la modale depuis la PiP", () => {
   const MODAL = `${BASE}/components/RushOverlayQuestDetailModal.tsx`;
 
-  it("cocher la DERNIÈRE quête d'un chapitre ouvre le chapitre suivant", () => {
+  it("cocher la DERNIÈRE quête d'un chapitre ouvre le chapitre suivant (avec le toast de bloc)", () => {
     const overlay = codeOf(OVERLAY);
     // La bascule existait pour la case « tout le chapitre » (chemin invité + chemin
     // connecté) : elle doit désormais exister aussi pour la dernière quête cochée à la main,
     // sans quoi l'utilisateur restait sur un chapitre vide à 100 % (retour user 08/10/2026).
-    expect(overlay.match(/if \(!was\) goToNextMs\(\);/g)?.length).toBe(2);
-    expect(overlay.match(/if \(!was && allChecked\) goToNextMs\(\);/g)?.length).toBe(2);
+    // Depuis le 10/11, chaque bascule porte aussi le toast « Bloc validé / Dofus obtenu ».
+    expect(
+      overlay.match(/if \(!was\) \{\s*notifyBlockDone\(ms\);\s*goToNextMs\(\);/g)?.length
+    ).toBe(2);
+    expect(
+      overlay.match(/if \(!was && allChecked\) \{\s*notifyBlockDone\(ms\);\s*goToNextMs\(\);/g)
+        ?.length
+    ).toBe(2);
   });
 
   it("Échap écoute la fenêtre du document qui PORTE la modale (PiP)", () => {

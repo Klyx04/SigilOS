@@ -346,6 +346,23 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   le consentement `PublicProfile.showPresence` et la modération/rate limit.
 - Interne : `RushOverlayLiveToast` existe (événements de coéquipiers) ; le public n'a **aucun** flux.
 
+**Chantiers 2→5 — ordre convenu le 11/11/2026** *(une PR, un commit par chantier)*
+
+- **Chantier 2 — Échanges Metamob entre visiteurs** : **lecture seule**, `getQuestMatches` (déjà dans
+  `src/lib/metamob-client.ts`), croisement avec les `PublicProfile` du **même serveur** +
+  `showOnDirectory` ; aucun envoi de proposition dans ce lot. Fichier de siphon **non commité**
+  `src/temp/metamob-api-siphon.mjs` (toutes les routes GET, dump JSON + index, 60 req/min) ; veille
+  par skill `.cline/skills/metamob-api/SKILL.md` + référence `docs/reference/METAMOB-API.md` +
+  script `scripts/check-metamob-api.mjs` (pas de hook : un contrôle mensuel suffit).
+- **Chantier 3 — Rush Live visiteurs** : SSE + Redis (pattern `src/lib/sse.ts`), room par
+  `dofusServerId`, notifications bloc/Dofus dans le **guide navigateur** (même DA que l'overlay),
+  `PublicProfile.showPresence` **activé par défaut** (migration + reprise des profils existants, à
+  confirmer) ; le consentement sert à **être vu**, pas à recevoir.
+- **Chantier 4 — Finitions anonymes F1→F7** (voir ci-dessous).
+- **Chantier 5 — Studio E2** (`REFONTE-EDITEUR-RUSH.md` §3).
+- **Reportés** : nettoyage des images (V-C, le local n'a pas tous les donjons — le VPS est la
+  référence), V-D2, route publique du bloc B, V2d, V3.
+
 **V2d — Ladder serveur**
 - Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
 

@@ -71,8 +71,15 @@ export function FilterMenu({
                 </span>
             </summary>
             {/* Sur grand écran le panneau s'ancre à droite : à `left-0`, le dernier menu
-                débordait de la fenêtre (mesuré à 1 024 et 1 440 px). */}
-            <div className="reg-panel absolute left-0 top-[calc(100%+0.5rem)] z-50 max-h-80 w-[min(20rem,calc(100vw-2rem))] overflow-y-auto p-1.5 lg:left-auto lg:right-0">
+                débordait de la fenêtre (mesuré à 1 024 et 1 440 px). Un clic sur une
+                option ferme le menu **avant** la navigation (retour user du 10/11 :
+                le menu restait ouvert après la sélection). */}
+            <div
+                className="reg-panel absolute left-0 top-[calc(100%+0.5rem)] z-50 max-h-80 w-[min(20rem,calc(100vw-2rem))] overflow-y-auto p-1.5 lg:left-auto lg:right-0"
+                onClickCapture={(event) => {
+                    if ((event.target as HTMLElement).closest("a")) setOpen(false);
+                }}
+            >
                 {children}
             </div>
         </details>

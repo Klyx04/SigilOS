@@ -133,7 +133,7 @@
 |---|---|---|
 | `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon — verrou `ocre-dungeons` **15** | 10/11/2026 |
 
-| `VISITEUR-NIVEAU` | Annuaire des visiteurs — filtre **métier + niveau minimum** (`?niveau=`, `level: { gte }`, bornes 1..200), 3ᵉ menu rendu **seulement** avec un métier, URL qui retire le niveau avec le métier — verrou `visitor-directory` **25** | 10/11/2026 |
+| `VISITEUR-NIVEAU` | Annuaire des visiteurs — filtre **métier + niveau minimum** (`?niveau=`, `level: { gte }`, bornes 1..200), 3ᵉ menu rendu **seulement** avec un métier, URL qui retire le niveau avec le métier · **UX** : option active marquée (fond `elevated`, coche, `aria-current`), menu refermé au clic — verrou `visitor-directory` **27** | 10/11/2026 |
 
 | `HEADBAR-EVENEMENTS` | Barre du haut : **visuel réel** des événements (donjon, titan, Kralamoure) dans le bouton et la liste, cluster de droite **sans contour imbriqué ni séparateur**, nom/rôle du profil tronqués — branche `feat/headbar-evenements-assets` | 04/11/2026 |
 | `DJ-DA-LANDING` | Module DJ/Quête : **DA landing** appliquée (tokens seuls, un accent d'état), croix du tiroir qui ne recouvre plus « Ouvert », transfert de lead en `Select` maison, actions uniformisées, `SupportOrb` **sous** les modales — branche `feat/dj-da-landing` | 04/11/2026 |

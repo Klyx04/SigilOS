@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 11/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11).
+> **Dernière MAJ : 11/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11).
 
 ## 1. Décisions verrouillées
 
@@ -348,12 +348,17 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 
 **Chantiers 2→5 — ordre convenu le 11/11/2026** *(une PR, un commit par chantier)*
 
-- **Chantier 2 — Échanges Metamob entre visiteurs** : **lecture seule**, `getQuestMatches` (déjà dans
-  `src/lib/metamob-client.ts`), croisement avec les `PublicProfile` du **même serveur** +
-  `showOnDirectory` ; aucun envoi de proposition dans ce lot. Fichier de siphon **non commité**
-  `src/temp/metamob-api-siphon.mjs` (toutes les routes GET, dump JSON + index, 60 req/min) ; veille
-  par skill `.cline/skills/metamob-api/SKILL.md` + référence `docs/reference/METAMOB-API.md` +
-  script `scripts/check-metamob-api.mjs` (pas de hook : un contrôle mensuel suffit).
+- **Chantier 2 — Échanges Metamob entre visiteurs — LIVRÉ le 11/11/2026 (à vérifier à l'écran)** :
+  troisième vue `?vue=echanges` du hub ; Metamob en **lecture seule** (`getQuestMatches`, `limit`
+  max **50** mesuré le 11/11/2026), quête Ocre/Éternelle Moisson détectée par `quest_type.slug`
+  + repli ; croisement avec les `PublicProfile` du **même serveur** + `showOnDirectory` ;
+  **pseudo Metamob affiché dans cette vue seulement** (décision du 11/11/2026 : sans lui, pas de
+  contact) + lien « Contacter sur Metamob » ; aucun envoi de proposition. Cache Redis **120 s**
+  (matches) / **600 s** (quête) par lecteur, invalidé par `updatePublicMetamob`, aucun secret
+  dans le cache. Veille : `docs/reference/METAMOB-API.md`, skill `.cline/skills/metamob-api/`,
+  `scripts/check-metamob-api.mjs` (clé **obligatoire**, pas de hook), siphon volatile
+  `src/temp/metamob-api-siphon.mjs`. **Correctif mesuré** : `/v1/quests` (liste privée) n'était
+  pas reconnu comme ressource utilisateur → cache partagé/circuit ouvert ; corrigé + test.
 - **Chantier 3 — Rush Live visiteurs** : SSE + Redis (pattern `src/lib/sse.ts`), room par
   `dofusServerId`, notifications bloc/Dofus dans le **guide navigateur** (même DA que l'overlay),
   `PublicProfile.showPresence` **activé par défaut** (migration + reprise des profils existants, à

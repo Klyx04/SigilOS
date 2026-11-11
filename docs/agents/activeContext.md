@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 11/11/2026 (suite) — **Chantier 2/5 · Échanges Metamob entre visiteurs** — branche `feat/visiteurs-communaute`
+
+> **Demande user (verbatim)** : « oui mais ce chantier est lié fameux skill de l'api metamob et la veille ? » · « explique tout le chantier simplement sans technique et l'apport » · décision : **afficher le pseudo Metamob + lien « Contacter sur Metamob »** (sans lui, le match ne sert à rien).
+> **Mesures préalables** : ① doc officielle `/help/api` + changelogs 04/11 et 09/11 : `limit` **max 50**, `direction` / `active_within_days` **ignorés**, filtres same-server / `show_trades` / actifs 2 mois / pool 500, **60 req/min**, auth **sur toutes** les routes ; ② `isUserResourceFromUrl` ne reconnaissait que `/quests/` : `getOwnQuests` (`/v1/quests`) était classé **public** → écriture dans `metamob:cache:/v1/quests` et relecture possible pour une autre clé quand le disjoncteur s'ouvrait ; ③ la clé `PublicProfile` est déchiffrée par le hook Prisma, jamais renvoyée ; ④ le DTO de l'annuaire n'expose pas `metamobPseudo` : la vue « Échanges » est le **premier** endroit qui le publie (décision explicite, même serveur + `showOnDirectory`, aucune migration).
+> **Fait** : 3ᵉ vue `?vue=echanges` du hub (nav, `Suspense`, i18n fr/en) ; `src/lib/public-trades.ts` (croisement pur, ordre Metamob conservé, bornes **50/20/3**, self exclu, consentement) ; `src/server/public-trades.ts` (quête lue par `getOwnQuests` strict + `pickVisitorOcreQuest`, matches `limit: TRADE_MATCHES_LIMIT`, croisement DB `showOnDirectory` + `dofusServerId` + `metamobPseudo in`, cache **120 s** matches / **600 s** quête par `userId`, états fail-soft `no-metamob` / `unauthorized` / `unavailable` / `no-quest` / `ready`) ; `src/server/public-metamob.ts` extrait de `public-profile-actions.ts` (une seule lecture clé/pseudo, une seule heuristique Ocre) ; invalidation du cache dans `updatePublicMetamob` ; client Metamob aligné sur la doc mesurée (`minParallelQuests`, `onlyPossibleTrades`, `quest_type`, `show_trades`) ; correctif `/v1/quests` + test ; veille (`docs/reference/METAMOB-API.md`, skill `.cline/skills/metamob-api/`, `scripts/check-metamob-api.mjs`, siphon volatile `src/temp/metamob-api-siphon.mjs`).
+> **Preuves** : `visitor-trades` **16** (neuf) · `metamob-user-resource` **3** (neuf) · `metamob-ocre-match` **4** (+1) · `visitors-hub` **18** · `public-profile-actions` **24** (+1) · suite **651 fichiers / 6 956 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste (chantiers 3→5)** : Rush Live (présence + notifications navigateur, consentement par défaut), finitions anonymes F1→F7, studio E2. **À vérifier par l'utilisateur** : `/visiteurs?vue=echanges` (pseudo Metamob + lien, états sans clé / clé refusée / aucune quête, deux colonnes, cap 50/20, 390/768/1024/1440). Le script de veille exige `METAMOB_API_KEY` : l'API refuse **toutes** les routes sans clé (mesure du jour).
+> **Rotation** : bloc « 09/11/2026 (suite 6) — S1 : le frigo d'images se remplit hors ligne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 11/11/2026 — **Chantier 1/5 · Hub « Communauté SigilOS » + succès en commun** — branche `feat/visiteurs-communaute`
 
 > **Demande user (verbatim)** : « le fait qu'il faille aller cliquer dans l'onglet Explorer puis > Visiteurs je pense que personne n'ira jamais » · « je pense qu'il faut tout rassembler dans `/visiteurs` » · « Visiteurs > Communauté SigilOS » · « une seule PR pour les 5 chantiers, un commit par chantier » · « demande-moi de vérifier moi-même chaque chantier avant d'attaquer le suivant ».
@@ -55,17 +66,3 @@
 > **Preuves** : `siphon-monster-assets` **10** · `assets-dofus-route` **19** (1 cas repointé sur l'interrupteur rallumé + 1 cas neuf « réseau coupé ⇒ aucun fetch ») · suite **646 fichiers / 0 échec** · `tsc` 0 · aucune migration.
 > **Reste (S3/S4)** : script de couverture + alerte (une cible sans fichier doit être visible), cron quotidien de siphon, `?url=` retiré du DOM. **Ops** : déployer, puis vérifier qu'un sprite absent renvoie le placeholder **sans** requête sortante.
 > **Rotation** : bloc « 09/11/2026 (suite 6) — S1 : le frigo se remplit hors ligne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 09/11/2026 (suite 6) — **Rang 61 · S1 : le frigo d'images se remplit hors ligne** — branche `feat/souverainete-s1-siphon-monstres`
-
-> **Demande user (verbatim)** : « remplis le frigo : les 456 images d'archimonstres et de boss ».
-> **Mesure préalable** : le stockage est **déjà** un volume persistant (`assets-beta-data` / `assets-prod-data`, monté sur `/app/public/uploads/assets-dofus`, commenté « sinon remis à ~0 à chaque deploy ») — aucune décision de stockage à prendre, R2 n'apporterait rien (une instance, ~9 Mo).
-> **Fait** : règle pure `gfxIdFromDofusDbImageUrl` / `spriteAssetFileName` (`src/lib/dofus-monster-assets.ts`) — l'espace **apparence** uniquement (`<gfx>.sprite.webp`), jamais la clé d'entité ; route `GET /api/cron/siphon-monster-assets` (fail-closed `CRON_SECRET`, **dry-run par défaut**, `limit` 1–200, `offset`, concurrence 4) qui remplit le cache et rapporte `total / alreadyThere / siphoned / failed / remaining`. **Déployée et exécutée sur la bêta** : 447 apparences, `remaining: 0`, `failed: 0` ; preuve de bout en bout `646` **0,122 s** (cache) contre `650` **0,413 s** (téléchargement). Le périmètre est ensuite **étendu à tous les types** (monstres compris) pour pouvoir couper le réseau sans multiplier les pictos.
-> **Piège désamorcé** : le placeholder du proxy pèse **118 octets** — un seuil à 100 l'aurait pris pour une vignette valide et le siphon n'aurait **jamais** rien rempli. `MIN_SPRITE_BYTES = 500`.
-> **Preuves** : `siphon-monster-assets` **7** (neufs) · suite **6 879 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste (S2)** : trancher le **mode réseau** — strict (picto sur le nouveau contenu), secours borné, ou hybride (recommandé : drapeau `ASSETS_REMOTE_FETCH=false` + cron quotidien) ; puis `?url=` retiré du DOM et script de couverture. La **chaîne de rafraîchissement des nouveautés DofusDB** est écrite dans `AMORCE-SOUVERAINETE-IMAGES.md` §8 : `data-watch` **ne surveille pas les monstres** aujourd'hui, et `Archimonstre` n'a **aucun siphon automatique** (seed + auto-heal God) — c'est le trou à combler avant de couper le réseau.
-> **Rotation** : bloc « 09/11/2026 — Ocre public ISO + hero de l'overlay plafonné » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-

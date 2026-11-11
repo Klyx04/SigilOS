@@ -56,6 +56,9 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
         expect(
             parseVisitorsHubSearch({ vue: "succes", donjon: "tournesol-affame", q: "  tour  " })
         ).toEqual({ vue: "succes", donjon: "tournesol-affame", q: "tour" });
+        expect(
+            parseVisitorsHubSearch({ vue: "echanges", donjon: "tournesol-affame", q: "tour" })
+        ).toEqual({ vue: "echanges", donjon: null, q: "" });
     });
 
     it("borne la recherche et refuse une clé de donjon invalide", () => {
@@ -76,6 +79,10 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
     it("fabrique des liens propres : la vue profils reste l'URL nue", () => {
         expect(buildVisitorsHubHref({ vue: "profils", q: "iop", donjon: "x" })).toBe("/visiteurs");
         expect(buildVisitorsHubHref({ vue: "succes" })).toBe("/visiteurs?vue=succes");
+        expect(buildVisitorsHubHref({ vue: "echanges" })).toBe("/visiteurs?vue=echanges");
+        expect(
+            buildVisitorsHubHref({ vue: "echanges", donjon: "x", q: "iop" })
+        ).toBe("/visiteurs?vue=echanges");
         expect(
             buildVisitorsHubHref({ vue: "succes", donjon: "tournesol-affame", q: "tour" })
         ).toBe("/visiteurs?vue=succes&donjon=tournesol-affame&q=tour");

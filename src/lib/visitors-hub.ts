@@ -1,14 +1,15 @@
 /**
  * Hub « Communauté SigilOS » (`/visiteurs`) — **règles pures** (aucune I/O).
  *
- * Le hub rassemble deux lectures dans **une seule page** : les profils consentants du
- * serveur (V2e) et les succès en commun (F16 / D-V9). Ce module ne connaît ni session ni
- * base : il borne les paramètres d'URL, fabrique les liens et construit le tableau des
- * succès partagés. C'est lui que le verrou `tests/unit/visitors-hub.test.ts` protège.
+ * Le hub rassemble trois lectures dans **une seule page** : les profils consentants du
+ * serveur (V2e), les succès en commun (F16 / D-V9) et les échanges Metamob (chantier 2).
+ * Ce module ne connaît ni session ni base : il borne les paramètres d'URL, fabrique les
+ * liens et construit les tableaux partagés. C'est lui que le verrou
+ * `tests/unit/visitors-hub.test.ts` protège.
  *
  * Invariants :
- *  · **deux vues** seulement (`profils`, `succes`) — une valeur inconnue retombe sur les
- *    profils, jamais une page blanche ;
+ *  · **trois vues** seulement (`profils`, `succes`, `echanges`) — une valeur inconnue
+ *    retombe sur les profils, jamais une page blanche ;
  *  · **aucun champ privé** dans un membre (`id`, pseudo, classe) : pas de mules, pas de
  *    Metamob, pas de `userId` ;
  *  · le **serveur n'est pas un paramètre** : il vient du profil du lecteur, résolu côté
@@ -19,8 +20,8 @@
 
 import { z } from "zod";
 
-/** Les deux vues du hub. La vue « échanges » arrive avec le chantier Metamob. */
-export const VISITORS_HUB_VIEWS = ["profils", "succes"] as const;
+/** Les trois vues du hub : profils, succès en commun, échanges Metamob. */
+export const VISITORS_HUB_VIEWS = ["profils", "succes", "echanges"] as const;
 export type VisitorsHubView = (typeof VISITORS_HUB_VIEWS)[number];
 
 /**
@@ -110,8 +111,8 @@ export function buildVisitorsHubHref(input: {
     q?: string | null;
 }): string {
     const params = new URLSearchParams();
+    if (input.vue !== "profils") params.set("vue", input.vue);
     if (input.vue === "succes") {
-        params.set("vue", "succes");
         if (input.donjon) params.set("donjon", input.donjon);
         if (input.q) params.set("q", input.q);
     }

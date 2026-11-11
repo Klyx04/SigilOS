@@ -94,6 +94,7 @@ docs/
 │   ├── GLOSSARY-EN.md
 │   ├── FACTS_GUILDE_2026.md
 │   ├── OCR_STRATEGY_2026.md
+│   ├── METAMOB-API.md             API Metamob mesurée (routes, matches, veille)
 │   └── REDIS-OCR-SETUP.md
 │
 ├── arbo/                          état et journal de l'arborescence

@@ -243,3 +243,22 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
     });
 });
 
+
+/**
+ * Chantier 2 (11/11/2026) — la vue « Échanges » met en cache la quête et les matches par
+ * lecteur. Une clé ou un pseudo qui change doit invalider ces deux entrées, sinon l'ancien
+ * compte reste visible jusqu'à 10 min.
+ */
+describe("Metamob — le cache des échanges suit l'écriture", () => {
+    it("invalide quête et matches après l'écriture, avant le retour", () => {
+        const blocks = actionBlocks();
+        const metamob = blocks.find((block) => block.name === "updatePublicMetamob")?.body ?? "";
+        const write = metamob.indexOf("db.publicProfile.update");
+        const invalidate = metamob.indexOf("publicTradesMatchesCacheKey(");
+        expect(write).toBeGreaterThan(-1);
+        expect(invalidate).toBeGreaterThan(write);
+        expect(metamob).toMatch(/publicTradesQuestCacheKey\(/);
+        expect(metamob).toMatch(/invalidateCache\(/);
+    });
+});
+

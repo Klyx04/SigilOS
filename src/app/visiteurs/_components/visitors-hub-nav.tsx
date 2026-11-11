@@ -5,11 +5,11 @@ import { buildVisitorsHubHref, type VisitorsHubView } from "@/lib/visitors-hub";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
 /**
- * Bascule **Profils / Succès** du hub « Communauté SigilOS ».
+ * Bascule **Profils / Succès / Échanges** du hub « Communauté SigilOS ».
  *
- * Un lien, pas un état client : chaque vue a sa propre URL (`?vue=succes`), donc le
- * retour arrière, le partage et le rafraîchissement fonctionnent. La vue profils reste
- * l'URL nue `/visiteurs`.
+ * Un lien, pas un état client : chaque vue a sa propre URL (`?vue=succes`, `?vue=echanges`),
+ * donc le retour arrière, le partage et le rafraîchissement fonctionnent. La vue profils
+ * reste l'URL nue `/visiteurs`.
  */
 export function VisitorsHubNav({
     vue,
@@ -30,6 +30,12 @@ export function VisitorsHubNav({
             label: labels.hub.successes,
             icon: "/assets/dofus/game-icons/trophy-1.png",
             href: buildVisitorsHubHref({ vue: "succes" }),
+        },
+        {
+            id: "echanges" as const,
+            label: labels.hub.exchanges,
+            icon: "/assets/dofus/game-icons/shop.png",
+            href: buildVisitorsHubHref({ vue: "echanges" }),
         },
     ];
 

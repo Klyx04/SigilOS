@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getServerI18n } from "@/lib/i18n/server";
 import { GameIcon } from "@/components/shared/game-icon";
@@ -21,14 +22,16 @@ import { VisitorsHubNav } from "./_components/visitors-hub-nav";
 import { VisitorsShell, VisitorsTitle } from "./_components/visitors-shell";
 import { VisitorsViewerBanner } from "./_components/visitors-viewer-banner";
 import { SharedSuccesSection } from "./_components/shared-succes-section";
+import { VisitorTradesSection } from "./_components/visitor-trades-section";
+import { VisitorTradesFallback } from "./_components/visitor-trades-view";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
 /**
  * Hub « Communauté SigilOS » (V2e + F16) — **route privée**.
  *
- * Deux vues dans la même page : les profils consentants du serveur et les succès en
- * commun. La vue vit dans l'URL (`?vue=succes`), jamais dans un état client : retour
- * arrière, partage et rafraîchissement fonctionnent.
+ * Trois vues dans la même page : les profils consentants du serveur, les succès en commun
+ * et les échanges Metamob. La vue vit dans l'URL (`?vue=succes`, `?vue=echanges`), jamais
+ * dans un état client : retour arrière, partage et rafraîchissement fonctionnent.
  *
  * `robots: noindex, nofollow` : la page n'existe que pour un compte connecté, et son
  * contenu dépend d'une session. L'indexer reviendrait à publier une page vide.
@@ -74,6 +77,10 @@ export default async function VisitorsPage({
                     <VisitorsHubNav vue={hub.vue} labels={labels} />
                     {hub.vue === "succes" ? (
                         <SharedSuccesSection viewer={access.viewer} hub={hub} labels={labels} />
+                    ) : hub.vue === "echanges" ? (
+                        <Suspense fallback={<VisitorTradesFallback labels={labels} />}>
+                            <VisitorTradesSection viewer={access.viewer} labels={labels} />
+                        </Suspense>
                     ) : (
                         <DirectoryList viewer={access.viewer} filters={filters} labels={labels} />
                     )}

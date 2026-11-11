@@ -1674,6 +1674,10 @@ export default function GuideOverlayClient({
           onToggleResourceCheck={handleToggleResourceCheck}
           capturedOcreNames={capturedOcreNames}
           onOpenOcre={openOcre}
+          dungeonStates={dungeonActions?.states}
+          dungeonBusyKey={dungeonActions?.busyKey}
+          dungeonOthers={dungeonActions?.others}
+          onSetDungeon={dungeonActions?.onSet}
           onClose={() => setDetailSeq(null)}
         />
       )}

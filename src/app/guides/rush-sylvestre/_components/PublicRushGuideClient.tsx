@@ -132,6 +132,7 @@ import { alignmentCrest } from "@/lib/rush-guide-view";
 import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
 import { CharacterSwitchModal } from "@/components/dofus-quests/rush/CharacterSwitchModal";
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
+import { PublicOcreDungeonBridge } from "@/components/dofus-quests/rush/PublicOcreDungeonBridge";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
 import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
@@ -625,6 +626,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
   // Quelle quête a SON panneau donjon ouvert (`null` = aucun). Aucune fenêtre globale.
   const [openDungeonPanel, setOpenDungeonPanel] = useState<string | null>(null);
+  // V-H — progression Ocre du visiteur connecté, chargée **à la demande** (pont voisin).
+  // Le guide public ne monte jamais la modale Ocre interne ; il ouvre `PublicMetamobModal`.
+  const [capturedOcreNames, setCapturedOcreNames] = useState<string[]>([]);
+  const [ocreLoadRequested, setOcreLoadRequested] = useState(false);
+  const handleOcreLoaded = useCallback(
+    (names: string[]) => setCapturedOcreNames(names),
+    []
+  );
+  useEffect(() => {
+    if (openDungeonPanel || detailModalSeq) setOcreLoadRequested(true);
+  }, [openDungeonPanel, detailModalSeq]);
   // Changement de personnage (ou adoption d'une progression anonyme) = changement
   // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
   useEffect(() => {
@@ -1619,6 +1631,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                 serverId: visitor?.serverId ?? null,
               });
             }}
+          />
+          <PublicOcreDungeonBridge
+            enabled={ocreLoadRequested && !!visitor?.metamobPseudo}
+            onLoaded={handleOcreLoaded}
           />
           <PublicMetamobModal
             open={metamobOpen}
@@ -2759,6 +2775,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                     states={dungeonStates}
                                     busyKey={null}
                                     onSet={handleSetDungeonState}
+                                    capturedOcreNames={capturedOcreNames}
+                                    onOpenOcre={() => setMetamobOpen(true)}
                                     onClose={() => setOpenDungeonPanel(null)}
                                   />
                                 )}
@@ -2911,6 +2929,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             )
           }
           hideProvidedResources={hideDone}
+          dungeonStates={dungeonStates}
+          onSetDungeon={handleSetDungeonState}
+          capturedOcreNames={capturedOcreNames}
+          onOpenOcre={() => setMetamobOpen(true)}
           onClose={() => setDetailModalSeq(null)}
         />
       )}

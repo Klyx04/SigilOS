@@ -48,9 +48,11 @@ describe("E1 — trois panneaux nommés", () => {
     expect(SHELL).toContain('aria-label="Panneau d\'édition"');
   });
 
-  it("les trois colonnes n'existent qu'à partir de 1024 px (puis 2 colonnes dès 768)", () => {
-    expect(SHELL).toContain("lg:grid-cols-[260px_minmax(0,1fr)_minmax(360px,420px)]");
-    expect(SHELL).toContain("md:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]");
+  it("les trois colonnes n'existent qu'à partir de 1280 px (puis 2 colonnes dès 768)", () => {
+    // Retour user du 10/11 : à 1024–1279, les 3 colonnes laissaient ~380 px au contenu
+    // et ~360 px à l'inspecteur. Le seuil passe à 1280 et l'inspecteur gagne 100–140 px.
+    expect(SHELL).toContain("xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)]");
+    expect(SHELL).toContain("md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]");
   });
 
   it("le studio ne monte la coquille que sur l'onglet Contenu", () => {
@@ -58,9 +60,9 @@ describe("E1 — trois panneaux nommés", () => {
   });
 });
 
-describe("E1 — responsive : arbre < 1024, inspecteur < 768", () => {
+describe("E1 — responsive : arbre < 1280, inspecteur < 768", () => {
   it("les deux seuils sont mesurés, pas devinés", () => {
-    expect(SHELL).toContain("useBelowWidth(1024)");
+    expect(SHELL).toContain("useBelowWidth(1280)");
     expect(SHELL).toContain("useBelowWidth(768)");
     expect(SHELL).toContain("window.matchMedia(");
   });

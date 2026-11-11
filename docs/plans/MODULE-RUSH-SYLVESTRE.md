@@ -327,7 +327,11 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Dépendances** : **G** (**livré**) · **Statut** : **livré le 10/11/2026 (V-H)**.
 - **Mesure préalable** : le schéma n'a **aucune relation `Dungeon → Monster`**. Le rapprochement se fait donc sur le **nom du boss** du donjon (repli : nom du donjon), normalisé (`src/lib/ocre-dungeons.ts`, comparaison exacte, pas `includes`). La version stricte « tous les monstres du donjon » exigera une table Donjon → Monstres alimentée par DofusDB (**migration ⇒ accord**) : lot séparé, non ouvert.
 - **Câblage** : la carte partagée `RushOverlayDungeonCard` porte l'état et le bouton ; le panneau, la popover et la fiche détail transmettent les deux props ; le **dashboard** alimente avec `capturedMonsterNames` et ouvre `OcreProgressModal`, l'**overlay** dérive les captures de `ocre.monsters` et ouvre `RushOverlayOcreModal` ; le **guide public** ne reçoit aucune action. `getDungeons` marque désormais **un** donjon par tag (`isOcreTagged`), plus toute la séquence.
-- **Preuves** : `ocre-dungeons` **15** (règle, rendu réel, câblage) · suite **647 fichiers / 6 905 tests** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+- **Preuves** : `ocre-dungeons` **19** (règle, rendu réel, câblage) · suite **647 fichiers / 6 909 tests** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+- **Mesure du 10/11 (cas Meulou)** : `Dungeon.isOcreQuest` est la source **fiable** — la quête « Culs Bottés » avait le drapeau `true` **sans** tag `ocre_dungeon`, donc V-H ne montrait rien. `getDungeons` lit désormais `isOcreQuest` puis le tag en **repli**, et les deux payloads (`getPublicGuideDetail` / `getOptimizedGuideDetail`) sélectionnent la colonne.
+- **Fiche détail** : les deux coches `Fait / À faire` y vivent **aussi**, avec la même source que le panneau (dashboard, overlay, guide public connecté). L'aperçu God reste en lecture seule.
+- **Guide public connecté (page)** : le pont voisin `PublicOcreDungeonBridge` charge `getPublicOcreProgress` **à la demande** (ouverture d'un panneau ou de la fiche), et le bouton ouvre `PublicMetamobModal` (même `OcreQuestPanel`), jamais la modale Ocre interne.
+- **Reste (mesuré le 10/11)** : l'**overlay public connecté** ouvre encore `PublicMetamobModal` **hors** de la PiP ; il lui faut le même panneau Ocre **dans** l'overlay (lot suivant). Même lot : toast de validation de bloc et événements « bloc validé / Dofus obtenu » en direct entre visiteurs du même serveur.
 
 ## 3. Ordre d'exécution
 

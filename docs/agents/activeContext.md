@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 10/11/2026 (suite 3) — **V-H corrigé par la mesure : `isOcreQuest`, coches dans la fiche, pont public** — branche `fix/rush-ocre-dungeon-data`
+
+> **Demande user (verbatim)** : « j'ai coché à capturer pour meulou et je vois rien sur le clic » · « le détail de la quête mériterait aussi les boutons fait / à faire synchro (interne/public connecté) » · « l'interface [God] manque de responsivité et le bandeau de droite est trop peu large » · « pk on ne propose pas la même vue des dj metamob pour le guide public connecté ? ».
+> **Mesures** : ① la quête « Culs Bottés » porte `Dungeon.isOcreQuest = true` mais **aucun** tag `ocre_dungeon` dans `activityTags` ; le payload ne sélectionnait pas la colonne ⇒ aucun badge. ② la fiche détail montait la carte sans `sequenceId`/`states`/`onSet` ⇒ lecture seule. ③ la coque God plafonnait l'inspecteur à **420 px** et affichait 3 colonnes dès **1024 px** (contenu ~380 px). ④ le guide public a déjà `PublicMetamobModal` + `OcreQuestPanel`, mais rien ne le branchait aux donjons.
+> **Fait** : `getDungeons` lit `isOcreQuest` **puis** le tag (repli) et les deux payloads sélectionnent la colonne ; la fiche détail reçoit `dungeonStates`/`dungeonBusyKey`/`dungeonOthers`/`onSetDungeon` et affiche les deux coches (dashboard, overlay, guide public) ; pont `PublicOcreDungeonBridge` (chargement paresseux de `getPublicOcreProgress`, fail-soft) + bouton qui ouvre `PublicMetamobModal` depuis le panneau/la fiche publique ; coque God : 3 colonnes **≥ 1280**, inspecteur **460–560 px**, arbre en `Sheet` < 1280.
+> **Preuves** : `ocre-dungeons` **19** · `rush-editor-shell` **16** · suite **647 fichiers / 6 909 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste** : le **panneau Ocre dans l'overlay public** (la PiP ouvre encore `PublicMetamobModal` hors overlay), le toast de validation de **bloc** et les événements live « bloc validé / Dofus obtenu » entre visiteurs du même serveur, et un **hôte de notifications unique** dans l'overlay (plus de toast derrière la PiP).
+> **Rotation** : bloc « 09/11/2026 (suite 4) — Deux bruits Sentry : 429 Metamob et clé chiffrée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 10/11/2026 (suite 2) — **Rang 10 · V-H : les donjons ocre disent « capturé / à capturer » et ouvrent le suivi** — branche `feat/rush-ocre-dungeon-state`
 
 > **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → après F17b, **V-H** (donjons ocre).
@@ -56,13 +66,4 @@
 > **Reste** : redéployer, ouvrir le panneau et confirmer `unresolved: []` dans `logs app` ; chantier **rang 61** (`souverainete-images`) pour ne plus dépendre du réseau.
 > **Rotation** : bloc « 08/11/2026 (suite 3) — Profil dashboard (P1 → P4) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 09/11/2026 (suite 4) — **Deux bruits Sentry : 429 Metamob et clé chiffrée** — branche `fix/sentry-bruit-429-krala`
-
-> **Constat user** : deux Issues à chaque passage — `[updateUserMonsterQuantityAction] Error: Trop de requêtes` et `[Calendar] Failed to sync Krala counts in list: Erreur 400 de l'API`.
-> **Mesures** : ① `updateUserMonsterQuantityAction` appelait `logger.error(...)` **avant** de distinguer un 429 Metamob, alors que le retour porte déjà `retryAfterMs: 30_000` et que le client met sa file en pause — cas **prévu**, pas une panne ; ② `calendar-actions.ts` passait `userProfile.metamobApiKey` **brute** à `getKralamoureEvents` : la clé est **chiffrée en base** (`decrypt` est utilisé par `getMyOcreProgress` et `updateUserMonsterQuantityAction`), donc l'amont répondait **400**. `event-actions.ts` avait le même défaut latent (il importait `decrypt` sans l'appliquer à cette clé).
-> **Fait** : le 429 est loggué en `warn` (le `logger.error` ne couvre plus que les vrais échecs) · le calendrier et les événements **déchiffrent** la clé avant l'appel, sinon n'envoient aucun en-tête · l'échec Krala du calendrier passe en `warn` (config utilisateur / amont, pas le produit), aligné sur `getGuildKralamoureEvents` (mesure du 18/10/2026).
-> **Preuves** : `sentry-bruit-metamob` **3** (neuf) · suite **644 fichiers / 6 868 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : confirmer dans Sentry que `JAVASCRIPT-NEXTJS-2M` / `-2N` cessent d'arriver après déploiement ; sinon la cause est ailleurs et il faudra la stack exacte.
-> **Rotation** : bloc « 08/11/2026 (suite 2) — V2f : le menu, les vérifications, l'onglet Élevage (F12→F17) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
+

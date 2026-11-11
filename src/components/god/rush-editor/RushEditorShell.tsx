@@ -3,9 +3,13 @@
 /**
  * Coquille du studio (E1) : **trois panneaux** — arbre / contenu / inspecteur — sous la
  * barre unique du studio (`RushEditorTopbar`, montée par `RushEditorStudio`). Responsive :
- *   · ≥ 1024 px : arbre + contenu + inspecteur côte à côte ;
- *   · 768–1023 px : arbre en `Sheet` (bouton « Arbre »), inspecteur en colonne ;
+ *   · ≥ 1280 px : arbre + contenu + inspecteur côte à côte (inspecteur 460–560 px) ;
+ *   · 768–1279 px : arbre en `Sheet` (bouton « Arbre »), contenu + inspecteur ;
  *   · < 768 px : contenu seul, arbre **et** inspecteur en `Sheet`.
+ *
+ * ⚠️ Le seuil des trois colonnes est **1280 px**, pas 1024 : à 1024–1279, les trois
+ * colonnes laissaient ~380 px au contenu et ~360 px à l'inspecteur (retour user du
+ * 10/11 : « le bandeau de droite est trop peu large, pas agréable »).
  *
  * L'arbre et l'inspecteur sont `sticky` : la position ne se perd plus quand la liste
  * défile. `Ctrl+K` ouvre la palette (rendue par le studio) ; la garde de saisie et la
@@ -47,7 +51,7 @@ export function RushEditorShell({
   onInspectorOpenChange: (open: boolean) => void;
   onOpenPalette: () => void;
 }) {
-  const belowLg = useBelowWidth(1024);
+  const belowXl = useBelowWidth(1280);
   const belowMd = useBelowWidth(768);
 
   // Ctrl+K / Cmd+K — le raccourci vit dans la coquille, pas dans chaque panneau.
@@ -64,8 +68,8 @@ export function RushEditorShell({
 
   return (
     <div className="flex flex-col" data-rush-editor-shell>
-      <div className="grid grid-cols-1 items-start gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] lg:grid-cols-[260px_minmax(0,1fr)_minmax(360px,420px)]">
-        <aside aria-label="Arbre du guide" className="hidden min-w-0 lg:block">
+      <div className="grid grid-cols-1 items-start gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)]">
+        <aside aria-label="Arbre du guide" className="hidden min-w-0 xl:block">
           <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-border bg-surface">
             {tree}
           </div>
@@ -82,8 +86,8 @@ export function RushEditorShell({
         </aside>
       </div>
 
-      {/* < 1024 px — l'arbre passe en tiroir (le contenu garde toute la largeur). */}
-      {belowLg && (
+      {/* < 1280 px — l'arbre passe en tiroir (le contenu garde toute la largeur). */}
+      {belowXl && (
         <Sheet open={treeOpen} onOpenChange={onTreeOpenChange}>
           <SheetContent side="left" className="w-[min(20rem,calc(100vw-2rem))] overflow-y-auto p-0">
             <SheetHeader className="sr-only">

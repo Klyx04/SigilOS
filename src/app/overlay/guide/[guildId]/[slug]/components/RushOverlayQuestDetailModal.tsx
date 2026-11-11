@@ -16,6 +16,11 @@ import { brandIconForUrl } from "@/lib/source-icons";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
+import type {
+  RushDungeonMemberState,
+  RushDungeonState,
+  RushDungeonStateMap,
+} from "@/lib/rush-dungeons";
 
 interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
@@ -37,6 +42,19 @@ interface RushOverlayQuestDetailModalProps {
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
   onOpenOcre?: () => void;
+  /**
+   * V-H — les deux coches `Fait / À faire` vivent AUSSI dans la fiche détail, avec la
+   * **même** source que le panneau (base pour la guilde, `localStorage` pour l'invité).
+   * Absents ⇒ la fiche reste en lecture seule (aperçu God).
+   */
+  dungeonStates?: RushDungeonStateMap;
+  dungeonBusyKey?: string | null;
+  dungeonOthers?: RushDungeonMemberState[];
+  onSetDungeon?: (
+    sequenceId: string,
+    dungeonKey: string,
+    state: RushDungeonState | null
+  ) => void;
 }
 
 /**
@@ -66,6 +84,10 @@ export function RushOverlayQuestDetailModal({
   onToggleResourceCheck,
   capturedOcreNames,
   onOpenOcre,
+  dungeonStates,
+  dungeonBusyKey = null,
+  dungeonOthers = [],
+  onSetDungeon,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -209,6 +231,15 @@ export function RushOverlayQuestDetailModal({
                 <RushOverlayDungeonCard
                   dungeons={dungeons}
                   guildId={guildId}
+                  sequenceId={seq.id}
+                  states={dungeonStates}
+                  busyKey={dungeonBusyKey}
+                  others={dungeonOthers}
+                  onSet={
+                    onSetDungeon
+                      ? (dungeonKey, state) => onSetDungeon(seq.id, dungeonKey, state)
+                      : undefined
+                  }
                   capturedOcreNames={capturedOcreNames}
                   onOpenOcre={onOpenOcre}
                 />

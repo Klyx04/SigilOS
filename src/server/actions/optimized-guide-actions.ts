@@ -212,7 +212,7 @@ export async function getPublicGuideDetail(slug: string) {
   if (allDungeonIds.size > 0) {
     const dungeons = await db.dungeon.findMany({
       where: { id: { in: Array.from(allDungeonIds) } },
-      select: { id: true, name: true, bossName: true, imageUrl: true, level: true },
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true, isOcreQuest: true },
     });
     const dungeonMap = new Map(dungeons.map((d) => [d.id, d]));
     for (const ms of guide.milestones) {
@@ -278,7 +278,7 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
   if (allDungeonIds.size > 0) {
     const dungeons = await db.dungeon.findMany({
       where: { id: { in: Array.from(allDungeonIds) } },
-      select: { id: true, name: true, bossName: true, imageUrl: true, level: true }
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true, isOcreQuest: true }
     });
     const dungeonMap = new Map(dungeons.map(d => [d.id, d]));
     for (const ms of guide.milestones) {

@@ -954,8 +954,8 @@ export function RushSylvestreAdminClient({
   const selectedQuestBlock = selectedQuest
     ? localMilestones.find((m) => m.id === selectedBlockNode?.id) ?? null
     : null;
-  // Un séparateur garde son édition inline (reste E3) : l'inspecteur ne le prend pas.
-  const blockBeingEdited = editingMilestone && !isSeparatorMilestone(editingMilestone) ? editingMilestone : null;
+  // E3a — le séparateur s'édite **ici** comme les autres blocs : plus aucun formulaire dans la liste.
+  const blockBeingEdited = editingMilestone;
 
   const inspectorTitle = addingSequenceTo
     ? "Nouvelle quête"
@@ -1013,6 +1013,9 @@ export function RushSylvestreAdminClient({
       onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
       onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
       onCancelEdit={closeInspector}
+      onApplyBlockRoute={handleApplyBlockRoute}
+      onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
+      onAddSequence={() => startAddSequence(blockBeingEdited.id)}
     />
   ) : selectedQuest && selectedQuestBlock ? (
     questFullscreen ? (
@@ -1372,13 +1375,8 @@ export function RushSylvestreAdminClient({
                           {isSeparatorMilestone(m) ? (
                             <SortableSeparatorRow
                               milestone={m}
-                              isEditing={editingMilestone?.id === m.id}
-                              editingData={editingMilestone?.id === m.id ? editingMilestone : null}
                               isPending={isPending}
-                              onEdit={() => setEditingMilestone({ ...m })}
-                              onEditChange={(patch) => setEditingMilestone((prev) => prev ? { ...prev, ...patch } : prev)}
-                              onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-                              onCancelEdit={() => setEditingMilestone(null)}
+                              onSelect={() => selectBlock(m.id)}
                               onDelete={() => setPendingDelete(m)}
                             />
                           ) : (
@@ -1395,7 +1393,6 @@ export function RushSylvestreAdminClient({
                                 onDelete={() => setPendingDelete(m)}
                                 onDeleteSequence={handleDeleteSequence}
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
-                                onApplyBlockRoute={handleApplyBlockRoute}
                               />
                             </div>
                           )}
@@ -1998,13 +1995,8 @@ function TipsLinesEditor({
 // ─── SortableSeparatorRow ─────────────────────────────────────────────────────
 function SortableSeparatorRow(props: {
   milestone: Milestone;
-  isEditing: boolean;
-  editingData: Milestone | null;
   isPending: boolean;
-  onEdit: () => void;
-  onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void;
-  onCancelEdit: () => void;
+  onSelect: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
@@ -2019,24 +2011,14 @@ function SortableSeparatorRow(props: {
 
 function SeparatorRowAdmin({
   milestone,
-  isEditing,
-  editingData,
   isPending,
-  onEdit,
-  onEditChange,
-  onSave,
-  onCancelEdit,
+  onSelect,
   onDelete,
   dragHandleProps,
 }: {
   milestone: Milestone;
-  isEditing: boolean;
-  editingData: Milestone | null;
   isPending: boolean;
-  onEdit: () => void;
-  onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void;
-  onCancelEdit: () => void;
+  onSelect: () => void;
   onDelete: () => void;
   dragHandleProps?: any;
 }) {
@@ -2050,52 +2032,6 @@ function SeparatorRowAdmin({
         </div>
         <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color }} />
 
-        {isEditing ? (
-          <div className="flex-1 space-y-2">
-            <input
-              value={editingData?.title ?? ""}
-              onChange={(e) => onEditChange({ title: e.target.value })}
-              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 font-[family-name:var(--font-cinzel)] uppercase tracking-wider"
-              placeholder="Titre de section"
-              autoFocus
-            />
-            {/* Métadonnées enrichies du séparateur (Position, Lien cliquable, Description) */}
-            <RushBlockMetaEditor
-              values={parseBlockMeta(editingData?.description ?? "")}
-              onChange={(patch) => {
-                const current = parseBlockMeta(editingData?.description ?? "");
-                const updated = formatBlockMeta({ ...current, ...patch });
-                onEditChange({ description: updated });
-              }}
-              accentColor={editingData?.accentColor ?? color}
-              isSeparator={true}
-            />
-            {/* Image du séparateur : elle remplit la DROITE du bandeau (côté membre,
-                dans le guide public et dans l'overlay). Même champ que les autres blocs. */}
-            <BlockImageField
-              value={editingData?.imageUrl ?? ""}
-              onChange={(url) => onEditChange({ imageUrl: url })}
-            />
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {COLOR_PALETTE.map((c) => (
-                  <button
-                    key={c.value}
-                    onClick={() => onEditChange({ accentColor: c.value })}
-                    title={c.label}
-                    className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                    style={{ backgroundColor: c.value }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1 ml-auto">
-                <button onClick={onSave} disabled={isPending} className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
-                <button onClick={onCancelEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
             <div className="flex-1 min-w-0 py-1">
               <p className="text-caption font-black uppercase tracking-widest text-amber-400/60 mb-1">Séparateur</p>
               <p
@@ -2116,11 +2052,9 @@ function SeparatorRowAdmin({
               />
             )}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-              <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
+              <button onClick={onSelect} aria-label="Éditer ce séparateur dans l'inspecteur" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
               <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
             </div>
-          </>
-        )}
       </div>
     </div>
   );
@@ -2139,7 +2073,6 @@ function SortableMilestoneRow(props: {
   onDelete: () => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
-  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -2161,6 +2094,7 @@ function SortableMilestoneRow(props: {
  */
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
+  onApplyBlockRoute, onSelectQuest, onAddSequence,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -2168,8 +2102,23 @@ function BlockInspectorForm({
   onEditChange: (patch: Partial<Milestone>) => void;
   onSave: () => void;
   onCancelEdit: () => void;
+  /**
+   * E3a — la **route du bloc** (cité / Ordre / palier / classe) s'applique ici. Elle vivait
+   * dans la liste, sous la ligne dépliée : un formulaire au milieu d'une liste, exactement
+   * ce qu'E1 a supprimé pour les quêtes.
+   */
+  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
 }) {
   const color = milestone.accentColor || "#10b981";
+  const type = editingData?.type ?? milestone.type;
+  const isTips = type === "INFO";
+  // Le séparateur porte ses métadonnées dans `description` (position, lien, note) : on ne
+  // montre donc pas le champ « description » brut, qui les corromprait.
+  const isSeparator = type === "SEPARATEUR";
+  const sequences = milestone.sequences ?? [];
 
   return (
     <div className="space-y-2">
@@ -2192,13 +2141,25 @@ function BlockInspectorForm({
           className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
           placeholder="Nom du bloc" autoFocus
         />
-        <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
-          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
-          placeholder="Description (optionnel)"
-        />
+        {!isSeparator && (
+          <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
+            className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
+            placeholder="Description (optionnel)"
+          />
+        )}
       </div>
+
+      {/* E3a — route du bloc : même règle et même confirmation de masse que dans la liste. */}
+      {!isTips && !isSeparator && (
+        <RushRouteBlockBar
+          milestoneId={milestone.id}
+          count={sequences.length}
+          isPending={isPending}
+          onApply={onApplyBlockRoute}
+        />
+      )}
       {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
-      {(editingData?.type ?? milestone.type) === "INFO" ? (
+      {isTips ? (
         <RushBlockMetaEditor
           values={parseBlockMeta(editingData?.tips ?? "")}
           onChange={(patch) => {
@@ -2208,6 +2169,19 @@ function BlockInspectorForm({
           }}
           accentColor={editingData?.accentColor ?? color}
           isSeparator={false}
+        />
+      ) : isSeparator ? (
+        // E3a — le bandeau s'édite **ici** (titre, position, lien, note, image, couleur) :
+        // c'était le dernier formulaire inline de la liste.
+        <RushBlockMetaEditor
+          values={parseBlockMeta(editingData?.description ?? "")}
+          onChange={(patch) => {
+            const current = parseBlockMeta(editingData?.description ?? "");
+            const updated = formatBlockMeta({ ...current, ...patch });
+            onEditChange({ description: updated });
+          }}
+          accentColor={editingData?.accentColor ?? color}
+          isSeparator={true}
         />
       ) : (
         <>
@@ -2254,6 +2228,41 @@ function BlockInspectorForm({
           <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
         </div>
       </div>
+
+      {/* E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */}
+      {!isTips && !isSeparator && (
+        <div className="space-y-1.5 rounded-xl border border-border p-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Quêtes du bloc ({sequences.length})
+            </p>
+            <button
+              type="button"
+              onClick={onAddSequence}
+              className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              + Quête
+            </button>
+          </div>
+          {sequences.length === 0 ? (
+            <p className="text-caption text-muted-foreground">Aucune quête : ce bloc est vide.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {sequences.map((seq) => (
+                <li key={seq.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectQuest(seq.id)}
+                    className="w-full truncate text-left text-xs text-foreground hover:underline"
+                  >
+                    {seq.subGuideName || seq.subGuideRef}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2261,7 +2270,7 @@ function BlockInspectorForm({
 function MilestoneRow({
   milestone, isExpanded, isSelected, isPending,
   onToggle, onSelect, onSelectQuest, onAddSequence, onDelete,
-  onDeleteSequence, onReorderSequences, onApplyBlockRoute, dragHandleProps,
+  onDeleteSequence, onReorderSequences, dragHandleProps,
 }: {
   milestone: Milestone; isExpanded: boolean; isSelected: boolean; isPending: boolean;
   onToggle: () => void;
@@ -2272,7 +2281,6 @@ function MilestoneRow({
   onDelete: () => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
-  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
   dragHandleProps?: any;
 }) {
   const color = milestone.accentColor || "#10b981";
@@ -2359,12 +2367,6 @@ function MilestoneRow({
         {!isTips && isExpanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
-              <RushRouteBlockBar
-                milestoneId={milestone.id}
-                count={milestone.sequences.length}
-                isPending={isPending}
-                onApply={onApplyBlockRoute}
-              />
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
                 <SortableContext items={milestone.sequences.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   {milestone.sequences.map(seq => (

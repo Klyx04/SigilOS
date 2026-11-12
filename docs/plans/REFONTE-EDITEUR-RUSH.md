@@ -83,6 +83,13 @@
 >   montée dans une modale **1 100 px** (`max-h-90vh`, défilement interne, pied sticky
 >   conservé, repli « Revenir au panneau »), et inspecteur élargi **520–720 px** au-delà de
 >   1536 px. Verrou `rush-sequence-inspector` **14** (une seule instance, jamais deux).
+> · **E3a — livré le 12/11/2026** : la **route du bloc** (cité / Ordre / palier / classe)
+>   est montée **dans l'inspecteur** (elle vivait sous la ligne dépliée de la liste), le
+>   **séparateur** s'édite au même endroit (dernier formulaire inline de la liste supprimé,
+>   `blockBeingEdited` n'exclut plus les séparateurs) et les **quêtes du bloc** y sont
+>   listées, cliquables, avec « + Quête ». Verrou `rush-block-inspector` **9**.
+> · **E3b — à faire** : sélection multiple (route / déplacer / supprimer en masse), panneau
+>   « Problèmes » et menu « … » par ligne (jumelles, suppression).
 > · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
 >   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
 >   déplacement ne casse plus la garde.

@@ -846,16 +846,30 @@ function MonsterSearch({
           ))}
         </div>
       )}
+      {query.trim().length >= 2 &&
+        !results.some((result) => result.label.toLowerCase() === query.trim().toLowerCase()) && (
+          <button
+            type="button"
+            onClick={() => {
+              onPick({ value: query.trim(), label: query.trim(), imageUrl: null });
+              setQuery("");
+              setResults([]);
+            }}
+            className="w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Ajouter « {query.trim()} » (sans visuel)
+          </button>
+        )}
     </div>
   );
 }
 
 type DungeonResult = {
-  id: string;
+  id?: string;
   name: string;
-  bossName: string;
-  level: number;
-  imageUrl: string | null;
+  bossName?: string;
+  level?: number;
+  imageUrl?: string | null;
 };
 
 /** Recherche de donjon dans la base locale, avec l'icône réelle du donjon. */
@@ -919,6 +933,20 @@ function DungeonSearch({ onPick }: { onPick: (dungeon: DungeonResult) => void })
           ))}
         </div>
       )}
+      {query.trim().length >= 2 &&
+        !results.some((dungeon) => dungeon.name.toLowerCase() === query.trim().toLowerCase()) && (
+          <button
+            type="button"
+            onClick={() => {
+              onPick({ name: query.trim() });
+              setQuery("");
+              setResults([]);
+            }}
+            className="w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Ajouter « {query.trim()} » (sans visuel)
+          </button>
+        )}
     </div>
   );
 }

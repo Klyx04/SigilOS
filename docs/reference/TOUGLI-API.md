@@ -21,7 +21,7 @@
 |---|---|---|---|
 | `/api/guide/list` | GET | tous les guides publics | ✅ **88 Ko**, `{ data: { guides: [...] } }` |
 | `/api/guide/details/:slug` | GET | un guide complet | ✅ **1,2 Mo** (brut 2,6 Mo) pour `rsa-rush-sylvestre-accelere` |
-| `/api/guide/details-batch` | POST | plusieurs guides | non mesuré |
+| `/api/guide/details-batch` | POST | plusieurs guides + **contraintes par quête** | ✅ **530 quêtes / 1 085 contraintes** pour le RSA (12/11/2026) |
 | `/api/character/active` | GET | personnage actif (classe, serveur, alignement, ordre) | **auth requise** (non mesuré) |
 | `/api/characters` | GET | liste des personnages | **auth requise** |
 | `/api/archidex` · `/api/avisdex` | GET | bases Archimonstres / Avis de recherche | non mesuré |
@@ -72,6 +72,8 @@ Chaque `objective` = `{ id, type, payload }`, `type` ∈ :
 | `note` | `{ fr, en, es, pt }` | un encart de texte |
 | `take_quests` | `{ quests: [ids] }` | « prends ces quêtes » |
 | `choice` | `[{ condition, objectives: [...] }]` | **embranchement conditionnel** |
+| `group` | `[objectives]` | **quêtes parallèles** (2 à 6) — l'ordre interne n'a pas de sens |
+| `achievement` | **nombre** (id de succès) | prérequis de succès |
 
 ### 3.3 Le modèle d'embranchement (le point important)
 
@@ -86,9 +88,9 @@ endroits qui bifurquent, un `choice` dont chaque branche porte une **condition e
 ```
 
 La condition est résolue côté client à partir du **personnage actif** (classe, serveur,
-alignement, ordre — ce que montre le panneau « Henriette »). Les autres formes de condition
-(`Alignement=…`, `Ordre=…`) existent dans la même grammaire mais **n'ont pas été toutes
-relevées** : ne jamais les deviner, relire une réponse réelle avant de parser.
+alignement, ordre — ce que montre le panneau « Henriette »). Les formes relevées le 12/11/2026
+sont `Classe=Feca`, `Ali=Bonta|Brak|Neutre` et `Ordre=CV|OA|ES|CS|OP|EM` (6 Ordres). Ne jamais
+les deviner : relire une réponse réelle avant de parser.
 
 **Correspondance avec SigilOS** — même intention, deux écritures :
 
@@ -102,6 +104,33 @@ relevées** : ne jamais les deviner, relire une réponse réelle avant de parser
 
 SigilOS est **plus plat** (la condition est portée par la quête, pas par un nœud parent) :
 c'est ce qui permet de déplacer une quête sans casser la trame, et de filtrer en une passe.
+
+### 3.4 Contraintes par quête (`/api/guide/details-batch`)
+
+`details-batch?slugs=…` renvoie `data[slug] = { guide, quests, items, dungeons, achievements, monsters }`.
+`quests` est une **carte id DofusDB → quête** ; chaque quête porte des `objectives[]` typés.
+Mesure du 12/11/2026 sur le RSA : **530 quêtes**, **1 085 contraintes** ; le guide lui-même
+compte **383 objectifs** (35 titres, 238 quêtes, 74 `take_quests`, 16 `group`, 8 `choice`,
+2 `achievement`, 10 `note`).
+
+| Type | n | Payload | Sens |
+|---|---:|---|---|
+| `combat` | 726 | `{ combat: { type, payload[{count, monster}] }, detail }` | 5 modes (solo, groupe, tactique, soloV, groupeV) |
+| `dungeon` | 168 | donjon + boss | donjon requis |
+| `bashMobs` | 81 | `[{monster}]` | espèces à tuer (pas une quantité) |
+| `needPlayer` | 38 | **texte libre** | effectif / rôles / dalles |
+| `job` | 37 | `{ job: { id, name, iconId }, detail }` | métier **structuré**, niveau en texte |
+| `url` | 9 | `{ url, text }` | outil externe |
+| `hours` | 7 | **texte** | 4 fenêtres + 3 attentes |
+| `dungeonChoice` | 7 | `{ dungeons[], note }` | donjon au choix selon le niveau |
+| `note` | 4 | i18n | condition libre |
+| `songe` | 3 | texte | palier de Rêve |
+| `spell` | 3 | texte | sort requis |
+| `achievement` | 2 | succès | prérequis |
+
+⚠️ `needPlayer` n'est **pas normalisable** (« 3 x Alchimiste >80 + 3 x Paysan >40 »,
+« 12 classes ou 120 000 kamas ») : l'afficher en texte, jamais comme règle de blocage.
+`hours` mélange **fenêtres** (« entre 20h00 et 08h00 ») et **attentes** (« attendre 3 minutes »).
 
 ## 4. Règles d'usage dans SigilOS
 

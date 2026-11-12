@@ -200,6 +200,15 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 **Interdit** : déduire les opérateurs ET/OU d'un texte libre. Ce qui n'est pas structuré reste **texte**.
 
+**V1 livrée le 12/11/2026 — affichage, aucune migration** : les lignes `Joueurs : …`, `Métier : …`,
+`Horaire : …`, `Sort : …`, `Note : …` déjà écrites dans `GuideSequence.tips` par
+`correlate-rush-notes.ts` sont relues par `parseRushConstraints` (`src/lib/rush-constraints.ts`)
+et rendues avec de **vrais assets Dofus** dans le dashboard, le guide public et l'overlay
+(`RushQuestConstraints`), avec aperçu dans le studio God. Le texte reste la vérité : seuls
+l'effectif simple, la fenêtre/attente et les métiers reconnus sont structurés ; le reste s'affiche
+tel quel. Verrou `rush-constraints` **18**. Restent S2-3→S2-5 et les champs structurés en base
+**si demandé** (migration).
+
 ## 5. Bloc S3 — La trame (chronologie Dofusyelle)
 
 | Lot | Contenu | Source |

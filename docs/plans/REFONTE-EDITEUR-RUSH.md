@@ -53,7 +53,7 @@
 ## 3. Lots E1 → E5
 
 > ⚠️ **Trois « E4 » coexistent dans la doc** : ① ici, **E4 = DA God du studio** (ci-dessous) ;
-> ② la **passation E4 de la DA Wakfu** (rang 58, `docs/ROADMAP.md`) ; ③ l'**étape E4 du lot T-3**
+> ② la **passation E4 de la DA Wakfu** (rang 62, `docs/ROADMAP.md`) ; ③ l'**étape E4 du lot T-3**
 > (suppression d'un bloc par `Dialog` Radix, PR #857, `PLAN-REFONTE-RUSH-SYLVESTRE.md`). Toujours
 > qualifier : « E4 studio », « E4 DA Wakfu », « étape E4 ».
 

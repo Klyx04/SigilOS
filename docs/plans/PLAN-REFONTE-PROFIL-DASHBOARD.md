@@ -6,7 +6,7 @@ description: Profil dashboard — audit mesuré (couleurs de palette, rayons, ma
 
 > **Rôle unique.** Ce fichier porte le **quoi** et les **décisions** de la refonte de l'écran
 > `Mon Profil` (`/dashboard/<guildId>/profile`). Il ne duplique pas l'ordre d'exécution
-> (rang **59** de `docs/ROADMAP.md`) ni les règles générales d'UI (`docs/RULES.md` § UI).
+> (rang **63** de `docs/ROADMAP.md`) ni les règles générales d'UI (`docs/RULES.md` § UI).
 >
 > **Dernière MAJ : 08/11/2026** — **P1** (cliquet), **P2** (accent), **P2-bis** (trois cartes),
 > **P3** (6 onglets) et **P4** (en-tête) livrés.

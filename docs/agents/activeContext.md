@@ -5,6 +5,17 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête en infos (joueurs / métier / horaire)** — branche `feat/rush-conditions`
+
+> **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
+> **Fait — lot 1 (`33fe4e88`)** : parseur pur `src/lib/rush-constraints.ts` — les lignes `Joueurs : …`, `Métier : …`, `Horaire : …`, `Sort : …`, `Note : …` déjà écrites dans `GuideSequence.tips` sont séparées des conseils libres ; extraction fiable de l'effectif simple, de la fenêtre/attente et des métiers reconnus, le texte restant la vérité. **Aucune migration** (les infos sont déjà en base), **aucune règle de blocage**. 18 tests, dont un contrôle que chaque métier pointe vers un asset Dofus réel.
+> **Fait — lot 2 (`40edba6c`)** : `RushQuestConstraints` rend les infos avec de vrais assets (`party`, `pin-clock`, `jobs/*.png`, `parchment`, `info`) dans le **dashboard**, le **guide public** et l'**overlay** ; `RushTipLines` sort dans son fichier (fin du cycle avec `RushRichText`) et l'aperçu du studio God montre le rendu membre. Les lignes non reconnues gardent les puces historiques.
+> **Preuves** : `rush-constraints` **18** · `rush-rich-text` 19 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-god-studio-robustesse` 26 · `rush-overlay-non-checkable-blocks` 15 · **180 tests ciblés ✓** · `tsc` 0 · ESLint 0 erreur (hook pre-commit) · **aucune migration**.
+> **Reste** : S2-3→S2-5 (donjon au choix, `bashMobs`, `combat`) et champs structurés heures/effectif **si demandé** (migration) ; l'éditeur dédié n'est pas créé — le texte se saisit dans « Conseils » et l'aperçu montre le rendu.
+> **Doc** : `TOUGLI-API.md` (types `group` 16 / `achievement` 2, `details-batch` 530 quêtes / 1 085 contraintes) · `ROADMAP` rang **64** + index 58/59→**62/63** + op `routeVariants` · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V1).
+> **Rotation** : bloc « 12/11/2026 — E2b + E2c + E2d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 5) — **Rang 59 · Une seule quête, deux textes (lot 4, `routeVariants`)** — branche `feat/rush-route-variants`
 
 > **Décision user (verbatim)** : « Une quête avec deux textes (je fais la modification de la base) » — lot 4 de l'amorce, après avoir écarté « deux quêtes Jumelle » (déjà en place, mais deux lignes à cocher et une progression comptée deux fois).
@@ -54,36 +65,3 @@
 > **Preuves** : verrou neuf `rush-block-numbering` **5** (les deux guides et l'overlay sur la même règle, absence des deux anciens calculs) · `rush-guide-utils` **+4** (table, bandeaux absents, rang identique à `rushChapterPosition`, guide vide) · suite **664 fichiers / 7 110 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
 > **Reste** : contrôle visuel 390/768/1024/1440 (un guide avec séparateurs : la suite des numéros ne doit plus sauter) ; puis **2** (deux contrôles « Problèmes ») → **3** (reset auto) → **13** (flaky), selon l'amorce.
 > **Rotation** : bloc « 10/11/2026 (suite 3) — V-H corrigé par la mesure » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-## 📝 Session 12/11/2026 — **Rang 59 · E2b + E2c + E2d : cockpit Branches, écrans plats, inspecteur en 3 groupes et modale large** — branche `feat/studio-e2`
-
-> **Demande user (verbatim)** : « j'ai vraiment du mal avec …/rush-sylvestre … j'ai besoin d'avoir un visuel où mon cerveau va capter direct et où je vais être efficace pour ajouter des quêtes, faire des modifs à la volée » · « l'onglet branche : c'est juste une lecture ? » · « l'onglet lancement … devrait prendre toute la page aussi ; l'onglet config aussi non ? » · « go pour la soluce 1 » (E2a → E2c → E2b).
-> **Mesures** : ① le panneau Branches ne recevait que `view`, `classView` et `milestones` — **aucun callback** : lecture seule par design (`RushEditorStudio.tsx:5249`), donc **aucun geste** possible ; ② **Lancement** et **Config** étaient plafonnés à `max-w-xl` (**576 px**) → deux tiers de page vide ; ③ le monolithe faisait **5 472 lignes** (`SequenceEditForm` 1 606 l. à lui seul).
-> **Fait** : `panels/RushBranchesCockpit.tsx` — 6 Ordres × 5 paliers + **19 classes cliquables** : un emplacement **rempli** ouvre la quête dans l'inspecteur (`selectQuest`), un emplacement **vide** ouvre la création **pré-remplie** (cité + Ordre + palier + classe) par `AddSequenceForm.defaultRoute`, et le bandeau **Problèmes** (orphelins, sans palier, classe inconnue, conflit cité/classe) est cliquable ; `panels/RushRoutePreview.tsx` et `fields/RushClassSelect.tsx` sortis du studio ; **Lancement** et **Config** en 2 colonnes pleine largeur (aperçu **membre réel** du pense-bête, effet de chaque interrupteur, état du guide). Studio **5 472 → 5 264 lignes**, dette DA **644 → 594**.
-> **Fait (E2b)** : inspecteur quête en **3 groupes** (`src/lib/rush-editor-sections.ts` + `fields/SectionGroupHeader.tsx`) — Essentiel (identité, **route**, conseils), Contenu (destination, prérequis, ressources, liens), Avancé (alignement, options) — les **9** accordéons numérotés 1→9 (dont **deux « 8 »**) disparaissent au profit des groupes ; **pied sticky** (Enregistrer / Annuler + « ● Non enregistré ») ; **« Déplacer vers » remonté en tête** ; scission derrière un menu « … » avec sa confirmation en tête. Studio **5 297 lignes**, dette DA **594 → 577**.
-> **Fait (E3a)** : la **route du bloc** (cité / Ordre / palier / classe) est montée **dans l'inspecteur** — elle vivait sous la ligne dépliée de la liste ; le **séparateur** s'édite au même endroit (`blockBeingEdited` n'exclut plus les séparateurs, le dernier formulaire inline de la liste disparaît) ; les **quêtes du bloc** y sont listées, cliquables, avec « + Quête ». Verrou `rush-block-inspector` **9**.
-> **Fait (E3b)** : onglet **« Problèmes »** — règle pure `src/lib/rush-editor-problems.ts` (bloc vide, quête sans conseil, sans lien DofusDB, sans ressource, quête d'Ordre sans palier), chaque ligne **ouvre** la quête ou le bloc, **pastille de compte** dans la barre ; **menu « … »** par ligne de quête (jumelle, 3 Ordres, suppression) au lieu de boutons déguisés en badges. Verrou `rush-editor-problems` **11**.
-> **Corrigé + E2b-suite (1/2), 12/11/2026** : ① dans « Problèmes », `selectQuest` **ne quittait pas l'onglet** — aucun clic ne semblait fonctionner ; il bascule maintenant sur **Contenu**. ② « + 324 autres » était mort : la règle coupait à **12** cibles ; elle rend désormais **toutes** les cibles et le panneau **pagine** (12 puis 50 par clic). ③ le formulaire de quête **masque les 7 sections vides** (`hidden`, pas de démontage) avec un bouton **« Tout afficher »** ; l'identité et les options avancées ne sont jamais masquées.
-> **Vocabulaire unifié, 12/11/2026** (retour user : « je comprends rien, l'overlay dit 54, le guide 5, God autre chose ») : le mot « **étapes** » comptait des **quêtes** dans l'overlay, le dashboard et le guide public, et des **blocs** dans `OptimizedGuideClient` — trois chiffres incomparables pour le même guide. Désormais : **quête** (ligne cochable) · **bloc** (regroupement du guide) · **chapitre** (regroupement de blocs, la pagination 1/5). Verrou `rush-vocabulary` **3**.
-> **Preuves** : `rush-branches-cockpit` **8** (neuf, dont un **rendu réel** `renderToStaticMarkup`) · `rush-sequence-inspector` **14** (neuf) · `rush-block-inspector` **9** (neuf) · `rush-editor-problems` **11** (neuf : les 5 familles, le comptage, les 12 cibles max, le câblage de l'onglet) · `rush-route` **+3** (`alignmentSetContradictsCamp`) · `rush-public-parity` **+3** (route publique à 3 étages) · `rush-route-tooling` repointé sur le **dossier** · `rush-editor-shell` : les **4** fichiers neufs sont aux tokens · suite **662 fichiers / 7 092 tests ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (cockpit, création pré-remplie, Lancement/Config, 3 groupes + pied sticky) ; **E2b-suite** (sections vides masquées avec « tout afficher », brouillon local par quête) puis **E2d-suite** (aperçu « guide 100 % » + overlay : exige une route d'aperçu God, le studio n'a **aucun `guildId`**) ; E3 → E4 → E5.
-> **Corrigé le 12/11/2026 (hors E2)** : le guide public passait **seulement la cité** à `resolveRushRoute` — un visiteur voyait **15** quêtes d'Ordre (3 × 5) au lieu de 5 et **19** variantes de classe au lieu d'une. Il passe désormais les **trois** étages (`camp`/`order`/`playerClass`), avec l'ordre du profil visiteur et la classe du **personnage sélectionné** (mule comprise) ; verrou étendu dans `rush-public-parity`.
-> **Rotation** : bloc « 10/11/2026 (suite 2) — V-H donjons ocre » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

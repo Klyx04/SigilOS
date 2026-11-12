@@ -12,7 +12,6 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
-import { resetAlignmentQuests, resetOrderQuests } from "@/server/rush-alignment";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
@@ -4669,80 +4668,6 @@ export async function duplicateRushSequenceAsTwin(sequenceId: string) {
   return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
 }
 
-/**
- * **Logique jeu** : changer de cité réinitialise les quêtes d'alignement.
- *
- * Appelée par le sélecteur d'alignement (dashboard et overlay) AVANT l'écriture du
- * nouveau camp. La graine est **toute la branche `alignReq` de l'ancienne cité** (cité +
- * ses Ordres), avec sa cascade de dépendants (L1). Les quêtes communes, donjons et succès
- * indépendants **gardent** leur avancement.
- */
-export async function resetAlignmentProgress(guildId: string, altPseudo?: string) {
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
-  if (!ctx.profileId) throw new Error("Profile ID manquant");
-
-  const { success: rateOk } = await rateLimit(`guide-alignment-reset:${ctx.profileId}`, 10, 60_000);
-  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
-
-  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
-
-  // La cité quittée est encore celle du profil : le sélecteur n'écrit le nouveau camp
-  // qu'APRÈS ce reset (`AlignmentChoiceForm`). On la lit ici, pas dans le client.
-  const profile = await db.userProfile.findUnique({
-    where: { id: profileId },
-    select: { alignment: true, altPseudos: true },
-  });
-  if (!profile) return { success: false as const, error: "Profil introuvable" };
-  const oldCamp =
-    characterSlot === "PRINCIPAL"
-      ? profile.alignment
-      : ((Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [])
-          .find((m: any) => m.pseudo === characterSlot)?.alignment ?? null);
-
-  const cleared = await resetAlignmentQuests(profileId, characterSlot, oldCamp);
-  return { success: true as const, data: { cleared } };
-}
-
-/**
- * **Logique jeu (L2)** : changer d'**Ordre** décoche les 5 quêtes de l'ancien Ordre.
- *
- * Appelée par le sélecteur d'alignement AVANT l'écriture du nouvel Ordre. La cité et
- * l'Ordre quittés sont relus **en base** (jamais depuis le client) ; la progression de
- * cité, les quêtes communes, les donjons et les succès gardent leur avancement.
- *
- * Fail-closed : sans Ordre mémorisé sur le personnage, `cleared` vaut `0` — rien n'est
- * décoché au hasard.
- */
-export async function resetRushOrderProgress(guildId: string, altPseudo?: string) {
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
-  if (!ctx.profileId) throw new Error("Profile ID manquant");
-
-  const { success: rateOk } = await rateLimit(`guide-order-reset:${ctx.profileId}`, 10, 60_000);
-  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
-
-  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
-
-  const profile = await db.userProfile.findUnique({
-    where: { id: profileId },
-    select: { alignment: true, alignmentOrder: true, altPseudos: true },
-  });
-  if (!profile) return { success: false as const, error: "Profil introuvable" };
-
-  const mule =
-    characterSlot === "PRINCIPAL"
-      ? null
-      : (Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [])
-          .find((m: any) => m?.pseudo === characterSlot) ?? null;
-  const oldCamp = characterSlot === "PRINCIPAL" ? profile.alignment : mule?.alignment ?? null;
-  const oldOrder = characterSlot === "PRINCIPAL" ? profile.alignmentOrder : mule?.alignmentOrder ?? null;
-
-  if (!oldOrder) return { success: true as const, data: { cleared: 0 } };
-
-  const cleared = await resetOrderQuests(profileId, characterSlot, oldCamp, oldOrder);
-  return { success: true as const, data: { cleared } };
-}
 
 /**
  * **Lot 4 bis — jumelle d'ORDRE.** Crée les **2 autres Ordres** de la même cité, au

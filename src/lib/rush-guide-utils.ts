@@ -823,6 +823,38 @@ export function alignmentResetSeeds(
 }
 
 /**
+ * **Décision** du reset quand l'alignement d'un personnage change — sans toucher à la base.
+ *
+ * Règle de jeu : un changement de **cité** remet à zéro toute la branche quittée (cité +
+ * ses Ordres + dépendants) ; un changement d'**Ordre** seul ne décoche que les 5 quêtes de
+ * l'ancien Ordre. Un envoi **identique** ne décoche rien — c'est ce qui permet à
+ * l'onboarding ou à une fiche de réenregistrer le profil sans perdre de progression
+ * (mesure du 12/11/2026 : `updateUserProfile` acceptait `alignment` sans aucun reset).
+ *
+ * @returns `"camp"` pour un reset de cité, `"order"` pour un reset d'Ordre, `null` sinon.
+ */
+export function alignmentChangeReset(input: {
+  current: { alignment?: string | null; alignmentOrder?: string | null };
+  next: { alignment?: string | null; alignmentOrder?: string | null };
+}): "camp" | "order" | null {
+  const currentCamp = normalizeAlignmentCamp(input.current.alignment) ?? "neutre";
+  const nextCamp =
+    input.next.alignment === undefined
+      ? currentCamp
+      : normalizeAlignmentCamp(input.next.alignment) ?? "neutre";
+  if (nextCamp !== currentCamp) return "camp";
+
+  const currentOrder = (input.current.alignmentOrder ?? "").trim() || null;
+  const nextOrder =
+    input.next.alignmentOrder === undefined
+      ? currentOrder
+      : (input.next.alignmentOrder ?? "").trim() || null;
+  // Sans Ordre quitté, il n'y a rien à décocher : fail-closed, on ne devine pas.
+  if (currentOrder && nextOrder !== currentOrder) return "order";
+  return null;
+}
+
+/**
  * **Graines du reset de changement d'ORDRE** (L2) — les 5 quêtes de l'Ordre quitté.
  *
  * Règle de jeu (`ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` § 8.2) : changer d'Ordre

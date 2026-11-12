@@ -158,8 +158,13 @@ describe("câblage — studio, serveur, reset", () => {
   });
 
   it("le reset transmet la cité quittée, lue côté serveur", () => {
-    expect(ACTIONS).toContain("resetAlignmentQuests(profileId, characterSlot, oldCamp)");
-    expect(ACTIONS).toContain("profile.alignment");
+    // Le reset a quitté l'action dédiée (supprimée) pour vivre dans l'action qui écrit
+    // l'alignement : `updateUserProfile` / `updateMuleAlignment` → `resetProgressOnAlignmentChange`.
+    const SERVER_ALIGN = codeOf("src/server/rush-alignment.ts");
+    const PROFILE = codeOf("src/server/actions/profile-actions.ts");
+    expect(SERVER_ALIGN).toContain("resetAlignmentQuests(input.profileId, input.characterSlot, input.current.alignment ?? null)");
+    expect(PROFILE).toContain("profileId: currentProfile.id");
+    expect(PROFILE).toContain("current: { alignment: currentProfile.alignment, alignmentOrder: currentProfile.alignmentOrder }");
   });
 
   it("le reset serveur cible les `alignReq` du guide Rush", () => {

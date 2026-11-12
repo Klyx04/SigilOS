@@ -62,29 +62,10 @@ export function AlignmentChoiceForm({
     setSaving(true);
     setMessage(null);
     try {
-      // Logique jeu : changer de CITÉ réinitialise les quêtes d'alignement.
-      // Les autres quêtes (communes, prérequis, donjons) gardent leur avancement.
-      const campChanged = (camp ?? "neutre") !== (alignment ?? "neutre");
-      // Et changer d'ORDRE (L2) décoche les 5 quêtes de l'ancien Ordre : le nouvel Ordre
-      // repart de son rang 1, la progression de cité n'est pas touchée. Si la cité change
-      // aussi, le reset de cité a déjà effacé la branche d'Ordre — un seul reset suffit.
-      const orderChanged = !campChanged && (order ?? null) !== (alignmentOrder ?? null);
-      if (campChanged) {
-        const { resetAlignmentProgress } = await import("@/server/actions/optimized-guide-actions");
-        const reset = await resetAlignmentProgress(guildId, mulePseudo ?? undefined);
-        if (!reset.success) {
-          setMessage(reset.error || "Réinitialisation impossible");
-          return;
-        }
-      } else if (orderChanged && alignmentOrder) {
-        const { resetRushOrderProgress } = await import("@/server/actions/optimized-guide-actions");
-        const reset = await resetRushOrderProgress(guildId, mulePseudo ?? undefined);
-        if (!reset.success) {
-          setMessage(reset.error || "Réinitialisation impossible");
-          return;
-        }
-      }
-
+      // Logique jeu : le reset de progression (ancienne cité ou ancien Ordre) vit dans
+      // l'ACTION qui enregistre l'alignement (`updateUserProfile` / `updateMuleAlignment`) :
+      // tous les chemins en bénéficient — onboarding, fiche profil, sélecteur. Ici, on ne
+      // fait qu'annoncer ce qui a été décoché (décision du 12/11/2026).
       const payload = {
         alignment: camp ?? "neutre",
         alignmentOrder: camp ? (order ?? null) : null,
@@ -93,7 +74,12 @@ export function AlignmentChoiceForm({
         ? await updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload })
         : await updateUserProfile({ guildId, ...payload });
       if (res.success) {
-        toast.success("Alignement mis à jour");
+        const cleared = res.data?.cleared ?? 0;
+        toast.success(
+          cleared > 0
+            ? `Alignement mis à jour — ${cleared} quête${cleared > 1 ? "s" : ""} de l'ancien camp décochée${cleared > 1 ? "s" : ""}`
+            : "Alignement mis à jour"
+        );
         router.refresh();
         onSaved?.();
       } else {

@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 12/11/2026 (suite 4) — **Rang 59 · Reset automatique au changement de cité/Ordre (lot 3)** — branche `feat/rush-reset-auto`
+
+> **Demande user (verbatim)** : « fais 3-4 » — lot 3 de l'amorce : « Reset de progression au changement de cité/Ordre = **OUI**, automatique, sur le personnage sélectionné (mule comprise), avec annonce de ce qui a été décoché ».
+> **Mesure** : le reset existait (`resetAlignmentQuests` / `resetOrderQuests`) mais vivait dans le **formulaire** `AlignmentChoiceForm` ; `updateUserProfile` et `updateMuleAlignment` acceptaient `alignment` / `alignmentOrder` et écrivaient **sans aucun reset** — l'onboarding et les fiches profil pouvaient changer de camp en laissant les coches de l'ancien. Et le `cleared` calculé était **jeté** : le joueur lisait « Alignement mis à jour » sans savoir ce qui avait été décoché.
+> **Fait** : règle pure `alignmentChangeReset` (cité prioritaire, sinon Ordre, sinon rien ; fail-closed sans Ordre quitté) ; helper serveur `resetProgressOnAlignmentChange` (`src/server/rush-alignment.ts`) appelé **avant l'écriture** par `updateUserProfile` (principal) et `updateMuleAlignment` (mule, `characterSlot = pseudo`) ; les deux actions renvoient `{ cleared }` et le formulaire **annonce** « X quêtes de l'ancien camp décochées » ; les actions manuelles `resetAlignmentProgress` / `resetRushOrderProgress` sont **supprimées** (une seule source).
+> **Preuves** : `rush-alignment-auto-reset` **12** (neuf) · `rush-alignment-source` **15** · `rush-order-reset` **8** · `rush-alignment-tranche` **8** · suite **665 fichiers / 7 138 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : lot **4** (variante de texte par camp) — **bloqué** par le choix `routeVariants` (migration) vs quêtes « Jumelle ». Le reset précède l'écriture : si l'upsert échoue juste après, la progression reste décochée (comportement identique à l'ancien formulaire ; à durcir par une transaction si demandé).
+> **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 3) — **Rang 59 · Navigation par bloc dans les deux guides** — branche `feat/rush-nav-blocs`
 
 > **Demande user (verbatim)** : « je veux que dans les guides navigateurs on ait tous ces fameux blocs là comme dans l'overlay » · « supprime le "tout" pour ne conserver que le mode paginé c plus performant non ? ».
@@ -63,14 +73,7 @@
 > **Rotation** : bloc « 10/11/2026 (suite) — Rang 57 · F17b » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 11/11/2026 (suite 2) — **Chantier 3/5 · Rush Live visiteurs** — branche `feat/visiteurs-communaute`
 
-> **Décision user (verbatim)** : « Pas de migration (recommandé) : `showPresence` reste `false` par défaut ; la tuile Rush Live propose « Afficher ma présence » en un clic. » Le brief initial disait « activé par défaut + reprise » : le verrou `public-profile-schema` exige l'inverse, la décision le laisse intact.
-> **Mesures préalables** : ① `showPresence` existe et s'écrit déjà (`updatePublicSettings`), `@default(false)`, verrouillé par `tests/unit/public-profile-schema.test.ts` ; ② **aucun** flux temps réel public (l'interne est socket.io, guild-scopé) ; ③ `savePublicRushProgress` est le **seul** miroir de `completedMilestones` (débounce 2 s, 60/min) — c'est là qu'un événement peut naître sans mentir ; ④ **aucun** Web Push dans le dépôt (`sw.js` = cache PWA) : « notifications navigateur » = toasts in-app ; ⑤ la PiP du guide porte déjà `OverlayToastProvider` et son Toaster.
-> **Fait** : `src/lib/public-rush-live.ts` (règles pures + Zod : room `public:rush:live:<serveur>`, événement `{id, kind, milestoneId, title, pseudo}`, bornes 10/100/20/50, diff anti-rejeu) ; `src/server/public-rush-live.ts` (publication **après** l'upsert, titre résolu en base et borné au guide Rush, présence ZSET+hash TTL 45 s, `redis.status !== "ready"` pour ne jamais pendre) ; route SSE `src/app/api/visiteurs/rush-live/route.ts` (`getPublicAccount`, serveur **du profil**, 401/429, curseur = dernier événement, durée 3 min, nettoyage de présence) ; hook `usePublicRushLive` (curseur par **id**, pas par longueur) ; tuile Rush Live **réelle** (N en ligne / personne en ligne / connexion… / présence indisponible) + `PublicRushLiveModal` (liste par classe, bouton **Afficher/Masquer ma présence**) ; `PublicRushLiveToast` (DA de l'overlay, 3 s, 2 max, porté **dans la PiP** quand elle est ouverte) ; action `updatePublicPresence` (garde, Zod booléen, rate limit 10/min, `where: { userId }`).
-> **Preuves** : `public-rush-live` **23** (neuf) · `public-guide-visitor` **10** (DTO étendu de `showPresence`, le consentement du visiteur lui-même) · `rush-public-parity` **45** (tuile honnête réécrite) · suite **655 fichiers / 6 999 tests ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**, aucun texte libre, aucune clé Metamob.
-> **Reste** : contrôle visuel 390/768/1024/1440 (tuile, modale, toast page **et** PiP, deux comptes du même serveur) ; chantier 4 (F1→F7), puis studio E2. Aucune opération serveur : ni migration, ni variable d'environnement.
-> **Rotation** : bloc « 10/11/2026 — Souveraineté S1b + S2 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

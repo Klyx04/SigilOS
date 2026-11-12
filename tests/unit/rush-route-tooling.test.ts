@@ -165,7 +165,7 @@ describe("non-régression des gardes existantes du studio", () => {
     expect(ADMIN).toContain("Cité (route)");
     expect(ADMIN).toContain("Ordre (quêtes d'Ordre)");
     expect(ADMIN).toContain("[20, 40, 60, 80, 100].map");
-    expect(ADMIN).toContain("7. 🧭 Route (cité / Ordre / palier / classe)");
+    expect(ADMIN).toContain("🧭 Route (cité / Ordre / palier / classe)");
   });
 });
 

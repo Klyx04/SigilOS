@@ -72,8 +72,12 @@
 >   **Lancement** et **Config** en pleine largeur (2 colonnes, aperçu **membre réel**),
 >   `RushClassSelect` + `RushRoutePreview` sortis du monolithe ; verrou
 >   `rush-branches-cockpit` **8** (dont un rendu réel).
-> · **E2b — à faire** : l'inspecteur quête (3 groupes, sections vides masquées, pied sticky,
->   brouillon local, « Déplacer vers » en tête, jumelles/suppression dans un menu « … »).
+> · **E2b — livré le 12/11/2026** : inspecteur quête en **3 groupes** (Essentiel = identité,
+>   **route**, conseils · Contenu = destination, prérequis, ressources, liens · Avancé =
+>   alignement, options), **pied sticky**, « Déplacer vers » **en tête**, scission derrière un
+>   menu « … ». Règle pure `src/lib/rush-editor-sections.ts` ; verrou `rush-sequence-inspector`
+>   **10** (compare l'ordre monté à la règle). **Reste de E2b** : sections vides masquées
+>   (avec « tout afficher ») et brouillon local par quête.
 > · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
 >   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
 >   déplacement ne casse plus la garde.

@@ -34,6 +34,8 @@ const STUDIO = codeOf(`${EDITOR_DIR}/RushEditorStudio.tsx`);
 const CLASS_SELECT = codeOf(`${EDITOR_DIR}/fields/RushClassSelect.tsx`);
 const ROUTE_PREVIEW = codeOf(`${EDITOR_DIR}/panels/RushRoutePreview.tsx`);
 const BRANCHES_COCKPIT = codeOf(`${EDITOR_DIR}/panels/RushBranchesCockpit.tsx`);
+/** E2b — l'en-tête des trois groupes de l'inspecteur quête. */
+const SECTION_GROUP = codeOf(`${EDITOR_DIR}/fields/SectionGroupHeader.tsx`);
 const APP_SHELL = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
 
 /** Bloc source : du marqueur `start` au marqueur `end`. */
@@ -168,6 +170,7 @@ describe("E1 — DA des fichiers neufs et dette restante", () => {
       ["fields/RushClassSelect.tsx", CLASS_SELECT],
       ["panels/RushRoutePreview.tsx", ROUTE_PREVIEW],
       ["panels/RushBranchesCockpit.tsx", BRANCHES_COCKPIT],
+      ["fields/SectionGroupHeader.tsx", SECTION_GROUP],
     ] as const) {
       expect(code, `${name} contient un motif UI interdit`).not.toMatch(FORBIDDEN);
     }

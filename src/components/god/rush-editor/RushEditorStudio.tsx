@@ -82,6 +82,7 @@ import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/
 import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
 import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
 import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
+import { SectionGroupHeader } from "@/components/god/rush-editor/fields/SectionGroupHeader";
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import {
   findRushEditorBlock,
@@ -3744,6 +3745,95 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         </button>
       </div>
 
+      {/*
+        E2b (12/11/2026) — les gestes de la quête sont **en tête**. Mesure : « Déplacer vers »
+        et « Scinder » vivaient après les 9 accordéons, donc à ~1 600 lignes de défilement ;
+        la scission est maintenant dans un menu « … » et sa confirmation s'affiche ici.
+      */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2">
+        {seq.id && milestones && milestones.length > 1 && (
+          <label className="flex min-w-0 flex-1 items-center gap-2">
+            <Layers className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="shrink-0 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Déplacer vers
+            </span>
+            <select
+              value=""
+              aria-label="Déplacer la quête vers un autre bloc"
+              onChange={e => {
+                const targetId = e.target.value;
+                if (targetId && targetId !== milestoneId && seq.id) {
+                  onMove(seq.id, targetId);
+                  onCancel();
+                }
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-elevated px-2 py-1 text-caption text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <option value="">— Choisir un bloc —</option>
+              {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+          <details className="relative ml-auto">
+            <summary
+              aria-label="Autres actions de la quête"
+              className="list-none cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-1 text-caption font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              …
+            </summary>
+            <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border border-border bg-surface p-1 shadow-lg">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setSplitConfirm(true)}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-caption text-foreground transition-colors hover:bg-elevated disabled:opacity-40"
+              >
+                <Scissors className="h-3 w-3" aria-hidden />
+                Scinder en {seq.questDbIds.length} quêtes individuelles
+              </button>
+            </div>
+          </details>
+        )}
+      </div>
+
+      {splitConfirm && seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5">
+          <div className="flex items-start gap-2">
+            <Scissors className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning">
+                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
+              </p>
+              <p className="text-caption text-muted-foreground">
+                La scinder crée une quête par ligne, à la même place, avec la même route.
+                La progression de l&apos;étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { onSplit(seq.id!); onCancel(); }}
+              className="rounded-lg bg-warning px-3 py-1.5 text-caption font-semibold text-warning-foreground disabled:opacity-40"
+            >
+              Confirmer la scission ({seq.questDbIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitConfirm(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Aperçu live — la ligne de quête et la fiche du MEMBRE, jamais une vignette maison (`E5`) */}
       {showPreview && (
         <MemberPreviewFrame label="Aperçu joueur — temps réel">
@@ -3781,6 +3871,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         />
       )}
 
+      {/* E2b - groupe 1/3 : Essentiel (identite, route, conseils) */}
+      <SectionGroupHeader group="essentiel" />
       {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40">
         <button
@@ -3789,7 +3881,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-zinc-400">
-            1. Identité de la quête *
+            Identité de la quête *
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
         </button>
@@ -3841,6 +3933,151 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
+      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("route")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
+            🧭 Route (cité / Ordre / palier / classe)
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.route && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucune (commune) —</option>
+                  <option value="bontarien">Bontarien</option>
+                  <option value="brakmarien">Brakmarien</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                  disabled={!alignReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">— Aucun —</option>
+                  {orderCodesForCamp(alignReq).map(o => (
+                    <option key={o.code} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucun —</option>
+                  {[20, 40, 60, 80, 100].map(n => (
+                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <RushClassSelect
+                  id="rush-seq-class"
+                  value={classReq}
+                  onChange={setClassReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-caption text-zinc-500">
+              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
+              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Conseils & Style Tougli ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("hints")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+            8. 💡 Conseils, Notes & Style Tougli
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.hints && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const x = prompt("Position X :");
+                    if (!x) return;
+                    const y = prompt("Position Y :");
+                    if (!y) return;
+                    const pos = `/travel ${x},${y}`;
+                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
+                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
+                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
+                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+                  }}
+                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
+                </button>
+              </div>
+              <TipsLinesEditor
+                value={tips}
+                onChange={setTips}
+                placeholder="Conseil affiché côté membre…"
+              />
+            </div>
+
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
+              <input
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                placeholder="ex: Ne pas cliquer le portail !"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
+                  Mini bloc Tougli
+                </label>
+                <button
+                  type="button"
+                  onClick={handleInsertLink}
+                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  🔗 Insérer un lien
+                </button>
+              </div>
+              <textarea
+                value={tougliText}
+                onChange={e => handleTougliTextChange(e.target.value)}
+                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
+                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* E2b - groupe 2/3 : Contenu (destination, prerequis, ressources, liens) */}
+      <SectionGroupHeader group="contenu" />
       {/* ── Section 2 : Destination & Coordonnées (Ouvert par défaut) ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
         <button
@@ -3849,7 +4086,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-emerald-400/90">
-            2. 📍 Destination & Coordonnées GPS
+            📍 Destination & Coordonnées GPS
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.location ? "rotate-180" : ""}`} />
         </button>
@@ -4083,7 +4320,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
-            3. 🔒 Prérequis ({prereqs.length}) & Dofus associé
+            🔒 Prérequis ({prereqs.length}) & Dofus associé
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
         </button>
@@ -4154,126 +4391,6 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     <option key={d.id} value={d.id}>{d.label}</option>
                   ))}
                 </select>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Section 4 : Activités & Tags ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
-        <button
-          type="button"
-          onClick={() => toggleSection("activities")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
-        >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
-            4. 🎯 Alignement & Métier requis
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
-        </button>
-        {openSections.activities && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="alignSetToggle"
-                  checked={!!alignmentSet}
-                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
-                />
-                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
-                  ⚔️ Quête d'alignement
-                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
-                </label>
-              </div>
-              {alignmentSet && (
-                <div className="flex flex-wrap items-center gap-2 pl-6">
-                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
-                  <button
-                    type="button"
-                    onClick={() => handleAlignmentCampChange("bontarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      alignmentSet.camp === "bontarien"
-                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAlignmentCampChange("brakmarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      alignmentSet.camp === "brakmarien"
-                        ? "bg-red-500/20 border-red-500/50 text-red-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
-                  </button>
-                  <div className="flex items-center gap-1.5 ml-2">
-                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={alignmentSet.level}
-                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
-                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
-                    />
-                  </div>
-                  <span className="ml-auto text-caption text-indigo-300/60 italic">
-                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
-                  </span>
-                </div>
-              )}
-
-              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="metierToggle"
-                    checked={!!metierTag}
-                    onChange={e => handleMetierToggle(e.target.checked)}
-                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                  />
-                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
-                    🔨 Métier requis
-                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
-                  </label>
-                </div>
-                {metierTag && (
-                  <div className="flex flex-wrap items-center gap-2 pl-6">
-                    <select
-                      value={metierTag.name}
-                      onChange={e => handleMetierJobChange(e.target.value)}
-                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
-                    >
-                      <option value="">— Choisir un métier —</option>
-                      {Object.values(DOFUS_JOBS).flat().map(j => (
-                        <option key={j.id} value={j.name}>{j.name}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={200}
-                        value={metierTag.level}
-                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
-                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
-                      />
-                    </div>
-                    <span className="ml-auto text-caption text-amber-300/60 italic">
-                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -4417,144 +4534,123 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
-      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      {/* E2b - groupe 3/3 : Avance (alignement, options) */}
+      <SectionGroupHeader group="avance" />
+      {/* ── Section 4 : Activités & Tags ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40">
         <button
           type="button"
-          onClick={() => toggleSection("route")}
+          onClick={() => toggleSection("activities")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
-            7. 🧭 Route (cité / Ordre / palier / classe)
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
+            🎯 Alignement & Métier requis
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
-        {openSections.route && (
+        {openSections.activities && (
           <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
-                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                >
-                  <option value="">— Aucune (commune) —</option>
-                  <option value="bontarien">Bontarien</option>
-                  <option value="brakmarien">Brakmarien</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
-                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
-                  disabled={!alignReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
-                >
-                  <option value="">— Aucun —</option>
-                  {orderCodesForCamp(alignReq).map(o => (
-                    <option key={o.code} value={o.code}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
-                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                >
-                  <option value="">— Aucun —</option>
-                  {[20, 40, 60, 80, 100].map(n => (
-                    <option key={n} value={n}>Alignement ≥ {n}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
-                <RushClassSelect
-                  id="rush-seq-class"
-                  value={classReq}
-                  onChange={setClassReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="alignSetToggle"
+                  checked={!!alignmentSet}
+                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
                 />
-              </div>
-            </div>
-            <p className="text-caption text-zinc-500">
-              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
-              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Section 8 : Conseils & Style Tougli ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
-        <button
-          type="button"
-          onClick={() => toggleSection("hints")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
-        >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
-            8. 💡 Conseils, Notes & Style Tougli
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
-        </button>
-        {openSections.hints && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const x = prompt("Position X :");
-                    if (!x) return;
-                    const y = prompt("Position Y :");
-                    if (!y) return;
-                    const pos = `/travel ${x},${y}`;
-                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
-                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
-                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
-                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
-                  }}
-                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
-                >
-                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
-                </button>
-              </div>
-              <TipsLinesEditor
-                value={tips}
-                onChange={setTips}
-                placeholder="Conseil affiché côté membre…"
-              />
-            </div>
-
-            <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
-              <input
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-                placeholder="ex: Ne pas cliquer le portail !"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
-                  Mini bloc Tougli
+                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
+                  ⚔️ Quête d'alignement
+                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={handleInsertLink}
-                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
-                >
-                  🔗 Insérer un lien
-                </button>
               </div>
-              <textarea
-                value={tougliText}
-                onChange={e => handleTougliTextChange(e.target.value)}
-                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
-                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
-                rows={2}
-              />
+              {alignmentSet && (
+                <div className="flex flex-wrap items-center gap-2 pl-6">
+                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("bontarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "bontarien"
+                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("brakmarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "brakmarien"
+                        ? "bg-red-500/20 border-red-500/50 text-red-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
+                  </button>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={alignmentSet.level}
+                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
+                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
+                    />
+                  </div>
+                  <span className="ml-auto text-caption text-indigo-300/60 italic">
+                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
+                  </span>
+                </div>
+              )}
+
+              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="metierToggle"
+                    checked={!!metierTag}
+                    onChange={e => handleMetierToggle(e.target.checked)}
+                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
+                    🔨 Métier requis
+                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
+                  </label>
+                </div>
+                {metierTag && (
+                  <div className="flex flex-wrap items-center gap-2 pl-6">
+                    <select
+                      value={metierTag.name}
+                      onChange={e => handleMetierJobChange(e.target.value)}
+                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
+                    >
+                      <option value="">— Choisir un métier —</option>
+                      {Object.values(DOFUS_JOBS).flat().map(j => (
+                        <option key={j.id} value={j.name}>{j.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        value={metierTag.level}
+                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
+                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
+                      />
+                    </div>
+                    <span className="ml-auto text-caption text-amber-300/60 italic">
+                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -4671,95 +4767,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
-      {/* Scinder un bloc multi-quêtes — visible sans ouvrir la section 9 */}
-      {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
-        <div className="flex flex-col gap-2 p-2.5 rounded-xl border border-warning/30 bg-warning/5">
-          <div className="flex items-start gap-2">
-            <Scissors className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-caption font-bold text-warning uppercase tracking-wider">
-                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
-              </p>
-              <p className="text-caption text-muted-foreground">
-                La scinder crée une quête par ligne, à la même place, avec la même route.
-                La progression de l'étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
-              </p>
-            </div>
-          </div>
-          {splitConfirm ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => { onSplit(seq.id!); onCancel(); }}
-                className="px-3 py-1.5 rounded-lg bg-warning text-black text-caption font-bold disabled:opacity-40"
-              >
-                Confirmer la scission ({seq.questDbIds.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplitConfirm(false)}
-                className="px-3 py-1.5 rounded-lg border border-border text-caption font-medium text-muted-foreground"
-              >
-                Annuler
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={() => setSplitConfirm(true)}
-              className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 text-caption font-bold text-warning hover:bg-warning/10 disabled:opacity-40"
-            >
-              <Scissors className="w-3 h-3" /> Scinder en {seq.questDbIds.length} quêtes individuelles
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Déplacer vers un autre bloc — visible sans ouvrir la section 9 */}
-      {seq.id && milestones && milestones.length > 1 && (
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
-          <select
-            value=""
-            onChange={e => {
-              const targetId = e.target.value;
-              if (targetId && targetId !== milestoneId && seq.id) {
-                onMove(seq.id, targetId);
-                onCancel();
-              }
-            }}
-            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
-          >
-            <option value="">— Choisir un bloc —</option>
-            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Footer Actions */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+      {/*
+        Pied **sticky** (E2b, 12/11/2026) : le formulaire fait ~1 600 lignes, « Enregistrer »
+        sortait de l'écran dès les premiers champs. La barre reste collée au bas de
+        l'inspecteur, sans flou (dette DA) ni couleur en dur.
+      */}
+      <div className="sticky bottom-0 z-20 -mx-3.5 -mb-3.5 mt-1 flex items-center justify-between gap-2 rounded-b-2xl border-t border-border bg-surface px-3.5 py-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleSubmit}
             disabled={isPending || !name.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg"
+            className="flex items-center gap-1.5 rounded-lg bg-success px-3.5 py-2 text-caption font-semibold text-success-foreground transition-colors hover:opacity-90 disabled:opacity-40"
           >
-            <Check className="w-3.5 h-3.5" /> Enregistrer la quête
+            <Check className="h-3.5 w-3.5" aria-hidden /> Enregistrer la quête
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+            className="rounded-lg border border-border px-3 py-2 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
             Annuler
           </button>
         </div>
+        {isDirty && (
+          <span className="text-caption font-medium text-warning">● Non enregistré</span>
+        )}
       </div>
     </div>
   );

@@ -95,7 +95,8 @@ GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
 > **Navigation par bloc livrée le 12/11/2026** — branche `feat/rush-nav-blocs` : le sommaire des
 > deux guides liste **tous les blocs numérotés** (chapitre en mention secondaire) et le dashboard
 > passe à **une page = un bloc** ; le mode **« Tout »** est supprimé (c'était le rendu des 54 blocs
-> d'un coup). Repère, prérequis et « Reprendre » visent le bloc.
+> d'un coup). Repère, prérequis et « Reprendre » visent le bloc. **Corrigé** : le pager ancre sur
+> `#guide-blocs` et le rail (progression, donjons, objets) est calculé sur le **bloc** affiché.
 
 ## 4. Interrogations tranchées — le modèle de route (à relire avant de créer le guide)
 

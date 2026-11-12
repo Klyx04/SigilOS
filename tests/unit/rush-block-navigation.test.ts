@@ -73,6 +73,34 @@ describe("dashboard — une page = UN bloc, plus de mode « Tout »", () => {
   });
 });
 
+describe("rail de droite — calculé sur le BLOC affiché", () => {
+  const SIDEBAR = codeOf("src/components/dofus-quests/rush/RushChapterSidebar.tsx");
+
+  it("la sidebar accepte un bloc, prioritaire sur le chapitre", () => {
+    expect(SIDEBAR).toMatch(/selectedMilestoneId\?: string \| null/);
+    expect(SIDEBAR).toMatch(/if \(selectedMilestoneId\)/);
+  });
+
+  it("les deux guides passent le bloc courant au rail", () => {
+    expect(DASH).toMatch(/selectedMilestoneId=\{currentPage\?\.msId \?\? null\}/);
+    expect(PUB).toMatch(/selectedMilestoneId=\{currentPage\?\.ms\.id \?\? null\}/);
+  });
+
+  it("le dashboard masque la liste des chapitres du rail (le sommaire liste les blocs)", () => {
+    expect(DASH).toMatch(/hideChapters/);
+  });
+});
+
+describe("pager — on ne remonte que le guide", () => {
+  it("« Suiv. » ancre sur la zone des blocs, pas sur le haut de la page", () => {
+    // Retour user du 12/11/2026 : « quand on clique sur suivant ça rescroll plus haut au
+    // niveau du bloc rush sylvestre c'est pénible ».
+    expect(DASH).toMatch(/id="guide-blocs"/);
+    expect(DASH).toMatch(/const scrollToGuideTop = useCallback/);
+    expect(DASH).toMatch(/scrollToGuideTop\(\)/);
+  });
+});
+
 describe("public — la pagination était déjà par bloc", () => {
   it("une page porte UN milestone et ses bannières", () => {
     expect(PUB).toMatch(/const chapterPages = useMemo/);

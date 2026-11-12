@@ -2093,6 +2093,14 @@ const timelineItems=useMemo(()=>{
     else window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, []);
 
+  // Le pager ne remonte QUE le guide : « Suiv. » doit laisser le sommaire et le pager à
+  // l'écran, pas revenir au titre « Rush Sylvestre » (retour user du 12/11/2026).
+  const scrollToGuideTop = useCallback(() => {
+    const el = document.getElementById("guide-blocs");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    else scrollToTop();
+  }, [scrollToTop]);
+
   const scrollToBottom = useCallback(() => {
     const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
     if (scrollEl) scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
@@ -2179,7 +2187,7 @@ const timelineItems=useMemo(()=>{
     if (!page) return;
     setPageIdx(idx);
     if (page.msId) setSelectedMsId(page.msId);
-    scrollToTop();
+    scrollToGuideTop();
   };
   const goToMs = (id: string) => {
     const idx = blockPages.findIndex((p) => p.msId === id);
@@ -2588,7 +2596,7 @@ const timelineItems=useMemo(()=>{
         selectedMilestoneId={currentPage?.msId ?? null}
         onSelectMilestone={goToMs}
       />
-      <div className="da-guide-main">
+      <div className="da-guide-main" id="guide-blocs">
         {/* ── Pagination par BLOC ──────────────────────────────────────────────
             Une page = UN bloc cochable, comme l'overlay. Le bouton « Tout » est
             supprimé : il rendait les 54 blocs de la route d'un coup (mesure du
@@ -2650,6 +2658,7 @@ const timelineItems=useMemo(()=>{
             completedSeqIds={allCompletedSeqIds}
             activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
             selectedChapter={currentPage?.chapter ?? undefined}
+            selectedMilestoneId={currentPage?.msId ?? null}
             onSelectChapter={(chapter) => {
               const idx = blockPages.findIndex((p) => p.chapter === chapter);
               if (idx >= 0) goToPage(idx);

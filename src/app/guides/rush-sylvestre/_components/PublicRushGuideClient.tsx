@@ -3191,6 +3191,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             hideProvidedResources={hideDone}
             hideChapters
             selectedChapter={currentPage?.ms.chapter ?? "ALL"}
+            selectedMilestoneId={currentPage?.ms.id ?? null}
             onSelectChapter={(chapter) => {
               const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
               if (idx >= 0) goToChapterPage(idx);

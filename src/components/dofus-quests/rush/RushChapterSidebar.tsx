@@ -54,6 +54,13 @@ interface RushChapterSidebarProps {
   selectedChapter?: number | "ALL";
   onSelectChapter?: (chapter: number | "ALL") => void;
   /**
+   * Bloc affiché — PRIORITAIRE sur `selectedChapter`. Quand il est fourni, la progression,
+   * les donjons/métiers et les objets requis sont calculés sur **ce bloc** (ce que fait
+   * déjà l'overlay), et non sur le chapitre entier (mesure du 12/11/2026 : un chapitre
+   * affichait « 1 / 89 quêtes » et 20 donjons alors que le bloc courant en a 2).
+   */
+  selectedMilestoneId?: string | null;
+  /**
    * Le toggle « Masquer les étapes faites » du guide PRIME sur la liste « Objets requis » :
    * quand il est actif, les objets déjà fournis sortent et le filtre local
    * « Restantes/Toutes » n'est plus rendu (un seul état pour une même chose, sur les
@@ -76,6 +83,7 @@ export function RushChapterSidebar({
   className,
   selectedChapter: selectedChapterProp,
   onSelectChapter,
+  selectedMilestoneId,
   hideProvidedResources = false,
   hideChapters = false,
 }: RushChapterSidebarProps) {
@@ -123,13 +131,16 @@ export function RushChapterSidebar({
     onSelectChapter?.(c);
   };
 
-  // Milestones du chapitre sélectionné (ou tous)
+  // Milestones du chapitre sélectionné — ou LE bloc quand la surface pilote par bloc.
   const currentMilestones = useMemo(() => {
+    if (selectedMilestoneId) {
+      return milestones.filter((m) => m.id === selectedMilestoneId);
+    }
     if (selectedChapter === "ALL") {
       return milestones.filter((m) => m.type !== "SEPARATEUR" && m.type !== "INFO");
     }
     return milestones.filter((m) => m.chapter === selectedChapter && m.type !== "SEPARATEUR" && m.type !== "INFO");
-  }, [milestones, selectedChapter]);
+  }, [milestones, selectedChapter, selectedMilestoneId]);
 
   // Calcul des métriques du chapitre
   const stats = useMemo(() => {
@@ -240,10 +251,16 @@ export function RushChapterSidebar({
   }, [rushResources, hideProvided]);
 
   const currentChapterLabel = useMemo(() => {
+    // Mode bloc : le nom du bloc courant (l'overlay affiche exactement ça), sinon le
+    // libellé du chapitre — jamais un libellé inventé.
+    if (selectedMilestoneId) {
+      const block = milestones.find((m) => m.id === selectedMilestoneId);
+      if (block) return block.title;
+    }
     if (selectedChapter === "ALL") return "Tout le Guide";
     const found = chapters.find((c) => c.chapter === selectedChapter);
     return found?.label || `Chapitre ${selectedChapter}`;
-  }, [chapters, selectedChapter]);
+  }, [chapters, selectedChapter, selectedMilestoneId, milestones]);
 
   return (
     <aside

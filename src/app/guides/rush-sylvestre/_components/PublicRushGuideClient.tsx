@@ -108,7 +108,7 @@ import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparato
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushQuestConstraints } from "@/components/dofus-quests/rush/RushQuestConstraints";
-import { parseRushConstraints } from "@/lib/rush-constraints";
+import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 // Pense-bête : MÊME modale que le guide interne, alimentée par la config GOD
 // (`rushUIConfig.penseBete`) avec repli sur le contenu statique du module.
@@ -3078,6 +3078,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   const parts = (seq.tips || "").split(/·?\s*Succès\s*:\s*/i);
                                   const mainTip = parts[0]?.trim();
                                   const parsedTip = parseRushConstraints(mainTip);
+                                  const structured =
+                                    seq.constraints && !isEmptyConstraints(seq.constraints)
+                                      ? constraintsToInfos(seq.constraints)
+                                      : [];
+                                  const chips =
+                                    structured.length > 0 ? structured : parsedTip.constraints;
                                   const succesPart = parts[1]?.trim();
                                   return (
                                     <div className="border-t border-border">
@@ -3099,8 +3105,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       </button>
                                       {isHintsOpen && (
                                         <div className="space-y-1.5 px-2.5 pb-2.5">
-                                          {parsedTip.constraints.length > 0 && (
-                                            <RushQuestConstraints constraints={parsedTip.constraints} />
+                                          {chips.length > 0 && (
+                                            <RushQuestConstraints constraints={chips} />
                                           )}
                                           {parsedTip.rest && (
                                             <p className={cn("text-xs leading-relaxed text-muted-foreground", stepDone && "line-through")}>

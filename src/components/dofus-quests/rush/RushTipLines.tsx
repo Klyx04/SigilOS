@@ -1,7 +1,9 @@
 "use client";
 
-import { parseRushConstraints } from "@/lib/rush-constraints";
+import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
 import { cn } from "@/lib/utils";
+
+import type { RushQuestConstraints as RushQuestConstraintsModel } from "@/types/rush-constraints";
 
 import { RushQuestConstraints } from "./RushQuestConstraints";
 import { RushRichText, splitTipLines } from "./RushRichText";
@@ -10,25 +12,32 @@ import { RushRichText, splitTipLines } from "./RushRichText";
  * Conseils en puces — SOURCE UNIQUE des conseils & notes pour l'overlay (modale de détail,
  * vue de jeu), le dashboard (blocs repliables), le guide public et l'aperçu du studio.
  *
- * Les lignes de condition (`Joueurs : …`, `Métier : …`, `Horaire : …`, `Sort : …`,
- * `Note : …`) sont d'abord rendues en **infos illustrées** par `RushQuestConstraints`
- * (icônes Dofus réelles) ; le reste garde les puces historiques. Aucune de ces infos ne
- * bloque la validation d'une quête.
+ * Deux sources, un seul rendu :
+ *   · `constraints` (donnée structurée du studio) → chips illustrées, le texte des anciennes
+ *     lignes de condition est retiré des puces ;
+ *   · sinon, les lignes `Joueurs : …` / `Métier : …` / `Horaire : …` / `Sort : …` / `Note : …`
+ *     de `tips` sont relues par le parseur (reprise des données existantes).
+ * Aucune de ces infos ne bloque la validation d'une quête.
  */
 export function RushTipLines({
   text,
+  constraints,
   className,
 }: {
   text: string | null | undefined;
+  constraints?: RushQuestConstraintsModel | null;
   className?: string;
 }) {
-  const { constraints, rest } = parseRushConstraints(text);
-  const lines = splitTipLines(rest);
-  if (constraints.length === 0 && lines.length === 0) return null;
+  const parsed = parseRushConstraints(text);
+  const structured =
+    constraints && !isEmptyConstraints(constraints) ? constraintsToInfos(constraints) : [];
+  const chips = structured.length > 0 ? structured : parsed.constraints;
+  const lines = splitTipLines(parsed.rest);
+  if (chips.length === 0 && lines.length === 0) return null;
 
   return (
     <div className={cn("space-y-2", className)}>
-      {constraints.length > 0 && <RushQuestConstraints constraints={constraints} />}
+      {chips.length > 0 && <RushQuestConstraints constraints={chips} />}
       {lines.length > 0 && (
         <ul className="space-y-1.5">
           {lines.map((line, index) => (

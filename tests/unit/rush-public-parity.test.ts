@@ -551,3 +551,25 @@ describe("Parité — la position d'une quête (une seule règle)", () => {
   });
 });
 
+
+describe("Route d'alignement — le guide public filtre les TROIS étages, comme l'interne", () => {
+  it("la cité, l'Ordre et la classe sont passés à resolveRushRoute", () => {
+    expect(PUB).toMatch(/resolveRushRoute\(rawMilestones, \{/);
+    expect(PUB).toContain("camp: routeCamp ?? visitor?.alignment ?? null");
+    expect(PUB).toContain("order: routeOrder ?? visitor?.alignmentOrder ?? null");
+    expect(PUB).toContain("playerClass: character?.classId ?? visitor?.classe ?? null");
+  });
+
+  it("le useMemo dépend des trois choix (changer d'Ordre ou de personnage refiltre)", () => {
+    for (const dep of ["routeOrder", "visitor?.alignmentOrder", "character?.classId", "visitor?.classe"]) {
+      expect(PUB).toContain(dep);
+    }
+  });
+
+  it("l'interne garde les trois étages (aucune régression de parité)", () => {
+    const dash = codeOf("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx");
+    expect(dash).toMatch(/order: routeOrder/);
+    expect(dash).toMatch(/playerClass: routeClass/);
+  });
+});
+

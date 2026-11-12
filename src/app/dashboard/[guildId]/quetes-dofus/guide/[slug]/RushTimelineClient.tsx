@@ -42,6 +42,7 @@ import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hook
 import { useRushOverlayStore } from "@/store/rush-overlay-store";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import type { RushMilestone } from "@/types/rush-guide-types";
+import type { RushQuestConstraints } from "@/types/rush-constraints";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
 import "./guide-styles.css";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
@@ -109,7 +110,7 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
  */
 const TARGET_HIGHLIGHT_MS = 1200;
 
-type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
+type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
 type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; };
@@ -666,7 +667,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "pos_tags");
           if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
           if (!tipsText && !seq.note) return null;
-          return <CollapsibleHints tipsText={tipsText} note={seq.note || null} />;
+          return <CollapsibleHints tipsText={tipsText} note={seq.note || null} constraints={seq.constraints ?? null} />;
         })()}
         </div>
         </div>
@@ -783,7 +784,7 @@ function RushLiveMemberRow({
 }
 
 // ─── CollapsibleHints — Tips & Notes dépliables ────────────────────────────────
-function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string | null }) {
+function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; note: string | null; constraints: RushQuestConstraints | null }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-t border-border">
@@ -800,7 +801,7 @@ function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string |
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <RushTipLines text={tipsText} className="text-xs leading-relaxed text-muted-foreground" />
+            <RushTipLines text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
           )}
           {note && (
             <p className="text-[11px] leading-relaxed text-muted-foreground">Note : {note}</p>

@@ -3333,6 +3333,9 @@ model GuideSequence {
   icon              String?  // Icône optionnelle du bloc (serie-de-quete | icone-succes) — null = défaut
   metamobMonsterId  Int?                       // ID du monstre Metamob lié (Ocre / Quête Éternelle Moisson)
   activityTags      Json     @default("[]")   // Tags d'activité : [{ type: string, name?: string, level?: number }]
+  /// **Conditions structurées** (horaire, joueurs, métiers, sorts, notes) — des infos,
+  /// jamais des règles de blocage. Forme validée par `rushQuestConstraintsSchema`.
+  constraints       Json?
 
   // Page publique par quête (bloc B) — le slug est FIGÉ à la publication : jamais recalculé
   // depuis le nom, sinon chaque renommage casserait une URL déjà indexée.

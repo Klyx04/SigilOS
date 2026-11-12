@@ -254,7 +254,7 @@ export function RushOverlayQuestDetailModal({
                 <div className="space-y-2">
                   {seq.tips && (
                     <div className="rounded-[4px] border-l-2 border-l-gold/70 bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
-                      <RushTipLines text={seq.tips} />
+              <RushTipLines text={seq.tips} constraints={seq.constraints ?? null} />
                     </div>
                   )}
                   {seq.note && (

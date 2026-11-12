@@ -19,6 +19,7 @@
  */
 
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushQuestConstraints } from "@/types/rush-constraints";
 import { ALIGNMENTS, type AlignmentId } from "@/lib/dofus-assets";
 import {
   findNextActionableSequence,
@@ -72,6 +73,8 @@ export type RushStepView = {
   /** Celles qui ne sont PAS encore satisfaites : c'est ce qui verrouille. */
   blockedBy: RushPrereqRef[];
   tips: string | null;
+  /** Conditions structurées de la quête — affichage seul, jamais un verrou. */
+  constraints: RushQuestConstraints | null;
 };
 
 /** Un bloc du journal : une ligne, un état, une dépendance éventuelle. */
@@ -248,6 +251,7 @@ function buildStepView(
     prereqs,
     blockedBy: prereqs.filter((p) => !completed.has(p.seqId)),
     tips: seq.tips ?? ms.tips ?? null,
+    constraints: seq.constraints ?? null,
   };
 }
 

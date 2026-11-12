@@ -18,6 +18,7 @@ export type RushEditorSectionId =
   | "hints"
   | "location"
   | "prereqs"
+  | "conditions"
   | "resources"
   | "links"
   | "activities"
@@ -43,8 +44,8 @@ export const RUSH_EDITOR_SECTION_GROUPS: ReadonlyArray<RushEditorSectionGroup> =
   {
     id: "contenu",
     label: "Contenu",
-    hint: "Destination, prérequis, ressources et liens",
-    sections: ["location", "prereqs", "resources", "links"],
+    hint: "Destination, prérequis, conditions, ressources et liens",
+    sections: ["location", "prereqs", "conditions", "resources", "links"],
   },
   {
     id: "avance",

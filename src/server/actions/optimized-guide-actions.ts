@@ -15,7 +15,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
-import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
 import { alignmentCountForCamp, alignmentTagCamp } from "@/lib/rush-guide-utils";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
@@ -3909,6 +3909,8 @@ export async function upsertRushSequence(data: {
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
   classReq?: string | null;
+  /** Lot 4 — variantes de texte par camp (`null` efface, absent ne touche pas). */
+  routeVariants?: unknown;
   note?: string;
   order?: number;
   isSuccess?: boolean;
@@ -3950,6 +3952,21 @@ export async function upsertRushSequence(data: {
           optionalIds: data.dungeonOptionalIds,
         });
 
+  /**
+   * Lot 4 — variantes de texte par camp : Zod borné (2 camps × 2 champs). `null` **efface**
+   * la colonne ; une forme invalide est **refusée** avant l'écriture (le studio dit
+   * pourquoi), jamais écrite « au cas où ».
+   */
+  const routeVariants =
+    data.routeVariants === undefined
+      ? undefined
+      : data.routeVariants === null
+        ? null
+        : parseRouteVariants(data.routeVariants);
+  if (data.routeVariants !== undefined && data.routeVariants !== null && routeVariants === null) {
+    throw new Error("Variantes de texte invalides (2 camps, nom ≤ 200, conseils ≤ 4000).");
+  }
+
   let seq;
   // Champs communs (sans dungeonId — géré différemment selon create/update)
   const commonFields = {
@@ -3962,6 +3979,7 @@ export async function upsertRushSequence(data: {
     alignOrderCode: data.alignOrderCode ?? null,
     alignLevelReq: data.alignLevelReq ?? null,
     classReq: data.classReq ?? null,
+    ...(routeVariants !== undefined ? { routeVariants: routeVariants as never } : {}),
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,

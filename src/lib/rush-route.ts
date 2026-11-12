@@ -13,6 +13,7 @@
 
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
+import { z } from "zod";
 
 export type RushAlignmentCamp = "bontarien" | "brakmarien";
 
@@ -165,6 +166,64 @@ export function previousOrderRank(
   return best?.ref ?? null;
 }
 
+// ─── Variantes de texte par camp (lot 4, 12/11/2026) ────────────────────────
+
+const BoundedVariantText = z.string().max(4000);
+
+/**
+ * Forme **bornée** des variantes : deux camps, deux champs. Toute autre clé est ignorée
+ * et toute valeur non textuelle est refusée (fail-closed : on garde le texte de base).
+ */
+export const rushRouteVariantsSchema = z.object({
+  bontarien: z
+    .object({ name: BoundedVariantText.max(200).optional(), tips: BoundedVariantText.optional() })
+    .optional(),
+  brakmarien: z
+    .object({ name: BoundedVariantText.max(200).optional(), tips: BoundedVariantText.optional() })
+    .optional(),
+});
+
+export type RushRouteVariants = z.infer<typeof rushRouteVariantsSchema>;
+
+export function parseRouteVariants(raw: unknown): RushRouteVariants | null {
+  const parsed = rushRouteVariantsSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Variante du **camp du joueur** — `null` si elle manque ou si le camp est inconnu.
+ * Un champ vide n'écrase jamais le texte de base.
+ */
+export function pickRouteVariant(
+  raw: unknown,
+  camp: string | null | undefined
+): { name?: string; tips?: string } | null {
+  const variants = parseRouteVariants(raw);
+  const wanted = normalizeAlignmentCamp(camp);
+  if (!variants || !wanted) return null;
+  const variant = variants[wanted];
+  if (!variant) return null;
+  const name = (variant.name ?? "").trim();
+  const tips = (variant.tips ?? "").trim();
+  if (!name && !tips) return null;
+  return { ...(name ? { name } : {}), ...(tips ? { tips } : {}) };
+}
+
+/**
+ * Applique la variante du camp au texte de la séquence. **Point unique** : les trois
+ * surfaces (guide membre, guide public, overlay) passent par `resolveRushRoute`, donc
+ * elles affichent toutes le bon texte sans code dédié.
+ */
+export function applyRouteVariant(seq: RushSequence, camp: string | null | undefined): RushSequence {
+  const variant = pickRouteVariant(seq.routeVariants, camp);
+  if (!variant) return seq;
+  return {
+    ...seq,
+    ...(variant.name ? { subGuideName: variant.name } : {}),
+    ...(variant.tips ? { tips: variant.tips } : {}),
+  };
+}
+
 /**
  * Applique la route : filtre les séquences, puis retire les blocs devenus vides.
  * Les bandeaux (`SEPARATEUR` / `INFO`) sont conservés : ce sont des repères de lecture.
@@ -174,7 +233,13 @@ export function resolveRushRoute(
   choice?: RushRouteChoice | null
 ): RushMilestone[] {
   return milestones
-    .map((ms) => ({ ...ms, sequences: ms.sequences.filter((seq) => isSequenceOnRoute(seq, choice)) }))
+    .map((ms) => ({
+      ...ms,
+      sequences: ms.sequences
+        .filter((seq) => isSequenceOnRoute(seq, choice))
+        // Le texte suit le camp du joueur (lot 4) : une seule quête, deux textes.
+        .map((seq) => applyRouteVariant(seq, choice?.camp)),
+    }))
     .filter(
       (ms) =>
         ms.type === "SEPARATEUR" ||

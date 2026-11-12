@@ -116,6 +116,10 @@ type ActivityTagType =
 
 type ActivityTag = { type: ActivityTagType; name?: string; camp?: string | null; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
 
+/** Lot 4 — variante de texte par camp, sur une seule quête (vide ⇒ texte de base). */
+type SequenceRouteVariant = { name?: string; tips?: string };
+type SequenceRouteVariants = { bontarien?: SequenceRouteVariant; brakmarien?: SequenceRouteVariant };
+
 type Sequence = {
   id: string;
   subGuideRef: string;
@@ -131,6 +135,7 @@ type Sequence = {
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
   classReq?: string | null;
+  routeVariants?: SequenceRouteVariants | null;
   /** Ids DofusDB des quêtes incarnées (`GameQuest.dofusDbId`) — bornés côté serveur. */
   questDbIds?: number[];
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
@@ -365,6 +370,8 @@ export function RushSylvestreAdminClient({
         alignReq: s.alignReq ?? null,
         alignOrderCode: s.alignOrderCode ?? null,
         classReq: s.classReq ?? null,
+        // Lot 4 : l'aperçu de route montre le texte de la variante du camp choisi.
+        routeVariants: s.routeVariants ?? null,
       })),
     })),
     [sortedMilestones],
@@ -3275,6 +3282,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const [dofusdbUrl, setDofusdbUrl] = useState(seq.dofusdbUrl || "");
   const [noobsUrl, setNoobsUrl] = useState(seq.dofuspourlesnoobsUrl || "");
   const [tips, setTips] = useState(seq.tips || "");
+  // Lot 4 — une seule quête, deux textes : le bon sort selon la cité du joueur (résolu par
+  // `resolveRushRoute`, donc les trois surfaces en bénéficient). Vide ⇒ texte de base.
+  const initialVariants = useMemo(() => (seq.routeVariants ?? {}) as SequenceRouteVariants, [seq.routeVariants]);
+  const [bontaName, setBontaName] = useState(initialVariants.bontarien?.name ?? "");
+  const [bontaTips, setBontaTips] = useState(initialVariants.bontarien?.tips ?? "");
+  const [brakName, setBrakName] = useState(initialVariants.brakmarien?.name ?? "");
+  const [brakTips, setBrakTips] = useState(initialVariants.brakmarien?.tips ?? "");
   const [alignReq, setAlignReq] = useState(seq.alignReq || "");
   const [alignOrderCode, setAlignOrderCode] = useState(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
   const [alignLevelReq, setAlignLevelReq] = useState(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
@@ -3311,6 +3325,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     activities: false,
     resources: false,
     links: false,
+    variants: false,
     route: false,
     hints: false,
     advanced: false,
@@ -3716,12 +3731,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === id)));
   };
 
+  // Lot 4 — forme canonique des variantes : seuls les champs non vides partent (le serveur
+  // re-borne de toute façon). `null` = aucune variante, ce qui **efface** la colonne.
+  const nextVariants = useMemo<SequenceRouteVariants>(() => {
+    const bontarien: SequenceRouteVariant = {
+      ...(bontaName.trim() ? { name: bontaName.trim() } : {}),
+      ...(bontaTips.trim() ? { tips: bontaTips.trim() } : {}),
+    };
+    const brakmarien: SequenceRouteVariant = {
+      ...(brakName.trim() ? { name: brakName.trim() } : {}),
+      ...(brakTips.trim() ? { tips: brakTips.trim() } : {}),
+    };
+    return {
+      ...(Object.keys(bontarien).length ? { bontarien } : {}),
+      ...(Object.keys(brakmarien).length ? { brakmarien } : {}),
+    };
+  }, [bontaName, bontaTips, brakName, brakTips]);
+  const hasVariants = Object.keys(nextVariants).length > 0;
+
   const isDirty = useMemo(() => {
     return (
       name !== (seq.subGuideName || seq.subGuideRef) ||
       dofusdbUrl !== (seq.dofusdbUrl || "") ||
       noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
       tips !== (seq.tips || "") ||
+      // Variantes de texte par camp : toute saisie arme « Enregistrer ».
+      JSON.stringify(nextVariants) !== JSON.stringify(initialVariants) ||
       alignReq !== (seq.alignReq || "") ||
       alignOrderCode !== (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")) ||
       alignLevelReq !== (seq.alignLevelReq ? String(seq.alignLevelReq) : "") ||
@@ -3736,7 +3771,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
@@ -3815,6 +3850,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       alignOrderCode: alignOrderCode.trim() || null,
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
       classReq: classReq.trim() || null,
+      // Lot 4 : `null` efface les variantes ; sinon seuls les champs saisis partent.
+      routeVariants: hasVariants ? nextVariants : null,
+
       questDbIds,
       note: note.trim() || undefined,
       isSuccess,
@@ -3837,6 +3875,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
     route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
     hints: !tips.trim(),
+    variants: !hasVariants,
   } as const;
   const hiddenSections = Object.values(emptySections).filter(Boolean).length;
   /** Classe d'une section : masquée si vide et si l'auteur n'a pas demandé « tout afficher ». */
@@ -4230,6 +4269,53 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 rows={2}
               />
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Lot 4 : texte par camp (une seule quête, deux textes) ── */}
+      <div className={sectionClass(emptySections.variants)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("variants")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+            🎭 Texte par camp
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.variants ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.variants && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <p className="text-caption text-zinc-500 leading-relaxed">
+              Une seule quête, deux textes : le joueur voit la variante de sa cité. Vide ⇒ le
+              nom et les conseils ci-dessus s&apos;appliquent à tout le monde.
+            </p>
+            {[
+              { camp: "Bontarien", name: bontaName, setName: setBontaName, tips: bontaTips, setTips: setBontaTips },
+              { camp: "Brakmarien", name: brakName, setName: setBrakName, tips: brakTips, setTips: setBrakTips },
+            ].map((v) => (
+              <div key={v.camp} className="space-y-1.5">
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">
+                  {v.camp}
+                </label>
+                <input
+                  value={v.name}
+                  onChange={(e) => v.setName(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                  placeholder={`Nom de la quête (${v.camp.toLowerCase()})`}
+                  aria-label={`Nom de la quête pour le camp ${v.camp}`}
+                />
+                <textarea
+                  value={v.tips}
+                  onChange={(e) => v.setTips(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none resize-none"
+                  placeholder={`Conseils (${v.camp.toLowerCase()}) — une ligne = une puce`}
+                  aria-label={`Conseils pour le camp ${v.camp}`}
+                  rows={2}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>

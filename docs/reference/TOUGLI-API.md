@@ -132,6 +132,13 @@ compte **383 objectifs** (35 titres, 238 quêtes, 74 `take_quests`, 16 `group`, 
 « 12 classes ou 120 000 kamas ») : l'afficher en texte, jamais comme règle de blocage.
 `hours` mélange **fenêtres** (« entre 20h00 et 08h00 ») et **attentes** (« attendre 3 minutes »).
 
+**Formes mesurées le 12/11/2026** (utiles au backfill et à l'éditeur) :
+
+- `dungeonChoice` : `{ dungeons: [{ id, level, name: {fr}, bosses: [{ id, level, health, name: {fr} }] }], note }`.
+- `combat` : `{ combat: { type: "solo" | "groupe" | "tactique" | "soloV" | "groupeV",
+  payload: [{ count, monster: { id, level, health, name: {fr} } }] }, detail }`.
+- `bashMobs` : `[{ monster: { id, level, health, name: {fr} } }]` — des **espèces**, pas des quantités.
+
 ## 4. Règles d'usage dans SigilOS
 
 1. **Jamais d'appel à l'exécution** : 88 Ko pour la liste, **1,2 Mo** pour un seul guide.

@@ -5,15 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
-## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré + affichage** — branche `feat/rush-conditions-v2`
+## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré, combat et donjon au choix** — branche `feat/rush-conditions-combat`
 
 > **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
 > **Fait — modèle (`8e23dd77`)** : colonne **`GuideSequence.constraints Json?`** (migration additive `20270130000000_add_rush_quest_constraints`), Zod borné `rushQuestConstraintsSchema` (heures `HH:MM`, effectif 1-40, métiers/classes des référentiels, 10 rôles/sorts/notes max), conversion `constraintsToInfos` et reprise des anciennes lignes `tips`.
 > **Fait — éditeur (`8a0d96e9`)** : section **« Conditions »** entre Prérequis et Ressources — horaire (aucun / créneau from-to / attente en minutes, contournable ou PNJ), joueurs (effectif + rôles métier/classe/libre avec niveau), métiers + niveau, sorts, notes, **aperçu membre** en direct. Métiers `DOFUS_JOBS` + icônes réelles, classes `RushClassSelect` ; `sanitizeConstraints` retire les lignes vides ; verrou `rush-sequence-inspector` **18** (11 sections).
 > **Fait — affichage (`f067b2d6`)** : `RushTipLines` reçoit `constraints` et affiche les chips dans le dashboard, le guide public et l'overlay ; fallback texte pour les anciennes données. Aucune règle de blocage.
-> **Preuves** : `rush-constraints` **35** · `rush-sequence-inspector` 18 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-editor-*` 97 · `tsc` 0 · ESLint 0 (hooks) · migration jouée en local.
-> **Reste / ops** : **jouer `20270130000000_add_rush_quest_constraints` en bêta puis en prod** (documentée dans le ROADMAP §0) ; S2-3→S2-5 ; les conseils libres restent dans `tips`.
-> **Doc** : `ROADMAP` rang 64 (V2) + op migration · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V2) · `TOUGLI-API.md` (mesures déjà à jour).
+> **Fait — combat/donjon/monstres (`72eb5c91`)** : `combat` (5 modes, monstres ×N + niveau + PV), `dungeonChoice` (8 donjons max, boss/niveau/note), `bashMobs` ; blocs **Combat / Donjon au choix / Monstres à tuer** dans l'éditeur, recherches locales (`searchMonstersForDefi`, `searchDungeonsLocal`), portraits réels (`RushPortrait`) et cartes dans les 3 surfaces (`RushCombatCard`, `RushDungeonChoiceCard`, `RushBashMobsCard`). Zod borné (5 modes, 20 monstres, 8 donjons, 20 espèces). **Aucune migration** (colonne JSON existante).
+> **Preuves** : `rush-constraints` **43** · `rush-sequence-inspector` 18 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-editor-*` 97 · `tsc` 0 · ESLint 0 (hooks) · migration jouée en local.
+> **Reste / ops** : **jouer `20270130000000_add_rush_quest_constraints` en bêta puis en prod** (documentée dans le ROADMAP §0) ; **backfill Tougli** (1 085 contraintes → `constraints`, dry-run/apply) et données éditoriales (ex. les 4 donjons de Maïmane) ; les conseils libres restent dans `tips`.
+> **Doc** : `ROADMAP` rang 64 (V3) + op migration · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V3) · `TOUGLI-API.md` (formes `combat`/`dungeonChoice` mesurées).
 > **Rotation** : bloc « 12/11/2026 — E2b + E2c + E2d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

@@ -95,6 +95,7 @@ docs/
 │   ├── FACTS_GUILDE_2026.md
 │   ├── OCR_STRATEGY_2026.md
 │   ├── METAMOB-API.md             API Metamob mesurée (routes, matches, veille)
+│   ├── TOUGLI-API.md              API Tougli mesurée (guides, objectives, `choice`/`condition`)
 │   └── REDIS-OCR-SETUP.md
 │
 ├── arbo/                          état et journal de l'arborescence

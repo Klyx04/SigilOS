@@ -56,12 +56,13 @@ import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/r
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { alignmentSetContradictsCamp } from "@/lib/rush-route";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
+import { RUSH_CONSTRAINT_LABELS } from "@/lib/rush-constraints";
 import {
-  RushTipLines,
   splitTipLines,
   RUSH_RICH_TEXT_SYNTAX,
   RUSH_RICH_TEXT_NOT_ACCEPTED,
 } from "@/components/dofus-quests/rush/RushRichText";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
@@ -2016,6 +2017,9 @@ function TipsLinesEditor({
         Une ligne = une puce ({bullets.length > 0 ? `${bullets.length} puce${bullets.length > 1 ? "s" : ""}` : "aucune pour l'instant"}) ·
         un <code className="text-purple-300/80">+</code> ou un{" "}
         <code className="text-purple-300/80">·</code> sépare aussi deux puces.
+      </p>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {`Les lignes « ${RUSH_CONSTRAINT_LABELS.join(" : … », « ")} : … » deviennent des infos illustrées (icônes Dofus) dans le guide, le dashboard et l'overlay.`}
       </p>
       {bullets.length > 0 && (
         <MemberPreviewFrame label="Aperçu membre — conseils">

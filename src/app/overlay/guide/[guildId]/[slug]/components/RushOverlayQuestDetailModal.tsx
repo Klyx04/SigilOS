@@ -7,7 +7,7 @@ import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
-import { RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";

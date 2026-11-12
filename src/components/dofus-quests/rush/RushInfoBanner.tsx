@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle, BookOpen, Lightbulb, Sparkles } from "lucide-react";
 import { safeImageUrl } from "@/lib/security";
 import { cn } from "@/lib/utils";
-import { RushTipLines } from "./RushRichText";
+import { RushTipLines } from "./RushTipLines";
 
 /**
  * RushInfoBanner — le bandeau d'un bloc CONSEIL / TIPS (type `INFO`) du Rush Sylvestre.

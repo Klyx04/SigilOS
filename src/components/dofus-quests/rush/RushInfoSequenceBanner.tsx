@@ -3,7 +3,8 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { RushSequence } from "@/types/rush-guide-types";
-import { RushRichText, RushTipLines } from "./RushRichText";
+import { RushRichText } from "./RushRichText";
+import { RushTipLines } from "./RushTipLines";
 import {
   infoBannerTone,
   RUSH_INFO_TONE_ICON,

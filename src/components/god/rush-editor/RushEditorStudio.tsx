@@ -4085,7 +4085,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
-            8. 💡 Conseils, Notes & Style Tougli
+            💡 Conseils, Notes & Style Tougli
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
         </button>
@@ -4483,7 +4483,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-300/90">
-            5. 📦 Ressources & Objets nécessaires ({requiredItems.length})
+            📦 Ressources & Objets nécessaires ({requiredItems.length})
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
         </button>
@@ -4502,7 +4502,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-cyan-400/90">
-            6. 🔗 Liens externes & Icône
+            🔗 Liens externes & Icône
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.links ? "rotate-180" : ""}`} />
         </button>
@@ -4742,7 +4742,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
-            9. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>

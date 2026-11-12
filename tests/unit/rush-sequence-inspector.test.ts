@@ -52,6 +52,13 @@ describe("inspecteur quête — trois groupes, un seul ordre", () => {
     expect((STUDIO.match(/toggleSection\("/g) ?? []).length).toBe(9);
   });
 
+  it("aucun titre de section ne porte de numéro (les 3 groupes les remplacent)", () => {
+    // Régression mesurée le 12/11/2026 : après le passage aux groupes, **quatre** titres
+    // gardaient leur numéro d'origine (5, 6, 8, 9) sur les neuf — l'inspecteur affichait
+    // « 1, 2, 3, 4, 6, 6, 5, 9 ». Ce verrou interdit tout préfixe numérique résiduel.
+    expect(STUDIO).not.toMatch(/^\s+\d+\.\s/m);
+  });
+
   it("la route est dans le premier groupe, avant les ressources et les liens", () => {
     expect(sectionGroupOf("route")).toBe("essentiel");
     expect(sectionAt("route")).toBeLessThan(sectionAt("resources"));

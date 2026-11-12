@@ -2472,7 +2472,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                         </span>
                       )}
                       <span className="reg-mono text-xs text-muted-foreground">
-                        {msDoneCount} / {chapterSteps.length} étapes ({msPercent}%)
+                        {msDoneCount} / {chapterSteps.length} quêtes ({msPercent}%)
                       </span>
                     </div>
                     <h2 className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">

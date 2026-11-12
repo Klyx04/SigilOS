@@ -180,7 +180,7 @@ export function RushOverlayHeader({
           {/* Progression explicite */}
           <p className="da-meta mt-1">
             <span>
-              <strong>{completedSteps}</strong> / {totalSteps} étapes
+              <strong>{completedSteps}</strong> / {totalSteps} quêtes
             </span>
             <span>{overallPct} %</span>
           </p>

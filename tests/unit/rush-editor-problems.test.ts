@@ -104,11 +104,13 @@ describe("problèmes de contenu — comptage et navigation", () => {
     expect(total).toBeGreaterThanOrEqual(2);
   });
 
-  it("le panneau ne déverse pas : 12 cibles au plus, le compte reste exact", () => {
+  it("la règle rend TOUTES les cibles — le panneau pagine l'affichage", () => {
+    // Régression mesurée le 12/11/2026 : la règle coupait à 12, donc « + 324 autres »
+    // était une étiquette morte. La coupe appartient à l'écran, pas à la vérité.
     const many = Array.from({ length: 30 }, (_, i) => seq(`q-${i}`, { tips: "" }));
     const kinds = byKind([{ id: "b", title: "B", type: "QUETE_SERIE", sequences: many }]);
     expect(kinds["quest-without-tips"].count).toBe(30);
-    expect(kinds["quest-without-tips"].targets).toHaveLength(12);
+    expect(kinds["quest-without-tips"].targets).toHaveLength(30);
   });
 
   it("chaque cible porte de quoi ouvrir la quête ou le bloc", () => {
@@ -136,5 +138,24 @@ describe("problèmes de contenu — câblage", () => {
     expect(topbar).toContain('"problems"');
     expect(topbar).toContain("Problèmes");
     expect(topbar).toContain('tab.value === "problems"');
+  });
+
+  it("le panneau pagine (12 puis 50) au lieu d'une liste infinie", () => {
+    const panel = codeOf("src/components/god/rush-editor/panels/RushProblemsPanel.tsx");
+    expect(panel).toContain("const FIRST_PAGE = 12;");
+    expect(panel).toContain("const PAGE_SIZE = 50;");
+    expect(panel).toContain("problem.targets.slice(0, visibleCount(");
+    expect(panel).toContain("Afficher {Math.min(PAGE_SIZE");
+  });
+
+  it("un clic depuis un autre onglet bascule sur Contenu (sinon rien ne s'ouvre)", () => {
+    // Régression mesurée le 12/11/2026 : `selectQuest` ouvrait la quête **sans quitter
+    // l'onglet** — depuis « Problèmes », aucun clic ne semblait fonctionner.
+    const studio = codeOf("src/components/god/rush-editor/RushEditorStudio.tsx");
+    const from = studio.indexOf("const selectQuest = useCallback");
+    const to = studio.indexOf("const openPalette", from);
+    expect(from).toBeGreaterThan(-1);
+    const body = studio.slice(from, to === -1 ? from + 1200 : to);
+    expect(body).toContain('setActiveTab("content")');
   });
 });

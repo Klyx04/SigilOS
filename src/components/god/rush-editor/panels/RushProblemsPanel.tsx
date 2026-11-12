@@ -12,12 +12,17 @@
  * verrouillée par `rush-editor-problems`).
  */
 
+import { useState } from "react";
 import { AlertTriangle, Check, ChevronRight } from "lucide-react";
 import {
   analyzeRushEditorProblems,
   countRushEditorProblems,
   type RushProblemMilestone,
 } from "@/lib/rush-editor-problems";
+
+/** Première page d'une famille, puis 50 de plus par clic (jamais de liste infinie). */
+const FIRST_PAGE = 12;
+const PAGE_SIZE = 50;
 
 export function RushProblemsPanel({
   milestones,
@@ -30,6 +35,9 @@ export function RushProblemsPanel({
 }) {
   const problems = analyzeRushEditorProblems(milestones);
   const total = countRushEditorProblems(problems);
+  /** Combien de cibles sont affichées, par famille (défaut : première page). */
+  const [shown, setShown] = useState<Record<string, number>>({});
+  const visibleCount = (kind: string, count: number) => Math.min(shown[kind] ?? FIRST_PAGE, count);
 
   return (
     <div className="space-y-4 px-3 py-4" data-rush-problems-panel>
@@ -76,7 +84,7 @@ export function RushProblemsPanel({
               </div>
 
               <ul className="space-y-0.5">
-                {problem.targets.map((target) => (
+                {problem.targets.slice(0, visibleCount(problem.kind, problem.count)).map((target) => (
                   <li key={`${target.blockId}:${target.questId ?? ""}`}>
                     <button
                       type="button"
@@ -102,10 +110,23 @@ export function RushProblemsPanel({
                 ))}
               </ul>
 
-              {problem.count > problem.targets.length && (
-                <p className="text-caption text-muted-foreground">
-                  + {problem.count - problem.targets.length} autre{problem.count - problem.targets.length > 1 ? "s" : ""}
-                </p>
+              {problem.count > visibleCount(problem.kind, problem.count) && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShown((prev) => ({
+                      ...prev,
+                      [problem.kind]: visibleCount(problem.kind, problem.count) + PAGE_SIZE,
+                    }))
+                  }
+                  aria-label={`Afficher plus de manques pour « ${problem.label} »`}
+                  className="w-full rounded-md border border-border px-2 py-1 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+                >
+                  Afficher {Math.min(PAGE_SIZE, problem.count - visibleCount(problem.kind, problem.count))} de plus
+                  {" · "}
+                  {problem.count - visibleCount(problem.kind, problem.count)} restant
+                  {problem.count - visibleCount(problem.kind, problem.count) > 1 ? "s" : ""}
+                </button>
               )}
             </section>
           ))}

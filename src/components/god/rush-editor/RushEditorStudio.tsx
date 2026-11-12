@@ -872,6 +872,10 @@ export function RushSylvestreAdminClient({
       setEditingMilestone(null);
       setAddingSequenceTo(null);
       setEditingSeqId(questId);
+      // E3b-fix (12/11/2026) : sans cette bascule, un clic depuis « Problèmes » ou
+      // « Branches » sélectionnait la quête **sans quitter l'onglet** — donc sans effet
+      // visible. L'inspecteur n'existe que dans l'onglet Contenu.
+      setActiveTab("content");
       editor.setSelection({ kind: "quest", blockId, questId });
       editor.setTreeOpen(false);
       editor.setInspectorOpen(true);

@@ -67,14 +67,15 @@ const targetOf = (block: RushProblemMilestone, seq: RushProblemSequence): RushEd
     questName: nameOf(seq),
 });
 
-const MAX_TARGETS = 12;
-
 function collect(
     milestones: ReadonlyArray<RushProblemMilestone>,
     pick: (block: RushProblemMilestone) => ReadonlyArray<RushEditorProblemTarget>,
 ): { count: number; targets: RushEditorProblemTarget[] } {
     const all = milestones.flatMap((block) => [...pick(block)]);
-    return { count: all.length, targets: all.slice(0, MAX_TARGETS) };
+    // ⚠️ On ne coupe **pas** ici : la règle dit la vérité, le **panneau** pagine
+    // l'affichage (12 puis 50 par clic). Une coupe dans la règle rendait
+    // « + 324 autres » définitivement mort (mesuré le 12/11/2026).
+    return { count: all.length, targets: all };
 }
 
 /**

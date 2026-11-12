@@ -84,6 +84,11 @@ import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEdito
 import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
 import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
 import { SectionGroupHeader } from "@/components/god/rush-editor/fields/SectionGroupHeader";
+import {
+  parseRushEditorDraft,
+  rushEditorDraftKey,
+  serializeRushEditorDraft,
+} from "@/lib/rush-editor-draft";
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
 import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
@@ -996,6 +1001,10 @@ export function RushSylvestreAdminClient({
    */
   const questForm = selectedQuest && selectedQuestBlock ? (
     <SequenceEditForm
+      // Lot 5 — une instance PAR quête : sans cette clé, React réutilisait le formulaire
+      // déjà monté (les champs gardaient la quête précédente, et le brouillon local se
+      // serait appliqué au mauvais bloc).
+      key={selectedQuest.id}
       seq={selectedQuest}
       milestoneId={selectedQuestBlock.id}
       isPending={isPending}
@@ -3277,29 +3286,41 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }) {
-  const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
+  // Lot 5 — brouillon local par quête : restauré après un rechargement, jeté à
+  // l'enregistrement. `null` = aucune saisie en attente (on lit la base).
+  const draft = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return parseRushEditorDraft(localStorage.getItem(rushEditorDraftKey(seq.id)));
+    } catch {
+      return null;
+    }
+  }, [seq.id]);
+  const [draftRestored, setDraftRestored] = useState(!!draft);
+  const [name, setName] = useState(draft?.name ?? (seq.subGuideName || seq.subGuideRef));
   const [splitConfirm, setSplitConfirm] = useState(false);
-  const [dofusdbUrl, setDofusdbUrl] = useState(seq.dofusdbUrl || "");
-  const [noobsUrl, setNoobsUrl] = useState(seq.dofuspourlesnoobsUrl || "");
-  const [tips, setTips] = useState(seq.tips || "");
+
+  const [dofusdbUrl, setDofusdbUrl] = useState(draft?.dofusdbUrl ?? (seq.dofusdbUrl || ""));
+  const [noobsUrl, setNoobsUrl] = useState(draft?.noobsUrl ?? (seq.dofuspourlesnoobsUrl || ""));
+  const [tips, setTips] = useState(draft?.tips ?? (seq.tips || ""));
   // Lot 4 — une seule quête, deux textes : le bon sort selon la cité du joueur (résolu par
   // `resolveRushRoute`, donc les trois surfaces en bénéficient). Vide ⇒ texte de base.
   const initialVariants = useMemo(() => (seq.routeVariants ?? {}) as SequenceRouteVariants, [seq.routeVariants]);
-  const [bontaName, setBontaName] = useState(initialVariants.bontarien?.name ?? "");
-  const [bontaTips, setBontaTips] = useState(initialVariants.bontarien?.tips ?? "");
-  const [brakName, setBrakName] = useState(initialVariants.brakmarien?.name ?? "");
-  const [brakTips, setBrakTips] = useState(initialVariants.brakmarien?.tips ?? "");
-  const [alignReq, setAlignReq] = useState(seq.alignReq || "");
-  const [alignOrderCode, setAlignOrderCode] = useState(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
-  const [alignLevelReq, setAlignLevelReq] = useState(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
-  const [classReq, setClassReq] = useState(seq.classReq || "");
+  const [bontaName, setBontaName] = useState(draft ? draft.bontaName : initialVariants.bontarien?.name ?? "");
+  const [bontaTips, setBontaTips] = useState(draft ? draft.bontaTips : initialVariants.bontarien?.tips ?? "");
+  const [brakName, setBrakName] = useState(draft ? draft.brakName : initialVariants.brakmarien?.name ?? "");
+  const [brakTips, setBrakTips] = useState(draft ? draft.brakTips : initialVariants.brakmarien?.tips ?? "");
+  const [alignReq, setAlignReq] = useState(draft?.alignReq ?? (seq.alignReq || ""));
+  const [alignOrderCode, setAlignOrderCode] = useState(draft?.alignOrderCode ?? (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")));
+  const [alignLevelReq, setAlignLevelReq] = useState(draft?.alignLevelReq ?? (seq.alignLevelReq ? String(seq.alignLevelReq) : ""));
+  const [classReq, setClassReq] = useState(draft?.classReq ?? (seq.classReq || ""));
   const [questDbIds, setQuestDbIds] = useState<number[]>(Array.isArray(seq.questDbIds) ? seq.questDbIds : []);
-  const [note, setNote] = useState(seq.note || "");
-  const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
-  const [icon, setIcon] = useState(seq.icon || "");
+  const [note, setNote] = useState(draft?.note ?? (seq.note || ""));
+  const [isSuccess, setIsSuccess] = useState(draft ? draft.isSuccess : (seq.isSuccess ?? false));
+  const [icon, setIcon] = useState(draft?.icon ?? (seq.icon || ""));
   const [customIconUrl, setCustomIconUrl] = useState("");
   const [uploadingIcon, setUploadingIcon] = useState(false);
-  const [metamobMonsterId, setMetamobMonsterId] = useState(seq.metamobMonsterId ? String(seq.metamobMonsterId) : "");
+  const [metamobMonsterId, setMetamobMonsterId] = useState(draft?.metamobMonsterId ?? (seq.metamobMonsterId ? String(seq.metamobMonsterId) : ""));
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
   );
@@ -3776,6 +3797,73 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
+  /**
+   * Lot 5 — le brouillon suit la saisie : écrit tant que le formulaire est « non
+   * enregistré », supprimé dès qu'il ne l'est plus. Un stockage refusé/plein ne bloque
+   * jamais la saisie (le brouillon est un confort, pas une dépendance).
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = rushEditorDraftKey(seq.id);
+    try {
+      if (!isDirty) {
+        localStorage.removeItem(key);
+        return;
+      }
+      localStorage.setItem(
+        key,
+        serializeRushEditorDraft({
+          name,
+          note,
+          tips,
+          dofusdbUrl,
+          noobsUrl,
+          alignReq,
+          alignOrderCode,
+          alignLevelReq,
+          classReq,
+          metamobMonsterId,
+          icon,
+          bontaName,
+          bontaTips,
+          brakName,
+          brakTips,
+          isSuccess,
+        })
+      );
+    } catch {
+      /* stockage indisponible : on continue sans brouillon */
+    }
+  }, [isDirty, seq.id, name, note, tips, dofusdbUrl, noobsUrl, alignReq, alignOrderCode, alignLevelReq, classReq, metamobMonsterId, icon, bontaName, bontaTips, brakName, brakTips, isSuccess]);
+
+  /** Restaure les valeurs de la base et jette le brouillon (geste explicite). */
+  const discardDraft = () => {
+    try {
+      localStorage.removeItem(rushEditorDraftKey(seq.id));
+    } catch {
+      /* rien à jeter */
+    }
+    setName(seq.subGuideName || seq.subGuideRef);
+    setDofusdbUrl(seq.dofusdbUrl || "");
+    setNoobsUrl(seq.dofuspourlesnoobsUrl || "");
+    setTips(seq.tips || "");
+    setNote(seq.note || "");
+    setAlignReq(seq.alignReq || "");
+    setAlignOrderCode(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
+    setAlignLevelReq(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
+    setClassReq(seq.classReq || "");
+    setMetamobMonsterId(seq.metamobMonsterId ? String(seq.metamobMonsterId) : "");
+    setIcon(seq.icon || "");
+    setIsSuccess(seq.isSuccess ?? false);
+    const v = (seq.routeVariants ?? {}) as SequenceRouteVariants;
+    setBontaName(v.bontarien?.name ?? "");
+    setBontaTips(v.bontarien?.tips ?? "");
+    setBrakName(v.brakmarien?.name ?? "");
+    setBrakTips(v.brakmarien?.tips ?? "");
+    setDraftRestored(false);
+  };
+
+
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
   // bas sont celles du MEMBRE (mêmes composants que l'overlay, le dashboard et le guide public),
@@ -3837,6 +3925,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
   const handleSubmit = () => {
     if (!name.trim()) return;
+    // Le brouillon a rempli son rôle : la saisie part en base, on le jette.
+    try {
+      localStorage.removeItem(rushEditorDraftKey(seq.id));
+    } catch {
+      /* rien à jeter */
+    }
     onSave({
       subGuideRef: name.trim(),
       dungeonId: selectedDungeons[0]?.id ?? null,
@@ -3923,6 +4017,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           </button>
         </div>
       </div>
+      {/* Lot 5 — brouillon local restauré : la saisie non enregistrée est revenue. */}
+      {draftRestored && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-2.5 py-1.5 text-caption text-warning">
+          <span>Brouillon restauré (non enregistré).</span>
+          <button
+            type="button"
+            onClick={discardDraft}
+            className="rounded-md border border-warning/40 px-2 py-0.5 font-semibold text-warning transition-colors hover:bg-warning/10"
+          >
+            Jeter
+          </button>
+        </div>
+      )}
+
+
 
       {/*
         E2b (12/11/2026) — les gestes de la quête sont **en tête**. Mesure : « Déplacer vers »

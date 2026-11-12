@@ -11,6 +11,8 @@
  * pour que le panneau ouvre l'inspecteur au bon endroit.
  */
 
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+
 export type RushProblemSequence = {
     id: string;
     subGuideName?: string | null;
@@ -20,6 +22,10 @@ export type RushProblemSequence = {
     activityTags?: ReadonlyArray<{ type?: string | null }> | null;
     alignOrderCode?: string | null;
     alignLevelReq?: number | null;
+    /** Cité déclarée (`bontarien` / `brakmarien`) — vide = commune. */
+    alignReq?: string | null;
+    /** Classe déclarée (`feca`, `iop`, …) — vide = commune. */
+    classReq?: string | null;
 };
 
 export type RushProblemMilestone = {
@@ -35,13 +41,17 @@ export type RushEditorProblemKind =
     | "quest-without-tips"
     | "quest-without-qid"
     | "quest-without-resource"
-    | "order-quest-without-level";
+    | "order-quest-without-level"
+    | "class-quest-misrouted"
+    | "alignment-quest-without-camp";
 
 export type RushEditorProblemTarget = {
     blockId: string;
     blockTitle: string;
     questId?: string;
     questName?: string;
+    /** Précision courte affichée à côté du nom (ex. « dit iop · route cra »). */
+    detail?: string;
 };
 
 export type RushEditorProblem = {
@@ -67,6 +77,31 @@ const targetOf = (block: RushProblemMilestone, seq: RushProblemSequence): RushEd
     questName: nameOf(seq),
 });
 
+/** Minuscules sans accents : « Féca » et « feca » se comparent. */
+function normalizeWord(value: string): string {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
+ * Classe citée par le NOM d'une quête, en **mot entier** — `null` si aucune.
+ *
+ * 🎯 Mesure du 12/11/2026 (715 séquences) : une recherche naïve par sous-chaîne
+ * appariait des lieux (« Cania » → cra, « Srambad » → sram, « Ecaflipus » → ecaflip)
+ * et rendait le contrôle inutilisable. En mot entier, il ne reste que les vrais noms.
+ *
+ * 🛡️ Sert au contrôle « quête de classe mal routée » : `classReq` vide ou différent
+ * ⇒ la quête sort pour la mauvaise classe (ou pour les 19).
+ */
+export function classMentionedInName(name: string | null | undefined): string | null {
+    const normalized = normalizeWord(name ?? "");
+    if (!normalized) return null;
+    for (const dofusClass of DOFUS_CLASSES) {
+        const pattern = new RegExp(`(^|[^a-z])${dofusClass.id}([^a-z]|$)`);
+        if (pattern.test(normalized)) return dofusClass.id;
+    }
+    return null;
+}
+
 function collect(
     milestones: ReadonlyArray<RushProblemMilestone>,
     pick: (block: RushProblemMilestone) => ReadonlyArray<RushEditorProblemTarget>,
@@ -79,11 +114,13 @@ function collect(
 }
 
 /**
- * Les cinq manques du contenu, toujours dans le même ordre.
+ * Les sept manques du contenu, toujours dans le même ordre.
  *
- * ⚠️ La **route** (camps, Ordres, classes) n'est pas ici : c'est l'onglet Branches, qui
- * possède déjà ses règles (`buildRushBranches`, `buildRushClassBranches`). Un seul sujet,
- * une seule règle.
+ * ⚠️ La **route** (camps, Ordres, classes) reste pilotée par l'onglet Branches, qui montre
+ * la **couverture** (`buildRushBranches`, `buildRushClassBranches`). Les deux derniers
+ * contrôles ne la dupliquent pas : ils signalent une **saisie incohérente** que la
+ * couverture ne peut pas voir — un nom de quête qui contredit sa classe, et un Ordre ou
+ * un palier posé sans cité (la quête sort alors dans les deux camps).
  */
 export function analyzeRushEditorProblems(
     milestones: ReadonlyArray<RushProblemMilestone>,
@@ -126,6 +163,45 @@ export function analyzeRushEditorProblems(
             .map((seq) => targetOf(block, seq)),
     );
 
+    // Le NOM dit une classe, la route en déclare une autre (ou aucune) : la quête sort
+    // pour la mauvaise classe, ou pour les 19 quand `classReq` est vide.
+    const classMisrouted = collect(milestones, (block) =>
+        hostsQuests(block)
+            ? block.sequences.flatMap((seq) => {
+                  const mentioned = classMentionedInName(seq.subGuideName ?? seq.subGuideRef);
+                  if (!mentioned) return [];
+                  const declared = (seq.classReq ?? "").trim().toLowerCase();
+                  if (declared === mentioned) return [];
+                  return [
+                      {
+                          ...targetOf(block, seq),
+                          detail: `dit ${mentioned} · route ${declared || "aucune"}`,
+                      },
+                  ];
+              })
+            : [],
+    );
+
+    // Un Ordre ou un palier sans cité : la route ne peut pas trancher, la quête sort
+    // dans les deux camps (l'inverse — cité sans Ordre — est normal pour les quêtes de cité).
+    const alignmentWithoutCamp = collect(milestones, (block) =>
+        hostsQuests(block)
+            ? block.sequences
+                  .filter((seq) => {
+                      const hasOrder = (seq.alignOrderCode ?? "").trim() !== "";
+                      const hasLevel = Boolean(seq.alignLevelReq);
+                      const hasCamp = (seq.alignReq ?? "").trim() !== "";
+                      return (hasOrder || hasLevel) && !hasCamp;
+                  })
+                  .map((seq) => ({
+                      ...targetOf(block, seq),
+                      detail: (seq.alignOrderCode ?? "").trim()
+                          ? `Ordre ${seq.alignOrderCode}`
+                          : `palier ${seq.alignLevelReq}`,
+                  }))
+            : [],
+    );
+
     return [
         {
             kind: "empty-block",
@@ -156,6 +232,18 @@ export function analyzeRushEditorProblems(
             label: "Quêtes d'Ordre sans palier",
             hint: "La chaîne des rangs est cassée (le rang N exige le N−1).",
             ...orderWithoutLevel,
+        },
+        {
+            kind: "alignment-quest-without-camp",
+            label: "Quêtes d'alignement sans cité",
+            hint: "Un Ordre ou un palier sans cité : la quête sort dans les deux camps.",
+            ...alignmentWithoutCamp,
+        },
+        {
+            kind: "class-quest-misrouted",
+            label: "Quêtes de classe mal routées",
+            hint: "Le nom cite une classe, la route en déclare une autre (ou aucune).",
+            ...classMisrouted,
         },
     ];
 }

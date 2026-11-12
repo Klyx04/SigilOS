@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 12/11/2026 — **Rang 59 · E2c : cockpit Branches + écrans plats** — branche `feat/studio-e2`
+
+> **Demande user (verbatim)** : « j'ai vraiment du mal avec …/rush-sylvestre … j'ai besoin d'avoir un visuel où mon cerveau va capter direct et où je vais être efficace pour ajouter des quêtes, faire des modifs à la volée » · « l'onglet branche : c'est juste une lecture ? » · « l'onglet lancement … devrait prendre toute la page aussi ; l'onglet config aussi non ? » · « go pour la soluce 1 » (E2a → E2c → E2b).
+> **Mesures** : ① le panneau Branches ne recevait que `view`, `classView` et `milestones` — **aucun callback** : lecture seule par design (`RushEditorStudio.tsx:5249`), donc **aucun geste** possible ; ② **Lancement** et **Config** étaient plafonnés à `max-w-xl` (**576 px**) → deux tiers de page vide ; ③ le monolithe faisait **5 472 lignes** (`SequenceEditForm` 1 606 l. à lui seul).
+> **Fait** : `panels/RushBranchesCockpit.tsx` — 6 Ordres × 5 paliers + **19 classes cliquables** : un emplacement **rempli** ouvre la quête dans l'inspecteur (`selectQuest`), un emplacement **vide** ouvre la création **pré-remplie** (cité + Ordre + palier + classe) par `AddSequenceForm.defaultRoute`, et le bandeau **Problèmes** (orphelins, sans palier, classe inconnue, conflit cité/classe) est cliquable ; `panels/RushRoutePreview.tsx` et `fields/RushClassSelect.tsx` sortis du studio ; **Lancement** et **Config** en 2 colonnes pleine largeur (aperçu **membre réel** du pense-bête, effet de chaque interrupteur, état du guide). Studio **5 472 → 5 264 lignes**, dette DA **644 → 594**.
+> **Preuves** : `rush-branches-cockpit` **8** (neuf, dont un **rendu réel** `renderToStaticMarkup`) · `rush-route-tooling` repointé sur le **dossier** `rush-editor/**` (mêmes littéraux, aucune garde retirée) · `rush-editor-shell` : les **3** fichiers neufs sont aux tokens · suite **659 fichiers / 7 053 tests ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**, aucune server action modifiée.
+> **Reste** : contrôle visuel 390/768/1024/1440 (cockpit, création pré-remplie, Lancement/Config) ; **E2b** (inspecteur quête : 3 groupes, sections vides masquées, pied sticky, brouillon local) puis **E2a-reste** (découpe des 3 formulaires, déplacement pur) ; E3 → E4 → E5.
+> **Rotation** : bloc « 10/11/2026 (suite 2) — V-H donjons ocre » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 11/11/2026 (suite 3) — **Chantier 4/5 · Finitions anonymes F1→F7** — branche `feat/visiteurs-communaute`
 
 > **Décisions user** : F1 Ocre = **deux lignes séparées** (quêtes / captures Metamob), jamais un pourcentage unique ; F3 anonyme = **pas de tuile Metamob morte**, l'espace porte le panneau F5 ; F6 = **même modale que l'overlay** dans les pages (le repli `<details>` est supprimé) ; F7 = **en dernier**, l'utilisateur valide (la PiP passe en qualité basse).
@@ -60,13 +70,3 @@
 > **Preuves** : `ocre-dungeons` **19** · `rush-editor-shell` **16** · `overlay-notifications` **4** · `rush-overlay-chapitre-bulles` **13** · suite **648 fichiers / 6 913 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = V2c, **livré le 11/11/2026** (voir bloc « Chantier 3 ») ; les toasts de la **page** publique (hors overlay) restent des toasts de page, volontairement.
 > **Rotation** : bloc « 09/11/2026 (suite 4) — Deux bruits Sentry : 429 Metamob et clé chiffrée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 10/11/2026 (suite 2) — **Rang 10 · V-H : les donjons ocre disent « capturé / à capturer » et ouvrent le suivi** — branche `feat/rush-ocre-dungeon-state`
-
-> **Demande user (verbatim)** : « Nous devons avancé sur la continuité du profil perso public et les chantiers rush sylvestre » → après F17b, **V-H** (donjons ocre).
-> **Mesure préalable** : le schéma n'a **aucune relation `Dungeon → Monster`** ; l'ancien dashboard comparait les noms avec `includes` (faux positif « Bouftou » vs « Bouftou Royal ») et `getDungeons` marquait **tous** les donjons d'une séquence dès qu'un tag `ocre_dungeon` existait. La progression Metamob (`OcrePanelData.monsters`) est déjà dans le payload de l'overlay et du dashboard.
-> **Fait** : règle pure `src/lib/ocre-dungeons.ts` (`normalizeOcreDungeonName`, `ocreDungeonCapture` → `captured | to-capture | unknown`) ; la carte partagée `RushOverlayDungeonCard` affiche « Ocre : capturé / à capturer » (sous-ligne) et un bouton qui ouvre la fenêtre Ocre ; `RushQuestDungeonsPanel`, la popover et la fiche détail transmettent `capturedOcreNames` / `onOpenOcre` ; le dashboard alimente avec `capturedMonsterNames` (contexte `OpenOcreCtx` → `OcreProgressModal`), l'overlay dérive les captures de `ocre.monsters` (aucun appel réseau) et ouvre `RushOverlayOcreModal` ; le guide **public** ne reçoit aucune action. `getDungeons` marque **un** donjon par tag (`isOcreTagged`). **Aucune migration.**
-> **Preuves** : `ocre-dungeons` **15** (règle, rendu réel, câblage) · suite **647 fichiers / 6 905 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Reste** : contrôle visuel du panneau donjon (dashboard + overlay PiP, 390 / 768 / 1 440) avec un compte Metamob lié **et** non lié ; version stricte « tous les monstres du donjon » = table Donjon → Monstres (migration ⇒ accord), non ouverte. Ensuite : **V-C**, **F16**, **F1→F7**.
-> **Rotation** : bloc « 09/11/2026 (suite 3) — Vignettes Ocre iso partout + proxy qui dit pourquoi il échoue » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

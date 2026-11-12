@@ -30,6 +30,10 @@ const TREE = codeOf(`${EDITOR_DIR}/RushEditorTree.tsx`);
 const INSPECTOR = codeOf(`${EDITOR_DIR}/RushEditorInspector.tsx`);
 const PALETTE = codeOf(`${EDITOR_DIR}/RushEditorCommandPalette.tsx`);
 const STUDIO = codeOf(`${EDITOR_DIR}/RushEditorStudio.tsx`);
+/** E2c — les fichiers neufs du chantier (champ partagé + les deux panneaux) : mêmes tokens. */
+const CLASS_SELECT = codeOf(`${EDITOR_DIR}/fields/RushClassSelect.tsx`);
+const ROUTE_PREVIEW = codeOf(`${EDITOR_DIR}/panels/RushRoutePreview.tsx`);
+const BRANCHES_COCKPIT = codeOf(`${EDITOR_DIR}/panels/RushBranchesCockpit.tsx`);
 const APP_SHELL = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
 
 /** Bloc source : du marqueur `start` au marqueur `end`. */
@@ -119,7 +123,7 @@ describe("E1 — aucun formulaire dans la liste", () => {
   });
 
   it("la ligne de bloc ne contient plus aucun formulaire", () => {
-    const row = blockOf(STUDIO, "function MilestoneRow(", "function RushClassSelect");
+    const row = blockOf(STUDIO, "function MilestoneRow(", "function RushRouteBlockBar");
     expect(row).not.toContain("<SequenceEditForm");
     expect(row).not.toContain("<AddSequenceForm");
     expect(row).not.toContain("<BlockInspectorForm");
@@ -154,13 +158,16 @@ describe("E1 — DA des fichiers neufs et dette restante", () => {
   /** Motifs interdits par `docs/RULES.md` § UI (la reprise complète est le lot E4). */
   const FORBIDDEN = /font-black|tracking-widest|backdrop-blur|rounded-3xl|(?:bg|text|border|from|to|ring)-(?:zinc|emerald|purple|pink|indigo|amber|slate|gray)-/;
 
-  it("les cinq fichiers neufs sont aux tokens (aucun motif interdit)", () => {
+  it("les fichiers neufs sont aux tokens (aucun motif interdit)", () => {
     for (const [name, code] of [
       ["RushEditorShell.tsx", SHELL],
       ["RushEditorTopbar.tsx", TOPBAR],
       ["RushEditorTree.tsx", TREE],
       ["RushEditorInspector.tsx", INSPECTOR],
       ["RushEditorCommandPalette.tsx", PALETTE],
+      ["fields/RushClassSelect.tsx", CLASS_SELECT],
+      ["panels/RushRoutePreview.tsx", ROUTE_PREVIEW],
+      ["panels/RushBranchesCockpit.tsx", BRANCHES_COCKPIT],
     ] as const) {
       expect(code, `${name} contient un motif UI interdit`).not.toMatch(FORBIDDEN);
     }

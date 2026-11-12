@@ -45,7 +45,7 @@ import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, se
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
 import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
-import { DOFUS_WORLDS, DOFUS_JOBS, DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
@@ -53,7 +53,6 @@ import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
-import { resolveRushRoute } from "@/lib/rush-route";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -63,7 +62,7 @@ import {
   RUSH_RICH_TEXT_NOT_ACCEPTED,
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { countMissingOrderSlots, type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
+import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
@@ -82,6 +81,8 @@ import { RushEditorTree } from "@/components/god/rush-editor/RushEditorTree";
 import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/rush-editor/RushEditorInspector";
 import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
 import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
+import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
+import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import {
   findRushEditorBlock,
   isRushOutsideChapter,
@@ -374,6 +375,13 @@ export function RushSylvestreAdminClient({
   const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
   /** Bloc dont on est en train d'ajouter une quête (formulaire monté dans l'inspecteur). */
   const [addingSequenceTo, setAddingSequenceTo] = useState<string | null>(null);
+  /**
+   * E2c — route **pré-remplie** demandée par le cockpit Branches (cité, Ordre, palier,
+   * classe). `null` = création lancée depuis la liste : le formulaire part vide, comme avant.
+   */
+  const [sequenceRouteDefaults, setSequenceRouteDefaults] = useState<{
+    alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string;
+  } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   /** Le formulaire de quête signale ses modifications non enregistrées. */
   const [sequenceDirty, setSequenceDirty] = useState(false);
@@ -864,8 +872,34 @@ export function RushSylvestreAdminClient({
       setEditingMilestone(null);
       setEditingSeqId(null);
       setSequenceDirty(false);
+      // Création « nue » (liste) : aucune route pré-remplie, le formulaire part vide.
+      setSequenceRouteDefaults(null);
       setAddingSequenceTo(blockId);
       editor.setSelection({ kind: "block", blockId });
+      editor.setInspectorOpen(true);
+    });
+  }, [guardEditorSwitch, editor]);
+
+  /**
+   * E2c — emplacement **vide** du cockpit Branches : on ouvre la création dans le bloc
+   * d'accueil choisi, avec la cité, l'Ordre, le palier et la classe **déjà remplis**.
+   * Aucun second chemin d'écriture : c'est le même formulaire et la même action serveur.
+   */
+  const createQuestFromBranch = useCallback((target: RushQuestRouteTarget) => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+      setSequenceRouteDefaults({
+        alignReq: target.alignReq,
+        alignOrderCode: target.alignOrderCode,
+        alignLevelReq: target.alignLevelReq,
+        classReq: target.classReq,
+      });
+      setAddingSequenceTo(target.blockId);
+      // On bascule sur l'onglet qui porte l'inspecteur : le geste se voit immédiatement.
+      setActiveTab("content");
+      editor.setSelection({ kind: "block", blockId: target.blockId });
       editor.setInspectorOpen(true);
     });
   }, [guardEditorSwitch, editor]);
@@ -935,6 +969,7 @@ export function RushSylvestreAdminClient({
       milestoneId={addingSequenceTo}
       onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
       isPending={isPending}
+      defaultRoute={sequenceRouteDefaults}
     />
   ) : blockBeingEdited ? (
     <BlockInspectorForm
@@ -1344,11 +1379,17 @@ export function RushSylvestreAdminClient({
         )}
 
         {activeTab === "branches" && (
-          <RushBranchesPanel view={branches} classView={classBranches} milestones={routeMilestones} />
+          <RushBranchesCockpit
+            view={branches}
+            classView={classBranches}
+            milestones={routeMilestones}
+            onOpenQuest={selectQuest}
+            onCreateQuest={createQuestFromBranch}
+          />
         )}
 
         {activeTab === "settings" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
               <h2 className="text-sm font-black text-white uppercase tracking-wider">Paramètres du guide</h2>
               <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
@@ -1379,10 +1420,54 @@ export function RushSylvestreAdminClient({
                 </p>
               </div>
             </div>
+
+            {/*
+              Colonne 2 (E2c) — l'effet **mesuré** de chaque interrupteur. Avant, la page
+              s'arrêtait à 576 px et laissait la moitié droite vide : on y écrit ce que
+              chaque bascule coupe réellement, et l'état du guide que ces bascules servent.
+            */}
+            <aside className="space-y-4">
+              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">Ce que chaque interrupteur coupe</h3>
+                <ul className="space-y-2 text-caption">
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-emerald-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">Guide actif</b> — éteint, le guide disparaît du tableau de bord et du hub de quêtes ; rien n&apos;est supprimé.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">En construction — espace membres</b> — remplace le guide par l&apos;avis d&apos;arrivée. La page publique n&apos;est pas touchée.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isPublicUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">En construction — page publique</b> — avis d&apos;arrivée, <code>noindex</code> et retrait du sitemap. Éteint = page indexable.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">État du guide</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <PreviewStat label="Blocs" value={localMilestones.length} />
+                  <PreviewStat label="Quêtes" value={editor.totalQuestCount} />
+                </div>
+                <p className="text-caption text-zinc-500">
+                  Une bascule s&apos;applique tout de suite ; le studio garde l&apos;état réel de la base (aucun brouillon).
+                </p>
+              </div>
+            </aside>
           </motion.div>
         )}
         {activeTab === "launch" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
+            {/* Colonne 1 — le parcours de lancement et les métiers détectés. */}
+            <div className="space-y-4">
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
               <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#e6b96b]" /> Lancement du Rush
@@ -1438,6 +1523,51 @@ export function RushSylvestreAdminClient({
                 cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
               </p>
             </div>
+            </div>
+
+            {/* Colonne 2 (E2c) — d'abord ce que le membre lit réellement, puis son édition. */}
+            <div className="space-y-4">
+              <MemberPreviewFrame label="Aperçu membre — modale de lancement">
+                <div className="space-y-2 text-xs">
+                  <ul className="space-y-1">
+                    {uiConfig.launch.showMetamob && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Link2 className="h-3.5 w-3.5" aria-hidden /> Liaison Metamob (bouton « Lier » si le pseudo n&apos;est pas relié)
+                      </li>
+                    )}
+                    {uiConfig.launch.showResetAlignment && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Réinitialiser l&apos;alignement (optionnel)
+                      </li>
+                    )}
+                    {uiConfig.launch.showMetiers && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Hammer className="h-3.5 w-3.5" aria-hidden /> Métiers requis :{" "}
+                        {launchMetiers.length > 0
+                          ? launchMetiers.map((m) => `${m.name} (niv. ${m.level})`).join(" · ")
+                          : "aucun"}
+                      </li>
+                    )}
+                  </ul>
+                  {uiConfig.penseBete.map((sec) => (
+                    <div key={sec.id} className="rounded-lg border border-border bg-elevated p-2">
+                      <p className="font-semibold text-foreground">{sec.title}</p>
+                      <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                        {sec.items.map((item) => (
+                          <li key={item.id}>
+                            {item.label}
+                            {item.detail ? ` — ${item.detail}` : ""}
+                          </li>
+                        ))}
+                        {sec.items.length === 0 && <li>Aucun item</li>}
+                      </ul>
+                    </div>
+                  ))}
+                  {uiConfig.penseBete.length === 0 && (
+                    <p className="text-muted-foreground">Aucune section : la modale n&apos;affiche pas de pense-bête.</p>
+                  )}
+                </div>
+              </MemberPreviewFrame>
 
             {/* Config GOD éditable */}
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
@@ -1494,6 +1624,7 @@ export function RushSylvestreAdminClient({
               <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider disabled:opacity-50">
                 {uiSaving ? "Enregistrement…" : "Enregistrer la config"}
               </button>
+            </div>
             </div>
           </motion.div>
         )}
@@ -2215,28 +2346,6 @@ function MilestoneRow({
  * aucun signal. Une valeur historique inconnue reste **visible** ici (option dédiée)
  * et n'est jamais effacée en silence : l'admin doit la voir pour la corriger.
  */
-function RushClassSelect({
-  id, value, onChange, className,
-}: {
-  id: string; value: string; onChange: (value: string) => void; className?: string;
-}) {
-  const known = DOFUS_CLASSES.some((c) => c.id === value);
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={className ?? "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"}
-    >
-      <option value="">— Aucune —</option>
-      {DOFUS_CLASSES.map((c) => (
-        <option key={c.id} value={c.id}>{c.name}</option>
-      ))}
-      {value && !known && <option value={value}>Valeur inconnue : {value}</option>}
-    </select>
-  );
-}
-
 // ─── RushRouteBlockBar (G1) ──────────────────────────────────────────────────
 /**
  * Route du **bloc** : cité / Ordre / palier / classe appliqués d'un coup à ses quêtes
@@ -4704,18 +4813,23 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
 }
 
 // ─── AddSequenceForm ──────────────────────────────────────────────────────────
-function AddSequenceForm({ milestoneId, onAdd, isPending }: {
+function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
   milestoneId: string; onAdd: (data: any) => void; isPending: boolean;
+  /**
+   * E2c — emplacement du cockpit Branches : la cité, l'Ordre, le palier et la classe
+   * arrivent **pré-remplis**. Sans cette prop (création depuis la liste), tout part vide.
+   */
+  defaultRoute?: { alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string } | null;
 }) {
   const [name, setName] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [dofusdbUrl, setDofusdbUrl] = useState("");
   const [noobsUrl, setNoobsUrl] = useState("");
   const [tips, setTips] = useState("");
-  const [alignReq, setAlignReq] = useState("");
-  const [alignOrderCode, setAlignOrderCode] = useState("");
-  const [alignLevelReq, setAlignLevelReq] = useState("");
-  const [classReq, setClassReq] = useState("");
+  const [alignReq, setAlignReq] = useState(defaultRoute?.alignReq ?? "");
+  const [alignOrderCode, setAlignOrderCode] = useState(defaultRoute?.alignOrderCode ?? "");
+  const [alignLevelReq, setAlignLevelReq] = useState(defaultRoute?.alignLevelReq ?? "");
+  const [classReq, setClassReq] = useState(defaultRoute?.classReq ?? "");
   const [questDbIds, setQuestDbIds] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
@@ -5148,325 +5262,3 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     </div>
   );
 }
-
-// ─── RushRoutePreview (G3) ───────────────────────────────────────────────────
-/**
- * Aperçu de la route **telle que la voit le joueur**. Mêmes jalons que le guide, passés
- * par la règle unique `resolveRushRoute` — **aucun second filtre** ici. Lecture seule :
- * rien n'est publié, aucune écriture.
- */
-function RushRoutePreview({ milestones }: { milestones: RushMilestone[] }) {
-  const [camp, setCamp] = useState("");
-  const [order, setOrder] = useState("");
-  const [classId, setClassId] = useState("");
-
-  const visible = useMemo(
-    () => resolveRushRoute(milestones, {
-      camp: camp || null,
-      order: order || null,
-      playerClass: classId || null,
-    }),
-    [milestones, camp, order, classId],
-  );
-  const total = useMemo(() => milestones.reduce((n, m) => n + m.sequences.length, 0), [milestones]);
-  const shown = useMemo(() => visible.reduce((n, m) => n + m.sequences.length, 0), [visible]);
-  const blocks = useMemo(() => visible.filter((m) => m.sequences.length > 0), [visible]);
-
-  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
-
-  return (
-    <section className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Aperçu de la route</h2>
-          <p className="text-caption text-zinc-500">
-            Ce que verra le joueur — calculé par <code>resolveRushRoute</code>, rien n&apos;est publié.
-          </p>
-        </div>
-        <span className="text-caption font-bold tabular-nums text-zinc-400">{shown} / {total} quêtes</span>
-      </header>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div>
-          <label htmlFor="preview-camp" className="text-caption text-zinc-500 mb-1 block">Cité</label>
-          <select
-            id="preview-camp"
-            value={camp}
-            onChange={(e) => { setCamp(e.target.value); setOrder(""); }}
-            className={fieldClass}
-          >
-            <option value="">— Aucune —</option>
-            <option value="bontarien">Bontarien</option>
-            <option value="brakmarien">Brakmarien</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="preview-order" className="text-caption text-zinc-500 mb-1 block">Ordre</label>
-          <select
-            id="preview-order"
-            value={order}
-            disabled={!camp}
-            onChange={(e) => setOrder(e.target.value)}
-            className={`${fieldClass} disabled:opacity-40`}
-          >
-            <option value="">— Aucun —</option>
-            {orderCodesForCamp(camp).map((o) => (
-              <option key={o.code} value={o.code}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="preview-class" className="text-caption text-zinc-500 mb-1 block">Classe</label>
-          <RushClassSelect id="preview-class" value={classId} onChange={setClassId} className={fieldClass} />
-        </div>
-      </div>
-      {!camp && !order && !classId && (
-        <p className="text-caption text-zinc-500">
-          Sans choix, le guide est complet : la route ne filtre que ce qui est déclaré.
-        </p>
-      )}
-      <div className="space-y-1">
-        {blocks.map((m) => (
-          <details key={m.id} className="rounded-lg border border-white/5 bg-black/20">
-            <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-xs text-zinc-300">
-              <span className="truncate">{m.title}</span>
-              <span className="shrink-0 text-zinc-500">{m.sequences.length} quête{m.sequences.length !== 1 ? "s" : ""}</span>
-            </summary>
-            <ul className="space-y-0.5 px-3 pb-2 text-caption text-zinc-400">
-              {m.sequences.map((s) => <li key={s.id} className="truncate">{s.subGuideName}</li>)}
-            </ul>
-          </details>
-        ))}
-        {blocks.length === 0 && <p className="text-caption text-zinc-500">Aucune quête sur cette route.</p>}
-      </div>
-    </section>
-  );
-}
-
-// ─── RushBranchesPanel (S4-1) ────────────────────────────────────────────────
-/**
- * Vue **Branches à deux étages** — cité (étage 1) puis Ordre (étage 2).
- *
- * Lecture seule : elle sert à **voir** ce qui est saisi et ce qui manque (cible **100 / 102**,
- * 3 Ordres × 5 paliers par cité). L'édition vit dans l'onglet Contenu (S4-2).
- * Aucune requête : la vue est calculée côté serveur par `buildRushBranches`.
- */
-function RushBranchesPanel({ view, classView, milestones }: {
-  view?: RushBranchesView;
-  classView?: RushClassBranchesView;
-  milestones: RushMilestone[];
-}) {
-  if (!view) {
-    return (
-      <p className="max-w-6xl mx-auto px-6 py-10 text-sm text-zinc-500">
-        Vue Branches indisponible : le guide n'a pas pu être chargé.
-      </p>
-    );
-  }
-
-  const missingSlots = countMissingOrderSlots(view);
-
-  return (
-    <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
-      {/* G3 — ce que le joueur verra, sans publier. */}
-      <RushRoutePreview milestones={milestones} />
-
-      {/* Étage 1 — les deux cités (cible mesurée 100 / 102). */}
-      <section className="grid gap-4 md:grid-cols-2">
-        {view.camps.map((camp) => {
-          const pct = Math.min(100, Math.round((camp.present / camp.target) * 100));
-          const done = camp.missing === 0;
-          return (
-            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={camp.camp === "bontarien" ? "/ordres/bonta.png" : "/ordres/brakmar.png"}
-                    alt=""
-                    aria-hidden="true"
-                    className="w-6 h-6 object-contain"
-                    loading="lazy"
-                  />
-                  <h3 className="text-sm font-bold text-white">{camp.label}</h3>
-                </div>
-                <span className={`text-caption font-black tabular-nums ${done ? "text-emerald-400" : "text-amber-400"}`}>
-                  {camp.present} / {camp.target}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${done ? "bg-emerald-500" : "bg-amber-500"}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <p className="text-caption text-zinc-400">
-                {camp.missing === 0
-                  ? `Série complète${camp.beyondMirror > 0 ? ` (${camp.beyondMirror} position(s) hors miroir)` : ""}.`
-                  : `${camp.missing} quête(s) de cité manquante(s)`}
-              </p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Étage 2 — 3 Ordres × 5 paliers, par cité. */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Ordres — 3 par cité, 5 paliers</h2>
-          <span className="text-caption font-bold text-zinc-500">{missingSlots} emplacement(s) vide(s)</span>
-        </header>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {view.camps.map((camp) => (
-            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 space-y-4">
-              <p className="text-caption font-black uppercase tracking-widest text-zinc-500">{camp.label}</p>
-              {camp.orders.map((order) => (
-                <div key={order.id} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={order.icon} alt="" aria-hidden="true" className="w-5 h-5 object-contain" loading="lazy" />
-                    <span className="text-xs font-bold text-white flex-1 min-w-0 truncate">{order.name}</span>
-                    <span className={`text-caption font-black tabular-nums ${order.missing === 0 ? "text-emerald-400" : "text-amber-400"}`}>
-                      {order.slots.length - order.missing}/{order.slots.length}
-                    </span>
-                  </div>
-                  <ul className="space-y-1">
-                    {order.slots.map((slot) => {
-                      const empty = slot.sequences.length === 0;
-                      return (
-                        <li
-                          key={slot.level}
-                          className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-caption ${
-                            empty
-                              ? "border-dashed border-white/10 text-zinc-600"
-                              : "border-white/10 bg-zinc-950/50 text-zinc-300"
-                          }`}
-                        >
-                          <span className="font-black tabular-nums text-zinc-500 w-7 shrink-0">{slot.level}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold truncate">{slot.label}</p>
-                            {empty ? (
-                              <p className="text-zinc-600">— manque —</p>
-                            ) : (
-                              <p className="truncate">{slot.sequences.map((s) => s.subGuideName).join(" · ")}</p>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {order.unlevelled.length > 0 && (
-                    <p className="text-caption text-amber-500/80">
-                      {order.unlevelled.length} quête(s) sans palier :{" "}
-                      {order.unlevelled.map((s) => s.subGuideName).join(" · ")}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Étage 3 — 19 classes, une quête par classe (G4). */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Classes — 19 variantes</h2>
-          <span className="text-caption font-bold text-zinc-500">
-            {classView ? `${classView.present} / ${classView.target} · ${classView.missing} manque(s)` : "vue indisponible"}
-          </span>
-        </header>
-        {classView && (
-          <div className="rounded-xl border border-white/10 bg-zinc-900/40">
-            <table className="w-full text-caption">
-              <thead className="bg-zinc-900 text-zinc-400">
-                <tr>
-                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Classe</th>
-                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Quête</th>
-                </tr>
-              </thead>
-              <tbody>
-                {classView.classes.map((c) => (
-                  <tr key={c.id} className="border-t border-white/5">
-                    <td className="px-3 py-1.5 text-zinc-300">
-                      <span className="flex items-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={c.icon} alt="" aria-hidden="true" loading="lazy" className="h-4 w-4 object-contain" />
-                        {c.name}
-                      </span>
-                    </td>
-                    <td className={`px-3 py-1.5 ${c.sequences.length ? "text-zinc-200" : "text-zinc-600"}`}>
-                      {c.sequences.length === 0
-                        ? "— manque —"
-                        : c.sequences.map((s) => s.subGuideName).join(" · ")}
-                      {c.sequences.length > 1 && (
-                        <span className="ml-2 font-bold text-amber-400">{c.sequences.length} quêtes (doublon)</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {classView && classView.unknown.length > 0 && (
-          <p className="text-caption text-amber-500/80">
-            {classView.unknown.length} quête(s) avec une classe inconnue (masquées par la route) :{" "}
-            {classView.unknown.map((s) => `${s.subGuideName} (${s.classReq})`).join(" · ")}
-          </p>
-        )}
-        {classView && classView.misplaced.length > 0 && (
-          <p className="text-caption text-amber-500/80">
-            {classView.misplaced.length} quête(s) de classe portent aussi une cité/un Ordre :{" "}
-            {classView.misplaced.map((s) => s.subGuideName).join(" · ")}
-          </p>
-        )}
-      </section>
-
-      {/* Paires alignées — position ↔ position (le miroir ne vaut pas au-delà de 100). */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Paires alignées par position</h2>
-          <span className="text-caption font-bold text-zinc-500">{view.pairs.length} position(s)</span>
-        </header>
-        <div className="max-h-[30rem] overflow-y-auto rounded-xl border border-white/10">
-          <table className="w-full text-caption">
-            <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
-              <tr>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">#</th>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Bontarien</th>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Brâkmarien</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.pairs.map((pair) => (
-                <tr key={pair.position} className="border-t border-white/5">
-                  <td className="px-3 py-1.5 font-black tabular-nums text-zinc-500">{pair.position}</td>
-                  <td className={`px-3 py-1.5 ${pair.bontarien ? "text-zinc-200" : "text-zinc-600"}`}>
-                    {pair.bontarien ? pair.bontarien.subGuideName : "— manque —"}
-                  </td>
-                  <td className={`px-3 py-1.5 ${pair.brakmarien ? "text-zinc-200" : "text-zinc-600"}`}>
-                    {pair.brakmarien ? pair.brakmarien.subGuideName : "— manque —"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {view.orphans.length > 0 && (
-        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <p className="text-caption font-black uppercase tracking-widest text-amber-400">
-            {view.orphans.length} séquence(s) hors branche
-          </p>
-          <p className="text-caption text-zinc-400 mt-1">
-            Cité ou Ordre non reconnu — à corriger dans l'onglet Contenu :{" "}
-            {view.orphans.slice(0, 12).map((s) => s.subGuideName).join(" · ")}
-            {view.orphans.length > 12 ? " …" : ""}
-          </p>
-        </section>
-      )}
-    </div>
-  );
-}
-

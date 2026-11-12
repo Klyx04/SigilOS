@@ -13,20 +13,40 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
-const ADMIN_PATH = "src/components/god/rush-editor/RushEditorStudio.tsx";
+/**
+ * E2c (12/11/2026) — le studio est **découpé** : le champ de classe, l'aperçu de route et
+ * le panneau Branches vivent désormais dans `rush-editor/fields/**` et `rush-editor/panels/**`.
+ * On lit donc le **dossier entier** (studio + coquille + panneaux), et pas un seul fichier :
+ * chaque assertion garde son littéral d'origine, où que le code vive. Aucune garde retirée.
+ */
+const EDITOR_DIR = "src/components/god/rush-editor";
 const PAGE_PATH = "src/app/god/rush-sylvestre/page.tsx";
 const ACTIONS_PATH = "src/server/actions/optimized-guide-actions.ts";
 const BRANCHES_PATH = "src/lib/rush-branches.ts";
 
 /** Retire les commentaires : on verrouille le code, pas la prose. */
-const codeOf = (path: string) =>
-  readFileSync(path, "utf8")
+const stripComments = (source: string) =>
+  source
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const ADMIN = codeOf(ADMIN_PATH);
+const codeOf = (path: string) => stripComments(readFileSync(path, "utf8"));
+
+/** Source concaténée du studio (récursif, ordre stable : le tri des chemins). */
+function editorSource(dir: string): string {
+  return readdirSync(dir)
+    .map((entry) => {
+      const full = join(dir, entry);
+      return statSync(full).isDirectory() ? editorSource(full) : readFileSync(full, "utf8");
+    })
+    .sort()
+    .join("\n");
+}
+
+const ADMIN = stripComments(editorSource(EDITOR_DIR));
 const PAGE = codeOf(PAGE_PATH);
 const ACTIONS = codeOf(ACTIONS_PATH);
 const BRANCHES = codeOf(BRANCHES_PATH);

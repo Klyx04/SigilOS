@@ -3,13 +3,13 @@
 > **Rôle unique.** Ce fichier porte l'**audit UX mesuré** et les lots **E1 → E5** de la refonte
 > de `src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx`. L'ordre global reste
 > `docs/ROADMAP.md` ; le contenu du module reste `docs/plans/MODULE-RUSH-SYLVESTRE.md`.
-> **Dernière MAJ : 05/11/2026.**
+> **Dernière MAJ : 12/11/2026.**
 
 ## 0. Mesures de départ (05/11/2026)
 
 | Mesure | Valeur |
 |---|---|
-| Fichier du studio | **5 242 lignes** (le plan de septembre en annonçait 3 421) — **sorti de `src/app/god/**` en E1** |
+| Fichier du studio | **5 264 lignes** au 12/11/2026 (5 242 le 05/11 ; le plan de septembre en annonçait 3 421) — **sorti de `src/app/god/**` en E1**, allégé en **E2c** (aperçu de route, champ de classe et panneau Branches sortis) |
 | Formulaire de quête | **1 552 lignes** |
 | Formulaire d'ajout | **451 lignes** |
 | Motifs UI interdits (`docs/RULES.md`) | **674 occurrences** sur **385 lignes** (mesure du 05/11 : `font-black`, `tracking-widest`, `zinc-`, `emerald-`, `purple-`, `pink-`, `rounded-3xl`, `backdrop-blur`) — **644 / 376** après E1 |
@@ -64,6 +64,19 @@
 | **E3 — Bloc, masse, problèmes** | Inspecteur de bloc (titre, type, route, liste), création de bloc inline, sélection multiple, appliquer/déplacer/supprimer en masse, « Scinder en quêtes individuelles », panneau « Problèmes » (15 Bonta, 194 tips, 336 qids, 73 tags, blocs vides). | M |
 | **E4 — DA God** | Tokens/kit (`@/app/god/ui` ou kit local `rush-editor/kit`), suppression des **644 occurrences** interdites restantes (**376 lignes**, mesure après E1), verrou `rush-editor-ui` (zéro `zinc-`/`emerald-`/`purple-`, rayons, pas de blur, un accent). ⚠️ Le studio n'est **plus** dans `src/app/god/**` : `REFONTE_FILES` (verrou `god-deslop`) ne le couvre pas — c'est `rush-editor-ui` qui prend le relais, compteur à **0**. | M |
 | **E5 — Finitions** | Palette d'actions complète, raccourcis (`Ctrl+S`, `Esc`, `Alt+↑/↓`, `J/K`), virtualisation, responsive 390/768/1024/1440, états vides/chargement/erreur, doc. | M |
+
+> **E2 est scindé (12/11/2026)** pour livrer le **poste de travail** avant le formulaire :
+> · **E2c — livré** : onglet **Branches actionnable** (`panels/RushBranchesCockpit.tsx` : un
+>   emplacement rempli **ouvre** la quête dans l'inspecteur, un emplacement vide **crée** une
+>   quête pré-remplie — cité, Ordre, palier, classe — via `AddSequenceForm.defaultRoute`),
+>   **Lancement** et **Config** en pleine largeur (2 colonnes, aperçu **membre réel**),
+>   `RushClassSelect` + `RushRoutePreview` sortis du monolithe ; verrou
+>   `rush-branches-cockpit` **8** (dont un rendu réel).
+> · **E2b — à faire** : l'inspecteur quête (3 groupes, sections vides masquées, pied sticky,
+>   brouillon local, « Déplacer vers » en tête, jumelles/suppression dans un menu « … »).
+> · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
+>   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
+>   déplacement ne casse plus la garde.
 
 **Reste de E1, rattaché aux lots suivants** (à ne pas perdre de vue) :
 - **Édition inline du séparateur** encore dans la liste → **E3** (l'inspecteur de bloc doit couvrir les 10 types).

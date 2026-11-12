@@ -124,7 +124,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, rushChapterNumbers, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -501,6 +501,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       visitor?.classe,
     ]
   );
+  // Numérotation des blocs : la MÊME table que le guide membre et l'overlay
+  // (`rushChapterNumbers`, bandeaux exclus). L'ancien `milestones.indexOf(ms) + 1`
+  // comptait les séparateurs et les encarts : les numéros sautaient, et ils ne
+  // correspondaient pas à ceux du guide membre (mesuré le 12/11/2026).
+  const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
 
   // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
   // Persistées LOCALEMENT (aucun compte requis), par personnage — même clé que le
@@ -2353,7 +2358,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           passe sous le contenu — aucune information perdue, aucun doublon de rendu. */}
       <div className="min-w-0 space-y-6">
         {visibleMilestones.map((ms) => {
-          const msIndex = milestones.indexOf(ms);
+          const blockNumber = blockNumbers.get(ms.id) ?? 0;
           const isDone = completedIds.has(ms.id);
           const isExpanded = isSearching || expandedMs.has(ms.id);
           const doneSteps = completedStepsByMs.get(ms.id) || new Set();
@@ -2451,12 +2456,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                 >
                   {/* Le Dofus est servi NU : les PNG sont transparents, donc aucune tuile et
                       aucune teinte (une couleur par item est une décoration, pas une donnée).
-                      Le chapitre sans Dofus porte son numéro en mono — sans boîte non plus. */}
+                      Le chapitre sans Dofus porte son RANG dans le guide en mono — même
+                      table que le guide membre et l'overlay, bandeaux exclus — sans boîte. */}
                   <div className="w-11 h-11 flex items-center justify-center shrink-0">
                     {chapterDofusImg ? (
                       <img src={chapterDofusImg} alt={ms.title} className="w-9 h-9 object-contain" />
                     ) : (
-                      <span className="reg-mono text-sm text-muted-foreground">{msIndex + 1}</span>
+                      <span className="reg-mono text-sm text-muted-foreground">{blockNumber || ""}</span>
                     )}
                   </div>
 

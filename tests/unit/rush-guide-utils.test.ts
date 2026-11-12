@@ -7,6 +7,7 @@ import {
   isInfoSequence,
   isNonCheckableBlock,
   rushChapterPosition,
+  rushChapterNumbers,
   isSequenceBlockedByPrereqs,
   findNextActionableSequence,
   formatProgressLabel,
@@ -120,6 +121,46 @@ describe("rush-guide-utils", () => {
 
     it("sans bloc courant, retourne seulement le total", () => {
       expect(rushChapterPosition(blocks, null)).toEqual({ index: 0, total: 2 });
+    });
+  });
+
+  describe("rushChapterNumbers", () => {
+    const blocks = [
+      { id: "c1", type: "QUETE_SERIE" },
+      { id: "sep", type: "SEPARATEUR" },
+      { id: "tips", type: "INFO" },
+      { id: "dofus-obtenu", type: "DOFUS_OBTAINED" },
+      { id: "c2", type: "DOFUS" },
+      { id: "c3", type: "QUETE_SERIE" },
+    ];
+
+    it("numérote les blocs cochables dans l'ordre du guide, sans trou", () => {
+      expect([...rushChapterNumbers(blocks).entries()]).toEqual([
+        ["c1", 1],
+        ["c2", 2],
+        ["c3", 3],
+      ]);
+    });
+
+    it("n'inscrit aucun bandeau dans la table", () => {
+      const numbers = rushChapterNumbers(blocks);
+      for (const id of ["sep", "tips", "dofus-obtenu"]) {
+        expect(numbers.has(id), `${id} ne doit pas être numéroté`).toBe(false);
+      }
+    });
+
+    it("donne le MÊME rang que rushChapterPosition (une seule règle)", () => {
+      // `rushChapterPosition` dérive de cette table : si les deux divergent un jour,
+      // l'overlay et les guides navigateur compteraient deux choses différentes.
+      const numbers = rushChapterNumbers(blocks);
+      for (const block of blocks) {
+        expect(rushChapterPosition(blocks, block.id).index).toBe(numbers.get(block.id) ?? 0);
+      }
+      expect(rushChapterPosition(blocks, null).total).toBe(numbers.size);
+    });
+
+    it("rend une table vide pour un guide sans bloc", () => {
+      expect(rushChapterNumbers([]).size).toBe(0);
     });
   });
 

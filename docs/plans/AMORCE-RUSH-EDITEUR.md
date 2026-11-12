@@ -14,9 +14,9 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 
 | Élément | Valeur mesurée |
 |---|---|
-| Branche | `feat/studio-e2`, **13 commits** depuis `dev` (`da30e25c` → `d087081c`) |
-| PR | **#1346** vers `dev` — **30 fichiers, +2 651 / −869**, `OPEN` (checks à repasser après le dernier push) |
-| Suite | **663 fichiers / 7 101 tests ✓** · `tsc` 0 · ESLint 0 erreur |
+| Branche | `feat/rush-numerotation-blocs` (lot **1**) — `feat/studio-e2` est **mergée** dans `dev` |
+| PR | **#1346 mergée** le 12/11 (squash `e04dbe58`, 31 fichiers) · PR du **lot 1** ouverte |
+| Suite | **664 fichiers / 7 110 tests ✓** · `tsc` 0 · ESLint 0 erreur |
 | Studio | `RushEditorStudio.tsx` **~5 300 lignes** (5 472 au départ) · dette DA **644 → 577** |
 
 **Livré sur cette branche** (du plus ancien au plus récent) :
@@ -42,8 +42,8 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 
 ## 1. Avant de coder — 3 gestes
 
-1. **Merger la PR #1346** (elle porte tout E2/E3 + les correctifs). Si elle est déjà mergée :
-   `git switch dev && git pull`, puis créer la branche du lot **depuis `dev`**.
+1. **PR #1346 mergée** le 12/11 (`e04dbe58`, squash) : `git switch dev && git pull`, puis créer la
+   branche du lot **depuis `dev`**.
 2. Lire : `AGENTS.md` · `docs/ROADMAP.md` (rang **59** `god-rush-ux`, rang **10** `rush-donnees`,
    rang **57** `espace-visiteur`) · `docs/plans/REFONTE-EDITEUR-RUSH.md` §3 · le bloc **12/11** de
    `docs/agents/activeContext.md`.
@@ -66,7 +66,6 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 
 | # | Lot | Quoi exactement | Taille | Bloqué par |
 |---|---|---|---|---|
-| 1 | **Numérotation des blocs** | `rushChapterPosition(milestones, id)` dans `RushTimelineClient` (ligne du bloc) **et** `PublicRushGuideClient` ; passer une table `id → n°` depuis le parent | S | — |
 | 2 | **2 contrôles « Problèmes »** | quête de classe **sans `classReq`** (sinon visible par les 19 classes) et quête d'alignement **sans `alignReq`** (sinon visible des deux camps) | S | — |
 | 3 | **Reset automatique** | brancher les « graines du reset » (`src/lib/rush-guide-utils.ts`) dans l'action qui enregistre l'alignement ; annonce + `logGodWrite` ; test pur + test d'action | M | décision prise (§2) |
 | 4 | **Variante de texte par camp** | **migration** : `routeVariants Json?` sur `GuideSequence` (Zod borné, 2 camps × 2 champs) **ou** deux quêtes « Jumelle » | M | **GO migration** |
@@ -80,8 +79,12 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 | 12 | **Fiche visiteur — affinage** | deslop assets / hiérarchie, sans règle métier | M | — |
 | 13 | **Flaky** | `tests/unit/lot4-slash-commands-api-keys.test.ts` dépasse son timeout de 5 s sous charge (**5 023 ms** mesurés) | S | — |
 
-**Ordre recommandé** : **1 → 2 → 3 → 13** (quatre lots courts, tous visibles) → **5** → **4** (après
+**Ordre recommandé** : **2 → 3 → 13** (trois lots courts, tous visibles) → **5** → **4** (après
 GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
+
+> **Lot 1 livré le 12/11/2026** — branche `feat/rush-numerotation-blocs` : table partagée
+> `rushChapterNumbers` (bandeaux exclus), calculée une fois sur le guide complet et passée aux
+> deux guides ; l'ancien index brut est supprimé des deux surfaces. Verrou `rush-block-numbering`.
 
 ## 4. Interrogations tranchées — le modèle de route (à relire avant de créer le guide)
 

@@ -328,3 +328,105 @@ describe("sanitizeConstraints", () => {
     expect(sanitized.players).toBeNull();
   });
 });
+
+const extraConstraints: RushQuestConstraints = {
+  ...validConstraints,
+  combat: {
+    mode: "group",
+    monsters: [
+      { name: "Miss Tique", count: 1, level: 200, health: 27000, imageUrl: "/assets/dofus/monsters/1542.png" },
+      { name: "Miss Teigne", count: 2, level: 200, health: 27000 },
+    ],
+  },
+  dungeonChoice: {
+    dungeons: [
+      { id: "dj1", name: "Salons privés de Klime", bossName: "Klime", level: 200 },
+      { name: "Aquadôme de Merkator", bossName: "Merkator", level: 200 },
+    ],
+    note: "Un seul donjon à faire",
+  },
+  bashMobs: [{ name: "Gangredogue embusqué", level: 200 }],
+};
+
+describe("conditions de combat, donjon au choix et monstres", () => {
+  it("accepte la forme complète", () => {
+    expect(parseRushQuestConstraints(extraConstraints)).toMatchObject(extraConstraints);
+  });
+
+  it("refuse un mode de combat inconnu", () => {
+    expect(
+      parseRushQuestConstraints({
+        ...extraConstraints,
+        combat: { mode: "inconnu", monsters: [] },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuse un effectif de monstre à zéro", () => {
+    expect(
+      parseRushQuestConstraints({
+        ...extraConstraints,
+        combat: { mode: "solo", monsters: [{ name: "Test", count: 0 }] },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuse plus de vingt monstres dans un combat", () => {
+    const monsters = Array.from({ length: 21 }, () => ({ name: "Test", count: 1 }));
+    expect(
+      parseRushQuestConstraints({ ...extraConstraints, combat: { mode: "solo", monsters } }),
+    ).toBeNull();
+  });
+
+  it("refuse plus de huit donjons au choix", () => {
+    const dungeons = Array.from({ length: 9 }, () => ({ name: "Donjon" }));
+    expect(
+      parseRushQuestConstraints({
+        ...extraConstraints,
+        dungeonChoice: { dungeons },
+      }),
+    ).toBeNull();
+  });
+
+  it("rend le combat, le donjon au choix et les monstres comme infos dédiées", () => {
+    const infos = constraintsToInfos(extraConstraints);
+    const combat = infos.find((info) => info.kind === "combat");
+    const dungeon = infos.find((info) => info.kind === "dungeon");
+    const mobs = infos.find((info) => info.kind === "mobs");
+
+    expect(combat?.label).toBe("Combat de groupe");
+    expect(combat?.combat?.monsters).toHaveLength(2);
+    expect(dungeon?.dungeons).toHaveLength(2);
+    expect(dungeon?.dungeonNote).toBe("Un seul donjon à faire");
+    expect(mobs?.mobs?.[0]?.name).toBe("Gangredogue embusqué");
+  });
+
+  it("retire les lignes vides de combat et de donjon", () => {
+    const sanitized = sanitizeConstraints({
+      ...extraConstraints,
+      combat: {
+        mode: "solo",
+        monsters: [
+          { name: "  ", count: 1 },
+          { name: "Bagarreur clandestin", count: 1 },
+        ],
+      },
+      dungeonChoice: {
+        dungeons: [{ name: " " }, { name: "Palais du roi Nidas" }],
+        note: "  ",
+      },
+      bashMobs: [{ name: " " }, { name: "Pistilangue embusqué" }],
+    });
+
+    expect(sanitized.combat?.monsters).toEqual([
+      { name: "Bagarreur clandestin", count: 1 },
+    ]);
+    expect(sanitized.dungeonChoice?.dungeons).toEqual([{ name: "Palais du roi Nidas" }]);
+    expect(sanitized.dungeonChoice?.note).toBeUndefined();
+    expect(sanitized.bashMobs).toEqual([{ name: "Pistilangue embusqué" }]);
+  });
+
+  it("reconnaît un modèle rempli par un combat", () => {
+    expect(isEmptyConstraints(extraConstraints)).toBe(false);
+  });
+});

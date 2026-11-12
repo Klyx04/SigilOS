@@ -15,9 +15,24 @@
  */
 
 import { DOFUS_CLASSES, DOFUS_JOBS, getJob } from "@/lib/dofus-assets";
-import type { RushConstraintRole, RushQuestConstraints } from "@/types/rush-constraints";
+import type {
+  RushBashMob,
+  RushCombat,
+  RushCombatMode,
+  RushConstraintRole,
+  RushDungeonChoiceDungeon,
+  RushQuestConstraints,
+} from "@/types/rush-constraints";
 
-export type RushConstraintKind = "players" | "job" | "hours" | "spell" | "note";
+export type RushConstraintKind =
+  | "players"
+  | "job"
+  | "hours"
+  | "spell"
+  | "note"
+  | "combat"
+  | "dungeon"
+  | "mobs";
 
 export type RushConstraintJob = { slug: string; name: string };
 
@@ -39,6 +54,14 @@ export type RushConstraintInfo = {
   players?: number;
   /** Horaire structuré quand la forme est reconnue. */
   hours?: RushConstraintHours;
+  /** Combat structuré (mode + monstres) — rendu en cartes, pas en texte. */
+  combat?: RushCombat;
+  /** Donjons au choix — cartes avec visuel. */
+  dungeons?: RushDungeonChoiceDungeon[];
+  /** Espèces à combattre (`bashMobs`). */
+  mobs?: RushBashMob[];
+  /** Note libre du « donjon au choix ». */
+  dungeonNote?: string;
 };
 
 export type ParsedRushTips = {
@@ -56,6 +79,9 @@ const ICONS: Record<RushConstraintKind, string> = {
   hours: "/assets/dofus/game-icons/pin-clock.png",
   spell: "/assets/dofus/game-icons/parchment.png",
   note: "/assets/dofus/game-icons/info.png",
+  combat: "/assets/dofus/game-icons/crossed-swords.png",
+  dungeon: "/assets/dofus/game-icons/zaap.png",
+  mobs: "/assets/dofus/game-icons/crossed-swords.png",
 };
 
 const LABELS: Record<RushConstraintKind, string> = {
@@ -64,7 +90,31 @@ const LABELS: Record<RushConstraintKind, string> = {
   hours: "Horaire",
   spell: "Sort",
   note: "Note",
+  combat: "Combat",
+  dungeon: "Donjon",
+  mobs: "Monstres",
 };
+
+/** Les 5 modes de combat Tougli — libellé et icône Dofus réelle. */
+export const RUSH_COMBAT_MODES: ReadonlyArray<{
+  id: RushCombatMode;
+  label: string;
+  icon: string;
+}> = [
+  { id: "solo", label: "Combat solo", icon: "/assets/dofus/game-icons/shiny-sword.png" },
+  { id: "group", label: "Combat de groupe", icon: "/assets/dofus/game-icons/party.png" },
+  { id: "tactical", label: "Combat tactique", icon: "/assets/dofus/game-icons/shield.png" },
+  {
+    id: "soloWaves",
+    label: "Combat solo à vagues",
+    icon: "/assets/dofus/game-icons/crossed-swords.png",
+  },
+  {
+    id: "groupWaves",
+    label: "Combat de groupe à vagues",
+    icon: "/assets/dofus/game-icons/party.png",
+  },
+];
 
 /**
  * Métiers Dofus — source unique `DOFUS_JOBS` (id, nom, icône réelle).
@@ -336,6 +386,47 @@ export function constraintsToInfos(constraints: RushQuestConstraints): RushConst
     });
   }
 
+  const combat = constraints.combat;
+  if (combat && combat.monsters.length > 0) {
+    const mode =
+      RUSH_COMBAT_MODES.find((entry) => entry.id === combat.mode) ?? RUSH_COMBAT_MODES[0];
+    infos.push({
+      kind: "combat",
+      label: mode.label,
+      text: combat.monsters
+        .map((monster) => `${monster.count > 1 ? `${monster.count} × ` : ""}${monster.name}`)
+        .join(" · "),
+      icon: mode.icon,
+      jobs: [],
+      combat,
+    });
+  }
+
+  const dungeonChoice = constraints.dungeonChoice;
+  if (dungeonChoice && dungeonChoice.dungeons.length > 0) {
+    infos.push({
+      kind: "dungeon",
+      label: "Donjon au choix",
+      text: dungeonChoice.dungeons.map((dungeon) => dungeon.name).join(" · "),
+      icon: ICONS.dungeon,
+      jobs: [],
+      dungeons: dungeonChoice.dungeons,
+      dungeonNote: dungeonChoice.note,
+    });
+  }
+
+  const bashMobs = constraints.bashMobs ?? [];
+  if (bashMobs.length > 0) {
+    infos.push({
+      kind: "mobs",
+      label: "Monstres à combattre",
+      text: bashMobs.map((mob) => mob.name).join(" · "),
+      icon: ICONS.mobs,
+      jobs: [],
+      mobs: bashMobs,
+    });
+  }
+
   return infos;
 }
 
@@ -397,7 +488,10 @@ export function isEmptyConstraints(
     ) &&
     constraints.jobs.length === 0 &&
     constraints.spells.length === 0 &&
-    constraints.notes.length === 0
+    constraints.notes.length === 0 &&
+    !(constraints.combat && constraints.combat.monsters.length > 0) &&
+    !(constraints.dungeonChoice && constraints.dungeonChoice.dungeons.length > 0) &&
+    (constraints.bashMobs?.length ?? 0) === 0
   );
 }
 
@@ -415,6 +509,24 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
         ),
       }
     : null;
+  const combat = constraints.combat
+    ? {
+        ...constraints.combat,
+        monsters: constraints.combat.monsters.filter(
+          (monster) => monster.name.trim() !== "",
+        ),
+      }
+    : null;
+  const dungeonChoice = constraints.dungeonChoice
+    ? {
+        ...constraints.dungeonChoice,
+        dungeons: constraints.dungeonChoice.dungeons.filter(
+          (dungeon) => dungeon.name.trim() !== "",
+        ),
+        note: constraints.dungeonChoice.note?.trim() || undefined,
+      }
+    : null;
+  const bashMobs = (constraints.bashMobs ?? []).filter((mob) => mob.name.trim() !== "");
 
   return {
     ...constraints,
@@ -422,5 +534,8 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
       players && (players.count !== undefined || players.roles.length > 0) ? players : null,
     spells: constraints.spells.map((spell) => spell.trim()).filter(Boolean),
     notes: constraints.notes.map((note) => note.trim()).filter(Boolean),
+    combat: combat && combat.monsters.length > 0 ? combat : null,
+    dungeonChoice: dungeonChoice && dungeonChoice.dungeons.length > 0 ? dungeonChoice : null,
+    bashMobs,
   };
 }

@@ -200,14 +200,16 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 **Interdit** : déduire les opérateurs ET/OU d'un texte libre. Ce qui n'est pas structuré reste **texte**.
 
-**V2 livrée le 12/11/2026 — éditeur structuré + migration additive** : la colonne
-`GuideSequence.constraints Json?` porte les conditions saisies dans le studio (horaire
-créneau/attente, joueurs + rôles métier/classe/libre, métiers + niveau, sorts, notes),
-validées par `rushQuestConstraintsSchema` (Zod borné : heures `HH:MM`, effectif 1-40,
-métiers/classes des référentiels, 10 lignes max par liste). `RushTipLines` reçoit la donnée
-structurée et retombe sur le parseur des anciennes lignes `tips` quand elle est absente ;
-les conseils libres restent dans `tips`. `sanitizeConstraints` retire les lignes vides avant
-enregistrement. Verrou `rush-constraints` **35**. Restent S2-3→S2-5.
+**V3 livrée le 12/11/2026 — combat, donjon au choix et monstres** : la colonne
+`GuideSequence.constraints Json?` porte aussi `combat` (5 modes : solo, groupe, tactique,
+solo à vagues, groupe à vagues — monstres ×N, niveau, PV), `dungeonChoice` (jusqu'à 8
+donjons avec boss, niveau, visuel et note) et `bashMobs` (espèces à combattre). L'éditeur
+les cherche dans le catalogue local (`searchMonstersForDefi`, `searchDungeonsLocal`),
+affiche les portraits réels et un aperçu membre ; les trois surfaces rendent les cartes
+(`RushCombatCard`, `RushDungeonChoiceCard`, `RushBashMobsCard`). Zod borné (5 modes, 20
+monstres, 8 donjons, 20 espèces). **Aucune migration** (la colonne JSON existe depuis V2).
+Reste : **backfill des données Tougli** (les 1 085 contraintes → `constraints`, dry-run/apply)
+et reprise éditoriale.
 
 ## 5. Bloc S3 — La trame (chronologie Dofusyelle)
 

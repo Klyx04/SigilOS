@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { alignmentResetSeeds, cascadeResetIds, orderResetSeeds } from "@/lib/rush-guide-utils";
+import { alignmentChangeReset, alignmentResetSeeds, cascadeResetIds, orderResetSeeds } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
@@ -63,6 +63,38 @@ export async function alignmentSequenceIds(): Promise<Set<string>> {
 export async function alignmentResetIds(camp?: string | null): Promise<Set<string>> {
   const milestones = await loadGuideMilestones();
   return cascadeResetIds(milestones, alignmentResetSeeds(milestones, camp));
+}
+
+/**
+ * Reset de progression quand l'alignement d'un personnage **change**.
+ *
+ * Une seule règle pour le profil principal et les mules : la décision vient de
+ * `alignmentChangeReset` (pure, testée), l'écriture réutilise `resetAlignmentQuests` /
+ * `resetOrderQuests`. Appelée par les actions qui écrivent l'alignement
+ * (`updateUserProfile`, `updateMuleAlignment`) **avant** l'écriture, pour que l'ancienne
+ * cité soit encore lisible en base.
+ *
+ * @returns le nombre de coches retirées (0 si rien ne change).
+ */
+export async function resetProgressOnAlignmentChange(input: {
+  profileId: string;
+  characterSlot: string;
+  current: { alignment?: string | null; alignmentOrder?: string | null };
+  next: { alignment?: string | null; alignmentOrder?: string | null };
+}): Promise<number> {
+  const decision = alignmentChangeReset(input);
+  if (decision === "camp") {
+    return resetAlignmentQuests(input.profileId, input.characterSlot, input.current.alignment ?? null);
+  }
+  if (decision === "order") {
+    return resetOrderQuests(
+      input.profileId,
+      input.characterSlot,
+      input.current.alignment ?? null,
+      input.current.alignmentOrder ?? null
+    );
+  }
+  return 0;
 }
 
 /**

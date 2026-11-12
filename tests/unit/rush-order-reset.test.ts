@@ -112,26 +112,30 @@ describe("câblage — reset d'Ordre côté serveur", () => {
     expect(body).not.toContain("cascadeResetIds");
   });
 
-  it("l'action est authentifiée, limitée en débit, et relit cité + Ordre EN BASE", () => {
-    const code = read(ACTIONS);
-    const start = code.indexOf("export async function resetRushOrderProgress");
-    const body = code.slice(start, start + 1400);
+  it("le reset d'Ordre est décidé par la règle pure et exécuté AVANT l'écriture", () => {
+    const server = read(SERVER);
+    const start = server.indexOf("export async function resetProgressOnAlignmentChange");
+    const helper = server.slice(start, start + 900);
     expect(start).toBeGreaterThan(-1);
-    expect(body).toContain("getUserContext(guildId)");
-    expect(body).toContain("rateLimit(");
-    expect(body).toContain("alignmentOrder: true");
-    expect(body).toContain("resetOrderQuests(profileId, characterSlot, oldCamp, oldOrder)");
-    // L'Ordre n'est jamais reçu du client : la signature ne prend que guilde + personnage.
-    expect(code).toContain("resetRushOrderProgress(guildId: string, altPseudo?: string)");
-  });
+    expect(helper).toContain("alignmentChangeReset(input)");
+    expect(helper).toContain("resetOrderQuests(");
+    expect(helper).toContain("input.current.alignmentOrder");
 
-  it("le formulaire déclenche le reset d'Ordre AVANT d'écrire le nouvel Ordre", () => {
-    const code = read(FORM);
-    const resetAt = code.indexOf("resetRushOrderProgress(");
-    const writeAt = code.indexOf("await updateUserProfile", resetAt);
+    // La mule : reset avant l'écriture de `altPseudos`.
+    const actions = read("src/server/actions/profile-actions.ts");
+    const fnAt = actions.indexOf("export async function updateMuleAlignment");
+    const resetAt = actions.indexOf("await resetProgressOnAlignmentChange({", fnAt);
+    const writeAt = actions.indexOf("await db.userProfile.update({", fnAt);
     expect(resetAt).toBeGreaterThan(-1);
     expect(writeAt).toBeGreaterThan(resetAt);
-    // Un changement de cité garde son propre reset : on ne fait pas les deux.
-    expect(code).toContain("const orderChanged = !campChanged");
+    // La cité et l'Ordre quittés sont relus dans la mule, jamais reçus du client.
+    expect(actions).toContain("alignmentOrder: alts[idx].alignmentOrder ?? null");
+  });
+
+  it("le formulaire ne reset plus lui-même : il annonce ce que l'action a décoché", () => {
+    const code = read(FORM);
+    expect(code).not.toContain("resetRushOrderProgress");
+    expect(code).not.toContain("resetAlignmentProgress");
+    expect(code).toContain("res.data?.cleared");
   });
 });

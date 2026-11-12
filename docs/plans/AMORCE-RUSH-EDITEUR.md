@@ -14,9 +14,9 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 
 | Élément | Valeur mesurée |
 |---|---|
-| Branche | `feat/rush-nav-blocs` (navigation par bloc) — lots **1**, **2** et **#1346** mergés dans `dev` |
-| PR | **#1346**, **#1347** (numérotation), **#1348** (contrôles de route) mergées · PR de la nav à ouvrir |
-| Suite | **664 fichiers / 7 122 tests ✓** · `tsc` 0 · ESLint 0 erreur |
+| Branche | `feat/rush-reset-auto` (lot **3**) — lots **1**, **2**, nav et correctifs mergés dans `dev` |
+| PR | **#1346→#1350** mergées · PR du **lot 3** à ouvrir |
+| Suite | **665 fichiers / 7 138 tests ✓** · `tsc` 0 · ESLint 0 erreur |
 | Studio | `RushEditorStudio.tsx` **~5 300 lignes** (5 472 au départ) · dette DA **644 → 577** |
 
 **Livré sur cette branche** (du plus ancien au plus récent) :
@@ -67,7 +67,7 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 | # | Lot | Quoi exactement | Taille | Bloqué par |
 |---|---|---|---|---|
 | 2 | **2 contrôles « Problèmes »** | ✅ **livré le 12/11** — voir la note ci-dessous | S | — |
-| 3 | **Reset automatique** | brancher les « graines du reset » (`src/lib/rush-guide-utils.ts`) dans l'action qui enregistre l'alignement ; annonce + `logGodWrite` ; test pur + test d'action | M | décision prise (§2) |
+| 3 | **Reset automatique** | ✅ **livré le 12/11** — `alignmentChangeReset` + `resetProgressOnAlignmentChange` avant l'écriture, annonce `cleared`, actions manuelles supprimées | M | décision prise (§2) |
 | 4 | **Variante de texte par camp** | **migration** : `routeVariants Json?` sur `GuideSequence` (Zod borné, 2 camps × 2 champs) **ou** deux quêtes « Jumelle » | M | **GO migration** |
 | 5 | **Brouillon local** (E2b-suite 2/2) | `localStorage` par quête, restauration au rechargement, purge à l'enregistrement | M | — |
 | 6 | **E3c — sélection multiple** | cocher N blocs/quêtes → route / déplacer / supprimer ; **action serveur en masse à créer** (Zod, rate limit Redis, garde guilde, `logGodWrite`) | L | — |
@@ -79,8 +79,7 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 | 12 | **Fiche visiteur — affinage** | deslop assets / hiérarchie, sans règle métier | M | — |
 | 13 | **Flaky** | `tests/unit/lot4-slash-commands-api-keys.test.ts` dépasse son timeout de 5 s sous charge (**5 023 ms** mesurés) | S | — |
 
-**Ordre recommandé** : **3 → 13** (deux lots courts, tous visibles) → **5** → **4** (après
-GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
+**Ordre recommandé** : **13 → 5 → 4** (4 après GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
 
 > **Lot 1 livré le 12/11/2026** — branche `feat/rush-numerotation-blocs` : table partagée
 > `rushChapterNumbers` (bandeaux exclus), calculée une fois sur le guide complet et passée aux

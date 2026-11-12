@@ -18,7 +18,7 @@ import { updateMyAlignment } from "../_actions/public-alignment";
  *  · pas de tranche demandée : elle reste **déduite des quêtes validées** par le guide.
  *
  * Le formulaire est propre au visiteur : `AlignmentChoiceForm` (interne) est câblé sur les
- * actions de guilde (`updateUserProfile`, `resetAlignmentProgress`) et ne peut pas être réutilisé.
+ * actions de guilde (`updateUserProfile`) et ne peut pas être réutilisé.
  */
 export function PublicAlignmentModal({
     open,

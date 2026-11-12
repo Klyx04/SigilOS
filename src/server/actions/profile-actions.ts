@@ -19,6 +19,7 @@ import { buildProfileSlug } from "@/lib/profile-slug";
 import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
 import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
+import { resetProgressOnAlignmentChange } from "@/server/rush-alignment";
 // Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
 import {
     PSEUDO_PATTERN,
@@ -740,7 +741,7 @@ export async function getMemberProfileBySlug(guildId: string, slug: string): Pro
     }
 }
 
-export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSchema>): Promise<ActionResponse> {
+export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSchema>): Promise<ActionResponse<{ cleared: number }>> {
     const session = await auth();
     if (!session?.user?.id) {
         logger.warn("[updateUserProfile] refus", { code: "PROFILE_UNAUTHORIZED" });
@@ -847,6 +848,25 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         // La classe explicite reste prioritaire : on l'isole du spread.
         const { classe: ladderClasse, ...ladderRest } = ladderSnapshot;
 
+        // Logique jeu : changer de cité/Ordre réinitialise la branche quittée. Le reset vit
+        // dans l'ACTION (pas dans un formulaire) : l'onboarding et les fiches profil écrivent
+        // aussi l'alignement, sans passer par le sélecteur du guide (mesure du 12/11/2026).
+        let cleared = 0;
+        if (alignment !== undefined || alignmentOrder !== undefined) {
+            const currentProfile = await db.userProfile.findUnique({
+                where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
+                select: { id: true, alignment: true, alignmentOrder: true },
+            });
+            if (currentProfile) {
+                cleared = await resetProgressOnAlignmentChange({
+                    profileId: currentProfile.id,
+                    characterSlot: "PRINCIPAL",
+                    current: { alignment: currentProfile.alignment, alignmentOrder: currentProfile.alignmentOrder },
+                    next: { alignment, alignmentOrder },
+                });
+            }
+        }
+
         const now = new Date();
         await db.userProfile.upsert({
             where: {
@@ -907,7 +927,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         revalidatePath(`/dashboard/${guildId}/members`);
         // Snapshot ladder éventuel : purger le cache du module ladder aussi.
         await clearCachePattern(`ladder:*:${guildId}*`);
-        return { success: true };
+        return { success: true, data: { cleared } };
     } catch (error) {
         logger.error("[updateUserProfile] échec", { code: "PROFILE_DB_ERROR", error });
         return { success: false, error: "Erreur lors de la sauvegarde. Réessaie dans un instant." };
@@ -1274,7 +1294,7 @@ const UpdateMuleAlignmentSchema = z.object({
  * l'alignement d'une mule : la donnée vit dans le MÊME tableau `altPseudos`
  * que le profil perso → la synchro est parfaite dans les deux sens.
  */
-export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse> {
+export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse<{ cleared: number }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -1302,6 +1322,18 @@ export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlig
         const idx = alts.findIndex((m: any) => m.pseudo === pseudo);
         if (idx === -1) return { success: false, error: `La mule "${pseudo}" est introuvable sur votre profil.` };
 
+        // Même règle que le profil principal : la mule qui change de cité/Ordre est
+        // décochée sur SA branche (characterSlot = pseudo), avant l'écriture.
+        const cleared = await resetProgressOnAlignmentChange({
+            profileId: profile.id,
+            characterSlot: pseudo,
+            current: {
+                alignment: alts[idx].alignment ?? null,
+                alignmentOrder: alts[idx].alignmentOrder ?? null,
+            },
+            next: { alignment, alignmentOrder },
+        });
+
         const isNeutre = !alignment || alignment === "neutre";
         alts[idx] = {
             ...alts[idx],
@@ -1321,7 +1353,7 @@ export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlig
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
-        return { success: true };
+        return { success: true, data: { cleared } };
     } catch (error) {
         logger.error("Update Mule Alignment Error", { error });
         return { success: false, error: "Erreur lors de la sauvegarde" };

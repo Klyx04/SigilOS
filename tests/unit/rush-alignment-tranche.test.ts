@@ -82,21 +82,22 @@ describe("changer de cité = reset des quêtes d'alignement", () => {
     expect(code).toMatch(/!ids\.has\(id\) \|\| id === keepSeqId/);
   });
 
-  it("le formulaire déclenche le reset AVANT d'écrire la nouvelle cité", () => {
-    const code = read(FORM);
-    expect(code).toContain("resetAlignmentProgress(guildId, mulePseudo ?? undefined)");
-    const resetAt = code.indexOf("resetAlignmentProgress(");
-    const writeAt = code.indexOf("await updateUserProfile", resetAt);
-    expect(resetAt).toBeGreaterThan(-1);
+  it("l'action qui écrit la cité resette AVANT, une seule source pour tous les écrans", () => {
+    // Le reset ne vit plus dans le formulaire : `updateUserProfile` / `updateMuleAlignment`
+    // le font, donc l'onboarding et les fiches profil en bénéficient aussi (12/11/2026).
+    expect(read(FORM)).not.toContain("resetAlignmentProgress");
+    const actions = read(PROFILE);
+    const fnAt = actions.indexOf("export async function updateUserProfile");
+    const resetAt = actions.indexOf("await resetProgressOnAlignmentChange({", fnAt);
+    const writeAt = actions.indexOf("await db.userProfile.upsert({", fnAt);
+    expect(resetAt).toBeGreaterThan(fnAt);
     expect(writeAt).toBeGreaterThan(resetAt);
   });
 
-  it("le reset est une action authentifiée et limitée en débit", () => {
-    const code = read(ACTIONS);
-    const start = code.indexOf("export async function resetAlignmentProgress");
-    const body = code.slice(start, start + 900);
-    expect(start).toBeGreaterThan(-1);
-    expect(body).toContain("getUserContext(guildId)");
-    expect(body).toContain("rateLimit(");
+  it("le reset passe par le module serveur, après l'authentification de l'action", () => {
+    expect(read(RESET)).toContain("resetProgressOnAlignmentChange");
+    const actions = read(PROFILE);
+    expect(actions).toContain("await auth()");
+    expect(actions).toContain("getUserContext(");
   });
 });

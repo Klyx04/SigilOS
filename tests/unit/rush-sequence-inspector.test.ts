@@ -82,3 +82,25 @@ describe("inspecteur quête — les gestes ne sont plus au fond", () => {
     expect(STUDIO).not.toContain("Footer Actions");
   });
 });
+
+describe("inspecteur quête — le contenant large (E2d)", () => {
+  it("le formulaire est monté une seule fois, quel que soit son conteneur", () => {
+    // Le studio construit `questForm` puis choisit : panneau, ou modale large.
+    expect((STUDIO.match(/<SequenceEditForm/g) ?? []).length).toBe(1);
+    expect(STUDIO).toContain("const questForm = selectedQuest && selectedQuestBlock ?");
+  });
+
+  it("la modale fait 1 100 px au plus et garde le défilement interne", () => {
+    expect(STUDIO).toContain("max-w-[min(1100px,calc(100vw-2rem))]");
+    expect(STUDIO).toContain("max-h-[90vh]");
+  });
+
+  it("le geste est nommé et réversible", () => {
+    expect(STUDIO).toContain("Éditer en plein écran");
+    expect(STUDIO).toContain("Réduire l'édition dans le panneau");
+  });
+
+  it("changer de quête referme la modale (aucune fiche fantôme)", () => {
+    expect(STUDIO).toContain("useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);");
+  });
+});

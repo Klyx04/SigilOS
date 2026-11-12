@@ -22,7 +22,7 @@ import {
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
-  ClipboardList, Hammer, RotateCcw, Scissors,
+  ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -386,6 +386,13 @@ export function RushSylvestreAdminClient({
   const [paletteOpen, setPaletteOpen] = useState(false);
   /** Le formulaire de quête signale ses modifications non enregistrées. */
   const [sequenceDirty, setSequenceDirty] = useState(false);
+  /**
+   * E2d — le formulaire de quête est-il monté dans la **modale large** (1 100 px) plutôt
+   * que dans l'inspecteur (460–560 px) ? Le geste vit dans l'en-tête du formulaire.
+   */
+  const [questFullscreen, setQuestFullscreen] = useState(false);
+  // Changer de quête referme la modale : on ne garde jamais une fiche fantôme à l'écran.
+  useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);
   /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
   const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
 
@@ -965,6 +972,27 @@ export function RushSylvestreAdminClient({
         ? `Quête · ${selectedQuestBlock.title}`
         : null;
 
+  /**
+   * E2d — le formulaire de quête est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (panneau 460–560 px ou modale large de 1 100 px). Deux
+   * instances montées en parallèle auraient divergé sur le brouillon et les coches.
+   */
+  const questForm = selectedQuest && selectedQuestBlock ? (
+    <SequenceEditForm
+      seq={selectedQuest}
+      milestoneId={selectedQuestBlock.id}
+      isPending={isPending}
+      milestones={localMilestones}
+      onMove={handleMoveSequence}
+      onSplit={handleSplitSequence}
+      onDirtyChange={setSequenceDirty}
+      onSave={(data) => handleSaveSequence({ ...data, id: selectedQuest.id, milestoneId: selectedQuestBlock.id })}
+      onCancel={closeInspector}
+      isFullscreen={questFullscreen}
+      onToggleFullscreen={() => setQuestFullscreen((v) => !v)}
+    />
+  ) : null;
+
   const inspectorBody = addingSequenceTo ? (
     <AddSequenceForm
       // E2c — la clé force un **remontage** quand la cible change : sans elle, React
@@ -986,17 +1014,21 @@ export function RushSylvestreAdminClient({
       onCancelEdit={closeInspector}
     />
   ) : selectedQuest && selectedQuestBlock ? (
-    <SequenceEditForm
-      seq={selectedQuest}
-      milestoneId={selectedQuestBlock.id}
-      isPending={isPending}
-      milestones={localMilestones}
-      onMove={handleMoveSequence}
-      onSplit={handleSplitSequence}
-      onDirtyChange={setSequenceDirty}
-      onSave={(data) => handleSaveSequence({ ...data, id: selectedQuest.id, milestoneId: selectedQuestBlock.id })}
-      onCancel={closeInspector}
-    />
+    questFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setQuestFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : questForm
   ) : (
     <RushEditorInspectorEmpty />
   );
@@ -1033,6 +1065,26 @@ export function RushSylvestreAdminClient({
           }
         />
       </div>
+
+      {/*
+        E2d (12/11/2026) — **modale large** d'édition d'une quête. Mesure : l'inspecteur
+        donne 460–560 px (une grille à 2 colonnes y tient dans ~200 px par colonne), alors
+        que le formulaire en compte neuf sections. Ici : 1 100 px, `max-h-90vh`, défilement
+        interne — et le **même** formulaire, jamais une seconde instance.
+      */}
+      <Dialog open={questFullscreen && !!questForm} onOpenChange={(open) => { if (!open) setQuestFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {selectedQuest ? (selectedQuest.subGuideName || selectedQuest.subGuideRef) : "Quête"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {selectedQuestBlock ? `Quête · ${selectedQuestBlock.title}` : "Édition de la quête"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{questForm}</div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal d'aperçu d'import */}
       <AnimatePresence>
@@ -3165,7 +3217,7 @@ const GOD_DOFUS_SURFACE = "#18181b";
 const GOD_MODAL_SURFACE = "#09090b";
 
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange, isFullscreen, onToggleFullscreen }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
   onSave: (data: any) => void; onCancel: () => void;
   onMove: (sequenceId: string, targetMilestoneId: string) => void;
@@ -3173,6 +3225,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   milestones?: Milestone[];
   /** E1 — signale à l'inspecteur que la fiche diffère de la donnée enregistrée. */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * E2d — le formulaire est-il monté dans la **modale large** ? Le bouton vit dans l'en-tête
+   * du formulaire, la décision (et le conteneur) restent au studio : la même instance est
+   * rendue à un seul endroit, jamais deux.
+   */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
   const [splitConfirm, setSplitConfirm] = useState(false);
@@ -3736,17 +3795,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowPreview(v => !v)}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-caption font-bold transition-all ${
-            showPreview
-              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-              : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-white/5"
-          }`}
-        >
-          👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "Réduire l'édition dans le panneau" : "Éditer en plein écran"}
+              title={isFullscreen ? "Revenir au panneau latéral" : "Ouvrir en plein écran (modale large)"}
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              {isFullscreen
+                ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+                : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPreview(v => !v)}
+            className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-caption font-medium transition-colors ${
+              showPreview
+                ? "border border-warning/40 bg-warning/10 text-warning"
+                : "border border-border bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
+          </button>
+        </div>
       </div>
 
       {/*

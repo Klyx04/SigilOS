@@ -59,6 +59,10 @@ describe("E1 — trois panneaux nommés", () => {
     // et ~360 px à l'inspecteur. Le seuil passe à 1280 et l'inspecteur gagne 100–140 px.
     expect(SHELL).toContain("xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)]");
     expect(SHELL).toContain("md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]");
+    // Retour user du 12/11 (« bandeau étroit ») : au-delà de 1536 px, l'inspecteur peut
+    // prendre 520–720 px sans manger le contenu — et le formulaire de quête a en plus sa
+    // modale large (1 100 px) pour les saisies longues.
+    expect(SHELL).toContain("2xl:grid-cols-[260px_minmax(0,1fr)_minmax(520px,720px)]");
   });
 
   it("le studio ne monte la coquille que sur l'onglet Contenu", () => {

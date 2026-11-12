@@ -78,6 +78,11 @@
 >   menu « … ». Règle pure `src/lib/rush-editor-sections.ts` ; verrou `rush-sequence-inspector`
 >   **10** (compare l'ordre monté à la règle). **Reste de E2b** : sections vides masquées
 >   (avec « tout afficher ») et brouillon local par quête.
+> · **E2d — livré le 12/11/2026** (retour user : « une modale large plutôt que ce bandeau
+>   étroit ») : bouton **Plein écran** dans l'en-tête du formulaire → la **même instance**
+>   montée dans une modale **1 100 px** (`max-h-90vh`, défilement interne, pied sticky
+>   conservé, repli « Revenir au panneau »), et inspecteur élargi **520–720 px** au-delà de
+>   1536 px. Verrou `rush-sequence-inspector` **14** (une seule instance, jamais deux).
 > · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
 >   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
 >   déplacement ne casse plus la garde.

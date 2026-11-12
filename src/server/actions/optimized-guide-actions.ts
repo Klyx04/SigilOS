@@ -16,6 +16,7 @@ import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
+import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
 import { alignmentCountForCamp, alignmentTagCamp } from "@/lib/rush-guide-utils";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
@@ -3911,6 +3912,8 @@ export async function upsertRushSequence(data: {
   classReq?: string | null;
   /** Lot 4 — variantes de texte par camp (`null` efface, absent ne touche pas). */
   routeVariants?: unknown;
+  /** Conditions structurées (`null` efface, absent ne touche pas) — Zod borné plus bas. */
+  constraints?: unknown;
   note?: string;
   order?: number;
   isSuccess?: boolean;
@@ -3921,6 +3924,20 @@ export async function upsertRushSequence(data: {
   await requireRushAccess();
 
   /**
+   * Conditions structurées — Zod borné, `null` efface, absent ne touche pas. Une forme
+   * invalide est refusée avant l'écriture : jamais de JSON arbitraire dans la fiche.
+   */
+  const constraints =
+    data.constraints === undefined
+      ? undefined
+      : data.constraints === null
+        ? null
+        : parseRushQuestConstraints(data.constraints);
+  if (data.constraints !== undefined && data.constraints !== null && constraints === null) {
+    throw new Error("Conditions de quête invalides (horaire, joueurs, métiers, sorts, notes).");
+  }
+
+  /**
    * Garde des références de quête — mesure du 03/11/2026 : 37 séquences affichaient « &1 » au
    * lieu du nom (la source porte la correspondance, cf. `resolveQuestRefs`). Une référence
    * saisie ou importée est refusée **avant** l'écriture : le joueur ne doit jamais lire un
@@ -3929,6 +3946,7 @@ export async function upsertRushSequence(data: {
   for (const [field, value] of [
     ["tips", data.tips],
     ["note", data.note],
+    ["conditions", constraints ? JSON.stringify(constraints) : undefined],
   ] as const) {
     if (hasUnresolvedQuestRef(value)) {
       throw new Error(
@@ -3980,6 +3998,7 @@ export async function upsertRushSequence(data: {
     alignLevelReq: data.alignLevelReq ?? null,
     classReq: data.classReq ?? null,
     ...(routeVariants !== undefined ? { routeVariants: routeVariants as never } : {}),
+    ...(constraints !== undefined ? { constraints: constraints as never } : {}),
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,
@@ -4183,6 +4202,7 @@ export async function splitRushSequence(sequenceId: string) {
       classReq: true,
       tips: true,
       note: true,
+      constraints: true,
       isSuccess: true,
       icon: true,
       metamobMonsterId: true,

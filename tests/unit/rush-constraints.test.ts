@@ -3,7 +3,16 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { parseRushConstraints, RUSH_CONSTRAINT_LABELS } from "@/lib/rush-constraints";
+import {
+  constraintsFromLegacyTips,
+  constraintsToInfos,
+  isEmptyConstraints,
+  parseRushConstraints,
+  RUSH_CONSTRAINT_LABELS,
+  sanitizeConstraints,
+} from "@/lib/rush-constraints";
+import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
+import type { RushQuestConstraints } from "@/types/rush-constraints";
 
 const tips = [
   "Joueurs : 4 personnes pour des dalles",
@@ -153,5 +162,169 @@ describe("parseRushConstraints", () => {
     for (const icon of ["party", "hammer", "pin-clock", "parchment", "info"]) {
       expect(assetExists(`/assets/dofus/game-icons/${icon}.png`), icon).toBe(true);
     }
+  });
+});
+
+const validConstraints: RushQuestConstraints = {
+  version: 1,
+  hours: { kind: "window", from: "20:00", to: "08:00", optional: true },
+  players: {
+    count: 4,
+    roles: [
+      { kind: "job", job: "alchimiste", level: 100 },
+      { kind: "class", className: "iop" },
+    ],
+  },
+  jobs: [{ job: "forgeron", level: 180 }],
+  spells: ["Capture d'âmes"],
+  notes: ["Avoir un métier de niveau 50"],
+};
+
+describe("rushQuestConstraintsSchema", () => {
+  it("accepte une forme complète", () => {
+    expect(parseRushQuestConstraints(validConstraints)).toMatchObject(validConstraints);
+  });
+
+  it("refuse un effectif hors bornes", () => {
+    expect(
+      parseRushQuestConstraints({ ...validConstraints, players: { count: 41, roles: [] } }),
+    ).toBeNull();
+  });
+
+  it("refuse un métier inconnu", () => {
+    expect(
+      parseRushQuestConstraints({ ...validConstraints, jobs: [{ job: "inconnu" }] }),
+    ).toBeNull();
+  });
+
+  it("refuse une heure invalide", () => {
+    expect(
+      parseRushQuestConstraints({
+        ...validConstraints,
+        hours: { kind: "window", from: "25:00" },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuse une classe inconnue", () => {
+    expect(
+      parseRushQuestConstraints({
+        ...validConstraints,
+        players: { roles: [{ kind: "class", className: "inconnue" }] },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuse plus de dix rôles", () => {
+    const roles = Array.from({ length: 11 }, () => ({ kind: "free" as const, text: "x" }));
+    expect(
+      parseRushQuestConstraints({ ...validConstraints, players: { roles } }),
+    ).toBeNull();
+  });
+
+  it("accepte un horaire sans borne de fin", () => {
+    const parsed = parseRushQuestConstraints({
+      ...validConstraints,
+      hours: { kind: "window", from: "20:00" },
+    });
+    expect(parsed?.hours).toEqual({ kind: "window", from: "20:00" });
+  });
+});
+
+describe("constraintsToInfos", () => {
+  it("rend l'horaire, les joueurs, les métiers, les sorts et les notes", () => {
+    const infos = constraintsToInfos(validConstraints);
+    expect(infos.map((info) => info.kind)).toEqual(["hours", "players", "job", "spell", "note"]);
+    expect(infos[0].hours).toEqual({ variant: "window", from: "20h00", to: "08h00" });
+    expect(infos[1].players).toBe(4);
+    expect(infos[1].jobs.map((job) => job.slug)).toEqual(["alchimiste"]);
+    expect(infos[2].icon).toBe("/assets/dofus/jobs/forgeron.png");
+    expect(infos[4].icon).toBe("/assets/dofus/game-icons/info.png");
+  });
+
+  it("rend un horaire « à partir de » sans borne de fin", () => {
+    const [info] = constraintsToInfos({
+      ...validConstraints,
+      hours: { kind: "window", from: "20:00" },
+    });
+    expect(info.text).toContain("À partir de 20h00");
+    expect(info.hours).toEqual({ variant: "window", from: "20h00" });
+  });
+
+  it("rend une attente auprès d'un PNJ", () => {
+    const [info] = constraintsToInfos({
+      ...validConstraints,
+      hours: { kind: "wait", minutes: 3, npc: true },
+    });
+    expect(info.text).toContain("3 minutes");
+    expect(info.text).toContain("PNJ");
+  });
+});
+
+describe("constraintsFromLegacyTips", () => {
+  it("reprend les lignes existantes dans le modèle structuré", () => {
+    const parsed = constraintsFromLegacyTips(tips);
+    expect(parsed.hours).toEqual({ kind: "window", from: "20:00", to: "08:00" });
+    expect(parsed.players?.count).toBe(4);
+    expect(parsed.jobs.map((job) => job.job)).toEqual(["alchimiste"]);
+    expect(parsed.spells).toEqual(["Capture d'âmes"]);
+    expect(parsed.notes).toEqual(["Avoir un métier de niveau 50"]);
+  });
+
+  it("garde un rôle libre quand le texte des joueurs n'est pas structurable", () => {
+    const parsed = constraintsFromLegacyTips("Joueurs : 4 personnes pour des dalles");
+    expect(parsed.players?.count).toBe(4);
+    expect(parsed.players?.roles).toEqual([{ kind: "free", text: "pour des dalles" }]);
+  });
+
+  it("ne produit rien sur un tips libre", () => {
+    expect(constraintsFromLegacyTips("Pensez à prendre la quête")).toEqual({
+      version: 1,
+      jobs: [],
+      spells: [],
+      notes: [],
+    });
+  });
+});
+
+describe("isEmptyConstraints", () => {
+  it("reconnaît un modèle vide", () => {
+    expect(isEmptyConstraints({ version: 1, jobs: [], spells: [], notes: [] })).toBe(true);
+    expect(isEmptyConstraints(null)).toBe(true);
+  });
+
+  it("reconnaît un modèle rempli", () => {
+    expect(isEmptyConstraints(validConstraints)).toBe(false);
+  });
+});
+
+describe("sanitizeConstraints", () => {
+  it("retire les lignes vides de l'éditeur", () => {
+    const sanitized = sanitizeConstraints({
+      version: 1,
+      jobs: [],
+      spells: ["", "  ", "Capture d'âmes"],
+      notes: ["", "  ", "Avoir un métier de niveau 50"],
+      players: {
+        roles: [
+          { kind: "free", text: "  " },
+          { kind: "job", job: "alchimiste", level: 100 },
+        ],
+      },
+    });
+    expect(sanitized.spells).toEqual(["Capture d'âmes"]);
+    expect(sanitized.notes).toEqual(["Avoir un métier de niveau 50"]);
+    expect(sanitized.players?.roles).toEqual([{ kind: "job", job: "alchimiste", level: 100 }]);
+  });
+
+  it("met les joueurs à null quand tout est vide", () => {
+    const sanitized = sanitizeConstraints({
+      version: 1,
+      jobs: [],
+      spells: [],
+      notes: [],
+      players: { roles: [{ kind: "free", text: " " }] },
+    });
+    expect(sanitized.players).toBeNull();
   });
 });

@@ -4,6 +4,8 @@
  * utilisés par GOD, le Dashboard Membre et l'Overlay In-Game.
  */
 
+import type { RushQuestConstraints } from "@/types/rush-constraints";
+
 export type RushActivityTagType =
   | "combat_tactique"
   | "combat_vagues"
@@ -71,6 +73,8 @@ export type RushSequence = {
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
+  /** Conditions structurées (horaire, joueurs, métiers, sorts, notes) — des infos, jamais un blocage. */
+  constraints?: RushQuestConstraints | null;
   alignReq?: string | null;
   /** Code d'Ordre (6 valeurs) — seules les quêtes d'Ordre en portent. */
   alignOrderCode?: string | null;

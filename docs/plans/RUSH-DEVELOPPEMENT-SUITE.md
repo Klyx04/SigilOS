@@ -1,5 +1,5 @@
 ---
-description: Rush Sylvestre — organisation de la suite : 4 surfaces, blocs S0→S6, lots, dépendances, verrous de test
+description: Rush Sylvestre — contenu : blocs S0→S6, mesures, lots, dépendances, verrous de test (l'ordre vit dans ROADMAP §3 bis)
 ---
 
 # 🏹 Rush Sylvestre — la suite du développement

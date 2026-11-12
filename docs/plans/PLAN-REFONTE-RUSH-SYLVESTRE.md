@@ -2,6 +2,10 @@
 
 > **Document de référence exhaustif** pour la refonte ergonomique, visuelle et technique du module Rush Sylvestre dans SigilOS.
 > Établi après confrontation directe avec la base de code, les retours d'expérience en jeu et les 5 captures d'écran de l'overlay et du guide interne.
+>
+> **État au 12/11/2026** : **T-1 → T-4 livrés** (T-4 partiel : G7/G8/G9/O15 ouverts, rang 55) ;
+> **T-5 (overlay avancé) et T-6 (perf/architecture) sont encore À FAIRE** — ordre unique :
+> `docs/ROADMAP.md` §3 bis.
 
 > **État du Lot 1 (mesuré le 08/10/2026 — livré)** : le Lot 1 a été exécuté. **Trois points du §5.1
 > étaient faux au moment de coder** ; ils ont été corrigés, jamais appliqués à l'aveugle :

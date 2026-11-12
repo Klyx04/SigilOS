@@ -89,7 +89,10 @@ describe("Donjon ocre — le rendu dit l'état et l'action", () => {
 
     it("affiche « Ocre : capturé » et le bouton qui ouvre le suivi", () => {
         expect(html).toContain("Ocre : capturé");
-        expect(html).toContain("Ocre ✓");
+        // Le badge collé sur la vignette a disparu (11/11/2026) : l'asset Ocre vit dans
+        // la ligne de texte, plus sur l'image du boss.
+        expect(html).not.toContain("Ocre ✓");
+        expect(html).toContain('src="/assets/icons/ocre.png"');
         expect(html).toContain("déjà capturé — ouvrir le suivi");
         expect(html).toContain("Quête Ocre");
     });

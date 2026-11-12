@@ -231,18 +231,6 @@ function DungeonRow({
         ) : (
           <DoorOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         )}
-        {dj.isOcre && (
-          <span
-            className={cn(
-              "absolute -top-px -right-px rounded-[3px] border px-1 text-[9px] font-semibold leading-4",
-              ocreState === "captured"
-                ? "border-success/40 bg-success/15 text-success"
-                : "border-warning/40 bg-warning/15 text-warning"
-            )}
-          >
-            Ocre{ocreState === "captured" ? " ✓" : ocreState === "to-capture" ? " !" : ""}
-          </span>
-        )}
         {state === "done" && (
           <span className="absolute right-0 bottom-0 grid h-3.5 w-3.5 place-items-center rounded-tl-[4px] bg-emerald-500 text-white">
             <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
@@ -261,12 +249,26 @@ function DungeonRow({
         <span className="block truncate text-[11px] text-muted-foreground">
           {dj.name || "Donjon"}
           {todo.length > 0 ? ` · à faire : ${todo.join(", ")}` : ""}
-          {ocreState === "captured"
-            ? " · Ocre : capturé"
-            : ocreState === "to-capture"
-              ? " · Ocre : à capturer"
-              : ""}
         </span>
+        {ocreState ? (
+          <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            {/* L'asset Ocre du jeu, posé dans la ligne — plus de pastille collée sur la
+                vignette du boss (retour user du 11/11/2026 : « l'encart Ocre est laid »). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/icons/ocre.png"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              className="h-3 w-3 shrink-0 object-contain"
+            />
+            {ocreState === "captured"
+              ? "Ocre : capturé"
+              : ocreState === "to-capture"
+                ? "Ocre : à capturer"
+                : "Ocre"}
+          </span>
+        ) : null}
       </span>
       <ExternalLink
         className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"

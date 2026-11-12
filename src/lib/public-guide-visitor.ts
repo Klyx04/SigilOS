@@ -23,10 +23,18 @@ export type PublicGuideVisitor = {
     metamobPseudo: string | null;
     /** Lien Metamob vérifié par l'API ? La clé, elle, reste dans `metamobApiKey` côté serveur. */
     metamobVerified: boolean;
-    /** Alignement déclaré (V2a-4) : `bontarien` | `brakmarien` | `neutre`, sinon `null`. */
+    /**
+     * Alignement déclaré (V2a-4) : `bontarien` | `brakmarien` | `neutre`, sinon `null`.
+     */
     alignment: string | null;
     /** Id de l'Ordre dans la cité (`-1` à `-5`…), `null` pour un neutre sans Ordre. */
     alignmentOrder: string | null;
+    /**
+     * V2c — consentement de **présence** du visiteur **lui-même** (jamais celui d'un autre).
+     * Fermé par défaut : la tuile Rush Live s'en sert pour proposer « Afficher ma présence »,
+     * pas pour publier qui que ce soit sans geste.
+     */
+    showPresence: boolean;
     /**
      * Mules **déclarées** par le visiteur. Elles sont déjà publiques (fiche `/visiteurs/<id>`)
      * et servent à lancer le rush sur un autre personnage : la progression en base est clé
@@ -51,6 +59,8 @@ export function toPublicGuideVisitor(profile: {
     metamobVerified: boolean;
     alignment: string | null;
     alignmentOrder: string | null;
+    /** V2c — consentement de présence du visiteur lui-même (fermé par défaut). */
+    showPresence: boolean;
     altPseudos: ReadonlyArray<{ pseudo: string; classe?: string | null }>;
 }): PublicGuideVisitor {
     return {
@@ -63,6 +73,7 @@ export function toPublicGuideVisitor(profile: {
         metamobVerified: profile.metamobVerified,
         alignment: profile.alignment,
         alignmentOrder: profile.alignmentOrder,
+        showPresence: profile.showPresence,
         mules: profile.altPseudos
             .filter((mule) => typeof mule?.pseudo === "string" && mule.pseudo.length > 0)
             .map((mule) => ({ pseudo: mule.pseudo, classe: mule.classe ?? null })),

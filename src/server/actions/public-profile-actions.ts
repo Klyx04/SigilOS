@@ -656,6 +656,35 @@ export async function updatePublicSettings(raw: unknown): Promise<ActionResult> 
     }
 }
 
+/**
+ * V2c — consentement de **présence** depuis la tuile Rush Live : un seul booléen, un seul
+ * champ écrit, aucune migration. `showPresence` reste **fermé par défaut** : ce chemin ne
+ * fait qu'ouvrir (ou refermer) un consentement que le visiteur donne explicitement.
+ */
+export async function updatePublicPresence(raw: unknown): Promise<ActionResult> {
+    const parsed = z.object({ enabled: z.boolean() }).safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("presence", account.userId, 10);
+    if (limited) return limited;
+
+    try {
+        await db.publicProfile.update({
+            where: { userId: account.userId },
+            data: { showPresence: parsed.data.enabled },
+        });
+        revalidatePath(PATHS.reglages);
+        revalidatePath(PATHS.general);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Espace visiteur] Présence non enregistrée", { error });
+        return { success: false, error: "Impossible d'enregistrer ta présence." };
+    }
+}
+
 const toggleAchievementSchema = z.object({
     dungeonAchievementId: z.string().min(1).max(64),
 });

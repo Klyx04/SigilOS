@@ -150,8 +150,14 @@ describe("DA « Carnet de campagne » — carte de quête verrouillée", () => {
         expect(src).not.toContain("Quête à terminer avant");
     });
 
-    it("le repère n'est plus rendu sur une quête verrouillée", () => {
-        expect(codeOf(CARD)).toMatch(/\{!isLocked && \(/);
+    it("le repère reste rendu sur une quête verrouillée (validation bloquée, pas le repère)", () => {
+        // 11/11/2026 — décision user : un donjon/prérequis bloque la VALIDATION, pas le
+        // fait de dire où l'on en est. Le bouton n'est donc plus masqué par `!isLocked`;
+        // seule une quête déjà validée le désactive.
+        const src = codeOf(CARD);
+        expect(src).not.toMatch(/\{!isLocked && \(/);
+        expect(src).toContain("onBookmark()");
+        expect(src).toMatch(/disabled=\{isDone\}/);
     });
 });
 

@@ -30,7 +30,7 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const SERVER = "src/server/rush-community.ts";
 const ACTION = "src/app/guides/rush-sylvestre/_actions/public-community.ts";
-const PANEL = "src/app/guides/rush-sylvestre/_components/PublicCommunityPanel.tsx";
+const PANEL = "src/app/guides/rush-sylvestre/_components/PublicDofusProgressPanel.tsx";
 
 function row(overrides: Partial<CommunityRow> = {}): CommunityRow {
     return {

@@ -68,6 +68,7 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 // Sommaire au langage du dock — le MÊME composant que le guide public (E2) :
 // la parité public ↔ interne n'admet aucune variante « interne ».
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
+import { RushOverlayPrereqModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal";
 import { DaRail } from "@/components/da/da-rail";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { useDaTheme } from "@/components/da/da-theme";
@@ -78,7 +79,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
@@ -296,6 +297,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   // jamais devenir une étiquette « 50 » sur la ligne de quête.
   const campLabel = seq.alignReq && seq.alignReq !== "neutre" ? (getAlignment(seq.alignReq)?.name ?? null) : null;
 
+  /** F6 — prérequis multiples : la modale de l'overlay, pas une liste de chips. */
+  const [prereqModal, setPrereqModal] = useState<RushPrereqRef[] | null>(null);
   const prereqBlocked = !isSeqCompleted && isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, allMilestones as any);
 
   if (prereqBlocked) {
@@ -316,7 +319,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     // dans l'overlay et le guide public. Le rouge de la carte disparaît : il ne disait
     // pas le verrou, il le criait.
     return (
-      <div data-seq-id={seq.id} data-state="locked" className="da-row scroll-mt-24">
+      <div data-seq-id={seq.id} data-state="locked" data-here={isThisBookmarked ? "true" : undefined} className="da-row scroll-mt-24">
         <span className="da-node" aria-hidden="true"><Lock className="h-3.5 w-3.5" /></span>
         <div className={`da-card transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background":""}`}>
         <div className="flex min-w-0 flex-1 flex-col">
@@ -325,7 +328,20 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               elle doit se reconnaître d'un coup d'œil dans la liste. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={seq.icon ? safeImageUrl(resolveRushSeqIcon(seq.icon) as string) : "/assets/icons/icone-quete.png"} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" loading="lazy" />
-          <p className="text-[13px] font-semibold text-muted-foreground truncate">{questName}</p>
+          <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">{questName}</p>
+          {/* 11/11/2026 — le repère « j'en suis là » reste possible sur une carte verrouillée :
+              un donjon/prérequis empêche de VALIDER, pas de dire où l'on en est. */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+            className={`ml-auto flex shrink-0 items-center justify-center rounded-[3px] p-1.5 transition-colors cursor-pointer ${
+              isThisBookmarked ? "bg-warning/15 text-warning" : "text-muted-foreground hover:bg-elevated hover:text-warning"
+            }`}
+            title={isThisBookmarked ? "Retirer le repère (Je suis ici)" : "Je suis ici"}
+            aria-label={isThisBookmarked ? "Retirer le repère" : "Je suis ici"}
+          >
+            {isThisBookmarked ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
+          </button>
         </div>
         {totalPrereqs === 1 && singleName ? (
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);}}
@@ -344,28 +360,47 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
           </button>
+        ) : totalPrereqs > 0 ? (
+          <>
+            {/* F6 — une seule ligne, la liste s'ouvre dans la modale de l'overlay. */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPrereqModal(prereqRefs);
+              }}
+              aria-haspopup="dialog"
+              aria-label={`Voir les ${totalPrereqs} quêtes à terminer avant`}
+              className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/25 bg-danger/[0.04] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/45 focus-visible:outline-2 focus-visible:outline-danger/50"
+            >
+              <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
+                <p className="text-[13px] font-semibold text-danger truncate">
+                  {totalPrereqs} quêtes à terminer
+                </p>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
+            </button>
+            {prereqModal ? (
+              <RushOverlayPrereqModal
+                prereqs={prereqModal}
+                onGoTo={(seqId) => {
+                  const ref = prereqRefs.find((p) => p.seqId === seqId);
+                  scrollToPrereq(ref?.name ?? "", seqId);
+                  setPrereqModal(null);
+                }}
+                onClose={() => setPrereqModal(null)}
+              />
+            ) : null}
+          </>
         ) : (
           <div className="px-3 pb-3 pt-2">
             <div className="flex items-center gap-2 mb-2">
               <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
               <p className="text-[11px] text-muted-foreground">
-                {totalPrereqs > 0
-                  ? `${totalPrereqs} prérequis à terminer`
-                  : palierLocked
-                    ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité`
-                    : "Verrouillée"}
+                {palierLocked ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité` : "Verrouillée"}
               </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {prereqRefs.map((ref) => (
-                <button key={ref.seqId} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(ref.name||"", ref.seqId);}}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-danger border border-danger/30 hover:bg-danger/10 transition-colors group focus-visible:outline-2 focus-visible:outline-danger/50"
-                  aria-label={`Voir la quête requise : ${ref.name}`}
-                >
-                  <span className="truncate max-w-[140px]">{ref.name}</span>
-                  <ChevronRight className="w-2.5 h-2.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
-                </button>
-              ))}
             </div>
           </div>
         )}

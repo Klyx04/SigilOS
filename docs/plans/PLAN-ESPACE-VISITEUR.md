@@ -264,9 +264,10 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   **Fait** : les cinq tuiles, dans cet ordre ; le bandeau d'identité de V2a-1 est **fusionné**
   dans la tuile « Personnage actif » (une seule tuile, comme l'interne).
 - **Rush Live = visiteurs connectés du même serveur uniquement**, consentement `showPresence`
-  (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c** ;
-  V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé. **Fait** : tuile non
-  interactive, texte « présence indisponible ».
+  (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c**,
+  **livrée le 11/11/2026** ; V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé.
+  **Fait en V2a-3** : tuile non interactive, texte « présence indisponible ». **V2c** : tuile
+  interactive (présence mesurée, consentement opt-in, toasts page **et** PiP).
 - **Alignement** : `PublicProfile.alignment` existe en base mais **aucune action ne l'écrit**
   (mesuré) → bouton « renseigner » dans la modale de première arrivée (V2a-4), pas une tuile
   vide. **Fait** : la tuile existante (alignement **déduit des quêtes validées**) est conservée
@@ -279,8 +280,8 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   (« Masquer les étapes faites »), V2a-4 y branchera « Revoir le tour ».
 - Le guide lui-même (blocs, coches, donjons, ressources) reste **le même composant partagé** :
   la parité est verrouillée par `rush-public-parity`, aucun composant dupliqué.
-- Verrous : `rush-public-parity` **42** (ordre des 5 tuiles, Rush Live honnête, recherche+Options
-  entre tuiles et progression) · `public-guide-visitor` **10** (7 scalaires, liste blanche des
+- Verrous : `rush-public-parity` **45** (ordre des 5 tuiles, Rush Live honnête, recherche+Options
+  entre tuiles et progression) · `public-guide-visitor` **10** (DTO étanche, liste blanche des
   identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
 **V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement : 07/11 (alignement, mules) puis 08/11 (accueil en 3 étapes)*
@@ -337,14 +338,22 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - Le **hub** rassemble Profils / Succès en commun dans `/visiteurs` (`?vue=succes`), avec une entrée dans la navigation de l'espace visiteur (7ᵉ onglet) — plus besoin de passer par « Explorer ».
 - Aucune migration. Verrou `tests/unit/visitors-hub.test.ts` **18**.
 
-**V2c — Rush Live visiteurs** *(exigences du 10/11/2026, non commencé)*
-- Room par serveur, consentement `showPresence`, fail-soft.
-- Événements **par bloc** (pas par quête) : « bloc validé » et « Dofus obtenu » visibles dans l'overlay des
-  visiteurs **du même serveur** connectés, même DA et même emplacement que les toasts locaux.
-- **Déjà livré le 10/11** : toast local de bloc (`notifyBlockDone`) et hôte de notifications dans la PiP
-  (`OverlayToastProvider`, Toaster dédié). **Manque** : le flux temps réel public (canal par serveur, SSE/Redis),
-  le consentement `PublicProfile.showPresence` et la modération/rate limit.
-- Interne : `RushOverlayLiveToast` existe (événements de coéquipiers) ; le public n'a **aucun** flux.
+**V2c — Rush Live visiteurs** — **livré le 11/11/2026** (décision : **aucune migration**)
+- Room **SSE par serveur** (`public:rush:live:<serverId>`), le serveur vient **du profil** — aucun
+  paramètre d'URL. Événements **par bloc** : bloc validé / Dofus obtenu, titre résolu en base
+  (`GuideMilestone` borné au guide Rush) et pseudo déjà public : **aucun texte libre client**.
+- **Consentement `PublicProfile.showPresence`** : le brief initial prévoyait `@default(true)` +
+  reprise. La mesure a montré que le schéma et `tests/unit/public-profile-schema.test.ts` exigent
+  l'inverse (« on publie des volontaires »). **Décision du 11/11** : le défaut reste `false`, la
+  tuile Rush Live propose « Afficher ma présence » en un clic (`updatePublicPresence`). Recevoir
+  les événements ne demande pas le consentement ; être vu (présence + validations) le demande.
+- Présence éphémère Redis (ZSET + hash, TTL 45 s, battement 20 s) : **zéro écriture Postgres**.
+  Redis indisponible ⇒ « présence indisponible », jamais un « 0 en ligne ».
+- Toasts dans la page **et** dans la PiP (`PublicRushLiveToast`, même DA que l'overlay), tuile
+  réelle (N en ligne / personne en ligne / connexion… / indisponible) + modale des présents.
+- Verrou `tests/unit/public-rush-live.test.ts` (23 cas) ; `public-guide-visitor` étendu de
+  `showPresence` (le consentement du visiteur lui-même) ; `rush-public-parity` réécrit sur l'état
+  réel. Aucune migration.
 
 **Chantiers 2→5 — ordre convenu le 11/11/2026** *(une PR, un commit par chantier)*
 
@@ -366,7 +375,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   `dofusServerId`, notifications bloc/Dofus dans le **guide navigateur** (même DA que l'overlay),
   `PublicProfile.showPresence` **activé par défaut** (migration + reprise des profils existants, à
   confirmer) ; le consentement sert à **être vu**, pas à recevoir.
-- **Chantier 4 — Finitions anonymes F1→F7** (voir ci-dessous).
+- **Chantier 4 — Finitions anonymes F1→F7** — **livré le 11/11/2026** (voir « V2f »).
 - **Chantier 5 — Studio E2** (`REFONTE-EDITEUR-RUSH.md` §3).
 - **Fiche visiteur — deslop (première passe livrée le 11/11/2026)** : espace visiteur ▸ Général —
   carte Ocre compacte (étape, progression, Gardiens/Archimonstres, synchro 5 min + bouton) et
@@ -450,12 +459,31 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **F14** — clé Metamob validée par `/v1/me` **avant** écriture, fail-closed ; le pseudo renvoyé fait foi.
 - **F17a** — les quatre panneaux de métiers occupent une seule cellule (`forceMount` + `visibility: hidden`).
 
-**V2f — ce qui reste**
+**V2f — finitions anonymes (F1→F7) — livrées le 11/11/2026**
 
-- **F1→F7** : bandeau Dofus anonyme, export **et** import d'un fichier JSON (aucun secret dedans),
-  espacement/aération, prérequis repliables, CTA « ce que tu perds » (pas de Metamob anonyme : la clé est
-  un secret qui reste chiffré en base derrière un compte), grain.
-- **F16** : ~~« mes succès sur ce boss » par donjon~~ **livré le 11/11/2026** — vue « succès en commun » sur `/visiteurs` (hub). La coche sur la fiche boss publique est **écartée** (le visiteur coche déjà dans `/espace-visiteur/succes`).
+- **F3/F4** : la rangée des tuiles respire (`gap-4`) ; recherche + Options espacés, champ élargi.
+- **F5** : l'espace libre de la rangée anonyme dit ce qu'un profil apporte (communauté, sauvegarde,
+  Metamob Ocre) — **sans second bouton** : le CTA du bandeau reste la seule action mise en avant.
+- **F6** : prérequis multiples — la page publique **et** le guide membre ouvrent la **même modale
+  que l'overlay** (`RushOverlayPrereqModal`) depuis une seule ligne « N quêtes à terminer avant ».
+  Le repli `<details>` et son module (`RushPrereqCollapse`, `rush-prereq-display`) sont supprimés.
+- **F1** : panneau unique « Ma progression par Dofus », fusionné avec « Progression Communautaire »
+  (onglets **Moi / Communauté** pour un compte ; aucun onglet pour un anonyme). **Chaque Dofus est
+  cliquable** et ouvre une **fiche partagée** (`RushDofusDetailModal`, aussi utilisée par le guide
+  membre) : quêtes avec leur **asset** et leur statut **Validée / En cours / À faire**, membres
+  engagés en lignes compactes. L'Ocre affiche **deux mesures séparées** (blocs + captures Metamob)
+  et son **icône** ; la communauté est chargée **à la demande** (une requête, pas d'effet qui
+  s'auto-annule).
+- **Repère ≠ verrou (11/11/2026)** : un donjon requis (ou un prérequis) bloque la **validation**
+  d'une quête, jamais le repère « j'en suis là ». `data-here` est posé même sur une carte
+  verrouillée (overlay, page publique, guide membre), avec sa DA propre.
+- **Badge Ocre des donjons (11/11/2026)** : la pastille collée sur la vignette du boss est retirée ;
+  l'asset `ocre.png` et « capturé / à capturer » vivent **dans la ligne de texte**.
+- **F2** : export/import JSON de la progression locale (5 clés + personnage + route d'alignement),
+  borné, refusé s'il est douteux, **aucun secret** ; dans Options, anonyme seulement.
+- **F7** : `data-quality="low"` sur la racine de l'overlay — la règle CSS existait, elle n'était
+  jamais appliquée : la PiP est nette, le guide plein écran garde la gouache.
+- **F16** : livré le 11/11 (hub + succès en commun).
 
 **F17b — annuaire « métier + niveau » — livré le 10/11/2026**
 
@@ -498,7 +526,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 > **nouvelles** passent au ladder, sur le serveur du profil ; **F17 (1/2)** l'onglet Métiers ne fait
 > plus bouger l'écran (les quatre panneaux occupent une seule cellule : Élevage = **1** métier contre
 > 6 et 7 ailleurs).
-> **Reste** : **F1→F7** (finitions anonymes). **F16** est livré le 11/11/2026 (hub + succès en
+> **Reste** : ~~**F1→F7** (finitions anonymes)~~ **livrés le 11/11/2026** (voir « V2f » ci-dessous). **F16** est livré le 11/11/2026 (hub + succès en
 > commun ; la coche sur la fiche boss publique est écartée). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
 > voir « F17b » ci-dessus).
 

@@ -332,7 +332,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Fiche détail** : les deux coches `Fait / À faire` y vivent **aussi**, avec la même source que le panneau (dashboard, overlay, guide public connecté). L'aperçu God reste en lecture seule.
 - **Guide public connecté (page)** : le pont voisin `PublicOcreDungeonBridge` charge `getPublicOcreProgress` **à la demande** (ouverture d'un panneau ou de la fiche), et le bouton ouvre `PublicMetamobModal` (même `OcreQuestPanel`), jamais la modale Ocre interne.
 - **Overlay public (10/11)** : `DialogContent` porte un `portalContainer` ; `PublicMetamobModal` est rendue dans le `body` de la **PiP** (même `OcreQuestPanel`), les captures du visiteur sont poussées par `publicCapturedOcreNames`, et `OverlayToastProvider` est monté dans le portail public (toasts dans la PiP, DA unique). `notifyBlockDone` toastifie un **bloc validé** / un **Dofus obtenu** dans `GuideOverlayClient`.
-- **Reste (mesuré le 10/11)** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = **V2c**, pas encore branché ; les toasts de la **page** publique restent des toasts de page, volontairement.
+- **Reste (mesuré le 10/11)** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = **V2c**, **livré le 11/11/2026** (room SSE par serveur, `showPresence` opt-in, toasts page + PiP) ; les toasts de la **page** publique restent des toasts de page, volontairement.
 
 ## 3. Ordre d'exécution
 

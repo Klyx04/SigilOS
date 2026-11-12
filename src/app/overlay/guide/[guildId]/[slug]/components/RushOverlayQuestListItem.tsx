@@ -176,15 +176,16 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   /**
    * Libellé d'état — la couleur ne porte JAMAIS seule l'information (AA + daltonisme).
    * Vocabulaire de la DA : « Validée », « Verrouillée », « Je suis ici », « À faire ».
+   * Le repère passe AVANT le verrou : on peut être « ici » sur une quête encore verrouillée.
    */
-  const daState = isDone ? "Validée" : isLocked ? "Verrouillée" : isBookmarked ? "Je suis ici" : "À faire";
+  const daState = isDone ? "Validée" : isBookmarked ? "Je suis ici" : isLocked ? "Verrouillée" : "À faire";
 
   return (
     <div
       id={`overlay-seq-${seq.id}`}
       className="da-row"
       data-state={isDone ? "done" : isLocked ? "locked" : isNext ? "next" : "todo"}
-      data-here={isBookmarked && !isDone && !isLocked ? "true" : "false"}
+      data-here={isBookmarked && !isDone ? "true" : "false"}
     >
       {/* Nœud de validation — HORS de la carte : le fil de sève passe derrière lui.
           Validée / à faire maintenant / à faire / verrouillée ; le repère
@@ -196,7 +197,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           if (!isLocked) onToggle();
         }}
         disabled={isLocked}
-        aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
+        aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée (prérequis ou donjon requis) — le repère « je suis ici » reste possible" : "Marquer comme terminée"}
         className={cn("da-node cursor-pointer", isLocked && "cursor-not-allowed")}
       >
         {isDone ? (
@@ -379,33 +380,32 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           )}
         </div>
 
-        {/* Repère — masqué quand la quête est verrouillée : le cadenas de la case d'état
-            suffit, un second cadenas ici ne disait rien de plus (retour user 02/11/2026). */}
-        {!isLocked && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isDone) onBookmark();
-            }}
-            disabled={isDone}
-            aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
-            title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : "Je suis ici"}
-            className={cn(
-              "shrink-0 rounded-[3px] p-1 transition-colors",
-              isDone && "cursor-not-allowed opacity-40",
-              isBookmarked && !isDone
-                ? "bg-warning/15 text-warning"
-                : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
-            )}
-          >
-            {isBookmarked && !isDone ? (
-              <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-          </button>
-        )}
+        {/* Repère — TOUJOURS proposé (11/11/2026) : un donjon requis ou un prérequis bloque
+            la **validation**, pas le fait de dire où l'on en est. Seule une quête déjà
+            validée le désactive (soit validée, soit repère). */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDone) onBookmark();
+          }}
+          disabled={isDone}
+          aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
+          title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : "Je suis ici"}
+          className={cn(
+            "shrink-0 rounded-[3px] p-1 transition-colors",
+            isDone && "cursor-not-allowed opacity-40",
+            isBookmarked && !isDone
+              ? "bg-warning/15 text-warning"
+              : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
+          )}
+        >
+          {isBookmarked && !isDone ? (
+            <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+        </button>
 
         {/* Accordéon */}
         <button

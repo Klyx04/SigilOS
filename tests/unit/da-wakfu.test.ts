@@ -171,6 +171,17 @@ describe("DA Gouache Wakfu — le hero ne mange pas la liste en fenêtre courte"
 });
 
 describe("DA Gouache Wakfu — coût de rendu", () => {
+    it("la PiP est en qualité BASSE — la règle existait, elle est appliquée (F7)", () => {
+        // Mesure du 11/11/2026 : la règle `[data-quality="low"]` est écrite dans le CSS et
+        // documentée dans la skill, mais AUCUNE surface ne la posait — la PiP et le guide
+        // avaient donc exactement le même grain. La PiP (au-dessus du jeu) passe en `low`,
+        // le guide plein écran reste en `high`.
+        expect(readFileSync(SHELL, "utf8")).toMatch(/data-quality="low"/);
+        expect(
+            readFileSync("src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx", "utf8")
+        ).toMatch(/data-quality="high"/);
+    });
+
     it("aucun filtre sur les bords de carte hors qualité haute", () => {
         expect(css).toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{\s*filter:\s*url\(#da-rough\)/);
         const cardRule = css.match(/\.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
@@ -519,7 +530,7 @@ describe("DA Gouache Wakfu — le guide interne monte la même coque (E3)", () =
         expect(src).toMatch(/className="da-node cursor-pointer"/);
         expect(src).toMatch(/className=\{`da-card group/);
         // Une carte verrouillée reste une ligne de la liste, avec son nœud inerte.
-        expect(src).toMatch(/data-state="locked" className="da-row/);
+        expect(src).toMatch(/data-state="locked"[^>]*className="da-row/);
         // Un fil de sève par liste (les panneaux de bloc sont opaques).
         expect(src).toMatch(/<DaRail>/);
     });
@@ -540,7 +551,7 @@ describe("DA Gouache Wakfu — les modales du Rush passent à la DA (E3c)", () =
     const GUIDE = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
     const MODALS = [
         "src/components/dofus-quests/rush/GuildAlignmentModal.tsx",
-        "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/GuildStatusPanel.tsx",
+        "src/components/dofus-quests/rush/RushDofusDetailModal.tsx",
         "src/components/dofus-quests/OcreProgressModal.tsx",
         "src/components/dofus-quests/rush/RushPenseBeteModal.tsx",
         "src/components/dofus-quests/AlignmentModal.tsx",

@@ -112,6 +112,32 @@ describe("inspecteur quête — le contenant large (E2d)", () => {
   });
 });
 
+describe("inspecteur quête — les sections vides sont masquées, jamais perdues", () => {
+  it("sept sections vides sont détectées, sur les valeurs réellement enregistrables", () => {
+    for (const id of ["location", "prereqs", "activities", "resources", "links", "route", "hints"]) {
+      expect(STUDIO).toContain(`${id}:`);
+    }
+    expect(STUDIO).toContain("const hiddenSections = Object.values(emptySections).filter(Boolean).length;");
+  });
+
+  it("l'identité et les options avancées ne sont jamais masquées", () => {
+    expect(STUDIO).not.toContain("emptySections.identity");
+    expect(STUDIO).not.toContain("emptySections.advanced");
+  });
+
+  it("un bouton rouvre toutes les sections (aucune donnée cachée sans recours)", () => {
+    expect(STUDIO).toContain("Tout afficher");
+    expect(STUDIO).toContain("Masquer les vides");
+    expect(STUDIO).toContain("setShowAllSections((v) => !v)");
+  });
+
+  it("le masquage passe par une classe, pas par un démontage du champ", () => {
+    // `hidden` = display:none : le champ reste monté, donc son état et sa validation
+    // ne changent pas quand la section est repliée.
+    expect(STUDIO).toContain('${empty && !showAllSections ? " hidden" : ""}');
+  });
+});
+
 describe("inspecteur quête — la coche ne contredit jamais la route", () => {
   it("le camp d'`alignment_set` est comparé à la cité de la route", () => {
     expect(STUDIO).toContain("alignmentSet && alignmentSetContradictsCamp(alignReq, alignmentSet.camp)");

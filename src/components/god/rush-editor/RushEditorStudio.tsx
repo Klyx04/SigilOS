@@ -3318,6 +3318,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
   const toggleSection = (s: string) => setOpenSections(prev => ({ ...prev, [s]: !prev[s] }));
   const [showPreview, setShowPreview] = useState(false);
+  /**
+   * E2b-suite (12/11/2026) — les sections **vides** sont masquées par défaut : le
+   * formulaire déroulait neuf accordéons dont six vides. Un bouton les rouvre toutes pour
+   * remplir ; aucune donnée n'est cachée sans recours.
+   */
+  const [showAllSections, setShowAllSections] = useState(false);
   // Fiche « Détails » du membre, ouverte depuis l'aperçu (elle gère son propre Échap).
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
@@ -3818,6 +3824,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     });
   };
 
+  /**
+   * E2b-suite — une section est « vide » quand **aucune** de ses données n'est posée.
+   * On ne teste pas le rendu : on teste les valeurs réellement enregistrables, donc
+   * masquer une section ne cache jamais une donnée existante.
+   */
+  const emptySections = {
+    location: !positionsInput.trim() && !currentNpcTag,
+    prereqs: prereqs.length === 0 && !selectedDofusId,
+    activities: !alignmentSet && !metierTag,
+    resources: requiredItems.length === 0,
+    links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
+    route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
+    hints: !tips.trim(),
+  } as const;
+  const hiddenSections = Object.values(emptySections).filter(Boolean).length;
+  /** Classe d'une section : masquée si vide et si l'auteur n'a pas demandé « tout afficher ». */
+  const sectionClass = (empty: boolean) =>
+    `rounded-xl border border-white/5 bg-zinc-900/40${empty && !showAllSections ? " hidden" : ""}`;
+
   return (
     <div className="p-3.5 bg-zinc-950/90 border border-indigo-500/30 rounded-2xl space-y-3 shadow-xl">
       {/* Header avec statut dirty et toggle preview */}
@@ -3914,6 +3939,24 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           </details>
         )}
       </div>
+
+      {/* E2b-suite — les sections vides sont masquées par défaut ; ce bandeau les rouvre. */}
+      {hiddenSections > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-caption text-muted-foreground">
+          <span>
+            {showAllSections
+              ? "Toutes les sections sont affichées."
+              : `${hiddenSections} section${hiddenSections > 1 ? "s" : ""} vide${hiddenSections > 1 ? "s" : ""} masquée${hiddenSections > 1 ? "s" : ""}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllSections((v) => !v)}
+            className="rounded-md border border-border px-2 py-0.5 font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            {showAllSections ? "Masquer les vides" : "Tout afficher"}
+          </button>
+        </div>
+      )}
 
       {splitConfirm && seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
         <div className="flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5">
@@ -4049,7 +4092,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className={sectionClass(emptySections.route)}>
         <button
           type="button"
           onClick={() => toggleSection("route")}
@@ -4115,7 +4158,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 8 : Conseils & Style Tougli ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className={sectionClass(emptySections.hints)}>
         <button
           type="button"
           onClick={() => toggleSection("hints")}
@@ -4194,7 +4237,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       {/* E2b - groupe 2/3 : Contenu (destination, prerequis, ressources, liens) */}
       <SectionGroupHeader group="contenu" />
       {/* ── Section 2 : Destination & Coordonnées (Ouvert par défaut) ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.location) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("location")}
@@ -4428,7 +4471,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 3 : Prérequis & Dofus ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.prereqs) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("prereqs")}
@@ -4513,7 +4556,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 5 : Ressources & Objets requis ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.resources) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("resources")}
@@ -4532,7 +4575,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 6 : Liens & Médias ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className={sectionClass(emptySections.links)}>
         <button
           type="button"
           onClick={() => toggleSection("links")}
@@ -4652,7 +4695,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       {/* E2b - groupe 3/3 : Avance (alignement, options) */}
       <SectionGroupHeader group="avance" />
       {/* ── Section 4 : Activités & Tags ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className={sectionClass(emptySections.activities)}>
         <button
           type="button"
           onClick={() => toggleSection("activities")}

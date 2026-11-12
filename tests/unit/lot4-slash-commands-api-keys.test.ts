@@ -120,7 +120,10 @@ describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
         expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "valider-recrue"]);
     });
 
-    it("should validate command execution based on roles and channels", async () => {
+    // Budget explicite : ce cas paie l'**import** du graphe serveur (user-actions, Prisma,
+    // Redis, Discord) — mesuré **3 777 ms** seul et **5 023 ms** sous charge le 12/11/2026,
+    // au-delà du timeout par défaut de 5 s. Ce n'est pas une attente : rien à alléger ici.
+    it("should validate command execution based on roles and channels", { timeout: 20_000 }, async () => {
         const { checkSlashCommandExecutionAllowed } = await import("@/server/actions/slash-command-actions");
 
         // Cas 1 : salon restreint et utilisateur dans le mauvais salon.

@@ -22,7 +22,7 @@ import {
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
-  ClipboardList, Hammer, RotateCcw, Scissors,
+  ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -45,7 +45,7 @@ import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, se
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
 import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
-import { DOFUS_WORLDS, DOFUS_JOBS, DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
@@ -53,8 +53,8 @@ import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
-import { resolveRushRoute } from "@/lib/rush-route";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
+import { alignmentSetContradictsCamp } from "@/lib/rush-route";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
   RushTipLines,
@@ -63,7 +63,7 @@ import {
   RUSH_RICH_TEXT_NOT_ACCEPTED,
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { countMissingOrderSlots, type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
+import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
@@ -82,6 +82,11 @@ import { RushEditorTree } from "@/components/god/rush-editor/RushEditorTree";
 import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/rush-editor/RushEditorInspector";
 import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
 import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
+import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
+import { SectionGroupHeader } from "@/components/god/rush-editor/fields/SectionGroupHeader";
+import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
+import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
+import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
 import {
   findRushEditorBlock,
   isRushOutsideChapter,
@@ -331,6 +336,9 @@ export function RushSylvestreAdminClient({
   useEffect(() => { if (!draggingRef.current) setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
 
   const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
+  /** E3b — les manques du contenu (l'onglet « Problèmes » et sa pastille). */
+  const problems = useMemo(() => analyzeRushEditorProblems(localMilestones), [localMilestones]);
+  const problemsCount = useMemo(() => countRushEditorProblems(problems), [problems]);
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
   // Métiers requis agrégés sur tout le guide — affichés dans l'onglet « Lancement ».
   const launchMetiers = useMemo(() => getGuideMetiersRequires(localMilestones as any), [localMilestones]);
@@ -374,9 +382,23 @@ export function RushSylvestreAdminClient({
   const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
   /** Bloc dont on est en train d'ajouter une quête (formulaire monté dans l'inspecteur). */
   const [addingSequenceTo, setAddingSequenceTo] = useState<string | null>(null);
+  /**
+   * E2c — route **pré-remplie** demandée par le cockpit Branches (cité, Ordre, palier,
+   * classe). `null` = création lancée depuis la liste : le formulaire part vide, comme avant.
+   */
+  const [sequenceRouteDefaults, setSequenceRouteDefaults] = useState<{
+    alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string;
+  } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   /** Le formulaire de quête signale ses modifications non enregistrées. */
   const [sequenceDirty, setSequenceDirty] = useState(false);
+  /**
+   * E2d — le formulaire de quête est-il monté dans la **modale large** (1 100 px) plutôt
+   * que dans l'inspecteur (460–560 px) ? Le geste vit dans l'en-tête du formulaire.
+   */
+  const [questFullscreen, setQuestFullscreen] = useState(false);
+  // Changer de quête referme la modale : on ne garde jamais une fiche fantôme à l'écran.
+  useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);
   /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
   const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
 
@@ -850,6 +872,10 @@ export function RushSylvestreAdminClient({
       setEditingMilestone(null);
       setAddingSequenceTo(null);
       setEditingSeqId(questId);
+      // E3b-fix (12/11/2026) : sans cette bascule, un clic depuis « Problèmes » ou
+      // « Branches » sélectionnait la quête **sans quitter l'onglet** — donc sans effet
+      // visible. L'inspecteur n'existe que dans l'onglet Contenu.
+      setActiveTab("content");
       editor.setSelection({ kind: "quest", blockId, questId });
       editor.setTreeOpen(false);
       editor.setInspectorOpen(true);
@@ -864,8 +890,34 @@ export function RushSylvestreAdminClient({
       setEditingMilestone(null);
       setEditingSeqId(null);
       setSequenceDirty(false);
+      // Création « nue » (liste) : aucune route pré-remplie, le formulaire part vide.
+      setSequenceRouteDefaults(null);
       setAddingSequenceTo(blockId);
       editor.setSelection({ kind: "block", blockId });
+      editor.setInspectorOpen(true);
+    });
+  }, [guardEditorSwitch, editor]);
+
+  /**
+   * E2c — emplacement **vide** du cockpit Branches : on ouvre la création dans le bloc
+   * d'accueil choisi, avec la cité, l'Ordre, le palier et la classe **déjà remplis**.
+   * Aucun second chemin d'écriture : c'est le même formulaire et la même action serveur.
+   */
+  const createQuestFromBranch = useCallback((target: RushQuestRouteTarget) => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+      setSequenceRouteDefaults({
+        alignReq: target.alignReq,
+        alignOrderCode: target.alignOrderCode,
+        alignLevelReq: target.alignLevelReq,
+        classReq: target.classReq,
+      });
+      setAddingSequenceTo(target.blockId);
+      // On bascule sur l'onglet qui porte l'inspecteur : le geste se voit immédiatement.
+      setActiveTab("content");
+      editor.setSelection({ kind: "block", blockId: target.blockId });
       editor.setInspectorOpen(true);
     });
   }, [guardEditorSwitch, editor]);
@@ -911,8 +963,8 @@ export function RushSylvestreAdminClient({
   const selectedQuestBlock = selectedQuest
     ? localMilestones.find((m) => m.id === selectedBlockNode?.id) ?? null
     : null;
-  // Un séparateur garde son édition inline (reste E3) : l'inspecteur ne le prend pas.
-  const blockBeingEdited = editingMilestone && !isSeparatorMilestone(editingMilestone) ? editingMilestone : null;
+  // E3a — le séparateur s'édite **ici** comme les autres blocs : plus aucun formulaire dans la liste.
+  const blockBeingEdited = editingMilestone;
 
   const inspectorTitle = addingSequenceTo
     ? "Nouvelle quête"
@@ -930,22 +982,12 @@ export function RushSylvestreAdminClient({
         ? `Quête · ${selectedQuestBlock.title}`
         : null;
 
-  const inspectorBody = addingSequenceTo ? (
-    <AddSequenceForm
-      milestoneId={addingSequenceTo}
-      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
-      isPending={isPending}
-    />
-  ) : blockBeingEdited ? (
-    <BlockInspectorForm
-      milestone={blockBeingEdited}
-      editingData={blockBeingEdited}
-      isPending={isPending}
-      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
-      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-      onCancelEdit={closeInspector}
-    />
-  ) : selectedQuest && selectedQuestBlock ? (
+  /**
+   * E2d — le formulaire de quête est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (panneau 460–560 px ou modale large de 1 100 px). Deux
+   * instances montées en parallèle auraient divergé sur le brouillon et les coches.
+   */
+  const questForm = selectedQuest && selectedQuestBlock ? (
     <SequenceEditForm
       seq={selectedQuest}
       milestoneId={selectedQuestBlock.id}
@@ -956,7 +998,50 @@ export function RushSylvestreAdminClient({
       onDirtyChange={setSequenceDirty}
       onSave={(data) => handleSaveSequence({ ...data, id: selectedQuest.id, milestoneId: selectedQuestBlock.id })}
       onCancel={closeInspector}
+      isFullscreen={questFullscreen}
+      onToggleFullscreen={() => setQuestFullscreen((v) => !v)}
     />
+  ) : null;
+
+  const inspectorBody = addingSequenceTo ? (
+    <AddSequenceForm
+      // E2c — la clé force un **remontage** quand la cible change : sans elle, React
+      // réutilisait le formulaire déjà monté et les valeurs pré-remplies d'un second
+      // emplacement (autre bloc, autre palier) n'étaient jamais appliquées.
+      key={`${addingSequenceTo}:${sequenceRouteDefaults?.alignReq ?? ""}:${sequenceRouteDefaults?.alignOrderCode ?? ""}:${sequenceRouteDefaults?.alignLevelReq ?? ""}:${sequenceRouteDefaults?.classReq ?? ""}`}
+      milestoneId={addingSequenceTo}
+      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
+      isPending={isPending}
+      defaultRoute={sequenceRouteDefaults}
+    />
+  ) : blockBeingEdited ? (
+    <BlockInspectorForm
+      milestone={blockBeingEdited}
+      editingData={blockBeingEdited}
+      isPending={isPending}
+      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
+      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+      onCancelEdit={closeInspector}
+      onApplyBlockRoute={handleApplyBlockRoute}
+      onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
+      onAddSequence={() => startAddSequence(blockBeingEdited.id)}
+    />
+  ) : selectedQuest && selectedQuestBlock ? (
+    questFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setQuestFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : questForm
   ) : (
     <RushEditorInspectorEmpty />
   );
@@ -977,6 +1062,7 @@ export function RushSylvestreAdminClient({
           onOpenTree={() => editor.setTreeOpen(true)}
           visibleQuestCount={editor.visibleQuestCount}
           totalQuestCount={editor.totalQuestCount}
+          problemsCount={problemsCount}
           actions={
             <>
               <button onClick={() => setImportJsonOpen(true)}
@@ -993,6 +1079,26 @@ export function RushSylvestreAdminClient({
           }
         />
       </div>
+
+      {/*
+        E2d (12/11/2026) — **modale large** d'édition d'une quête. Mesure : l'inspecteur
+        donne 460–560 px (une grille à 2 colonnes y tient dans ~200 px par colonne), alors
+        que le formulaire en compte neuf sections. Ici : 1 100 px, `max-h-90vh`, défilement
+        interne — et le **même** formulaire, jamais une seconde instance.
+      */}
+      <Dialog open={questFullscreen && !!questForm} onOpenChange={(open) => { if (!open) setQuestFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {selectedQuest ? (selectedQuest.subGuideName || selectedQuest.subGuideRef) : "Quête"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {selectedQuestBlock ? `Quête · ${selectedQuestBlock.title}` : "Édition de la quête"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{questForm}</div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal d'aperçu d'import */}
       <AnimatePresence>
@@ -1279,13 +1385,8 @@ export function RushSylvestreAdminClient({
                           {isSeparatorMilestone(m) ? (
                             <SortableSeparatorRow
                               milestone={m}
-                              isEditing={editingMilestone?.id === m.id}
-                              editingData={editingMilestone?.id === m.id ? editingMilestone : null}
                               isPending={isPending}
-                              onEdit={() => setEditingMilestone({ ...m })}
-                              onEditChange={(patch) => setEditingMilestone((prev) => prev ? { ...prev, ...patch } : prev)}
-                              onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-                              onCancelEdit={() => setEditingMilestone(null)}
+                              onSelect={() => selectBlock(m.id)}
                               onDelete={() => setPendingDelete(m)}
                             />
                           ) : (
@@ -1302,7 +1403,6 @@ export function RushSylvestreAdminClient({
                                 onDelete={() => setPendingDelete(m)}
                                 onDeleteSequence={handleDeleteSequence}
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
-                                onApplyBlockRoute={handleApplyBlockRoute}
                               />
                             </div>
                           )}
@@ -1344,11 +1444,25 @@ export function RushSylvestreAdminClient({
         )}
 
         {activeTab === "branches" && (
-          <RushBranchesPanel view={branches} classView={classBranches} milestones={routeMilestones} />
+          <RushBranchesCockpit
+            view={branches}
+            classView={classBranches}
+            milestones={routeMilestones}
+            onOpenQuest={selectQuest}
+            onCreateQuest={createQuestFromBranch}
+          />
+        )}
+
+        {activeTab === "problems" && (
+          <RushProblemsPanel
+            milestones={localMilestones}
+            onOpenQuest={selectQuest}
+            onOpenBlock={selectBlock}
+          />
         )}
 
         {activeTab === "settings" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
               <h2 className="text-sm font-black text-white uppercase tracking-wider">Paramètres du guide</h2>
               <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
@@ -1379,10 +1493,54 @@ export function RushSylvestreAdminClient({
                 </p>
               </div>
             </div>
+
+            {/*
+              Colonne 2 (E2c) — l'effet **mesuré** de chaque interrupteur. Avant, la page
+              s'arrêtait à 576 px et laissait la moitié droite vide : on y écrit ce que
+              chaque bascule coupe réellement, et l'état du guide que ces bascules servent.
+            */}
+            <aside className="space-y-4">
+              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">Ce que chaque interrupteur coupe</h3>
+                <ul className="space-y-2 text-caption">
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-emerald-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">Guide actif</b> — éteint, le guide disparaît du tableau de bord et du hub de quêtes ; rien n&apos;est supprimé.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">En construction — espace membres</b> — remplace le guide par l&apos;avis d&apos;arrivée. La page publique n&apos;est pas touchée.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isPublicUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
+                    <span className="text-zinc-400">
+                      <b className="text-zinc-200">En construction — page publique</b> — avis d&apos;arrivée, <code>noindex</code> et retrait du sitemap. Éteint = page indexable.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">État du guide</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <PreviewStat label="Blocs" value={localMilestones.length} />
+                  <PreviewStat label="Quêtes" value={editor.totalQuestCount} />
+                </div>
+                <p className="text-caption text-zinc-500">
+                  Une bascule s&apos;applique tout de suite ; le studio garde l&apos;état réel de la base (aucun brouillon).
+                </p>
+              </div>
+            </aside>
           </motion.div>
         )}
         {activeTab === "launch" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
+            {/* Colonne 1 — le parcours de lancement et les métiers détectés. */}
+            <div className="space-y-4">
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
               <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#e6b96b]" /> Lancement du Rush
@@ -1438,6 +1596,51 @@ export function RushSylvestreAdminClient({
                 cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
               </p>
             </div>
+            </div>
+
+            {/* Colonne 2 (E2c) — d'abord ce que le membre lit réellement, puis son édition. */}
+            <div className="space-y-4">
+              <MemberPreviewFrame label="Aperçu membre — modale de lancement">
+                <div className="space-y-2 text-xs">
+                  <ul className="space-y-1">
+                    {uiConfig.launch.showMetamob && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Link2 className="h-3.5 w-3.5" aria-hidden /> Liaison Metamob (bouton « Lier » si le pseudo n&apos;est pas relié)
+                      </li>
+                    )}
+                    {uiConfig.launch.showResetAlignment && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Réinitialiser l&apos;alignement (optionnel)
+                      </li>
+                    )}
+                    {uiConfig.launch.showMetiers && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Hammer className="h-3.5 w-3.5" aria-hidden /> Métiers requis :{" "}
+                        {launchMetiers.length > 0
+                          ? launchMetiers.map((m) => `${m.name} (niv. ${m.level})`).join(" · ")
+                          : "aucun"}
+                      </li>
+                    )}
+                  </ul>
+                  {uiConfig.penseBete.map((sec) => (
+                    <div key={sec.id} className="rounded-lg border border-border bg-elevated p-2">
+                      <p className="font-semibold text-foreground">{sec.title}</p>
+                      <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                        {sec.items.map((item) => (
+                          <li key={item.id}>
+                            {item.label}
+                            {item.detail ? ` — ${item.detail}` : ""}
+                          </li>
+                        ))}
+                        {sec.items.length === 0 && <li>Aucun item</li>}
+                      </ul>
+                    </div>
+                  ))}
+                  {uiConfig.penseBete.length === 0 && (
+                    <p className="text-muted-foreground">Aucune section : la modale n&apos;affiche pas de pense-bête.</p>
+                  )}
+                </div>
+              </MemberPreviewFrame>
 
             {/* Config GOD éditable */}
             <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
@@ -1494,6 +1697,7 @@ export function RushSylvestreAdminClient({
               <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider disabled:opacity-50">
                 {uiSaving ? "Enregistrement…" : "Enregistrer la config"}
               </button>
+            </div>
             </div>
           </motion.div>
         )}
@@ -1809,13 +2013,8 @@ function TipsLinesEditor({
 // ─── SortableSeparatorRow ─────────────────────────────────────────────────────
 function SortableSeparatorRow(props: {
   milestone: Milestone;
-  isEditing: boolean;
-  editingData: Milestone | null;
   isPending: boolean;
-  onEdit: () => void;
-  onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void;
-  onCancelEdit: () => void;
+  onSelect: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
@@ -1830,24 +2029,14 @@ function SortableSeparatorRow(props: {
 
 function SeparatorRowAdmin({
   milestone,
-  isEditing,
-  editingData,
   isPending,
-  onEdit,
-  onEditChange,
-  onSave,
-  onCancelEdit,
+  onSelect,
   onDelete,
   dragHandleProps,
 }: {
   milestone: Milestone;
-  isEditing: boolean;
-  editingData: Milestone | null;
   isPending: boolean;
-  onEdit: () => void;
-  onEditChange: (patch: Partial<Milestone>) => void;
-  onSave: () => void;
-  onCancelEdit: () => void;
+  onSelect: () => void;
   onDelete: () => void;
   dragHandleProps?: any;
 }) {
@@ -1861,52 +2050,6 @@ function SeparatorRowAdmin({
         </div>
         <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color }} />
 
-        {isEditing ? (
-          <div className="flex-1 space-y-2">
-            <input
-              value={editingData?.title ?? ""}
-              onChange={(e) => onEditChange({ title: e.target.value })}
-              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 font-[family-name:var(--font-cinzel)] uppercase tracking-wider"
-              placeholder="Titre de section"
-              autoFocus
-            />
-            {/* Métadonnées enrichies du séparateur (Position, Lien cliquable, Description) */}
-            <RushBlockMetaEditor
-              values={parseBlockMeta(editingData?.description ?? "")}
-              onChange={(patch) => {
-                const current = parseBlockMeta(editingData?.description ?? "");
-                const updated = formatBlockMeta({ ...current, ...patch });
-                onEditChange({ description: updated });
-              }}
-              accentColor={editingData?.accentColor ?? color}
-              isSeparator={true}
-            />
-            {/* Image du séparateur : elle remplit la DROITE du bandeau (côté membre,
-                dans le guide public et dans l'overlay). Même champ que les autres blocs. */}
-            <BlockImageField
-              value={editingData?.imageUrl ?? ""}
-              onChange={(url) => onEditChange({ imageUrl: url })}
-            />
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {COLOR_PALETTE.map((c) => (
-                  <button
-                    key={c.value}
-                    onClick={() => onEditChange({ accentColor: c.value })}
-                    title={c.label}
-                    className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                    style={{ backgroundColor: c.value }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1 ml-auto">
-                <button onClick={onSave} disabled={isPending} className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
-                <button onClick={onCancelEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
             <div className="flex-1 min-w-0 py-1">
               <p className="text-caption font-black uppercase tracking-widest text-amber-400/60 mb-1">Séparateur</p>
               <p
@@ -1927,11 +2070,9 @@ function SeparatorRowAdmin({
               />
             )}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-              <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
+              <button onClick={onSelect} aria-label="Éditer ce séparateur dans l'inspecteur" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
               <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
             </div>
-          </>
-        )}
       </div>
     </div>
   );
@@ -1950,7 +2091,6 @@ function SortableMilestoneRow(props: {
   onDelete: () => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
-  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -1972,6 +2112,7 @@ function SortableMilestoneRow(props: {
  */
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
+  onApplyBlockRoute, onSelectQuest, onAddSequence,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -1979,8 +2120,23 @@ function BlockInspectorForm({
   onEditChange: (patch: Partial<Milestone>) => void;
   onSave: () => void;
   onCancelEdit: () => void;
+  /**
+   * E3a — la **route du bloc** (cité / Ordre / palier / classe) s'applique ici. Elle vivait
+   * dans la liste, sous la ligne dépliée : un formulaire au milieu d'une liste, exactement
+   * ce qu'E1 a supprimé pour les quêtes.
+   */
+  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
 }) {
   const color = milestone.accentColor || "#10b981";
+  const type = editingData?.type ?? milestone.type;
+  const isTips = type === "INFO";
+  // Le séparateur porte ses métadonnées dans `description` (position, lien, note) : on ne
+  // montre donc pas le champ « description » brut, qui les corromprait.
+  const isSeparator = type === "SEPARATEUR";
+  const sequences = milestone.sequences ?? [];
 
   return (
     <div className="space-y-2">
@@ -2003,13 +2159,25 @@ function BlockInspectorForm({
           className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
           placeholder="Nom du bloc" autoFocus
         />
-        <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
-          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
-          placeholder="Description (optionnel)"
-        />
+        {!isSeparator && (
+          <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
+            className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
+            placeholder="Description (optionnel)"
+          />
+        )}
       </div>
+
+      {/* E3a — route du bloc : même règle et même confirmation de masse que dans la liste. */}
+      {!isTips && !isSeparator && (
+        <RushRouteBlockBar
+          milestoneId={milestone.id}
+          count={sequences.length}
+          isPending={isPending}
+          onApply={onApplyBlockRoute}
+        />
+      )}
       {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
-      {(editingData?.type ?? milestone.type) === "INFO" ? (
+      {isTips ? (
         <RushBlockMetaEditor
           values={parseBlockMeta(editingData?.tips ?? "")}
           onChange={(patch) => {
@@ -2019,6 +2187,19 @@ function BlockInspectorForm({
           }}
           accentColor={editingData?.accentColor ?? color}
           isSeparator={false}
+        />
+      ) : isSeparator ? (
+        // E3a — le bandeau s'édite **ici** (titre, position, lien, note, image, couleur) :
+        // c'était le dernier formulaire inline de la liste.
+        <RushBlockMetaEditor
+          values={parseBlockMeta(editingData?.description ?? "")}
+          onChange={(patch) => {
+            const current = parseBlockMeta(editingData?.description ?? "");
+            const updated = formatBlockMeta({ ...current, ...patch });
+            onEditChange({ description: updated });
+          }}
+          accentColor={editingData?.accentColor ?? color}
+          isSeparator={true}
         />
       ) : (
         <>
@@ -2065,6 +2246,41 @@ function BlockInspectorForm({
           <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
         </div>
       </div>
+
+      {/* E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */}
+      {!isTips && !isSeparator && (
+        <div className="space-y-1.5 rounded-xl border border-border p-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Quêtes du bloc ({sequences.length})
+            </p>
+            <button
+              type="button"
+              onClick={onAddSequence}
+              className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              + Quête
+            </button>
+          </div>
+          {sequences.length === 0 ? (
+            <p className="text-caption text-muted-foreground">Aucune quête : ce bloc est vide.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {sequences.map((seq) => (
+                <li key={seq.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectQuest(seq.id)}
+                    className="w-full truncate text-left text-xs text-foreground hover:underline"
+                  >
+                    {seq.subGuideName || seq.subGuideRef}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2072,7 +2288,7 @@ function BlockInspectorForm({
 function MilestoneRow({
   milestone, isExpanded, isSelected, isPending,
   onToggle, onSelect, onSelectQuest, onAddSequence, onDelete,
-  onDeleteSequence, onReorderSequences, onApplyBlockRoute, dragHandleProps,
+  onDeleteSequence, onReorderSequences, dragHandleProps,
 }: {
   milestone: Milestone; isExpanded: boolean; isSelected: boolean; isPending: boolean;
   onToggle: () => void;
@@ -2083,7 +2299,6 @@ function MilestoneRow({
   onDelete: () => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
-  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
   dragHandleProps?: any;
 }) {
   const color = milestone.accentColor || "#10b981";
@@ -2170,12 +2385,6 @@ function MilestoneRow({
         {!isTips && isExpanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
-              <RushRouteBlockBar
-                milestoneId={milestone.id}
-                count={milestone.sequences.length}
-                isPending={isPending}
-                onApply={onApplyBlockRoute}
-              />
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
                 <SortableContext items={milestone.sequences.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   {milestone.sequences.map(seq => (
@@ -2215,28 +2424,6 @@ function MilestoneRow({
  * aucun signal. Une valeur historique inconnue reste **visible** ici (option dédiée)
  * et n'est jamais effacée en silence : l'admin doit la voir pour la corriger.
  */
-function RushClassSelect({
-  id, value, onChange, className,
-}: {
-  id: string; value: string; onChange: (value: string) => void; className?: string;
-}) {
-  const known = DOFUS_CLASSES.some((c) => c.id === value);
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={className ?? "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"}
-    >
-      <option value="">— Aucune —</option>
-      {DOFUS_CLASSES.map((c) => (
-        <option key={c.id} value={c.id}>{c.name}</option>
-      ))}
-      {value && !known && <option value={value}>Valeur inconnue : {value}</option>}
-    </select>
-  );
-}
-
 // ─── RushRouteBlockBar (G1) ──────────────────────────────────────────────────
 /**
  * Route du **bloc** : cité / Ordre / palier / classe appliqués d'un coup à ses quêtes
@@ -2577,13 +2764,9 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <>
-              <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                {seq.alignReq}
-              </span>
-              <TwinButton sequenceId={seq.id} />
-              {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
-            </>
+            <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              {seq.alignReq}
+            </span>
           )}
           {seq.tips && (
             <span title={seq.tips} className="flex-shrink-0">
@@ -2615,15 +2798,35 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover/seq:opacity-100 transition-opacity flex-shrink-0">
+      {/* E3b — trois gestes au survol (DB, Noobs, éditer) + un menu « … » pour le reste :
+          la jumelle, les 3 Ordres et la suppression ne sont pas des badges de lecture. */}
+      <div className="flex items-center gap-1 flex-shrink-0">
         <a href={dofusdbUrl} target="_blank" rel="noreferrer"
           className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomDb ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><BookOpen className="w-2.5 h-2.5 inline" /> DB</a>
         <a href={noobsUrl} target="_blank" rel="noreferrer"
           className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomNoobs ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><ExternalLink className="w-2.5 h-2.5 inline" /> Noobs</a>
-        <button onClick={onEdit} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
-        <button onClick={onDelete} className="p-1 text-zinc-600 hover:text-red-400 transition-all"><X className="w-3 h-3" /></button>
+        <button onClick={onEdit} aria-label={`Éditer la quête ${seq.subGuideName || seq.subGuideRef}`} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
+        <details className="relative">
+          <summary
+            aria-label={`Autres actions de la quête ${seq.subGuideName || seq.subGuideRef}`}
+            className="list-none cursor-pointer rounded px-1 text-caption font-semibold text-zinc-600 transition-colors hover:text-zinc-300"
+          >
+            …
+          </summary>
+          <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            {seq.alignReq && <TwinButton sequenceId={seq.id} />}
+            {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-caption text-warning transition-colors hover:bg-elevated"
+            >
+              <X className="h-3 w-3" aria-hidden /> Supprimer
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   );
@@ -3051,7 +3254,7 @@ const GOD_DOFUS_SURFACE = "#18181b";
 const GOD_MODAL_SURFACE = "#09090b";
 
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange, isFullscreen, onToggleFullscreen }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
   onSave: (data: any) => void; onCancel: () => void;
   onMove: (sequenceId: string, targetMilestoneId: string) => void;
@@ -3059,6 +3262,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   milestones?: Milestone[];
   /** E1 — signale à l'inspecteur que la fiche diffère de la donnée enregistrée. */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * E2d — le formulaire est-il monté dans la **modale large** ? Le bouton vit dans l'en-tête
+   * du formulaire, la décision (et le conteneur) restent au studio : la même instance est
+   * rendue à un seul endroit, jamais deux.
+   */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
   const [splitConfirm, setSplitConfirm] = useState(false);
@@ -3108,6 +3318,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
   const toggleSection = (s: string) => setOpenSections(prev => ({ ...prev, [s]: !prev[s] }));
   const [showPreview, setShowPreview] = useState(false);
+  /**
+   * E2b-suite (12/11/2026) — les sections **vides** sont masquées par défaut : le
+   * formulaire déroulait neuf accordéons dont six vides. Un bouton les rouvre toutes pour
+   * remplir ; aucune donnée n'est cachée sans recours.
+   */
+  const [showAllSections, setShowAllSections] = useState(false);
   // Fiche « Détails » du membre, ouverte depuis l'aperçu (elle gère son propre Échap).
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
@@ -3608,6 +3824,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     });
   };
 
+  /**
+   * E2b-suite — une section est « vide » quand **aucune** de ses données n'est posée.
+   * On ne teste pas le rendu : on teste les valeurs réellement enregistrables, donc
+   * masquer une section ne cache jamais une donnée existante.
+   */
+  const emptySections = {
+    location: !positionsInput.trim() && !currentNpcTag,
+    prereqs: prereqs.length === 0 && !selectedDofusId,
+    activities: !alignmentSet && !metierTag,
+    resources: requiredItems.length === 0,
+    links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
+    route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
+    hints: !tips.trim(),
+  } as const;
+  const hiddenSections = Object.values(emptySections).filter(Boolean).length;
+  /** Classe d'une section : masquée si vide et si l'auteur n'a pas demandé « tout afficher ». */
+  const sectionClass = (empty: boolean) =>
+    `rounded-xl border border-white/5 bg-zinc-900/40${empty && !showAllSections ? " hidden" : ""}`;
+
   return (
     <div className="p-3.5 bg-zinc-950/90 border border-indigo-500/30 rounded-2xl space-y-3 shadow-xl">
       {/* Header avec statut dirty et toggle preview */}
@@ -3622,18 +3857,140 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowPreview(v => !v)}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-caption font-bold transition-all ${
-            showPreview
-              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-              : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-white/5"
-          }`}
-        >
-          👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "Réduire l'édition dans le panneau" : "Éditer en plein écran"}
+              title={isFullscreen ? "Revenir au panneau latéral" : "Ouvrir en plein écran (modale large)"}
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              {isFullscreen
+                ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+                : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPreview(v => !v)}
+            className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-caption font-medium transition-colors ${
+              showPreview
+                ? "border border-warning/40 bg-warning/10 text-warning"
+                : "border border-border bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
+          </button>
+        </div>
       </div>
+
+      {/*
+        E2b (12/11/2026) — les gestes de la quête sont **en tête**. Mesure : « Déplacer vers »
+        et « Scinder » vivaient après les 9 accordéons, donc à ~1 600 lignes de défilement ;
+        la scission est maintenant dans un menu « … » et sa confirmation s'affiche ici.
+      */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2">
+        {seq.id && milestones && milestones.length > 1 && (
+          <label className="flex min-w-0 flex-1 items-center gap-2">
+            <Layers className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="shrink-0 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Déplacer vers
+            </span>
+            <select
+              value=""
+              aria-label="Déplacer la quête vers un autre bloc"
+              onChange={e => {
+                const targetId = e.target.value;
+                if (targetId && targetId !== milestoneId && seq.id) {
+                  onMove(seq.id, targetId);
+                  onCancel();
+                }
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-elevated px-2 py-1 text-caption text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <option value="">— Choisir un bloc —</option>
+              {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+          <details className="relative ml-auto">
+            <summary
+              aria-label="Autres actions de la quête"
+              className="list-none cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-1 text-caption font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              …
+            </summary>
+            <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border border-border bg-surface p-1 shadow-lg">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setSplitConfirm(true)}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-caption text-foreground transition-colors hover:bg-elevated disabled:opacity-40"
+              >
+                <Scissors className="h-3 w-3" aria-hidden />
+                Scinder en {seq.questDbIds.length} quêtes individuelles
+              </button>
+            </div>
+          </details>
+        )}
+      </div>
+
+      {/* E2b-suite — les sections vides sont masquées par défaut ; ce bandeau les rouvre. */}
+      {hiddenSections > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-caption text-muted-foreground">
+          <span>
+            {showAllSections
+              ? "Toutes les sections sont affichées."
+              : `${hiddenSections} section${hiddenSections > 1 ? "s" : ""} vide${hiddenSections > 1 ? "s" : ""} masquée${hiddenSections > 1 ? "s" : ""}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllSections((v) => !v)}
+            className="rounded-md border border-border px-2 py-0.5 font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            {showAllSections ? "Masquer les vides" : "Tout afficher"}
+          </button>
+        </div>
+      )}
+
+      {splitConfirm && seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5">
+          <div className="flex items-start gap-2">
+            <Scissors className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning">
+                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
+              </p>
+              <p className="text-caption text-muted-foreground">
+                La scinder crée une quête par ligne, à la même place, avec la même route.
+                La progression de l&apos;étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { onSplit(seq.id!); onCancel(); }}
+              className="rounded-lg bg-warning px-3 py-1.5 text-caption font-semibold text-warning-foreground disabled:opacity-40"
+            >
+              Confirmer la scission ({seq.questDbIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitConfirm(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Aperçu live — la ligne de quête et la fiche du MEMBRE, jamais une vignette maison (`E5`) */}
       {showPreview && (
@@ -3672,6 +4029,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         />
       )}
 
+      {/* E2b - groupe 1/3 : Essentiel (identite, route, conseils) */}
+      <SectionGroupHeader group="essentiel" />
       {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40">
         <button
@@ -3680,7 +4039,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-zinc-400">
-            1. Identité de la quête *
+            Identité de la quête *
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
         </button>
@@ -3732,15 +4091,160 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
+      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      <div className={sectionClass(emptySections.route)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("route")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
+            🧭 Route (cité / Ordre / palier / classe)
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.route && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucune (commune) —</option>
+                  <option value="bontarien">Bontarien</option>
+                  <option value="brakmarien">Brakmarien</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                  disabled={!alignReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">— Aucun —</option>
+                  {orderCodesForCamp(alignReq).map(o => (
+                    <option key={o.code} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucun —</option>
+                  {[20, 40, 60, 80, 100].map(n => (
+                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <RushClassSelect
+                  id="rush-seq-class"
+                  value={classReq}
+                  onChange={setClassReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-caption text-zinc-500">
+              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
+              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Conseils & Style Tougli ── */}
+      <div className={sectionClass(emptySections.hints)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("hints")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+            💡 Conseils, Notes & Style Tougli
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.hints && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const x = prompt("Position X :");
+                    if (!x) return;
+                    const y = prompt("Position Y :");
+                    if (!y) return;
+                    const pos = `/travel ${x},${y}`;
+                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
+                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
+                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
+                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+                  }}
+                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
+                </button>
+              </div>
+              <TipsLinesEditor
+                value={tips}
+                onChange={setTips}
+                placeholder="Conseil affiché côté membre…"
+              />
+            </div>
+
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
+              <input
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                placeholder="ex: Ne pas cliquer le portail !"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
+                  Mini bloc Tougli
+                </label>
+                <button
+                  type="button"
+                  onClick={handleInsertLink}
+                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  🔗 Insérer un lien
+                </button>
+              </div>
+              <textarea
+                value={tougliText}
+                onChange={e => handleTougliTextChange(e.target.value)}
+                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
+                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* E2b - groupe 2/3 : Contenu (destination, prerequis, ressources, liens) */}
+      <SectionGroupHeader group="contenu" />
       {/* ── Section 2 : Destination & Coordonnées (Ouvert par défaut) ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.location) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("location")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-emerald-400/90">
-            2. 📍 Destination & Coordonnées GPS
+            📍 Destination & Coordonnées GPS
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.location ? "rotate-180" : ""}`} />
         </button>
@@ -3967,14 +4471,14 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 3 : Prérequis & Dofus ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.prereqs) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("prereqs")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
-            3. 🔒 Prérequis ({prereqs.length}) & Dofus associé
+            🔒 Prérequis ({prereqs.length}) & Dofus associé
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
         </button>
@@ -4051,135 +4555,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
-      {/* ── Section 4 : Activités & Tags ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
-        <button
-          type="button"
-          onClick={() => toggleSection("activities")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
-        >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
-            4. 🎯 Alignement & Métier requis
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
-        </button>
-        {openSections.activities && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="alignSetToggle"
-                  checked={!!alignmentSet}
-                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
-                />
-                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
-                  ⚔️ Quête d'alignement
-                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
-                </label>
-              </div>
-              {alignmentSet && (
-                <div className="flex flex-wrap items-center gap-2 pl-6">
-                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
-                  <button
-                    type="button"
-                    onClick={() => handleAlignmentCampChange("bontarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      alignmentSet.camp === "bontarien"
-                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAlignmentCampChange("brakmarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      alignmentSet.camp === "brakmarien"
-                        ? "bg-red-500/20 border-red-500/50 text-red-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
-                  </button>
-                  <div className="flex items-center gap-1.5 ml-2">
-                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={alignmentSet.level}
-                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
-                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
-                    />
-                  </div>
-                  <span className="ml-auto text-caption text-indigo-300/60 italic">
-                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
-                  </span>
-                </div>
-              )}
-
-              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="metierToggle"
-                    checked={!!metierTag}
-                    onChange={e => handleMetierToggle(e.target.checked)}
-                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                  />
-                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
-                    🔨 Métier requis
-                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
-                  </label>
-                </div>
-                {metierTag && (
-                  <div className="flex flex-wrap items-center gap-2 pl-6">
-                    <select
-                      value={metierTag.name}
-                      onChange={e => handleMetierJobChange(e.target.value)}
-                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
-                    >
-                      <option value="">— Choisir un métier —</option>
-                      {Object.values(DOFUS_JOBS).flat().map(j => (
-                        <option key={j.id} value={j.name}>{j.name}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={200}
-                        value={metierTag.level}
-                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
-                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
-                      />
-                    </div>
-                    <span className="ml-auto text-caption text-amber-300/60 italic">
-                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── Section 5 : Ressources & Objets requis ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className={sectionClass(emptySections.resources) + " relative"}>
         <button
           type="button"
           onClick={() => toggleSection("resources")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-300/90">
-            5. 📦 Ressources & Objets nécessaires ({requiredItems.length})
+            📦 Ressources & Objets nécessaires ({requiredItems.length})
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
         </button>
@@ -4191,14 +4575,14 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 6 : Liens & Médias ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className={sectionClass(emptySections.links)}>
         <button
           type="button"
           onClick={() => toggleSection("links")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-cyan-400/90">
-            6. 🔗 Liens externes & Icône
+            🔗 Liens externes & Icône
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.links ? "rotate-180" : ""}`} />
         </button>
@@ -4308,144 +4692,133 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
-      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      {/* E2b - groupe 3/3 : Avance (alignement, options) */}
+      <SectionGroupHeader group="avance" />
+      {/* ── Section 4 : Activités & Tags ── */}
+      <div className={sectionClass(emptySections.activities)}>
         <button
           type="button"
-          onClick={() => toggleSection("route")}
+          onClick={() => toggleSection("activities")}
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
-            7. 🧭 Route (cité / Ordre / palier / classe)
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
+            🎯 Alignement & Métier requis
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
-        {openSections.route && (
+        {openSections.activities && (
           <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
-                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                >
-                  <option value="">— Aucune (commune) —</option>
-                  <option value="bontarien">Bontarien</option>
-                  <option value="brakmarien">Brakmarien</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
-                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
-                  disabled={!alignReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
-                >
-                  <option value="">— Aucun —</option>
-                  {orderCodesForCamp(alignReq).map(o => (
-                    <option key={o.code} value={o.code}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
-                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                >
-                  <option value="">— Aucun —</option>
-                  {[20, 40, 60, 80, 100].map(n => (
-                    <option key={n} value={n}>Alignement ≥ {n}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
-                <RushClassSelect
-                  id="rush-seq-class"
-                  value={classReq}
-                  onChange={setClassReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="alignSetToggle"
+                  checked={!!alignmentSet}
+                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
                 />
-              </div>
-            </div>
-            <p className="text-caption text-zinc-500">
-              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
-              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Section 8 : Conseils & Style Tougli ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
-        <button
-          type="button"
-          onClick={() => toggleSection("hints")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
-        >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
-            8. 💡 Conseils, Notes & Style Tougli
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
-        </button>
-        {openSections.hints && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const x = prompt("Position X :");
-                    if (!x) return;
-                    const y = prompt("Position Y :");
-                    if (!y) return;
-                    const pos = `/travel ${x},${y}`;
-                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
-                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
-                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
-                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
-                  }}
-                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
-                >
-                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
-                </button>
-              </div>
-              <TipsLinesEditor
-                value={tips}
-                onChange={setTips}
-                placeholder="Conseil affiché côté membre…"
-              />
-            </div>
-
-            <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
-              <input
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-                placeholder="ex: Ne pas cliquer le portail !"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
-                  Mini bloc Tougli
+                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
+                  ⚔️ Quête d'alignement
+                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={handleInsertLink}
-                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
-                >
-                  🔗 Insérer un lien
-                </button>
               </div>
-              <textarea
-                value={tougliText}
-                onChange={e => handleTougliTextChange(e.target.value)}
-                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
-                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
-                rows={2}
-              />
+              {alignmentSet && (
+                <div className="flex flex-wrap items-center gap-2 pl-6">
+                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("bontarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "bontarien"
+                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("brakmarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "brakmarien"
+                        ? "bg-red-500/20 border-red-500/50 text-red-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
+                  </button>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={alignmentSet.level}
+                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
+                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
+                    />
+                  </div>
+                  <span className="ml-auto text-caption text-indigo-300/60 italic">
+                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
+                  </span>
+                </div>
+              )}
+
+              {alignmentSet && alignmentSetContradictsCamp(alignReq, alignmentSet.camp) && (
+                <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/5 p-2 text-caption text-warning">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Ce camp contredit la <b>cité de la route</b> ({alignReq}) : la quête n&apos;est visible
+                    que dans l&apos;autre camp, et la cocher y basculerait le membre.
+                  </span>
+                </p>
+              )}
+
+              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="metierToggle"
+                    checked={!!metierTag}
+                    onChange={e => handleMetierToggle(e.target.checked)}
+                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
+                    🔨 Métier requis
+                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
+                  </label>
+                </div>
+                {metierTag && (
+                  <div className="flex flex-wrap items-center gap-2 pl-6">
+                    <select
+                      value={metierTag.name}
+                      onChange={e => handleMetierJobChange(e.target.value)}
+                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
+                    >
+                      <option value="">— Choisir un métier —</option>
+                      {Object.values(DOFUS_JOBS).flat().map(j => (
+                        <option key={j.id} value={j.name}>{j.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        value={metierTag.level}
+                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
+                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
+                      />
+                    </div>
+                    <span className="ml-auto text-caption text-amber-300/60 italic">
+                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -4459,7 +4832,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
-            9. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
@@ -4562,95 +4935,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         )}
       </div>
 
-      {/* Scinder un bloc multi-quêtes — visible sans ouvrir la section 9 */}
-      {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
-        <div className="flex flex-col gap-2 p-2.5 rounded-xl border border-warning/30 bg-warning/5">
-          <div className="flex items-start gap-2">
-            <Scissors className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-caption font-bold text-warning uppercase tracking-wider">
-                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
-              </p>
-              <p className="text-caption text-muted-foreground">
-                La scinder crée une quête par ligne, à la même place, avec la même route.
-                La progression de l'étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
-              </p>
-            </div>
-          </div>
-          {splitConfirm ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => { onSplit(seq.id!); onCancel(); }}
-                className="px-3 py-1.5 rounded-lg bg-warning text-black text-caption font-bold disabled:opacity-40"
-              >
-                Confirmer la scission ({seq.questDbIds.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplitConfirm(false)}
-                className="px-3 py-1.5 rounded-lg border border-border text-caption font-medium text-muted-foreground"
-              >
-                Annuler
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={() => setSplitConfirm(true)}
-              className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 text-caption font-bold text-warning hover:bg-warning/10 disabled:opacity-40"
-            >
-              <Scissors className="w-3 h-3" /> Scinder en {seq.questDbIds.length} quêtes individuelles
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Déplacer vers un autre bloc — visible sans ouvrir la section 9 */}
-      {seq.id && milestones && milestones.length > 1 && (
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
-          <select
-            value=""
-            onChange={e => {
-              const targetId = e.target.value;
-              if (targetId && targetId !== milestoneId && seq.id) {
-                onMove(seq.id, targetId);
-                onCancel();
-              }
-            }}
-            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
-          >
-            <option value="">— Choisir un bloc —</option>
-            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Footer Actions */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+      {/*
+        Pied **sticky** (E2b, 12/11/2026) : le formulaire fait ~1 600 lignes, « Enregistrer »
+        sortait de l'écran dès les premiers champs. La barre reste collée au bas de
+        l'inspecteur, sans flou (dette DA) ni couleur en dur.
+      */}
+      <div className="sticky bottom-0 z-20 -mx-3.5 -mb-3.5 mt-1 flex items-center justify-between gap-2 rounded-b-2xl border-t border-border bg-surface px-3.5 py-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleSubmit}
             disabled={isPending || !name.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg"
+            className="flex items-center gap-1.5 rounded-lg bg-success px-3.5 py-2 text-caption font-semibold text-success-foreground transition-colors hover:opacity-90 disabled:opacity-40"
           >
-            <Check className="w-3.5 h-3.5" /> Enregistrer la quête
+            <Check className="h-3.5 w-3.5" aria-hidden /> Enregistrer la quête
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+            className="rounded-lg border border-border px-3 py-2 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
             Annuler
           </button>
         </div>
+        {isDirty && (
+          <span className="text-caption font-medium text-warning">● Non enregistré</span>
+        )}
       </div>
     </div>
   );
@@ -4704,18 +5014,23 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
 }
 
 // ─── AddSequenceForm ──────────────────────────────────────────────────────────
-function AddSequenceForm({ milestoneId, onAdd, isPending }: {
+function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
   milestoneId: string; onAdd: (data: any) => void; isPending: boolean;
+  /**
+   * E2c — emplacement du cockpit Branches : la cité, l'Ordre, le palier et la classe
+   * arrivent **pré-remplis**. Sans cette prop (création depuis la liste), tout part vide.
+   */
+  defaultRoute?: { alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string } | null;
 }) {
   const [name, setName] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [dofusdbUrl, setDofusdbUrl] = useState("");
   const [noobsUrl, setNoobsUrl] = useState("");
   const [tips, setTips] = useState("");
-  const [alignReq, setAlignReq] = useState("");
-  const [alignOrderCode, setAlignOrderCode] = useState("");
-  const [alignLevelReq, setAlignLevelReq] = useState("");
-  const [classReq, setClassReq] = useState("");
+  const [alignReq, setAlignReq] = useState(defaultRoute?.alignReq ?? "");
+  const [alignOrderCode, setAlignOrderCode] = useState(defaultRoute?.alignOrderCode ?? "");
+  const [alignLevelReq, setAlignLevelReq] = useState(defaultRoute?.alignLevelReq ?? "");
+  const [classReq, setClassReq] = useState(defaultRoute?.classReq ?? "");
   const [questDbIds, setQuestDbIds] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
@@ -5148,325 +5463,3 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     </div>
   );
 }
-
-// ─── RushRoutePreview (G3) ───────────────────────────────────────────────────
-/**
- * Aperçu de la route **telle que la voit le joueur**. Mêmes jalons que le guide, passés
- * par la règle unique `resolveRushRoute` — **aucun second filtre** ici. Lecture seule :
- * rien n'est publié, aucune écriture.
- */
-function RushRoutePreview({ milestones }: { milestones: RushMilestone[] }) {
-  const [camp, setCamp] = useState("");
-  const [order, setOrder] = useState("");
-  const [classId, setClassId] = useState("");
-
-  const visible = useMemo(
-    () => resolveRushRoute(milestones, {
-      camp: camp || null,
-      order: order || null,
-      playerClass: classId || null,
-    }),
-    [milestones, camp, order, classId],
-  );
-  const total = useMemo(() => milestones.reduce((n, m) => n + m.sequences.length, 0), [milestones]);
-  const shown = useMemo(() => visible.reduce((n, m) => n + m.sequences.length, 0), [visible]);
-  const blocks = useMemo(() => visible.filter((m) => m.sequences.length > 0), [visible]);
-
-  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
-
-  return (
-    <section className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Aperçu de la route</h2>
-          <p className="text-caption text-zinc-500">
-            Ce que verra le joueur — calculé par <code>resolveRushRoute</code>, rien n&apos;est publié.
-          </p>
-        </div>
-        <span className="text-caption font-bold tabular-nums text-zinc-400">{shown} / {total} quêtes</span>
-      </header>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div>
-          <label htmlFor="preview-camp" className="text-caption text-zinc-500 mb-1 block">Cité</label>
-          <select
-            id="preview-camp"
-            value={camp}
-            onChange={(e) => { setCamp(e.target.value); setOrder(""); }}
-            className={fieldClass}
-          >
-            <option value="">— Aucune —</option>
-            <option value="bontarien">Bontarien</option>
-            <option value="brakmarien">Brakmarien</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="preview-order" className="text-caption text-zinc-500 mb-1 block">Ordre</label>
-          <select
-            id="preview-order"
-            value={order}
-            disabled={!camp}
-            onChange={(e) => setOrder(e.target.value)}
-            className={`${fieldClass} disabled:opacity-40`}
-          >
-            <option value="">— Aucun —</option>
-            {orderCodesForCamp(camp).map((o) => (
-              <option key={o.code} value={o.code}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="preview-class" className="text-caption text-zinc-500 mb-1 block">Classe</label>
-          <RushClassSelect id="preview-class" value={classId} onChange={setClassId} className={fieldClass} />
-        </div>
-      </div>
-      {!camp && !order && !classId && (
-        <p className="text-caption text-zinc-500">
-          Sans choix, le guide est complet : la route ne filtre que ce qui est déclaré.
-        </p>
-      )}
-      <div className="space-y-1">
-        {blocks.map((m) => (
-          <details key={m.id} className="rounded-lg border border-white/5 bg-black/20">
-            <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-xs text-zinc-300">
-              <span className="truncate">{m.title}</span>
-              <span className="shrink-0 text-zinc-500">{m.sequences.length} quête{m.sequences.length !== 1 ? "s" : ""}</span>
-            </summary>
-            <ul className="space-y-0.5 px-3 pb-2 text-caption text-zinc-400">
-              {m.sequences.map((s) => <li key={s.id} className="truncate">{s.subGuideName}</li>)}
-            </ul>
-          </details>
-        ))}
-        {blocks.length === 0 && <p className="text-caption text-zinc-500">Aucune quête sur cette route.</p>}
-      </div>
-    </section>
-  );
-}
-
-// ─── RushBranchesPanel (S4-1) ────────────────────────────────────────────────
-/**
- * Vue **Branches à deux étages** — cité (étage 1) puis Ordre (étage 2).
- *
- * Lecture seule : elle sert à **voir** ce qui est saisi et ce qui manque (cible **100 / 102**,
- * 3 Ordres × 5 paliers par cité). L'édition vit dans l'onglet Contenu (S4-2).
- * Aucune requête : la vue est calculée côté serveur par `buildRushBranches`.
- */
-function RushBranchesPanel({ view, classView, milestones }: {
-  view?: RushBranchesView;
-  classView?: RushClassBranchesView;
-  milestones: RushMilestone[];
-}) {
-  if (!view) {
-    return (
-      <p className="max-w-6xl mx-auto px-6 py-10 text-sm text-zinc-500">
-        Vue Branches indisponible : le guide n'a pas pu être chargé.
-      </p>
-    );
-  }
-
-  const missingSlots = countMissingOrderSlots(view);
-
-  return (
-    <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
-      {/* G3 — ce que le joueur verra, sans publier. */}
-      <RushRoutePreview milestones={milestones} />
-
-      {/* Étage 1 — les deux cités (cible mesurée 100 / 102). */}
-      <section className="grid gap-4 md:grid-cols-2">
-        {view.camps.map((camp) => {
-          const pct = Math.min(100, Math.round((camp.present / camp.target) * 100));
-          const done = camp.missing === 0;
-          return (
-            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={camp.camp === "bontarien" ? "/ordres/bonta.png" : "/ordres/brakmar.png"}
-                    alt=""
-                    aria-hidden="true"
-                    className="w-6 h-6 object-contain"
-                    loading="lazy"
-                  />
-                  <h3 className="text-sm font-bold text-white">{camp.label}</h3>
-                </div>
-                <span className={`text-caption font-black tabular-nums ${done ? "text-emerald-400" : "text-amber-400"}`}>
-                  {camp.present} / {camp.target}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${done ? "bg-emerald-500" : "bg-amber-500"}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <p className="text-caption text-zinc-400">
-                {camp.missing === 0
-                  ? `Série complète${camp.beyondMirror > 0 ? ` (${camp.beyondMirror} position(s) hors miroir)` : ""}.`
-                  : `${camp.missing} quête(s) de cité manquante(s)`}
-              </p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Étage 2 — 3 Ordres × 5 paliers, par cité. */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Ordres — 3 par cité, 5 paliers</h2>
-          <span className="text-caption font-bold text-zinc-500">{missingSlots} emplacement(s) vide(s)</span>
-        </header>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {view.camps.map((camp) => (
-            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 space-y-4">
-              <p className="text-caption font-black uppercase tracking-widest text-zinc-500">{camp.label}</p>
-              {camp.orders.map((order) => (
-                <div key={order.id} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={order.icon} alt="" aria-hidden="true" className="w-5 h-5 object-contain" loading="lazy" />
-                    <span className="text-xs font-bold text-white flex-1 min-w-0 truncate">{order.name}</span>
-                    <span className={`text-caption font-black tabular-nums ${order.missing === 0 ? "text-emerald-400" : "text-amber-400"}`}>
-                      {order.slots.length - order.missing}/{order.slots.length}
-                    </span>
-                  </div>
-                  <ul className="space-y-1">
-                    {order.slots.map((slot) => {
-                      const empty = slot.sequences.length === 0;
-                      return (
-                        <li
-                          key={slot.level}
-                          className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-caption ${
-                            empty
-                              ? "border-dashed border-white/10 text-zinc-600"
-                              : "border-white/10 bg-zinc-950/50 text-zinc-300"
-                          }`}
-                        >
-                          <span className="font-black tabular-nums text-zinc-500 w-7 shrink-0">{slot.level}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold truncate">{slot.label}</p>
-                            {empty ? (
-                              <p className="text-zinc-600">— manque —</p>
-                            ) : (
-                              <p className="truncate">{slot.sequences.map((s) => s.subGuideName).join(" · ")}</p>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {order.unlevelled.length > 0 && (
-                    <p className="text-caption text-amber-500/80">
-                      {order.unlevelled.length} quête(s) sans palier :{" "}
-                      {order.unlevelled.map((s) => s.subGuideName).join(" · ")}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Étage 3 — 19 classes, une quête par classe (G4). */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Classes — 19 variantes</h2>
-          <span className="text-caption font-bold text-zinc-500">
-            {classView ? `${classView.present} / ${classView.target} · ${classView.missing} manque(s)` : "vue indisponible"}
-          </span>
-        </header>
-        {classView && (
-          <div className="rounded-xl border border-white/10 bg-zinc-900/40">
-            <table className="w-full text-caption">
-              <thead className="bg-zinc-900 text-zinc-400">
-                <tr>
-                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Classe</th>
-                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Quête</th>
-                </tr>
-              </thead>
-              <tbody>
-                {classView.classes.map((c) => (
-                  <tr key={c.id} className="border-t border-white/5">
-                    <td className="px-3 py-1.5 text-zinc-300">
-                      <span className="flex items-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={c.icon} alt="" aria-hidden="true" loading="lazy" className="h-4 w-4 object-contain" />
-                        {c.name}
-                      </span>
-                    </td>
-                    <td className={`px-3 py-1.5 ${c.sequences.length ? "text-zinc-200" : "text-zinc-600"}`}>
-                      {c.sequences.length === 0
-                        ? "— manque —"
-                        : c.sequences.map((s) => s.subGuideName).join(" · ")}
-                      {c.sequences.length > 1 && (
-                        <span className="ml-2 font-bold text-amber-400">{c.sequences.length} quêtes (doublon)</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {classView && classView.unknown.length > 0 && (
-          <p className="text-caption text-amber-500/80">
-            {classView.unknown.length} quête(s) avec une classe inconnue (masquées par la route) :{" "}
-            {classView.unknown.map((s) => `${s.subGuideName} (${s.classReq})`).join(" · ")}
-          </p>
-        )}
-        {classView && classView.misplaced.length > 0 && (
-          <p className="text-caption text-amber-500/80">
-            {classView.misplaced.length} quête(s) de classe portent aussi une cité/un Ordre :{" "}
-            {classView.misplaced.map((s) => s.subGuideName).join(" · ")}
-          </p>
-        )}
-      </section>
-
-      {/* Paires alignées — position ↔ position (le miroir ne vaut pas au-delà de 100). */}
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Paires alignées par position</h2>
-          <span className="text-caption font-bold text-zinc-500">{view.pairs.length} position(s)</span>
-        </header>
-        <div className="max-h-[30rem] overflow-y-auto rounded-xl border border-white/10">
-          <table className="w-full text-caption">
-            <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
-              <tr>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">#</th>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Bontarien</th>
-                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Brâkmarien</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.pairs.map((pair) => (
-                <tr key={pair.position} className="border-t border-white/5">
-                  <td className="px-3 py-1.5 font-black tabular-nums text-zinc-500">{pair.position}</td>
-                  <td className={`px-3 py-1.5 ${pair.bontarien ? "text-zinc-200" : "text-zinc-600"}`}>
-                    {pair.bontarien ? pair.bontarien.subGuideName : "— manque —"}
-                  </td>
-                  <td className={`px-3 py-1.5 ${pair.brakmarien ? "text-zinc-200" : "text-zinc-600"}`}>
-                    {pair.brakmarien ? pair.brakmarien.subGuideName : "— manque —"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {view.orphans.length > 0 && (
-        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <p className="text-caption font-black uppercase tracking-widest text-amber-400">
-            {view.orphans.length} séquence(s) hors branche
-          </p>
-          <p className="text-caption text-zinc-400 mt-1">
-            Cité ou Ordre non reconnu — à corriger dans l'onglet Contenu :{" "}
-            {view.orphans.slice(0, 12).map((s) => s.subGuideName).join(" · ")}
-            {view.orphans.length > 12 ? " …" : ""}
-          </p>
-        </section>
-      )}
-    </div>
-  );
-}
-

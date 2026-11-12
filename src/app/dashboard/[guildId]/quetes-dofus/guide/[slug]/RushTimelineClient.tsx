@@ -967,7 +967,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">{cs} / {totalQuests} étapes ({pct}%)</span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{cs} / {totalQuests} quêtes ({pct}%)</span>
               {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
               {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
             </div>
@@ -1102,7 +1102,7 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
           <div className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-x-2 font-mono text-[11px] font-semibold uppercase tracking-[0.055em] text-muted-foreground">
               Chapitre {chapterNum}
-              <span className="text-xs normal-case tracking-normal tabular-nums">{ci} / {ti} étapes ({ti > 0 ? Math.round((ci / ti) * 100) : 0}%)</span>
+              <span className="text-xs normal-case tracking-normal tabular-nums">{ci} / {ti} quêtes ({ti > 0 ? Math.round((ci / ti) * 100) : 0}%)</span>
             </span>
             {/* Label identique au titre du bloc unique : on ne le dit qu'une fois,
                 c'est le panneau du bloc qui porte le nom. */}

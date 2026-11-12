@@ -30,6 +30,12 @@ const TREE = codeOf(`${EDITOR_DIR}/RushEditorTree.tsx`);
 const INSPECTOR = codeOf(`${EDITOR_DIR}/RushEditorInspector.tsx`);
 const PALETTE = codeOf(`${EDITOR_DIR}/RushEditorCommandPalette.tsx`);
 const STUDIO = codeOf(`${EDITOR_DIR}/RushEditorStudio.tsx`);
+/** E2c — les fichiers neufs du chantier (champ partagé + les deux panneaux) : mêmes tokens. */
+const CLASS_SELECT = codeOf(`${EDITOR_DIR}/fields/RushClassSelect.tsx`);
+const ROUTE_PREVIEW = codeOf(`${EDITOR_DIR}/panels/RushRoutePreview.tsx`);
+const BRANCHES_COCKPIT = codeOf(`${EDITOR_DIR}/panels/RushBranchesCockpit.tsx`);
+/** E2b — l'en-tête des trois groupes de l'inspecteur quête. */
+const SECTION_GROUP = codeOf(`${EDITOR_DIR}/fields/SectionGroupHeader.tsx`);
 const APP_SHELL = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
 
 /** Bloc source : du marqueur `start` au marqueur `end`. */
@@ -53,6 +59,10 @@ describe("E1 — trois panneaux nommés", () => {
     // et ~360 px à l'inspecteur. Le seuil passe à 1280 et l'inspecteur gagne 100–140 px.
     expect(SHELL).toContain("xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)]");
     expect(SHELL).toContain("md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]");
+    // Retour user du 12/11 (« bandeau étroit ») : au-delà de 1536 px, l'inspecteur peut
+    // prendre 520–720 px sans manger le contenu — et le formulaire de quête a en plus sa
+    // modale large (1 100 px) pour les saisies longues.
+    expect(SHELL).toContain("2xl:grid-cols-[260px_minmax(0,1fr)_minmax(520px,720px)]");
   });
 
   it("le studio ne monte la coquille que sur l'onglet Contenu", () => {
@@ -119,7 +129,7 @@ describe("E1 — aucun formulaire dans la liste", () => {
   });
 
   it("la ligne de bloc ne contient plus aucun formulaire", () => {
-    const row = blockOf(STUDIO, "function MilestoneRow(", "function RushClassSelect");
+    const row = blockOf(STUDIO, "function MilestoneRow(", "function RushRouteBlockBar");
     expect(row).not.toContain("<SequenceEditForm");
     expect(row).not.toContain("<AddSequenceForm");
     expect(row).not.toContain("<BlockInspectorForm");
@@ -154,13 +164,17 @@ describe("E1 — DA des fichiers neufs et dette restante", () => {
   /** Motifs interdits par `docs/RULES.md` § UI (la reprise complète est le lot E4). */
   const FORBIDDEN = /font-black|tracking-widest|backdrop-blur|rounded-3xl|(?:bg|text|border|from|to|ring)-(?:zinc|emerald|purple|pink|indigo|amber|slate|gray)-/;
 
-  it("les cinq fichiers neufs sont aux tokens (aucun motif interdit)", () => {
+  it("les fichiers neufs sont aux tokens (aucun motif interdit)", () => {
     for (const [name, code] of [
       ["RushEditorShell.tsx", SHELL],
       ["RushEditorTopbar.tsx", TOPBAR],
       ["RushEditorTree.tsx", TREE],
       ["RushEditorInspector.tsx", INSPECTOR],
       ["RushEditorCommandPalette.tsx", PALETTE],
+      ["fields/RushClassSelect.tsx", CLASS_SELECT],
+      ["panels/RushRoutePreview.tsx", ROUTE_PREVIEW],
+      ["panels/RushBranchesCockpit.tsx", BRANCHES_COCKPIT],
+      ["fields/SectionGroupHeader.tsx", SECTION_GROUP],
     ] as const) {
       expect(code, `${name} contient un motif UI interdit`).not.toMatch(FORBIDDEN);
     }

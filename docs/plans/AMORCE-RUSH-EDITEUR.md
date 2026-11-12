@@ -1,106 +1,140 @@
 ---
-description: Amorce de reprise — Rush : merger A/B, puis E1 du studio God (3 panneaux), file des chantiers
+description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les décisions prises, la file des chantiers restants
 ---
 
-# 🧭 Amorce — Rush : éditeur God (E1→E5) + file des chantiers
+# 🧭 Amorce — Rush : éditeur God, route et guides (reprise)
 
-> **Rôle unique.** Ce fichier **cadre la prochaine session** : ce qui est livré, ce qu'on merge,
-> par quel lot on commence, et ce qui reste. Il **ne duplique pas** le plan :
-> `docs/plans/REFONTE-EDITEUR-RUSH.md` (E1→E5) et `docs/ROADMAP.md` (ordre unique) font foi.
-> **Dernière MAJ : 05/11/2026.**
+> **Rôle unique.** Ce fichier **cadre la prochaine session** : ce qui est livré, ce qui reste,
+> par quoi commencer et **quelles décisions sont déjà prises** (pour ne pas les re-débattre).
+> Il ne duplique pas : `docs/ROADMAP.md` (ordre unique) · `docs/plans/REFONTE-EDITEUR-RUSH.md`
+> (E1→E5) · `docs/plans/MODULE-RUSH-SYLvestre.md` (contenu) · `docs/reference/TOUGLI-API.md`.
+> **Dernière MAJ : 12/11/2026.**
 
-## 0. État au 05/11/2026 — A, B et **E1** livrés
+## 0. État au 12/11/2026
 
-| Lot | Branche | État |
-|---|---|---|
-| **A — déplacement** | `fix/rush-move-sequence` | **mergée** (#1254) |
-| **B — split** | `feat/rush-split-blocks` | **mergée** (#1255) |
-| **Docs — cette amorce** | `docs/amorce-rush-editeur` | **mergée** (#1256) |
-| **E1 — squelette** | `feat/rush-editor-e1` | **livré** : studio 3 panneaux, hors de `src/app/god/**` |
+| Élément | Valeur mesurée |
+|---|---|
+| Branche | `feat/studio-e2`, **13 commits** depuis `dev` (`da30e25c` → `d087081c`) |
+| PR | **#1346** vers `dev` — **30 fichiers, +2 651 / −869**, `OPEN` (checks à repasser après le dernier push) |
+| Suite | **663 fichiers / 7 101 tests ✓** · `tsc` 0 · ESLint 0 erreur |
+| Studio | `RushEditorStudio.tsx` **~5 300 lignes** (5 472 au départ) · dette DA **644 → 577** |
 
-- `dev` = `175eeb84` + E1 · studio = `src/components/god/rush-editor/RushEditorStudio.tsx`
-  (**5 242 l.**, l'app file est un **ré-export**) · **77/77** fichiers `src/app/god/**` ·
-  **68** fichiers `rush-*` / **857** tests · suite **605 / 6 384** · dette DA **644** motifs (674 avant).
-- **E1** : `RushEditorShell` (3 panneaux), `RushEditorTopbar` (barre unique + recherche),
-  `RushEditorTree` (arbre + filtres), `RushEditorInspector`, `RushEditorCommandPalette` (`Ctrl+K`),
-  règles pures `src/lib/rush-editor-selection.ts` ; garde `UnsavedChangesGuard` + modale au
-  changement de cible ; responsive **1024 / 768**. **Aucun formulaire dans la liste**.
-- **Reste connu** : l'édition inline du **séparateur** (E3) ; la découpe du monolithe en
-  `forms/`·`list/`·`fields/` (E2/E3/E4) ; la base **locale** garde 19 quêtes de classe en
-  `classReq='cra'` (patch local séparé, hors dépôt). Détail : `REFONTE-EDITEUR-RUSH.md` §3
-  (« Reste de E1 »).
+**Livré sur cette branche** (du plus ancien au plus récent) :
 
-> ⚠️ Les états ci-dessus sont ceux du **05/11**. À la reprise : `gh pr list --state open` et
-> `git log -1 --oneline origin/dev` avant de conclure.
+- **E2c** — onglet **Branches actionnable** (`panels/RushBranchesCockpit.tsx` : emplacement rempli =
+  la quête s'ouvre ; emplacement vide = création **pré-remplie** cité + Ordre + palier + classe) ;
+  **Lancement** et **Config** en pleine largeur (aperçu membre réel) ; `fields/RushClassSelect.tsx`
+  et `panels/RushRoutePreview.tsx` sortis du monolithe.
+- **E2b** — inspecteur quête en **3 groupes** (`src/lib/rush-editor-sections.ts`), **pied sticky**,
+  « Déplacer vers » en tête, scission derrière un menu « … », **sections vides masquées** + « Tout afficher ».
+- **E2d** — bouton **Plein écran** : la **même** instance dans une modale 1 100 px ; inspecteur
+  élargi **520–720 px** au-delà de 1536 px.
+- **E3a** — **route du bloc** dans l'inspecteur (elle vivait sous la ligne dépliée), **séparateur**
+  édité au même endroit, **quêtes du bloc** listées + « + Quête » (`tests/unit/rush-block-inspector.test.ts`).
+- **E3b** — onglet **« Problèmes »** (`src/lib/rush-editor-problems.ts` + `panels/RushProblemsPanel.tsx`),
+  5 familles, pastille de compte, **pagination 12 puis 50** ; **menu « … »** par quête.
+- **Correctifs** — `selectQuest` **bascule sur Contenu** (sinon aucun clic ne semblait marcher) ;
+  un camp `alignment_set` qui **contredit la route** est signalé (`alignmentSetContradictsCamp`) ;
+  **route publique à 3 étages** (le guide public ne filtrait que la cité : 15 quêtes d'Ordre au lieu
+  de 5, 19 classes au lieu d'une) ; **vocabulaire** quête / bloc / chapitre (`tests/unit/rush-vocabulary.test.ts`).
+- **Doc** — `docs/reference/TOUGLI-API.md` (API **mesurée** le 12/11 : endpoints, formes réelles,
+  modèle `choice` / `condition`).
 
 ## 1. Avant de coder — 3 gestes
 
-1. Merger la PR **E1** (`feat/rush-editor-e1`) vers `dev`.
-2. `git switch dev && git pull` ; créer la branche du prochain lot **depuis `dev`**.
-3. Lire : `AGENTS.md` · `docs/ROADMAP.md` (rang **59** `god-rush-ux`, rang **10** `rush-donnees`) ·
-   `docs/plans/REFONTE-EDITEUR-RUSH.md` · `docs/agents/activeContext.md` (bloc 05/11 E1) · les **9**
-   verrous sources du §3.
+1. **Merger la PR #1346** (elle porte tout E2/E3 + les correctifs). Si elle est déjà mergée :
+   `git switch dev && git pull`, puis créer la branche du lot **depuis `dev`**.
+2. Lire : `AGENTS.md` · `docs/ROADMAP.md` (rang **59** `god-rush-ux`, rang **10** `rush-donnees`,
+   rang **57** `espace-visiteur`) · `docs/plans/REFONTE-EDITEUR-RUSH.md` §3 · le bloc **12/11** de
+   `docs/agents/activeContext.md`.
+3. `npm run dev` → `/god/rush-sylvestre` : **contrôler ce qui est livré avant d'ajouter**.
 
-## 2. Prochain lot — E2, l'inspecteur de quête
+> ⚠️ Les états ci-dessus sont ceux du **12/11**. À la reprise : `gh pr list --state open` puis
+> `git log -1 --oneline origin/dev` — ne jamais conclure depuis ce tableau seul.
 
-**Objectif** : le formulaire de quête (**1 552 lignes**) devient lisible sans rien perdre : **3 groupes**
-(**Essentiel** : titre, route, conseils · **Contenu** : prérequis, donjons, ressources, liens ·
-**Avancé**), sections **vides masquées**, footer **sticky**, **brouillon local**, « Déplacer vers »
-en tête, jumelles / suppression dans un menu « … », **aperçu membre** à côté.
+## 2. Décisions déjà prises (12/11/2026 — ne pas les re-débattre)
 
-**Livrable**
-- `src/components/god/rush-editor/forms/**` (à créer) : découpe de `SequenceEditForm` en sections ;
-  `SequenceEditForm` reste le **seul point d'entrée** — le contrat de l'inspecteur ne change pas.
-- Allègement du monolithe `RushEditorStudio.tsx` : sortir `SequenceEditForm`, `AddSequenceForm`,
-  `BlockInspectorForm` et les champs partagés (`fields/`), **sans changer le JSX des champs**.
-- Les **9** verrous sources sont repointés sur un **bundle de dossier** (`walk` + concat, comme
-  `god-deslop`) dès qu'un marqueur quitte le fichier principal ; **assertions inchangées**.
+| Sujet | Décision |
+|---|---|
+| **Reset de progression** au changement de cité/Ordre | **OUI** — automatique, sur le personnage sélectionné (mule comprise), avec annonce de ce qui a été décoché |
+| **Texte différent selon le camp** pour une même quête | **OUI** — mais **migration à trancher** : colonne `routeVariants Json?` **ou** deux quêtes « Jumelle » |
+| **Numérotation des blocs** dans les guides navigateur | **OUI** — même règle que l'overlay (`rushChapterPosition`) |
+| **E2a-reste** (découper les 3 formulaires) | **proposé à l'abandon** : les verrous lisent déjà le **dossier**, un déplacement ne casse plus rien, et c'est invisible pour l'utilisateur |
+| **API Tougli** | **jamais d'appel à l'exécution** (88 Ko à 1,2 Mo) ; usage = veille / import ponctuel |
 
-**Interdits E2**
-- Pas de nouvelle route, pas de migration, pas de re-seed.
-- Pas de changement d'action serveur ; pas d'import de code serveur dans un composant client.
-- Ne pas affaiblir les verrous ; l'ordre des `blockOf` doit rester valide.
+## 3. La file des chantiers restants
 
-**Preuves attendues**
-- `rush-editor-inspector` (nouveau) : 3 groupes, sections vides masquées, footer sticky, brouillon
-  local, « Déplacer vers » en tête, menu « … », aperçu.
-- Les **9** verrous verts · Rush ≥ **857** tests · suite complète · `tsc` 0 · ESLint 0 erreur.
-- Contrôle visuel 390 / 768 / 1024 / 1440.
+| # | Lot | Quoi exactement | Taille | Bloqué par |
+|---|---|---|---|---|
+| 1 | **Numérotation des blocs** | `rushChapterPosition(milestones, id)` dans `RushTimelineClient` (ligne du bloc) **et** `PublicRushGuideClient` ; passer une table `id → n°` depuis le parent | S | — |
+| 2 | **2 contrôles « Problèmes »** | quête de classe **sans `classReq`** (sinon visible par les 19 classes) et quête d'alignement **sans `alignReq`** (sinon visible des deux camps) | S | — |
+| 3 | **Reset automatique** | brancher les « graines du reset » (`src/lib/rush-guide-utils.ts`) dans l'action qui enregistre l'alignement ; annonce + `logGodWrite` ; test pur + test d'action | M | décision prise (§2) |
+| 4 | **Variante de texte par camp** | **migration** : `routeVariants Json?` sur `GuideSequence` (Zod borné, 2 camps × 2 champs) **ou** deux quêtes « Jumelle » | M | **GO migration** |
+| 5 | **Brouillon local** (E2b-suite 2/2) | `localStorage` par quête, restauration au rechargement, purge à l'enregistrement | M | — |
+| 6 | **E3c — sélection multiple** | cocher N blocs/quêtes → route / déplacer / supprimer ; **action serveur en masse à créer** (Zod, rate limit Redis, garde guilde, `logGodWrite`) | L | — |
+| 7 | **E4 — dette DA** | **577** motifs interdits → 0 dans `RushEditorStudio.tsx` | M | — |
+| 8 | **E5 — finitions** | raccourcis (Ctrl+S, Échap, Alt+↑/↓, J/K), virtualisation, états vides/chargement | M | — |
+| 9 | **V-C — images** | purge WebP / nettoyage (ops VPS : le local n'a pas tous les donjons) | M | humain |
+| 10 | **V-D2** | 51 ids Tougli + 67 Dofusyelle, ou acter la cible **517** | ? | arbitrage |
+| 11 | **Bloc B** | route publique du bloc (`publicSlug` / `isPublished` posés en base, **aucune route**) | L | arbitrage |
+| 12 | **Fiche visiteur — affinage** | deslop assets / hiérarchie, sans règle métier | M | — |
+| 13 | **Flaky** | `tests/unit/lot4-slash-commands-api-keys.test.ts` dépasse son timeout de 5 s sous charge (**5 023 ms** mesurés) | S | — |
 
-**Taille** : L (1-2 PR). Détail : `REFONTE-EDITEUR-RUSH.md` §3 (E2).
+**Ordre recommandé** : **1 → 2 → 3 → 13** (quatre lots courts, tous visibles) → **5** → **4** (après
+GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
 
-## 3. File des chantiers (l'ordre reste `docs/ROADMAP.md`)
+## 4. Interrogations tranchées — le modèle de route (à relire avant de créer le guide)
 
-| File | Chantier | Prochain lot | Plan |
-|---|---|---|---|
-| **Éditeur** | `god-rush-ux` (rang 59) | **E2** inspecteur quête → E3 bloc/masse/problèmes → E4 DA → E5 finitions (**E1** livré) | `REFONTE-EDITEUR-RUSH.md` |
-| **Données** | `rush-donnees` (rang 10) | **V-H** ocre (27 donjons) → V-C purge WebP → bloc B (route par quête) | `MODULE-RUSH-SYLVESTRE.md` · `RUSH-DEVELOPPEMENT-SUITE.md` |
-| **Contenu** | dans rang 10 | 194 conseils (98 Brâkmar sans source), 18 réf. Ali/Ordre, V-D2 (51 + 67 ids) | `MODULE-RUSH-SYLVESTRE.md` §D |
-| **Public** | `espace-visiteur` (rang 57) | V1 auth + tables (**migration ⇒ accord**) → V2 guide public + annuaire | `PLAN-ESPACE-VISITEUR.md` |
-| **Overlay** | lot **D** du plan éditeur | payload figé → route live (petit lot séparé) | `REFONTE-EDITEUR-RUSH.md` §5 |
+**Une seule route**, filtrée **par données** (`resolveRushRoute`), **avant** la vue, les prérequis et
+l'agrégation des ressources. Quatre champs par quête — **vide = commune** :
 
-**Séquence de session recommandée** (l'ordre global reste le ROADMAP) :
-`E2` → `V-H` (petit, visible) → `E3` (panneau Problèmes : 15 Bonta, 194 tips, 336 qids, 73 tags) →
-contenu → `E4` → `D` → `E5` → `bloc B` / `espace-visiteur` (décision).
+| Ce que tu veux | Ce que tu saisis |
+|---|---|
+| Quête commune (le gros du guide) | **rien** |
+| Quête bontarienne | Cité = **Bontarien** |
+| Quête d'Ordre | Cité + Ordre + Palier (20/40/60/80/100) |
+| Quête de classe (les 19) | Classe = Féca / Iop / … (**une seule** par quête) |
+| Quête différente selon le camp | **deux quêtes** au même endroit, une par camp (bouton **« Jumelle »**) |
 
-## 4. Décisions à trancher (elles changent l'ordre)
+- **Changement d'alignement en cours** : l'**affichage** suit immédiatement (route recalculée depuis
+  le profil). La **progression** n'était pas réinitialisée → c'est le lot **3**.
+- **Tougli** fait la même chose autrement : trame linéaire d'`objectives` + `choice` portant une
+  `condition: "Classe=Feca"`, résolue par le personnage actif. Formes mesurées et correspondance
+  champ par champ : `docs/reference/TOUGLI-API.md`.
+- **Trois unités, trois mots** (verrou `rush-vocabulary`) : **quête** (ligne cochable) · **bloc**
+  (regroupement du guide) · **chapitre** (regroupement de blocs — la pagination 1/5).
 
-- **E2** : position dans le bloc cible → **ajout en fin + réordonnancement** (recommandé) ou choix de la position.
-- **E3** : blocs de palier vides après split → suppression (recommandé) ou repères INFO.
-- **D** : overlay live en lot **séparé** (recommandé ; E1 est livré, ne pas le rouvrir) ou inclus dans E2.
-- **Bloc B** : `publicSlug` / `isPublished` n'ont **aucune route** ; cadrer la page publique ou retirer les colonnes (**migration ⇒ accord**).
-- **V-D2** : chercher les 51 ids Tougli / 67 Dofusyelle, ou acter la cible 517.
-- **Espace visiteur** : GO migration (il règle cité / Ordre / classe du public).
-- **G9** : célébration à arbitrer.
+## 5. Points de vigilance
 
-## 5. Ce qu'on ne fait pas maintenant
+- **PR #1346** est déjà grosse (30 fichiers) : un correctif urgent part en **PR séparée**, pas empilé.
+- **« Problèmes » ne couvre pas** les deux erreurs de saisie du lot 2 : tant qu'elles manquent, une
+  quête de classe oubliée s'affiche pour **les 19 classes**.
+- **Flaky connu** : `lot4-slash-commands-api-keys` (timeout 5 s) — sans rapport avec le studio, mais
+  il fait rougir la suite complète une fois sur deux.
+- **Dette DA** : 577 motifs encore dans le studio ; E4 est le seul lot qui la fait baisser.
+
+## 6. Ce qu'on ne fait pas maintenant
 
 - Re-seed du guide (écraserait les éditions God).
-- T-6 (perf) sans profiler.
-- Drop `alignOrderReq` / `achievements[]` sans GO (migrations).
+- Drop de colonnes (`alignOrderReq`, `achievements[]`) — migration ⇒ GO.
+- Appel Tougli à l'exécution, ou données Tougli dans le HTML servi.
 - Un lot Rush empilé sur une branche non mergée : **chaque lot repart de `dev`**.
 
-## 6. Définition de fini (par lot)
+## 7. Définition de fini (par lot)
 
 `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `git status --short` propre ·
-`docs/ROADMAP.md` + `activeContext` · aucune migration sans GO · rapport final ≤ 15 lignes.
+`docs/ROADMAP.md` (statut) + bloc `activeContext` · **aucune migration sans GO** ·
+contrôle visuel 390 / 768 / 1024 / 1440 · rapport final ≤ 15 lignes.
+
+---
+
+**Commandes de reprise**
+
+```bash
+gh pr view 1346 --json state,mergeStateStatus
+git switch dev && git pull
+git switch -c feat/<lot> origin/dev
+npm run install:safe ; docker compose up -d db redis ; npx prisma migrate deploy
+npm run dev
+```
+

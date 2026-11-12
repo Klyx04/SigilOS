@@ -481,8 +481,25 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     [guide.slug]
   );
   const milestones = useMemo(
-    () => resolveRushRoute(rawMilestones, { camp: routeCamp }),
-    [rawMilestones, routeCamp]
+    () => resolveRushRoute(rawMilestones, {
+      // Étage 1 — cité : le choix local, sinon l'alignement du profil visiteur connecté.
+      camp: routeCamp ?? visitor?.alignment ?? null,
+      // Étage 2 — Ordre : sans lui, les **15** quêtes d'Ordre de la cité restaient visibles
+      // (3 Ordres × 5) alors que l'interne n'en montre que **5**.
+      order: routeOrder ?? visitor?.alignmentOrder ?? null,
+      // Étage 3 — classe du personnage **sélectionné** (principal ou mule déclarée), sinon
+      // celle du profil : sinon les **19** variantes de classe restaient visibles.
+      playerClass: character?.classId ?? visitor?.classe ?? null,
+    }),
+    [
+      rawMilestones,
+      routeCamp,
+      routeOrder,
+      visitor?.alignment,
+      visitor?.alignmentOrder,
+      character?.classId,
+      visitor?.classe,
+    ]
   );
 
   // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
@@ -2455,7 +2472,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                         </span>
                       )}
                       <span className="reg-mono text-xs text-muted-foreground">
-                        {msDoneCount} / {chapterSteps.length} étapes ({msPercent}%)
+                        {msDoneCount} / {chapterSteps.length} quêtes ({msPercent}%)
                       </span>
                     </div>
                     <h2 className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">

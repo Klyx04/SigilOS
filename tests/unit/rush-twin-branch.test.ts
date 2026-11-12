@@ -92,7 +92,9 @@ describe("studio God — identité de quête et route éditables", () => {
   });
 
   it("une séquence existante peut changer de route (cité / Ordre / palier / classe)", () => {
-    expect(god).toContain("7. 🧭 Route (cité / Ordre / palier / classe)");
+    // E2b (12/11/2026) : la numérotation 1→9 est remplacée par les **3 groupes**
+    // (Essentiel / Contenu / Avancé) — la route passe dans le premier. Le libellé reste.
+    expect(god).toContain("🧭 Route (cité / Ordre / palier / classe)");
   });
 });
 

@@ -68,7 +68,7 @@ export function RushEditorShell({
 
   return (
     <div className="flex flex-col" data-rush-editor-shell>
-      <div className="grid grid-cols-1 items-start gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)]">
+      <div className="grid grid-cols-1 items-start gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(460px,560px)] 2xl:grid-cols-[260px_minmax(0,1fr)_minmax(520px,720px)]">
         <aside aria-label="Arbre du guide" className="hidden min-w-0 xl:block">
           <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-border bg-surface">
             {tree}

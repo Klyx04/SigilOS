@@ -3805,7 +3805,7 @@ export default function OptimizedGuideClient({
               Aller à une étape
             </div>
             <div className="text-caption text-zinc-500 mt-1 font-medium">
-              {completedIds.size} / {milestones.length} étapes complétées ({overallPct}%)
+              {completedIds.size} / {milestones.length} blocs complétés ({overallPct}%)
             </div>
           </DialogHeader>
 

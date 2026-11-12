@@ -9,13 +9,14 @@
  */
 
 import type { ReactNode } from "react";
-import { AlignLeft, ClipboardList, Layers, Menu, Search, Settings, Zap } from "lucide-react";
+import { AlertTriangle, AlignLeft, ClipboardList, Layers, Menu, Search, Settings, Zap } from "lucide-react";
 
-export type RushEditorTab = "content" | "settings" | "launch" | "branches";
+export type RushEditorTab = "content" | "settings" | "launch" | "branches" | "problems";
 
 const TABS: Array<{ value: RushEditorTab; label: string; icon: ReactNode }> = [
   { value: "content", label: "Contenu", icon: <Layers className="h-3 w-3" /> },
   { value: "branches", label: "Branches", icon: <AlignLeft className="h-3 w-3" /> },
+  { value: "problems", label: "Problèmes", icon: <AlertTriangle className="h-3 w-3" /> },
   { value: "launch", label: "Lancement", icon: <ClipboardList className="h-3 w-3" /> },
   { value: "settings", label: "Config", icon: <Settings className="h-3 w-3" /> },
 ];
@@ -32,6 +33,7 @@ export function RushEditorTopbar({
   onOpenTree,
   visibleQuestCount,
   totalQuestCount,
+  problemsCount,
   actions,
 }: {
   guideName: string;
@@ -46,6 +48,8 @@ export function RushEditorTopbar({
   /** Quêtes visibles après recherche / filtres (badge de la barre). */
   visibleQuestCount: number;
   totalQuestCount: number;
+  /** E3b — manques du contenu, affichés sur l'onglet « Problèmes ». */
+  problemsCount: number;
   /** Boutons propres au studio (JSON, Importer). */
   actions?: ReactNode;
 }) {
@@ -134,6 +138,14 @@ export function RushEditorTopbar({
           >
             {tab.icon}
             {tab.label}
+            {tab.value === "problems" && problemsCount > 0 && (
+              <span
+                className="rounded-full border border-warning/30 bg-warning/10 px-1.5 text-caption font-semibold tabular-nums text-warning"
+                aria-label={`${problemsCount} manque${problemsCount > 1 ? "s" : ""} détecté${problemsCount > 1 ? "s" : ""}`}
+              >
+                {problemsCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>

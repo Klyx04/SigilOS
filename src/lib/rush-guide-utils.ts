@@ -223,6 +223,33 @@ export function isNonCheckableBlock(
 }
 
 /**
+ * Table `id → rang` des CHAPITRES du guide (blocs cochables), bandeaux exclus.
+ *
+ * 🎯 Mesure du 12/11/2026 : les deux guides navigateur numérotaient chacun à leur
+ * façon — le guide membre avec `msIdx + 1`, c'est-à-dire le rang **dans le chapitre**
+ * (sa liste ne porte que les blocs d'un chapitre), le guide public avec
+ * `milestones.indexOf(ms) + 1`, c'est-à-dire le rang **bandeaux compris**. Deux
+ * numérotations différentes pour le même guide, et des numéros qui sautaient dès
+ * qu'un séparateur ou un encart s'intercalait. L'overlay suivait déjà la bonne règle.
+ *
+ * 🛡️ SOURCE UNIQUE : construite sur `isNonCheckableBlock`, et `rushChapterPosition`
+ * en dérive — une liste n'a donc pas à rappeler la règle ligne par ligne (O(n), pas
+ * O(n²)), et les deux surfaces lisent la MÊME table.
+ */
+export function rushChapterNumbers(
+  blocks: ReadonlyArray<Pick<RushMilestone, "id" | "type">>
+): ReadonlyMap<string, number> {
+  const numbers = new Map<string, number>();
+  let position = 0;
+  for (const block of blocks) {
+    if (isNonCheckableBlock(block)) continue;
+    position += 1;
+    numbers.set(block.id, position);
+  }
+  return numbers;
+}
+
+/**
  * Position d'un bloc dans la numérotation des CHAPITRES (les blocs non cochables ne
  * sont pas numérotés : sinon « Chapitre 12 / 45 » compterait des bandeaux).
  *
@@ -230,14 +257,11 @@ export function isNonCheckableBlock(
  *          de chapitres (blocs cochables) du guide.
  */
 export function rushChapterPosition(
-  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  blocks: ReadonlyArray<Pick<RushMilestone, "id" | "type">>,
   msId: string | null | undefined
 ): { index: number; total: number } {
-  const chapters = blocks.filter((b) => !isNonCheckableBlock(b));
-  const total = chapters.length;
-  if (!msId) return { index: 0, total };
-  const idx = chapters.findIndex((b) => b.id === msId);
-  return { index: idx >= 0 ? idx + 1 : 0, total };
+  const numbers = rushChapterNumbers(blocks);
+  return { index: (msId ? numbers.get(msId) : 0) ?? 0, total: numbers.size };
 }
 
 /**

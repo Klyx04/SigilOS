@@ -79,7 +79,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
@@ -913,7 +913,7 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 // Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
 // `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
 // dashboard, le guide public et l'overlay).
-const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockIndex }: any) {
+const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockNumber }: any) {
   const [expanded,setExpanded]=useState(false);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
@@ -958,9 +958,11 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
             className="flex items-center gap-3 min-w-0 text-left flex-1 cursor-pointer select-none"
           >
           {/* Ancre Dofus : asset NU (plus de tuile teintée sous le picto). Bloc sans
-              Dofus : son numéro en mono, sans boîte non plus. */}
+              Dofus : son RANG dans le guide en mono (table partagée `rushChapterNumbers`,
+              bandeaux exclus — même règle que l'overlay et que le guide public), sans
+              boîte non plus. */}
           <div className="w-11 h-11 flex items-center justify-center shrink-0">
-            {(()=>{const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return <span className="font-mono text-sm tabular-nums text-muted-foreground">{blockIndex??""}</span>;return(
+            {(()=>{const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return <span className="font-mono text-sm tabular-nums text-muted-foreground">{blockNumber||""}</span>;return(
               <img src={d.imageUrl} alt="" title={d.label} className="w-9 h-9 object-contain"/>
             );})()}
           </div>
@@ -1063,7 +1065,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
 });
 
 // ─── ChapterBlock ─────────────────────────────────────────────────────────────
-const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,onChapterClick,forceOpen }:any) {
+const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,onChapterClick,blockNumbers,forceOpen }:any) {
   const filteredMilestones = useMemo(() => {
     if (!searchFilter) return milestones;
     return milestones.filter((ms:any) => {
@@ -1125,10 +1127,13 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
         {(open||!showHeader) && (
           <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
             <div className="space-y-3 pt-3">
-              {filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any,msIdx:number)=>{
+              {filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
                 if(ms.type==="INFO")return <div key={ms.id} className="my-1"><InfoBanner milestone={ms}/></div>;
                 const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
-                return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} blockIndex={msIdx+1} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={effHideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
+                // ⚠️ `blockNumber` vient de la table du GUIDE (pas de la position dans
+                // cette liste : elle ne porte que les blocs d'un chapitre, et le filtre
+                // de recherche la raccourcit encore).
+                return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} blockNumber={blockNumbers?.get(ms.id) ?? 0} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={effHideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
               })}
             </div>
           </motion.div>
@@ -1513,6 +1518,10 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // (effets « Reprendre ? » déplacés après la dérivation du repère principal — voir plus bas)
   // Temps réel WS (Phase 1) : plus de polling router.refresh() toutes les 2 min.
   // La présence est portée par useGuidePresence (voir plus bas).
+// Numérotation des blocs : UNE table pour tout le guide (bandeaux exclus), passée aux
+// lignes. `ChapterBlock` ne reçoit que les blocs d'un chapitre : s'il numérotait lui-même,
+// chaque page repartirait à 1 (défaut mesuré le 12/11/2026).
+const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
 const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
 /**
  * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
@@ -2605,7 +2614,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

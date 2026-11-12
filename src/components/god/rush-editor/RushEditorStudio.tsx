@@ -967,6 +967,10 @@ export function RushSylvestreAdminClient({
 
   const inspectorBody = addingSequenceTo ? (
     <AddSequenceForm
+      // E2c — la clé force un **remontage** quand la cible change : sans elle, React
+      // réutilisait le formulaire déjà monté et les valeurs pré-remplies d'un second
+      // emplacement (autre bloc, autre palier) n'étaient jamais appliquées.
+      key={`${addingSequenceTo}:${sequenceRouteDefaults?.alignReq ?? ""}:${sequenceRouteDefaults?.alignOrderCode ?? ""}:${sequenceRouteDefaults?.alignLevelReq ?? ""}:${sequenceRouteDefaults?.classReq ?? ""}`}
       milestoneId={addingSequenceTo}
       onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
       isPending={isPending}

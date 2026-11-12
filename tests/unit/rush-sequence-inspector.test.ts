@@ -111,3 +111,10 @@ describe("inspecteur quête — le contenant large (E2d)", () => {
     expect(STUDIO).toContain("useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);");
   });
 });
+
+describe("inspecteur quête — la coche ne contredit jamais la route", () => {
+  it("le camp d'`alignment_set` est comparé à la cité de la route", () => {
+    expect(STUDIO).toContain("alignmentSet && alignmentSetContradictsCamp(alignReq, alignmentSet.camp)");
+    expect(STUDIO).toContain("contredit la");
+  });
+});

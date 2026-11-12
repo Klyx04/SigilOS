@@ -95,6 +95,28 @@ export function isSequenceOnRoute(
 }
 
 /**
+ * Le tag `alignment_set` d'une quête (ce que la **coche du membre** écrit) peut-il
+ * contredire la cité de sa **route** (ce qui la rend visible) ?
+ *
+ * Mesure du 12/11/2026 : le studio laissait poser `alignReq = bontarien` **et**
+ * `alignment_set.camp = brakmarien` sur la même quête — un Bontarien qui la cochait
+ * basculait côté Brâkmar, sans aucun signal. Les deux champs sont indépendants :
+ * la route **filtre l'affichage**, le tag **écrit l'alignement** du membre.
+ *
+ * Fonction PURE. `false` dès que l'une des deux valeurs est absente ou inconnue :
+ * on ne signale qu'une contradiction **certaine** (fail-open sur l'avertissement).
+ */
+export function alignmentSetContradictsCamp(
+  routeCamp: string | null | undefined,
+  alignmentCamp: string | null | undefined
+): boolean {
+  const route = normalizeAlignmentCamp(routeCamp);
+  const written = normalizeAlignmentCamp(alignmentCamp);
+  if (!route || !written) return false;
+  return route !== written;
+}
+
+/**
  * **Chaîne des rangs d'un Ordre** (L2) — le rang N exige le rang N−1.
  *
  * Mesure du 02/11/2026 : les **30** quêtes d'Ordre (2 cités × 3 Ordres × 5) ne portent

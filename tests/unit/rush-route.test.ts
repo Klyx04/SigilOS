@@ -15,6 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  alignmentSetContradictsCamp,
   isSequenceOnRoute,
   normalizeAlignmentCamp,
   resolveRushRoute,
@@ -124,3 +125,24 @@ describe("resolveRushRoute", () => {
     expect(GUIDE[1].sequences).toHaveLength(3);
   });
 });
+
+describe("alignmentSetContradictsCamp — la coche ne doit pas contredire la route", () => {
+  it("signale un camp écrit différent de la cité de la route", () => {
+    // Mesure du 12/11/2026 : une quête bontarienne pouvait écrire « brakmarien »
+    // au membre qui la cochait — sans aucun signal dans le studio.
+    expect(alignmentSetContradictsCamp("bontarien", "brakmarien")).toBe(true);
+    expect(alignmentSetContradictsCamp("brakmarien", "bontarien")).toBe(true);
+  });
+
+  it("accepte le même camp, quelle que soit l'orthographe", () => {
+    expect(alignmentSetContradictsCamp("bontarien", "bontarien")).toBe(false);
+    expect(alignmentSetContradictsCamp("Brâkmar", "brakmarien")).toBe(false);
+  });
+
+  it("ne signale rien quand une des deux valeurs manque (fail-open sur l'avertissement)", () => {
+    expect(alignmentSetContradictsCamp(null, "brakmarien")).toBe(false);
+    expect(alignmentSetContradictsCamp("bontarien", null)).toBe(false);
+    expect(alignmentSetContradictsCamp("", "")).toBe(false);
+  });
+});
+

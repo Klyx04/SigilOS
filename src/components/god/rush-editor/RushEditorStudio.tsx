@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
+import { alignmentSetContradictsCamp } from "@/lib/rush-route";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
   RushTipLines,
@@ -4683,6 +4684,16 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
                   </span>
                 </div>
+              )}
+
+              {alignmentSet && alignmentSetContradictsCamp(alignReq, alignmentSet.camp) && (
+                <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/5 p-2 text-caption text-warning">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Ce camp contredit la <b>cité de la route</b> ({alignReq}) : la quête n&apos;est visible
+                    que dans l&apos;autre camp, et la cocher y basculerait le membre.
+                  </span>
+                </p>
               )}
 
               {/* 🔨 Métier requis : « qui peut aider » côté membre */}

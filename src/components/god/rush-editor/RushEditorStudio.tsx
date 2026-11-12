@@ -56,7 +56,14 @@ import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/r
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { alignmentSetContradictsCamp } from "@/lib/rush-route";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
-import { RUSH_CONSTRAINT_LABELS } from "@/lib/rush-constraints";
+import {
+  constraintsFromLegacyTips,
+  constraintsToInfos,
+  isEmptyConstraints,
+  RUSH_CONSTRAINT_LABELS,
+  sanitizeConstraints,
+} from "@/lib/rush-constraints";
+import { RushConditionsEditor } from "./fields/RushConditionsEditor";
 import {
   splitTipLines,
   RUSH_RICH_TEXT_SYNTAX,
@@ -64,6 +71,7 @@ import {
 } from "@/components/dofus-quests/rush/RushRichText";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushQuestConstraints } from "@/types/rush-constraints";
 import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
@@ -137,6 +145,7 @@ type Sequence = {
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
+  constraints?: RushQuestConstraints | null;
   alignReq?: string | null;
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
@@ -3307,6 +3316,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const [dofusdbUrl, setDofusdbUrl] = useState(draft?.dofusdbUrl ?? (seq.dofusdbUrl || ""));
   const [noobsUrl, setNoobsUrl] = useState(draft?.noobsUrl ?? (seq.dofuspourlesnoobsUrl || ""));
   const [tips, setTips] = useState(draft?.tips ?? (seq.tips || ""));
+  // Conditions structurées : la donnée en base prime ; sinon on préremplit depuis les
+  // anciennes lignes `tips` (reprise), que l'auteur corrige dans la section « Conditions ».
+  const initialConstraints = useMemo(
+    () => seq.constraints ?? constraintsFromLegacyTips(seq.tips),
+    [seq.constraints, seq.tips],
+  );
+  const [constraints, setConstraints] = useState<RushQuestConstraints>(initialConstraints);
   // Lot 4 — une seule quête, deux textes : le bon sort selon la cité du joueur (résolu par
   // `resolveRushRoute`, donc les trois surfaces en bénéficient). Vide ⇒ texte de base.
   const initialVariants = useMemo(() => (seq.routeVariants ?? {}) as SequenceRouteVariants, [seq.routeVariants]);
@@ -3347,6 +3363,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     identity: true,
     location: true,
     prereqs: false,
+    conditions: false,
     activities: false,
     resources: false,
     links: false,
@@ -3780,6 +3797,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       dofusdbUrl !== (seq.dofusdbUrl || "") ||
       noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
       tips !== (seq.tips || "") ||
+      // Conditions structurées : toute différence arme « Enregistrer ».
+      JSON.stringify(constraints) !== JSON.stringify(initialConstraints) ||
       // Variantes de texte par camp : toute saisie arme « Enregistrer ».
       JSON.stringify(nextVariants) !== JSON.stringify(initialVariants) ||
       alignReq !== (seq.alignReq || "") ||
@@ -3796,7 +3815,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, constraints, initialConstraints, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
@@ -3851,6 +3870,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     setDofusdbUrl(seq.dofusdbUrl || "");
     setNoobsUrl(seq.dofuspourlesnoobsUrl || "");
     setTips(seq.tips || "");
+    setConstraints(initialConstraints);
     setNote(seq.note || "");
     setAlignReq(seq.alignReq || "");
     setAlignOrderCode(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
@@ -3935,6 +3955,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     } catch {
       /* rien à jeter */
     }
+    const nextConstraints = sanitizeConstraints(constraints);
+    setConstraints(nextConstraints);
     onSave({
       subGuideRef: name.trim(),
       dungeonId: selectedDungeons[0]?.id ?? null,
@@ -3944,6 +3966,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       dofusdbUrl: dofusdbUrl.trim() || null,
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
+      constraints: isEmptyConstraints(nextConstraints) ? null : nextConstraints,
+
       alignReq: alignReq.trim() || null,
       alignOrderCode: alignOrderCode.trim() || null,
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
@@ -3968,6 +3992,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const emptySections = {
     location: !positionsInput.trim() && !currentNpcTag,
     prereqs: prereqs.length === 0 && !selectedDofusId,
+    conditions: isEmptyConstraints(constraints),
     activities: !alignmentSet && !metierTag,
     resources: requiredItems.length === 0,
     links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
@@ -4750,6 +4775,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </select>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4 : Conditions (horaire, joueurs, métiers, sorts, notes) ── */}
+      <div className={sectionClass(emptySections.conditions) + " relative"}>
+        <button
+          type="button"
+          onClick={() => toggleSection("conditions")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
+            🎯 Conditions ({constraintsToInfos(sanitizeConstraints(constraints)).length})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.conditions ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.conditions && (
+          <div className="p-3 pt-0 border-t border-white/5">
+            <RushConditionsEditor value={constraints} onChange={setConstraints} />
           </div>
         )}
       </div>

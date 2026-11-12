@@ -48,10 +48,11 @@ describe("inspecteur quête — trois groupes, un seul ordre", () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
-  it("aucune section n'a disparu : les dix accordéons sont là", () => {
+  it("aucune section n'a disparu : les onze accordéons sont là", () => {
     // 9 sections historiques + « Texte par camp » (lot 4, 12/11/2026 : une seule quête,
-    // deux textes — le bon sort selon la cité du joueur).
-    expect((STUDIO.match(/toggleSection\("/g) ?? []).length).toBe(10);
+    // deux textes — le bon sort selon la cité du joueur) + « Conditions » (V2, 12/11/2026 :
+    // horaire, joueurs, métiers, sorts, notes — des infos, jamais un blocage).
+    expect((STUDIO.match(/toggleSection\("/g) ?? []).length).toBe(11);
   });
 
   it("aucun titre de section ne porte de numéro (les 3 groupes les remplacent)", () => {
@@ -115,8 +116,8 @@ describe("inspecteur quête — le contenant large (E2d)", () => {
 });
 
 describe("inspecteur quête — les sections vides sont masquées, jamais perdues", () => {
-  it("sept sections vides sont détectées, sur les valeurs réellement enregistrables", () => {
-    for (const id of ["location", "prereqs", "activities", "resources", "links", "route", "hints"]) {
+  it("huit sections vides sont détectées, sur les valeurs réellement enregistrables", () => {
+    for (const id of ["location", "prereqs", "conditions", "activities", "resources", "links", "route", "hints"]) {
       expect(STUDIO).toContain(`${id}:`);
     }
     expect(STUDIO).toContain("const hiddenSections = Object.values(emptySections).filter(Boolean).length;");

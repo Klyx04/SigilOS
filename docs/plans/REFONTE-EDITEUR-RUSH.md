@@ -88,8 +88,14 @@
 >   **séparateur** s'édite au même endroit (dernier formulaire inline de la liste supprimé,
 >   `blockBeingEdited` n'exclut plus les séparateurs) et les **quêtes du bloc** y sont
 >   listées, cliquables, avec « + Quête ». Verrou `rush-block-inspector` **9**.
-> · **E3b — à faire** : sélection multiple (route / déplacer / supprimer en masse), panneau
->   « Problèmes » et menu « … » par ligne (jumelles, suppression).
+> · **E3b — livré le 12/11/2026** : onglet **« Problèmes »** (règle pure
+>   `src/lib/rush-editor-problems.ts` : bloc vide, quête sans conseil, sans lien DofusDB,
+>   sans ressource, quête d'Ordre sans palier — chaque ligne **ouvre** la quête ou le bloc)
+>   avec **pastille de compte** dans la barre ; et **menu « … »** par ligne de quête
+>   (jumelle, 3 Ordres, suppression). Verrou `rush-editor-problems` **11**.
+> · **E3c — à faire** : sélection multiple (route / déplacer / supprimer en masse). Bloqué
+>   par une **action serveur en masse** qui n'existe pas encore (`updateRushBlockRoute` est
+>   par bloc) : Zod borné, rate limit, `logGodWrite`, contrôle d'appartenance à la guilde.
 > · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
 >   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
 >   déplacement ne casse plus la garde.

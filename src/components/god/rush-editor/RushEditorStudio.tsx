@@ -85,6 +85,8 @@ import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEdit
 import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
 import { SectionGroupHeader } from "@/components/god/rush-editor/fields/SectionGroupHeader";
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
+import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
+import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
 import {
   findRushEditorBlock,
   isRushOutsideChapter,
@@ -334,6 +336,9 @@ export function RushSylvestreAdminClient({
   useEffect(() => { if (!draggingRef.current) setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
 
   const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
+  /** E3b — les manques du contenu (l'onglet « Problèmes » et sa pastille). */
+  const problems = useMemo(() => analyzeRushEditorProblems(localMilestones), [localMilestones]);
+  const problemsCount = useMemo(() => countRushEditorProblems(problems), [problems]);
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
   // Métiers requis agrégés sur tout le guide — affichés dans l'onglet « Lancement ».
   const launchMetiers = useMemo(() => getGuideMetiersRequires(localMilestones as any), [localMilestones]);
@@ -1053,6 +1058,7 @@ export function RushSylvestreAdminClient({
           onOpenTree={() => editor.setTreeOpen(true)}
           visibleQuestCount={editor.visibleQuestCount}
           totalQuestCount={editor.totalQuestCount}
+          problemsCount={problemsCount}
           actions={
             <>
               <button onClick={() => setImportJsonOpen(true)}
@@ -1440,6 +1446,14 @@ export function RushSylvestreAdminClient({
             milestones={routeMilestones}
             onOpenQuest={selectQuest}
             onCreateQuest={createQuestFromBranch}
+          />
+        )}
+
+        {activeTab === "problems" && (
+          <RushProblemsPanel
+            milestones={localMilestones}
+            onOpenQuest={selectQuest}
+            onOpenBlock={selectBlock}
           />
         )}
 
@@ -2746,13 +2760,9 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <>
-              <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                {seq.alignReq}
-              </span>
-              <TwinButton sequenceId={seq.id} />
-              {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
-            </>
+            <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              {seq.alignReq}
+            </span>
           )}
           {seq.tips && (
             <span title={seq.tips} className="flex-shrink-0">
@@ -2784,15 +2794,35 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover/seq:opacity-100 transition-opacity flex-shrink-0">
+      {/* E3b — trois gestes au survol (DB, Noobs, éditer) + un menu « … » pour le reste :
+          la jumelle, les 3 Ordres et la suppression ne sont pas des badges de lecture. */}
+      <div className="flex items-center gap-1 flex-shrink-0">
         <a href={dofusdbUrl} target="_blank" rel="noreferrer"
           className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomDb ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><BookOpen className="w-2.5 h-2.5 inline" /> DB</a>
         <a href={noobsUrl} target="_blank" rel="noreferrer"
           className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomNoobs ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><ExternalLink className="w-2.5 h-2.5 inline" /> Noobs</a>
-        <button onClick={onEdit} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
-        <button onClick={onDelete} className="p-1 text-zinc-600 hover:text-red-400 transition-all"><X className="w-3 h-3" /></button>
+        <button onClick={onEdit} aria-label={`Éditer la quête ${seq.subGuideName || seq.subGuideRef}`} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
+        <details className="relative">
+          <summary
+            aria-label={`Autres actions de la quête ${seq.subGuideName || seq.subGuideRef}`}
+            className="list-none cursor-pointer rounded px-1 text-caption font-semibold text-zinc-600 transition-colors hover:text-zinc-300"
+          >
+            …
+          </summary>
+          <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            {seq.alignReq && <TwinButton sequenceId={seq.id} />}
+            {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-caption text-warning transition-colors hover:bg-elevated"
+            >
+              <X className="h-3 w-3" aria-hidden /> Supprimer
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   );

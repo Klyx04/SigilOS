@@ -89,7 +89,6 @@ import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
-import { mergeChapterPages } from "@/lib/rush-guide-pages";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText, RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
@@ -1065,7 +1064,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
 });
 
 // ─── ChapterBlock ─────────────────────────────────────────────────────────────
-const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,onChapterClick,blockNumbers,forceOpen }:any) {
+const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,blockNumbers,forceOpen }:any) {
   const filteredMilestones = useMemo(() => {
     if (!searchFilter) return milestones;
     return milestones.filter((ms:any) => {
@@ -1094,7 +1093,7 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
         <>
         <button
           type="button"
-          onClick={()=>{setOpen((v:boolean)=>!v); onChapterClick?.(chapterNum);}}
+          onClick={()=>setOpen((v:boolean)=>!v)}
           aria-expanded={open}
           className="flex w-full flex-col items-stretch gap-3 border-t border-border pt-4 text-left sm:flex-row sm:items-end"
         >
@@ -1407,26 +1406,26 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       return next;
     });
   }, [guide.slug]);
-  // Chapitre actif partagé : sélectionnable depuis le feed (clic sur un header de
-  // chapitre) ET depuis la sidebar « Chapitres ». `null` = auto (défaut sidebar).
-  const [activeChapter,setActiveChapter]=useState<number|"ALL"|null>(null);
-  // Page courante du paginateur. Un chapitre peut porter PLUSIEURS libellés (chapitre 0 :
-  // un « Obtention : Dofus X » par Dofus) : l'index de page est nécessaire, un numéro ne
-  // suffit pas — sinon « Suiv. » retombait sur la première page du même numéro.
+  // Bloc actif partagé : sélectionnable depuis le sommaire ET depuis le feed.
+  // `null` = auto (repère « Je suis ici », sinon premier bloc non terminé).
+  const [selectedMsId,setSelectedMsId]=useState<string|null>(null);
+  // Page courante du paginateur : une page = UN bloc (comme l'overlay). L'index est
+  // nécessaire car deux blocs peuvent porter le même titre.
   const [pageIdx,setPageIdx]=useState<number|null>(null);
-  useEffect(()=>{setPageIdx(null);},[activeChapter]);
+  useEffect(()=>{setPageIdx(null);},[selectedMsId]);
   // Ambiance du hero : teinte du Dofus actif (filtre > chapitre courant > émeraude).
   // 100 % CSS statique : un seul repaint au changement, aucun coût continu,
   // `prefers-reduced-motion` respecté par construction (aucune animation).
   const ambientDofusColor = useMemo(() => {
     const fromFilter = dofusFilter ? DOFUS_DEFS.find((d) => d.id === dofusFilter)?.color : null;
     if (fromFilter) return fromFilter;
-    const chMs = activeChapter != null && activeChapter !== "ALL"
-      ? milestones.filter((m) => m.chapter === activeChapter && m.dofusId)
+    const selectedMs = selectedMsId ? milestones.find((m) => m.id === selectedMsId) : null;
+    const chMs = selectedMs
+      ? milestones.filter((m) => m.chapter === selectedMs.chapter && m.dofusId)
       : milestones.filter((m) => m.dofusId);
     const first = chMs.find((m) => DOFUS_DEFS.some((d) => d.id === (m as any).dofusId));
     return (first ? DOFUS_DEFS.find((d) => d.id === (first as any).dofusId)?.color : null) || "#4fd1a5";
-  }, [dofusFilter, activeChapter, milestones]);
+  }, [dofusFilter, selectedMsId, milestones]);
   // Palette des braises (mémoïsée : nouvelle identité = respawn du canvas).
   const particlePalette = useMemo(() => [ambientDofusColor, "#f6e9cb"], [ambientDofusColor]);
   const [incognito,setIncognito]=useState(false);
@@ -1572,48 +1571,52 @@ const timelineItems=useMemo(()=>{
     b.push(ms);
   }
   f();return r;},[milestones,dofusFilter]);
-  // ─── Pagination par chapitre ────────────────────────────────────────────────
-  // Le guide fait 57 chapitres / 379 étapes : tout rendre — même replié — donnait un
-  // mur de plusieurs milliers de pixels qui ne fera qu'empirer. Une page = UN chapitre.
-  // Les bannières (séparateur, info, « Dofus obtenu ») restent collées au chapitre qui
-  // les suit : elles gardent leur place dans la lecture.
-  const chapterPages = useMemo(() => {
+  // ─── Pagination par BLOC ────────────────────────────────────────────────────
+  // Mesure du 12/11/2026 : une page = UN chapitre montait jusqu'à **89 quêtes** d'un
+  // coup, et « Tout » rendait les **54 blocs** de la route d'affilée. Une page = UN bloc
+  // cochable — exactement ce que fait l'overlay — est plus léger par page, et le bouton
+  // « Tout » n'a plus d'objet. Les bannières restent collées au bloc qui les suit.
+  const blockPages = useMemo(() => {
     type TI = (typeof timelineItems)[number];
-    const out: { chapterNum: number | null; label: string; items: TI[] }[] = [];
-    let pending: TI[] = [];
+    type BlockPage = { msId: string; title: string; chapter: number; chapterLabel: string; items: TI[] };
+    const out: BlockPage[] = [];
+    let lead: TI[] = [];
     for (const it of timelineItems) {
-      if (it.kind === "chapter") {
-        out.push({ chapterNum: it.chapterNum, label: it.label, items: [...pending, it] });
-        pending = [];
-      } else {
-        pending.push(it);
+      if (it.kind !== "chapter") { lead.push(it); continue; }
+      for (const ms of it.milestoneList) {
+        out.push({
+          msId: ms.id,
+          title: ms.title,
+          chapter: it.chapterNum,
+          chapterLabel: it.label,
+          items: [
+            ...lead,
+            // `showHeader: false` : le bloc porte déjà son rang et son nom, inutile de
+            // répéter un en-tête de chapitre sur une page qui ne contient qu'un bloc.
+            { key: `ch-${ms.id}`, kind: "chapter", chapterNum: it.chapterNum, label: it.label, showHeader: false, milestoneList: [ms] },
+          ],
+        });
+        lead = [];
       }
     }
-    // Bannières de fin sans chapitre après : elles terminent la dernière page.
-    if (pending.length) {
-      if (out.length) out[out.length - 1].items.push(...pending);
-      else out.push({ chapterNum: null, label: "", items: pending });
+    // Bannières de fin sans bloc après : elles terminent la dernière page.
+    if (lead.length) {
+      if (out.length) out[out.length - 1].items.push(...lead);
+      else out.push({ msId: "", title: "", chapter: 0, chapterLabel: "", items: lead });
     }
-    // Une bannière coupe un chapitre en deux morceaux : on les remet sur UNE page.
-    return mergeChapterPages(out);
+    return out;
   }, [timelineItems]);
-  // seq/bloc → chapitre : pour SAUTER au bon chapitre avant de scroller (repère,
-  // reprise, prérequis, « Je suis ici »).
-  const seqToChapter = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const ms of milestones) for (const s of ms.sequences) m.set(s.id, ms.chapter);
+  // seq/bloc → bloc : pour SAUTER à la bonne page avant de scroller (repère, reprise,
+  // prérequis, « Je suis ici »). Un chapitre ne pilote plus rien : on vise le bloc.
+  const seqToMs = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const ms of milestones) for (const s of ms.sequences) m.set(s.id, ms.id);
     return m;
   }, [milestones]);
-  const msToChapter = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const ms of milestones) m.set(ms.id, ms.chapter);
-    return m;
-  }, [milestones]);
-  // Amène la page du chapitre visé avant un scroll ciblé. En mode « Tout afficher »
-  // (choix explicite de l'utilisateur) on ne force rien : tout est déjà là.
-  const ensureChapterFor = useCallback((chapter: number | null | undefined) => {
-    if (chapter == null) return;
-    setActiveChapter((prev: number | "ALL" | null) => (prev === "ALL" ? prev : chapter));
+  // Amène la page du bloc visé avant un scroll ciblé. En recherche / filtre Dofus on ne
+  // force rien : tout est déjà affiché.
+  const ensureMsFor = useCallback((msId: string | null | undefined) => {
+    if (msId) setSelectedMsId(msId);
   }, []);
 
 
@@ -1866,9 +1869,9 @@ const timelineItems=useMemo(()=>{
     const foundId = targetSeqId || resolvePrereqTarget(seqName, milestones as any)?.seqId || null;
     if (foundId) {
       setFocusedSeqId(foundId);
-      // Le prérequis peut vivre dans un AUTRE chapitre : on ouvre sa page d'abord,
+      // Le prérequis peut vivre dans un AUTRE bloc : on ouvre sa page d'abord,
       // sinon le scroll chercherait un nœud qui n'est pas dans le DOM (mode paginé).
-      ensureChapterFor(seqToChapter.get(foundId));
+      ensureMsFor(seqToMs.get(foundId));
       let attempts = 0;
       const maxAttempts = 10;
       const tryScroll = () => {
@@ -1886,7 +1889,7 @@ const timelineItems=useMemo(()=>{
       };
       setTimeout(tryScroll, 300);
     }
-  }, [milestones, ensureChapterFor, seqToChapter]);
+  }, [milestones, ensureMsFor, seqToMs]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {
@@ -2059,9 +2062,9 @@ const timelineItems=useMemo(()=>{
   // ─── Scroll / resume helpers ────────────────────────────────────────────
   const scrollToSequence = useCallback((seqId: string) => {
     handleFocusSequence(seqId);
-    // Même logique que les prérequis : on ouvre le chapitre de la cible si elle n'est
-    // pas sur la page courante (repère d'un autre chapitre, « Reprendre », reprise live).
-    ensureChapterFor(seqToChapter.get(seqId));
+    // Même logique que les prérequis : on ouvre la page du bloc de la cible si elle
+    // n'est pas sur la page courante (repère d'un autre bloc, « Reprendre », reprise live).
+    ensureMsFor(seqToMs.get(seqId));
     let attempts = 0;
     const maxAttempts = 10;
     const tryScroll = () => {
@@ -2078,7 +2081,7 @@ const timelineItems=useMemo(()=>{
       }
     };
     setTimeout(tryScroll, 300);
-  }, [handleFocusSequence, ensureChapterFor, seqToChapter]);
+  }, [handleFocusSequence, ensureMsFor, seqToMs]);
 
   const scrollToActive = useCallback(() => {
     if (activeSeqId) scrollToSequence(activeSeqId);
@@ -2133,17 +2136,21 @@ const timelineItems=useMemo(()=>{
     return matchingSeqIds;
   }, [searchQuery, milestones, normalizeSearch]);
 
-  // ─── Page courante (pagination par chapitre) ────────────────────────────────
-  // Défaut : le chapitre du repère « Je suis ici », sinon le premier chapitre non
-  // terminé — on ouvre le guide là où le joueur en est, pas au chapitre 1.
-  // Recherche et filtre Dofus montrent TOUS les chapitres (sinon on cacherait des
-  // résultats) ; le pager s'efface alors au profit d'un simple compteur.
-  const defaultChapter = bookmarkedMsId ? msToChapter.get(bookmarkedMsId) ?? null : null;
-  const currentChapter = activeChapter ?? defaultChapter ?? chapterPages[0]?.chapterNum ?? null;
-  const isAllChapters = currentChapter === "ALL";
-  const pageIndex = isAllChapters ? -1 : (pageIdx != null && chapterPages[pageIdx] ? pageIdx : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter)));
-  const currentPage = isAllChapters ? null : chapterPages[pageIndex] ?? chapterPages[0] ?? null;
-  const showEveryChapter = isAllChapters || !!searchResults || !!dofusFilter;
+  // ─── Page courante (pagination par bloc) ────────────────────────────────────
+  // Défaut : le bloc du repère « Je suis ici », sinon le premier bloc non terminé — on
+  // ouvre le guide là où le joueur en est, pas au bloc 1. Recherche et filtre Dofus
+  // montrent TOUT le guide (sinon on cacherait des résultats) ; le pager s'efface alors.
+  const defaultMsId =
+    (bookmarkedMsId && blockNumbers.has(bookmarkedMsId) ? bookmarkedMsId : null) ??
+    milestones.find((m) => blockNumbers.has(m.id) && !completedIds.has(m.id))?.id ??
+    null;
+  const currentMsId = selectedMsId ?? defaultMsId ?? blockPages[0]?.msId ?? null;
+  const pageIndex =
+    pageIdx != null && blockPages[pageIdx]
+      ? pageIdx
+      : Math.max(0, blockPages.findIndex((p) => p.msId === currentMsId));
+  const currentPage = blockPages[pageIndex] ?? blockPages[0] ?? null;
+  const showEveryBlock = !!searchResults || !!dofusFilter;
 
   // ─── Bloc de la DA « Gouache Wakfu » (E3) ───────────────────────────────────
   // EXACTEMENT la règle de l'overlay et du guide public (`resolveRushDaTheme`) :
@@ -2153,11 +2160,9 @@ const timelineItems=useMemo(()=>{
     () =>
       resolveRushDaTheme(
         milestones as any,
-        currentChapter === "ALL" || currentChapter == null
-          ? null
-          : (milestones.find((m) => (m as any).chapter === currentChapter)?.id ?? null)
+        showEveryBlock ? null : currentPage?.msId ?? null
       ),
-    [milestones, currentChapter]
+    [milestones, showEveryBlock, currentPage]
   );
 
   // Thème exposé aux modales : Radix les porte dans `document.body`, hors de la
@@ -2168,13 +2173,17 @@ const timelineItems=useMemo(()=>{
     [daTheme.block, daTheme.accent]
   );
   const daScope = daScopeProps(daThemeValue);
-  const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
+  const visibleItems = showEveryBlock ? timelineItems : (currentPage?.items ?? timelineItems);
   const goToPage = (idx: number) => {
-    const page = chapterPages[idx];
+    const page = blockPages[idx];
     if (!page) return;
     setPageIdx(idx);
-    if (page.chapterNum != null) setActiveChapter(page.chapterNum);
+    if (page.msId) setSelectedMsId(page.msId);
     scrollToTop();
+  };
+  const goToMs = (id: string) => {
+    const idx = blockPages.findIndex((p) => p.msId === id);
+    if (idx >= 0) goToPage(idx);
   };
 
 
@@ -2576,56 +2585,49 @@ const timelineItems=useMemo(()=>{
       <RushChapterNav
         milestones={milestones as any}
         completedSeqIds={allCompletedSeqIds}
-        selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
-        onSelectChapter={setActiveChapter as any}
+        selectedMilestoneId={currentPage?.msId ?? null}
+        onSelectMilestone={goToMs}
       />
       <div className="da-guide-main">
-        {/* ── Pagination par chapitre ──────────────────────────────────────────
-            Une page = UN chapitre (ou un libellé de chapitre). Le rail de droite
-            (`RushChapterSidebar`) porte le sommaire : plus de liste dépliante ici. */}
-        {chapterPages.length > 1 && !searchResults && !dofusFilter && (
-          <div className="mb-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <button type="button" disabled={pageIndex <= 0 || isAllChapters} onClick={() => goToPage(pageIndex - 1)}
-                className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
-                title="Chapitre précédent">‹ Préc.</button>
-              <div className="min-w-0 flex-1 text-center">
-                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                  {isAllChapters ? "tout le guide" : `${pageIndex + 1} / ${chapterPages.length}`}
-                </span>
-                <p className="truncate text-[13px] font-semibold text-foreground">
-                  {isAllChapters ? `${contentMilestones.length} blocs` : (currentPage?.label || `Chapitre ${currentChapter}`)}
-                </p>
-              </div>
-              <button type="button" disabled={pageIndex >= chapterPages.length - 1 || isAllChapters} onClick={() => goToPage(pageIndex + 1)}
-                className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
-                title="Chapitre suivant">Suiv. ›</button>
-              <button type="button"
-                onClick={() => setActiveChapter(isAllChapters ? (defaultChapter ?? chapterPages[0]?.chapterNum ?? null) : "ALL")}
-                className={`rounded-[4px] border px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer ${isAllChapters ? "border-success/40 text-success" : "border-border text-muted-foreground hover:text-foreground"}`}
-                title={isAllChapters ? "Revenir au chapitre en cours" : "Afficher les chapitres d'affilée (scroll long)"}>
-                {isAllChapters ? "Paginé" : "Tout"}
-              </button>
+        {/* ── Pagination par BLOC ──────────────────────────────────────────────
+            Une page = UN bloc cochable, comme l'overlay. Le bouton « Tout » est
+            supprimé : il rendait les 54 blocs de la route d'un coup (mesure du
+            12/11/2026) — le mode paginé est le seul, et c'est le plus léger. */}
+        {blockPages.length > 1 && !searchResults && !dofusFilter && (
+          <div className="mb-3 flex items-center gap-2">
+            <button type="button" disabled={pageIndex <= 0} onClick={() => goToPage(pageIndex - 1)}
+              className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
+              title="Bloc précédent">‹ Préc.</button>
+            <div className="min-w-0 flex-1 text-center">
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                {pageIndex + 1} / {blockPages.length}
+              </span>
+              <p className="truncate text-[13px] font-semibold text-foreground">
+                {currentPage?.title || "Bloc"}
+              </p>
             </div>
+            <button type="button" disabled={pageIndex >= blockPages.length - 1} onClick={() => goToPage(pageIndex + 1)}
+              className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
+              title="Bloc suivant">Suiv. ›</button>
           </div>
         )}
-        {(searchResults || dofusFilter) && chapterPages.length > 1 && (
+        {(searchResults || dofusFilter) && blockPages.length > 1 && (
           <p className="mb-3 border-b border-border pb-2 font-mono text-[11px] text-muted-foreground">
-            {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
+            {searchResults ? "résultats" : "filtre Dofus"} — les {blockPages.length} blocs sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
-        {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
-        {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/>)}</div>}
+        {/* Pager de bas de page : on enchaîne les blocs sans remonter. */}
+        {blockPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
             <button type="button" disabled={pageIndex <= 0} onClick={() => goToPage(pageIndex - 1)}
               className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default">
-              ‹ {pageIndex > 0 ? `Chapitre ${chapterPages[pageIndex - 1]?.chapterNum}` : "Début"}
+              ‹ {pageIndex > 0 ? blockPages[pageIndex - 1]?.title.slice(0, 28) : "Début"}
             </button>
-            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{pageIndex + 1} / {chapterPages.length}</span>
-            <button type="button" disabled={pageIndex >= chapterPages.length - 1} onClick={() => goToPage(pageIndex + 1)}
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{pageIndex + 1} / {blockPages.length}</span>
+            <button type="button" disabled={pageIndex >= blockPages.length - 1} onClick={() => goToPage(pageIndex + 1)}
               className="rounded-[4px] border border-success/40 px-2.5 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/10 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default">
-              {pageIndex < chapterPages.length - 1 ? `Chapitre ${chapterPages[pageIndex + 1]?.chapterNum}` : "Fin"} ›
+              {pageIndex < blockPages.length - 1 ? `${blockPages[pageIndex + 1]?.title.slice(0, 28)}` : "Fin"} ›
             </button>
           </div>
         )}
@@ -2647,8 +2649,11 @@ const timelineItems=useMemo(()=>{
             milestones={contentMilestones as any}
             completedSeqIds={allCompletedSeqIds}
             activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
-            selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
-            onSelectChapter={setActiveChapter}
+            selectedChapter={currentPage?.chapter ?? undefined}
+            onSelectChapter={(chapter) => {
+              const idx = blockPages.findIndex((p) => p.chapter === chapter);
+              if (idx >= 0) goToPage(idx);
+            }}
             hideProvidedResources={hideDone}
             /* Le sommaire vit désormais à GAUCHE (`RushChapterNav`) : sans cette
                garde, les chapitres s'afficheraient deux fois à l'écran — le même
@@ -2697,7 +2702,7 @@ const timelineItems=useMemo(()=>{
           </div>
           <p className="da-modal-body text-xs text-muted-foreground">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p>
           <div className="da-modal-foot">
-            <button onClick={()=>{ensureChapterFor(msToChapter.get(bookmarkedMsId));const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button>
+            <button onClick={()=>{ensureMsFor(bookmarkedMsId);const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button>
             <button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button>
           </div>
         </div>

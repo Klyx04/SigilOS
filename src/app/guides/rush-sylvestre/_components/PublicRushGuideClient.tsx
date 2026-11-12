@@ -2294,9 +2294,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         <RushChapterNav
           milestones={milestones}
           completedSeqIds={completedSeqIds}
-          selectedChapter={currentPage?.ms.chapter ?? "ALL"}
-          onSelectChapter={(chapter) => {
-            const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
+          selectedMilestoneId={currentPage?.ms.id ?? null}
+          onSelectMilestone={(id) => {
+            const idx = chapterPages.findIndex((p) => p.ms.id === id);
             if (idx >= 0) goToChapterPage(idx);
           }}
         />

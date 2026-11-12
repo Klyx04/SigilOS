@@ -14,9 +14,9 @@ description: Amorce de reprise — Rush : ce qui est livré (E1→E3b), les déc
 
 | Élément | Valeur mesurée |
 |---|---|
-| Branche | `feat/rush-problemes-route` (lot **2**) — lots **1** et **#1346** mergés dans `dev` |
-| PR | **#1346** (`e04dbe58`) et **#1347** (numérotation) mergées · PR du **lot 2** ouverte |
-| Suite | **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur |
+| Branche | `feat/rush-nav-blocs` (navigation par bloc) — lots **1**, **2** et **#1346** mergés dans `dev` |
+| PR | **#1346**, **#1347** (numérotation), **#1348** (contrôles de route) mergées · PR de la nav à ouvrir |
+| Suite | **664 fichiers / 7 122 tests ✓** · `tsc` 0 · ESLint 0 erreur |
 | Studio | `RushEditorStudio.tsx` **~5 300 lignes** (5 472 au départ) · dette DA **644 → 577** |
 
 **Livré sur cette branche** (du plus ancien au plus récent) :
@@ -91,6 +91,11 @@ GO migration) → **7** → **6** → **8** → 9/10/11/12 selon arbitrage.
 > (Ordre ou palier sans cité). ⚠️ **Mesure locale (seed 5433)**, pas la prod : 19 quêtes de classe
 > toutes en `cra`, 4 détectables par leur nom ; le VPS a ses éditions God — **aucune correction de
 > données**, c'est l'écran qui dit la vérité.
+
+> **Navigation par bloc livrée le 12/11/2026** — branche `feat/rush-nav-blocs` : le sommaire des
+> deux guides liste **tous les blocs numérotés** (chapitre en mention secondaire) et le dashboard
+> passe à **une page = un bloc** ; le mode **« Tout »** est supprimé (c'était le rendu des 54 blocs
+> d'un coup). Repère, prérequis et « Reprendre » visent le bloc.
 
 ## 4. Interrogations tranchées — le modèle de route (à relire avant de créer le guide)
 

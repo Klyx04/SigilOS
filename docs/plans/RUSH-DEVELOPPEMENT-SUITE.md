@@ -200,14 +200,14 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 **Interdit** : déduire les opérateurs ET/OU d'un texte libre. Ce qui n'est pas structuré reste **texte**.
 
-**V1 livrée le 12/11/2026 — affichage, aucune migration** : les lignes `Joueurs : …`, `Métier : …`,
-`Horaire : …`, `Sort : …`, `Note : …` déjà écrites dans `GuideSequence.tips` par
-`correlate-rush-notes.ts` sont relues par `parseRushConstraints` (`src/lib/rush-constraints.ts`)
-et rendues avec de **vrais assets Dofus** dans le dashboard, le guide public et l'overlay
-(`RushQuestConstraints`), avec aperçu dans le studio God. Le texte reste la vérité : seuls
-l'effectif simple, la fenêtre/attente et les métiers reconnus sont structurés ; le reste s'affiche
-tel quel. Verrou `rush-constraints` **18**. Restent S2-3→S2-5 et les champs structurés en base
-**si demandé** (migration).
+**V2 livrée le 12/11/2026 — éditeur structuré + migration additive** : la colonne
+`GuideSequence.constraints Json?` porte les conditions saisies dans le studio (horaire
+créneau/attente, joueurs + rôles métier/classe/libre, métiers + niveau, sorts, notes),
+validées par `rushQuestConstraintsSchema` (Zod borné : heures `HH:MM`, effectif 1-40,
+métiers/classes des référentiels, 10 lignes max par liste). `RushTipLines` reçoit la donnée
+structurée et retombe sur le parseur des anciennes lignes `tips` quand elle est absente ;
+les conseils libres restent dans `tips`. `sanitizeConstraints` retire les lignes vides avant
+enregistrement. Verrou `rush-constraints` **35**. Restent S2-3→S2-5.
 
 ## 5. Bloc S3 — La trame (chronologie Dofusyelle)
 

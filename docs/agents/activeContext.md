@@ -5,14 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
-## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête en infos (joueurs / métier / horaire)** — branche `feat/rush-conditions`
+## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré + affichage** — branche `feat/rush-conditions-v2`
 
 > **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
-> **Fait — lot 1 (`e682beaa`)** : parseur pur `src/lib/rush-constraints.ts` — les lignes `Joueurs : …`, `Métier : …`, `Horaire : …`, `Sort : …`, `Note : …` déjà écrites dans `GuideSequence.tips` sont séparées des conseils libres ; extraction fiable de l'effectif simple, de la fenêtre/attente et des métiers reconnus, le texte restant la vérité. **Aucune migration** (les infos sont déjà en base), **aucune règle de blocage**. 18 tests, dont un contrôle que chaque métier pointe vers un asset Dofus réel.
-> **Fait — lot 2 (`475ff4f6`)** : `RushQuestConstraints` rend les infos avec de vrais assets (`party`, `pin-clock`, `jobs/*.png`, `parchment`, `info`) dans le **dashboard**, le **guide public** et l'**overlay** ; `RushTipLines` sort dans son fichier (fin du cycle avec `RushRichText`) et l'aperçu du studio God montre le rendu membre. Les lignes non reconnues gardent les puces historiques.
-> **Preuves** : `rush-constraints` **18** · `rush-rich-text` 19 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-god-studio-robustesse` 26 · `rush-overlay-non-checkable-blocks` 15 · **180 tests ciblés ✓** · `tsc` 0 · ESLint 0 erreur (hook pre-commit) · **aucune migration**.
-> **Reste** : S2-3→S2-5 (donjon au choix, `bashMobs`, `combat`) et champs structurés heures/effectif **si demandé** (migration) ; l'éditeur dédié n'est pas créé — le texte se saisit dans « Conseils » et l'aperçu montre le rendu.
-> **Doc** : `TOUGLI-API.md` (types `group` 16 / `achievement` 2, `details-batch` 530 quêtes / 1 085 contraintes) · `ROADMAP` rang **64** + index 58/59→**62/63** + op `routeVariants` · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V1).
+> **Fait — modèle (`8e23dd77`)** : colonne **`GuideSequence.constraints Json?`** (migration additive `20270130000000_add_rush_quest_constraints`), Zod borné `rushQuestConstraintsSchema` (heures `HH:MM`, effectif 1-40, métiers/classes des référentiels, 10 rôles/sorts/notes max), conversion `constraintsToInfos` et reprise des anciennes lignes `tips`.
+> **Fait — éditeur (`8a0d96e9`)** : section **« Conditions »** entre Prérequis et Ressources — horaire (aucun / créneau from-to / attente en minutes, contournable ou PNJ), joueurs (effectif + rôles métier/classe/libre avec niveau), métiers + niveau, sorts, notes, **aperçu membre** en direct. Métiers `DOFUS_JOBS` + icônes réelles, classes `RushClassSelect` ; `sanitizeConstraints` retire les lignes vides ; verrou `rush-sequence-inspector` **18** (11 sections).
+> **Fait — affichage (`f067b2d6`)** : `RushTipLines` reçoit `constraints` et affiche les chips dans le dashboard, le guide public et l'overlay ; fallback texte pour les anciennes données. Aucune règle de blocage.
+> **Preuves** : `rush-constraints` **35** · `rush-sequence-inspector` 18 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-editor-*` 97 · `tsc` 0 · ESLint 0 (hooks) · migration jouée en local.
+> **Reste / ops** : **jouer `20270130000000_add_rush_quest_constraints` en bêta puis en prod** (documentée dans le ROADMAP §0) ; S2-3→S2-5 ; les conseils libres restent dans `tips`.
+> **Doc** : `ROADMAP` rang 64 (V2) + op migration · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V2) · `TOUGLI-API.md` (mesures déjà à jour).
 > **Rotation** : bloc « 12/11/2026 — E2b + E2c + E2d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

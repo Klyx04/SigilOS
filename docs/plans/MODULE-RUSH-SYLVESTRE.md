@@ -4,16 +4,38 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 
 # 🏹 Module Rush Sylvestre — agrégateur
 
-> **Rôle unique.** Index du module : **où sont les fichiers**, **quels chantiers restent**, **quel ordre**.
+> **Rôle unique.** Index du module : **où sont les fichiers**, **quelles décisions sont actées**,
+> **quels pièges sont mesurés**. L'**ordre** vit dans `docs/ROADMAP.md` (§3 bis, file Rush + visiteur) :
+> ce fichier ne le duplique pas.
 > Il **ne duplique rien** : chaque chantier renvoie à son **plan durable** (règle `AGENTS.md` §4.3).
 >
 > **Sources de vérité (contenu)**
 > - Refonte rush (ergonomie, visuel, éditeur God, perf) → **chantier T** : `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md`
 > - Alignement Bonta/Brâkmar + Ordres → `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` + `docs/plans/MAPPING-RUSH-SYLVESTRE.md`
-> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md`
+> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md` §3 bis
 > - Backlog + ordre → `docs/ROADMAP.md` ; blocs de session → `docs/agents/journal-sessions-2026.md`
 >
-> **Dernière MAJ : 02/11/2026.**
+> **Dernière MAJ : 12/11/2026.**
+
+## 0 bis. Décisions actées (12/11/2026 — ne pas les re-débattre)
+
+| Sujet | Décision |
+|---|---|
+| Reset de progression au changement de cité/Ordre | **automatique** (lot 3) : `alignmentChangeReset` + `resetProgressOnAlignmentChange` avant l'écriture, annonce `cleared` |
+| Texte différent selon le camp | **une seule quête, deux textes** (lot 4) : colonne `routeVariants`, résolue par `resolveRushRoute` |
+| Numérotation des blocs | **une seule table** `rushChapterNumbers` (bandeaux exclus) : guide membre, guide public, overlay |
+| Navigation des guides | **une page = un bloc**, sommaire plat des blocs, mode « Tout » **supprimé** |
+| E2a-reste (découper les 3 formulaires) | **abandonné** : les verrous lisent le dossier, invisible pour l'utilisateur |
+| API Tougli | **jamais d'appel à l'exécution** (usage : veille / import ponctuel) |
+
+## 0 ter. Pièges mesurés
+
+- **PR grosse** : un correctif urgent part en PR séparée, jamais empilé.
+- **Flaky** `lot4-slash-commands-api-keys` (timeout 5 s) : fait rougir la suite une fois sur deux.
+- **Quête de classe oubliée** : visible par les 19 classes ; le contrôle « Problèmes » la signale (mot entier).
+- **Rail de droite** : progression, donjons et objets sont calculés sur le **bloc** affiché, pas le chapitre.
+- **`prisma migrate dev`** : exige un reset de la base locale (dérive `add_inter_guild`) ⇒ écrire la migration additive à la main puis `migrate deploy`.
+- **Migration** : jamais sans GO explicite ; `routeVariants` (lot 4) est jouée en local, **à jouer en bêta puis en prod**.
 
 ## 0. Gouvernance (3 niveaux)
 
@@ -299,7 +321,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 **Reste à faire (dans cet ordre)**
 1. ~~**Vue Branches à 2 étages** dans God~~ — **livrée** le 23/10/2026 (cible **100 / 102**). Organisation de la suite,
-   blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
+   blocs S0→S6 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
 3. **Route d'alignement sur les 3 surfaces** — état mesuré, défauts (7) et ordre des lots :
    **§ 1 bis** — `G0`, `L1`, `L2` **et** `L3` sont **livrés le 02/11/2026** ; **`textes` livré le

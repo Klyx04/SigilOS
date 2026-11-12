@@ -69,7 +69,7 @@ docs/
 │   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
 │   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
 │   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données
-│   ├── RUSH-DEVELOPPEMENT-SUITE.md  rush : organisation de la suite (4 surfaces, blocs S0→S5)
+│   ├── RUSH-DEVELOPPEMENT-SUITE.md  rush : blocs de contenu S0→S6 (l'ordre vit dans ROADMAP)
 │   ├── PLAN-SUCCES-SPECIAUX.md     succès spéciaux (données + fiches)
 │   ├── PLAN-SOLVEURS-TACTIQUES.md solveurs tactiques (à cadrer)
 
@@ -81,7 +81,6 @@ docs/
 │   ├── PLAN-RAID.md                raid : clôture/no-show, strat, overlay, données (relevé mesuré 01/10/2026)
 │   ├── MODULE-RUSH-SYLVESTRE.md    module Rush Sylvestre : carte des fichiers + chantiers (agrégateur)
 │   ├── REFONTE-EDITEUR-RUSH.md    éditeur God Rush : audit UX mesuré + lots E1→E5 (studio 3 panneaux)
-│   ├── AMORCE-RUSH-EDITEUR.md     amorce de reprise : état E1→E3b, décisions prises, file des 13 chantiers
 │   ├── PLAN-ESPACE-VISITEUR.md     chantier PV : compte Discord public, profil visiteur, progression en base, annuaire par serveur (RGPD)
 │   ├── AMORCE-RAID.md              amorce d'exécution des chantiers raid (lots L1→L7 + bloc à coller)
 │   ├── PLAN-SALONS-VOCAUX.md       module « salons vocaux » : cahier produit/technique V2.1 (à cadrer)

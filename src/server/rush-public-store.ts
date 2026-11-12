@@ -18,6 +18,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount } from "@/server/public-account";
+import { publishPublicRushLive } from "@/server/public-rush-live";
 import {
     PUBLIC_RUSH_GUIDE_ID,
     publicRushProgressSchema,
@@ -77,6 +78,7 @@ export async function savePublicRushProgress(raw: unknown): Promise<RushActionRe
     if (limited) return limited;
 
     const { characterSlot, ...columns } = toPublicRushColumns(parsed.data);
+    const previousMilestones = await readPreviousMilestones(account.profile.id, characterSlot);
 
     try {
         await db.publicRushProgress.upsert({
@@ -84,10 +86,48 @@ export async function savePublicRushProgress(raw: unknown): Promise<RushActionRe
             create: { publicProfileId: account.profile.id, guideId: PUBLIC_RUSH_GUIDE_ID, ...columns },
             update: columns,
         });
+        // V2c — Rush Live : on publie APRÈS l'écriture, en « fire-and-forget ». La progression
+        // est la vérité ; une panne Redis fait perdre une notification, jamais une coche.
+        // `previousMilestones === null` (lecture impossible) ⇒ on ne publie rien : mieux vaut
+        // un toast manquant que 300 « nouveaux » blocs annoncés à tort.
+        if (previousMilestones !== null) {
+            void publishPublicRushLive({
+                profile: {
+                    id: account.profile.id,
+                    pseudoDofus: account.profile.pseudoDofus,
+                    classe: account.profile.classe,
+                    dofusServerId: account.profile.dofusServerId,
+                    showPresence: account.profile.showPresence,
+                },
+                previousMilestones,
+                nextMilestones: parsed.data.completedMilestones,
+            });
+        }
         return { success: true };
     } catch (error) {
         logger.error("[Espace visiteur] Progression non enregistrée", { error });
         return { success: false, error: WRITE_FAILED };
+    }
+}
+
+/**
+ * Les blocs déjà cochés **avant** l'écriture courante. `null` = lecture impossible : on
+ * préfère ne rien publier plutôt que de prendre l'existant pour du nouveau.
+ */
+async function readPreviousMilestones(
+    publicProfileId: string,
+    characterSlot: string
+): Promise<string[] | null> {
+    try {
+        const row = await db.publicRushProgress.findUnique({
+            where: slotKey(publicProfileId, characterSlot),
+            select: { completedMilestones: true },
+        });
+        const value = row?.completedMilestones;
+        return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+    } catch (error) {
+        logger.warn("[Espace visiteur] Diff de progression illisible", { error });
+        return null;
     }
 }
 

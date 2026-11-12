@@ -58,6 +58,7 @@ const PUBLIC_PROFILE_SELECT = {
     alignmentOrder: true,
     alignmentLevel: true,
     dofusLevel: true,
+    totalXp: true,
     successPoints: true,
     lastLadderSync: true,
     showOnDirectory: true,

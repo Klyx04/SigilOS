@@ -16,6 +16,7 @@
  *    et bornées par `PUBLIC_MULES_MAX`.
  */
 
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { normalizeDeclaredMule, type DeclaredMule } from "@/lib/member-mules";
 
 /** Nombre maximum de mules déclarables par un visiteur (borne dite à l'écran). */
@@ -73,6 +74,8 @@ export type PublicProfileRow = {
     alignmentOrder: string | null;
     alignmentLevel: number;
     dofusLevel: number | null;
+    /** BigInt conservé pour convertir le niveau Oméga en niveau total ; jamais exposé. */
+    totalXp: bigint | null;
     successPoints: number | null;
     lastLadderSync: Date | null;
     showOnDirectory: boolean;
@@ -133,7 +136,7 @@ export function toPublicProfileView(
         alignment: row.alignment,
         alignmentOrder: row.alignmentOrder,
         alignmentLevel: row.alignmentLevel,
-        dofusLevel: row.dofusLevel,
+        dofusLevel: toTotalDofusLevel(row.dofusLevel, row.totalXp),
         successPoints: row.successPoints,
         lastLadderSync: row.lastLadderSync,
         showOnDirectory: row.showOnDirectory,

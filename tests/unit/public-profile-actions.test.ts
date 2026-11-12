@@ -63,6 +63,15 @@ describe("Espace visiteur — entrées bornées", () => {
         expect(isKnownJobId("licorne")).toBe(false);
     });
 
+    it("refuse un métier sans niveau (0) — le niveau est obligatoire", () => {
+        expect(publicProfessionsSchema.safeParse([{ id: "forgeron", level: 0 }]).success).toBe(
+            false
+        );
+        expect(publicProfessionsSchema.safeParse([{ id: "forgeron", level: 1 }]).success).toBe(
+            true
+        );
+    });
+
     it("le nom de guilde déclaré garde sa règle (lettres, espace, apostrophe, tiret)", () => {
         const base = { dofusServerId: 295, pseudoDofus: "Testeur", classe: "iop" };
         expect(publicIdentitySchema.safeParse({ ...base, declaredGuildName: "Les Veilleurs" }).success).toBe(true);
@@ -212,6 +221,14 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
         expect(progress).not.toMatch(/key:/);
     });
 
+    it("la lecture renvoie l'étape, la progression et les deux barres", () => {
+        expect(progress).toContain("currentStep: details.current_step");
+        expect(progress).toContain("stepCount: details.quest_template?.step_count");
+        expect(progress).toContain("bosses: {");
+        expect(progress).toContain("archis: {");
+        expect(progress).toContain("progress: total > 0");
+    });
+
     it("le patch écrit par `bulkUpdateMonsters`, puis RELIT (double cross-check)", () => {
         const write = patch.indexOf("bulkUpdateMonsters(");
         const recheck = patch.indexOf("getSelfQuestDetails(", write);
@@ -231,6 +248,25 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
         expect(ACTIONS).toContain("internalDofusDbImageUrl(monster.imageUrl ?? monster.image)");
         // Le DTO ne publie l'image que si elle a pu être résolue.
         expect(ACTIONS).toContain("...(image ? { imageUrl: image } : {})");
+    });
+});
+
+
+/**
+ * Chantier 2 (11/11/2026) — la vue « Échanges » met en cache la quête et les matches par
+ * lecteur. Une clé ou un pseudo qui change doit invalider ces deux entrées, sinon l'ancien
+ * compte reste visible jusqu'à 10 min.
+ */
+describe("Metamob — le cache des échanges suit l'écriture", () => {
+    it("invalide quête et matches après l'écriture, avant le retour", () => {
+        const blocks = actionBlocks();
+        const metamob = blocks.find((block) => block.name === "updatePublicMetamob")?.body ?? "";
+        const write = metamob.indexOf("db.publicProfile.update");
+        const invalidate = metamob.indexOf("publicTradesMatchesCacheKey(");
+        expect(write).toBeGreaterThan(-1);
+        expect(invalidate).toBeGreaterThan(write);
+        expect(metamob).toMatch(/publicTradesQuestCacheKey\(/);
+        expect(metamob).toMatch(/invalidateCache\(/);
     });
 });
 

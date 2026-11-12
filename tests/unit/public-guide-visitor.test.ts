@@ -3,10 +3,11 @@
  *
  * Trois règles, et une seule façon de les casser :
  *
- * 1. **DTO étanche** : sept scalaires (pseudo, classe, serveur, niveau, points de succès,
- *    pseudo Metamob, vérification Metamob) — jamais les mules, jamais la **clé** Metamob,
- *    jamais `userId`. Le test n'interdit pas le mot « Metamob » (la tuile V2a-3 existe) :
- *    il liste les identifiants autorisés et refuse **tout autre** `metamob*` ;
+ * 1. **DTO étanche** : les scalaires publics du visiteur (pseudo, classe, serveur, niveau, points
+ *    de succès, pseudo Metamob, vérification Metamob, alignement, **consentement de présence**) —
+ *    jamais les mules, jamais la **clé** Metamob, jamais `userId`. Le test n'interdit pas le mot
+ *    « Metamob » (la tuile V2a-3 existe) : il liste les identifiants autorisés et refuse **tout
+ *    autre** `metamob*` ;
  * 2. **anonyme = inchangé** : la page ne lit le profil que s'il y a une session, et rien de
  *    l'identité n'est rendu si elle manque. Un visiteur non connecté ne voit ni la tuile
  *    enrichie, ni une requête en plus ;
@@ -41,8 +42,8 @@ const METAMOB_ALLOWED = [
     "metamobopen",
 ];
 
-describe("Tuile du guide — sept scalaires, rien d'autre", () => {
-    it("recopie exactement les sept champs publics", () => {
+describe("Tuile du guide — un DTO étanche, rien d'autre", () => {
+    it("recopie exactement les champs publics", () => {
         const visitor = toPublicGuideVisitor({
             pseudoDofus: "MonIop",
             classe: "iop",
@@ -53,6 +54,7 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             metamobVerified: true,
             alignment: "bontarien",
             alignmentOrder: "vaillant",
+            showPresence: false,
             altPseudos: [{ pseudo: "MaMule", classe: "cra" }],
         });
         expect(visitor).toEqual({
@@ -65,6 +67,7 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             metamobVerified: true,
             alignment: "bontarien",
             alignmentOrder: "vaillant",
+            showPresence: false,
             mules: [{ pseudo: "MaMule", classe: "cra" }],
         });
         expect(Object.keys(visitor).sort()).toEqual([
@@ -77,6 +80,7 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             "mules",
             "pseudo",
             "serverId",
+            "showPresence",
             "successPoints",
         ]);
     });
@@ -92,6 +96,7 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             metamobVerified: false,
             alignment: null,
             alignmentOrder: null,
+            showPresence: false,
             altPseudos: [],
         });
         expect(visitor.pseudo).toBeNull();
@@ -114,6 +119,7 @@ describe("Tuile du guide — sept scalaires, rien d'autre", () => {
             metamobVerified: true,
             alignment: "brakmarien",
             alignmentOrder: "destructeur",
+            showPresence: false,
             altPseudos: [{ pseudo: "MaMule", classe: "cra", level: 200 }],
             metamobApiKey: "cle-secrete-qui-ne-doit-pas-sortir",
         };

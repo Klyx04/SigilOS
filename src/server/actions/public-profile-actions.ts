@@ -16,12 +16,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z, type ZodError } from "zod";
+import { invalidateCache } from "@/lib/cache";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
-import { getMetamobMe, verifyMetamobUser, MetamobApiError, listSelfQuests, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { getMetamobMe, verifyMetamobUser, MetamobApiError, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { readVisitorMetamob, resolveVisitorOcreSlug } from "@/server/public-metamob";
 import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
+import { publicTradesMatchesCacheKey, publicTradesQuestCacheKey } from "@/lib/public-trades";
 import { redis } from "@/lib/redis";
 import { classifyOcreType } from "@/lib/ocre-soul-stones";
 import { ORDERS } from "@/lib/dofus-assets";
@@ -387,6 +390,13 @@ export async function updatePublicMetamob(raw: unknown): Promise<ActionResult> {
     try {
         await db.publicProfile.update({ where: { userId: account.userId }, data });
         revalidatePath(PATHS.general);
+        // La vue « Échanges » met en cache la quête et les matches **par lecteur** : une clé
+        // ou un pseudo qui change doit repartir de zéro (l'ancien compte resterait sinon
+        // visible jusqu'à 10 min). `invalidateCache` avale ses propres erreurs Redis.
+        await Promise.all([
+            invalidateCache(publicTradesMatchesCacheKey(account.userId)),
+            invalidateCache(publicTradesQuestCacheKey(account.userId)),
+        ]);
         return { success: true };
     } catch (error) {
         logger.error("[Espace visiteur] Metamob non enregistré", { error });
@@ -646,6 +656,35 @@ export async function updatePublicSettings(raw: unknown): Promise<ActionResult> 
     }
 }
 
+/**
+ * V2c — consentement de **présence** depuis la tuile Rush Live : un seul booléen, un seul
+ * champ écrit, aucune migration. `showPresence` reste **fermé par défaut** : ce chemin ne
+ * fait qu'ouvrir (ou refermer) un consentement que le visiteur donne explicitement.
+ */
+export async function updatePublicPresence(raw: unknown): Promise<ActionResult> {
+    const parsed = z.object({ enabled: z.boolean() }).safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const limited = await limit("presence", account.userId, 10);
+    if (limited) return limited;
+
+    try {
+        await db.publicProfile.update({
+            where: { userId: account.userId },
+            data: { showPresence: parsed.data.enabled },
+        });
+        revalidatePath(PATHS.reglages);
+        revalidatePath(PATHS.general);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Espace visiteur] Présence non enregistrée", { error });
+        return { success: false, error: "Impossible d'enregistrer ta présence." };
+    }
+}
+
 const toggleAchievementSchema = z.object({
     dungeonAchievementId: z.string().min(1).max(64),
 });
@@ -858,15 +897,6 @@ type ExportResult =
     | { success: true; data: PublicProfileExport }
     | { success: false; error: string };
 
-/** La clé du visiteur : lue (déchiffrée par le hook Prisma), **jamais** renvoyée au client. */
-async function readVisitorMetamob(userId: string) {
-    const row = await db.publicProfile.findUnique({
-        where: { userId },
-        select: { metamobApiKey: true, metamobPseudo: true },
-    });
-    return { key: row?.metamobApiKey?.trim() || null, pseudo: row?.metamobPseudo ?? null };
-}
-
 /**
  * Export RGPD : JSON lisible, **borné**, sans clé Metamob (elle n'est même pas sélectionnée).
  */
@@ -982,8 +1012,15 @@ export type PublicOcreProgress =
           success: true;
           questSlug: string;
           characterName: string | null;
+          serverName: string | null;
+          gameVersion: string | null;
+          currentStep: number;
+          stepCount: number | null;
           total: number;
           captured: number;
+          progress: number;
+          bosses: { gathered: number; total: number };
+          archis: { gathered: number; total: number };
           monsters: PublicOcreMonster[];
       }
     | { success: false; error: string };
@@ -1097,15 +1134,6 @@ function toPublicOcreMonster(
     };
 }
 
-/** La quête Ocre du compte : même heuristique que `getSelfQuestDetails`, appliquée une fois. */
-async function resolveVisitorOcreSlug(pseudo: string, key: string): Promise<string | null> {
-    const quests = await listSelfQuests(pseudo, key);
-    const ocre = quests.find(
-        (quest) => (quest.quest_template?.monster_count ?? 0) > 200 || quest.quest_template?.id === 1
-    );
-    return ocre?.slug ?? quests[0]?.slug ?? null;
-}
-
 /** Progression Ocre du visiteur — lecture seule, bornée, sans clé dans la réponse. */
 export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
     const account = await getPublicAccount();
@@ -1160,12 +1188,30 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
             .filter((monster): monster is PublicOcreMonster => monster !== null)
             .slice(0, PUBLIC_OCRE_MONSTERS_MAX);
 
+        const total = details.pagination?.total ?? monsters.length;
+        const captured = monsters.filter((monster) => monster.owned > 0).length;
+        const bosses = monsters.filter((monster) => monster.type === "boss");
+        const archis = monsters.filter((monster) => monster.type === "archimonstre");
+
         return {
             success: true,
             questSlug: details.slug ?? slug,
             characterName: details.character_name ?? null,
-            total: details.pagination?.total ?? monsters.length,
-            captured: monsters.filter((monster) => monster.owned > 0).length,
+            serverName: details.server?.name ?? null,
+            gameVersion: details.server?.game_version?.name ?? null,
+            currentStep: details.current_step ?? 0,
+            stepCount: details.quest_template?.step_count ?? null,
+            total,
+            captured,
+            progress: total > 0 ? Math.round((captured / total) * 100) : 0,
+            bosses: {
+                gathered: bosses.filter((monster) => monster.owned > 0).length,
+                total: bosses.length,
+            },
+            archis: {
+                gathered: archis.filter((monster) => monster.owned > 0).length,
+                total: archis.length,
+            },
             monsters,
         };
     } catch (error) {

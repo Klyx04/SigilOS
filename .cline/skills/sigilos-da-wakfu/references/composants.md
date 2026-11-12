@@ -106,7 +106,7 @@ d'arrière-plan.
 |---|---|---|
 | Alignement de la guilde | `dofus-quests/rush/GuildAlignmentModal.tsx` | Radix |
 | Alignement & Ordre | `dofus-quests/AlignmentModal.tsx` | Radix |
-| Progression par Dofus | `quetes-dofus/guide/[slug]/GuildStatusPanel.tsx` | Radix |
+| Progression par Dofus (interne **et** public) | `dofus-quests/rush/RushDofusDetailModal.tsx` | Radix (fiche partagée) |
 | Mon Ocre | `dofus-quests/OcreProgressModal.tsx` | Radix (3 écrans) |
 | Pense-bête | `dofus-quests/rush/RushPenseBeteModal.tsx` | Radix (public + interne) |
 | Rush Live · Membres · Metamob | `quetes-dofus/guide/[slug]/RushTimelineClient.tsx` | Radix |
@@ -149,9 +149,12 @@ le bandeau séparé de V2a-1 a été fusionné (deux blocs annonçaient « Perso
 la même intention, l'interne n'a qu'une tuile). `visitor` est le seul garde.
 
 ⚠️ **Metamob** a une source publique depuis V2a-3 (`metamobPseudo` + `metamobVerified` du
-profil visiteur ; la clé d'API n'a aucun chemin). **Rush Live**, lui, n'en a toujours pas :
-la tuile affiche « présence indisponible » jusqu'à la room par serveur (V2c) — **jamais un
-compteur**. Un verrou le vérifie (`rush-public-parity`).
+profil visiteur ; la clé d'API n'a aucun chemin). **Rush Live** a la sienne depuis **V2c**
+(11/11/2026) : room **SSE par serveur**, consentement `showPresence` **fermé par défaut**
+(bouton « Afficher ma présence » dans la modale), et un état **mesuré** — « N en ligne »,
+« personne en ligne », « connexion… » ou « présence indisponible » — **jamais un compteur
+fabriqué**. Les toasts (bloc validé / Dofus obtenu) suivent la **PiP**. Verrou
+`tests/unit/public-rush-live.test.ts`.
 
 Le bandeau a quitté `page.tsx` : il est rendu par le client, qui reçoit
 `heroArt` en prop. Un `children` serveur ne pourrait pas héberger les contrôles.

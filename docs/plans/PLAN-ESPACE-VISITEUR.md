@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 09/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11).
+> **Dernière MAJ : 11/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11).
 
 ## 1. Décisions verrouillées
 
@@ -264,9 +264,10 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   **Fait** : les cinq tuiles, dans cet ordre ; le bandeau d'identité de V2a-1 est **fusionné**
   dans la tuile « Personnage actif » (une seule tuile, comme l'interne).
 - **Rush Live = visiteurs connectés du même serveur uniquement**, consentement `showPresence`
-  (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c** ;
-  V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé. **Fait** : tuile non
-  interactive, texte « présence indisponible ».
+  (D-V4/D9), « présence indisponible » si la source manque. La room par serveur est **V2c**,
+  **livrée le 11/11/2026** ; V2a-3 affiche la tuile avec l'état réel, jamais un compteur inventé.
+  **Fait en V2a-3** : tuile non interactive, texte « présence indisponible ». **V2c** : tuile
+  interactive (présence mesurée, consentement opt-in, toasts page **et** PiP).
 - **Alignement** : `PublicProfile.alignment` existe en base mais **aucune action ne l'écrit**
   (mesuré) → bouton « renseigner » dans la modale de première arrivée (V2a-4), pas une tuile
   vide. **Fait** : la tuile existante (alignement **déduit des quêtes validées**) est conservée
@@ -279,8 +280,8 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   (« Masquer les étapes faites »), V2a-4 y branchera « Revoir le tour ».
 - Le guide lui-même (blocs, coches, donjons, ressources) reste **le même composant partagé** :
   la parité est verrouillée par `rush-public-parity`, aucun composant dupliqué.
-- Verrous : `rush-public-parity` **42** (ordre des 5 tuiles, Rush Live honnête, recherche+Options
-  entre tuiles et progression) · `public-guide-visitor` **10** (7 scalaires, liste blanche des
+- Verrous : `rush-public-parity` **45** (ordre des 5 tuiles, Rush Live honnête, recherche+Options
+  entre tuiles et progression) · `public-guide-visitor` **10** (DTO étanche, liste blanche des
   identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
 **V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement : 07/11 (alignement, mules) puis 08/11 (accueil en 3 étapes)*
@@ -331,19 +332,61 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   qui a coché quoi, présence) — sans bloquer la lecture : CTA discret, jamais une modale forcée.
   **Fait** : CTA anonyme « Créer mon profil visiteur ».
 
-**V2b — Succès Donjons visiteurs** (**D-V9**) — **absorbé par F16** : un seul lot, pas deux. F16 porte à la
-fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue « succès en commun » sur `/visiteurs`.
-- Vue « qui a quoi » entre visiteurs du même serveur, filtrée **boss + titans + avis** uniquement
-  (réemploi de la vue « Succès Commun » interne).
+**V2b — Succès Donjons visiteurs** (**D-V9**) — **absorbé par F16**, **livré le 11/11/2026** (hub `/visiteurs`, vue « Succès en commun »).
+- Vue « qui a quoi » entre visiteurs du **même serveur**, `showOnDirectory: true` dans chaque requête, bornée : 500 lignes de coches, **200 profils** affichés (au-delà, l'écran le dit), **12 membres par colonne** (le reste est compté).
+- La fiche publique d'un boss **reste en lecture seule** (décision du 11/11/2026) : le visiteur coche déjà ses succès dans `/espace-visiteur/succes`, un second chemin d'écriture n'apporterait rien.
+- Le **hub** rassemble Profils / Succès en commun dans `/visiteurs` (`?vue=succes`), avec une entrée dans la navigation de l'espace visiteur (7ᵉ onglet) — plus besoin de passer par « Explorer ».
+- Aucune migration. Verrou `tests/unit/visitors-hub.test.ts` **18**.
 
-**V2c — Rush Live visiteurs** *(exigences du 10/11/2026, non commencé)*
-- Room par serveur, consentement `showPresence`, fail-soft.
-- Événements **par bloc** (pas par quête) : « bloc validé » et « Dofus obtenu » visibles dans l'overlay des
-  visiteurs **du même serveur** connectés, même DA et même emplacement que les toasts locaux.
-- **Déjà livré le 10/11** : toast local de bloc (`notifyBlockDone`) et hôte de notifications dans la PiP
-  (`OverlayToastProvider`, Toaster dédié). **Manque** : le flux temps réel public (canal par serveur, SSE/Redis),
-  le consentement `PublicProfile.showPresence` et la modération/rate limit.
-- Interne : `RushOverlayLiveToast` existe (événements de coéquipiers) ; le public n'a **aucun** flux.
+**V2c — Rush Live visiteurs** — **livré le 11/11/2026** (décision : **aucune migration**)
+- Room **SSE par serveur** (`public:rush:live:<serverId>`), le serveur vient **du profil** — aucun
+  paramètre d'URL. Événements **par bloc** : bloc validé / Dofus obtenu, titre résolu en base
+  (`GuideMilestone` borné au guide Rush) et pseudo déjà public : **aucun texte libre client**.
+- **Consentement `PublicProfile.showPresence`** : le brief initial prévoyait `@default(true)` +
+  reprise. La mesure a montré que le schéma et `tests/unit/public-profile-schema.test.ts` exigent
+  l'inverse (« on publie des volontaires »). **Décision du 11/11** : le défaut reste `false`, la
+  tuile Rush Live propose « Afficher ma présence » en un clic (`updatePublicPresence`). Recevoir
+  les événements ne demande pas le consentement ; être vu (présence + validations) le demande.
+- Présence éphémère Redis (ZSET + hash, TTL 45 s, battement 20 s) : **zéro écriture Postgres**.
+  Redis indisponible ⇒ « présence indisponible », jamais un « 0 en ligne ».
+- Toasts dans la page **et** dans la PiP (`PublicRushLiveToast`, même DA que l'overlay), tuile
+  réelle (N en ligne / personne en ligne / connexion… / indisponible) + modale des présents.
+- Verrou `tests/unit/public-rush-live.test.ts` (23 cas) ; `public-guide-visitor` étendu de
+  `showPresence` (le consentement du visiteur lui-même) ; `rush-public-parity` réécrit sur l'état
+  réel. Aucune migration.
+
+**Chantiers 2→5 — ordre convenu le 11/11/2026** *(une PR, un commit par chantier)*
+
+- **Chantier 2 — Échanges Metamob entre visiteurs — LIVRÉ le 11/11/2026 (à vérifier à l'écran)** :
+  troisième vue `?vue=echanges` du hub ; Metamob en **lecture seule** (`getQuestMatches`, `limit`
+  max **50** mesuré le 11/11/2026), quête Ocre/Éternelle Moisson détectée par `quest_type.slug`
+  + repli ; croisement avec les `PublicProfile` du **même serveur** + `showOnDirectory` ;
+  **pseudo Metamob affiché dans cette vue seulement** (décision du 11/11/2026 : sans lui, pas de
+  contact) + lien « Contacter sur Metamob » ; aucun envoi de proposition. Cache Redis **120 s**
+  (matches) / **600 s** (quête) par lecteur, invalidé par `updatePublicMetamob`, aucun secret
+  dans le cache. Veille : `docs/reference/METAMOB-API.md`, skill `.cline/skills/metamob-api/`,
+  `scripts/check-metamob-api.mjs` (clé **obligatoire**, pas de hook), siphon volatile
+  `src/temp/metamob-api-siphon.mjs`. **Correctif mesuré** : `/v1/quests` (liste privée) n'était
+  pas reconnu comme ressource utilisateur → cache partagé/circuit ouvert ; corrigé + test.
+  **Fiche visiteur** : URL `/visiteurs/<pseudo>` (cuid accepté en repli, choix si deux profils
+  du même serveur portent le pseudo) et formulaire Metamob en **fiche liée** (vérifier /
+  remplacer / délier) — aucun changement de schéma.
+- **Chantier 3 — Rush Live visiteurs** : SSE + Redis (pattern `src/lib/sse.ts`), room par
+  `dofusServerId`, notifications bloc/Dofus dans le **guide navigateur** (même DA que l'overlay),
+  `PublicProfile.showPresence` **activé par défaut** (migration + reprise des profils existants, à
+  confirmer) ; le consentement sert à **être vu**, pas à recevoir.
+- **Chantier 4 — Finitions anonymes F1→F7** — **livré le 11/11/2026** (voir « V2f »).
+- **Chantier 5 — Studio E2** (`REFONTE-EDITEUR-RUSH.md` §3).
+- **Fiche visiteur — deslop (première passe livrée le 11/11/2026)** : espace visiteur ▸ Général —
+  carte Ocre compacte (étape, progression, Gardiens/Archimonstres, synchro 5 min + bouton) et
+  **Registre Metamob** compact (pseudo, statut, menu vérifier/remplacer/délier) ; fiche lecture
+  seule allégée (un bandeau de chiffres, Présentation/Objectifs en un panneau, métiers en chips).
+  Reste l'affinage assets/hiérarchie, sans règle métier.
+  **Metamob Ocre (11/11)** : onglet et titre renommés, icône archimonstre, filtre Tous / Boss /
+  Archimonstres (`?type=`), monstres rangés par type avec icônes (types du template Metamob,
+  images `Archimonstre` par nom, repli bestiaire), en-tête allégé.
+- **Reportés** : nettoyage des images (V-C, le local n'a pas tous les donjons — le VPS est la
+  référence), V-D2, route publique du bloc B, V2d, V3.
 
 **V2d — Ladder serveur**
 - Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
@@ -416,12 +459,31 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - **F14** — clé Metamob validée par `/v1/me` **avant** écriture, fail-closed ; le pseudo renvoyé fait foi.
 - **F17a** — les quatre panneaux de métiers occupent une seule cellule (`forceMount` + `visibility: hidden`).
 
-**V2f — ce qui reste**
+**V2f — finitions anonymes (F1→F7) — livrées le 11/11/2026**
 
-- **F1→F7** : bandeau Dofus anonyme, export **et** import d'un fichier JSON (aucun secret dedans),
-  espacement/aération, prérequis repliables, CTA « ce que tu perds » (pas de Metamob anonyme : la clé est
-  un secret qui reste chiffré en base derrière un compte), grain.
-- **F16** : « mes succès sur ce boss » par donjon + vue « succès en commun » sur `/visiteurs`.
+- **F3/F4** : la rangée des tuiles respire (`gap-4`) ; recherche + Options espacés, champ élargi.
+- **F5** : l'espace libre de la rangée anonyme dit ce qu'un profil apporte (communauté, sauvegarde,
+  Metamob Ocre) — **sans second bouton** : le CTA du bandeau reste la seule action mise en avant.
+- **F6** : prérequis multiples — la page publique **et** le guide membre ouvrent la **même modale
+  que l'overlay** (`RushOverlayPrereqModal`) depuis une seule ligne « N quêtes à terminer avant ».
+  Le repli `<details>` et son module (`RushPrereqCollapse`, `rush-prereq-display`) sont supprimés.
+- **F1** : panneau unique « Ma progression par Dofus », fusionné avec « Progression Communautaire »
+  (onglets **Moi / Communauté** pour un compte ; aucun onglet pour un anonyme). **Chaque Dofus est
+  cliquable** et ouvre une **fiche partagée** (`RushDofusDetailModal`, aussi utilisée par le guide
+  membre) : quêtes avec leur **asset** et leur statut **Validée / En cours / À faire**, membres
+  engagés en lignes compactes. L'Ocre affiche **deux mesures séparées** (blocs + captures Metamob)
+  et son **icône** ; la communauté est chargée **à la demande** (une requête, pas d'effet qui
+  s'auto-annule).
+- **Repère ≠ verrou (11/11/2026)** : un donjon requis (ou un prérequis) bloque la **validation**
+  d'une quête, jamais le repère « j'en suis là ». `data-here` est posé même sur une carte
+  verrouillée (overlay, page publique, guide membre), avec sa DA propre.
+- **Badge Ocre des donjons (11/11/2026)** : la pastille collée sur la vignette du boss est retirée ;
+  l'asset `ocre.png` et « capturé / à capturer » vivent **dans la ligne de texte**.
+- **F2** : export/import JSON de la progression locale (5 clés + personnage + route d'alignement),
+  borné, refusé s'il est douteux, **aucun secret** ; dans Options, anonyme seulement.
+- **F7** : `data-quality="low"` sur la racine de l'overlay — la règle CSS existait, elle n'était
+  jamais appliquée : la PiP est nette, le guide plein écran garde la gouache.
+- **F16** : livré le 11/11 (hub + succès en commun).
 
 **F17b — annuaire « métier + niveau » — livré le 10/11/2026**
 
@@ -464,8 +526,8 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 > **nouvelles** passent au ladder, sur le serveur du profil ; **F17 (1/2)** l'onglet Métiers ne fait
 > plus bouger l'écran (les quatre panneaux occupent une seule cellule : Élevage = **1** métier contre
 > 6 et 7 ailleurs).
-> **Reste** : **F16** (« mes succès sur ce boss » par donjon + vue « succès en commun » sur
-> `/visiteurs`). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
+> **Reste** : ~~**F1→F7** (finitions anonymes)~~ **livrés le 11/11/2026** (voir « V2f » ci-dessous). **F16** est livré le 11/11/2026 (hub + succès en
+> commun ; la coche sur la fiche boss publique est écartée). **F17 (2/2)** est livré le 10/11/2026 (filtre `?niveau=` couplé au métier,
 > voir « F17b » ci-dessus).
 
 *Guide public — anonyme*
@@ -490,5 +552,5 @@ fois le bouton « mes succès sur ce boss » (guide navigateur) **et** la vue «
 - **F13** Création de profil : vérification du pseudo **bloquante avant** la création (mécanique de l'interne), repli manuel si le God l'autorise.
 - **F14** Metamob : refuser l'enregistrement d'une clé invalide (`/v1/me` avant écriture) ; la clé ne doit plus disparaître sans retour.
 - **F15** Mules : vérification du pseudo **bloquante** à l ajout.
-- **F16** Succès : bouton « mes succès sur ce boss » dans chaque donjon (guide navigateur, jamais l overlay) ; vue « succès en commun / qui peut faire quoi » sur `/visiteurs` (+ asset) ; même mécanique côté guide interne.
+- **F16** Succès : ~~bouton « mes succès sur ce boss » dans chaque donjon~~ **livré le 11/11/2026** (vue « succès en commun » sur `/visiteurs`). La coche sur la fiche boss publique est **écartée** : `/espace-visiteur/succes` la porte déjà.
 - **F17** Métiers : l'onglet Élevage fait bouger l'écran ; lier métier ↔ quête (« qui a ce métier à ce niveau »).

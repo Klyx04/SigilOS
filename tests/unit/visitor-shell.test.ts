@@ -40,8 +40,8 @@ describe("Coque visiteur — le chrome public, pas celui de la guilde", () => {
 describe("Onglets — un asset du jeu par segment, aucun 404", () => {
     const icons = [...read(NAV).matchAll(/icon: "([^"]+)"/g)].map((match) => match[1]);
 
-    it("les six segments portent une icône", () => {
-        expect(icons).toHaveLength(6);
+    it("les sept segments portent une icône", () => {
+        expect(icons).toHaveLength(7);
     });
 
     it("aucune icône n'est un glyphe générique (le rendu passe par `GameIcon`)", () => {

@@ -1166,18 +1166,11 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone, seqId: string) => {
       const isAlready = bookmarksByMs.get(ms.id) === seqId;
       // Une quête validée ne peut pas porter de repère : soit validée, soit repère.
-      const seqObj = ms.sequences.find((s) => s.id === seqId);
-      const gate = seqObj
-        ? getSeqGate(seqObj)
-        : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
-      if (!isAlready && (completedStepsByMs.get(ms.id)?.has(seqId) || gate.locked)) {
-        toast.info(
-          completedStepsByMs.get(ms.id)?.has(seqId)
-            ? "Cette quête est déjà validée."
-            : gate.missingDungeons.length > 0
-              ? `Donjons requis à cocher d'abord : ${gate.missingDungeons.map((d) => d.name).join(", ")}.`
-              : "Terminez d'abord les prérequis de cette quête."
-        );
+      // ⚠️ 11/11/2026 — le repère « j'en suis là » ne dépend PAS du verrou de validation :
+      // un donjon requis non coché (ou un prérequis) empêche de **valider** la quête, pas
+      // de dire où l'on en est. Le repère reste donc possible sur une carte verrouillée.
+      if (!isAlready && completedStepsByMs.get(ms.id)?.has(seqId)) {
+        toast.info("Cette quête est déjà validée.");
         return;
       }
       const prevMap = new Map(bookmarksByMs);
@@ -1417,6 +1410,11 @@ export default function GuideOverlayClient({
       data-da="wakfu"
       data-theme={lightMode ? "light" : "dark"}
       data-block={daBlock}
+      /* F7 (chantier 4) — la PiP flotte AU-DESSUS du jeu : `data-quality="low"` coupe le grain
+         et les bords « rough » (règle `[data-quality="low"]` de `da-wakfu.css`, déjà écrite
+         mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa
+         signature, la petite fenêtre reste nette. */
+      data-quality="low"
       className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${lightMode ? "light" : ""} bg-background text-foreground`}
       style={{
         fontFamily: "var(--da-font-text)",

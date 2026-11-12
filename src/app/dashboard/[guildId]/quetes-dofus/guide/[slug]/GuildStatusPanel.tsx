@@ -2,11 +2,8 @@
 import { useMemo, memo, useState } from "react";
 import { Users, ChevronRight } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
-import { memberDofusProgress, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
-import { MemberAvatar } from "@/components/shared/member-avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useDaTheme } from "@/components/da/da-theme";
-import { daScopeProps } from "@/lib/da-scope";
+import { memberDofusProgress, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
+import { RushDofusDetailModal } from "@/components/dofus-quests/rush/RushDofusDetailModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,8 +68,6 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 }) {
   /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
   const [openDofusId, setOpenDofusId] = useState<string | null>(null);
-  /** Portée de la DA pour le nœud portailé (Radix sort de la coque `data-da`). */
-  const daScope = daScopeProps(useDaTheme());
 
   const dofusStats = useMemo(() => {
     const map = new Map<string, DofusStat>();
@@ -156,6 +151,28 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   /** Dofus dont la modale est ouverte (un seul à la fois). */
   const selected = openDofusId ? dofusStats.find((d) => d.id === openDofusId) ?? null : null;
 
+  /**
+   * Quêtes du Dofus ouvert, avec leur statut : **Validée** (toutes les étapes chez au moins
+   * un membre), **En cours** (l'étape courante d'un membre), **À faire**. Les étapes sont
+   * agrégées par membre depuis les lignes déjà reçues — aucune requête neuve.
+   */
+  const selectedQuestRows = useMemo(() => {
+    if (!selected) return [];
+    const quests = questsByDofus[selected.id] ?? [];
+    const dofusMilestoneIds = new Set(
+      milestones.filter((milestone) => milestone.dofusId === selected.id).map((milestone) => milestone.id)
+    );
+    const byMember = new Map<string, { completedSteps: Set<string>; currentStep: string | null }>();
+    for (const row of guildProgress) {
+      if (!dofusMilestoneIds.has(row.milestoneId)) continue;
+      const entry = byMember.get(row.profileId) ?? { completedSteps: new Set<string>(), currentStep: null };
+      for (const step of row.completedSteps ?? []) entry.completedSteps.add(step);
+      if (row.currentStep) entry.currentStep = row.currentStep;
+      byMember.set(row.profileId, entry);
+    }
+    return questStatusForMembers(quests, [...byMember.values()]);
+  }, [selected, questsByDofus, milestones, guildProgress]);
+
   if (dofusStats.length === 0) return null;
 
   return (
@@ -227,108 +244,50 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       {/* ── Modale par Dofus : où en est chaque membre, **quête par quête** ──
           Un clic sur un Dofus ouvre ce détail (avant : un panneau en ligne qui
           poussait la timeline). Le filtre de timeline reste accessible d'ici. */}
-      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setOpenDofusId(null); }}>
-        <DialogContent
-          {...daScope}
-          overlayClassName="da-modal-scrim"
-          className="da-modal da-portal sm:max-w-lg gap-0 p-0"
-        >
-          {selected && (
-            <>
-              <DialogHeader className="da-modal-head">
-                <DialogTitle className="da-modal-title flex items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={selected.imageUrl} alt="" className="w-7 h-7 object-contain" />
-                  {selected.label}
-                </DialogTitle>
-                <DialogDescription className="da-modal-sub">
-                  {selected.completedMilestones}/{selected.totalMilestones} blocs validés par au moins un membre ·{" "}
-                  {selected.membersInProgress.length} membre(s) engagé(s)
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="da-modal-body max-h-[55vh] space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
-                {selected.membersInProgress.length === 0 ? (
-                  <p className="py-6 text-center text-xs italic text-muted-foreground">
-                    Aucun membre n&apos;a encore commencé ce Dofus.
-                  </p>
-                ) : (
-                  selected.membersInProgress.map((member) => (
-                    <div key={member.profileId} className="rounded-[6px] border border-border bg-surface p-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
-                          <MemberAvatar
-                            src={member.userAvatar}
-                            name={member.userName}
-                            alt={member.userName}
-                            fallbackClassName="text-caption font-semibold text-muted-foreground"
-                          />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <p className="truncate text-xs font-semibold text-foreground">{member.userName}</p>
-                            <span className="shrink-0 font-mono text-caption tabular-nums text-muted-foreground">
-                              {member.done}/{member.total} quêtes · {member.pct} %
-                            </span>
-                          </div>
-                          <div className="mt-1 h-1 overflow-hidden rounded-[2px] bg-elevated">
-                            <div
-                              className="h-full rounded-[2px]"
-                              style={{
-                                width: `${member.pct}%`,
-                                background: member.pct === 100 ? "var(--success)" : selected.color,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-1.5 space-y-0.5 text-caption">
-                        {member.current ? (
-                          <p className="flex flex-wrap items-center gap-1.5 text-foreground">
-                            <span className="text-muted-foreground">En cours</span>
-                            <span className="font-semibold">{member.current.label}</span>
-                            <span className="rounded-[3px] border border-border px-1.5 py-0.5 text-muted-foreground">
-                              {member.current.category}
-                            </span>
-                            <span className="font-mono tabular-nums text-muted-foreground">
-                              ({member.currentIndex}/{member.total})
-                            </span>
-                          </p>
-                        ) : member.total > 0 ? (
-                          <p className="font-semibold text-success">Dofus terminé</p>
-                        ) : (
-                          <p className="italic text-muted-foreground">
-                            Aucune quête de ce Dofus n&apos;est encore liée dans le guide.
-                          </p>
-                        )}
-                        {member.lastDone && member.current && (
-                          <p className="truncate text-muted-foreground">Dernière validée : {member.lastDone.label}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onFilterChange(activeFilter === selected.id ? null : selected.id);
-                    setOpenDofusId(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-2.5 py-1.5 text-caption font-semibold text-foreground transition-colors hover:bg-elevated"
-                >
-                  {activeFilter === selected.id ? "Retirer le filtre" : "Filtrer les quêtes sur ce Dofus"}
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-                <span className="text-caption text-muted-foreground">Progression par quête</span>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Fiche partagée avec le public : quêtes (asset + statut), membres compactes,
+          Ocre avec son icône. Le filtre de timeline reste accessible d'ici. */}
+      <RushDofusDetailModal
+        open={!!selected}
+        onClose={() => setOpenDofusId(null)}
+        dofus={
+          selected
+            ? { id: selected.id, label: selected.label, imageUrl: selected.imageUrl, color: selected.color }
+            : null
+        }
+        summary={
+          selected
+            ? `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un membre · ${selected.membersInProgress.length} membre(s) engagé(s)`
+            : ""
+        }
+        quests={selectedQuestRows}
+        members={
+          selected
+            ? selected.membersInProgress.map((member) => ({
+                name: member.userName,
+                avatar: member.userAvatar ?? null,
+                current: member.current ? member.current.label : null,
+                done: member.done,
+                total: member.total,
+                pct: member.pct,
+              }))
+            : undefined
+        }
+        footer={
+          selected ? (
+            <button
+              type="button"
+              onClick={() => {
+                onFilterChange(activeFilter === selected.id ? null : selected.id);
+                setOpenDofusId(null);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-2.5 py-1.5 text-caption font-semibold text-foreground transition-colors hover:bg-elevated"
+            >
+              {activeFilter === selected.id ? "Retirer le filtre" : "Filtrer les quêtes sur ce Dofus"}
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          ) : undefined
+        }
+      />
     </div>
   );
 });

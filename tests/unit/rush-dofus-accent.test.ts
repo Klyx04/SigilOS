@@ -108,9 +108,15 @@ describe("rush-dofus-accent — état accessible du bandeau Dofus (T2)", () => {
   });
 
   it("annonce le titre et la description de la modale ouverte", () => {
-    expect(panel).toContain("<DialogTitle");
-    expect(panel).toContain("<DialogDescription");
-    expect(panel).toContain("{selected.completedMilestones}/{selected.totalMilestones} blocs validés");
+    // La modale est PARTAGÉE (interne + public) : c'est elle qui porte le titre, la
+    // description et la fiche des quêtes. Le panneau, lui, porte le résumé et le geste.
+    const detail = readFileSync(
+      path.join(process.cwd(), "src/components/dofus-quests/rush/RushDofusDetailModal.tsx"),
+      "utf8"
+    );
+    expect(detail).toContain("<DialogTitle");
+    expect(detail).toContain("<DialogDescription");
+    expect(panel).toContain("selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un membre");
   });
 
   it("garde le geste de filtre dans la modale (le seul filtre Dofus réel)", () => {

@@ -279,21 +279,30 @@ describe("Panneau public — la MÊME anatomie que le guide interne", () => {
     expect(PUB).not.toMatch(/metamobApiKey/i);
   });
 
-  it("Rush Live dit son état réel — « présence indisponible », jamais un compteur", () => {
-    // La room par serveur est V2c : tant qu'elle n'existe pas, la tuile ne compte rien.
-    // Un « 0 en ligne » calculé sur la base serait exactement le mensonge interdit ici.
+  it("Rush Live dit son état RÉEL — un compte mesuré, ou « présence indisponible »", () => {
+    // V2c (11/11/2026) : la room par serveur existe. La tuile lit le flux SSE
+    // (`usePublicRushLive`) et n'annonce un nombre que lorsque le serveur a répondu `live`.
+    // Aucune copie locale de l'ancienne présence de guilde (`liveMembers`), aucun compteur
+    // fabriqué : `unavailable` et `connecting` ne passent jamais par un chiffre.
+    expect(PUB).toMatch(/usePublicRushLive\(/);
+    expect(PUB).toMatch(/rushLive\.status === "live"/);
     expect(PUB).toMatch(/présence indisponible/);
+    expect(PUB).toMatch(/personne en ligne/);
     expect(PUB).not.toMatch(/liveMembers/);
-    expect(PUB).not.toMatch(/en ligne/);
     expect(PUB).not.toMatch(/connectionStatus/);
+    // Le nombre vient de `members.length`, jamais d'un « 0 » écrit en dur.
+    expect(PUB).not.toMatch(/"0 en ligne"|>0 en ligne</);
   });
 
   it("l'anonyme ne voit NI Metamob NI Rush Live — les deux tuiles sont gardées (V2a-5)", () => {
     // Demande user : « le mode non connecté n'aura juste pas le rush live ni metamob ».
     // Chaque tuile est introduite par `{visitor ? (` : sans compte, il n'y a pas de
     // source, donc pas de tuile — et surtout pas une tuile vide à la place.
+    // Depuis V2c, la tuile Rush Live est un BOUTON (elle ouvre la modale des présents) :
+    // le garde précède ce bouton, pas un `<div>` mort.
+
     expect(PUB).toMatch(/\{visitor \? \(\s*<Link\s+href="\/espace-visiteur\/general"/);
-    expect(PUB).toMatch(/\{visitor \? \([\s\S]{0,220}modules\/guild\.png/);
+    expect(PUB).toMatch(/\{visitor \? \(\s*<button[\s\S]{0,600}modules\/guild\.png/);
   });
 
   it("la recherche et « Options » vivent ENTRE les tuiles et la progression (V2a-3)", () => {
@@ -484,7 +493,8 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
 
   it("le public nomme le donjon manquant et ouvre le panneau de CETTE quête", () => {
     expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
-    expect(PUB).toMatch(/\{prereqLocked \? "À terminer avant :" : "Donjon requis à faire :"\}/);
+    expect(PUB).toContain('"À terminer avant :"');
+    expect(PUB).toContain('"Donjon requis à faire :"');
     // Le refus n'est pas muet : il mène au panneau de la quête concernée.
     expect(PUB).toMatch(/onClick=\{\(\) => setOpenDungeonPanel\(seq\.id\)\}/);
     expect(PUB).toMatch(/openDungeonPanel === seq\.id/);

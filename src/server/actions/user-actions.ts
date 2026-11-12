@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild, fetchGuildMember, fetchGuildExists, invalidateDiscordCache } from "@/server/discord";
 import { db } from "@/lib/prisma";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
 import { applyGodLocks, normalizeGodLocks } from "@/lib/module-lock";
@@ -1432,7 +1433,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
         metamobPseudo: profile?.metamobPseudo,
         classe: profile?.classe,
-        dofusLevel: profile?.dofusLevel,
+        dofusLevel: toTotalDofusLevel(profile?.dofusLevel, profile?.totalXp),
         altPseudos: (profile?.altPseudos as any[]) || [],
         pinnedNavItems: profile?.pinnedNavItems || [],
         hiddenNavItems: profile?.hiddenNavItems || [],

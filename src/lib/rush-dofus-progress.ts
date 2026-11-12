@@ -12,6 +12,8 @@
  * il n'y a plus de quête courante (on n'invente pas une position).
  */
 
+import { RUSH_DOFUS_META, getDofusMeta } from "@/lib/rush-dofus-meta";
+
 export type DofusQuestRef = {
     /** Bloc qui porte la quête (catégorie affichée). */
     milestoneId: string;
@@ -36,6 +38,110 @@ export type MemberDofusProgress = {
     /** Dernière quête terminée, `null` si rien n'est fait. */
     lastDone: DofusQuestRef | null;
 };
+
+/** Progression personnelle sur un Dofus, au grain du **bloc** (même règle que le panneau communautaire). */
+export type DofusMilestoneStat = {
+    id: string;
+    label: string;
+    color: string;
+    imageUrl: string;
+    done: number;
+    total: number;
+    pct: number;
+};
+
+/** Statut d'une **quête** dans la fiche d'un Dofus (interne et public). */
+export type DofusQuestStatus = {
+    id: string;
+    name: string;
+    category: string;
+    /** Au moins une personne (ou le lecteur) a toutes les étapes de la quête. */
+    done: boolean;
+    /** Quelqu'un est actuellement sur cette quête (« rendu là »). */
+    current: boolean;
+    /** Communauté : nombre de personnes ayant validé la quête. */
+    membersDone?: number;
+    /** Communauté : nombre de personnes actuellement sur la quête. */
+    membersHere?: number;
+};
+
+/**
+ * Statut de chaque quête d'un Dofus pour un groupe de personnes.
+ *
+ * Une quête est « validée » quand **toutes ses étapes** le sont (`isQuestDone`) ; elle est
+ * « en cours » quand l'étape courante d'une personne appartient à ses clés. Le lecteur
+ * (mode personnel) passe par la même règle : il est un groupe d'une personne.
+ */
+export function questStatusForMembers(
+    quests: DofusQuestRef[],
+    members: ReadonlyArray<{ completedSteps?: Iterable<string>; currentStep?: string | null }>
+): DofusQuestStatus[] {
+    return quests.map((quest) => {
+        const keys = questStepKeys(quest);
+        let membersDone = 0;
+        let membersHere = 0;
+        for (const member of members) {
+            const steps = new Set(member.completedSteps ?? []);
+            if (isQuestDone(quest, steps)) {
+                membersDone += 1;
+            } else if (member.currentStep && keys.includes(member.currentStep)) {
+                membersHere += 1;
+            }
+        }
+        return {
+            id: quest.step,
+            name: quest.label,
+            category: quest.category,
+            done: membersDone > 0,
+            current: membersHere > 0,
+            membersDone,
+            membersHere,
+        };
+    });
+}
+
+/**
+ * Progression **par Dofus** d'une personne, à partir des blocs du guide et des blocs cochés.
+ *
+ * Pourquoi le bloc et pas l'étape : le panneau « Progression Communautaire » compte déjà les
+ * blocs par Dofus (`GuildStatusPanel`) ; compter les étapes ici donnerait deux pourcentages
+ * différents pour la même chose selon l'écran. Un bloc sans `dofusId` (chapitre non rattaché)
+ * ou rattaché à un Dofus inconnu est **ignoré** — on n'invente pas une ligne.
+ *
+ * L'ordre est celui de `RUSH_DOFUS_META` (source unique des libellés, couleurs et visuels).
+ */
+export function dofusMilestoneStats(
+    milestones: ReadonlyArray<{ id: string; dofusId?: string | null }>,
+    completedMilestoneIds: Iterable<string>
+): DofusMilestoneStat[] {
+    const completed = new Set(completedMilestoneIds);
+    const counts = new Map<string, { done: number; total: number }>();
+
+    for (const milestone of milestones) {
+        const key = milestone.dofusId?.trim().toLowerCase();
+        if (!key || !getDofusMeta(key)) continue;
+        const entry = counts.get(key) ?? { done: 0, total: 0 };
+        entry.total += 1;
+        if (completed.has(milestone.id)) entry.done += 1;
+        counts.set(key, entry);
+    }
+
+    const out: DofusMilestoneStat[] = [];
+    for (const meta of RUSH_DOFUS_META) {
+        const entry = counts.get(meta.id);
+        if (!entry || entry.total === 0) continue;
+        out.push({
+            id: meta.id,
+            label: meta.label,
+            color: meta.color,
+            imageUrl: meta.imageUrl,
+            done: entry.done,
+            total: entry.total,
+            pct: Math.round((entry.done / entry.total) * 100),
+        });
+    }
+    return out;
+}
 
 /** Clés d'étapes d'une quête (`-all` et `-1` coexistent pour une quête non découpée). */
 export function questStepKeys(quest: Pick<DofusQuestRef, "step" | "steps">): string[] {

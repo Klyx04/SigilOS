@@ -18,6 +18,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { getClass, getJob } from "@/lib/dofus-assets";
 import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import { ALLOWED_JOB_IDS } from "@/lib/public-profile-input";
@@ -132,6 +133,16 @@ export function buildVisitorDirectoryHref(filters: VisitorDirectoryFilters): str
 }
 
 /**
+ * Lien vers une fiche visiteur : le **pseudo** quand il existe (lisible, partageable),
+ * le cuid en repli. La fiche accepte les deux ; un pseudo porté par deux profils du même
+ * serveur ouvre un choix, jamais un 404.
+ */
+export function visitorProfileHref(entry: { id: string; pseudo: string | null }): string {
+    const pseudo = entry.pseudo?.trim();
+    return pseudo ? `/visiteurs/${encodeURIComponent(pseudo)}` : `/visiteurs/${entry.id}`;
+}
+
+/**
  * `where` de l'annuaire. Le serveur est **imposé** par l'appelant (profil du lecteur) : aucun
  * chemin ne permet de lire un autre serveur, même en forgeant l'URL.
  */
@@ -149,8 +160,11 @@ export function buildVisitorDirectoryWhere(
                       some: {
                           metierId: filters.metier,
                           // F17b — « qui a ce métier à ce niveau » = au moins ce niveau
-                          // (`@@index([metierId, level])` porte la requête).
-                          ...(filters.niveau ? { level: { gte: filters.niveau } } : {}),
+                          // (`@@index([metierId, level])` porte la requête). Le plancher **1**
+                          // est volontaire : un métier à 0 n'est pas une déclaration valide
+                          // (le niveau est obligatoire dans le profil) et ne doit ni apparaître
+                          // ni être filtrable.
+                          level: { gte: filters.niveau ?? PUBLIC_DIRECTORY_JOB_LEVEL_MIN },
                       },
                   },
               }
@@ -174,6 +188,8 @@ export type VisitorDirectoryRow = {
     dofusServerId: number;
     declaredGuildName: string | null;
     dofusLevel: number | null;
+    /** BigInt lu uniquement pour convertir le niveau Oméga en niveau total. */
+    totalXp: bigint | null;
     successPoints: number | null;
     updatedAt: Date;
     professions: ReadonlyArray<{ metierId: string; level: number }>;
@@ -245,7 +261,7 @@ export function toVisitorDirectoryEntry(row: VisitorDirectoryRow): VisitorDirect
         classe: classe ? { id: classe.id, name: classe.name, icon: classe.icon } : null,
         server: resolveServer(row.dofusServerId),
         guildName: row.declaredGuildName,
-        level: row.dofusLevel,
+        level: toTotalDofusLevel(row.dofusLevel, row.totalXp),
         successPoints: row.successPoints,
         jobs: resolveJobs(row.professions, PUBLIC_DIRECTORY_JOBS_ON_CARD),
         achievements: row._count.achievements,

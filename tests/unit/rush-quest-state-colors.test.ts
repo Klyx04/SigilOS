@@ -44,10 +44,12 @@ describe("Dashboard — quête bloquée ≠ quête repérée (deux attributs, de
     expect(DASH).not.toMatch(/bg-warning\/\[0\.04\] border-warning\/25/);
   });
 
-  it("cadenas, nom du prérequis et chips restent rouges (même état, même couleur)", () => {
+  it("cadenas, nom du prérequis et bouton restent rouges (même état, même couleur)", () => {
     expect(DASH).toMatch(/Lock className="w-3\.5 h-3\.5 text-danger/);
     expect(DASH).toMatch(/text-danger truncate">\{singleName\}/);
-    expect(DASH).toMatch(/font-semibold text-danger border border-danger\/30 hover:bg-danger\/10/);
+    // F6 (11/11/2026) : les chips ont laissé place à UN bouton qui ouvre la liste.
+    expect(DASH).toMatch(/font-semibold text-danger/);
+    expect(DASH).toMatch(/hover:bg-danger\/10/);
     expect(DASH).toMatch(/outline-danger\/50/);
   });
 
@@ -72,9 +74,10 @@ describe("Overlay — verrou (danger) ≠ repère (ambre), pour l'interne comme 
   it("la carte repérée garde son ambre et son filet gauche", () => {
     // Le repère reste DISTINCT du verrou : il a son propre attribut (`data-here`)
     // et sa propre teinte, l'accent du bloc — jamais `danger`.
-    expect(ITEM).toMatch(
-      /data-here=\{isBookmarked && !isDone && !isLocked \? "true" : "false"\}/
-    );
+    // 11/11/2026 — le repère est permis même quand la carte est verrouillée : le donjon
+    // bloque la VALIDATION, pas le fait de dire où l'on en est. Donc plus de `!isLocked`.
+    expect(ITEM).toMatch(/data-here=\{isBookmarked && !isDone \? "true" : "false"\}/);
+    expect(ITEM).not.toMatch(/data-here=\{isBookmarked && !isDone && !isLocked/);
   });
 
   it("le blocage nomme le prérequis, en danger, sans second cadenas", () => {

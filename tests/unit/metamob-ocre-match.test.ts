@@ -19,4 +19,19 @@ describe("matchesOcreQuest", () => {
         expect(matchesOcreQuest({ slug: null, quest_template: null })).toBe(false);
         expect(matchesOcreQuest({})).toBe(false);
     });
+
+    it("reconnaît le type de quête renvoyé par l'API (doc 11/11/2026)", () => {
+        expect(
+            matchesOcreQuest({
+                slug: "abc",
+                quest_template: { id: 7, monster_count: 20, quest_type: { slug: "ocre" } },
+            })
+        ).toBe(true);
+        expect(
+            matchesOcreQuest({
+                slug: "abc",
+                quest_template: { id: 7, monster_count: 20, quest_type: { slug: "dokille" } },
+            })
+        ).toBe(false);
+    });
 });

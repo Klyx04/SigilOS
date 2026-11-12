@@ -10,12 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import { getClass } from "@/lib/dofus-assets";
 import { isMuleInGameGuild } from "@/lib/in-game-guild";
 import {
     collectDeclaredMules,
     filterDeclaredMuleGroups,
-    MULE_OMEGA_BASE,
     type DeclaredMule,
     type DeclaredMuleGroup,
 } from "@/lib/member-mules";
@@ -75,7 +75,7 @@ function MuleChip({
             <span className="max-w-32 truncate text-xs text-foreground">{mule.pseudo}</span>
             {mule.level !== null && (
                 <span className="tabular-nums text-caption text-muted-foreground">
-                    {mule.level > MULE_OMEGA_BASE ? `Ω${mule.level - MULE_OMEGA_BASE}` : `Nv. ${mule.level}`}
+                    {formatDofusLevel(mule.level)}
                 </span>
             )}
             {enGuilde && (

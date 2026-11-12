@@ -9,10 +9,14 @@
  * Invariants :
  *  · **fail-open** : worker absent, en panne ou lent ⇒ snapshot vide, jamais une exception —
  *    la sauvegarde du profil ne doit pas échouer pour un classement indisponible ;
- *  · **borné** : l'XP est réduite à ses chiffres (15 max), le niveau est ramené dans 1..300,
+ *  · **borné** : l'XP est réduite à ses chiffres (15 max), le niveau est ramené dans 1..400,
  *    la classe est tronquée à 50 caractères — on ne stocke pas ce que le worker renvoie brut ;
+ *    `dofusLevel` stocke le **niveau total** (200 + Oméga) : le ladder ne renvoie que le
+ *    niveau Oméga (128) pour un Oméga 128, l'XP totale tranche (cf. `src/lib/dofus-level.ts`) ;
  *  · **aucun secret dans les logs** : ce module n'écrit rien, jamais.
  */
+
+import { DOFUS_LEVEL_TOTAL_MAX, toTotalDofusLevel } from "@/lib/dofus-level";
 
 /** Champs tels que les portent `UserProfile` **et** `PublicProfile` (noms voisins). */
 export type LadderSnapshot = {
@@ -27,7 +31,7 @@ export type LadderSnapshot = {
 /** 15 chiffres : au-delà, ce n'est plus une valeur de jeu (et `BigInt` n'aime pas l'infini). */
 const MAX_XP_DIGITS = 15;
 
-/** Niveau de jeu : borné à 1..300, entier. `undefined` si la valeur n'est pas un nombre. */
+/** Niveau de jeu : borné à 1..400, entier. `undefined` si la valeur n'est pas un nombre. */
 export function normalizeLadderLevel(value: unknown): number | undefined {
     // `Number(null)` vaut 0 et `Number("")` aussi : sans ce filtre, un champ absent du worker
     // deviendrait « niveau 1 » (faux niveau, et pire qu'une absence).
@@ -35,7 +39,7 @@ export function normalizeLadderLevel(value: unknown): number | undefined {
     if (typeof value === "string" && value.trim() === "") return undefined;
     const level = Number(value);
     if (!Number.isFinite(level)) return undefined;
-    return Math.min(Math.max(Math.floor(level), 1), 300);
+    return Math.min(Math.max(Math.floor(level), 1), DOFUS_LEVEL_TOTAL_MAX);
 }
 
 /** Points de succès : entier positif seulement. */
@@ -105,13 +109,16 @@ export async function fetchLadderSnapshot(
         if (general?.success && general?.found) {
             const xp = normalizeLadderXp(general.totalXp);
             if (xp !== undefined) snapshot.totalXp = xp;
-            if (level === undefined) level = normalizeLadderLevel(general.level);
+            // La fiche générale fait foi pour le niveau (le ladder succès peut être plus
+            // grossier) ; l'XP totale, elle, tranche le cas Oméga.
+            level = normalizeLadderLevel(general.level) ?? level;
             const classe = normalizeLadderClass(general.classe);
             if (classe) snapshot.classe = classe;
         }
     }
 
-    if (level !== undefined) snapshot.dofusLevel = level;
+    const totalLevel = toTotalDofusLevel(level, snapshot.totalXp);
+    if (totalLevel !== null) snapshot.dofusLevel = totalLevel;
     if (snapshot.successPoints !== undefined || snapshot.totalXp !== undefined) {
         snapshot.lastLadderUpdate = new Date();
     }

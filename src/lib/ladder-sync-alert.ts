@@ -12,6 +12,7 @@
  * message liste les échecs (borné), et les champs d'embed sont en **français**.
  */
 
+import { formatDofusLevel, toTotalDofusLevel } from "@/lib/dofus-level";
 import { truncateDetailValue } from "@/lib/detail-value";
 
 export type LadderSyncResult = {
@@ -238,7 +239,8 @@ function formatLadderNumber(value: number | null): string | null {
 /** Contexte compact d'un profil : ce qui explique un pseudo disparu du ladder. */
 export function formatLadderFailureContext(failure: LadderFailureProfile): string {
     const parts: string[] = [];
-    if (failure.dofusLevel !== null) parts.push(`niv. ${failure.dofusLevel}`);
+    const level = toTotalDofusLevel(failure.dofusLevel, failure.totalXp);
+    if (level !== null) parts.push(`niv. ${formatDofusLevel(level)}`);
     const points = formatLadderNumber(failure.successPoints);
     if (points) parts.push(`${points} pts`);
     if (failure.classe) parts.push(failure.classe);

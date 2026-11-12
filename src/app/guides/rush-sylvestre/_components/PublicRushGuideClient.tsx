@@ -29,6 +29,8 @@ import {
   ClipboardList,
   RotateCcw,
   Settings2,
+  Download,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -59,7 +61,16 @@ import {
   adoptAnonymousGuestProgress,
   guestProgressPrefix,
   guestCharacterSlot,
+  guestRouteStorageKey,
+  guestRouteOrderStorageKey,
 } from "@/lib/guest-progress";
+// F2 — sauvegarde du profil local : le fichier ne contient QUE les clés ci-dessus.
+import {
+  GUEST_EXPORT_MAX_BYTES,
+  applyGuestExport,
+  collectGuestExport,
+  parseGuestExport,
+} from "@/lib/guest-export";
 // Coches de DONJONS du visiteur : même contrat LOCAL que le reste de sa progression
 // (préfixe par personnage), clé par OCCURRENCE (`sequenceId::dungeonKey`). Aucune
 // donnée de guilde, aucun serveur : le verrou est appliqué dans les écritures.
@@ -78,10 +89,11 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
-import { PublicCommunityPanel } from "./PublicCommunityPanel";
+import { PublicDofusProgressPanel } from "./PublicDofusProgressPanel";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
 import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import {
   adoptMyRushProgress,
   loadMyRushProgress,
@@ -112,7 +124,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -132,9 +144,14 @@ import { alignmentCrest } from "@/lib/rush-guide-view";
 import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
 import { CharacterSwitchModal } from "@/components/dofus-quests/rush/CharacterSwitchModal";
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
-import { PublicOcreDungeonBridge } from "@/components/dofus-quests/rush/PublicOcreDungeonBridge";
+import { PublicOcreDungeonBridge, type PublicOcreSnapshot } from "@/components/dofus-quests/rush/PublicOcreDungeonBridge";
+import { dofusMilestoneStats } from "@/lib/rush-dofus-progress";
 import { OverlayToastProvider } from "@/components/rush/overlay-toast";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
+import { PublicRushLiveModal } from "./PublicRushLiveModal";
+import { PublicRushLiveToast } from "./PublicRushLiveToast";
+import { usePublicRushLive } from "@/hooks/use-public-rush-live";
+import { RushOverlayPrereqModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal";
 import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
 
@@ -349,9 +366,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // Guide PUBLIC et non connecté : le choix est purement LOCAL. Aucune donnée de
   // guilde n'est lue ni affichée (pas de liste de membres, pas de progression d'autrui).
   // Le filtre s'applique AVANT la vue, les prérequis et l'agrégation des ressources.
-  const routeStorageKey = `sigilos_rush_route_${guide.slug}`;
+  // F2 — les clés viennent de `guest-progress.ts` : l'export/import lit exactement les mêmes.
+  const routeStorageKey = guestRouteStorageKey(guide.slug);
   /** Ordre du choix LOCAL : le camp pilote la route, l'Ordre est ce qu'affiche la modale. */
-  const routeOrderKey = `sigilos_rush_route_order_${guide.slug}`;
+  const routeOrderKey = guestRouteOrderStorageKey(guide.slug);
   const [routeCamp, setRouteCamp] = useState<"bontarien" | "brakmarien" | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -401,6 +419,66 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       }
     },
     [handleRouteChange, routeOrderKey]
+  );
+
+  // ── F2 — export / import de la progression locale (ANONYME seulement) ───────
+  // Le fichier est la seule sauvegarde d'un visiteur sans compte : on l'exporte complet,
+  // on refuse un fichier douteux, et l'import REMPLACE l'emplacement du personnage du
+  // fichier. Aucun secret n'y entre : ni clé Metamob, ni identifiant SigilOS.
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const handleExportProgress = useCallback(() => {
+    const data = collectGuestExport(guide.slug, character);
+    if (!data) {
+      toast.error("Impossible de préparer la sauvegarde.");
+      return;
+    }
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const who = data.character?.pseudo
+        ? `-${data.character.pseudo.replace(/[^A-Za-z0-9_-]+/g, "-")}`
+        : "";
+      link.href = url;
+      link.download = `sigilos-rush${who}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Sauvegarde exportée.");
+    } catch {
+      toast.error("Impossible de télécharger la sauvegarde.");
+    }
+  }, [character, guide.slug]);
+
+  const handleImportFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      // Permet de réimporter le MÊME fichier après une première tentative.
+      event.target.value = "";
+      if (!file) return;
+      if (file.size > GUEST_EXPORT_MAX_BYTES) {
+        toast.error("Ce fichier est trop volumineux pour une sauvegarde.");
+        return;
+      }
+      let raw: unknown;
+      try {
+        raw = JSON.parse(await file.text());
+      } catch {
+        toast.error("Ce fichier n'est pas un JSON lisible.");
+        return;
+      }
+      const data = parseGuestExport(raw);
+      if (!data) {
+        toast.error("Ce fichier n'est pas une sauvegarde SigilOS valide.");
+        return;
+      }
+      if (!applyGuestExport(guide.slug, data)) {
+        toast.error("Impossible d'écrire la sauvegarde dans ce navigateur.");
+        return;
+      }
+      toast.success("Sauvegarde importée.");
+      window.location.reload();
+    },
+    [guide.slug]
   );
   const milestones = useMemo(
     () => resolveRushRoute(rawMilestones, { camp: routeCamp }),
@@ -464,6 +542,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const [metamobOpen, setMetamobOpen] = useState(false);
   /** V2a-4 — modale « Mon alignement » (cité + Ordre, écrits sur le profil visiteur). */
   const [alignmentOpen, setAlignmentOpen] = useState(false);
+  /**
+   * V2c — Rush Live : la tuile n'est plus un texte mort. Elle ouvre cette modale, qui dit qui
+   * est en ligne sur le **même serveur** et porte le consentement `showPresence`.
+   * `liveReloadKey` rouvre le flux quand le consentement change : le serveur décide de la
+   * présence **à la connexion**, un simple état local ne suffirait pas.
+   */
+  const [rushLiveOpen, setRushLiveOpen] = useState(false);
+  /** F6 — prérequis de la quête verrouillée : la MÊME modale que l'overlay. */
+  const [prereqModal, setPrereqModal] = useState<RushPrereqRef[] | null>(null);
+  const [presenceEnabled, setPresenceEnabled] = useState(visitor?.showPresence ?? false);
+  const [liveReloadKey, setLiveReloadKey] = useState(0);
+  const rushLive = usePublicRushLive({ enabled: !!visitor, reloadKey: liveReloadKey });
+  const handlePresenceChange = useCallback((enabled: boolean) => {
+    setPresenceEnabled(enabled);
+    setLiveReloadKey((key) => key + 1);
+  }, []);
 
   /* V2a-4 — accueil de première arrivée (trois étapes, une seule fois par navigateur).
      Il ENCHAÎNE les deux sélecteurs existants : aucun second formulaire à maintenir. */
@@ -630,11 +724,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // V-H — progression Ocre du visiteur connecté, chargée **à la demande** (pont voisin).
   // Le guide public ne monte jamais la modale Ocre interne ; il ouvre `PublicMetamobModal`.
   const [capturedOcreNames, setCapturedOcreNames] = useState<string[]>([]);
+  /** F1 — résumé Metamob (captures + étape), séparé des blocs du guide. */
+  const [ocreSnapshot, setOcreSnapshot] = useState<PublicOcreSnapshot | null>(null);
   const [ocreLoadRequested, setOcreLoadRequested] = useState(false);
-  const handleOcreLoaded = useCallback(
-    (names: string[]) => setCapturedOcreNames(names),
-    []
-  );
+  const handleOcreLoaded = useCallback((snapshot: PublicOcreSnapshot) => {
+    setCapturedOcreNames(snapshot.capturedNames);
+    setOcreSnapshot(snapshot);
+  }, []);
   useEffect(() => {
     if (openDungeonPanel || detailModalSeq) setOcreLoadRequested(true);
   }, [openDungeonPanel, detailModalSeq]);
@@ -643,6 +739,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   useEffect(() => {
     if (pipWin && visitor?.metamobPseudo) setOcreLoadRequested(true);
   }, [pipWin, visitor?.metamobPseudo]);
+  // F1 — la progression par Dofus montre l'Ocre en DEUX mesures : les blocs du guide et
+  // les captures Metamob. On charge le résumé dès l'ouverture pour un compte qui a PROUVÉ
+  // sa clé (`metamobVerified`) ; un simple pseudo lié n'a pas de clé, donc aucun appel.
+  useEffect(() => {
+    if (visitor?.metamobVerified) setOcreLoadRequested(true);
+  }, [visitor?.metamobVerified]);
   // Changement de personnage (ou adoption d'une progression anonyme) = changement
   // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
   useEffect(() => {
@@ -1129,6 +1231,35 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         ? locale === "en" ? "linked · unverified" : "lié · non vérifié"
         : locale === "en" ? "not linked" : "non renseigné";
 
+  /**
+   * V2c — libellé Rush Live : quatre états **mesurés**, jamais un compteur inventé.
+   * `unavailable` (Redis muet) et `connecting` ne comptent rien ; seul `live` dit un nombre.
+   */
+  const rushLiveLabel = (() => {
+    if (rushLive.status === "live") {
+      if (rushLive.members.length === 0) {
+        return locale === "en" ? "nobody online" : "personne en ligne";
+      }
+      return locale === "en"
+        ? `${rushLive.members.length} online`
+        : `${rushLive.members.length} en ligne`;
+    }
+    if (rushLive.status === "connecting") {
+      return locale === "en" ? "connecting…" : "connexion…";
+    }
+    return locale === "en" ? "presence unavailable" : "présence indisponible";
+  })();
+
+  /**
+   * F1 — progression PERSONNELLE par Dofus, au grain du bloc (même règle que le panneau
+   * communautaire). Le guide complet (`rawMilestones`) et non la route filtrée : le total
+   * d'un Dofus ne doit pas changer quand on change de cité.
+   */
+  const myDofusStats = useMemo(
+    () => dofusMilestoneStats(rawMilestones, completedIds),
+    [rawMilestones, completedIds]
+  );
+
   // Remise à zéro : les CINQ clés de progression partent ensemble (étapes cochées,
   // blocs terminés, repères, coches de donjons, ressources préparées). Un reset partiel
   // laisserait un guide à moitié coché — et une fenêtre d'overlay ouverte se réaligne
@@ -1493,8 +1624,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       </div>
 
       {/* ── TUILLES — les CINQ de l'interne (V2a-3) : personnage actif · alignement ·
-          Metamob · Rush Live · overlay. Chacune n'affiche que ce qu'elle peut prouver. */}
-      <div className="flex flex-wrap items-stretch gap-3 px-4 py-3 sm:px-5">
+          Metamob · Rush Live · overlay. Chacune n'affiche que ce qu'elle peut prouver.
+          F3 (11/11/2026) : la rangée respire (gap-4) et, pour un ANONYME, l'espace libre
+          n'est plus un trou — il porte le panneau F5 (« ce que tu gagnes »). */}
+      <div className="flex flex-wrap items-stretch gap-4 px-4 py-3.5 sm:px-5">
         {/* Personnage actif — UNE tuile, DEUX sources (V2a-3) : le personnage invité
             (progression locale) quand il existe, sinon l'identité du COMPTE connecté
             (fusionnée ici depuis le bandeau V2a-1). Anonyme sans personnage ⇒ rendu
@@ -1569,11 +1702,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                   className="ml-auto shrink-0 text-[11px] text-muted-foreground"
                   title={
                     locale === "en"
-                      ? `Level ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} success points`
-                      : `Niveau ${visitor.level ?? "—"} · ${visitor.successPoints ?? "—"} points de succès`
+                      ? `Level ${formatDofusLevel(visitor.level)} · ${visitor.successPoints ?? "—"} success points`
+                      : `Niveau ${formatDofusLevel(visitor.level)} · ${visitor.successPoints ?? "—"} points de succès`
                   }
                 >
-                  <span className="font-mono font-medium text-foreground">{visitor.level ?? "—"}</span>{" "}
+                  <span className="font-mono font-medium text-foreground">{formatDofusLevel(visitor.level)}</span>{" "}
                   {locale === "en" ? "lvl" : "niv."}
                   <span aria-hidden="true"> · </span>
                   <span className="font-mono font-medium text-foreground">{visitor.successPoints ?? "—"}</span>{" "}
@@ -1648,6 +1781,29 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             metamobPseudo={visitor?.metamobPseudo ?? null}
             verified={metamob === "verified"}
           />
+          {/* V2c — qui est en ligne sur le même serveur, et le consentement qui décide
+              d'y figurer. Le flux est déjà abonné plus haut (`usePublicRushLive`). */}
+          <PublicRushLiveModal
+            open={rushLiveOpen}
+            onClose={() => setRushLiveOpen(false)}
+            status={rushLive.status}
+            members={rushLive.members}
+            presenceEnabled={presenceEnabled}
+            onPresenceChange={handlePresenceChange}
+            selfPseudo={visitor?.pseudo ?? null}
+            locale={locale}
+          />
+          {/* F6 — la liste des prérequis, dans la MÊME modale que l'overlay. */}
+          {prereqModal ? (
+            <RushOverlayPrereqModal
+              prereqs={prereqModal}
+              onGoTo={(seqId) => {
+                scrollToStep(seqId);
+                setPrereqModal(null);
+              }}
+              onClose={() => setPrereqModal(null)}
+            />
+          ) : null}
           {/* V2a-4 — l'alignement se règle pour TOUT LE MONDE : écrit sur le profil quand
               un compte est connecté, conservé localement (et appliqué à la route) sinon. */}
           <PublicAlignmentModal
@@ -1801,14 +1957,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
         ) : null}
 
-        {/* Rush Live — l'ÉTAT RÉEL, jamais un compteur (V2a-3), et **connectés
-            seulement** depuis V2a-5 : demande user « le mode non connecté n'aura juste
-            pas le rush live ni metamob ». Le visiteur n'a aucune room de présence avant
-            V2c (room par serveur, consentement `showPresence`) : la tuile le dit. Ce
-            n'est pas un bouton : il n'y a rien à ouvrir, donc pas de contrôle mort — et
-            surtout pas « 0 en ligne », qui serait un mensonge. */}
+        {/* Rush Live — V2c : une room par serveur, un consentement (`showPresence`), un flux
+            SSE. La tuile dit un état MESURÉ : « N en ligne », « personne en ligne »,
+            « connexion… » ou « présence indisponible » — jamais un 0 fabriqué. Connectés
+            seulement (demande user : « le mode non connecté n'aura juste pas le rush live »). */}
         {visitor ? (
-          <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setRushLiveOpen(true)}
+            className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
+            title={
+              locale === "en"
+                ? "Visitors of your server who are online"
+                : "Les visiteurs de ton serveur qui sont en ligne"
+            }
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/assets/dofus/modules/guild.png"
@@ -1819,11 +1982,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             />
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Rush Live</p>
-              <span className="block truncate text-xs font-semibold text-muted-foreground">
-                {locale === "en" ? "presence unavailable" : "présence indisponible"}
+              <span
+                className={cn(
+                  "block truncate text-xs font-semibold",
+                  rushLive.status === "live" ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
+                {rushLiveLabel}
               </span>
             </div>
-          </div>
+          </button>
         ) : null}
 
         {visitor ? (
@@ -1855,6 +2023,25 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           />
           <span>{locale === "en" ? "Open Overlay" : "Ouvrir Overlay"}</span>
         </button>
+
+        {/* F5 (chantier 4) — l'espace libre de la rangée anonyme dit ce qu'un profil
+            apporte, sans second bouton : le CTA reste celui du bandeau (une seule action
+            mise en avant par écran). Masqué sur mobile, où la rangée se replie déjà et où
+            le CTA du bandeau suffit. Aucun contrôle mort : ce bloc ne s'ouvre pas. */}
+        {!visitor && !isConnected ? (
+          <div className="hidden min-w-0 flex-1 items-center border-l border-border pl-4 md:flex">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-foreground">
+                {locale === "en" ? "With a visitor profile" : "Avec un profil visiteur"}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                {locale === "en"
+                  ? "Visitors of your server see the quests you validated, the one in progress and your dungeons · progress saved across devices · Metamob Ocre."
+                  : "Les visiteurs de ton serveur voient tes quêtes validées, celle en cours et tes donjons · progression sauvegardée d'un appareil à l'autre · Metamob Ocre."}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* ── RECHERCHE + OPTIONS — la rangée de l'anatomie interne (V2a-3) ─────
@@ -1862,9 +2049,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           entre le haut du panneau (tuiles) et la progression. Même état, mêmes
           gestionnaires : seul l'emplacement change. `Options` ne porte que des
           réglages qui EXISTENT côté visiteur — aujourd'hui un seul (la densité) ;
-          V2a-4 y branchera « Revoir le tour ». */}
-      <div className="flex flex-col gap-2 border-t border-border px-4 py-2.5 sm:flex-row sm:items-center sm:px-5">
-        <div className="relative min-w-0 flex-1 sm:max-w-md">
+          V2a-4 y branchera « Revoir le tour ».
+          F4 (11/11/2026) : la rangée respire (gap et hauteur augmentés, champ plus
+          large) — le champ et « Options » ne sont plus collés. */}
+      <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+        <div className="relative min-w-0 flex-1 sm:max-w-lg">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
@@ -1934,6 +2123,38 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               </span>
             </DropdownMenuItem>
 
+            {/* F2 — la sauvegarde d'un visiteur SANS compte. Connecté : la base s'en charge,
+                donc l'entrée n'existe pas (aucune action sans objet). */}
+            {!visitor ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={() => handleExportProgress()}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
+                >
+                  <Download className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-xs font-semibold">
+                    {locale === "en" ? "Export my progress" : "Exporter ma progression"}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => importInputRef.current?.click()}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
+                >
+                  <Upload className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="flex flex-col">
+                    <span className="text-xs font-semibold">
+                      {locale === "en" ? "Import a backup" : "Importer une sauvegarde"}
+                    </span>
+                    <span className="text-[10px] font-normal text-muted-foreground">
+                      {locale === "en"
+                        ? "replaces this character's progress"
+                        : "remplace la progression de ce personnage"}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+
             <DropdownMenuSeparator className="my-1 h-px bg-border" />
 
             {/* « Ma cité » — sortie du bandeau en V2a-5 (demande user : « le bandeau avec
@@ -1984,6 +2205,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* F2 — l'entrée « Importer » ouvre ce champ ; il reste hors du flux et du clavier
+            (le geste est le menu, accessible). */}
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImportFile}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
       </div>
 
       {/* ── PROGRESSION — UNE seule barre, pleine largeur ────────────────────
@@ -2018,14 +2251,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       </div>
     </div>
       </header>
-      {/* ── PROGRESSION COMMUNAUTAIRE (V2a-2) — visiteurs du même serveur qui ont coché
-          « Publier ma progression de rush » (D-V21). Pleine largeur, sous le bloc Progression.
-          Absente pour l anonyme : le serveur se résout côté serveur, jamais depuis le navigateur. */}
-      {isConnected ? (
-        <div className="px-4 pb-4 sm:px-5 lg:px-6">
-          <PublicCommunityPanel milestones={rawMilestones} />
-        </div>
-      ) : null}
+      {/* ── PROGRESSION PAR DOFUS — une seule carte (chantier 4) : vue « Moi » pour tout le
+          monde, vue « Communauté » pour un compte connecté (chargée à la demande). Chaque
+          Dofus ouvre sa fiche ; l'Ocre y montre deux mesures séparées (blocs / captures). */}
+      <div className="px-4 pb-4 sm:px-5 lg:px-6">
+        <PublicDofusProgressPanel
+          milestones={rawMilestones}
+          completedSeqIds={completedSeqIds}
+          bookmarkedSeqId={bookmarkedSeqId}
+          personal={myDofusStats}
+          ocreSnapshot={ocreSnapshot}
+          canSeeCommunity={isConnected}
+          metamobVerified={!!visitor?.metamobVerified}
+          locale={locale}
+        />
+      </div>
       <div className="da-guide-grid">
         {/* Sommaire : colonne de gauche, au langage du dock. Le MÊME composant
             servira au guide interne (E4) : aucune variante « public ». */}
@@ -2479,6 +2719,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                 data-seq-id={seq.id}
                                 className="da-row"
                                 data-state={daState}
+                                data-here={isBookmarked ? "true" : undefined}
                               >
                                 {/* Le NŒUD est le bouton de coche lui-même : même handler, même
                                     `aria-label`, même garde `stepLocked`. Seul son habillage change. */}
@@ -2733,41 +2974,52 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                 </div>
 
                                 {/* ── VERROU : prérequis non terminés ──
-                                    Même rendu que le guide interne (danger, cadenas,
-                                    prérequis nommés et cliquables) : le public disait
-                                    seulement « Rien ne bloque » alors que l'interne
-                                    refusait la validation. */}
+                                    F6 (11/11/2026) — la MÊME forme que l'overlay : **une seule
+                                    ligne** cliquable ouvre la liste des prérequis (modale
+                                    partagée), au lieu d'un mur de chips. */}
                                 {stepLocked && (
                                   <div className="flex flex-wrap items-center gap-1.5 border-t border-danger/20 pt-2">
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                                      <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                      {prereqLocked ? "À terminer avant :" : "Donjon requis à faire :"}
-                                    </span>
                                     {!prereqLocked ? (
+                                      <>
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                                          <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                          {"Donjon requis à faire :"}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setOpenDungeonPanel(seq.id)}
+                                          className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
+                                          title="Ouvrir les donjons du guide"
+                                        >
+                                          {missingDungeons.map((d) => d.name).join(", ") || "Donjon requis"}
+                                        </button>
+                                      </>
+                                    ) : prereqRefs.length === 0 ? (
+                                      <>
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                                          <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                          {"À terminer avant :"}
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground">
+                                          quête prérequis non listée dans ce guide
+                                        </span>
+                                      </>
+                                    ) : (
                                       <button
                                         type="button"
-                                        onClick={() => setOpenDungeonPanel(seq.id)}
-                                        className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
-                                        title="Ouvrir les donjons du guide"
+                                        onClick={() => setPrereqModal(prereqRefs)}
+                                        aria-haspopup="dialog"
+                                        title={prereqRefs.map((p) => p.name).join(" · ")}
+                                        className="inline-flex max-w-full items-center gap-1.5 rounded-[3px] border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
                                       >
-                                        {missingDungeons.map((d) => d.name).join(", ") || "Donjon requis"}
+                                        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                        <span className="min-w-0 truncate">
+                                          {prereqRefs.length > 1
+                                            ? `${prereqRefs.length} quêtes à terminer avant`
+                                            : prereqRefs[0].name}
+                                        </span>
+                                        <ArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
                                       </button>
-                                    ) : prereqRefs.length === 0 ? (
-                                      <span className="text-[11px] text-muted-foreground">
-                                        quête prérequis non listée dans ce guide
-                                      </span>
-                                    ) : (
-                                      prereqRefs.map((p) => (
-                                        <button
-                                          key={p.seqId}
-                                          type="button"
-                                          onClick={() => scrollToStep(p.seqId)}
-                                          className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
-                                          title={`Aller à : ${p.name}`}
-                                        >
-                                          {p.name}
-                                        </button>
-                                      ))
                                     )}
                                   </div>
                                 )}
@@ -3003,6 +3255,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           );
         })()}
 
+      {/* V2c — un toast par bloc validé / Dofus obtenu chez les visiteurs du même serveur.
+          Il vit dans la page tant que la PiP est fermée ; sinon il est porté DANS la PiP. */}
+      {visitor && !pipWin ? <PublicRushLiveToast events={rushLive.events} /> : null}
+
       </div>{/* rush-guide · coque DA */}
 
       {/* ── Navigation flottante haut / position / bas (comme le guide interne) ── */}
@@ -3085,6 +3341,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           </OverlayToastProvider>,
           pipWin.document.body
         )}
+      {/* V2c — les toasts du Rush Live suivent la fenêtre PiP quand elle est ouverte,
+          exactement comme les toasts locaux de l'overlay (même DA, même emplacement). */}
+      {pipWin
+        ? createPortal(
+            <PublicRushLiveToast events={rushLive.events} inPip />,
+            pipWin.document.body
+          )
+        : null}
+
     </>
     </DaThemeProvider>
   );

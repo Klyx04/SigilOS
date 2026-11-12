@@ -7,6 +7,7 @@
  * **inventaire** : combien, pour qui, avec quelle classe — sans jamais deviner une classe.
  */
 
+import { DOFUS_LEVEL_MAX, DOFUS_LEVEL_TOTAL_MAX, formatDofusLevelWithBase } from "@/lib/dofus-level";
 import type { RosterMule, RosterRow, RosterStatus } from "@/lib/member-roster";
 
 /** Pseudo borné : un `altPseudos` abîmé ne doit pas casser l'affichage. */
@@ -16,9 +17,10 @@ const PSEUDO_MAX = 60;
  * 200 + niveau Oméga (jusqu'à 400 constaté). Hors bornes ⇒ `null` plutôt qu'un chiffre faux.
  */
 const LEVEL_MIN = 1;
-export const MULE_LEVEL_MAX = 400;
+/** Niveau total maximum (200 + Oméga 200) — même borne que le niveau Dofus. */
+export const MULE_LEVEL_MAX = DOFUS_LEVEL_TOTAL_MAX;
 /** Seuil Oméga : au-delà de 200, le niveau affiché est un niveau Oméga. */
-export const MULE_OMEGA_BASE = 200;
+export const MULE_OMEGA_BASE = DOFUS_LEVEL_MAX;
 /** Classe bornée : un id de classe fait moins que ça. */
 const CLASSE_MAX = 40;
 
@@ -27,9 +29,7 @@ const CLASSE_MAX = 40;
  * quand il est Oméga 75 (niveau 275) : on le dit explicitement.
  */
 export function muleLevelLabel(level: number | null): string | null {
-    if (level === null) return null;
-    if (level > MULE_OMEGA_BASE) return `Ω ${level - MULE_OMEGA_BASE} (niv. ${level})`;
-    return `Niv. ${level}`;
+    return level === null ? null : formatDofusLevelWithBase(level);
 }
 
 export interface DeclaredMuleOwner {

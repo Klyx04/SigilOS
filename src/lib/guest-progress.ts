@@ -78,6 +78,19 @@ export function guestCharacterStorageKey(slug: string): string {
   return `sigil_guest_${slug}_character`;
 }
 
+/**
+ * Clés de la **route d'alignement locale** (camp + Ordre). Exportées pour que l'export /
+ * import (F2) lise exactement les mêmes clés que le guide — une clé recopiée à la main
+ * finirait par diverger.
+ */
+export function guestRouteStorageKey(slug: string): string {
+  return `sigilos_rush_route_${slug}`;
+}
+
+export function guestRouteOrderStorageKey(slug: string): string {
+  return `sigilos_rush_route_order_${slug}`;
+}
+
 export function readGuestCharacter(slug: string): GuestCharacter | null {
   if (typeof localStorage === "undefined") return null;
   try {

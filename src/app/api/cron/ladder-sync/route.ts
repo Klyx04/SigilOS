@@ -4,6 +4,8 @@ import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
 import { boundCronList } from "@/lib/cron-metrics";
+import { normalizeLadderLevel, normalizeLadderXp } from "@/server/ladder-snapshot";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { emitSuccessPointsMilestone, emitLadderTopEntry } from "@/server/ladder-milestones";
 
 // Wait function to avoid spamming the worker / Ankama
@@ -108,14 +110,26 @@ export async function GET(req: Request) {
 
                     if (succesData.success && typeof succesData.points === 'number') {
                         updateData.successPoints = succesData.points;
-                        if (succesData.level) updateData.dofusLevel = succesData.level;
                     }
 
+                    const generalXp = generalData.success
+                        ? normalizeLadderXp(generalData.totalXp)
+                        : undefined;
                     if (generalData.success) {
-                        if (generalData.level) updateData.dofusLevel = generalData.level;
-                        if (generalData.totalXp) updateData.totalXp = BigInt(generalData.totalXp);
-                        if (generalData.classe) updateData.classe = generalData.classe;
+                        if (generalXp !== undefined) updateData.totalXp = generalXp;
+                        if (generalData.classe) updateData.classe = String(generalData.classe).slice(0, 50);
                     }
+
+                    // Niveau **total** (200 + Oméga) : le ladder ne renvoie que le niveau
+                    // Oméga, l'XP totale tranche. La fiche générale fait foi sur le niveau.
+                    const totalLevel = toTotalDofusLevel(
+                        normalizeLadderLevel(
+                            (generalData.success ? generalData.level : undefined) ??
+                                (succesData.success ? succesData.level : undefined)
+                        ),
+                        generalXp
+                    );
+                    if (totalLevel !== null) updateData.dofusLevel = totalLevel;
 
                     // Chantier N (lot N-2) : le **rang** dans le ladder de la guilde ne se lit qu'ici —
                     // « avant » se compte avant l'écriture (l'ancien score est encore en base),

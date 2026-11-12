@@ -92,7 +92,9 @@ describe("câblage de T-2b", () => {
     // le renvoie) mais le handler le JETAIT et re-devinait par le libellé ⇒ un tag dont
     // le texte ne correspond pas au titre exact de la quête ne menait nulle part
     // (clic mort sur « Sangs d'Encre »). L'id passe maintenant en premier.
-    expect(code).toMatch(/scrollToPrereq\(ref\.name\|\|"", ref\.seqId\)/);
+    // L'id passe maintenant en premier ; la liste s'ouvre dans la modale partagée, qui
+    // transmet `seqId` tel quel puis le nom retrouvé par `find` (jamais re-deviné).
+    expect(code).toMatch(/scrollToPrereq\(ref\?\.name \?\? "", seqId\)/);
     expect(code).toMatch(
       /handleScrollToPrereq = useCallback\(\(seqName: string, targetSeqId\?: string \| null\)/
     );

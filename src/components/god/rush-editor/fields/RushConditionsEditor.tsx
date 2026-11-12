@@ -1,13 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { Plus, X } from "lucide-react";
 
 import { RushQuestConstraints as RushQuestConstraintsView } from "@/components/dofus-quests/rush/RushQuestConstraints";
+import { RushPortrait } from "@/components/dofus-quests/rush/RushPortrait";
 import { GameIcon } from "@/components/shared/game-icon";
 import { DOFUS_CLASSES, DOFUS_JOBS, getJob } from "@/lib/dofus-assets";
-import { constraintsToInfos, sanitizeConstraints } from "@/lib/rush-constraints";
+import {
+  constraintsToInfos,
+  RUSH_COMBAT_MODES,
+  sanitizeConstraints,
+} from "@/lib/rush-constraints";
 import { cn } from "@/lib/utils";
-import type { RushConstraintRole, RushQuestConstraints } from "@/types/rush-constraints";
+import { searchMonstersForDefi } from "@/server/actions/defi-admin-actions";
+import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
+import type {
+  RushBashMob,
+  RushCombatMode,
+  RushCombatMonster,
+  RushConstraintRole,
+  RushDungeonChoiceDungeon,
+  RushQuestConstraints,
+} from "@/types/rush-constraints";
 
 import { RushClassSelect } from "./RushClassSelect";
 
@@ -98,6 +114,57 @@ export function RushConditionsEditor({
     if (!role || role.kind === "free") return;
     setRole(index, { ...role, level: raw ? Number(raw) : undefined });
   };
+
+  const combat = value.combat;
+  const dungeonChoice = value.dungeonChoice;
+  const bashMobs = value.bashMobs ?? [];
+
+  const setCombatMode = (mode: RushCombatMode) => {
+    const current = value.combat ?? { mode, monsters: [] };
+    update({ combat: { ...current, mode } });
+  };
+  const addCombatMonster = (monster: RushCombatMonster) => {
+    const current = value.combat ?? { mode: "solo" as const, monsters: [] };
+    update({ combat: { ...current, monsters: [...current.monsters, monster] } });
+  };
+  const updateCombatMonster = (index: number, patch: Partial<RushCombatMonster>) => {
+    if (!value.combat) return;
+    const monsters = value.combat.monsters.map((monster, monsterIndex) =>
+      monsterIndex === index ? { ...monster, ...patch } : monster,
+    );
+    update({ combat: { ...value.combat, monsters } });
+  };
+  const removeCombatMonster = (index: number) => {
+    if (!value.combat) return;
+    update({
+      combat: {
+        ...value.combat,
+        monsters: value.combat.monsters.filter((_, monsterIndex) => monsterIndex !== index),
+      },
+    });
+  };
+  const setDungeonNote = (note: string) => {
+    const current = value.dungeonChoice ?? { dungeons: [] };
+    update({ dungeonChoice: { ...current, note } });
+  };
+  const addDungeon = (dungeon: RushDungeonChoiceDungeon) => {
+    const current = value.dungeonChoice ?? { dungeons: [] };
+    update({ dungeonChoice: { ...current, dungeons: [...current.dungeons, dungeon] } });
+  };
+  const removeDungeon = (index: number) => {
+    if (!value.dungeonChoice) return;
+    update({
+      dungeonChoice: {
+        ...value.dungeonChoice,
+        dungeons: value.dungeonChoice.dungeons.filter(
+          (_, dungeonIndex) => dungeonIndex !== index,
+        ),
+      },
+    });
+  };
+  const addBashMob = (mob: RushBashMob) => update({ bashMobs: [...bashMobs, mob] });
+  const removeBashMob = (index: number) =>
+    update({ bashMobs: bashMobs.filter((_, mobIndex) => mobIndex !== index) });
 
   return (
     <div className="space-y-2.5">
@@ -361,6 +428,231 @@ export function RushConditionsEditor({
         )}
       </div>
 
+      {/* ── Combat ── */}
+      <div className="rounded-lg border border-border bg-surface/60 p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className={cn(LABEL, "flex items-center gap-1.5")}>
+            <GameIcon src="/assets/dofus/game-icons/crossed-swords.png" className={ICON} />
+            Combat
+          </span>
+          <div className="flex flex-wrap items-center gap-1">
+            <select
+              value={combat?.mode ?? "solo"}
+              onChange={(event) => setCombatMode(event.target.value as RushCombatMode)}
+              className={cn(FIELD, "w-44")}
+              aria-label="Mode de combat"
+            >
+              {RUSH_COMBAT_MODES.map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+            {combat && (
+              <button type="button" onClick={() => update({ combat: null })} className={ACTION}>
+                <X className={ICON} /> Retirer
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 space-y-1.5">
+          <MonsterSearch
+            placeholder="Ajouter un monstre au combat…"
+            onPick={(result) =>
+              addCombatMonster({
+                name: result.label,
+                count: 1,
+                level: monsterLevel(result.subLabel),
+                imageUrl: result.imageUrl ?? undefined,
+              })
+            }
+          />
+          {combat?.monsters.map((monster, index) => (
+            <div key={`${monster.name}-${index}`} className="flex flex-wrap items-center gap-1.5">
+              <RushPortrait src={monster.imageUrl} alt={monster.name} className="h-7 w-7" />
+              <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                {monster.name}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={monster.count}
+                onChange={(event) =>
+                  updateCombatMonster(index, { count: Number(event.target.value) || 1 })
+                }
+                className={cn(FIELD, "w-14")}
+                aria-label="Nombre de monstres"
+              />
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={monster.level ?? ""}
+                placeholder="Niv."
+                onChange={(event) =>
+                  updateCombatMonster(index, {
+                    level: event.target.value ? Number(event.target.value) : undefined,
+                  })
+                }
+                className={cn(FIELD, "w-16")}
+                aria-label="Niveau du monstre"
+              />
+              <input
+                type="number"
+                min={1}
+                max={999999}
+                value={monster.health ?? ""}
+                placeholder="PV"
+                onChange={(event) =>
+                  updateCombatMonster(index, {
+                    health: event.target.value ? Number(event.target.value) : undefined,
+                  })
+                }
+                className={cn(FIELD, "w-20")}
+                aria-label="Points de vie du monstre"
+              />
+              <button
+                type="button"
+                aria-label="Supprimer ce monstre"
+                onClick={() => removeCombatMonster(index)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className={ICON} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Donjon au choix ── */}
+      <div className="rounded-lg border border-border bg-surface/60 p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className={cn(LABEL, "flex items-center gap-1.5")}>
+            <GameIcon src="/assets/dofus/game-icons/zaap.png" className={ICON} />
+            Donjon au choix
+          </span>
+          {dungeonChoice && (
+            <button
+              type="button"
+              onClick={() => update({ dungeonChoice: null })}
+              className={ACTION}
+            >
+              <X className={ICON} /> Retirer
+            </button>
+          )}
+        </div>
+
+        <div className="mt-2 space-y-1.5">
+          <DungeonSearch
+            onPick={(dungeon) =>
+              addDungeon({
+                id: dungeon.id,
+                name: dungeon.name,
+                bossName: dungeon.bossName,
+                level: dungeon.level,
+                imageUrl: dungeon.imageUrl ?? undefined,
+              })
+            }
+          />
+          {dungeonChoice?.dungeons.map((dungeon, index) => (
+            <div key={`${dungeon.name}-${index}`} className="flex flex-wrap items-center gap-1.5">
+              <RushPortrait src={dungeon.imageUrl} alt={dungeon.name} className="h-8 w-8" />
+              <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                {dungeon.name}
+                <span className="block truncate text-[10px] text-muted-foreground">
+                  {dungeon.bossName ?? ""}
+                  {dungeon.level !== undefined
+                    ? `${dungeon.bossName ? " · " : ""}Niv. ${dungeon.level}`
+                    : ""}
+                </span>
+              </span>
+              <button
+                type="button"
+                aria-label="Supprimer ce donjon"
+                onClick={() => removeDungeon(index)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className={ICON} />
+              </button>
+            </div>
+          ))}
+          {dungeonChoice && (
+            <input
+              value={dungeonChoice.note ?? ""}
+              onChange={(event) => setDungeonNote(event.target.value)}
+              placeholder="Note (facultatif)"
+              className={cn(FIELD, "w-full")}
+              aria-label="Note du donjon au choix"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ── Monstres à tuer ── */}
+      <div className="rounded-lg border border-border bg-surface/60 p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className={cn(LABEL, "flex items-center gap-1.5")}>
+            <GameIcon src="/assets/dofus/game-icons/crossed-swords.png" className={ICON} />
+            Monstres à tuer
+          </span>
+          {bashMobs.length > 0 && (
+            <button type="button" onClick={() => update({ bashMobs: [] })} className={ACTION}>
+              <X className={ICON} /> Vider
+            </button>
+          )}
+        </div>
+
+        <div className="mt-2 space-y-1.5">
+          <MonsterSearch
+            placeholder="Ajouter une espèce à combattre…"
+            onPick={(result) =>
+              addBashMob({
+                name: result.label,
+                level: monsterLevel(result.subLabel),
+                imageUrl: result.imageUrl ?? undefined,
+              })
+            }
+          />
+          {bashMobs.map((mob, index) => (
+            <div key={`${mob.name}-${index}`} className="flex flex-wrap items-center gap-1.5">
+              <RushPortrait src={mob.imageUrl} alt={mob.name} className="h-6 w-6 rounded-full" />
+              <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{mob.name}</span>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={mob.level ?? ""}
+                placeholder="Niv."
+                onChange={(event) =>
+                  update({
+                    bashMobs: bashMobs.map((current, mobIndex) =>
+                      mobIndex === index
+                        ? {
+                            ...current,
+                            level: event.target.value ? Number(event.target.value) : undefined,
+                          }
+                        : current,
+                    ),
+                  })
+                }
+                className={cn(FIELD, "w-16")}
+                aria-label="Niveau du monstre"
+              />
+              <button
+                type="button"
+                aria-label="Supprimer ce monstre"
+                onClick={() => removeBashMob(index)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className={ICON} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Sorts ── */}
       <div className="rounded-lg border border-border bg-surface/60 p-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -468,6 +760,165 @@ export function RushConditionsEditor({
           <p className="mt-1.5 text-[11px] text-muted-foreground">Aucune condition saisie.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+type MonsterResult = {
+  value: string;
+  label: string;
+  subLabel?: string;
+  imageUrl?: string | null;
+};
+
+/** « Donjon · Niv. 200 » → 200 ; absent si le catalogue ne le dit pas. */
+function monsterLevel(subLabel?: string): number | undefined {
+  const match = subLabel?.match(/Niv\.\s*(\d+)/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+/** Recherche de monstre (catalogue local + boss siphonnés), avec portrait réel. */
+function MonsterSearch({
+  onPick,
+  placeholder,
+}: {
+  onPick: (result: MonsterResult) => void;
+  placeholder: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<MonsterResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const response = await searchMonstersForDefi(q);
+      if (!active) return;
+      setResults(response.success && response.data ? (response.data as MonsterResult[]) : []);
+      setLoading(false);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={placeholder}
+        className={cn(FIELD, "w-full")}
+        aria-label={placeholder}
+      />
+      {loading && <p className="text-[10px] text-muted-foreground">Recherche…</p>}
+      {results.length > 0 && (
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-surface p-1">
+          {results.map((result) => (
+            <button
+              key={result.value}
+              type="button"
+              onClick={() => {
+                onPick(result);
+                setQuery("");
+                setResults([]);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-elevated"
+            >
+              <RushPortrait src={result.imageUrl} alt={result.label} className="h-6 w-6" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] text-foreground">{result.label}</span>
+                {result.subLabel && (
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {result.subLabel}
+                  </span>
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type DungeonResult = {
+  id: string;
+  name: string;
+  bossName: string;
+  level: number;
+  imageUrl: string | null;
+};
+
+/** Recherche de donjon dans la base locale, avec l'icône réelle du donjon. */
+function DungeonSearch({ onPick }: { onPick: (dungeon: DungeonResult) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<DungeonResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const response = await searchDungeonsLocal(q);
+      if (!active) return;
+      setResults(response.success && response.data ? (response.data as DungeonResult[]) : []);
+      setLoading(false);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Ajouter un donjon au choix…"
+        className={cn(FIELD, "w-full")}
+        aria-label="Ajouter un donjon au choix"
+      />
+      {loading && <p className="text-[10px] text-muted-foreground">Recherche…</p>}
+      {results.length > 0 && (
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-surface p-1">
+          {results.map((dungeon) => (
+            <button
+              key={dungeon.id}
+              type="button"
+              onClick={() => {
+                onPick(dungeon);
+                setQuery("");
+                setResults([]);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-elevated"
+            >
+              <RushPortrait src={dungeon.imageUrl} alt={dungeon.name} className="h-7 w-7" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] text-foreground">{dungeon.name}</span>
+                <span className="block truncate text-[10px] text-muted-foreground">
+                  {dungeon.bossName} · Niv. {dungeon.level}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

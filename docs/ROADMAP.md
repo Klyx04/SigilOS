@@ -111,8 +111,8 @@
 
 | # | Chantier | Rang | Taille |
 |---|---|---|---|
-| 1 | Test flaky `lot4-slash-commands-api-keys` (timeout 5 s) | — | S |
-| 2 | Brouillon local du formulaire de quête (E2b-suite 2/2) | 59 | M |
+| 1 | ~~Test flaky `lot4-slash-commands-api-keys` (timeout 5 s)~~ ✅ **livré le 12/11** | — | S |
+| 2 | ~~Brouillon local du formulaire de quête (E2b-suite 2/2)~~ ✅ **livré le 12/11** | 59 | M |
 | 3 | Fiche visiteur — affinage (assets, hiérarchie) | 57 | M |
 | 4 | Dette DA du studio (577 motifs → 0, E4) | 59 | M |
 | 5 | Restes T-4 : G7 (hero), G8 (dépli), G9 (célébration), O15 (motion) | 9 · 55 | M |

@@ -5,8 +5,10 @@
  *
  * L'onglet Branches couvre la **route** (camps, Ordres, classes) ; celui-ci couvre les
  * blocs et les quêtes : bloc vide, quête sans conseil, sans lien DofusDB, sans ressource,
- * quête d'Ordre sans palier. Chaque ligne est un **geste** : elle ouvre la quête dans
- * l'inspecteur (ou le bloc quand le manque est le bloc lui-même).
+ * quête d'Ordre sans palier, et les deux incohérences de route qu'une vue de couverture
+ * ne peut pas voir (nom de classe contredit, Ordre ou palier sans cité). Chaque ligne est
+ * un **geste** : elle ouvre la quête dans l'inspecteur (ou le bloc quand le manque est le
+ * bloc lui-même).
  *
  * Aucune seconde règle ici : la liste vient de `analyzeRushEditorProblems` (règle pure,
  * verrouillée par `rush-editor-problems`).
@@ -102,7 +104,7 @@ export function RushProblemsPanel({
                       <span className="truncate">{target.questName ?? target.blockTitle}</span>
                       {target.questId && (
                         <span className="ml-auto shrink-0 truncate pl-2 text-caption text-muted-foreground">
-                          {target.blockTitle}
+                          {target.detail ?? target.blockTitle}
                         </span>
                       )}
                     </button>

@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 12/11/2026 (suite 2) — **Rang 59 · « Problèmes » : deux incohérences de route** — branche `feat/rush-problemes-route`
+
+> **Demande user (verbatim)** : « 2 contrôles "Problèmes" (quête de classe sans classe, quête d'alignement sans cité) » — puis, sur la mesure : « c du bolulot qui marchera que en local non ? sur le vps c différent ».
+> **Mesure (base locale 5433, 715 séquences — seed, **PAS** la prod)** : les **19** quêtes de classe portent **toutes** `classReq = cra` → 18 sortent pour la mauvaise classe. Une recherche par sous-chaîne est inutilisable (« Cania » → cra, « Srambad » → sram, « Ecaflipus » → ecaflip) ; en **mot entier**, seules **4** quêtes citent une classe (« Iop et hop », « Braquage à la Roublard », « Zobal Hibaba… » déclarées `cra`, « Sram d'Égoutant » sans classe). `alignOrderCode`/`alignLevelReq` sans `alignReq` = **0**. Corriger le seed local serait du travail jetable (le VPS a ses éditions God) ⇒ **aucune correction de données** : seul le contrôle est livré, et il lit les données de l'environnement où God ouvre l'onglet.
+> **Fait** : `rush-editor-problems` passe de **5** à **7** familles — `class-quest-misrouted` (le nom cite une classe, en **mot entier**, et `classReq` en déclare une autre ou aucune ; détail « dit iop · route cra ») via `classMentionedInName` (mot entier, sans casse ni accent, source unique `DOFUS_CLASSES`) et `alignment-quest-without-camp` (un Ordre ou un palier sans cité sort dans les deux camps) ; `detail` optionnel sur la cible, affiché à droite de la ligne.
+> **Preuves** : `rush-editor-problems` **22** (+9) · voisins `rush-class-branches` 10 · `rush-branches-cockpit` 8 · `rush-route-tooling` 19 ✓ · suite **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée, aucune lecture base depuis le studio (la règle reste pure).
+> **Reste** : contrôle visuel de l'onglet avec les deux nouvelles familles ; en prod le compte peut différer du local — c'est l'écran qui dit la vérité. Lots suivants : **3** (reset auto) → **13** (flaky).
+> **Rotation** : bloc « 11/11/2026 — Chantier 1/5 · Hub Communauté SigilOS » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite) — **Rang 59 · Numérotation des blocs : une seule règle pour les deux guides et l'overlay** — branche `feat/rush-numerotation-blocs`
 
 > **Demande user (verbatim)** : « Numérotation des blocs dans les 2 guides navigateur (même règle que l'overlay) » — décision actée le 12/11 : « **OUI** — même règle que l'overlay (`rushChapterPosition`) ».
@@ -67,15 +77,7 @@
 
 
 
-## 📝 Session 11/11/2026 — **Chantier 1/5 · Hub « Communauté SigilOS » + succès en commun** — branche `feat/visiteurs-communaute`
 
-> **Demande user (verbatim)** : « le fait qu'il faille aller cliquer dans l'onglet Explorer puis > Visiteurs je pense que personne n'ira jamais » · « je pense qu'il faut tout rassembler dans `/visiteurs` » · « Visiteurs > Communauté SigilOS » · « une seule PR pour les 5 chantiers, un commit par chantier » · « demande-moi de vérifier moi-même chaque chantier avant d'attaquer le suivant ».
-> **Mesures préalables** : ① l'annuaire vivait sous « Explorer ▸ Visiteurs », sans entrée dans la navigation de l'espace visiteur ; ② `/visiteurs` ne portait que les profils (aucune vue succès) ; ③ le composant `PublicBossAchievementsTab` accepte déjà `onToggle`/`doneIds`, mais la fiche publique restait en lecture seule ; ④ `PublicDungeonAchievement` porte les index utiles (`publicProfileId`, `dungeonAchievementId`) et `PublicProfile` a `@@index([dofusServerId, showOnDirectory])` ; ⑤ le nombre de succès est **déjà** public dans l'annuaire (`_count.achievements`), donc aucun consentement neuf n'est nécessaire.
-> **Fait** : le hub `/visiteurs` devient **« Communauté SigilOS »** avec deux vues (`Profils` / `Succès en commun`, URL `?vue=succes`), une **7ᵉ entrée** dans `VisitorNav` (asset `modules/character.png`) et un bandeau « toi » (pseudo, classe, serveur, 4 chiffres réels) ; la vue succès est une **règle pure** `src/lib/visitors-hub.ts` (bornes 500 lignes / 200 profils / 12 membres par colonne, partition exacte des profils consentants) + deux lectures serveur `src/server/public-succes-communs.ts` (`showOnDirectory: true` et `dofusServerId: viewer.serverId` dans **chaque** `where`) ; la fiche publique d'un boss **reste en lecture seule** (décision : `/espace-visiteur/succes` porte déjà la coche).
-> **Ajustements du 11/11 (retour user)** : le header sort « Visiteurs » d'`Explorer` pour en faire un lien **direct réservé aux comptes connectés** (Guides/Guildes restent dans le menu), **renommé « Communauté SigilOS »** (fr) / « SigilOS Community » (en) ; **« Modules » disparaît de la barre (desktop et menu mobile) pour un compte connecté** — c'est le catalogue public, il n'a plus d'utilité une fois connecté ; la liste n'affiche **que le métier filtré et son niveau** (le select ne lit plus les autres, et jamais un métier à 0) ; l'icône `modules/guild.png` accompagne la guilde déclarée (liste et fiche) ; les quatre tuiles du bandeau portent leurs **assets réels** ; le niveau de métier est **obligatoire** (schéma min 1, formulaire qui répare un ancien 0, annuaire qui ignore les 0). `/visiteurs` reste **`noindex`** (`robots: { index: false, follow: false }`) : route privée, session + profil, aucune entrée de sitemap.
-> **Preuves** : `visitors-hub` **18** (neuf) · `visitor-directory` **28** · `public-header-nav` **8** · `public-profile-actions` **23** · périmètre visiteur **131/131** · suite **649 fichiers / 6 935 tests ✓** · `tsc` 0 · ESLint 0 · **aucune migration**.
-> **Reste (chantiers 2→5)** : Metamob (échanges + siphon/veille API), Rush Live (présence + notifications navigateur, consentement par défaut), finitions anonymes F1→F7, studio E2. **À vérifier par l'utilisateur avant le chantier 2** : `/visiteurs` (bandeau, 7ᵉ onglet), bascule Profils/Succès, sélection d'un donjon, deux colonnes, cap 200/12, 390/768/1440.
-> **Rotation** : bloc « 09/11/2026 (suite 5) — Le proxy images est réparé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -14,6 +14,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   analyzeRushEditorProblems,
+  classMentionedInName,
   countRushEditorProblems,
   type RushEditorProblem,
   type RushProblemMilestone,
@@ -117,6 +118,115 @@ describe("problèmes de contenu — comptage et navigation", () => {
     const problems = analyzeRushEditorProblems([{ id: "b", title: "Bloc B", type: "QUETE_SERIE", sequences: [seq("a", { tips: "" })] }]);
     const target = problems.find((p) => p.kind === "quest-without-tips")?.targets[0];
     expect(target).toMatchObject({ blockId: "b", blockTitle: "Bloc B", questId: "a" });
+  });
+});
+
+describe("route — une quête de classe doit dire SA classe", () => {
+  it("le nom dit une classe, la route en dit une autre : signalé avec le détail", () => {
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [seq("iop", { subGuideName: "Iop et hop", classReq: "cra" })],
+      },
+    ]);
+    expect(kinds["class-quest-misrouted"].count).toBe(1);
+    expect(kinds["class-quest-misrouted"].targets[0].detail).toBe("dit iop · route cra");
+  });
+
+  it("le nom et la route d'accord : rien à signaler", () => {
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [seq("iop", { subGuideName: "Iop et hop", classReq: "IOP" })],
+      },
+    ]);
+    expect(kinds["class-quest-misrouted"].count).toBe(0);
+  });
+
+  it("une quête de classe sans aucune classe est signalée", () => {
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [seq("sram", { subGuideName: "Sram d'Égoutant", classReq: null })],
+      },
+    ]);
+    expect(kinds["class-quest-misrouted"].targets[0].detail).toBe("dit sram · route aucune");
+  });
+
+  it("un lieu qui contient un nom de classe n'est PAS un signal", () => {
+    // Mesure du 12/11/2026 : une recherche par sous-chaîne appariait « Cania » → cra,
+    // « Srambad » → sram et « Ecaflipus » → ecaflip. On ne garde que le mot entier.
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [
+          seq("cania", { subGuideName: "Cania 1 : Caniablanca", classReq: null }),
+          seq("srambad", { subGuideName: "Srambad 1", classReq: null }),
+          seq("ecaflipus", { subGuideName: "Ecaflipus 2", classReq: null }),
+        ],
+      },
+    ]);
+    expect(kinds["class-quest-misrouted"].count).toBe(0);
+  });
+
+  it("détecte le mot entier, sans casse ni accent", () => {
+    expect(classMentionedInName("Braquage à la Roublard")).toBe("roublard");
+    expect(classMentionedInName("Zobal Hibaba et les 40 Roublards")).toBe("zobal");
+    expect(classMentionedInName("Leçon de FÉCA")).toBe("feca");
+    expect(classMentionedInName("Cania 2 : ça en valait la plaine")).toBeNull();
+    expect(classMentionedInName(null)).toBeNull();
+  });
+});
+
+describe("route — un Ordre ou un palier sans cité sort dans les deux camps", () => {
+  it("un Ordre sans cité est signalé", () => {
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [seq("o", { alignOrderCode: "coeur_vaillant", alignLevelReq: 20 })],
+      },
+    ]);
+    expect(kinds["alignment-quest-without-camp"].count).toBe(1);
+    expect(kinds["alignment-quest-without-camp"].targets[0].detail).toBe("Ordre coeur_vaillant");
+  });
+
+  it("un palier seul est signalé", () => {
+    const kinds = byKind([
+      { id: "b", title: "B", type: "QUETE_SERIE", sequences: [seq("p", { alignLevelReq: 60 })] },
+    ]);
+    expect(kinds["alignment-quest-without-camp"].count).toBe(1);
+    expect(kinds["alignment-quest-without-camp"].targets[0].detail).toBe("palier 60");
+  });
+
+  it("un Ordre avec sa cité n'est pas signalé", () => {
+    const kinds = byKind([
+      {
+        id: "b",
+        title: "B",
+        type: "QUETE_SERIE",
+        sequences: [
+          seq("o", { alignReq: "bontarien", alignOrderCode: "coeur_vaillant", alignLevelReq: 20 }),
+        ],
+      },
+    ]);
+    expect(kinds["alignment-quest-without-camp"].count).toBe(0);
+  });
+
+  it("une quête de cité sans Ordre n'est pas signalée (cas normal)", () => {
+    const kinds = byKind([
+      { id: "b", title: "B", type: "QUETE_SERIE", sequences: [seq("c", { alignReq: "brakmarien" })] },
+    ]);
+    expect(kinds["alignment-quest-without-camp"].count).toBe(0);
   });
 });
 

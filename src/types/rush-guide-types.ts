@@ -78,6 +78,11 @@ export type RushSequence = {
   alignLevelReq?: number | null;
   /** Classe requise (fec | osa | enu | …) — quêtes de classe. */
   classReq?: string | null;
+  /** Variantes de texte par camp (lot 4) — vide ⇒ `subGuideName` / `tips` de base. */
+  routeVariants?: {
+    bontarien?: { name?: string; tips?: string };
+    brakmarien?: { name?: string; tips?: string };
+  } | null;
   isSuccess?: boolean;
   icon?: string | null;
   metamobMonsterId?: number | null;

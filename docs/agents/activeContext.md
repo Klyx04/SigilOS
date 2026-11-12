@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 12/11/2026 (suite 5) — **Rang 59 · Une seule quête, deux textes (lot 4, `routeVariants`)** — branche `feat/rush-route-variants`
+
+> **Décision user (verbatim)** : « Une quête avec deux textes (je fais la modification de la base) » — lot 4 de l'amorce, après avoir écarté « deux quêtes Jumelle » (déjà en place, mais deux lignes à cocher et une progression comptée deux fois).
+> **Fait** : colonne **`routeVariants Json?`** sur `GuideSequence` — migration **additive** `20261112170000_add_route_variants` (`prisma migrate dev` exigeait un **drop** de la base locale : refusé, SQL écrit à la main puis `migrate deploy`) ; schéma Zod borné (2 camps × 2 champs, nom ≤ 200, conseils ≤ 4000) ; résolution dans **`resolveRushRoute`** (`applyRouteVariant`) — le point par lequel passent le guide membre, le guide public **et** l'overlay : une règle, trois surfaces ; studio : section **« 🎭 Texte par camp »** (2 × nom + conseils), `isDirty` et payload ; serveur : `parseRouteVariants` + refus net d'une forme invalide, `null` efface.
+> **Preuves** : `rush-route-variants` **15** (neuf) · `rush-route` 14 · `rush-route-tooling` 19 · `rush-twin-branch` 13 · `rush-sequence-inspector` **18** (« neuf accordéons » → **dix**, justifié : la section du lot 4) · suite **666 fichiers / 7 153 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops (humain)** : **jouer la migration en bêta puis en prod** (`npx prisma migrate deploy`) et **redémarrer `npm run dev`** (client Prisma régénéré) ; contrôle visuel de la section dans le studio et d'un texte qui change avec le camp.
+> **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 4) — **Rang 59 · Reset automatique au changement de cité/Ordre (lot 3)** — branche `feat/rush-reset-auto`
 
 > **Demande user (verbatim)** : « fais 3-4 » — lot 3 de l'amorce : « Reset de progression au changement de cité/Ordre = **OUI**, automatique, sur le personnage sélectionné (mule comprise), avec annonce de ce qui a été décoché ».
@@ -63,14 +72,7 @@
 > **Rotation** : bloc « 10/11/2026 (suite 2) — V-H donjons ocre » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 11/11/2026 (suite 3) — **Chantier 4/5 · Finitions anonymes F1→F7** — branche `feat/visiteurs-communaute`
 
-> **Décisions user** : F1 Ocre = **deux lignes séparées** (quêtes / captures Metamob), jamais un pourcentage unique ; F3 anonyme = **pas de tuile Metamob morte**, l'espace porte le panneau F5 ; F6 = **même modale que l'overlay** dans les pages (le repli `<details>` est supprimé) ; F7 = **en dernier**, l'utilisateur valide (la PiP passe en qualité basse).
-> **Mesures** : ① le guide contient **3 blocs Ocre** (`dofusId: "ocre"`) — un « % Ocre » sur 3 blocs serait faux ; Metamob renvoie un **% de captures** (`captured/total`), pas des quêtes ; ② les prérequis de la page sont **un chip par prérequis** (`RushTimelineClient:360`, `PublicRushGuideClient:2821`), l'overlay a une **modale** depuis le 22/10 ; ③ `[data-quality="low"]` existe dans le CSS et la skill, mais **aucune surface ne le pose** : PiP et guide avaient le même grain (d'où les captures identiques) ; ④ les clés locales sont `completed_ms`/`steps`/`bookmarks`/`dungeons`/`resources`, le personnage et `sigilos_rush_route*`.
-> **Fait** : F3/F4 (rangée `gap-4`, recherche + Options espacés, champ élargi) ; F5 (panneau « Avec un profil visiteur » dans l'espace libre, sans second bouton) ; F6 (page publique **et** guide membre ouvrent la **modale de l'overlay** depuis une seule ligne ; `RushPrereqCollapse` supprimé) ; F1 (`dofusMilestoneStats` — blocs par Dofus, ordre de `RUSH_DOFUS_META` ; panneau unique « Ma progression par Dofus » fusionné avec « Progression Communautaire » (onglets Moi/Communauté, **chaque Dofus cliquable** vers une fiche **partagée** avec l'interne — quêtes + asset + statut, membres compactes —, communauté chargée à la demande : une requête, l'effet ne s'auto-annule plus) ; Ocre = `2/3` + `43 % capturés` ou « compte requis » / « indisponibles », + ligne étape/monstres ; résumé chargé par `PublicOcreDungeonBridge` étendu) ; F2 (`src/lib/guest-export.ts` : format `sigilos.rush.guest` v1, Zod borné, 5 clés + personnage + route, refus net, aucun secret ; Options → exporter/importer, anonyme seulement, import = remplacement annoncé) ; F7 (`data-quality="low"` sur la racine de l'overlay — la PiP est nette, le guide garde la gouache) ; **repère ≠ verrou** (un donjon/prérequis bloque la validation, pas « je suis ici » ; `data-here` sur carte verrouillée dans les trois surfaces) ; **badge Ocre** des donjons remis dans la ligne (plus de pastille sur la vignette).
-> **Preuves** : `rush-finitions-anonymes` **15** (neuf) · `guest-export` **22** (neuf) · `rush-bookmark-locked` **6** (neuf) · `da-wakfu` (+1) · suite **658 fichiers / 7 045 tests ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**, aucun secret, aucun `guildId`.
-> **Reste** : contrôle visuel 390/768/1024/1440 (rangée anonyme, panneau F5, progression par Dofus + Ocre connecté, export/import, prérequis en modale, PiP nette **à valider par l'utilisateur**) ; chantier 5 = studio E2. Aucune opération serveur.
-> **Rotation** : bloc « 10/11/2026 (suite) — Rang 57 · F17b » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

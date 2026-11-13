@@ -6,7 +6,7 @@ export function GodLoadingSkeleton({ rows = 3, className }: {
     return (
         <div className={cn("space-y-3", className)}>
             {Array.from({ length: rows }).map((_, i) => (
-                <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/5 border border-white/5" />
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-muted/50 border border-border" />
             ))}
         </div>
     );

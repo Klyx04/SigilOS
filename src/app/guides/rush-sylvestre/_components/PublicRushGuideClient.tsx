@@ -106,6 +106,8 @@ import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { isRushCombatBlock, isRushNonQuestBlock } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushQuestConstraints } from "@/components/dofus-quests/rush/RushQuestConstraints";
 import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
@@ -1454,7 +1456,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     const out: { ms: RushMilestone; index: number; lead: RushMilestone[]; tail: RushMilestone[] }[] = [];
     let lead: RushMilestone[] = [];
     milestones.forEach((ms, index) => {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") {
+      if (isRushNonQuestBlock(ms.type)) {
         // Bannière : elle reste collée au chapitre qui la suit (sinon à la fin du dernier).
         if (out.length) out[out.length - 1].tail.push(ms);
         else lead.push(ms);
@@ -2436,6 +2438,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                 >
                   <RushRichText text={infoText} normalizeMeta />
                 </RushInfoBanner>
+              </div>
+            );
+          }
+
+          if (isRushCombatBlock(ms.type)) {
+            return (
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <RushCombatBanner
+                  type={ms.type}
+                  title={ms.title}
+                  bodyText={ms.tips || ms.description || ms.title}
+                  imageUrl={ms.imageUrl}
+                  links={ms.links}
+                  surface="page"
+                />
               </div>
             );
           }

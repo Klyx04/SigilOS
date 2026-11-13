@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_FILE_SIZE, detectMimeType } from "@/lib/image-security";
+import { isPrivateIp } from "@/lib/ip-safety";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
@@ -47,13 +48,13 @@ function mimeToExt(mime: string): string {
   if (mime.includes("webp")) return ".webp";
   if (mime.includes("png")) return ".png";
   if (mime.includes("gif")) return ".gif";
-  if (mime.includes("svg")) return ".svg";
   if (mime.includes("avif")) return ".avif";
   return ".jpg"; // fallback
 }
 
 function findCacheFile(hash: string): { filePath: string; ext: string } | null {
-  for (const ext of [".webp", ".jpg", ".png", ".gif", ".svg", ".avif"]) {
+  // AUD-05 : plus de `.svg` — le cache ne doit jamais resservir du contenu actif.
+  for (const ext of [".webp", ".jpg", ".png", ".gif", ".avif"]) {
     const fp = path.join(CACHE_DIR, `${hash}${ext}`);
     if (fs.existsSync(fp)) return { filePath: fp, ext };
   }
@@ -117,39 +118,7 @@ const ALLOWED_DOMAINS = new Set([
   "beta.sigilos.fr",
 ]);
 
-// Ranges privées / réservées à bloquer (anti-SSRF)
-const PRIVATE_IP_BLOCKS: Array<[bigint, bigint]> = [
-  // 10.0.0.0/8
-  [0x0a000000n, 0x0affffffn],
-  // 127.0.0.0/8 (loopback)
-  [0x7f000000n, 0x7fffffffn],
-  // 169.254.0.0/16 (link-local / metadata AWS)
-  [0xa9fe0000n, 0xa9feffffn],
-  // 172.16.0.0/12
-  [0xac100000n, 0xac1fffffn],
-  // 192.168.0.0/16
-  [0xc0a80000n, 0xc0a8ffffn],
-  // 0.0.0.0/8
-  [0x00000000n, 0x00ffffffn],
-];
-
-function ipToNumber(ip: string): bigint | null {
-  const parts = ip.split(".");
-  if (parts.length !== 4) return null;
-  let result = 0n;
-  for (const part of parts) {
-    const n = Number(part);
-    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
-    result = (result << 8n) | BigInt(n);
-  }
-  return result;
-}
-
-function isPrivateIp(ip: string): boolean {
-  const num = ipToNumber(ip);
-  if (num === null) return true; // Invalid IP → reject
-  return PRIVATE_IP_BLOCKS.some(([lo, hi]) => num >= lo && num <= hi);
-}
+// Ranges privées / réservées : règle partagée `src/lib/ip-safety.ts` (IPv4 + IPv6).
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -173,6 +142,7 @@ export async function GET(req: NextRequest) {
         headers: {
           "Content-Type": mime,
           "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
           "X-Cache": "HIT",
         },
       });
@@ -201,11 +171,8 @@ export async function GET(req: NextRequest) {
       const dns = await import("node:dns/promises");
       const addresses = await dns.lookup(parsedUrl.hostname, { all: true });
       for (const addr of addresses) {
-        if (addr.family === 4 && isPrivateIp(addr.address)) {
+        if (isPrivateIp(addr.address)) {
           return NextResponse.json({ error: "Internal IP not allowed" }, { status: 403 });
-        }
-        if (addr.family === 6 && (addr.address.startsWith("::1") || addr.address.startsWith("fe80:"))) {
-          return NextResponse.json({ error: "Internal IPv6 not allowed" }, { status: 403 });
         }
       }
     } catch {
@@ -270,9 +237,18 @@ export async function GET(req: NextRequest) {
 
     const declaredCtype = response.headers.get("content-type") || "";
     const detected = detectMimeType(buffer);
-
-    // Known images: use the REAL detected type (ignores a spoofed header).
     const contentType = detected || declaredCtype || "application/octet-stream";
+
+    // 🔐 AUD-05 (audit 13/11/2026) : le SVG est du contenu ACTIF. Même sans
+    // `<script`, un `<svg onload=…>` ou `<foreignObject>` s'exécute si le
+    // navigateur navigue directement sur cette URL (same-origin). On refuse
+    // tout SVG/XML, y compris lorsqu'un `Content-Type` mensonger le présente
+    // comme une image.
+    const head = buffer.subarray(0, 1024).toString("utf8");
+    const looksLikeSvg = /<svg[\s>]/i.test(head) || /^\s*<\?xml/i.test(head);
+    if (looksLikeSvg || /svg|xml/i.test(contentType)) {
+      return NextResponse.json({ error: "SVG/XML not allowed" }, { status: 415 });
+    }
 
     // F-06: MIME spoofing defense — if we could not positively identify the bytes
     // as a known image, make sure we are NOT serving an HTML page or a script
@@ -301,6 +277,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
         "X-Cache": "MISS",
       },
     });

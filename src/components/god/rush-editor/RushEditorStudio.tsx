@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode
+  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode, type RefObject
 } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +23,7 @@ import {
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
   ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
+  Globe, GlobeLock,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -31,6 +32,10 @@ import {
   moveRushSequence,
   splitRushSequence,
   updateRushBlockRoute,
+  bulkUpdateRushSequencesRoute,
+  bulkMoveRushSequences,
+  bulkDeleteRushSequences,
+  publishRushSequence,
   deleteRushSequence,
   updateRushSylvestreSettings,
   updateRushUIConfig,
@@ -77,10 +82,18 @@ import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { RushMarkdown } from "@/components/dofus-quests/rush/RushMarkdown";
+import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
+import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
+import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
+import { parseRushMarkdown } from "@/lib/rush-markdown";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { isDirty, UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
 // E1 — le studio est découpé : coquille, barre, arbre, inspecteur et palette vivent dans
 // `src/components/god/rush-editor/**` (plafond God 77/77 respecté). Les formulaires
@@ -101,6 +114,12 @@ import {
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
 import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
+import {
+  pruneRushBulkSelection,
+  rushBulkSelectionState,
+  selectAllRushBulk,
+  toggleRushBulkSelection,
+} from "@/lib/rush-bulk-selection";
 import {
   findRushEditorBlock,
   isRushOutsideChapter,
@@ -160,6 +179,9 @@ type Sequence = {
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: ActivityTag[];
+  /** Bloc B — page publique : slug figé à la publication. */
+  publicSlug?: string | null;
+  isPublished?: boolean;
 };
 
 /** Route appliquée à un bloc (G1) — une valeur vide **efface** celle du bloc. */
@@ -170,7 +192,7 @@ type RushBlockRouteValues = {
   classReq: string | null;
 };
 
-type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED";
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED" | "COMBAT_TACTIQUE" | "COMBAT_SEMI_TACTIQUE";
 
 type Milestone = {
   id: string;
@@ -184,6 +206,8 @@ type Milestone = {
   isOptional: boolean;
   order: number;
   tips?: string | null;
+  /** Liens externes nommés (blocs Combat / Conseils) — stockés sur le bloc. */
+  links?: RushBlockLink[] | null;
   dofusId?: string | null;
   type?: MilestoneType;
   sequences: Sequence[];
@@ -225,6 +249,18 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
   { value: "SEPARATEUR", label: "Séparateur", icon: <Sparkles className="w-3 h-3" />, color: "#f59e0b" },
   { value: "DOFUS_OBTAINED", label: "Obtention Dofus", icon: <Gem className="w-3 h-3" />, color: "#d4a853" },
+  {
+    value: "COMBAT_TACTIQUE",
+    label: "Combat tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.accent,
+  },
+  {
+    value: "COMBAT_SEMI_TACTIQUE",
+    label: "Combat semi-tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.accent,
+  },
 ];
 
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`) partagée avec le
@@ -421,6 +457,9 @@ export function RushSylvestreAdminClient({
   const [questFullscreen, setQuestFullscreen] = useState(false);
   // Changer de quête referme la modale : on ne garde jamais une fiche fantôme à l'écran.
   useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);
+  /** E5 — le formulaire de bloc (TOUS les types) dans la modale large. */
+  const [blockFullscreen, setBlockFullscreen] = useState(false);
+  useEffect(() => { setBlockFullscreen(false); }, [editingMilestone?.id]);
   /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
   const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
 
@@ -676,6 +715,7 @@ export function RushSylvestreAdminClient({
           dofusId: m.dofusId,
           type: m.type,
           imageUrl: m.imageUrl ?? null,
+          links: m.links ?? undefined,
         });
         toast.success("Étape sauvegardée ✓");
         // Le bloc enregistré devient la **nouvelle référence** : `localMilestones` est mis à
@@ -796,6 +836,81 @@ export function RushSylvestreAdminClient({
         router.refresh();
       } catch (e: any) {
         toast.error(e?.message || "Application impossible");
+      }
+    });
+  }, [router]);
+
+  /**
+   * E3c — route appliquée à une **sélection** de quêtes. Le serveur revalide chaque
+   * id et refuse si une seule quête n'appartient pas au guide Rush.
+   */
+  const handleBulkRoute = useCallback((sequenceIds: string[], route: RushBlockRouteValues) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkUpdateRushSequencesRoute({ sequenceIds, ...route });
+        toast.success(`Route appliquée à ${res.count} quête${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Application impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkMove = useCallback((sequenceIds: string[], targetMilestoneId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkMoveRushSequences({ sequenceIds, targetMilestoneId });
+        toast.success(`${res.moved} quête${res.moved !== 1 ? "s" : ""} déplacée${res.moved !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Déplacement impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkDelete = useCallback((sequenceIds: string[]) => {
+    const ids = new Set(sequenceIds);
+    // Optimiste : la sélection quitte la liste immédiatement ; le serveur confirme.
+    setLocalMilestones(prev => prev.map(m => ({
+      ...m,
+      sequences: m.sequences.filter(s => !ids.has(s.id)),
+    })));
+    if (editingSeqId && ids.has(editingSeqId)) {
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+    }
+    startTransition(async () => {
+      try {
+        const res = await bulkDeleteRushSequences({ sequenceIds });
+        toast.success(`${res.count} quête${res.count !== 1 ? "s" : ""} supprimée${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
+    });
+  }, [router, editingSeqId]);
+
+  /**
+   * Bloc B — publie ou dépublie **une** quête. Le slug est figé côté serveur à la
+   * première publication ; on ne le recalcule jamais ici.
+   */
+  const handlePublishQuest = useCallback((sequenceId: string, publish: boolean) => {
+    startTransition(async () => {
+      try {
+        const res = await publishRushSequence({ sequenceId, publish });
+        setLocalMilestones(prev => prev.map(m => ({
+          ...m,
+          sequences: m.sequences.map(s => (
+            s.id === sequenceId
+              ? { ...s, publicSlug: res.slug, isPublished: res.isPublished }
+              : s
+          )),
+        })));
+        toast.success(res.isPublished ? "Quête publiée ✓" : "Quête dépubliée");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Publication impossible");
       }
     });
   }, [router]);
@@ -1029,6 +1144,31 @@ export function RushSylvestreAdminClient({
     />
   ) : null;
 
+  /**
+   * E5 — le formulaire de bloc est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (inspecteur ou modale large), jamais deux instances.
+   */
+  const blockForm = blockBeingEdited ? (
+    <BlockInspectorForm
+      milestone={blockBeingEdited}
+      editingData={blockBeingEdited}
+      isPending={isPending}
+      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
+      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+      onCancelEdit={closeInspector}
+      onApplyBlockRoute={handleApplyBlockRoute}
+      onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
+      onAddSequence={() => startAddSequence(blockBeingEdited.id)}
+      milestones={localMilestones}
+      onBulkRoute={handleBulkRoute}
+      onBulkMove={handleBulkMove}
+      onBulkDelete={handleBulkDelete}
+      onPublishQuest={handlePublishQuest}
+      isFullscreen={blockFullscreen}
+      onToggleFullscreen={() => setBlockFullscreen((v) => !v)}
+    />
+  ) : null;
+
   const inspectorBody = addingSequenceTo ? (
     <AddSequenceForm
       // E2c — la clé force un **remontage** quand la cible change : sans elle, React
@@ -1041,17 +1181,21 @@ export function RushSylvestreAdminClient({
       defaultRoute={sequenceRouteDefaults}
     />
   ) : blockBeingEdited ? (
-    <BlockInspectorForm
-      milestone={blockBeingEdited}
-      editingData={blockBeingEdited}
-      isPending={isPending}
-      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
-      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-      onCancelEdit={closeInspector}
-      onApplyBlockRoute={handleApplyBlockRoute}
-      onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
-      onAddSequence={() => startAddSequence(blockBeingEdited.id)}
-    />
+    blockFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setBlockFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : blockForm
   ) : selectedQuest && selectedQuestBlock ? (
     questFullscreen ? (
       <div className="rounded-xl border border-dashed border-border p-6 text-center">
@@ -1073,7 +1217,7 @@ export function RushSylvestreAdminClient({
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white" data-rush-admin-root>
+    <div className="min-h-screen bg-surface text-foreground" data-rush-admin-root>
       {/* Barre unique (E1) — guide, état, recherche, onglets, données. */}
       <div className="sticky top-0 z-40 border-b border-border bg-surface">
         <RushEditorTopbar
@@ -1126,20 +1270,37 @@ export function RushSylvestreAdminClient({
         </DialogContent>
       </Dialog>
 
+      {/* E5 — la même modale large pour TOUS les types de bloc (Conseils, Combat, Séparateur…). */}
+      <Dialog open={blockFullscreen && !!blockForm} onOpenChange={(open) => { if (!open) setBlockFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {blockBeingEdited ? blockBeingEdited.title : "Bloc"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {blockBeingEdited
+                ? `Bloc · ${blockBeingEdited.chapterLabel || "hors chapitre"} · ${blockBeingEdited.sequences.length} quête(s)`
+                : "Édition du bloc"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{blockForm}</div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal d'aperçu d'import */}
       <AnimatePresence>
         {importPreview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4"
             onClick={() => setImportPreview(null)}>
             <motion.div initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+              className="w-full max-w-md bg-surface border border-border rounded-xl p-6 space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-base font-black text-white">Importer le Guide Rush Sylvestre Unifié</h3>
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground">Importer le Guide Rush Sylvestre Unifié</h3>
               </div>
-              <p className="text-sm text-zinc-400">Aperçu du dataset unifié (Dofusyelle + Tougli + SigilOS Engine). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
+              <p className="text-sm text-muted-foreground">Aperçu du dataset unifié (Dofusyelle + Tougli + SigilOS Engine). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                 <PreviewStat label="Jalons" value={importPreview.plan.milestones} />
                 <PreviewStat label="Quêtes" value={importPreview.plan.sequences} />
@@ -1150,9 +1311,9 @@ export function RushSylvestreAdminClient({
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setImportPreview(null)} disabled={importing}
-                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 bg-zinc-800 border border-white/10 transition-all">Annuler</button>
+                  className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground bg-muted border border-border transition-all">Annuler</button>
                 <button onClick={() => runSeed(true)} disabled={importing}
-                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-all disabled:opacity-50">
+                  className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-all disabled:opacity-50">
                   {importing ? "Import…" : "Appliquer"}
                 </button>
               </div>
@@ -1189,15 +1350,15 @@ export function RushSylvestreAdminClient({
             list={
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Stats */}
-            <div className="flex items-center gap-6 px-5 py-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
+            <div className="flex items-center gap-6 px-5 py-3 bg-surface/60 border border-border rounded-xl">
               <StatPill label="Chapitres" value={chapterCount} />
-              <div className="w-px h-8 bg-white/5" />
+              <div className="w-px h-8 bg-muted/50" />
               <StatPill label="Blocs" value={localMilestones.filter((m) => !isSeparatorMilestone(m)).length} />
-              <div className="w-px h-8 bg-white/5" />
+              <div className="w-px h-8 bg-muted/50" />
               <StatPill label="Quêtes" value={localMilestones.reduce((s, m) => s + m.sequences.length, 0)} />
               <div className="flex-1" />
               <button onClick={() => setAddingStep(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
               >
                 <Plus className="w-3.5 h-3.5" /> Ajouter un bloc
               </button>
@@ -1209,12 +1370,12 @@ export function RushSylvestreAdminClient({
                 const linkedMilestones = localMilestones.filter(m => m.dofusId === d.id);
                 const questCount = linkedMilestones.reduce((acc, m) => acc + m.sequences.length, 0);
                 return (
-                  <div key={d.id} className="p-3 bg-zinc-900/40 border border-white/5 rounded-2xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
+                  <div key={d.id} className="p-3 bg-surface/40 border border-border rounded-xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={d.imageUrl} alt={d.label} className="w-10 h-10 object-contain mb-1 drop-shadow-lg" />
-                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: readableOn(d.color, GOD_DOFUS_SURFACE).color }}>{d.label}</p>
-                    <p className="text-xs font-bold text-white mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
-                    <p className="text-caption text-zinc-600">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
+                    <p className="text-caption font-semibold uppercase tracking-wide" style={{ color: readableOn(d.color, GOD_DOFUS_SURFACE).color }}>{d.label}</p>
+                    <p className="text-xs font-bold text-foreground mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
+                    <p className="text-caption text-subtle-foreground">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
                   </div>
                 );
               })}
@@ -1224,19 +1385,19 @@ export function RushSylvestreAdminClient({
             <AnimatePresence>
               {addingStep && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className="p-5 bg-emerald-950/20 border border-emerald-500/20 rounded-2xl space-y-4">
-                    <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">Nouveau bloc</h3>
+                  <div className="p-5 bg-primary/20 border border-primary/20 rounded-xl space-y-4">
+                    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Nouveau bloc</h3>
 
                     {/* Type selector */}
                     <div>
-                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Type de bloc</label>
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Type de bloc</label>
                       <div className="flex flex-wrap gap-2">
                         {MILESTONE_TYPES.map(t => (
                           <button key={t.value} onClick={() => {
                             setNewStepType(t.value);
                             if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
                           }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-black border transition-all ${newStepType === t.value ? "border-white/30 text-white bg-white/10" : "border-white/5 text-zinc-500 hover:text-zinc-300"}`}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold border transition-all ${newStepType === t.value ? "border-border text-foreground bg-muted/50" : "border-border text-muted-foreground hover:text-foreground"}`}
                             style={newStepType === t.value ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" } : {}}
                           >
                             {t.icon}{t.label}
@@ -1248,42 +1409,42 @@ export function RushSylvestreAdminClient({
                     {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" && newStepType !== "INFO" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">N° chapitre *</label>
                         <input type="number" min={1} value={newChapterNum}
                           onChange={e => setNewChapterNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 font-mono"
+                          className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/50 font-mono"
                         />
                       </div>
                       <div>
-                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Label chapitre</label>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Label chapitre</label>
                         <input value={newChapterLabel} onChange={e => setNewChapterLabel(e.target.value)}
                           placeholder="ex: Incarnam & Astrub"
-                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/50"
+                          className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
                         />
                       </div>
                     </div>
                     ) : newStepType === "INFO" ? (
-                      <p className="text-caption text-purple-400/70 leading-relaxed">
+                      <p className="text-caption text-primary/70 leading-relaxed">
                         Le bloc Conseil/Tips est un bandeau informatif autonome — il n'appartient à aucun chapitre et peut être déplacé librement entre les quêtes.
                       </p>
                     ) : newStepType === "SEPARATEUR" ? (
-                      <p className="text-caption text-amber-400/70 leading-relaxed">
+                      <p className="text-caption text-warning/70 leading-relaxed">
                         Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
                         L&apos;image importée remplit la droite de son bandeau, côté membre comme dans le guide public.
                       </p>
                     ) : (
-                      <p className="text-caption text-amber-400/70 leading-relaxed">
+                      <p className="text-caption text-warning/70 leading-relaxed">
                         La bannière d'obtention est un bloc visuel autonome — il n'appartient à aucun chapitre et n'est pas cochable.
                       </p>
                     )}
                     <div>
-                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
                         {newStepType === "SEPARATEUR" ? "Titre de section *" : newStepType === "INFO" ? "Titre du conseil *" : "Nom du bloc *"}
                       </label>
                       <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && handleAddStep()}
                         placeholder={newStepType === "SEPARATEUR" ? "ex: Dofus Turquoise" : "ex: Quêtes Incarnam de base"}
-                        className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/50"
+                        className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
                         autoFocus
                       />
                     </div>
@@ -1319,16 +1480,16 @@ export function RushSylvestreAdminClient({
                     {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
                     {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (
                       <div>
-                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé <span className="text-zinc-600">(clic pour sélectionner)</span></label>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Dofus associé <span className="text-subtle-foreground">(clic pour sélectionner)</span></label>
                         <div className="flex flex-wrap gap-2">
                           {DOFUS_LIST.map(d => (
                             <button key={d.id} type="button"
                               onClick={() => setNewDofusId(prev => prev === d.id ? null : d.id)}
                               title={d.label}
-                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-black border transition-all ${
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold border transition-all ${
                                 newDofusId === d.id
-                                  ? "border-white/40 scale-105"
-                                  : "border-white/10 opacity-40 hover:opacity-80"
+                                  ? "border-border scale-105"
+                                  : "border-border opacity-40 hover:opacity-80"
                               }`}
                               style={newDofusId === d.id ? { color: readableOn(d.color, GOD_MODAL_SURFACE).color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
                             >
@@ -1339,17 +1500,17 @@ export function RushSylvestreAdminClient({
                           ))}
                         </div>
                         {newDofusId && (
-                          <p className="mt-1.5 text-caption text-emerald-400/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
+                          <p className="mt-1.5 text-caption text-primary/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
                         )}
                       </div>
                     )}
 
                     <div>
-                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Couleur accent</label>
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Couleur accent</label>
                       <div className="flex items-center gap-2 flex-wrap">
                         {COLOR_PALETTE.map(c => (
                           <button key={c.value} onClick={() => setNewStepColor(c.value)} title={c.label}
-                            className={`w-6 h-6 rounded-full border-2 transition-all ${newStepColor === c.value ? "border-white scale-125" : "border-transparent opacity-60 hover:opacity-100"}`}
+                            className={`w-6 h-6 rounded-full border-2 transition-all ${newStepColor === c.value ? "border-border scale-125" : "border-transparent opacity-60 hover:opacity-100"}`}
                             style={{ backgroundColor: c.value }}
                           />
                         ))}
@@ -1362,12 +1523,12 @@ export function RushSylvestreAdminClient({
 
                     <div className="flex items-center gap-2">
                       <button onClick={handleAddStep} disabled={isPending}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         <Check className="w-3.5 h-3.5" /> Créer
                       </button>
                       <button onClick={() => setAddingStep(false)}
-                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        className="px-4 py-2 bg-muted hover:bg-muted text-muted-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         Annuler
                       </button>
@@ -1379,9 +1540,9 @@ export function RushSylvestreAdminClient({
 
             {/* Liste ordonnée (séparateurs + blocs) */}
             {localMilestones.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/5 rounded-3xl">
-                <Zap className="w-12 h-12 text-zinc-800 mb-4" />
-                <p className="text-zinc-600 font-black uppercase text-xs tracking-widest italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
+              <div className="flex flex-col items-center justify-center py-24 border border-dashed border-border rounded-xl">
+                <Zap className="w-12 h-12 text-subtle-foreground mb-4" />
+                <p className="text-subtle-foreground font-semibold uppercase text-xs tracking-wide italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
               </div>
             ) : (
               <DndContext
@@ -1402,10 +1563,10 @@ export function RushSylvestreAdminClient({
                         <div key={m.id} className="space-y-2">
                           {showChapterLabel && (
                             <div className="flex items-center gap-2 pt-2 pb-1 px-1">
-                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-caption font-black font-mono rounded tracking-widest border border-white/5">
+                              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-caption font-semibold font-mono rounded tracking-wide border border-border">
                                 CH.{m.chapter}
                               </span>
-                              <span className="text-xs font-black text-zinc-400 uppercase tracking-wide">{m.chapterLabel}</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{m.chapterLabel}</span>
                             </div>
                           )}
                           {isSeparatorMilestone(m) ? (
@@ -1416,7 +1577,7 @@ export function RushSylvestreAdminClient({
                               onDelete={() => setPendingDelete(m)}
                             />
                           ) : (
-                            <div className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
+                            <div className="border border-border rounded-xl overflow-hidden bg-surface/10">
                               <SortableMilestoneRow
                                 milestone={m}
                                 isExpanded={expandedMilestones.has(m.id)}
@@ -1447,15 +1608,15 @@ export function RushSylvestreAdminClient({
                     if (!dragged) return null;
                     const t = getMilestoneTypeInfo(dragged.type as MilestoneType);
                     return (
-                      <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-zinc-900/95 px-3 py-2 shadow-2xl">
+                      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-2 shadow-2xl">
                         <span
                           className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
                           style={{ background: t.color + "20", color: t.color }}
                         >
                           {t.icon}
                         </span>
-                        <span className="truncate text-sm font-bold text-white">{dragged.title}</span>
-                        <span className="shrink-0 text-caption text-zinc-500">
+                        <span className="truncate text-sm font-bold text-foreground">{dragged.title}</span>
+                        <span className="shrink-0 text-caption text-muted-foreground">
                           {dragged.sequences.length} quête{dragged.sequences.length !== 1 ? "s" : ""}
                         </span>
                       </div>
@@ -1489,31 +1650,31 @@ export function RushSylvestreAdminClient({
 
         {activeTab === "settings" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
-            <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
-              <h2 className="text-sm font-black text-white uppercase tracking-wider">Paramètres du guide</h2>
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Paramètres du guide</h2>
               <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-muted/50" />
               <ToggleRow label="En construction — espace membres" description="Remplace le guide par l'avis d'arrivée dans le tableau de bord et le hub de quêtes. Aucun effet sur la page publique." value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-muted/50" />
               <ToggleRow label="En construction — page publique" description="Sert l'avis d'arrivée sur /guides/rush-sylvestre, la passe en noindex et la retire du sitemap. Éteint = guide public et indexable." value={isPublicUnderConstruction} onToggle={() => handleToggle("isPublicUnderConstruction")} disabled={isPending} color="amber" />
-              <div className="h-px bg-white/5" />
-              <div className="p-3 bg-zinc-800/60 rounded-xl text-caption text-zinc-500 space-y-1">
-                <p><span className="text-zinc-400 font-bold">Slug :</span> rush-sylvestre</p>
-                <p><span className="text-zinc-400 font-bold">Mode :</span> TIMELINE</p>
-                <p><span className="text-zinc-400 font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
+              <div className="h-px bg-muted/50" />
+              <div className="p-3 bg-muted/60 rounded-xl text-caption text-muted-foreground space-y-1">
+                <p><span className="text-muted-foreground font-bold">Slug :</span> rush-sylvestre</p>
+                <p><span className="text-muted-foreground font-bold">Mode :</span> TIMELINE</p>
+                <p><span className="text-muted-foreground font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
                 {/* La page PUBLIQUE lit `isPublicUnderConstruction` (drapeau distinct) : on donne le
                     lien direct et son état pour contrôler le rendu sans chercher l'URL. */}
                 <p>
-                  <span className="text-zinc-400 font-bold">URL publique :</span>{" "}
+                  <span className="text-muted-foreground font-bold">URL publique :</span>{" "}
                   <a
                     href="/guides/rush-sylvestre"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-400 underline decoration-dotted underline-offset-2 hover:text-emerald-300"
+                    className="text-primary underline decoration-dotted underline-offset-2 hover:text-primary"
                   >
                     /guides/rush-sylvestre
                   </a>
-                  <span className={isPublicUnderConstruction ? "text-amber-400" : "text-zinc-500"}>
+                  <span className={isPublicUnderConstruction ? "text-warning" : "text-muted-foreground"}>
                     {isPublicUnderConstruction ? " · en construction" : " · publiée"}
                   </span>
                 </p>
@@ -1526,37 +1687,37 @@ export function RushSylvestreAdminClient({
               chaque bascule coupe réellement, et l'état du guide que ces bascules servent.
             */}
             <aside className="space-y-4">
-              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">Ce que chaque interrupteur coupe</h3>
+              <div className="p-5 bg-surface/60 border border-border rounded-xl space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Ce que chaque interrupteur coupe</h3>
                 <ul className="space-y-2 text-caption">
                   <li className="flex items-start gap-2">
-                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-emerald-500" : "bg-zinc-600"}`} aria-hidden />
-                    <span className="text-zinc-400">
-                      <b className="text-zinc-200">Guide actif</b> — éteint, le guide disparaît du tableau de bord et du hub de quêtes ; rien n&apos;est supprimé.
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-primary" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">Guide actif</b> — éteint, le guide disparaît du tableau de bord et du hub de quêtes ; rien n&apos;est supprimé.
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
-                    <span className="text-zinc-400">
-                      <b className="text-zinc-200">En construction — espace membres</b> — remplace le guide par l&apos;avis d&apos;arrivée. La page publique n&apos;est pas touchée.
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isUnderConstruction ? "bg-warning" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">En construction — espace membres</b> — remplace le guide par l&apos;avis d&apos;arrivée. La page publique n&apos;est pas touchée.
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isPublicUnderConstruction ? "bg-amber-500" : "bg-zinc-600"}`} aria-hidden />
-                    <span className="text-zinc-400">
-                      <b className="text-zinc-200">En construction — page publique</b> — avis d&apos;arrivée, <code>noindex</code> et retrait du sitemap. Éteint = page indexable.
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isPublicUnderConstruction ? "bg-warning" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">En construction — page publique</b> — avis d&apos;arrivée, <code>noindex</code> et retrait du sitemap. Éteint = page indexable.
                     </span>
                   </li>
                 </ul>
               </div>
 
-              <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">État du guide</h3>
+              <div className="p-5 bg-surface/60 border border-border rounded-xl space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">État du guide</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <PreviewStat label="Blocs" value={localMilestones.length} />
                   <PreviewStat label="Quêtes" value={editor.totalQuestCount} />
                 </div>
-                <p className="text-caption text-zinc-500">
+                <p className="text-caption text-muted-foreground">
                   Une bascule s&apos;applique tout de suite ; le studio garde l&apos;état réel de la base (aucun brouillon).
                 </p>
               </div>
@@ -1567,16 +1728,16 @@ export function RushSylvestreAdminClient({
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
             {/* Colonne 1 — le parcours de lancement et les métiers détectés. */}
             <div className="space-y-4">
-            <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
-              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#e6b96b]" /> Lancement du Rush
               </h2>
-              <p className="text-xs text-zinc-400">
-                Aperçu du parcours de lancement proposé aux membres. Les <b className="text-zinc-200">métiers requis</b> sont
-                <b className="text-zinc-200"> détectés automatiquement</b> à partir des séquences (tag « métier »).
+              <p className="text-xs text-muted-foreground">
+                Aperçu du parcours de lancement proposé aux membres. Les <b className="text-foreground">métiers requis</b> sont
+                <b className="text-foreground"> détectés automatiquement</b> à partir des séquences (tag « métier »).
               </p>
 
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-muted/50" />
 
               {/* Parcours */}
               <div className="space-y-2">
@@ -1585,30 +1746,30 @@ export function RushSylvestreAdminClient({
                   { icon: "link", label: "Liaison Metamob", desc: "Détecte si le pseudo est déjà relié (sinon bouton « Lier »)." },
                   { icon: "reset", label: "Réinitialiser l'alignement", desc: "Action optionnelle proposée à l'utilisateur." },
                 ].map((s) => (
-                  <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-800/50 border border-white/5">
-                    {s.icon === "spark" ? <Sparkles className="w-4 h-4 text-indigo-400" /> : s.icon === "link" ? <Link2 className="w-4 h-4 text-emerald-400" /> : <RotateCcw className="w-4 h-4 text-[#e6b96b]" />}
+                  <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border">
+                    {s.icon === "spark" ? <Sparkles className="w-4 h-4 text-primary" /> : s.icon === "link" ? <Link2 className="w-4 h-4 text-primary" /> : <RotateCcw className="w-4 h-4 text-[#e6b96b]" />}
                     <div className="min-w-0">
-                      <p className="text-xs font-black text-white">{s.label}</p>
-                      <p className="text-caption text-zinc-500">{s.desc}</p>
+                      <p className="text-xs font-semibold text-foreground">{s.label}</p>
+                      <p className="text-caption text-muted-foreground">{s.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-muted/50" />
 
               {/* Métiers requis détectés */}
               <div>
-                <p className="text-xs font-black text-white flex items-center gap-1.5 mb-2">
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-2">
                   <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis détectés ({launchMetiers.length})
                 </p>
                 {launchMetiers.length === 0 ? (
-                  <p className="text-caption text-zinc-500">Aucun métier requis sur ce guide.</p>
+                  <p className="text-caption text-muted-foreground">Aucun métier requis sur ce guide.</p>
                 ) : (
                   <div className="space-y-1">
                     {launchMetiers.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-[#121821] border border-white/5">
-                        <span className="text-xs font-bold text-zinc-100">{m.name}</span>
+                      <div key={m.id} className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-[#121821] border border-border">
+                        <span className="text-xs font-bold text-foreground">{m.name}</span>
                         <span className="text-caption font-mono font-bold text-[#e6b96b]">Niv. {m.level}</span>
                       </div>
                     ))}
@@ -1616,9 +1777,9 @@ export function RushSylvestreAdminClient({
                 )}
               </div>
 
-              <div className="h-px bg-white/5" />
-              <p className="text-caption text-zinc-500">
-                👉 Face au membre : les métiers <b className="text-zinc-300">déjà déclarés</b> sur son profil apparaissent
+              <div className="h-px bg-muted/50" />
+              <p className="text-caption text-muted-foreground">
+                👉 Face au membre : les métiers <b className="text-foreground">déjà déclarés</b> sur son profil apparaissent
                 cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
               </p>
             </div>
@@ -1669,12 +1830,12 @@ export function RushSylvestreAdminClient({
               </MemberPreviewFrame>
 
             {/* Config GOD éditable */}
-            <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
-              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
                 <Settings className="w-4 h-4 text-[#e6b96b]" /> Configurable
               </h2>
-              <p className="text-xs text-zinc-400">
-                Éditez le <b className="text-zinc-200">pense-bête</b> + options de la modale de lancement (visible par tous).
+              <p className="text-xs text-muted-foreground">
+                Éditez le <b className="text-foreground">pense-bête</b> + options de la modale de lancement (visible par tous).
               </p>
               <div className="space-y-2">
                 {([
@@ -1682,45 +1843,45 @@ export function RushSylvestreAdminClient({
                   { k: "showResetAlignment", label: "Afficher le reset d'alignement" },
                   { k: "showMetiers", label: "Afficher la détection des métiers" },
                 ] as const).map((opt) => (
-                  <label key={opt.k} className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-800/50 border border-white/5 cursor-pointer">
-                    <span className="text-xs font-bold text-zinc-100">{opt.label}</span>
+                  <label key={opt.k} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border border-border cursor-pointer">
+                    <span className="text-xs font-bold text-foreground">{opt.label}</span>
                     <input type="checkbox" checked={uiConfig.launch[opt.k]} onChange={(e) => setUiConfig((c) => ({ ...c, launch: { ...c.launch, [opt.k]: e.target.checked } }))} className="accent-amber-400" />
                   </label>
                 ))}
               </div>
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-muted/50" />
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Pense-bête</p>
-                  <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: [...c.penseBete, { id: `s-${Date.now()}`, title: "Nouvelle section", items: [] }] }))} className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black text-caption font-black uppercase">+ Section</button>
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Pense-bête</p>
+                  <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: [...c.penseBete, { id: `s-${Date.now()}`, title: "Nouvelle section", items: [] }] }))} className="px-2 py-1 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-caption font-semibold uppercase">+ Section</button>
                 </div>
                 {uiConfig.penseBete.map((sec, si) => (
-                  <div key={sec.id || si} className="space-y-2 p-3 rounded-xl bg-[#121821] border border-white/5">
+                  <div key={sec.id || si} className="space-y-2 p-3 rounded-xl bg-[#121821] border border-border">
                     <div className="flex items-center gap-2">
-                      <input value={sec.title} onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], title: e.target.value }; return { ...c, penseBete: n }; })} className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
-                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si > 0) { const tmp = n[si - 1]; n[si - 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === 0} className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si < n.length - 1) { const tmp = n[si + 1]; n[si + 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === uiConfig.penseBete.length - 1} className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: c.penseBete.filter((_, j) => j !== si) }))} className="p-1.5 rounded-md text-red-400 hover:bg-red-950/40"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <input value={sec.title} onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], title: e.target.value }; return { ...c, penseBete: n }; })} className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si > 0) { const tmp = n[si - 1]; n[si - 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si < n.length - 1) { const tmp = n[si + 1]; n[si + 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === uiConfig.penseBete.length - 1} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: c.penseBete.filter((_, j) => j !== si) }))} className="p-1.5 rounded-md text-destructive hover:bg-destructive/40"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                     {sec.items.map((item, ii) => (
-                      <div key={item.id || ii} className="space-y-1 p-2 rounded-lg bg-black/30 border border-white/5">
-                        <input value={item.label} placeholder="Libellé" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, label: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
-                        <input value={item.detail || ""} placeholder="Détail" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, detail: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
-                        <input value={(item.metiers || []).join(", ")} placeholder="Métiers (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, metiers: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
-                        <input value={(item.alternative || []).join(", ")} placeholder="Alternative (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, alternative: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                      <div key={item.id || ii} className="space-y-1 p-2 rounded-lg bg-background/30 border border-border">
+                        <input value={item.label} placeholder="Libellé" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, label: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={item.detail || ""} placeholder="Détail" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, detail: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={(item.metiers || []).join(", ")} placeholder="Métiers (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, metiers: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={(item.alternative || []).join(", ")} placeholder="Alternative (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, alternative: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii > 0) { const tmp = items2[ii - 1]; items2[ii - 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === 0} className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii < items2.length - 1) { const tmp = items2[ii + 1]; items2[ii + 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === sec.items.length - 1} className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii > 0) { const tmp = items2[ii - 1]; items2[ii - 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii < items2.length - 1) { const tmp = items2[ii + 1]; items2[ii + 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === sec.items.length - 1} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
                           <span className="flex-1" />
-                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.filter((_, j) => j !== ii) }; return { ...c, penseBete: n }; })} className="text-[10px] text-red-400 hover:underline">Retirer</button>
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.filter((_, j) => j !== ii) }; return { ...c, penseBete: n }; })} className="text-[10px] text-destructive hover:underline">Retirer</button>
                         </div>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: [...n[si].items, { id: `i-${Date.now()}-${n[si].items.length}`, label: "" }] }; return { ...c, penseBete: n }; })} className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-caption font-black uppercase">+ Item</button>
+                    <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: [...n[si].items, { id: `i-${Date.now()}-${n[si].items.length}`, label: "" }] }; return { ...c, penseBete: n }; })} className="px-2 py-1 rounded-lg bg-muted hover:bg-muted text-foreground text-caption font-semibold uppercase">+ Item</button>
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider disabled:opacity-50">
+              <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold uppercase tracking-wider disabled:opacity-50">
                 {uiSaving ? "Enregistrement…" : "Enregistrer la config"}
               </button>
             </div>
@@ -1749,7 +1910,7 @@ export function RushSylvestreAdminClient({
             <button
               type="button"
               onClick={() => setPendingDelete(null)}
-              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition-all"
+              className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide text-foreground bg-muted hover:bg-muted border border-border transition-all"
             >
               Annuler
             </button>
@@ -1761,7 +1922,7 @@ export function RushSylvestreAdminClient({
                 if (target) handleDeleteMilestone(target.id);
               }}
               disabled={isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30 transition-all disabled:opacity-50"
             >
               <Trash2 className="w-3 h-3" /> Supprimer
             </button>
@@ -1791,12 +1952,12 @@ export function RushSylvestreAdminClient({
           </DialogHeader>
           <DialogFooter>
             <button type="button" onClick={() => setPendingSwitch(null)}
-              className="rounded-lg border border-white/10 bg-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-zinc-700">
+              className="rounded-lg border border-border bg-muted px-4 py-2 text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-muted">
               Rester ici
             </button>
             <button type="button"
               onClick={() => { const action = pendingSwitch; setPendingSwitch(null); action?.(); }}
-              className="rounded-lg border border-red-500/30 bg-red-500/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-300 transition-colors hover:bg-red-500/30">
+              className="rounded-lg border border-destructive/30 bg-destructive/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-destructive transition-colors hover:bg-destructive/30">
               Continuer sans enregistrer
             </button>
           </DialogFooter>
@@ -1806,7 +1967,7 @@ export function RushSylvestreAdminClient({
       {/* Navigation flottante — pilule verticale */}
       {typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl backdrop-blur-md"
+          className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-surface/90 border border-primary/20 rounded-xl py-2 px-1.5 shadow-2xl "
           style={{ top: '50%', transform: 'translateY(-50%)' }}
         >
           <button
@@ -1816,7 +1977,7 @@ export function RushSylvestreAdminClient({
               else window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             disabled={!showScrollTop}
-            className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer' : 'text-subtle-foreground cursor-not-allowed'}`}
             title="Haut"
             aria-label="Haut"
           >
@@ -1829,7 +1990,7 @@ export function RushSylvestreAdminClient({
               else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
             }}
             disabled={!showScrollBottom}
-            className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer' : 'text-subtle-foreground cursor-not-allowed'}`}
             title="Bas"
             aria-label="Bas"
           >
@@ -1846,31 +2007,31 @@ export function RushSylvestreAdminClient({
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center">
-      <p className="text-xl font-black text-white">{value}</p>
-      <p className="text-caption text-zinc-500 uppercase tracking-widest">{label}</p>
+      <p className="text-xl font-semibold text-foreground">{value}</p>
+      <p className="text-caption text-muted-foreground uppercase tracking-wide">{label}</p>
     </div>
   );
 }
 
 function PreviewStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="px-3 py-2 rounded-xl bg-zinc-800/70 border border-white/10">
-      <p className="text-lg font-black text-white">{value}</p>
-      <p className="text-caption text-zinc-500 uppercase tracking-widest">{label}</p>
+    <div className="px-3 py-2 rounded-xl bg-muted/70 border border-border">
+      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className="text-caption text-muted-foreground uppercase tracking-wide">{label}</p>
     </div>
   );
 }
 
 // ─── ToggleRow ────────────────────────────────────────────────────────────────
 function ToggleRow({ label, description, value, onToggle, disabled, color }: { label: string; description: string; value: boolean; onToggle: () => void; disabled: boolean; color: "emerald" | "amber" }) {
-  const on = color === "emerald" ? "bg-emerald-500 border-emerald-400" : "bg-amber-500 border-amber-400";
+  const on = color === "emerald" ? "bg-primary border-primary" : "bg-warning border-warning";
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-sm font-bold text-white">{label}</p>
+        <p className="text-sm font-bold text-foreground">{label}</p>
         {/* `break-words` : une description longue (URL, « En construction ») ne doit jamais
             élargir la ligne au-delà de la carte — sinon le bouton part hors du cadre. */}
-        <p className="text-caption text-zinc-500 break-words">{description}</p>
+        <p className="text-caption text-muted-foreground break-words">{description}</p>
       </div>
       <button
         type="button"
@@ -1879,9 +2040,9 @@ function ToggleRow({ label, description, value, onToggle, disabled, color }: { l
         aria-label={label}
         onClick={onToggle}
         disabled={disabled}
-        className={`relative mt-0.5 h-6 w-12 shrink-0 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-zinc-800 border-zinc-700"}`}
+        className={`relative mt-0.5 h-6 w-12 shrink-0 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-muted border-border-strong"}`}
       >
-        <div className={`pointer-events-none absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
+        <div className={`pointer-events-none absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
       </button>
     </div>
   );
@@ -1899,17 +2060,17 @@ function BlockImageField({ value, onChange }: { value: string; onChange: (url: s
   const preview = value ? safeImageUrl(value) : "";
   return (
     <div>
-      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
-        Image du bloc <span className="text-zinc-600">(optionnel)</span>
+      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+        Image du bloc <span className="text-subtle-foreground">(optionnel)</span>
       </label>
       <div className="flex items-center gap-2 flex-wrap">
         <input
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+          className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/50"
           placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
         />
-        <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
+        <label className="cursor-pointer px-2 py-1 bg-muted hover:bg-muted text-foreground rounded-lg text-caption flex items-center gap-1">
           Importer
           <input
             type="file"
@@ -1934,11 +2095,11 @@ function BlockImageField({ value, onChange }: { value: string; onChange: (url: s
                 src={preview}
                 alt=""
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
               />
             ) : null}
             <button type="button" onClick={() => onChange("")} title="Retirer l'image"
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
+              className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all">
               <X className="w-3.5 h-3.5" />
             </button>
           </>
@@ -1962,14 +2123,14 @@ function BlockImageField({ value, onChange }: { value: string; onChange: (url: s
  */
 function RichTextSyntaxHint() {
   return (
-    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-      Lien nommé : <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.link}</code> — seul le nom
+    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+      Lien nommé : <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.link}</code> — seul le nom
       s&apos;affiche, jamais l&apos;URL. Position copiable :{" "}
-      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.bracket}</code>,{" "}
-      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.w}</code> ou{" "}
-      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.travel}</code> · un clic copie{" "}
-      <code className="text-purple-300/80">/travel x,y</code>. Sans crochets ni commande, une position
-      reste du texte (<code className="text-purple-300/80">{RUSH_RICH_TEXT_NOT_ACCEPTED}</code>).
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.bracket}</code>,{" "}
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.w}</code> ou{" "}
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.travel}</code> · un clic copie{" "}
+      <code className="text-primary/80">/travel x,y</code>. Sans crochets ni commande, une position
+      reste du texte (<code className="text-primary/80">{RUSH_RICH_TEXT_NOT_ACCEPTED}</code>).
     </p>
   );
 }
@@ -1980,14 +2141,14 @@ function RichTextSyntaxHint() {
  *
  * 🎯 Les composants du membre (ligne de quête, puces de conseils, fiche « Détails ») ne se
  * peignent qu'avec les **jetons de thème**, alors que le studio God pose ses couleurs en dur
- * (`bg-zinc-950`) : sans ce cadre, l'aperçu montrerait autre chose que ce que le joueur voit
+ * (`bg-surface`) : sans ce cadre, l'aperçu montrerait autre chose que ce que le joueur voit
  * (thème clair de la personne connectée appliqué à un écran sombre). On repose donc le thème du
  * membre (`.dark`, celui par défaut de l'overlay) sur ce seul sous-arbre — mesuré le 08/10/2026.
  */
 function MemberPreviewFrame({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="dark rounded-xl border border-border bg-surface p-3 text-foreground">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       {children}
     </div>
   );
@@ -2019,13 +2180,13 @@ function TipsLinesEditor({
         onChange={e => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
+        className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-warning/80 focus:outline-none focus:border-warning/30 resize-none"
       />
       <RichTextSyntaxHint />
-      <p className="text-[11px] leading-relaxed text-zinc-500">
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
         Une ligne = une puce ({bullets.length > 0 ? `${bullets.length} puce${bullets.length > 1 ? "s" : ""}` : "aucune pour l'instant"}) ·
-        un <code className="text-purple-300/80">+</code> ou un{" "}
-        <code className="text-purple-300/80">·</code> sépare aussi deux puces.
+        un <code className="text-primary/80">+</code> ou un{" "}
+        <code className="text-primary/80">·</code> sépare aussi deux puces.
       </p>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         {`Les lignes « ${RUSH_CONSTRAINT_LABELS.join(" : … », « ")} : … » deviennent des infos illustrées (icônes Dofus) dans le guide, le dashboard et l'overlay.`}
@@ -2072,15 +2233,15 @@ function SeparatorRowAdmin({
   const color = milestone.accentColor || "#d4a853";
 
   return (
-    <div className="group rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] px-4 py-3">
+    <div className="group rounded-xl border border-warning/15 bg-warning/[0.04] px-4 py-3">
       <div className="flex items-center gap-3">
-        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-400 transition-colors flex-shrink-0 touch-none">
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground transition-colors flex-shrink-0 touch-none">
           <GripVertical className="w-3.5 h-3.5" />
         </div>
         <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color }} />
 
             <div className="flex-1 min-w-0 py-1">
-              <p className="text-caption font-black uppercase tracking-widest text-amber-400/60 mb-1">Séparateur</p>
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning/60 mb-1">Séparateur</p>
               <p
                 className="font-[family-name:var(--font-cinzel)] text-sm sm:text-base font-bold uppercase tracking-[0.14em] truncate"
                 style={{ color, textShadow: `0 0 18px ${color}30` }}
@@ -2095,12 +2256,12 @@ function SeparatorRowAdmin({
                 src={safeImageUrl(milestone.imageUrl)}
                 alt=""
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
               />
             )}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-              <button onClick={onSelect} aria-label="Éditer ce séparateur dans l'inspecteur" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
-              <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
+              <button onClick={onSelect} aria-label="Éditer ce séparateur dans l'inspecteur" className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
+              <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
             </div>
       </div>
     </div>
@@ -2132,6 +2293,65 @@ function SortableMilestoneRow(props: {
 }
 
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
+// ─── E5 — markdown et liens des blocs Combat / Conseils ──────────────────────
+
+const RUSH_MARKDOWN_TOOLS = [
+  { label: "G", title: "Gras", before: "**", after: "**" },
+  { label: "I", title: "Italique", before: "*", after: "*" },
+  { label: "H", title: "Titre", before: "## ", after: "" },
+  { label: "•", title: "Liste", before: "- ", after: "" },
+  { label: "or", title: "Texte or", before: "{or}", after: "{/or}" },
+  { label: "vert", title: "Texte vert", before: "{vert}", after: "{/vert}" },
+  { label: "danger", title: "Texte danger", before: "{danger}", after: "{/danger}" },
+  { label: "ambre", title: "Texte ambre", before: "{ambre}", after: "{/ambre}" },
+  { label: "info", title: "Texte info", before: "{info}", after: "{/info}" },
+] as const;
+
+function RushMarkdownToolbar({
+  textareaRef,
+  value,
+  onChange,
+}: {
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const apply = (before: string, after: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onChange(`${value}${before}${after}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = value.slice(start, end) || "texte";
+    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1" role="toolbar" aria-label="Mise en forme du conseil">
+      {RUSH_MARKDOWN_TOOLS.map((tool) => (
+        <button
+          key={tool.label}
+          type="button"
+          onClick={() => apply(tool.before, tool.after)}
+          title={tool.title}
+          aria-label={tool.title}
+          className="rounded border border-border px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
 // ─── BlockInspectorForm (E1) ─────────────────────────────────────────────────
 /**
  * Formulaire d'édition d'un bloc, **extrait tel quel** de `MilestoneRow` (E1).
@@ -2139,9 +2359,77 @@ function SortableMilestoneRow(props: {
  * La liste ne porte plus aucun formulaire : ce panneau est monté par l'inspecteur.
  * Le JSX est celui du studio d'origine (aucune réécriture) — la DA sera reprise en E4.
  */
+function RushBlockLinksEditor({
+  links,
+  onChange,
+}: {
+  links: RushBlockLink[];
+  onChange: (links: RushBlockLink[]) => void;
+}) {
+  const update = (index: number, patch: Partial<RushBlockLink>) => {
+    onChange(links.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+  };
+  const remove = (index: number) => onChange(links.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border p-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+          Liens ({links.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => onChange([...links, { label: "", url: "" }])}
+          disabled={links.length >= 10}
+          className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-40"
+        >
+          + Lien
+        </button>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-caption text-muted-foreground">Aucun lien : vidéo YouTube, guide écrit…</p>
+      ) : (
+        <ul className="space-y-1">
+          {links.map((link, index) => (
+            <li key={index} className="flex flex-wrap items-center gap-1.5">
+              <input
+                value={link.label}
+                onChange={(e) => update(index, { label: e.target.value })}
+                placeholder="Nom (ex. Vidéo : le donjon)"
+                className="min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              <input
+                value={link.url}
+                onChange={(e) => update(index, { url: e.target.value })}
+                placeholder="https://…"
+                className="min-w-0 flex-[2] rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              {link.url && <SiteFavicon url={link.url} className="h-4 w-4" />}
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                aria-label="Supprimer ce lien"
+                className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-caption text-muted-foreground">
+        10 liens max · http(s) uniquement · la favicon est automatique.
+      </p>
+    </div>
+  );
+}
+
+
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
   onApplyBlockRoute, onSelectQuest, onAddSequence,
+  milestones, onBulkRoute, onBulkMove, onBulkDelete, onPublishQuest,
+  isFullscreen, onToggleFullscreen,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -2158,6 +2446,16 @@ function BlockInspectorForm({
   /** E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */
   onSelectQuest: (questId: string) => void;
   onAddSequence: () => void;
+  /** E3c — les autres blocs du guide, pour « Déplacer vers ». */
+  milestones: Milestone[];
+  onBulkRoute: (sequenceIds: string[], route: RushBlockRouteValues) => void;
+  onBulkMove: (sequenceIds: string[], targetMilestoneId: string) => void;
+  onBulkDelete: (sequenceIds: string[]) => void;
+  /** Bloc B — publier / dépublier la page publique d'une quête. */
+  onPublishQuest: (sequenceId: string, publish: boolean) => void;
+  /** Tous les types de bloc : même instance, montée dans l'inspecteur ou en modale. */
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const color = milestone.accentColor || "#10b981";
   const type = editingData?.type ?? milestone.type;
@@ -2165,7 +2463,26 @@ function BlockInspectorForm({
   // Le séparateur porte ses métadonnées dans `description` (position, lien, note) : on ne
   // montre donc pas le champ « description » brut, qui les corromprait.
   const isSeparator = type === "SEPARATEUR";
+  const isCombat = isRushCombatBlock(type);
   const sequences = milestone.sequences ?? [];
+  // E3c — la sélection est locale au bloc inspecté : changer de bloc repart à zéro.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState("");
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  /** E5 — markdown : la barre d'outils insère au curseur, pas à la fin. */
+  const tipsRef = useRef<HTMLTextAreaElement>(null);
+  const draftLinks = parseRushBlockLinks(editingData?.links);
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkTarget("");
+    setPendingBulkDelete(false);
+  }, [milestone.id]);
+  const sequenceIds = useMemo(() => sequences.map((seq) => seq.id), [sequences]);
+  const bulk = rushBulkSelectionState(selectedIds, sequenceIds);
+  const bulkIds = () => [...pruneRushBulkSelection(selectedIds, sequenceIds)];
+  const targetBlocks = milestones.filter(
+    (m) => m.id !== milestone.id && m.type !== "SEPARATEUR" && m.type !== "INFO",
+  );
 
   return (
     <div className="space-y-2">
@@ -2173,7 +2490,7 @@ function BlockInspectorForm({
       <div className="flex flex-wrap gap-1">
         {MILESTONE_TYPES.map(t => (
           <button key={t.value} onClick={() => onEditChange({ type: t.value })}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-black border transition-all"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-semibold border transition-all"
             style={(editingData?.type ?? milestone.type) === t.value
               ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" }
               : { color: "#71717a", borderColor: "transparent" }
@@ -2182,27 +2499,43 @@ function BlockInspectorForm({
             {t.icon}{t.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          aria-label={isFullscreen ? "Revenir au panneau" : "Ouvrir le bloc en grand"}
+          className="ml-auto rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {isFullscreen
+            ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+            : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+        </button>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <input value={editingData?.title ?? ""} onChange={e => onEditChange({ title: e.target.value })}
-          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+          className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/50"
           placeholder="Nom du bloc" autoFocus
         />
         {!isSeparator && (
           <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
-            className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500/50"
+            className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:border-primary/50"
             placeholder="Description (optionnel)"
           />
         )}
       </div>
 
-      {/* E3a — route du bloc : même règle et même confirmation de masse que dans la liste. */}
-      {!isTips && !isSeparator && (
+      {/* E3a — route du bloc ; E3c — la même barre vise la sélection dès qu'il y en a une. */}
+      {!isTips && !isSeparator && !isCombat && (
         <RushRouteBlockBar
           milestoneId={milestone.id}
-          count={sequences.length}
+          count={bulk.count > 0 ? bulk.count : sequences.length}
           isPending={isPending}
-          onApply={onApplyBlockRoute}
+          onApply={(_, route) => {
+            if (bulk.count > 0) onBulkRoute(bulkIds(), route);
+            else onApplyBlockRoute(milestone.id, route);
+          }}
+          title={bulk.count > 0 ? "Route de la sélection" : undefined}
+          applyLabel={bulk.count > 0 ? `Appliquer à la sélection (${bulk.count})` : undefined}
+          scopeLabel={bulk.count > 0 ? "de la sélection" : undefined}
         />
       )}
       {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
@@ -2232,11 +2565,32 @@ function BlockInspectorForm({
         />
       ) : (
         <>
-          <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
-            placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
+          <textarea
+            ref={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={e => onEditChange({ tips: e.target.value })}
+            className="min-h-[160px] w-full resize-y rounded-lg border border-border bg-background/80 px-2 py-1.5 text-xs text-warning/80 focus:border-warning/30 focus:outline-none"
+            placeholder="💡 Stratégie / conseils — markdown : **gras**, *italique*, ## titre, - liste, {or}…{/or}"
+            rows={6}
+          />
+          <RushMarkdownToolbar
+            textareaRef={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={(tips) => onEditChange({ tips })}
           />
           <RichTextSyntaxHint />
+          <div className="rounded-lg border border-border bg-background/40 p-2">
+            <p className="mb-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Aperçu du texte
+            </p>
+            <RushMarkdown blocks={parseRushMarkdown(editingData?.tips)} />
+          </div>
+          {isCombat && (
+            <RushBlockLinksEditor
+              links={draftLinks}
+              onChange={(links) => onEditChange({ links })}
+            />
+          )}
         </>
       )}
       {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
@@ -2246,12 +2600,27 @@ function BlockInspectorForm({
         value={editingData?.imageUrl ?? ""}
         onChange={(url) => onEditChange({ imageUrl: url })}
       />
+      {isCombat && (
+        <div className="space-y-1 rounded-xl border border-dashed border-border p-2">
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+            Aperçu membre
+          </p>
+          <RushCombatBanner
+            type={type}
+            title={editingData?.title}
+            bodyText={editingData?.tips}
+            imageUrl={editingData?.imageUrl}
+            links={editingData?.links}
+            surface="page"
+          />
+        </div>
+      )}
       {/* Dofus selector si type DOFUS */}
       {editingData?.type === "DOFUS" && (
         <div className="flex flex-wrap gap-1.5">
           {DOFUS_LIST.map(d => (
             <button key={d.id} onClick={() => onEditChange({ dofusId: d.id })}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-black border transition-all ${editingData.dofusId === d.id ? "border-white/40" : "border-white/10 opacity-50 hover:opacity-100"}`}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-semibold border transition-all ${editingData.dofusId === d.id ? "border-border" : "border-border opacity-50 hover:opacity-100"}`}
               style={{ color: d.color, borderColor: editingData.dofusId === d.id ? d.color : undefined, background: d.color + "15" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2265,31 +2634,45 @@ function BlockInspectorForm({
         <div className="flex gap-1">
           {COLOR_PALETTE.map(c => (
             <button key={c.value} onClick={() => onEditChange({ accentColor: c.value })} title={c.label}
-              className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+              className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
               style={{ backgroundColor: c.value }}
             />
           ))}
         </div>
         <div className="flex items-center gap-1 ml-auto">
-          <button onClick={onSave} disabled={isPending} aria-label="Enregistrer le bloc" className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
-          <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
+          <button onClick={onSave} disabled={isPending} aria-label="Enregistrer le bloc" className="p-1.5 bg-primary/15 hover:bg-primary/30 text-primary rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
+          <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
-      {/* E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */}
-      {!isTips && !isSeparator && (
+      {/* E3a — les quêtes du bloc, cliquables ; E3c — cochables pour agir en masse. */}
+      {!isTips && !isSeparator && !isCombat && (
         <div className="space-y-1.5 rounded-xl border border-border p-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
               Quêtes du bloc ({sequences.length})
             </p>
-            <button
-              type="button"
-              onClick={onAddSequence}
-              className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-            >
-              + Quête
-            </button>
+            <div className="flex items-center gap-2">
+              {sequences.length > 0 && (
+                <label className="flex cursor-pointer items-center gap-1.5 text-caption text-muted-foreground">
+                  <Checkbox
+                    checked={bulk.all ? true : bulk.some ? "indeterminate" : false}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds(checked === true ? selectAllRushBulk(sequenceIds) : new Set())
+                    }
+                    aria-label="Tout sélectionner"
+                  />
+                  Tout
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={onAddSequence}
+                className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                + Quête
+              </button>
+            </div>
           </div>
           {sequences.length === 0 ? (
             <p className="text-caption text-muted-foreground">Aucune quête : ce bloc est vide.</p>
@@ -2297,19 +2680,149 @@ function BlockInspectorForm({
             <ul className="space-y-0.5">
               {sequences.map((seq) => (
                 <li key={seq.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectQuest(seq.id)}
-                    className="w-full truncate text-left text-xs text-foreground hover:underline"
-                  >
-                    {seq.subGuideName || seq.subGuideRef}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.has(seq.id)}
+                      onCheckedChange={() =>
+                        setSelectedIds((prev) => toggleRushBulkSelection(prev, seq.id))
+                      }
+                      aria-label={`Sélectionner ${seq.subGuideName || seq.subGuideRef}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onSelectQuest(seq.id)}
+                      className="min-w-0 flex-1 truncate text-left text-xs text-foreground hover:underline"
+                    >
+                      {seq.subGuideName || seq.subGuideRef}
+                    </button>
+                    {seq.isPublished && seq.publicSlug && (
+                      <a
+                        href={`/guides/rush-sylvestre/q/${seq.publicSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="max-w-[10rem] shrink-0 truncate text-caption text-primary hover:underline"
+                        title="Ouvrir la page publique"
+                      >
+                        /{seq.publicSlug}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => onPublishQuest(seq.id, !seq.isPublished)}
+                      aria-label={
+                        seq.isPublished
+                          ? `Dépublier ${seq.subGuideName || seq.subGuideRef}`
+                          : `Publier ${seq.subGuideName || seq.subGuideRef}`
+                      }
+                      title={seq.isPublished ? "Dépublier (la page repasse en 404)" : "Publier une page publique"}
+                      className={`shrink-0 rounded-md p-1 transition-colors disabled:opacity-40 ${
+                        seq.isPublished
+                          ? "text-primary hover:bg-primary/10"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {seq.isPublished
+                        ? <Globe className="h-3.5 w-3.5" aria-hidden />
+                        : <GlobeLock className="h-3.5 w-3.5" aria-hidden />}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
       )}
+      {/* E3c — actions de masse : visibles seulement quand une quête est cochée. */}
+      {!isTips && !isSeparator && bulk.count > 0 && (
+        <div className="space-y-1.5 rounded-xl border border-primary/30 bg-primary/5 p-2">
+          <p className="text-caption font-medium text-foreground">
+            {bulk.count} quête{bulk.count !== 1 ? "s" : ""} sélectionnée{bulk.count !== 1 ? "s" : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={bulkTarget} onValueChange={setBulkTarget}>
+              <SelectTrigger size="sm" aria-label="Bloc de destination" className="min-w-[140px]">
+                <SelectValue placeholder="Déplacer vers…" />
+              </SelectTrigger>
+              <SelectContent>
+                {targetBlocks.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              disabled={!bulkTarget || isPending}
+              onClick={() => {
+                onBulkMove(bulkIds(), bulkTarget);
+                setSelectedIds(new Set());
+                setBulkTarget("");
+              }}
+              className="rounded-lg border border-border px-2 py-1 text-caption font-medium text-foreground transition-colors hover:border-border-strong disabled:opacity-40"
+            >
+              Déplacer
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => setPendingBulkDelete(true)}
+              className="rounded-lg border border-destructive/30 px-2 py-1 text-caption font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
+            >
+              Supprimer
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Désélectionner
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation : la suppression de masse est irréversible, on liste ce qui part. */}
+      <Dialog open={pendingBulkDelete} onOpenChange={setPendingBulkDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer la sélection</DialogTitle>
+            <DialogDescription>
+              {bulk.count} quête{bulk.count !== 1 ? "s" : ""} vont être supprimées. Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-40 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+            {sequences
+              .filter((seq) => selectedIds.has(seq.id))
+              .slice(0, 8)
+              .map((seq) => (
+                <li key={seq.id} className="truncate">{seq.subGuideName || seq.subGuideRef}</li>
+              ))}
+            {bulk.count > 8 && <li>… et {bulk.count - 8} autre{bulk.count - 8 !== 1 ? "s" : ""}</li>}
+          </ul>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingBulkDelete(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                setPendingBulkDelete(false);
+                onBulkDelete(bulkIds());
+                setSelectedIds(new Set());
+              }}
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-caption font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
+            >
+              Supprimer {bulk.count}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
@@ -2354,10 +2867,10 @@ function MilestoneRow({
   const isTips = milestone.type === "INFO";
 
   return (
-    <div className={isSelected ? "bg-zinc-900/60" : "bg-zinc-950/40"}>
+    <div className={isSelected ? "bg-surface/60" : "bg-surface/40"}>
       <div className="flex items-center gap-2 px-4 py-2.5 group">
         {/* Drag handle */}
-        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-400 transition-colors flex-shrink-0 touch-none">
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground transition-colors flex-shrink-0 touch-none">
           <GripVertical className="w-3.5 h-3.5" />
         </div>
 
@@ -2374,8 +2887,8 @@ function MilestoneRow({
           aria-expanded={isTips ? undefined : isExpanded}
           className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
         >
-              <span className="text-sm font-bold text-white truncate">{milestone.title}</span>
-              {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
+              <span className="text-sm font-bold text-foreground truncate">{milestone.title}</span>
+              {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-muted text-muted-foreground font-bold uppercase flex-shrink-0">opt.</span>}
               {!isTips && dofusInfo && (
                 <span className="flex items-center flex-shrink-0" title={dofusInfo.label}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2384,7 +2897,7 @@ function MilestoneRow({
               )}
               {milestone.tips && (
                 <span title={milestone.tips} className="flex-shrink-0">
-                  <Info className="w-3 h-3 text-amber-400/60" />
+                  <Info className="w-3 h-3 text-warning/60" />
                 </span>
               )}
               {/* Vignette de l'image du bloc : on voit ce qui est posé sans ouvrir l'édition.
@@ -2395,17 +2908,17 @@ function MilestoneRow({
                   src={safeImageUrl(milestone.imageUrl)}
                   alt=""
                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                  className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                  className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
                 />
               )}
               {!isTips && (
-                <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
+                <span className="text-caption text-subtle-foreground flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
               )}
-              {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />)}
+              {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-subtle-foreground ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-subtle-foreground ml-auto flex-shrink-0" />)}
             </button>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={onSelect} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all" aria-label="Éditer ce bloc"><Pencil className="w-3 h-3" /></button>
-          <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all" aria-label="Supprimer ce bloc"><Trash2 className="w-3 h-3" /></button>
+          <button onClick={onSelect} className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all" aria-label="Éditer ce bloc"><Pencil className="w-3 h-3" /></button>
+          <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-all" aria-label="Supprimer ce bloc"><Trash2 className="w-3 h-3" /></button>
         </div>
       </div>
 
@@ -2432,7 +2945,7 @@ function MilestoneRow({
               <button
                 type="button"
                 onClick={onAddSequence}
-                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-white/10 px-2 py-1.5 text-caption text-zinc-500 transition-colors hover:border-white/25 hover:text-zinc-300"
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border px-2 py-1.5 text-caption text-muted-foreground transition-colors hover:border-border hover:text-foreground"
               >
                 <Plus className="w-3 h-3" aria-hidden /> Ajouter une quête
               </button>
@@ -2464,9 +2977,18 @@ function MilestoneRow({
  */
 function RushRouteBlockBar({
   milestoneId, count, isPending, onApply,
+  title = "Route du bloc",
+  applyLabel,
+  clearLabel = "Effacer la route",
+  scopeLabel = "de ce bloc",
 }: {
   milestoneId: string; count: number; isPending: boolean;
   onApply: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3c — la même barre sert le bloc ou une sélection : le libellé dit laquelle. */
+  title?: string;
+  applyLabel?: string;
+  clearLabel?: string;
+  scopeLabel?: string;
 }) {
   const [camp, setCamp] = useState("");
   const [order, setOrder] = useState("");
@@ -2497,17 +3019,17 @@ function RushRouteBlockBar({
     setPending(null);
   };
 
-  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
+  const fieldClass = "w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none";
 
   return (
-    <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-2.5 space-y-2">
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-caption font-black uppercase tracking-widest text-sky-300/80">Route du bloc</p>
-        <span className="text-caption text-zinc-500">{count} quête{count !== 1 ? "s" : ""}</span>
+        <p className="text-caption font-semibold uppercase tracking-wide text-primary/80">{title}</p>
+        <span className="text-caption text-muted-foreground">{count} quête{count !== 1 ? "s" : ""}</span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div>
-          <label htmlFor={`route-camp-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Cité</label>
+          <label htmlFor={`route-camp-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Cité</label>
           <select
             id={`route-camp-${milestoneId}`}
             value={camp}
@@ -2520,7 +3042,7 @@ function RushRouteBlockBar({
           </select>
         </div>
         <div>
-          <label htmlFor={`route-order-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Ordre</label>
+          <label htmlFor={`route-order-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Ordre</label>
           <select
             id={`route-order-${milestoneId}`}
             value={order}
@@ -2535,7 +3057,7 @@ function RushRouteBlockBar({
           </select>
         </div>
         <div>
-          <label htmlFor={`route-level-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Palier</label>
+          <label htmlFor={`route-level-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Palier</label>
           <select
             id={`route-level-${milestoneId}`}
             value={level}
@@ -2549,7 +3071,7 @@ function RushRouteBlockBar({
           </select>
         </div>
         <div>
-          <label htmlFor={`route-class-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Classe</label>
+          <label htmlFor={`route-class-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Classe</label>
           <RushClassSelect id={`route-class-${milestoneId}`} value={classId} onChange={setClassId} className={fieldClass} />
         </div>
       </div>
@@ -2558,19 +3080,19 @@ function RushRouteBlockBar({
           type="button"
           onClick={() => setPending({ mode: "apply" })}
           disabled={isPending || count === 0}
-          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/20 transition-colors disabled:opacity-40"
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 transition-colors disabled:opacity-40"
         >
-          Appliquer au bloc ({count})
+          {applyLabel ?? `Appliquer au bloc (${count})`}
         </button>
         <button
           type="button"
           onClick={() => setPending({ mode: "clear" })}
           disabled={isPending || count === 0}
-          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/5 transition-colors disabled:opacity-40"
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-muted hover:bg-muted text-foreground border border-border transition-colors disabled:opacity-40"
         >
-          Effacer la route
+          {clearLabel}
         </button>
-        <span className="text-caption text-zinc-500">Les champs vides effacent la valeur du bloc.</span>
+        <span className="text-caption text-muted-foreground">Les champs vides effacent la valeur du bloc.</span>
       </div>
 
       <RushRouteBlockDialog
@@ -2578,6 +3100,7 @@ function RushRouteBlockBar({
         isClear={pending?.mode === "clear"}
         count={count}
         summary={summary}
+        scopeLabel={scopeLabel}
         isPending={isPending}
         onCancel={() => setPending(null)}
         onConfirm={confirm}
@@ -2590,9 +3113,12 @@ function RushRouteBlockBar({
 /** Confirmation d'une écriture de masse : la portée et les valeurs sont écrites noir sur blanc. */
 function RushRouteBlockDialog({
   open, isClear, count, summary, isPending, onCancel, onConfirm,
+  scopeLabel = "de ce bloc",
 }: {
   open: boolean; isClear: boolean; count: number; summary: string[];
   isPending: boolean; onCancel: () => void; onConfirm: () => void;
+  /** E3c — « de ce bloc » ou « de la sélection ». */
+  scopeLabel?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
@@ -2600,13 +3126,13 @@ function RushRouteBlockDialog({
         <DialogHeader>
           <DialogTitle>{isClear ? "Effacer la route du bloc" : "Appliquer la route au bloc"}</DialogTitle>
           <DialogDescription>
-            {count} quête{count !== 1 ? "s" : ""} de ce bloc {isClear ? "vont perdre leur route" : "vont recevoir"} :
+            {count} quête{count !== 1 ? "s" : ""} {scopeLabel} {isClear ? "vont perdre leur route" : "vont recevoir"} :
           </DialogDescription>
         </DialogHeader>
-        <ul className="space-y-1 text-xs text-zinc-300">
+        <ul className="space-y-1 text-xs text-foreground">
           {summary.map((line) => <li key={line} className="font-mono">{line}</li>)}
         </ul>
-        <p className="text-caption text-amber-400/90">
+        <p className="text-caption text-warning/90">
           {isClear
             ? "Cité, Ordre, palier et classe seront retirés de ce bloc."
             : "Une valeur vide efface celle du bloc. Aucune autre quête n'est touchée."}
@@ -2615,7 +3141,7 @@ function RushRouteBlockDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 rounded-lg text-caption font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+            className="px-3 py-1.5 rounded-lg text-caption font-bold bg-muted hover:bg-muted text-foreground"
           >
             Annuler
           </button>
@@ -2625,8 +3151,8 @@ function RushRouteBlockDialog({
             disabled={isPending}
             className={`px-3 py-1.5 rounded-lg text-caption font-bold border transition-colors disabled:opacity-40 ${
               isClear
-                ? "bg-red-500/15 hover:bg-red-500/25 text-red-300 border-red-500/20"
-                : "bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border-sky-500/20"
+                ? "bg-destructive/15 hover:bg-destructive/25 text-destructive border-destructive/20"
+                : "bg-primary/15 hover:bg-primary/25 text-primary border-primary/20"
             }`}
           >
             {isClear ? "Effacer" : "Appliquer"}
@@ -2683,7 +3209,7 @@ function TwinButton({ sequenceId }: { sequenceId: string }) {
       disabled={busy}
       title={error || "Créer la jumelle du camp opposé (même ordre)"}
       aria-label="Créer la jumelle du camp opposé"
-      className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-1 py-0.5 text-caption font-semibold text-violet-300 transition-colors hover:bg-violet-500/20 disabled:opacity-50"
+      className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-0.5 text-caption font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
     >
       <Plus className="w-2.5 h-2.5" />
       {busy ? "…" : "Jumelle"}
@@ -2724,7 +3250,7 @@ function OrderTwinButton({ sequenceId }: { sequenceId: string }) {
       disabled={busy}
       title={error || "Créer les 2 autres Ordres de cette cité (même ordre)"}
       aria-label="Créer les 2 autres Ordres de cette cité"
-      className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1 py-0.5 text-caption font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:opacity-50"
+      className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-0.5 text-caption font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
     >
       <Plus className="w-2.5 h-2.5" />
       {busy ? "…" : "3 Ordres"}
@@ -2744,8 +3270,8 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
   const displayDungeons = (Array.isArray(seq.dungeons) && seq.dungeons.length > 0) ? seq.dungeons : (seq.dungeon ? [seq.dungeon] : []);
 
   return (
-    <div className="flex items-center gap-2 group/seq px-2 py-1.5 bg-zinc-900/40 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-      <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-500 flex-shrink-0 touch-none">
+    <div className="flex items-center gap-2 group/seq px-2 py-1.5 bg-surface/40 rounded-xl border border-border hover:border-border transition-colors">
+      <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground flex-shrink-0 touch-none">
         <GripVertical className="w-3 h-3" />
       </div>
 
@@ -2755,10 +3281,10 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
           {displayDungeons.map((dd: any, di: number) => (
             dd.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={dd.id || di} src={dd.imageUrl} alt={dd.bossName || dd.name} title={dd.name} className={`w-6 h-6 rounded object-cover border border-white/10 ${di > 0 ? "ring-1 ring-zinc-950" : ""}`} />
+              <img key={dd.id || di} src={dd.imageUrl} alt={dd.bossName || dd.name} title={dd.name} className={`w-6 h-6 rounded object-cover border border-border ${di > 0 ? "ring-1 ring-background" : ""}`} />
             ) : (
-              <div key={dd.id || di} title={dd.name} className="w-6 h-6 rounded bg-zinc-800 border border-white/10 flex items-center justify-center">
-                <Sword className="w-3 h-3 text-zinc-500" />
+              <div key={dd.id || di} title={dd.name} className="w-6 h-6 rounded bg-muted border border-border flex items-center justify-center">
+                <Sword className="w-3 h-3 text-muted-foreground" />
               </div>
             )
           ))}
@@ -2775,15 +3301,15 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
           )}
-          <span className="text-xs text-zinc-300 font-medium">{seq.subGuideName || seq.subGuideRef}</span>
+          <span className="text-xs text-foreground font-medium">{seq.subGuideName || seq.subGuideRef}</span>
           {displayDungeons.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               {displayDungeons.map((dd: any, di: number) => (
-                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-caption font-bold text-indigo-300 truncate max-w-[140px]">
-                  <Sword className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-caption font-bold text-primary truncate max-w-[140px]">
+                  <Sword className="w-2.5 h-2.5 text-primary shrink-0" />
                   <span className="truncate">{dd.name}</span>
                   {Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dd.id) && (
-                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-amber-500/20 text-amber-300 text-caption font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-warning/20 text-warning text-caption font-semibold uppercase tracking-wide">
                       <img src="/assets/icons/ocre.png" alt="" className="w-2 h-2 object-contain" />
                       Ocre
                     </span>
@@ -2793,13 +3319,13 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-info/10 text-info border border-info/20">
               {seq.alignReq}
             </span>
           )}
           {seq.tips && (
             <span title={seq.tips} className="flex-shrink-0">
-              <AlertCircle className="w-2.5 h-2.5 text-amber-400/60" />
+              <AlertCircle className="w-2.5 h-2.5 text-warning/60" />
             </span>
           )}
           {/* Rendu des tags d'activité réels (texte seul, sans icône) */}
@@ -2812,18 +3338,18 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
               <span
                 key={idx}
                 title={label}
-                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption font-black bg-zinc-800 text-zinc-300 border border-white/5"
+                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption font-semibold bg-muted text-foreground border border-border"
               >
                 <span className="max-w-[90px] truncate">{label}</span>
-                {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-caption ml-0.5">x{tag.count}</span>}
+                {tag.count && tag.count > 1 && <span className="text-warning font-mono text-caption ml-0.5">x{tag.count}</span>}
               </span>
             );
           })}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {hasCustomDb && <span className="text-caption text-emerald-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />DB✓</span>}
-          {hasCustomNoobs && <span className="text-caption text-cyan-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />Noobs✓</span>}
-          {seq.note && <span className="text-caption text-amber-400/60 italic truncate">{seq.note}</span>}
+          {hasCustomDb && <span className="text-caption text-primary/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />DB✓</span>}
+          {hasCustomNoobs && <span className="text-caption text-info/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />Noobs✓</span>}
+          {seq.note && <span className="text-caption text-warning/60 italic truncate">{seq.note}</span>}
         </div>
       </div>
 
@@ -2831,16 +3357,16 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
           la jumelle, les 3 Ordres et la suppression ne sont pas des badges de lecture. */}
       <div className="flex items-center gap-1 flex-shrink-0">
         <a href={dofusdbUrl} target="_blank" rel="noreferrer"
-          className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomDb ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"}`}
+          className={`px-1 py-0.5 text-caption font-semibold uppercase rounded transition-colors ${hasCustomDb ? "text-primary" : "text-subtle-foreground hover:text-foreground"}`}
         ><BookOpen className="w-2.5 h-2.5 inline" /> DB</a>
         <a href={noobsUrl} target="_blank" rel="noreferrer"
-          className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomNoobs ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-300"}`}
+          className={`px-1 py-0.5 text-caption font-semibold uppercase rounded transition-colors ${hasCustomNoobs ? "text-info" : "text-subtle-foreground hover:text-foreground"}`}
         ><ExternalLink className="w-2.5 h-2.5 inline" /> Noobs</a>
-        <button onClick={onEdit} aria-label={`Éditer la quête ${seq.subGuideName || seq.subGuideRef}`} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
+        <button onClick={onEdit} aria-label={`Éditer la quête ${seq.subGuideName || seq.subGuideRef}`} className="p-1 text-subtle-foreground hover:text-foreground transition-all"><Pencil className="w-3 h-3" /></button>
         <details className="relative">
           <summary
             aria-label={`Autres actions de la quête ${seq.subGuideName || seq.subGuideRef}`}
-            className="list-none cursor-pointer rounded px-1 text-caption font-semibold text-zinc-600 transition-colors hover:text-zinc-300"
+            className="list-none cursor-pointer rounded px-1 text-caption font-semibold text-subtle-foreground transition-colors hover:text-foreground"
           >
             …
           </summary>
@@ -2921,9 +3447,9 @@ function RequiredItemsEditor({
   };
 
   return (
-    <div className="space-y-2 p-3 bg-zinc-950/60 rounded-xl border border-white/5 relative">
+    <div className="space-y-2 p-3 bg-surface/60 rounded-xl border border-border relative">
       <div className="flex items-center justify-between">
-        <label className="text-caption font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+        <label className="text-caption font-semibold text-warning uppercase tracking-wide flex items-center gap-1.5">
           📦 Objets & Ressources nécessaires ({items.length})
         </label>
       </div>
@@ -2932,27 +3458,27 @@ function RequiredItemsEditor({
       {items.length > 0 && (
         <div className="flex flex-wrap gap-2 pt-1">
           {items.map((it, idx) => (
-            <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200">
+            <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-warning/10 border border-warning/25 text-xs text-warning">
               {it.imageUrl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={it.imageUrl} alt={it.name} className="w-5 h-5 object-contain shrink-0" />
               )}
               <span className="font-bold truncate max-w-[140px]" title={it.name}>{it.name}</span>
-              <div className="flex items-center gap-1 bg-black/50 px-1.5 py-0.5 rounded-lg border border-amber-500/20">
-                <span className="text-[10px] text-zinc-400 font-mono">x</span>
+              <div className="flex items-center gap-1 bg-background/80 px-1.5 py-0.5 rounded-lg border border-warning/20">
+                <span className="text-[10px] text-muted-foreground font-mono">x</span>
                 <input
                   type="number"
                   min={1}
                   max={999999}
                   value={it.quantity}
                   onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
-                  className="w-14 bg-transparent text-amber-300 font-black text-xs text-center focus:outline-none"
+                  className="w-14 bg-transparent text-warning font-semibold text-xs text-center focus:outline-none"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => removeItem(idx)}
-                className="hover:text-red-400 text-zinc-500 transition-colors ml-0.5"
+                className="hover:text-destructive text-muted-foreground transition-colors ml-0.5"
                 title="Supprimer la ressource"
               >
                 <X className="w-3.5 h-3.5" />
@@ -2969,30 +3495,30 @@ function RequiredItemsEditor({
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Rechercher une ressource (ex: Reflet onirique, Riz, Pépite)..."
-          className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50"
+          className="w-full bg-background/80 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-warning/50"
         />
         {searching && (
-          <span className="absolute right-3 top-2 text-caption text-zinc-500 animate-pulse">Recherche...</span>
+          <span className="absolute right-3 top-2 text-caption text-muted-foreground animate-pulse">Recherche...</span>
         )}
 
         {results.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-0.5 backdrop-blur-xl">
+          <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-0.5 ">
             {results.map((r) => (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => addItem(r)}
-                className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-amber-500/20 text-left transition-colors group"
+                className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-warning/20 text-left transition-colors group"
               >
                 {r.imageUrl && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={r.imageUrl} alt={r.name} className="w-6 h-6 object-contain shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-zinc-200 group-hover:text-white truncate">{r.name}</p>
-                  <p className="text-[10px] text-zinc-500">Niv. {r.level} • {r.typeName || "Ressource"}</p>
+                  <p className="text-xs font-bold text-foreground group-hover:text-foreground truncate">{r.name}</p>
+                  <p className="text-[10px] text-muted-foreground">Niv. {r.level} • {r.typeName || "Ressource"}</p>
                 </div>
-                <Plus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Plus className="w-3.5 h-3.5 text-warning shrink-0" />
               </button>
             ))}
           </div>
@@ -3036,21 +3562,21 @@ function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) 
 
   return (
     <div className="relative">
-      <label className="text-caption font-black text-indigo-300/80 uppercase tracking-widest mb-1 block">
+      <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block">
         Chercher dans le catalogue (nom + lien DofusDB)
       </label>
       <div className="relative">
-        <Search className="absolute left-2 top-2 w-3 h-3 text-indigo-400" />
+        <Search className="absolute left-2 top-2 w-3 h-3 text-primary" />
         <input
           value={query}
           onChange={(e) => handleChange(e.target.value)}
-          className="w-full bg-black/60 border border-indigo-500/30 rounded-lg pl-7 pr-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/60"
+          className="w-full bg-background/80 border border-primary/30 rounded-lg pl-7 pr-2 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
           placeholder="Nom de la quête (2 lettres minimum)…"
         />
-        {searching && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">…</span>}
+        {searching && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">…</span>}
       </div>
       {results.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-indigo-500/30 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1 space-y-0.5">
+        <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-primary/30 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1 space-y-0.5">
           {results.map((res) => (
             <button
               key={res.id}
@@ -3060,10 +3586,10 @@ function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) 
                 setQuery("");
                 setResults([]);
               }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors"
+              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
             >
-              <span className="block text-xs font-medium text-zinc-200 truncate">{res.name}</span>
-              <span className="block text-[10px] text-zinc-500">
+              <span className="block text-xs font-medium text-foreground truncate">{res.name}</span>
+              <span className="block text-[10px] text-muted-foreground">
                 {res.category ?? "—"}
                 {res.levelMin ? ` · niv. ${res.levelMin}` : ""}
                 {res.dofusDbId ? ` · DofusDB #${res.dofusDbId}` : ""}
@@ -3098,21 +3624,21 @@ function RushImportDialogBody({
             if (!file) return;
             file.text().then((content) => { setText(content); onTextChange(); });
           }}
-          className="text-caption text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-caption file:text-zinc-200"
+          className="text-caption text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-muted file:px-2 file:py-1 file:text-caption file:text-foreground"
         />
-        <span className="text-caption text-zinc-500">{text.length.toLocaleString("fr-FR")} caractères</span>
+        <span className="text-caption text-muted-foreground">{text.length.toLocaleString("fr-FR")} caractères</span>
       </div>
 
       <textarea
         value={text}
         onChange={(event) => { setText(event.target.value); onTextChange(); }}
         placeholder='{ "blocks": [ { "title": "...", "sequences": [ { "subGuideName": "#55 ..." } ] } ] }'
-        className="h-40 w-full resize-y rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-caption text-zinc-200 focus:outline-none focus:border-emerald-500/40"
+        className="h-40 w-full resize-y rounded-xl border border-border bg-background/80 p-2 font-mono text-caption text-foreground focus:outline-none focus:border-primary/50"
         aria-label="Contenu JSON à importer"
       />
 
       {issues.length > 0 && (
-        <ul className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-amber-500/30 bg-amber-500/5 p-2 text-caption text-amber-200">
+        <ul className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-warning/30 bg-warning/5 p-2 text-caption text-warning">
           {issues.slice(0, 12).map((issue, index) => (
             <li key={index}>• {issue}</li>
           ))}
@@ -3122,19 +3648,19 @@ function RushImportDialogBody({
       {plan && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2 text-caption">
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
               {plan.totals.blocksNew} bloc(s) à créer · {plan.totals.blocksExisting} déjà là
             </span>
-            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-300">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
               {plan.totals.sequencesNew} quête(s) à créer
             </span>
-            <span className="rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-zinc-400">
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
               {plan.totals.sequencesExisting} déjà présentes · {plan.totals.sequencesSkipped} écartée(s)
             </span>
           </div>
-          <div className="max-h-56 overflow-y-auto rounded-xl border border-white/10">
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-border">
             <table className="w-full text-caption">
-              <thead className="bg-zinc-900/80 text-zinc-500">
+              <thead className="bg-surface/80 text-muted-foreground">
                 <tr>
                   <th className="px-2 py-1 text-left">Bloc</th>
                   <th className="px-2 py-1 text-left">État</th>
@@ -3143,21 +3669,21 @@ function RushImportDialogBody({
               </thead>
               <tbody>
                 {plan.blocks.map((block) => (
-                  <tr key={block.title} className="border-t border-white/5">
-                    <td className="px-2 py-1 text-zinc-200">{block.title}</td>
+                  <tr key={block.title} className="border-t border-border">
+                    <td className="px-2 py-1 text-foreground">{block.title}</td>
                     <td className="px-2 py-1">
-                      <span className={block.status === "new" ? "text-emerald-400" : "text-zinc-500"}>
+                      <span className={block.status === "new" ? "text-primary" : "text-muted-foreground"}>
                         {block.status === "new" ? "nouveau" : "existant"}
                       </span>
                     </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-zinc-300">{block.toCreate}</td>
+                    <td className="px-2 py-1 text-right tabular-nums text-foreground">{block.toCreate}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {isRushImportNoop(plan) && (
-            <p className="text-caption text-zinc-400">Rien à créer : ce fichier est déjà dans le guide.</p>
+            <p className="text-caption text-muted-foreground">Rien à créer : ce fichier est déjà dans le guide.</p>
           )}
         </div>
       )}
@@ -3253,7 +3779,7 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
             type="button"
             onClick={analyse}
             disabled={busy || text.trim().length === 0}
-            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-caption font-bold text-emerald-300 disabled:opacity-40"
+            className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-caption font-bold text-primary disabled:opacity-40"
           >
             {busy ? "Analyse…" : "Analyser (dry-run)"}
           </button>
@@ -3261,7 +3787,7 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
             type="button"
             onClick={applyImport}
             disabled={busy || !canApply}
-            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-caption font-bold text-amber-300 disabled:opacity-40"
+            className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-1.5 text-caption font-bold text-warning disabled:opacity-40"
             title={canApply ? "Crée les blocs et quêtes manquants" : "Analyse d'abord le même contenu"}
           >
             Appliquer
@@ -3275,8 +3801,8 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
 // ─── Identité visuelle du studio ──────────────────────────────────────────────
 /**
  * Surfaces réelles du studio God (thème sombre) — **mesurées**, pas supposées :
- * la carte Dofus est en `bg-zinc-900/40` sur `bg-zinc-950` (≈ `#18181b`), la
- * modale de création sur `bg-zinc-950` (≈ `#09090b`). Un accent Dofus y est
+ * la carte Dofus est en `bg-surface/40` sur `bg-surface` (≈ `#18181b`), la
+ * modale de création sur `bg-surface` (≈ `#09090b`). Un accent Dofus y est
  * peint en **texte** : on le passe par `readableOn` pour garantir 4,5:1 (T-4/O14).
  */
 const GOD_DOFUS_SURFACE = "#18181b";
@@ -4003,18 +4529,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const hiddenSections = Object.values(emptySections).filter(Boolean).length;
   /** Classe d'une section : masquée si vide et si l'auteur n'a pas demandé « tout afficher ». */
   const sectionClass = (empty: boolean) =>
-    `rounded-xl border border-white/5 bg-zinc-900/40${empty && !showAllSections ? " hidden" : ""}`;
+    `rounded-xl border border-border bg-surface/40${empty && !showAllSections ? " hidden" : ""}`;
 
   return (
-    <div className="p-3.5 bg-zinc-950/90 border border-indigo-500/30 rounded-2xl space-y-3 shadow-xl">
+    <div className="p-3.5 bg-surface/90 border border-primary/30 rounded-xl space-y-3 shadow-xl">
       {/* Header avec statut dirty et toggle preview */}
-      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+      <div className="flex items-center justify-between pb-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <p className="text-caption font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
-            <Pencil className="w-3 h-3 text-indigo-400" /> Édition quête
+          <p className="text-caption font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
+            <Pencil className="w-3 h-3 text-primary" /> Édition quête
           </p>
           {isDirty && (
-            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+            <span className="text-[10px] font-bold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-md flex items-center gap-1">
               ● Non enregistré
             </span>
           )}
@@ -4209,19 +4735,19 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       {/* E2b - groupe 1/3 : Essentiel (identite, route, conseils) */}
       <SectionGroupHeader group="essentiel" />
       {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+      <div className="rounded-xl border border-border bg-surface/40">
         <button
           type="button"
           onClick={() => toggleSection("identity")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-zinc-400">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-muted-foreground">
             Identité de la quête *
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
         </button>
         {openSections.identity && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
             {/* Identité assistée : le catalogue `GameQuest` porte le nom ET l'id DofusDB
                 (celui de `questDbIds`). Le lien DPLN n'y est pas : il reste la 1ʳᵉ source. */}
             <RushQuestPicker
@@ -4235,17 +4761,17 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             />
             {questDbIds.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+                <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Quête liée</span>
                 {questDbIds.map((id) => (
                   <span
                     key={id}
-                    className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-caption font-bold text-primary"
                   >
                     DofusDB #{id}
                     <button
                       type="button"
                       onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
-                      className="text-emerald-400/70 hover:text-red-400"
+                      className="text-primary/70 hover:text-destructive"
                       aria-label={`Retirer la liaison avec la quête ${id}`}
                     >
                       <X className="w-2.5 h-2.5" />
@@ -4255,11 +4781,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               </div>
             )}
             <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Nom *</label>
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-background/80 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
                 placeholder="Nom de la quête"
                 autoFocus
               />
@@ -4273,20 +4799,20 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("route")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
             🧭 Route (cité / Ordre / palier / classe)
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.route ? "rotate-180" : ""}`} />
         </button>
         {openSections.route && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">Cité (route)</label>
                 <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                 >
                   <option value="">— Aucune (commune) —</option>
                   <option value="bontarien">Bontarien</option>
@@ -4294,10 +4820,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </select>
               </div>
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">Ordre (quêtes d'Ordre)</label>
                 <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
                   disabled={!alignReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none disabled:opacity-40"
                 >
                   <option value="">— Aucun —</option>
                   {orderCodesForCamp(alignReq).map(o => (
@@ -4306,9 +4832,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </select>
               </div>
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">Palier requis (verrou)</label>
                 <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                 >
                   <option value="">— Aucun —</option>
                   {[20, 40, 60, 80, 100].map(n => (
@@ -4317,16 +4843,16 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </select>
               </div>
               <div>
-                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <label htmlFor="rush-seq-class" className="text-caption text-subtle-foreground mb-1 block">Classe (quêtes de classe)</label>
                 <RushClassSelect
                   id="rush-seq-class"
                   value={classReq}
                   onChange={setClassReq}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                 />
               </div>
             </div>
-            <p className="text-caption text-zinc-500">
+            <p className="text-caption text-muted-foreground">
               L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
               Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
             </p>
@@ -4339,18 +4865,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("hints")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
             💡 Conseils, Notes & Style Tougli
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
         </button>
         {openSections.hints && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">💡 Tips</label>
                 <button
                   type="button"
                   onClick={() => {
@@ -4364,7 +4890,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
                     toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
                   }}
-                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+                  className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
                 >
                   <MapPin className="w-3 h-3" /> Ajouter position (/travel)
                 </button>
@@ -4377,24 +4903,24 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             </div>
 
             <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">⚠️ Note courte</label>
               <input
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none"
                 placeholder="ex: Ne pas cliquer le portail !"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block">
                   Mini bloc Tougli
                 </label>
                 <button
                   type="button"
                   onClick={handleInsertLink}
-                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+                  className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
                 >
                   🔗 Insérer un lien
                 </button>
@@ -4402,7 +4928,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               <textarea
                 value={tougliText}
                 onChange={e => handleTougliTextChange(e.target.value)}
-                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
+                className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50 resize-none font-sans"
                 placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
                 rows={2}
               />
@@ -4416,16 +4942,16 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("variants")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
             🎭 Texte par camp
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.variants ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.variants ? "rotate-180" : ""}`} />
         </button>
         {openSections.variants && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
-            <p className="text-caption text-zinc-500 leading-relaxed">
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            <p className="text-caption text-muted-foreground leading-relaxed">
               Une seule quête, deux textes : le joueur voit la variante de sa cité. Vide ⇒ le
               nom et les conseils ci-dessus s&apos;appliquent à tout le monde.
             </p>
@@ -4434,20 +4960,20 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               { camp: "Brakmarien", name: brakName, setName: setBrakName, tips: brakTips, setTips: setBrakTips },
             ].map((v) => (
               <div key={v.camp} className="space-y-1.5">
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">
                   {v.camp}
                 </label>
                 <input
                   value={v.name}
                   onChange={(e) => v.setName(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none"
                   placeholder={`Nom de la quête (${v.camp.toLowerCase()})`}
                   aria-label={`Nom de la quête pour le camp ${v.camp}`}
                 />
                 <textarea
                   value={v.tips}
                   onChange={(e) => v.setTips(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none resize-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none resize-none"
                   placeholder={`Conseils (${v.camp.toLowerCase()}) — une ligne = une puce`}
                   aria-label={`Conseils pour le camp ${v.camp}`}
                   rows={2}
@@ -4465,12 +4991,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("location")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-emerald-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
             📍 Destination & Coordonnées GPS
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.location ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.location ? "rotate-180" : ""}`} />
         </button>
         {openSections.location && (() => {
           const parsed = validateCoordinate(positionsInput);
@@ -4489,17 +5015,17 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           };
 
           return (
-            <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div className="p-3 pt-0 space-y-2 border-t border-border">
               <div className="flex items-center justify-between">
-                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest block">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block">
                   Coordonnées GPS (X et Y)
                 </label>
                 {parsed ? (
-                  <span className="text-[10px] text-emerald-400 font-mono">
+                  <span className="text-[10px] text-primary font-mono">
                     ✓ Reconnue : [{parsed.formatted}] (copie /travel {parsed.formatted})
                   </span>
                 ) : positionsInput.trim() ? (
-                  <span className="text-[10px] text-amber-400 font-mono">
+                  <span className="text-[10px] text-warning font-mono">
                     Format : X et Y
                   </span>
                 ) : null}
@@ -4508,24 +5034,24 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               <div className="flex items-center gap-2">
                 {/* Champ X */}
                 <div className="flex items-center gap-1 flex-1">
-                  <span className="text-xs text-zinc-500 font-mono font-bold">X:</span>
+                  <span className="text-xs text-muted-foreground font-mono font-bold">X:</span>
                   <input
                     type="text"
                     value={curX}
                     onChange={e => updateXY(e.target.value, curY)}
-                    className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none transition-colors"
+                    className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary font-mono focus:outline-none transition-colors"
                     placeholder="ex: -2"
                   />
                 </div>
 
                 {/* Champ Y */}
                 <div className="flex items-center gap-1 flex-1">
-                  <span className="text-xs text-zinc-500 font-mono font-bold">Y:</span>
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Y:</span>
                   <input
                     type="text"
                     value={curY}
                     onChange={e => updateXY(curX, e.target.value)}
-                    className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none transition-colors"
+                    className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary font-mono focus:outline-none transition-colors"
                     placeholder="ex: 0"
                   />
                 </div>
@@ -4545,7 +5071,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   <button
                     type="button"
                     onClick={() => handlePositionsChange("")}
-                    className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 rounded-lg transition-colors"
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-lg transition-colors"
                     title="Effacer la position"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -4560,10 +5086,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   type="checkbox"
                   checked={allowZaap}
                   onChange={e => handleAllowZaapChange(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-cyan-500"
+                  className="w-3.5 h-3.5 accent-primary"
                 />
-                <span className="text-caption text-zinc-400 font-medium">
-                  Proposer le détour zaap <span className="font-mono text-cyan-400/80">/zaap + /travel</span>
+                <span className="text-caption text-muted-foreground font-medium">
+                  Proposer le détour zaap <span className="font-mono text-info/80">/zaap + /travel</span>
                 </span>
               </label>
 
@@ -4571,22 +5097,22 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   copient `/zaap zx,zy ; /travel x,y` tel quel (prioritaire). */}
               <div className="flex items-center gap-2 pt-1">
                 <div className="flex items-center gap-1 flex-1">
-                  <span className="text-xs text-zinc-500 font-mono font-bold">Zaap X:</span>
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Zaap X:</span>
                   <input
                     type="text"
                     value={manualZaapX}
                     onChange={e => handleManualZaapChange(e.target.value, manualZaapY)}
-                    className="w-full bg-black/60 border border-cyan-500/20 focus:border-cyan-500/50 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono focus:outline-none transition-colors"
+                    className="w-full bg-background/80 border border-info/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-info font-mono focus:outline-none transition-colors"
                     placeholder="ex: -20"
                   />
                 </div>
                 <div className="flex items-center gap-1 flex-1">
-                  <span className="text-xs text-zinc-500 font-mono font-bold">Zaap Y:</span>
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Zaap Y:</span>
                   <input
                     type="text"
                     value={manualZaapY}
                     onChange={e => handleManualZaapChange(manualZaapX, e.target.value)}
-                    className="w-full bg-black/60 border border-cyan-500/20 focus:border-cyan-500/50 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono focus:outline-none transition-colors"
+                    className="w-full bg-background/80 border border-info/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-info font-mono focus:outline-none transition-colors"
                     placeholder="ex: -20"
                   />
                 </div>
@@ -4594,7 +5120,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   <button
                     type="button"
                     onClick={() => handleManualZaapChange("", "")}
-                    className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 rounded-lg transition-colors"
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-lg transition-colors"
                     title="Effacer le zaap manuel (retour à l'auto)"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -4604,17 +5130,17 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
               {/* PNJ donneur (recherche locale, 6 494 PNJ du client) */}
               <div className="pt-1">
-                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest block mb-1">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block mb-1">
                   PNJ donneur
                 </label>
                 {currentNpcTag ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-caption font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-caption font-bold">
                         {currentNpcTag.name}
                         {currentNpcTag.npcId ? <span className="font-mono opacity-70">#{currentNpcTag.npcId}</span> : null}
                       </span>
-                      <button type="button" onClick={clearNpcTag} className="text-caption font-black uppercase tracking-wider text-zinc-500 hover:text-red-400">Retirer</button>
+                      <button type="button" onClick={clearNpcTag} className="text-caption font-semibold uppercase tracking-wider text-muted-foreground hover:text-destructive">Retirer</button>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {npcImageUrl && isSafeImageUrl(npcImageUrl) ? (
@@ -4633,13 +5159,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                           );
                         }}
                         placeholder="Image du PNJ (https://… ou /uploads/… — affichée à la place du nom)"
-                        className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-200/90 focus:outline-none focus:border-emerald-500/40 placeholder:text-zinc-600"
+                        className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/90 focus:outline-none focus:border-primary/50 placeholder:text-subtle-foreground"
                       />
                       <button
                         type="button"
                         onClick={() => document.getElementById("rush-npc-upload")?.click()}
                         disabled={uploadingNpcImage}
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-zinc-800/60 text-caption font-black text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-muted/60 text-caption font-semibold text-foreground hover:text-foreground transition-colors disabled:opacity-50"
                       >
                         {uploadingNpcImage ? "…" : "⬆ Importer"}
                       </button>
@@ -4672,16 +5198,16 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     <input
                       value={npcQuery}
                       onChange={e => handleNpcSearch(e.target.value)}
-                      className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-200 focus:outline-none transition-colors placeholder:text-zinc-600"
+                      className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary focus:outline-none transition-colors placeholder:text-subtle-foreground"
                       placeholder="Rechercher un PNJ… (ex : Mériana)"
                     />
                     {npcResults.length > 0 && (
                       <div className="mt-1 space-y-0.5 max-h-40 overflow-y-auto">
                         {npcResults.map((n) => (
                           <button key={n.npcId} type="button" onClick={() => selectNpcTag(n)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-emerald-500/10 text-left transition-all text-caption text-zinc-400 hover:text-emerald-300 font-medium">
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-primary/10 text-left transition-all text-caption text-muted-foreground hover:text-primary font-medium">
                             <span className="truncate">{n.name}</span>
-                            <span className="text-zinc-600 shrink-0 ml-auto font-mono">#{n.npcId}</span>
+                            <span className="text-subtle-foreground shrink-0 ml-auto font-mono">#{n.npcId}</span>
                           </button>
                         ))}
                       </div>
@@ -4699,27 +5225,27 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("prereqs")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
             🔒 Prérequis ({prereqs.length}) & Dofus associé
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
         </button>
         {openSections.prereqs && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="relative">
-                <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block">
+                <label className="text-caption font-semibold text-warning/80 uppercase tracking-wide mb-1 block">
                   Prérequis de quête
                 </label>
                 {prereqs.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {prereqs.map((p, pIdx) => (
-                      <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
-                        <Lock className="w-2.5 h-2.5 text-amber-400" />
+                      <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30 text-caption font-bold">
+                        <Lock className="w-2.5 h-2.5 text-warning" />
                         <span className="max-w-[120px] truncate">{p.name}</span>
-                        <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                        <button type="button" onClick={() => removePrereq(p)} className="hover:text-destructive text-muted-foreground ml-0.5">
                           <X className="w-2.5 h-2.5" />
                         </button>
                       </span>
@@ -4737,21 +5263,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                         if (prereqResults[0]) addPrereq(prereqResults[0]);
                       }
                     }}
-                    className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
+                    className="w-full bg-background/80 border border-warning/20 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none focus:border-warning/50 placeholder:text-subtle-foreground"
                     placeholder="Rechercher une quête prérequis..."
                   />
-                  {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
+                  {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">...</span>}
                 </div>
                 {prereqResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
                     {prereqResults.map((res) => (
                       <button
                         key={res.id}
                         type="button"
                         onClick={() => addPrereq({ id: res.id, name: res.name })}
-                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-warning/20 hover:text-warning flex items-center gap-2 transition-colors"
                       >
-                        <Search className="w-3 h-3 text-amber-400 shrink-0" />
+                        <Search className="w-3 h-3 text-warning shrink-0" />
                         <span className="truncate">{res.name}</span>
                       </button>
                     ))}
@@ -4760,13 +5286,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               </div>
 
               <div>
-                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block">
                   🥚 Dofus associé
                 </label>
                 <select
                   value={selectedDofusId}
                   onChange={e => handleDofusChange(e.target.value)}
-                  className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50"
                 >
                   <option value="">— Aucun Dofus associé —</option>
                   {DOFUS_LIST.map(d => (
@@ -4784,15 +5310,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("conditions")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
             🎯 Conditions ({constraintsToInfos(sanitizeConstraints(constraints)).length})
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.conditions ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.conditions ? "rotate-180" : ""}`} />
         </button>
         {openSections.conditions && (
-          <div className="p-3 pt-0 border-t border-white/5">
+          <div className="p-3 pt-0 border-t border-border">
             <RushConditionsEditor value={constraints} onChange={setConstraints} />
           </div>
         )}
@@ -4803,15 +5329,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("resources")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-300/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
             📦 Ressources & Objets nécessaires ({requiredItems.length})
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
         </button>
         {openSections.resources && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
             <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
           </div>
         )}
@@ -4822,38 +5348,38 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("links")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-cyan-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-info/90">
             🔗 Liens externes & Icône
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.links ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.links ? "rotate-180" : ""}`} />
         </button>
         {openSections.links && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs (DPLN)</label>
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">URL DofusNoobs (DPLN)</label>
                 <input
                   value={noobsUrl}
                   onChange={e => setNoobsUrl(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-info/80 focus:outline-none focus:border-primary/50"
                   placeholder="https://dofuspourlesnoobs.com/..."
                 />
               </div>
               <div>
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">URL DofusDB</label>
                 <input
                   value={dofusdbUrl}
                   onChange={e => setDofusdbUrl(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/80 focus:outline-none focus:border-primary/50"
                   placeholder="https://dofusdb.fr/fr/..."
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-1">Icône du bloc (optionnel)</label>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Icône du bloc (optionnel)</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { val: "", label: "Défaut", src: null as string | null },
@@ -4866,8 +5392,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     type="button"
                     onClick={() => { setIcon(opt.val); if (!opt.val) setCustomIconUrl(""); }}
                     title={opt.label}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      icon === opt.val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
+                      icon === opt.val ? "bg-primary/20 border-primary/40 text-primary" : "bg-muted/60 border-border text-subtle-foreground hover:text-muted-foreground"
                     }`}
                   >
                     {opt.src ? (
@@ -4896,13 +5422,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                       }
                     }}
                     placeholder="URL d'image (https://… ou /uploads/…)"
-                    className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-indigo-200/90 focus:outline-none focus:border-indigo-500/40 placeholder:text-zinc-600"
+                    className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/90 focus:outline-none focus:border-primary/50 placeholder:text-subtle-foreground"
                   />
                   <button
                     type="button"
                     onClick={() => document.getElementById("rush-icon-upload")?.click()}
                     disabled={uploadingIcon}
-                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-zinc-800/60 text-caption font-black text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-muted/60 text-caption font-semibold text-foreground hover:text-foreground transition-colors disabled:opacity-50"
                   >
                     {uploadingIcon ? "…" : "⬆ Importer"}
                   </button>
@@ -4927,7 +5453,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   <img src={safeImageUrl(resolveRushSeqIcon(icon) as string)} alt="" className="w-6 h-6 object-contain rounded-md" />
                 )}
                 {customIconUrl.trim() && !isSafeImageUrl(customIconUrl) && (
-                  <p className="text-[10px] text-red-400/80">URL d'image non autorisée (http(s) ou chemin relatif uniquement).</p>
+                  <p className="text-[10px] text-destructive/80">URL d'image non autorisée (http(s) ou chemin relatif uniquement).</p>
                 )}
               </div>
             </div>
@@ -4942,40 +5468,40 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
         <button
           type="button"
           onClick={() => toggleSection("activities")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-info/90">
             🎯 Alignement & Métier requis
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
         {openSections.activities && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
             {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 space-y-2.5">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="alignSetToggle"
                   checked={!!alignmentSet}
                   onChange={e => handleAlignmentSetToggle(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
                 />
-                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
+                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-primary cursor-pointer select-none">
                   ⚔️ Quête d'alignement
-                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
+                  <span className="text-[10px] font-medium text-primary/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
                 </label>
               </div>
               {alignmentSet && (
                 <div className="flex flex-wrap items-center gap-2 pl-6">
-                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
+                  <span className="text-caption font-semibold text-primary/80 uppercase tracking-wide">Camp</span>
                   <button
                     type="button"
                     onClick={() => handleAlignmentCampChange("bontarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
                       alignmentSet.camp === "bontarien"
-                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                        ? "bg-info/20 border-info/50 text-info"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
@@ -4983,26 +5509,26 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   <button
                     type="button"
                     onClick={() => handleAlignmentCampChange("brakmarien")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
                       alignmentSet.camp === "brakmarien"
-                        ? "bg-red-500/20 border-red-500/50 text-red-200"
-                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                        ? "bg-destructive/20 border-destructive/50 text-destructive"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
                   </button>
                   <div className="flex items-center gap-1.5 ml-2">
-                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
+                    <span className="text-caption font-semibold text-primary/80 uppercase tracking-wide">Niveau</span>
                     <input
                       type="number"
                       min={0}
                       max={100}
                       value={alignmentSet.level}
                       onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
-                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
+                      className="w-16 bg-background/80 border border-primary/30 rounded-lg px-2 py-1 text-xs text-primary text-center focus:outline-none"
                     />
                   </div>
-                  <span className="ml-auto text-caption text-indigo-300/60 italic">
+                  <span className="ml-auto text-caption text-primary/60 italic">
                     → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
                   </span>
                 </div>
@@ -5019,7 +5545,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               )}
 
               {/* 🔨 Métier requis : « qui peut aider » côté membre */}
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -5028,9 +5554,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     onChange={e => handleMetierToggle(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
                   />
-                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
+                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-warning cursor-pointer select-none">
                     🔨 Métier requis
-                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
+                    <span className="text-[10px] font-medium text-warning/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
                   </label>
                 </div>
                 {metierTag && (
@@ -5038,7 +5564,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     <select
                       value={metierTag.name}
                       onChange={e => handleMetierJobChange(e.target.value)}
-                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
+                      className="bg-background/80 border border-warning/30 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none"
                     >
                       <option value="">— Choisir un métier —</option>
                       {Object.values(DOFUS_JOBS).flat().map(j => (
@@ -5046,17 +5572,17 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                       ))}
                     </select>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
+                      <span className="text-caption font-semibold text-warning/80 uppercase tracking-wide">Niveau</span>
                       <input
                         type="number"
                         min={0}
                         max={200}
                         value={metierTag.level}
                         onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
-                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
+                        className="w-16 bg-background/80 border border-warning/30 rounded-lg px-2 py-1 text-xs text-warning text-center focus:outline-none"
                       />
                     </div>
-                    <span className="ml-auto text-caption text-amber-300/60 italic">
+                    <span className="ml-auto text-caption text-warning/60 italic">
                       → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
                     </span>
                   </div>
@@ -5068,30 +5594,30 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       </div>
 
       {/* ── Section 8 : Options Avancées & Donjons ── */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+      <div className="rounded-xl border border-border bg-surface/40 relative">
         <button
           type="button"
           onClick={() => toggleSection("advanced")}
-          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
-          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-destructive/90">
             ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
           </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
         {openSections.advanced && (
-          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
             {/* Toggle Info Sequence */}
-            <div className="flex flex-col gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+            <div className="flex flex-col gap-2 p-2 rounded-xl bg-primary/10 border border-primary/20">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="isInfoBlockToggle"
                   checked={isInfoBlock}
                   onChange={e => handleIsInfoBlockChange(e.target.checked)}
-                  className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
                 />
-                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
+                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-primary cursor-pointer select-none">
                   📌 Est un bloc d'information pur (non cochable)
                 </label>
               </div>
@@ -5099,47 +5625,47 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
             {/* Donjons liés */}
             <div>
-              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
-                <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block flex items-center gap-1">
+                <Sword className="w-2.5 h-2.5 text-primary" /> Donjons liés
               </label>
               {selectedDungeons.length > 0 && (
                 <div className="space-y-1.5 mb-2">
                   {selectedDungeons.map(d => (
-                    <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                    <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-primary/10 border border-primary/20 rounded-lg">
                       <div className="flex items-center gap-2 min-w-0">
                         {d.imageUrl
                           // eslint-disable-next-line @next/next/no-img-element
                           ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
-                          : <Sword className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
-                        <span className="text-caption font-bold text-white truncate">{d.name}</span>
+                          : <Sword className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                        <span className="text-caption font-bold text-foreground truncate">{d.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <label
-                          className="flex items-center gap-1 text-caption font-bold text-zinc-400 cursor-pointer select-none"
+                          className="flex items-center gap-1 text-caption font-bold text-muted-foreground cursor-pointer select-none"
                           title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
                         >
                           <input
                             type="checkbox"
                             checked={isDungeonOptional(d.id)}
                             onChange={() => toggleDungeonOptional(d.id)}
-                            className="w-3 h-3 accent-indigo-500 cursor-pointer"
+                            className="w-3 h-3 accent-primary cursor-pointer"
                           />
                           Optionnel
                         </label>
                         <button
                           type="button"
                           onClick={() => toggleOcreForDungeon(d.id)}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-black uppercase tracking-widest transition-all ${
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-semibold uppercase tracking-wide transition-all ${
                             isDungeonOcre(d.id)
-                              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                              : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-zinc-300"
+                              ? "bg-warning/20 border-warning/40 text-warning"
+                              : "bg-surface border-border text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
                           {isDungeonOcre(d.id) ? "À capturer ✓" : "Ocre ?"}
                         </button>
-                        <button type="button" onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400 p-0.5">
+                        <button type="button" onClick={() => removeDungeon(d.id)} className="text-muted-foreground hover:text-destructive p-0.5">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -5150,10 +5676,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
               <input
                 value={dungeonQuery}
                 onChange={e => handleDungeonSearch(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40"
+                className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
                 placeholder="Ajouter un donjon…"
               />
-              {searching && <p className="text-caption text-zinc-600 italic mt-1">Recherche…</p>}
+              {searching && <p className="text-caption text-subtle-foreground italic mt-1">Recherche…</p>}
               {dungeonResults.length > 0 && (
                 <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto">
                   {dungeonResults.map(d => (
@@ -5161,14 +5687,14 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                       key={d.id}
                       type="button"
                       onClick={() => addDungeon(d)}
-                      className="w-full flex items-center gap-2 px-2 py-1 hover:bg-indigo-500/10 rounded-lg transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1 hover:bg-primary/10 rounded-lg transition-colors text-left"
                     >
                       {d.imageUrl
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
-                        : <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-zinc-600" /></div>}
-                      <p className="text-xs font-bold text-white">{d.name}</p>
-                      <p className="text-caption text-zinc-500">Niv. {d.level}</p>
+                        : <div className="w-5 h-5 rounded bg-muted flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-subtle-foreground" /></div>}
+                      <p className="text-xs font-bold text-foreground">{d.name}</p>
+                      <p className="text-caption text-muted-foreground">Niv. {d.level}</p>
                     </button>
                   ))}
                 </div>
@@ -5227,27 +5753,27 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-200 text-caption font-medium transition-all whitespace-nowrap"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted border border-border-strong/60 text-foreground text-caption font-medium transition-all whitespace-nowrap"
       >
-        <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+        <MapPin className="w-3 h-3 text-primary shrink-0" />
         <span className="truncate max-w-[100px]">{selected ? `${selected.name}` : `Monde ${value}`}</span>
-        <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1.5 bg-zinc-950 border border-zinc-700/80 rounded-xl shadow-2xl z-[100] min-w-[220px] max-h-60 overflow-y-auto p-1.5 backdrop-blur-xl">
+        <div className="absolute top-full right-0 mt-1.5 bg-surface border border-border-strong/80 rounded-xl shadow-2xl z-[100] min-w-[220px] max-h-60 overflow-y-auto p-1.5 ">
           {DOFUS_WORLDS.map(w => (
             <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
               className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all ${
                 w.id === value
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
-                  : "text-zinc-300 hover:bg-zinc-800/80 border border-transparent"
+                  ? "bg-primary/20 text-primary border border-primary/30 font-bold"
+                  : "text-foreground hover:bg-muted/80 border border-transparent"
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono shrink-0 ${
-                w.id === value ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400"
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold font-mono shrink-0 ${
+                w.id === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>{w.id}</span>
               <span className="font-medium truncate flex-1">{w.name}</span>
-              {w.id === value && <Check className="w-3.5 h-3.5 ml-auto text-emerald-400 shrink-0" />}
+              {w.id === value && <Check className="w-3.5 h-3.5 ml-auto text-primary shrink-0" />}
             </button>
           ))}
         </div>
@@ -5412,15 +5938,15 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
         <input value={name} onChange={e => setName(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && name.trim()) handleSubmit(); }}
           placeholder="Nom de la quête… (Entrée pour ajouter)"
-          className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/30"
+          className="flex-1 bg-background/80 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
         />
         <button type="button" onClick={() => setExpanded(v => !v)} title="Options avancées"
-          className={`p-1.5 rounded-xl border transition-all ${expanded ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-400" : "bg-zinc-900 border-white/5 text-zinc-600 hover:text-zinc-300"}`}
+          className={`p-1.5 rounded-xl border transition-all ${expanded ? "bg-primary/20 border-primary/30 text-primary" : "bg-surface border-border text-subtle-foreground hover:text-foreground"}`}
         >
           <Link2 className="w-3.5 h-3.5" />
         </button>
         <button onClick={handleSubmit} disabled={isPending || !name.trim()}
-          className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-30 text-emerald-400 rounded-xl transition-all"
+          className="p-1.5 bg-primary/10 hover:bg-primary/20 disabled:opacity-30 text-primary rounded-xl transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -5437,17 +5963,17 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
       />
       {questDbIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+          <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Quête liée</span>
           {questDbIds.map((id) => (
             <span
               key={id}
-              className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-caption font-bold text-primary"
             >
               DofusDB #{id}
               <button
                 type="button"
                 onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
-                className="text-emerald-400/70 hover:text-red-400"
+                className="text-primary/70 hover:text-destructive"
                 aria-label={`Retirer la liaison avec la quête ${id}`}
               >
                 <X className="w-2.5 h-2.5" />
@@ -5460,12 +5986,12 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
       <AnimatePresence>
         {expanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="p-3 bg-zinc-900/60 border border-indigo-500/10 rounded-xl space-y-2">
-              <p className="text-caption font-black text-indigo-400/60 uppercase tracking-widest">Options avancées</p>
+            <div className="p-3 bg-surface/60 border border-primary/10 rounded-xl space-y-2">
+              <p className="text-caption font-semibold text-primary/60 uppercase tracking-wide">Options avancées</p>
               
               <div className="grid grid-cols-2 gap-2">
                 <div className="relative">
-                  <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                  <label className="text-caption font-semibold text-warning/80 uppercase tracking-wide mb-1 block flex items-center gap-1">
                     🔒 Prérequis de cette quête ({prereqs.length})
                   </label>
 
@@ -5473,10 +5999,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   {prereqs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {prereqs.map((p, pIdx) => (
-                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
-                          <Lock className="w-2.5 h-2.5 text-amber-400" />
+                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30 text-caption font-bold">
+                          <Lock className="w-2.5 h-2.5 text-warning" />
                           <span className="max-w-[120px] truncate">{p.name}</span>
-                          <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                          <button type="button" onClick={() => removePrereq(p)} className="hover:text-destructive text-muted-foreground ml-0.5">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </span>
@@ -5496,23 +6022,23 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                           if (prereqResults[0]) addPrereq(prereqResults[0]);
                         }
                       }}
-                      className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
+                      className="w-full bg-background/80 border border-warning/20 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none focus:border-warning/50 placeholder:text-subtle-foreground"
                       placeholder="Rechercher une quête prérequis..."
                     />
-                    {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
+                    {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">...</span>}
                   </div>
 
                   {/* Dropdown de résultats */}
                   {prereqResults.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
                       {prereqResults.map((res) => (
                         <button
                           key={res.id}
                           type="button"
                           onClick={() => addPrereq({ id: res.id, name: res.name })}
-                          className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-warning/20 hover:text-warning flex items-center gap-2 transition-colors"
                         >
-                          <Search className="w-3 h-3 text-amber-400 shrink-0" />
+                          <Search className="w-3 h-3 text-warning shrink-0" />
                           <span className="truncate">{res.name}</span>
                         </button>
                       ))}
@@ -5521,11 +6047,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                 </div>
 
                 <div>
-                  <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                  <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block flex items-center gap-1">
                     🥚 Dofus associé
                   </label>
                   <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
-                    className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
+                    className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50"
                   >
                     <option value="">— Aucun Dofus associé —</option>
                     {DOFUS_LIST.map(d => (
@@ -5536,25 +6062,25 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs (DPLN)</label>
+                  <label className="text-caption text-subtle-foreground mb-1 block">URL DofusNoobs (DPLN)</label>
                   <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-caption text-info/80 focus:outline-none"
                     placeholder="https://dofuspourlesnoobs.com/..."
                   />
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusDB</label>
+                  <label className="text-caption text-subtle-foreground mb-1 block">URL DofusDB</label>
                   <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-emerald-300/80 focus:outline-none"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-caption text-primary/80 focus:outline-none"
                     placeholder="https://dofusdb.fr/fr/..."
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Cité (route)</label>
                   <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                   >
                     <option value="">— Aucune (commune) —</option>
                     <option value="bontarien">Bontarien</option>
@@ -5562,10 +6088,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Ordre (quêtes d'Ordre)</label>
                   <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
                     disabled={!alignReq}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none disabled:opacity-40"
                   >
                     <option value="">— Aucun —</option>
                     {orderCodesForCamp(alignReq).map(o => (
@@ -5574,9 +6100,9 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Palier requis (verrou)</label>
                   <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                   >
                     <option value="">— Aucun —</option>
                     {[20, 40, 60, 80, 100].map(n => (
@@ -5585,17 +6111,17 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="rush-new-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                  <label htmlFor="rush-new-class" className="text-caption text-subtle-foreground mb-1 block">Classe (quêtes de classe)</label>
                   <RushClassSelect
                     id="rush-new-class"
                     value={classReq}
                     onChange={setClassReq}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">💡 Tips</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">💡 Tips</label>
                 <TipsLinesEditor
                   value={tips}
                   onChange={setTips}
@@ -5603,7 +6129,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   placeholder="Conseil pour le membre…"
                 />
               </div>
-              <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -5619,16 +6145,16 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                         return filtered;
                       });
                     }}
-                    className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                    className="w-4 h-4 accent-primary rounded cursor-pointer"
                   />
-          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-purple-200 cursor-pointer select-none">
+          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-primary cursor-pointer select-none">
             📌 Bloc d'info sans check ni bookmark
           </label>
-          <span className="text-caption text-zinc-600 ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
+          <span className="text-caption text-subtle-foreground ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
                 </div>
                 {isInfoBlockNew && (
                   <div className="flex items-center gap-2 pl-6">
-                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Couleur</span>
+                    <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
                     <div className="flex gap-1">
                       {COLOR_PALETTE.map(c => (
                         <button key={c.value} onClick={() => {
@@ -5638,7 +6164,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                             return [...filtered, { type: "info_sequence" as any, color: c.value }];
                           });
                         }} title={c.label}
-                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
                           style={{ backgroundColor: c.value }}
                         />
                       ))}
@@ -5647,53 +6173,53 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                 )}
               </div>
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">⚠️ Note courte</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">⚠️ Note courte</label>
                 <input value={note} onChange={e => setNote(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
                   placeholder="Note courte…"
                 />
               </div>
               {/* Donjons */}
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">⚔️ Donjons liés</label>
+                <label className="text-caption text-subtle-foreground mb-1 block">⚔️ Donjons liés</label>
                 {selectedDungeons.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
                     {selectedDungeons.map(d => (
-                      <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-caption text-white font-bold">
+                      <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 border border-primary/20 rounded text-caption text-foreground font-bold">
                         {d.name}
                         <label
-                          className="flex items-center gap-1 text-caption font-bold text-zinc-400 cursor-pointer select-none"
+                          className="flex items-center gap-1 text-caption font-bold text-muted-foreground cursor-pointer select-none"
                           title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
                         >
                           <input
                             type="checkbox"
                             checked={isDungeonOptional(d.id)}
                             onChange={() => toggleDungeonOptional(d.id)}
-                            className="w-3 h-3 accent-indigo-500 cursor-pointer"
+                            className="w-3 h-3 accent-primary cursor-pointer"
                           />
                           Optionnel
                         </label>
-                        <button onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400"><X className="w-2 h-2" /></button>
+                        <button onClick={() => removeDungeon(d.id)} className="text-muted-foreground hover:text-destructive"><X className="w-2 h-2" /></button>
                       </div>
                     ))}
                   </div>
                 )}
                 <input value={dungeonQuery} onChange={e => handleDungeonSearch(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white placeholder:text-zinc-700 focus:outline-none"
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none"
                   placeholder="Ajouter un donjon…"
                 />
-                {searching && <p className="text-caption text-zinc-600 italic mt-0.5">Recherche…</p>}
+                {searching && <p className="text-caption text-subtle-foreground italic mt-0.5">Recherche…</p>}
                 {dungeonResults.length > 0 && (
                   <div className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
                     {dungeonResults.map(d => (
                       <button key={d.id} onClick={() => addDungeon(d)}
-                        className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-indigo-500/10 rounded text-left text-xs text-zinc-300"
+                        className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-primary/10 rounded text-left text-xs text-foreground"
                       >
                         {d.imageUrl
                           // eslint-disable-next-line @next/next/no-img-element
                           ? <img src={d.imageUrl} alt={d.name} className="w-4 h-4 rounded object-cover" />
-                          : <Sword className="w-3 h-3 text-zinc-600" />}
-                        {d.name} <span className="text-zinc-600">Niv.{d.level}</span>
+                          : <Sword className="w-3 h-3 text-subtle-foreground" />}
+                        {d.name} <span className="text-subtle-foreground">Niv.{d.level}</span>
                       </button>
                     ))}
                   </div>

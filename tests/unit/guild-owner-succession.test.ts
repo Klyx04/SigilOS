@@ -44,7 +44,7 @@ vi.mock("@/server/actions/audit-actions", () => ({
     createAuditLog: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: vi.fn().mockResolvedValue(undefined),
 }));
 

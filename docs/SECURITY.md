@@ -38,6 +38,9 @@ leurs éditeurs.
 - **Aucun script d'installation non examiné** : tout paquet du lock qui exécute du code à
   l'installation (`preinstall` / `install` / `postinstall`) doit être justifié dans
   `scripts/check-install-scripts.mjs` — contrôle **bloquant** en CI, avant toute installation.
+- **Rate-limit** : les mutations authentifiées passent par **Redis** (fail-closed). Le limiteur IP du
+  proxy est un **filet de second rang, en mémoire par process** : il refuse les nouvelles IP quand sa
+  table est saturée, mais ne coordonne pas plusieurs instances — le plafond amont est tenu par Caddy.
 - Le **rapport interne de durcissement** (mesures détaillées, état de l'infrastructure, écarts
   connus) est **volontairement non publié** : publié, il indiquerait à un attaquant où chercher.
   Une demande motivée peut être adressée par le canal privé ci-dessus.

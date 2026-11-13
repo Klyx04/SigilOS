@@ -72,7 +72,7 @@ export type ActivityView = "weekly" | "monthly" | "alltime";
  */
 export async function getPresenceLadder(
     guildId: string,
-    metric: "messages" | "voice" | "characters" | "reactions" | "stream" | "replies",
+    metric: "messages" | "voice" | "reactions" | "stream" | "replies",
     view: ActivityView = "weekly",
     page: number = 1,
     pageSize: number = 25,
@@ -115,10 +115,6 @@ export async function getPresenceLadder(
                 if (view === "weekly") field = "discordVoiceTimeWeekly";
                 else if (view === "monthly") field = "discordVoiceTimeMonthly";
                 else field = "discordVoiceTimeTotal";
-            } else if (metric === "characters") {
-                if (view === "weekly") field = "discordCharactersWeekly";
-                else if (view === "monthly") field = "discordCharactersMonthly";
-                else field = "discordCharactersTotal";
             } else if (metric === "reactions") {
                 if (view === "weekly") field = "discordReactionsReceivedWeekly";
                 else if (view === "monthly") field = "discordReactionsReceivedMonthly";

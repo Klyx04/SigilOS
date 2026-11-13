@@ -107,7 +107,7 @@ export async function softDeleteGuild(
         await purgeGuildCachesByInternalId(guildId);
 
         // NOTIFY GOD (Platform Alert)
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: reason === 'BOT_REMOVED' ? "🤖 BOT EXPULSÉ" : "🏰 GUILDE DÉSAVOUÉE",
             message: `La guilde "${guildId}" a été marquée pour suppression (Raison: ${reason}).\n👤 Par: **${adminName}**`,
@@ -171,7 +171,7 @@ export async function reactivateGuild(guildId: string) {
 
         // 🔔 NOTIFY GOD
         const guildName = guild?.name || guildId;
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "🏰 Guilde Réactivée",
             message: `La guilde **"${guildName}"** a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
@@ -216,7 +216,7 @@ export async function hardDeleteGuild(guildId: string) {
         }
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "🗑️ Guilde Supprimée Définitivement",
             message: `La guilde "${purge.discordGuildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
@@ -261,7 +261,7 @@ export async function softDeleteProfile(
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Archivé (Soft Delete)",
             message: `Le profil "${profileId}" a été marqué pour suppression (Raison: ${reason}, Grace: ${graceDays}j).\n👤 Par: **${adminName}**`,
@@ -300,7 +300,7 @@ export async function reactivateProfile(profileId: string) {
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Réactivé",
             message: `Le profil "${profileId}" a été réactivé sur la plateforme.\n👤 Par: **${adminName}**`,
@@ -349,7 +349,7 @@ export async function hardDeleteProfile(profileId: string) {
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Supprimé Définitivement",
             message: `Le profil "${profileId}" a été supprimé définitivement (guilde: ${profile.guildId || "inconnue"}).\n👤 Par: **${adminName}**`,
@@ -561,7 +561,7 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
 
         // 🔔 NOTIFY GOD
         const adminName = session?.user?.name || "Super Admin";
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: type === 'GUILD' ? "🚫 Guilde Bannie & Bot Expulsé" : "🚫 Utilisateur Banni",
             message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
@@ -592,7 +592,7 @@ export async function unbanEntity(banId: string) {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "✅ Ban Levé",
             message: `Le ban \`${banId}\` a été levé de la plateforme.\n👤 Par: **${adminName}**`,
@@ -831,7 +831,7 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
         } catch { /* suivi non bloquant */ }
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👑 Propriété Transférée",
             message: `La propriété de la guilde "${guild.name || guildId}" a été transférée.\n👤 Par: **${adminName}**`,
@@ -873,7 +873,7 @@ export async function updateGuildMaxMembers(guildId: string, maxMembers: number)
             data: { maxMembers }
         });
 
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "📈 Capacité de Guilde Modifiée",
             message: `La guilde **"${guild.name}"** a une nouvelle capacité max de **${maxMembers}** membres (précédemment : ${guild.maxMembers}).\n👤 Par : **${adminName}**`,

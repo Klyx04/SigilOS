@@ -121,7 +121,7 @@ worker.on("failed", async (job, err) => {
 
     if (isDefinitive && job) {
         try {
-            const { notifyGod } = await import("../server/actions/god-notif-actions");
+            const { notifyGod } = await import("../server/god-notifications");
             const data = (job.data ?? {}) as Partial<DiscordOutboxJobData> & { channelId?: string };
             const failedChannelId = (err as { channelId?: string } | null)?.channelId ?? data.channelId;
 

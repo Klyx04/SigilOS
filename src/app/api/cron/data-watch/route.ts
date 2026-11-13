@@ -150,7 +150,7 @@ export async function GET(req: Request) {
         }
 
         if (hasNews) {
-            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             const auto = autoQueued.length
                 ? ` Veille ciblée mise en file : ${autoQueued.join(", ")} (seuls les changements sont relus).`
                 : autoRunning.length

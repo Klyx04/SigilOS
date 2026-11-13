@@ -66,7 +66,7 @@ vi.mock("@/server/actions/super-admin-actions", () => ({
 }));
 
 const mockNotifyGod = vi.fn();
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: (...args: any[]) => mockNotifyGod(...args),
 }));
 

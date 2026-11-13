@@ -30,10 +30,21 @@ vi.mock("@/server/discord", () => ({
 }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// AUD-02 : `getGodNotifications` est désormais gardé (session + accès God).
+// Ce test porte sur la borne `take` ; on accorde l'accès explicitement.
+vi.mock("@/auth", () => ({
+    auth: vi.fn().mockResolvedValue({ user: { id: "god-1", discordId: "god-discord" } }),
+}));
+vi.mock("@/server/actions/super-admin-actions", () => ({
+    isSuperAdmin: vi.fn().mockResolvedValue(true),
+    getActiveScopes: vi.fn().mockResolvedValue([]),
+    getAccessibleBricks: vi.fn().mockResolvedValue([]),
+}));
 
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
-import { notifyGod, getGodNotifications } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
+import { getGodNotifications } from "@/server/actions/god-notif-actions";
 import {
     detailsFromMetadata,
     formatGodDetailValue,
@@ -268,7 +279,7 @@ describe("getGodNotifications — lecture bornée côté serveur", () => {
 
 describe("verrous de source — la console lit la vérité écrite", () => {
     const panel = readFileSync("src/app/god/components/god-notification-panel.tsx", "utf8");
-    const actions = readFileSync("src/server/actions/god-notif-actions.ts", "utf8");
+    const actions = readFileSync("src/server/god-notifications.ts", "utf8");
     const schema = readFileSync("prisma/schema.prisma", "utf8");
 
     it("le modèle persiste `details` (colonne nullable)", () => {

@@ -432,7 +432,7 @@ export async function addAllowedGuild(data: {
     }
 
     // 🔔 NOTIFY GOD
-    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    const { notifyGod } = await import("@/server/god-notifications");
     await notifyGod({
         title: "Guilde Whitelistée",
         message: `**${data.name || data.discordGuildId}** a été ajouté à la whitelist (tier: ${data.tier || "BETA"}).\n👤 Par: **${actorName}**`,
@@ -476,7 +476,7 @@ export async function removeAllowedGuild(discordGuildId: string) {
     if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
 
     // 🔔 NOTIFY GOD (must fetch name BEFORE deletion)
-    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    const { notifyGod } = await import("@/server/god-notifications");
     const session = await auth();
     const adminName = session?.user?.name || "Super Admin";
     const guildToRemove = await db.allowedGuild.findUnique({ where: { discordGuildId }, select: { name: true } });
@@ -558,7 +558,7 @@ export async function toggleGuildActive(discordGuildId: string) {
     }
 
     // 🔔 NOTIFY GOD
-    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    const { notifyGod } = await import("@/server/god-notifications");
     await notifyGod({
         title: updated.isActive ? "Guilde Activée" : "Guilde Désactivée",
         message: `**${updated.name || discordGuildId}** a été ${updated.isActive ? "réactivé" : "désactivé"} sur la plateforme.\n👤 Par: **${adminName}**`,

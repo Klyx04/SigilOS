@@ -31,6 +31,9 @@ import {
   moveRushSequence,
   splitRushSequence,
   updateRushBlockRoute,
+  bulkUpdateRushSequencesRoute,
+  bulkMoveRushSequences,
+  bulkDeleteRushSequences,
   deleteRushSequence,
   updateRushSylvestreSettings,
   updateRushUIConfig,
@@ -81,6 +84,8 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { isDirty, UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
 // E1 — le studio est découpé : coquille, barre, arbre, inspecteur et palette vivent dans
 // `src/components/god/rush-editor/**` (plafond God 77/77 respecté). Les formulaires
@@ -101,6 +106,12 @@ import {
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
 import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
+import {
+  pruneRushBulkSelection,
+  rushBulkSelectionState,
+  selectAllRushBulk,
+  toggleRushBulkSelection,
+} from "@/lib/rush-bulk-selection";
 import {
   findRushEditorBlock,
   isRushOutsideChapter,
@@ -800,6 +811,57 @@ export function RushSylvestreAdminClient({
     });
   }, [router]);
 
+  /**
+   * E3c — route appliquée à une **sélection** de quêtes. Le serveur revalide chaque
+   * id et refuse si une seule quête n'appartient pas au guide Rush.
+   */
+  const handleBulkRoute = useCallback((sequenceIds: string[], route: RushBlockRouteValues) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkUpdateRushSequencesRoute({ sequenceIds, ...route });
+        toast.success(`Route appliquée à ${res.count} quête${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Application impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkMove = useCallback((sequenceIds: string[], targetMilestoneId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkMoveRushSequences({ sequenceIds, targetMilestoneId });
+        toast.success(`${res.moved} quête${res.moved !== 1 ? "s" : ""} déplacée${res.moved !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Déplacement impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkDelete = useCallback((sequenceIds: string[]) => {
+    const ids = new Set(sequenceIds);
+    // Optimiste : la sélection quitte la liste immédiatement ; le serveur confirme.
+    setLocalMilestones(prev => prev.map(m => ({
+      ...m,
+      sequences: m.sequences.filter(s => !ids.has(s.id)),
+    })));
+    if (editingSeqId && ids.has(editingSeqId)) {
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+    }
+    startTransition(async () => {
+      try {
+        const res = await bulkDeleteRushSequences({ sequenceIds });
+        toast.success(`${res.count} quête${res.count !== 1 ? "s" : ""} supprimée${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
+    });
+  }, [router, editingSeqId]);
+
   const handleDeleteSequence = useCallback((id: string) => {
     // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
     // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
@@ -1051,6 +1113,10 @@ export function RushSylvestreAdminClient({
       onApplyBlockRoute={handleApplyBlockRoute}
       onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
       onAddSequence={() => startAddSequence(blockBeingEdited.id)}
+      milestones={localMilestones}
+      onBulkRoute={handleBulkRoute}
+      onBulkMove={handleBulkMove}
+      onBulkDelete={handleBulkDelete}
     />
   ) : selectedQuest && selectedQuestBlock ? (
     questFullscreen ? (
@@ -2142,6 +2208,7 @@ function SortableMilestoneRow(props: {
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
   onApplyBlockRoute, onSelectQuest, onAddSequence,
+  milestones, onBulkRoute, onBulkMove, onBulkDelete,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -2158,6 +2225,11 @@ function BlockInspectorForm({
   /** E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */
   onSelectQuest: (questId: string) => void;
   onAddSequence: () => void;
+  /** E3c — les autres blocs du guide, pour « Déplacer vers ». */
+  milestones: Milestone[];
+  onBulkRoute: (sequenceIds: string[], route: RushBlockRouteValues) => void;
+  onBulkMove: (sequenceIds: string[], targetMilestoneId: string) => void;
+  onBulkDelete: (sequenceIds: string[]) => void;
 }) {
   const color = milestone.accentColor || "#10b981";
   const type = editingData?.type ?? milestone.type;
@@ -2166,6 +2238,21 @@ function BlockInspectorForm({
   // montre donc pas le champ « description » brut, qui les corromprait.
   const isSeparator = type === "SEPARATEUR";
   const sequences = milestone.sequences ?? [];
+  // E3c — la sélection est locale au bloc inspecté : changer de bloc repart à zéro.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState("");
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkTarget("");
+    setPendingBulkDelete(false);
+  }, [milestone.id]);
+  const sequenceIds = useMemo(() => sequences.map((seq) => seq.id), [sequences]);
+  const bulk = rushBulkSelectionState(selectedIds, sequenceIds);
+  const bulkIds = () => [...pruneRushBulkSelection(selectedIds, sequenceIds)];
+  const targetBlocks = milestones.filter(
+    (m) => m.id !== milestone.id && m.type !== "SEPARATEUR" && m.type !== "INFO",
+  );
 
   return (
     <div className="space-y-2">
@@ -2196,13 +2283,19 @@ function BlockInspectorForm({
         )}
       </div>
 
-      {/* E3a — route du bloc : même règle et même confirmation de masse que dans la liste. */}
+      {/* E3a — route du bloc ; E3c — la même barre vise la sélection dès qu'il y en a une. */}
       {!isTips && !isSeparator && (
         <RushRouteBlockBar
           milestoneId={milestone.id}
-          count={sequences.length}
+          count={bulk.count > 0 ? bulk.count : sequences.length}
           isPending={isPending}
-          onApply={onApplyBlockRoute}
+          onApply={(_, route) => {
+            if (bulk.count > 0) onBulkRoute(bulkIds(), route);
+            else onApplyBlockRoute(milestone.id, route);
+          }}
+          title={bulk.count > 0 ? "Route de la sélection" : undefined}
+          applyLabel={bulk.count > 0 ? `Appliquer à la sélection (${bulk.count})` : undefined}
+          scopeLabel={bulk.count > 0 ? "de la sélection" : undefined}
         />
       )}
       {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
@@ -2276,20 +2369,34 @@ function BlockInspectorForm({
         </div>
       </div>
 
-      {/* E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */}
+      {/* E3a — les quêtes du bloc, cliquables ; E3c — cochables pour agir en masse. */}
       {!isTips && !isSeparator && (
         <div className="space-y-1.5 rounded-xl border border-border p-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
               Quêtes du bloc ({sequences.length})
             </p>
-            <button
-              type="button"
-              onClick={onAddSequence}
-              className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-            >
-              + Quête
-            </button>
+            <div className="flex items-center gap-2">
+              {sequences.length > 0 && (
+                <label className="flex cursor-pointer items-center gap-1.5 text-caption text-muted-foreground">
+                  <Checkbox
+                    checked={bulk.all ? true : bulk.some ? "indeterminate" : false}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds(checked === true ? selectAllRushBulk(sequenceIds) : new Set())
+                    }
+                    aria-label="Tout sélectionner"
+                  />
+                  Tout
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={onAddSequence}
+                className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                + Quête
+              </button>
+            </div>
           </div>
           {sequences.length === 0 ? (
             <p className="text-caption text-muted-foreground">Aucune quête : ce bloc est vide.</p>
@@ -2297,19 +2404,118 @@ function BlockInspectorForm({
             <ul className="space-y-0.5">
               {sequences.map((seq) => (
                 <li key={seq.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectQuest(seq.id)}
-                    className="w-full truncate text-left text-xs text-foreground hover:underline"
-                  >
-                    {seq.subGuideName || seq.subGuideRef}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.has(seq.id)}
+                      onCheckedChange={() =>
+                        setSelectedIds((prev) => toggleRushBulkSelection(prev, seq.id))
+                      }
+                      aria-label={`Sélectionner ${seq.subGuideName || seq.subGuideRef}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onSelectQuest(seq.id)}
+                      className="min-w-0 flex-1 truncate text-left text-xs text-foreground hover:underline"
+                    >
+                      {seq.subGuideName || seq.subGuideRef}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
       )}
+      {/* E3c — actions de masse : visibles seulement quand une quête est cochée. */}
+      {!isTips && !isSeparator && bulk.count > 0 && (
+        <div className="space-y-1.5 rounded-xl border border-primary/30 bg-primary/5 p-2">
+          <p className="text-caption font-medium text-foreground">
+            {bulk.count} quête{bulk.count !== 1 ? "s" : ""} sélectionnée{bulk.count !== 1 ? "s" : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={bulkTarget} onValueChange={setBulkTarget}>
+              <SelectTrigger size="sm" aria-label="Bloc de destination" className="min-w-[140px]">
+                <SelectValue placeholder="Déplacer vers…" />
+              </SelectTrigger>
+              <SelectContent>
+                {targetBlocks.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              disabled={!bulkTarget || isPending}
+              onClick={() => {
+                onBulkMove(bulkIds(), bulkTarget);
+                setSelectedIds(new Set());
+                setBulkTarget("");
+              }}
+              className="rounded-lg border border-border px-2 py-1 text-caption font-medium text-foreground transition-colors hover:border-border-strong disabled:opacity-40"
+            >
+              Déplacer
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => setPendingBulkDelete(true)}
+              className="rounded-lg border border-destructive/30 px-2 py-1 text-caption font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
+            >
+              Supprimer
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Désélectionner
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation : la suppression de masse est irréversible, on liste ce qui part. */}
+      <Dialog open={pendingBulkDelete} onOpenChange={setPendingBulkDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer la sélection</DialogTitle>
+            <DialogDescription>
+              {bulk.count} quête{bulk.count !== 1 ? "s" : ""} vont être supprimées. Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-40 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+            {sequences
+              .filter((seq) => selectedIds.has(seq.id))
+              .slice(0, 8)
+              .map((seq) => (
+                <li key={seq.id} className="truncate">{seq.subGuideName || seq.subGuideRef}</li>
+              ))}
+            {bulk.count > 8 && <li>… et {bulk.count - 8} autre{bulk.count - 8 !== 1 ? "s" : ""}</li>}
+          </ul>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingBulkDelete(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                setPendingBulkDelete(false);
+                onBulkDelete(bulkIds());
+                setSelectedIds(new Set());
+              }}
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-caption font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
+            >
+              Supprimer {bulk.count}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
@@ -2464,9 +2670,18 @@ function MilestoneRow({
  */
 function RushRouteBlockBar({
   milestoneId, count, isPending, onApply,
+  title = "Route du bloc",
+  applyLabel,
+  clearLabel = "Effacer la route",
+  scopeLabel = "de ce bloc",
 }: {
   milestoneId: string; count: number; isPending: boolean;
   onApply: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3c — la même barre sert le bloc ou une sélection : le libellé dit laquelle. */
+  title?: string;
+  applyLabel?: string;
+  clearLabel?: string;
+  scopeLabel?: string;
 }) {
   const [camp, setCamp] = useState("");
   const [order, setOrder] = useState("");
@@ -2502,7 +2717,7 @@ function RushRouteBlockBar({
   return (
     <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-2.5 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-caption font-black uppercase tracking-widest text-sky-300/80">Route du bloc</p>
+        <p className="text-caption font-black uppercase tracking-widest text-sky-300/80">{title}</p>
         <span className="text-caption text-zinc-500">{count} quête{count !== 1 ? "s" : ""}</span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -2560,7 +2775,7 @@ function RushRouteBlockBar({
           disabled={isPending || count === 0}
           className="px-2.5 py-1 rounded-lg text-caption font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/20 transition-colors disabled:opacity-40"
         >
-          Appliquer au bloc ({count})
+          {applyLabel ?? `Appliquer au bloc (${count})`}
         </button>
         <button
           type="button"
@@ -2568,7 +2783,7 @@ function RushRouteBlockBar({
           disabled={isPending || count === 0}
           className="px-2.5 py-1 rounded-lg text-caption font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/5 transition-colors disabled:opacity-40"
         >
-          Effacer la route
+          {clearLabel}
         </button>
         <span className="text-caption text-zinc-500">Les champs vides effacent la valeur du bloc.</span>
       </div>
@@ -2578,6 +2793,7 @@ function RushRouteBlockBar({
         isClear={pending?.mode === "clear"}
         count={count}
         summary={summary}
+        scopeLabel={scopeLabel}
         isPending={isPending}
         onCancel={() => setPending(null)}
         onConfirm={confirm}
@@ -2590,9 +2806,12 @@ function RushRouteBlockBar({
 /** Confirmation d'une écriture de masse : la portée et les valeurs sont écrites noir sur blanc. */
 function RushRouteBlockDialog({
   open, isClear, count, summary, isPending, onCancel, onConfirm,
+  scopeLabel = "de ce bloc",
 }: {
   open: boolean; isClear: boolean; count: number; summary: string[];
   isPending: boolean; onCancel: () => void; onConfirm: () => void;
+  /** E3c — « de ce bloc » ou « de la sélection ». */
+  scopeLabel?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
@@ -2600,7 +2819,7 @@ function RushRouteBlockDialog({
         <DialogHeader>
           <DialogTitle>{isClear ? "Effacer la route du bloc" : "Appliquer la route au bloc"}</DialogTitle>
           <DialogDescription>
-            {count} quête{count !== 1 ? "s" : ""} de ce bloc {isClear ? "vont perdre leur route" : "vont recevoir"} :
+            {count} quête{count !== 1 ? "s" : ""} {scopeLabel} {isClear ? "vont perdre leur route" : "vont recevoir"} :
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-1 text-xs text-zinc-300">

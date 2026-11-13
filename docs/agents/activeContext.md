@@ -5,6 +5,13 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 (suite 3) — **SEC-04 · cAdvisor supprimé : plus de socket Docker monté** — branche `chore/monitoring-sans-cadvisor`
+
+> **Décision user (verbatim)** : « toi qui gères » — après mesure : la carte God « Conteneurs » était vide depuis le 19/10 et le socket Docker n'était monté que pour cAdvisor.
+> **Fait** : service `cadvisor` retiré des composes prod **et** dev (`privileged: true` en dev), scrape job retiré de `monitoring/prometheus/prometheus.yml`, requêtes `container_last_seen`/`container_start_time_seconds` et champs `containers`/`restarts` retirés de `god-system-actions`, carte « Conteneurs » retirée du dashboard God, `scripts/deploy.sh` ne tire plus `grafana` (déjà supprimé) ni `cadvisor`, doc `MAINTENANCE.md` mise à jour.
+> **Preuves** : `monitor-private` **5** (dont « ne monte plus le socket Docker ») · suite **668 fichiers ✓** · `tsc` 0 · **aucune migration**.
+> **Reste / ops** : PR → `dev` ; au prochain déploiement, la stack monitoring ne recrée plus cAdvisor — supprimer le conteneur existant (`docker rm -f sigilos-cadvisor`, action humaine) et vérifier que Prometheus ne scrape plus `cadvisor:8080`.
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 13/11/2026 (suite 2) — **RGPD · Ladder sur les messages, intent `MessageContent` retiré** — branche `feat/ladder-messages`
 
 > **Décision user (verbatim)** : « oui je veux faire la modif, du coup la modif ladder UI module à faire aussi et tout le code autour ».
@@ -51,18 +58,3 @@
 > **Preuves** : suite complète **674 fichiers / 7 255 tests ✓** · `tsc` 0 · ESLint 0 (hook pre-commit) · `git status` propre · **aucune migration**.
 > **Reste / ops** : **G7** (hero) et **composition G9** (captures) · **E5** (finitions studio) · **V-C** (purge WebP, ops VPS) · **nouveau lot demandé** : blocs **Combat tactique / semi-tactique** + liens nommés (favicon) + markdown couleur + modale de bloc + image du monstre/combat importable (migration enum + `GuideMilestone.links` à prévoir).
 > **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré, combat et donjon au choix** — branche `feat/rush-conditions-combat`
-
-> **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
-> **Fait — modèle (`8e23dd77`)** : colonne **`GuideSequence.constraints Json?`** (migration additive `20270130000000_add_rush_quest_constraints`), Zod borné `rushQuestConstraintsSchema` (heures `HH:MM`, effectif 1-40, métiers/classes des référentiels, 10 rôles/sorts/notes max), conversion `constraintsToInfos` et reprise des anciennes lignes `tips`.
-> **Fait — éditeur (`8a0d96e9`)** : section **« Conditions »** entre Prérequis et Ressources — horaire (aucun / créneau from-to / attente en minutes, contournable ou PNJ), joueurs (effectif + rôles métier/classe/libre avec niveau), métiers + niveau, sorts, notes, **aperçu membre** en direct. Métiers `DOFUS_JOBS` + icônes réelles, classes `RushClassSelect` ; `sanitizeConstraints` retire les lignes vides ; verrou `rush-sequence-inspector` **18** (11 sections).
-> **Fait — affichage (`f067b2d6`)** : `RushTipLines` reçoit `constraints` et affiche les chips dans le dashboard, le guide public et l'overlay ; fallback texte pour les anciennes données. Aucune règle de blocage.
-> **Fait — combat/donjon/monstres (`72eb5c91`)** : `combat` (5 modes, monstres ×N + niveau + PV), `dungeonChoice` (8 donjons max, boss/niveau/note), `bashMobs` ; blocs **Combat / Donjon au choix / Monstres à tuer** dans l'éditeur, recherches locales (`searchMonstersForDefi`, `searchDungeonsLocal`), portraits réels (`RushPortrait`) et cartes dans les 3 surfaces (`RushCombatCard`, `RushDungeonChoiceCard`, `RushBashMobsCard`). Zod borné (5 modes, 20 monstres, 8 donjons, 20 espèces). **Aucune migration** (colonne JSON existante).
-> **Preuves** : `rush-constraints` **43** · `rush-sequence-inspector` 18 · `rush-public-parity` 48 · `da-wakfu` 54 · `rush-editor-*` 97 · `tsc` 0 · ESLint 0 (hooks) · migration jouée en local.
-> **Reste / ops** : **jouer `20270130000000_add_rush_quest_constraints` en bêta puis en prod** (documentée dans le ROADMAP §0) ; **backfill Tougli** (1 085 contraintes → `constraints`, dry-run/apply) et données éditoriales (ex. les 4 donjons de Maïmane) ; les conseils libres restent dans `tips`.
-> **Doc** : `ROADMAP` rang 64 (V3) + op migration · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V3) · `TOUGLI-API.md` (formes `combat`/`dungeonChoice` mesurées).
-> **Rotation** : bloc « 12/11/2026 — E2b + E2c + E2d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-

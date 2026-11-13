@@ -234,31 +234,11 @@ services:
         max-file: "3"
 
   # -----------------------------------------------------------------------------
-  # MONITORING - CADVISOR (Docker Container Metrics)
+  # MONITORING - CADVISOR — SUPPRIMÉ le 13/11/2026 (SEC-04)
   # -----------------------------------------------------------------------------
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
-    container_name: sigilos-cadvisor
-    restart: always
-    privileged: true
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    networks:
-      - internal-net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # Le service montait `/var/run/docker.sock` et tournait en `privileged: true`.
+  # Retiré : la carte God « Conteneurs » n'est plus alimentée. Réintroduction
+  # éventuelle uniquement via un `docker-socket-proxy` filtrant.
 
   # -----------------------------------------------------------------------------
   # MONITORING - POSTGRES EXPORTER (Database Metrics)

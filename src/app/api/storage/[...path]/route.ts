@@ -4,6 +4,7 @@ import { join, normalize, sep } from "path";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { getUserContext } from "@/server/actions/user-actions";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { verifyStorageToken } from "@/lib/storage-utils";
 import { logger } from "@/lib/logger";
 
@@ -59,18 +60,25 @@ export async function GET(
         // 🛡️ RBAC: Check permissions for private areas (Only if not using a valid token)
         if (!isTokenValid && (segment === "guilds" || segment === "proofs")) {
             if (!guildId) return new NextResponse("Forbidden", { status: 403 });
-            
-            const baseContext = await getUserContext();
-            if (!baseContext.isAdmin) {
+
+            // 🔐 AUD-03 (audit 13/11/2026) : ne JAMAIS utiliser `getUserContext()` sans
+            // argument comme bypass. Il résout la guilde d'accueil (`DISCORD_GUILD_ID`) et
+            // son `isAdmin` suffisait à lire les preuves privées de TOUTES les guildes.
+            // Seul God est exempté ; tout autre utilisateur doit être membre de la guilde
+            // cible (résolue côté serveur, CUID → discordGuildId).
+            const isGod = await isSuperAdmin();
+            if (!isGod) {
                 let resolvedDiscordGuildId = guildId;
                 // If the guildId is a Prisma CUID/UUID (not numeric), we must map it to the discordGuildId
                 if (!/^\d+$/.test(guildId)) {
                     const { db } = await import("@/lib/prisma");
-                    const g = await db.guildConfig.findUnique({ 
-                        where: { id: guildId }, 
-                        select: { discordGuildId: true } 
+                    const g = await db.guildConfig.findUnique({
+                        where: { id: guildId },
+                        select: { discordGuildId: true }
                     });
-                    if (g) resolvedDiscordGuildId = g.discordGuildId;
+                    // Cible inconnue → fail-closed (appartenance non prouvable).
+                    if (!g) return new NextResponse("Forbidden", { status: 403 });
+                    resolvedDiscordGuildId = g.discordGuildId;
                 }
 
                 // Check membership for any private image in guilds/ or proofs/

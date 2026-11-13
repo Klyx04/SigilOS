@@ -3262,6 +3262,9 @@ model GuideMilestone {
   prerequisiteIds String[]             @default([]) // IDs de milestones requis avant celui-ci
   order           Int                  @default(0)  // Ordre global pour le tri
   tips            String?              // Conseils / astuces au niveau du bloc
+  /// Liens externes nommés (vidéos YouTube, guides écrits) des blocs Combat / Conseils.
+  /// Forme validée par `rush-block-links` : `[{ label, url }]`, 10 max, URL http(s).
+  links           Json?
   dofusId         String?              // Association optionnelle avec un DofusItem (pour le % global)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -3449,6 +3452,8 @@ enum GuideMilestoneType {
   SUCCES          // Succès spécifique
   INFO            // Bloc d'information / tips autonome
   SEPARATEUR      // Titre simple de section / séparateur visuel
+  COMBAT_TACTIQUE       // Bloc d'information : combat tactique (mécanique, non cochable)
+  COMBAT_SEMI_TACTIQUE  // Bloc d'information : combat semi-tactique (non cochable)
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)

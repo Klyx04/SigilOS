@@ -278,7 +278,7 @@ export class GeoguesserManager {
                 console.log(`[GeoguesserManager] 🚩 Map ${mapId} reported by ${socket.id}`);
                 
                 // [NEW] NOTIFY GOD DASHBOARD (/god?tab=notifications) — GEOGUESSER_REPORT type
-                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                const { notifyGod } = await import("@/server/god-notifications");
                 await notifyGod({
                     title: "🚩 Carte signalée (SigilGuesser)",
                     message: `Une map a été signalée comme buggée ou mal placée.`,

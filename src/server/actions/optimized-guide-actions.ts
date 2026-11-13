@@ -28,6 +28,8 @@ import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceK
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
+import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
+import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
@@ -3696,6 +3698,8 @@ export async function upsertRushMilestone(data: {
   order?: number;
   type?: any; // GuideMilestoneType enum
   tips?: string;
+  /** Liens externes nommés des blocs Combat / Conseils (bornés par `rush-block-links`). */
+  links?: unknown;
   dofusId?: string | null;
 }) {
   await requireRushAccess();
@@ -3731,6 +3735,8 @@ export async function upsertRushMilestone(data: {
         order: data.order ?? 0,
         type: data.type ?? undefined,
         tips: data.tips,
+        // Un update qui n'envoie pas `links` ne doit pas effacer les liens existants.
+        ...(data.links !== undefined ? { links: normalizeRushBlockLinks(data.links) } : {}),
         dofusId,
       },
       include: {
@@ -3775,6 +3781,7 @@ export async function upsertRushMilestone(data: {
           isOptional: data.isOptional ?? false,
           order: targetOrder,
           tips: data.tips,
+          links: normalizeRushBlockLinks(data.links),
           dofusId,
         },
         include: {
@@ -4359,6 +4366,38 @@ const RushBlockRouteSchema = z.object({
 });
 
 /**
+ * Normalise et valide une route de quête. **Une seule** règle pour la route d'un bloc
+ * (G1) et la route d'une sélection (E3c) : un Ordre inconnu, un Ordre d'une autre
+ * cité ou une classe hors des 19 ids sont refusés avant toute écriture.
+ */
+function normalizeRushRouteInput(input: {
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const rawOrder = input.alignOrderCode?.trim() || null;
+  const order = rawOrder ? normalizeOrderCode(rawOrder) : null;
+  if (rawOrder && !order) throw new Error("Ordre inconnu");
+  if (order && !input.alignReq) throw new Error("Un Ordre exige une cité");
+  if (order && input.alignReq && !orderCodesForCamp(input.alignReq).some((o) => o.code === order)) {
+    throw new Error("Cet Ordre n'appartient pas à la cité choisie");
+  }
+
+  const rawClass = input.classReq?.trim().toLowerCase() || null;
+  if (rawClass && !DOFUS_CLASSES.some((c) => c.id === rawClass)) {
+    throw new Error("Classe inconnue");
+  }
+
+  return {
+    alignReq: input.alignReq,
+    alignOrderCode: order,
+    alignLevelReq: input.alignLevelReq,
+    classReq: rawClass,
+  };
+}
+
+/**
  * (God) Applique une route à **toutes les quêtes d'un bloc** — le geste qui remplace
  * 236 éditions quête par quête.
  *
@@ -4383,18 +4422,7 @@ export async function updateRushBlockRoute(data: {
   const input = parsed.data;
   await requireRushWriteAccess("rush-block-route");
 
-  const rawOrder = input.alignOrderCode?.trim() || null;
-  const order = rawOrder ? normalizeOrderCode(rawOrder) : null;
-  if (rawOrder && !order) throw new Error("Ordre inconnu");
-  if (order && !input.alignReq) throw new Error("Un Ordre exige une cité");
-  if (order && input.alignReq && !orderCodesForCamp(input.alignReq).some((o) => o.code === order)) {
-    throw new Error("Cet Ordre n'appartient pas à la cité choisie");
-  }
-
-  const rawClass = input.classReq?.trim().toLowerCase() || null;
-  if (rawClass && !DOFUS_CLASSES.some((c) => c.id === rawClass)) {
-    throw new Error("Classe inconnue");
-  }
+  const route = normalizeRushRouteInput(input);
 
   // Isolation : le bloc doit être celui du guide Rush, sinon on n'écrit rien.
   const milestone = await db.guideMilestone.findFirst({
@@ -4405,12 +4433,7 @@ export async function updateRushBlockRoute(data: {
 
   const { count } = await db.guideSequence.updateMany({
     where: { milestoneId: milestone.id },
-    data: {
-      alignReq: input.alignReq,
-      alignOrderCode: order,
-      alignLevelReq: input.alignLevelReq,
-      classReq: rawClass,
-    },
+    data: route,
   });
 
   await logGodWrite({
@@ -4420,16 +4443,286 @@ export async function updateRushBlockRoute(data: {
     metadata: {
       op: "route-rush-block",
       count,
-      camp: input.alignReq,
-      order,
-      level: input.alignLevelReq,
-      classReq: rawClass,
+      camp: route.alignReq,
+      order: route.alignOrderCode,
+      level: route.alignLevelReq,
+      classReq: route.classReq,
     },
   });
 
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, count };
+}
+// ---------------------------------------------------------------------------
+// E3c — actions de masse sur une SÉLECTION de quêtes (12/11/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Une sélection est **bornée** : 1 à 200 ids, sans doublon. Le plafond est une garde
+ * de charge (200 écritures au plus dans une transaction), jamais une confiance dans
+ * le client : le studio ne sélectionne que les quêtes d'un bloc.
+ */
+const RushSequenceSelectionSchema = z
+  .array(z.string().min(1).max(64))
+  .min(1)
+  .max(200)
+  .refine((ids) => new Set(ids).size === ids.length, "Sélection avec doublons");
+
+const BulkRushRouteSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+  alignReq: z.enum(["bontarien", "brakmarien"]).nullable(),
+  alignOrderCode: z.string().max(64).nullable(),
+  alignLevelReq: z
+    .union([z.literal(20), z.literal(40), z.literal(60), z.literal(80), z.literal(100)])
+    .nullable(),
+  classReq: z.string().max(64).nullable(),
+});
+
+const BulkMoveRushSequencesSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+  targetMilestoneId: z.string().min(1).max(64),
+});
+
+const BulkDeleteRushSequencesSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+});
+
+/**
+ * (God) Applique une route à une **sélection** de quêtes.
+ *
+ * Même règle que la route d'un bloc (`normalizeRushRouteInput`), mais la portée est
+ * une liste d'ids. Fail-closed : **toutes** les ids doivent appartenir au guide
+ * `rush-sylvestre` ; si une seule manque, la transaction est annulée.
+ */
+export async function bulkUpdateRushSequencesRoute(data: {
+  sequenceIds: string[];
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const parsed = BulkRushRouteSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Route de sélection invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-route", 6, 60_000);
+  const route = normalizeRushRouteInput(input);
+
+  const count = await db.$transaction(async (tx) => {
+    const found = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true },
+    });
+    if (found.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+    const res = await tx.guideSequence.updateMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      data: route,
+    });
+    if (res.count !== input.sequenceIds.length) {
+      throw new Error("La sélection a changé pendant l'écriture — rien n'a été appliqué");
+    }
+    return res.count;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.sequenceIds[0],
+    metadata: {
+      op: "bulk-route-rush-sequences",
+      count,
+      sample: input.sequenceIds.slice(0, 10),
+      camp: route.alignReq,
+      order: route.alignOrderCode,
+      level: route.alignLevelReq,
+      classReq: route.classReq,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, count };
+}
+/**
+ * (God) Déplace une **sélection** vers un autre bloc. Seuls `milestoneId` et `order`
+ * changent : route, tips, tags et donjons restent attachés à chaque quête.
+ */
+export async function bulkMoveRushSequences(data: {
+  sequenceIds: string[];
+  targetMilestoneId: string;
+}) {
+  const parsed = BulkMoveRushSequencesSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Déplacement de sélection invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-move", 6, 60_000);
+
+  const moved = await db.$transaction(async (tx) => {
+    const target = await tx.guideMilestone.findFirst({
+      where: { id: input.targetMilestoneId, guide: { slug: "rush-sylvestre" } },
+      select: { id: true, type: true },
+    });
+    if (!target) throw new Error("Bloc cible introuvable dans ce guide");
+    if (target.type === "SEPARATEUR") throw new Error("Un séparateur ne porte pas de quêtes.");
+    if (target.type === "INFO") throw new Error("Un bloc Conseil / Tips ne porte pas de quêtes.");
+
+    const sources = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true, milestoneId: true, order: true },
+    });
+    if (sources.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+
+    const toMove = sources.filter((source) => source.milestoneId !== target.id);
+    if (toMove.length === 0) return 0;
+
+    const orders = await tx.guideSequence.findMany({
+      where: { milestoneId: target.id },
+      select: { order: true },
+    });
+    let order = nextSequenceOrder(orders.map((row) => row.order));
+
+    for (const source of toMove) {
+      const res = await tx.guideSequence.updateMany({
+        where: { id: source.id, milestoneId: source.milestoneId },
+        data: { milestoneId: target.id, order: order++ },
+      });
+      if (res.count !== 1) {
+        throw new Error("La sélection a changé pendant le déplacement — rien n'a été déplacé");
+      }
+    }
+    return toMove.length;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.targetMilestoneId,
+    metadata: {
+      op: "bulk-move-rush-sequences",
+      count: moved,
+      sample: input.sequenceIds.slice(0, 10),
+      toMilestoneId: input.targetMilestoneId,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, moved };
+}
+
+/**
+ * (God) Supprime une **sélection** de quêtes. Même garde que la route : toutes les
+ * ids doivent appartenir au guide Rush, sinon la transaction est annulée.
+ */
+export async function bulkDeleteRushSequences(data: { sequenceIds: string[] }) {
+  const parsed = BulkDeleteRushSequencesSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Sélection de suppression invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-delete", 4, 60_000);
+
+  const count = await db.$transaction(async (tx) => {
+    const found = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true },
+    });
+    if (found.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+    const res = await tx.guideSequence.deleteMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+    });
+    if (res.count !== input.sequenceIds.length) {
+      throw new Error("La sélection a changé pendant la suppression — rien n'a été supprimé");
+    }
+    return res.count;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.sequenceIds[0],
+    metadata: {
+      op: "bulk-delete-rush-sequences",
+      count,
+      sample: input.sequenceIds.slice(0, 10),
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, count };
+}
+
+
+
+
+
+// ---------------------------------------------------------------------------
+// Bloc B — page publique d'une quête (12/11/2026)
+// ---------------------------------------------------------------------------
+
+const PublishRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  publish: z.boolean(),
+});
+
+/**
+ * (God) Publie ou dépublie **une quête** sur le guide public.
+ *
+ * 🔒 Le slug est **figé à la première publication** : on ne le recalcule jamais
+ * depuis le nom, sinon un renommage casserait une URL déjà indexée. Une
+ * dépubliaison **conserve** le slug (la page repasse en 404, l'URL reste réservée).
+ *
+ * Fail-closed : la quête doit appartenir au guide `rush-sylvestre`, l'action est
+ * rate-limitée et journalisée. Une collision de slug est suffixée `-2`, `-3`…
+ */
+export async function publishRushSequence(data: { sequenceId: string; publish: boolean }) {
+  const parsed = PublishRushSequenceSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Publication invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-publish", 12, 60_000);
+
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: input.sequenceId, milestone: { guide: { slug: "rush-sylvestre" } } },
+    select: { id: true, subGuideName: true, publicSlug: true },
+  });
+  if (!sequence) throw new Error("Quête introuvable dans le guide Rush");
+
+  let slug = sequence.publicSlug;
+  if (input.publish && !slug) {
+    const rows = await db.guideSequence.findMany({
+      where: { publicSlug: { not: null } },
+      select: { publicSlug: true },
+    });
+    const taken = new Set(rows.map((row) => row.publicSlug as string));
+    slug = uniqueRushPublicSlug(slugifyRushQuestName(sequence.subGuideName), taken);
+  }
+
+  await db.guideSequence.update({
+    where: { id: sequence.id },
+    data: { publicSlug: slug, isPublished: input.publish },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequence.id,
+    metadata: {
+      op: input.publish ? "publish-rush-sequence" : "unpublish-rush-sequence",
+      slug,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/guides/rush-sylvestre");
+  if (slug) revalidatePath(`/guides/rush-sylvestre/q/${slug}`);
+  return { success: true, slug, isPublished: input.publish };
 }
 
 /**

@@ -165,14 +165,17 @@ export async function reportSecurityIncident(
     if (!rl.success) return { success: false, error: "Trop de signalements. Réessayez dans une minute." };
 
     try {
-        // Try to get server context for accurate pseudo
-        let actorName = session.user.name || "Membre";
-        try {
-            const ctx = await getUserContext(guildId);
-            if (ctx.name) actorName = ctx.name;
-        } catch (e) {
-            logger.warn("[Security] Context lookup failed, using session name", e);
+        // 🛡️ AUD-06/AUD-01 (audit 13/11/2026) : le `guildId` vient du client — on exige
+        // l'appartenance effective AVANT toute écriture ou alerte (fail-closed). Sans ce
+        // contrôle, un visiteur pouvait produire une fausse alerte « HIGH » au nom d'une
+        // autre guilde, et la notification God associée.
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            return { success: false, error: "Forbidden" };
         }
+        let actorName = ctx.name || session.user.name || "Membre";
+        // Borne la description : elle vient du client et part en base + Discord.
+        const safeDescription = String(description ?? "").slice(0, 2000);
 
         // 🛡️ FORENSICS: Get real security headers
         const { headers } = await import("next/headers");
@@ -187,7 +190,7 @@ export async function reportSecurityIncident(
             targetType: "CONTENT_SAFETY",
             targetId: incidentType,
             metadata: {
-                description,
+                description: safeDescription,
                 ...metadata,
                 ip,
                 severity: "HIGH"
@@ -208,7 +211,7 @@ export async function reportSecurityIncident(
 
             await sendSecurityAlert({
                 type: incidentType,
-                description,
+                description: safeDescription,
                 severity: "HIGH",
                 guildName,
                 userName: actorName,
@@ -217,6 +220,23 @@ export async function reportSecurityIncident(
                     logId: result.data?.logId
                 }
             });
+
+            // 🔐 AUD-01 (audit 13/11/2026) : la notification du panneau God est créée
+            // ICI, côté serveur, après la garde session + appartenance ci-dessus.
+            // `webOnly` évite un doublon Discord (`sendSecurityAlert` vient de poster).
+            try {
+                const { notifyGod } = await import("@/server/god-notifications");
+                await notifyGod({
+                    title: "🚫 Alerte sécurité",
+                    message: `${String(incidentType).slice(0, 64)} — ${safeDescription}`.slice(0, 500),
+                    type: "SECURITY_ALERT",
+                    success: false,
+                    webOnly: true,
+                    metadata: { guildId, logId: result.data?.logId, severity: "HIGH" },
+                });
+            } catch (notifErr) {
+                logger.warn("[Security] God notification best-effort failed", { error: String(notifErr) });
+            }
         }
 
         return { success: true };

@@ -3297,7 +3297,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         // B2 — Notifier les nouveaux archis/boss Ocre détectés (base panel GOD + Discord)
         if (newOcreMonsters.length > 0) {
             try {
-                const { notifyGod } = await import('./god-notif-actions');
+                const { notifyGod } = await import("@/server/god-notifications");
                 const count = newOcreMonsters.length;
                 const sample = newOcreMonsters.slice(0, 8)
                     .map(m => `• **${m.name}** (${m.type}${m.zone ? `, ${m.zone}` : ''})`)
@@ -3539,7 +3539,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
         // B2 — Notifier les nouveautés détectées (base panel GOD + Discord)
         if (newMonsters.length > 0) {
             try {
-                const { notifyGod } = await import('./god-notif-actions');
+                const { notifyGod } = await import("@/server/god-notifications");
                 const count = newMonsters.length;
                 const sample = newMonsters.slice(0, 8)
                     .map(m => `• **${m.name}** (${m.type}${m.id ? `, #${m.id}` : ''})`)

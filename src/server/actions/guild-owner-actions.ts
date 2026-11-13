@@ -8,7 +8,7 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { getUserContext, invalidateUserContextCache } from "@/server/actions/user-actions";
 import { fetchGuild, sendChannelMessage } from "@/server/discord";
 import { createAuditLog } from "@/server/actions/audit-actions";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 
 /**
  * 👑 Transférer manuellement la propriété d'une guilde (Propriétaire actuel ou SuperAdmin)

@@ -506,7 +506,7 @@ export async function GET(req: Request) {
         // + « qui » a échoué : les boss réellement en erreur (bornés).
         const failedPreview = errorBosses.slice(0, 5).join(", ");
         const failedSuffix = errorBosses.length > 5 ? ` … (+${errorBosses.length - 5})` : "";
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "Siphon Monstres & Sorts terminé",
             message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées, ${skippedFresh} frais < 24 h ignorés).`

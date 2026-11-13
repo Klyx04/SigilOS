@@ -96,6 +96,7 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         "https://images.unsplash.com",
         "https://i.imgur.com",
         "https://unavatar.io", // avatars Createurs (YT/Twitch)
+        "https://icons.duckduckgo.com", // favicons des liens éditoriaux des blocs Rush (image seule)
         "https://media.discordapp.net", // miroir fallback avatars Discord (#23)
     ].join(" ");
 

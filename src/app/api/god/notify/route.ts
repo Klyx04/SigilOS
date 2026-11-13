@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { safeEqualStrings } from "@/lib/god-route";
 import { logger } from "@/lib/logger";
 import { z } from "zod";

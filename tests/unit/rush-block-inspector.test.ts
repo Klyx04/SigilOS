@@ -35,7 +35,9 @@ const BLOCK_ROW = blockOf(STUDIO, "function MilestoneRow(", "function RushRouteB
 describe("inspecteur de bloc — la route est dans le panneau", () => {
   it("le panneau monte la barre de route du bloc", () => {
     expect(INSPECTOR).toContain("<RushRouteBlockBar");
-    expect(INSPECTOR).toContain("onApply={onApplyBlockRoute}");
+    // E3c — la barre vise le bloc **ou** la sélection ; les deux chemins restent branchés.
+    expect(INSPECTOR).toContain("onApplyBlockRoute");
+    expect(INSPECTOR).toContain("onBulkRoute");
   });
 
   it("la ligne de bloc ne porte plus la route (plus de formulaire dans la liste)", () => {

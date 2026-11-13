@@ -5,6 +5,7 @@
 
 "use server";
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, invalidateUserContextCache } from "./user-actions";
@@ -120,6 +121,13 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             updatedProfile.guildId, // Internal UUID
             guildId                 // Discord ID
         );
+
+        // Révocation temps réel (lot 4f) : le socket du membre est coupé côté WS.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: updatedProfile.userId,
+            reason: "ARCHIVED",
+        });
 
         await createAuditLog({
             guildId,
@@ -1013,6 +1021,14 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
                 lastActivityDesc: "Données nettoyées manuellement par un administrateur.",
             }
         });
+
+        // Révocation temps réel (lot 4f) : le socket du membre nettoyé est coupé.
+        void publishGuildMemberRevoked({
+            discordGuildId,
+            userId: profile.userId,
+            reason: "BANNED",
+        });
+
 
         // S5.11/S8.20 — un profil nettoyé (BANNED) ne garde pas d'annonces actives :
         // cascade marché best-effort, jamais bloquante pour le nettoyage RGPD.

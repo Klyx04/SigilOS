@@ -21,6 +21,7 @@
 'use server';
 
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 
 import { db } from '@/lib/prisma';
 import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-actions';
@@ -257,7 +258,15 @@ export async function softDeleteProfile(
                 archivedAt: new Date(),
                 archiveReason: reason,
                 scheduledDeletion
-            }
+            },
+            include: { guild: { select: { discordGuildId: true } } }
+        });
+
+        // Révocation temps réel (lot 4f) : le socket du membre est coupé côté WS.
+        void publishGuildMemberRevoked({
+            discordGuildId: profile.guild.discordGuildId,
+            userId: profile.userId,
+            reason: "ARCHIVED",
         });
 
         // 🔔 NOTIFY GOD

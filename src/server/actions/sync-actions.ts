@@ -15,6 +15,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 import { createAuditLog } from "./audit-actions";
 import { fetchGuildBans, fetchAllGuildMembers, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } from "@/server/discord";
 import { sendLifecycleNotification, closeOrphanContentForGuild } from "./lifecycle-actions";
@@ -126,6 +127,12 @@ export async function syncMembershipStatus(
                             scheduledDeletion: null // No automatic deletion for bans
                         }
                     });
+                    // Révocation temps réel (lot 4f) : le socket est coupé côté WS.
+                    void publishGuildMemberRevoked({
+                        discordGuildId,
+                        userId: profile.userId,
+                        reason: "BANNED",
+                    });
 
                     await createAuditLog({
                         guildId: discordGuildId,
@@ -163,6 +170,13 @@ export async function syncMembershipStatus(
                         }
                     });
                     
+                    // Révocation temps réel (lot 4f) : le socket est coupé côté WS.
+                    void publishGuildMemberRevoked({
+                        discordGuildId,
+                        userId: profile.userId,
+                        reason: "ARCHIVED",
+                    });
+
                     // 📝 Audit Log Archival (Sync)
                     await createAuditLog({
                         guildId: discordGuildId,
@@ -198,6 +212,13 @@ export async function syncMembershipStatus(
                         scheduledDeletion: null // No automatic deletion for bans
                     }
                 });
+                // Révocation temps réel (lot 4f) : le socket est coupé côté WS.
+                void publishGuildMemberRevoked({
+                    discordGuildId,
+                    userId: profile.userId,
+                    reason: "BANNED",
+                });
+
 
                 await createAuditLog({
                     guildId: discordGuildId,

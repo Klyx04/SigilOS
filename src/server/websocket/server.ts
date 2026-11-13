@@ -14,6 +14,7 @@ import { createGuidePresence } from "./guide-presence";
 import { createDofusPresence } from "./dofus-presence";
 import { createRaidLivePresence } from "./raid-live";
 import { assertWsAuthPolicy } from "../../lib/ws-auth-policy";
+import { createGuildRevocation } from "./guild-revocation";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
@@ -309,6 +310,16 @@ const raidLivePresence = createRaidLivePresence({
     isMemberOfGuild,
 });
 
+// === RÉVOCATION D'ACCÈS (audit 13/11/2026, lot 4f) ===
+// Canal `guild:member:revoked` + sweep d'appartenance : un membre expulsé ou
+// banni ne garde plus son socket abonné à `guild:<id>` jusqu'à la fermeture de
+// l'onglet (voir `guild-revocation.ts`).
+const guildRevocation = createGuildRevocation({
+    io,
+    subClient,
+    wsAuthEnabled: WS_AUTH_ENABLED,
+});
+
 // === DASHBOARD PRESENCE (temps réel avec période de grâce anti-flapping) ===
 // Suivi multi-sockets par profil pour éviter les faux leave/join lors de la navigation
 const dashboardActiveSockets = new Map<string, Set<string>>();
@@ -575,6 +586,7 @@ httpServer.on("error", (err) => {
 // Gestion de l'extinction propre (Graceful Shutdown)
 const shutdown = () => {
     logger.info("[WS] Extinction du serveur WebSocket...");
+    guildRevocation.stop();
     io.close(() => {
         httpServer.close(() => {
             logger.info("[WS] Serveur fermé.");

@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS } from "@/lib/feedback-types";
 import { getUserContext } from "./user-actions";
-import { notifyGod } from "./god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { sendChannelMessage } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 

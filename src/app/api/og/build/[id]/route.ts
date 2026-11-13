@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
+import { withCache } from "@/lib/cache";
+import { rateLimit } from "@/lib/ratelimit";
+import { logger } from "@/lib/logger";
 import sharp, { type OverlayOptions } from "sharp";
 import path from "node:path";
 import fs from "node:fs";
@@ -39,16 +42,32 @@ export async function GET(
     context: { params: Promise<{ id: string }> }
 ) {
     try {
+        // AUD-03 (audit 13/11/2026) : route publique et coûteuse (scan des profils
+        // + rendu Sharp). Rate-limit IP fail-closed.
+        const ip = req.headers.get("x-real-ip") || "unknown";
+        const rl = await rateLimit(`og-build:${ip}`, 60, 60_000);
+        if (!rl.success) {
+            return new NextResponse("Too many requests", {
+                status: 429,
+                headers: { "Retry-After": "60" },
+            });
+        }
+
         const { id: itemId } = await context.params;
         if (!itemId) {
             return new NextResponse("Build ID required", { status: 400 });
         }
 
         // 1. Fetch Build previewData from UserProfile in DB
-        const profiles = await db.userProfile.findMany({
-            where: { status: "ACTIVE" },
-            select: { dofusBookLinks: true }
-        });
+        // AUD-03 : cache court (60 s) de l'index des profils. Sans lui, chaque
+        // requête (même un ID inexistant) scanne toute la table et charge les
+        // JSON en mémoire Node.
+        const profiles = await withCache("og:build:profiles:v1", 60, () =>
+            db.userProfile.findMany({
+                where: { status: "ACTIVE" },
+                select: { dofusBookLinks: true }
+            })
+        );
 
         let build: any = null;
         for (const p of profiles) {
@@ -200,6 +219,8 @@ export async function GET(
             },
         });
     } catch (err: any) {
-        return new NextResponse(`Error rendering build image: ${err?.message || err}`, { status: 500 });
+        // AUD-03 : jamais de détail interne dans la réponse publique.
+        logger.error("[OG Build] render failed", { error: err?.message || String(err) });
+        return new NextResponse("Erreur de génération de l'image", { status: 500 });
     }
 }

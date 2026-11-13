@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/rush/leave
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    console.error("[API] rush/leave error:", e?.message);
+    logger.error("[API] rush/leave error:", e?.message);
     return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }

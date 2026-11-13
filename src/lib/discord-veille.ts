@@ -249,7 +249,7 @@ export async function runDiscordVeille(): Promise<DiscordVeilleReport> {
             logger.info("[DiscordVeille] Informations de veille:", { notices });
         }
         try {
-            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: isCritical ? "🔭 Veille Discord : anomalies" : "🔭 Veille Discord : mises à jour",
                 message: anomalies.join("\n"),

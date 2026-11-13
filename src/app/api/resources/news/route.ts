@@ -212,14 +212,19 @@ async function fetchDirect(url: string, signal: AbortSignal): Promise<string | n
 
 async function fetchWithCurl(url: string): Promise<string | null> {
     try {
-        const { exec } = await import("child_process");
+        // AUD-07 (audit 13/11/2026) : `execFile` (argv, sans shell).
+        const { execFile } = await import("child_process");
         const { promisify } = await import("util");
-        const execAsync = promisify(exec);
+        const execFileAsync = promisify(execFile);
 
         const userAgent = FETCH_HEADERS["User-Agent"];
-        const { stdout } = await execAsync(
-            `curl -L "${url}" -A "${userAgent}" -H "Accept: application/rss+xml" --max-time 15 --compressed`
-        );
+        const { stdout } = await execFileAsync("curl", [
+            "-L", url,
+            "-A", userAgent,
+            "-H", "Accept: application/rss+xml",
+            "--max-time", "15",
+            "--compressed",
+        ]);
 
         if (stdout && stdout.length > 500) {
             logger.info(`[news/route] Curl fallback succeeded`, { url });

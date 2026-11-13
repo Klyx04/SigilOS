@@ -108,6 +108,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 changeFrequency: "weekly",
                 priority: 0.9,
             });
+
+            // Bloc B — pages publiques des quêtes **publiées** uniquement. Le slug est
+            // figé à la publication ; une page non publiée répond 404 et n'a rien à
+            // faire dans le sitemap. Fail-closed : si la lecture échoue, on saute.
+            const rushQuests = await db.guideSequence.findMany({
+                where: {
+                    isPublished: true,
+                    publicSlug: { not: null },
+                    milestone: { guide: { slug: "rush-sylvestre" } },
+                },
+                select: { publicSlug: true },
+            });
+            for (const quest of rushQuests) {
+                if (!quest.publicSlug) continue;
+                routes.push({
+                    url: `${baseUrl}/guides/rush-sylvestre/q/${quest.publicSlug}`,
+                    changeFrequency: "monthly",
+                    priority: 0.6,
+                });
+            }
         }
     } catch (error) {
         logger.error("[Sitemap] Error fetching rush guide state", { error });

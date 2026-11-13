@@ -33,7 +33,7 @@ export function RushRoutePreview({ milestones }: { milestones: RushMilestone[] }
   const shown = useMemo(() => visible.reduce((n, m) => n + m.sequences.length, 0), [visible]);
   const blocks = useMemo(() => visible.filter((m) => m.sequences.length > 0), [visible]);
 
-  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
+  const fieldClass = "w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none";
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4 space-y-3">

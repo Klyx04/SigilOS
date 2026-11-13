@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { createBoundedIpRateLimit } from "@/lib/bounded-ip-rate-limit";
 
 /**
  * CSP Report endpoint (F-29)
@@ -47,29 +48,8 @@ const cspReportRequestSchema = z.object({
     "csp-report": cspReportSchema,
 }).passthrough();
 
-// ─── Rate limiter IP en mémoire (borné, pattern proxy) ───────────────────────
-const MAX_IP_COUNTER_ENTRIES = 10_000;
-const ipCounters = new Map<string, { count: number; reset: number }>();
-
-function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
-    const now = Date.now();
-    const entry = ipCounters.get(ip);
-
-    if (!entry || now > entry.reset) {
-        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) {
-            for (const [k, v] of ipCounters) {
-                if (v.reset < now) ipCounters.delete(k);
-            }
-        }
-        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) return true; // no new alloc
-        ipCounters.set(ip, { count: 1, reset: now + windowMs });
-        return true;
-    }
-
-    if (entry.count >= limit) return false;
-    entry.count++;
-    return true;
-}
+// ─── Rate limiter IP borné, fail-closed (règle partagée avec le proxy) ───────
+const ipLimiter = createBoundedIpRateLimit(10_000);
 
 function getClientIp(req: NextRequest): string {
     // Se fier UNIQUEMENT à x-real-ip (Caddy le pose/surécrit) — voir proxy.ts.
@@ -86,7 +66,7 @@ const MAX_BODY_BYTES = 64 * 1024;
 export async function POST(req: NextRequest) {
     // 1. Rate-limit IP (60 req/min, cohérent avec le proxy) → 429.
     const ip = getClientIp(req);
-    if (!ipRateLimit(`${ip}:csp-report`, 60, 60_000)) {
+    if (!ipLimiter.allow(`${ip}:csp-report`, 60, 60_000)) {
         return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
     }
 

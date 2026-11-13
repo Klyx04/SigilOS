@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { logger } from "./logger";
 
 /**
  * SIGILOS ENCRYPTION UTILITY
@@ -10,14 +11,19 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypt
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // Standard for GCM
 const AUTH_TAG_LENGTH = 16;
-const KEY_LENGTH = 32;
+/** 32 octets = exactement 64 caractères hexadécimaux. */
+const HEX64 = /^[0-9a-fA-F]{64}$/;
 
 /**
  * Gets the encryption key from environment.
- * If not provided, it fails loudly in production to prevent data loss or insecure storage.
+ *
+ * 🔐 SEC-03 (audit 13/11/2026) : le fallback `scryptSync` à **sel fixe** est
+ * supprimé. Une clé hors format fait échouer **immédiatement** (fail-closed)
+ * au lieu de dériver une clé avec un sel public. Les environnements prod et
+ * bêta ont été mesurés `HEX64` avant ce changement.
  */
 function getEncryptionKey(): Buffer {
-    const keyStr = process.env.ENCRYPTION_KEY;
+    const keyStr = process.env.ENCRYPTION_KEY?.trim();
 
     if (!keyStr) {
         // F-09: fail-closed in ALL environments — never use a hardcoded fallback key.
@@ -25,12 +31,13 @@ function getEncryptionKey(): Buffer {
         throw new Error("CRITICAL: ENCRYPTION_KEY is missing — set a 64-hex-char value in the environment.");
     }
 
-    // Support both raw string (shrunk to 32 bytes) or hex string (64 chars)
-    if (keyStr.length === 64) {
-        return Buffer.from(keyStr, "hex");
+    if (!HEX64.test(keyStr)) {
+        throw new Error(
+            "CRITICAL: ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes).",
+        );
     }
 
-    return scryptSync(keyStr, "sigilos-salt", KEY_LENGTH);
+    return Buffer.from(keyStr, "hex");
 }
 
 /**
@@ -77,7 +84,7 @@ export function decrypt(encryptedValue: string): string | null {
 
         return decrypted;
     } catch (error) {
-        console.error("[Encryption] Decryption failed. Key might have changed or data is malformed.");
+        logger.error("[Encryption] Decryption failed. Key might have changed or data is malformed.");
         return null;
     }
 }

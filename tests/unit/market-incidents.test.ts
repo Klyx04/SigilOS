@@ -26,7 +26,7 @@ const { redisMock } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/redis", () => ({ redis: redisMock }));
 
-vi.mock("@/server/actions/god-notif-actions", () => ({ notifyGod: vi.fn() }));
+vi.mock("@/server/god-notifications", () => ({ notifyGod: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({
     db: {
@@ -38,7 +38,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import {
     MARKET_INCIDENT_ALERT_WINDOW_SECONDS,
     MARKET_INCIDENT_FAILED_SYNC_THRESHOLD,

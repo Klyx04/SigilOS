@@ -194,7 +194,7 @@ export async function GET(req: Request) {
         // liste les échecs (qui + pourquoi), les champs d'embed sont en français.
         const summary = summarizeLadderSync(results);
 
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "Ladder General/Succès Sync",
             message: buildLadderSyncMessage(summary),
@@ -240,7 +240,7 @@ export async function GET(req: Request) {
         console.error("Cron Ladder Sync Error:", error);
         
         // Notify of fatal failure
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "CRITICAL: Ladder Sync Failed",
             message: `Erreur fatale dans le cron ladder sync : ${error.message || String(error)}`,

@@ -203,7 +203,7 @@ export async function purgeDueGuilds(
 
     if (purged.length > 0) {
         try {
-            const { notifyGod } = await import("./actions/god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: "🗑️ Purge automatique de guildes",
                 message: `${purged.length} guilde(s) supprimée(s) définitivement après l'échéance de ${GUILD_DELETION_GRACE_DAYS} jours.\n${purged

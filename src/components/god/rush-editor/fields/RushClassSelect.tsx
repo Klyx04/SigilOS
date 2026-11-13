@@ -28,7 +28,7 @@ export function RushClassSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={className ?? "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"}
+      className={className ?? "w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none disabled:opacity-40"}
     >
       <option value="">— Aucune —</option>
       {DOFUS_CLASSES.map((c) => (

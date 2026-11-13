@@ -45,9 +45,11 @@ aucune source**. ② **V-D1 — les ressources par quête** : **390 → 485 ids*
 **252 tags** ajoutés (Brâkmarien **1 → 151 ids**), **2ᵉ passage = 0 écriture**, dataset
 **inchangé**, **aucune migration**.
 
-**Prochain lot : `V-C`** (purge WebP — ops serveur), puis **E2** (inspecteur de quête,
-`REFONTE-EDITEUR-RUSH.md` §3). **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par
-étape) reste **ouvert**, à trancher. L'ordre **global** reste `docs/ROADMAP.md`.
+**Prochain lot : `V-C`** (purge WebP — ops serveur), puis **E5** (finitions du studio,
+`REFONTE-EDITEUR-RUSH.md` §3) et le lot **blocs Combat tactique / semi-tactique** (liens
+nommés + favicon, markdown couleur, modale de bloc). **V-D2** (51 ids Tougli hors base +
+67 ids Dofusyelle par étape) reste **ouvert**, à trancher. L'ordre **global** reste
+`docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|

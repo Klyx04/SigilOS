@@ -122,21 +122,15 @@ export async function analyzeImageSafety(file: File): Promise<SafetyResult> {
 /**
  * 🔐 Journalise une tentative NSFW bloquée : côté guilde (audit SECURITY_ALERT +
  * alerte Discord) ET côté God (notification système). Non bloquant (best-effort).
+ *
+ * ⚠️ L'alerte God est créée **côté serveur** par `reportSecurityIncident`
+ * (garde session + appartenance + rate-limit). Ne jamais importer `notifyGod`
+ * depuis ce module client : c'était l'action publique AUD-01.
  */
 export async function logNsfwAttempt(guildId: string, detail?: string): Promise<void> {
     const message = detail || "Tentative d'upload d'une image bloquée par le filtre NSFW.";
     try {
         const { reportSecurityIncident } = await import("@/server/actions/audit-actions");
         await reportSecurityIncident(guildId, "NSFW_BLOCKED", message, { source: "client-safety", clientOnly: true });
-    } catch { /* best-effort */ }
-    try {
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
-        await notifyGod({
-            title: "🚫 Upload NSFW bloqué",
-            message,
-            type: "SECURITY_ALERT",
-            success: false,
-            metadata: { guildId },
-        });
     } catch { /* best-effort */ }
 }

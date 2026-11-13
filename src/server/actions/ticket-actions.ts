@@ -175,7 +175,7 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
 
                     // [NEW] GLOBAL GOD DASHBOARD NOTIFICATION
                     try {
-                        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                        const { notifyGod } = await import("@/server/god-notifications");
                         await notifyGod({
                             title: `Nouveau Ticket #${ticket.ticketNumber}`,
                             message: `[${categoryLabel}] ${data.subject} par ${data.creatorDiscordName}`,

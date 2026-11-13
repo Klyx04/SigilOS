@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 — **Sécurité · AUD-01/02/03 : actions God sans garde, stockage inter-guildes** — branche `fix/actions-god-auth`
+
+> **Demande user (verbatim)** : « refais une passe d'audit avec les audits précédents dans le contexte », puis validation du plan de correction (AUD-02 → AUD-01 → AUD-03).
+> **Mesures (2ᵉ passe, statique)** : `notifyGod` était exportée d'un fichier `"use server"` et importée par **deux composants client** (`proof-upload-dialog.tsx`, `safety-client.ts`) ⇒ action publique : écriture `GodNotification` + embed Discord via le bot **multi-tenant** avec `forceChannelId`/`ping` contrôlés. `markGodNotificationRead`/`markAllGodNotificationsRead` sans garde ⇒ masquage de toutes les alertes God. `/api/storage` sautait le contrôle d'appartenance quand `getUserContext()` (sans argument, guilde d'accueil) renvoyait `isAdmin` ⇒ lecture inter-guildes des preuves.
+> **Fait** : `notifyGod` déplacé dans `src/server/god-notifications.ts` (**sans** `"use server"`, invariant commenté) ; 28 importeurs serveur recâblés ; les 2 imports client supprimés (l'alerte God est créée **côté serveur** par `reportSecurityIncident`, avec `webOnly`, sans `forceChannelId`) ; garde `hasGodPanelAccess()` sur les 4 actions du panneau ; `reportSecurityIncident` exige `ctx.isMember` (AUD-06) et borne la description ; `/api/storage` exige l'appartenance à la guilde cible (God seul exempté, CUID → discordGuildId, cible inconnue = 403).
+> **Preuves** : 3 tests neufs — `server-actions-god-guard` (5, invariants), `security-report-auth` (3, comportement), `storage-guild-isolation` (4) — + 15 fichiers impactés **147 tests ✓** · suite **671 fichiers ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**.
+> **Reste / ops** : PR `fix/actions-god-auth` → `dev` ; puis AUD-04 (jeton legacy sans expiration), AUD-05 (SVG proxy-image), AUD-07→11 (durcissements). Rapport complet : `src/temp/audit-sec-2.md` (zone volatile).
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 13/11/2026 — **Blocs Combat + liens + markdown + modale de bloc** — branche `feat/rush-studio-masse-da-block` (PR #1360)
 
 > **Demande user (verbatim)** : « mets aussi tous les autres type de bloc stp en modale éditable et les champ libre c imbuvable la zone est mini pas possible de l'agrandir » · « ajoute un nouveau type de bloc : Combat tactique / Combat semi tactique » · « pouvoir ajouter un ou plusieurs liens vers des sites… donner un nom à la vidéo + afficher sa favicon automatiquement… pouvoir ajouter un champ libre aussi d'édition pour expliquer brièvement la strat, markdown couleur etc » · « pouvoir importer une image aussi du combat / du monstre etc comme d'hab ».
@@ -63,12 +71,3 @@
 > **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 12/11/2026 (suite 3) — **Rang 59 · Navigation par bloc dans les deux guides** — branche `feat/rush-nav-blocs`
-
-> **Demande user (verbatim)** : « je veux que dans les guides navigateurs on ait tous ces fameux blocs là comme dans l'overlay » · « supprime le "tout" pour ne conserver que le mode paginé c plus performant non ? ».
-> **Mesure** : le sommaire listait les **chapitres** (5 sur la route Bontarien) et une page = UN chapitre montait jusqu'à **89 quêtes** ; « Tout » rendait les **54 blocs** de la route d'un coup. Le guide public paginait **déjà par bloc** (`chapterPages` = un `ms` + ses bannières) ; seul le dashboard était resté au chapitre.
-> **Fait** : `RushChapterNav` liste **tous les blocs numérotés** (`rushChapterNumbers`, le même rang que l'en-tête de bloc et l'overlay), chapitre en mention secondaire (`.da-guide-nav-sub`, tokens `--da-*`), API `selectedMilestoneId` / `onSelectMilestone` ; le dashboard passe à **une page = un bloc** (`blockPages`, `showHeader: false`), le bouton **« Tout »** et l'état `isAllChapters` sont supprimés, et les liens internes (repère, prérequis, « Reprendre ») visent le **bloc** (`seqToMs` + `ensureMsFor`) ; le public branche la même sélection. `src/lib/rush-guide-pages.ts` (`mergeChapterPages`) est supprimé — plus aucun appelant.
-> **Corrigé le 12/11/2026 (retour user)** : ① « quand on clique sur suivant ça rescroll plus haut » — le pager ancre désormais sur `#guide-blocs` (`scrollToGuideTop`), plus sur le haut de la page ; ② le rail de droite (progression, donjons à prévoir, objets requis) est calculé sur le **bloc** affiché (`selectedMilestoneId`, prioritaire sur le chapitre) — il annonçait « 1 / 89 quêtes » et 20 donjons pour un bloc de 2 quêtes.
-> **Preuves** : `rush-block-navigation` **13** (neuf, dont 4 pour le rail et l'ancre) · `da-wakfu` **54** · `rush-public-parity` **48** · suite **664 fichiers / 7 126 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (sommaire 54 blocs, pager, rail sur le bloc).
-> **Rotation** : bloc « 11/11/2026 (suite) — Chantier 2/5 · Échanges Metamob » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

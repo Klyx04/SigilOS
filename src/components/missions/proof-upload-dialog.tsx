@@ -145,17 +145,9 @@ export function ProofUploadDialog({
                     }
                 ).catch((err: Error) => console.error("Failed to log incident", err));
 
-                // 🔐 Alerte God (côté plateforme)
-                try {
-                    const { notifyGod } = await import("@/server/actions/god-notif-actions");
-                    await notifyGod({
-                        title: "🚫 Upload NSFW bloqué",
-                        message: `Tentative NSFW sur la mission « ${missionTitle} » (fichier: ${selectedFile.name}).`,
-                        type: "SECURITY_ALERT",
-                        success: false,
-                        metadata: { guildId, missionTitle },
-                    });
-                } catch { /* best-effort */ }
+                // 🔐 Alerte God : créée côté serveur par `reportSecurityIncident`
+                // (garde session + appartenance + rate-limit). Ne jamais importer
+                // `notifyGod` ici : c'était l'action publique AUD-01.
 
                 resetState();
                 onOpenChange(false);

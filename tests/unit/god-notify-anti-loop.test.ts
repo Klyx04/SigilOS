@@ -34,7 +34,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { sendChannelMessage, buildSafeRoleMention } from "@/server/discord";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { runInOutboxFailureContext } from "@/lib/discord-outbox-context";
 
 const mockDb = db as any;
@@ -183,7 +183,7 @@ describe("invariant : une alerte d'ÉCHEC ne repart jamais sur Discord", () => {
 
 describe("gardes de source — le worker outbox est bien câblé", () => {
     const worker = readFileSync("src/workers/discord-outbox-worker.ts", "utf8");
-    const actions = readFileSync("src/server/actions/god-notif-actions.ts", "utf8");
+    const actions = readFileSync("src/server/god-notifications.ts", "utf8");
 
     it("le worker déclare l'alerte `webOnly` avec une clé de déduplication par salon", () => {
         expect(worker).toMatch(/webOnly: true/);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { safeEqualStrings } from "@/lib/god-route";
 import { rateLimit } from "@/lib/ratelimit";
 import { sendChannelMessage } from "@/server/discord";

@@ -29,7 +29,7 @@ vi.mock("@/lib/logger", () => ({
     }
 }));
 
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: vi.fn().mockResolvedValue({ success: true })
 }));
 

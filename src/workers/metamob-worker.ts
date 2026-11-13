@@ -204,7 +204,7 @@ worker.on("completed", async (job) => {
     
     // Notify God Dashboard for manual/critical syncs
     if (job.name === "manual-metamob-sync") {
-        const { notifyGod } = await import("../server/actions/god-notif-actions");
+        const { notifyGod } = await import("../server/god-notifications");
         await notifyGod({
             title: "Sync Metamob (Dofusbook) Réussie",
             message: `La synchronisation manuelle pour l'utilisateur ${job.data.userId} s'est terminée avec succès.`,
@@ -218,7 +218,7 @@ worker.on("completed", async (job) => {
 worker.on("failed", async (job, err) => {
     logger.error(`[Worker] ❌ Job ${job?.id} a échoué: ${err.message}`);
     
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: "Sync Metamob (Dofusbook) ÉCHOUÉE",
         message: `Le job ${job?.id} a échoué : ${err.message}`,

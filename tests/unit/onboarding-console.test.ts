@@ -30,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
         },
     },
 }));
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/auth", () => ({ auth: vi.fn() }));

@@ -131,7 +131,7 @@ export async function requestGuildDeletion(
         }
 
         try {
-            const { notifyGod } = await import("./god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: "🏰 Guilde désactivée par son propriétaire",
                 message: `La guilde « ${config.name} » a été désactivée à la demande de son propriétaire.\nSuppression planifiée au ${scheduledDeletion.toISOString()} (grâce de ${GUILD_DELETION_GRACE_DAYS} jours).`,

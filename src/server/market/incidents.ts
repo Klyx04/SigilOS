@@ -27,7 +27,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 
 /** Types d'incident surveillés (union fermée : une clé Redis par type). */
 export type MarketIncidentKind = "DISCORD_SYNC_FAILED" | "MEDIA_VOLUME" | "STALE_OPEN_REPORTS";

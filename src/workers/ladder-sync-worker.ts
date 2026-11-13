@@ -460,7 +460,7 @@ ladderSyncWorker.on("completed", async (job) => {
         logger.warn("[LadderSync] Télémétrie impossible:", e);
     }
 
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: summary.aborted ? "Ladder Background Sync Interrompue" : "Ladder Background Sync Réussie",
         message,
@@ -492,7 +492,7 @@ ladderSyncWorker.on("failed", async (job, err) => {
         logger.warn("[LadderSync] Télémétrie impossible:", e);
     }
 
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: "Ladder Background Sync ÉCHOUÉE",
         message: `Le job de synchronisation ladder ${job?.id} a échoué : ${err.message}`,

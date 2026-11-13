@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { GameIcon } from "@/components/shared/game-icon";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2, Square, ChevronDown, ChevronUp, ChevronLeft,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
@@ -30,6 +30,7 @@ import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
+import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -1029,10 +1030,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           <div className="h-full bg-success transition-all duration-300" style={{width:`${pct}%`}}/>
         </div>
         {/* Expanded content */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
-              <div className="p-4 space-y-2">
+        <RushCollapse open={expanded}>
+          <div className="p-4 space-y-2">
 {ms.tips && (
                   <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
@@ -1056,10 +1055,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                     </DaRail>
                   )}
                 </CompletedStepsCtx.Provider>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        </RushCollapse>
       </div>
     </div>
   );
@@ -1252,6 +1249,7 @@ function ContextualHelp({ label, children, className }: { label: string; childre
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks }: RushTimelineClientProps) {
+const reduceMotion=useReducedMotion();
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
   const router=useRouter();const altPseudo=selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined;
@@ -1860,7 +1858,7 @@ const timelineItems=useMemo(()=>{
     bookmarkTouchedThisSession.current = true;
     try { await setRushBookmark(guildId, ms.id, wasBookmarked ? null : seqId, effectiveAltPseudo); } catch {}
   }, [bookmarksByMs, guildId, blockedSeqIds, completedStepsByMs, effectiveAltPseudo]);
-  if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
+  if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={reduceMotion ? undefined : {rotate:[0,-5,5,-5,0]}} transition={reduceMotion ? undefined : {repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string, targetSeqId?: string | null) => {
     // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : **id** d'abord (la puce
     // le connaît déjà : `getPrereqRefs` le renvoie), puis libellé — nom EXACT, nom partiel
@@ -2581,7 +2579,7 @@ const timelineItems=useMemo(()=>{
       </div>
     )}
     <AnimatePresence>
-      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
+      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
     <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────

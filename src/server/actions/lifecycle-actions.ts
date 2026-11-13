@@ -361,6 +361,14 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         // 1. Delete the UserProfile — cascades to all guild-scoped data
         await db.userProfile.delete({ where: { id: profileId } });
 
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        // Publié APRÈS la suppression : un échec de la base ne révoque personne.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: targetUserId,
+            reason: "KICKED",
+        });
+
         // 2. Invalidate ALL active sessions (force re-auth immediately)
         await db.session.deleteMany({ where: { userId: targetUserId } });
 
@@ -521,6 +529,13 @@ export async function purgeMemberFromGuild(
 
         // Suppression du profil de CETTE guilde (cascade : données guilde, journal du registre…).
         await db.userProfile.delete({ where: { id: profileId } });
+
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: target.userId,
+            reason: "KICKED",
+        });
 
         // Révocation immédiate : sessions + caches (sinon le membre garde un accès résiduel).
         await db.session.deleteMany({ where: { userId: target.userId } });
@@ -920,6 +935,15 @@ export async function handleGdprDeletionRequest() {
         await db.user.delete({
             where: { id: userId }
         });
+
+        // Révocation temps réel (lot 4f) : tous les sockets des guildes quittées.
+        for (const profile of userProfiles) {
+            void publishGuildMemberRevoked({
+                discordGuildId: profile.guild.discordGuildId,
+                userId,
+                reason: "KICKED",
+            });
+        }
 
         return { success: true };
     } catch (e: any) {

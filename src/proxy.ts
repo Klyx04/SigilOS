@@ -8,15 +8,15 @@ import { buildCsp, generateCspNonce } from "./lib/csp"
 import { logger } from "@/lib/logger"
 import { LOCALE_COOKIE_NAME, isSupportedLocale } from "./lib/i18n/types"
 import { isLegacyBossIdPath } from "@/lib/legacy-routes"
+import { createBoundedIpRateLimit } from "./lib/bounded-ip-rate-limit"
 
 const { auth } = NextAuth(authConfig)
 
-// ─── IP Rate Limiter (Redis-free, edge-compatible memory fallback) ─────────────
-// Uses a sliding window counter per IP, stored in module-level Map.
-// NOTE: In multi-instance prod, prefer Upstash Redis rate limiter.
-// SECURITY FIX: cap the map size to prevent memory-exhaustion DoS via spoofed IPs.
-const MAX_IP_COUNTER_ENTRIES = 10_000
-const ipCounters = new Map<string, { count: number; reset: number }>()
+// ─── IP Rate Limiter (Redis-free, mémoire bornée, fail-closed) ────────────────
+// AUD-09 (audit 13/11/2026) : la règle vit dans `src/lib/bounded-ip-rate-limit.ts`
+// et **refuse** une nouvelle IP quand la table est saturée (l'ancien code
+// l'autorisait, ce qui ouvrait un contournement par saturation).
+const ipLimiter = createBoundedIpRateLimit(10_000)
 
 // ─── Maintenance Mode Cache (10s TTL, avoids a DB fetch on every request) ───
 let _maintenanceCache: { value: boolean; expiresAt: number } | null = null
@@ -44,32 +44,6 @@ function isGodRoute(pathname: string): boolean {
     return isGodPanelPath(pathname) || isGodApiPath(pathname) || isGodSecretPath(pathname)
 }
 
-function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
-    const now = Date.now()
-    const entry = ipCounters.get(ip)
-
-    // Cleanup stale entry
-    if (!entry || now > entry.reset) {
-        // SECURITY FIX: prevent unbounded memory growth from spoofed/random IPs
-        // by evicting expired entries before allocating new keys.
-        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) {
-            for (const [key, val] of ipCounters) {
-                if (val.reset < now) ipCounters.delete(key)
-            }
-        }
-        // If still saturated and this is a brand-new key, do not allocate more
-        // memory — treat as allowed this once; the sweep above frees space next tick.
-        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) return true
-
-        ipCounters.set(ip, { count: 1, reset: now + windowMs })
-        return true
-    }
-
-    if (entry.count >= limit) return false
-
-    entry.count++
-    return true
-}
 
 function getClientIp(req: NextRequest): string {
     // SECURITY (F-04): Only trust x-real-ip, which Caddy now sets/overwrites for
@@ -162,7 +136,7 @@ export default auth(async (req) => {
             // Anti-brute-force : rate-limit STRICT (10/min) sur SEUL les mauvais
             // secrets (véritable attaquant), pas sur les URLs légitimes.
             const ip = getClientIp(req);
-            const allowed = ipRateLimit(`${ip}:god-invalid`, 10, 60_000);
+            const allowed = ipLimiter.allow(`${ip}:god-invalid`, 10, 60_000);
             if (!allowed) {
                 return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
             }
@@ -220,7 +194,7 @@ export default auth(async (req) => {
             : nextUrl.pathname.startsWith("/api/dofusdb")
             ? 120
             : 60
-        const allowed = ipRateLimit(`${ip}:${nextUrl.pathname.split("/")[2]}`, limit, 60_000)
+        const allowed = ipLimiter.allow(`${ip}:${nextUrl.pathname.split("/")[2]}`, limit, 60_000)
 
         if (!allowed) {
             return NextResponse.json(
@@ -280,7 +254,7 @@ export default auth(async (req) => {
         // protection anti-brute-force est le rate-limit strict sur les MAUVAIS
         // secrets (voir bloc isGodSecretPath) + le secret + la session.
         if (!isSuperAdminUser && !nextUrl.pathname.startsWith("/api/god/notify")) {
-            const allowed = ipRateLimit(`${ip}:god`, 120, 60_000);
+            const allowed = ipLimiter.allow(`${ip}:god`, 120, 60_000);
             if (!allowed) {
                 return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
             }

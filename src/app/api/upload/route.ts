@@ -5,6 +5,7 @@ import { writeFile, mkdir } from "fs/promises";
 import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { detectMimeType, validateMagicBytes, MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from "@/lib/image-security";
+import { logger } from "@/lib/logger";
 
 /**
  * Dossiers de destination autorisés sous `private_uploads/`.
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error) {
-        console.error("Upload error:", error);
+        logger.error("Upload error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

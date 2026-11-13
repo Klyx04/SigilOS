@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
 import { processAndSaveImage, type ImageType } from "@/lib/image-downloader";
 import { logger } from "@/lib/logger";
 
@@ -11,6 +13,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 { success: false, error: "Unauthorized: Super admin only" },
                 { status: 403 }
+            );
+        }
+
+        // AUD-08 (audit 13/11/2026) : rate-limit par super-admin (20/min).
+        // La route est déjà réservée à God ; ce garde borne l'usage d'une session
+        // compromise (disque/CPU Sharp).
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+        }
+        const rl = await rateLimit(`god-image-upload:${session.user.id}`, 20, 60_000);
+        if (!rl.success) {
+            return NextResponse.json(
+                { success: false, error: "Trop de requêtes, veuillez patienter." },
+                { status: 429, headers: { "Retry-After": "60" } }
             );
         }
 

@@ -19,6 +19,9 @@ import { getAppBaseUrl } from "@/lib/utils";
 
 const DEFAULT_TTL_SECONDS = 60 * 60 * 24; // 24h default
 
+/** Évite de répéter l'avertissement legacy à chaque requête. */
+let legacyTokenWarned = false;
+
 // New dedicated signing secret — fail-closed if missing.
 function getSigningSecret(): string | null {
     return process.env.STORAGE_SIGNING_SECRET || null;
@@ -163,10 +166,29 @@ export function verifyStorageToken(path: string, token: string): boolean {
     // ── Legacy format: bare HMAC over path (no expiry) ────────────────────────
     // Transition only: verify against AUTH_SECRET so previously issued URLs keep
     // working until they are re-signed. Not used to sign new tokens.
+    //
+    // 🔐 AUD-04 (audit 13/11/2026) : date de coupure optionnelle. Tant que la
+    // variable n'est pas posée, le comportement historique est conservé (liens
+    // déjà envoyés sur Discord). Dès qu'elle est posée et dépassée, la branche
+    // legacy est refusée ; une date invalide est fail-closed.
+    const legacyUntil = process.env.STORAGE_LEGACY_TOKENS_UNTIL?.trim();
+    if (legacyUntil) {
+        const cutoff = Date.parse(legacyUntil);
+        if (!Number.isFinite(cutoff) || Date.now() > cutoff) return false;
+    }
+
     const legacySecret = getLegacySecret();
     if (!legacySecret) return false;
     const legacyHmac = createHmac("sha256", legacySecret).update(path).digest("hex");
-    if (token.length === legacyHmac.length && safeEqual(token, legacyHmac)) return true;
+    if (token.length === legacyHmac.length && safeEqual(token, legacyHmac)) {
+        if (!legacyTokenWarned) {
+            legacyTokenWarned = true;
+            logger.warn(
+                "[Storage] Jeton legacy (sans expiration) accepté — posez STORAGE_LEGACY_TOKENS_UNTIL pour le retirer.",
+            );
+        }
+        return true;
+    }
 
     return false;
 }

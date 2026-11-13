@@ -60,6 +60,10 @@ try {
 }
 
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
+// ⚠️ AUD-06 (audit 13/11/2026) : ce client est BRUT (sans l'extension de
+// chiffrement de `src/lib/prisma.ts`). Ne jamais écrire ici `Account.access_token`,
+// `refresh_token`, `id_token` ni `UserProfile.metamobApiKey` : les données
+// seraient stockées EN CLAIR. Le bot ne doit écrire que des compteurs/statuts.
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
 

@@ -5,6 +5,13 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 (suite) — **Sécurité · durcissements AUD-04/05/07/09/10/11 + SEC-02/03** — branche `fix/durcissements-audit`
+
+> **Mesures VPS (13/11, lecture seule)** : `CSP_ENFORCE=true` sur `sigilos-beta` (SEC-01 déjà clos) · `ENCRYPTION_KEY` `HEX64` sur prod **et** bêta · cAdvisor monte `/var/run/docker.sock` en `ro`, `Privileged=false` (SEC-04 confirmé, lot infra à part) · `agent-ro.sh csp` refuse en manuel car le script lit `SSH_ORIGINAL_COMMAND` (pas `$1`) — comportement normal.
+> **Fait** : SEC-03 (clé strictement 64 hex, fallback scrypt à sel fixe supprimé) · SEC-02 (le process WS refuse `WS_AUTH_ENABLED=false` en prod via `ws-auth-policy`) · AUD-04 (`STORAGE_LEGACY_TOKENS_UNTIL`, inerte sans date, date invalide = fail-closed) · AUD-05 (SVG/XML refusés dans `proxy-image`, `nosniff`, cache `.svg` retiré) · AUD-07 (`execFile` pour les deux `curl`) · AUD-09 (limiteur IP borné partagé, fail-closed à saturation) · AUD-10 (`console.error` → `logger`) · AUD-11 (cache 5 s + rate-limit sur `/api/health/maintenance`).
+> **Preuves** : 7 tests neufs / **27** cas · suite **675 fichiers ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration, aucun changement d'interface publique.
+> **Reste / ops** : PR `fix/actions-god-auth` puis `fix/durcissements-audit` → `dev` ; AUD-08 (garder `MessageContent` ou changer la métrique), SEC-04 (socket-proxy, fenêtre), CSP prod (vérifier `CSP_ENFORCE` avant ouverture).
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 13/11/2026 — **Sécurité · AUD-01/02/03 : actions God sans garde, stockage inter-guildes** — branche `fix/actions-god-auth`
 
 > **Demande user (verbatim)** : « refais une passe d'audit avec les audits précédents dans le contexte », puis validation du plan de correction (AUD-02 → AUD-01 → AUD-03).
@@ -58,16 +65,6 @@
 > **Preuves** : `rush-route-variants` **15** (neuf) · `rush-route` 14 · `rush-route-tooling` 19 · `rush-twin-branch` 13 · `rush-sequence-inspector` **18** (« neuf accordéons » → **dix**, justifié : la section du lot 4) · suite **666 fichiers / 7 153 tests ✓** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops (humain)** : **jouer la migration en bêta puis en prod** (`npx prisma migrate deploy`) et **redémarrer `npm run dev`** (client Prisma régénéré) ; contrôle visuel de la section dans le studio et d'un texte qui change avec le camp.
 > **Lot 5 — brouillon local livré le 12/11/2026** : le formulaire de quête persiste une saisie non enregistrée **par quête** (`rush-editor-draft:<id>`, Zod borné, fail-closed), l'annonce « Brouillon restauré » + « Jeter », et la jette à l'enregistrement ; `key={selectedQuest.id}` force une instance PAR quête (le formulaire gardait sinon la quête précédente). Règle pure `src/lib/rush-editor-draft.ts` · verrou `rush-editor-draft` **9** · suite **667 fichiers / 7 162 tests ✓**.
-> **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite 4) — **Rang 59 · Reset automatique au changement de cité/Ordre (lot 3)** — branche `feat/rush-reset-auto`
-
-> **Demande user (verbatim)** : « fais 3-4 » — lot 3 de l'amorce : « Reset de progression au changement de cité/Ordre = **OUI**, automatique, sur le personnage sélectionné (mule comprise), avec annonce de ce qui a été décoché ».
-> **Mesure** : le reset existait (`resetAlignmentQuests` / `resetOrderQuests`) mais vivait dans le **formulaire** `AlignmentChoiceForm` ; `updateUserProfile` et `updateMuleAlignment` acceptaient `alignment` / `alignmentOrder` et écrivaient **sans aucun reset** — l'onboarding et les fiches profil pouvaient changer de camp en laissant les coches de l'ancien. Et le `cleared` calculé était **jeté** : le joueur lisait « Alignement mis à jour » sans savoir ce qui avait été décoché.
-> **Fait** : règle pure `alignmentChangeReset` (cité prioritaire, sinon Ordre, sinon rien ; fail-closed sans Ordre quitté) ; helper serveur `resetProgressOnAlignmentChange` (`src/server/rush-alignment.ts`) appelé **avant l'écriture** par `updateUserProfile` (principal) et `updateMuleAlignment` (mule, `characterSlot = pseudo`) ; les deux actions renvoient `{ cleared }` et le formulaire **annonce** « X quêtes de l'ancien camp décochées » ; les actions manuelles `resetAlignmentProgress` / `resetRushOrderProgress` sont **supprimées** (une seule source).
-> **Preuves** : `rush-alignment-auto-reset` **12** (neuf) · `rush-alignment-source` **15** · `rush-order-reset` **8** · `rush-alignment-tranche` **8** · suite **665 fichiers / 7 138 tests ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : lot **4** (variante de texte par camp) — **bloqué** par le choix `routeVariants` (migration) vs quêtes « Jumelle ». Le reset précède l'écriture : si l'upsert échoue juste après, la progression reste décochée (comportement identique à l'ancien formulaire ; à durcir par une transaction si demandé).
 > **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

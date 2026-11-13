@@ -28,6 +28,7 @@ import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceK
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
+import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
@@ -4655,6 +4656,68 @@ export async function bulkDeleteRushSequences(data: { sequenceIds: string[] }) {
 
 
 
+
+// ---------------------------------------------------------------------------
+// Bloc B — page publique d'une quête (12/11/2026)
+// ---------------------------------------------------------------------------
+
+const PublishRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  publish: z.boolean(),
+});
+
+/**
+ * (God) Publie ou dépublie **une quête** sur le guide public.
+ *
+ * 🔒 Le slug est **figé à la première publication** : on ne le recalcule jamais
+ * depuis le nom, sinon un renommage casserait une URL déjà indexée. Une
+ * dépubliaison **conserve** le slug (la page repasse en 404, l'URL reste réservée).
+ *
+ * Fail-closed : la quête doit appartenir au guide `rush-sylvestre`, l'action est
+ * rate-limitée et journalisée. Une collision de slug est suffixée `-2`, `-3`…
+ */
+export async function publishRushSequence(data: { sequenceId: string; publish: boolean }) {
+  const parsed = PublishRushSequenceSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Publication invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-publish", 12, 60_000);
+
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: input.sequenceId, milestone: { guide: { slug: "rush-sylvestre" } } },
+    select: { id: true, subGuideName: true, publicSlug: true },
+  });
+  if (!sequence) throw new Error("Quête introuvable dans le guide Rush");
+
+  let slug = sequence.publicSlug;
+  if (input.publish && !slug) {
+    const rows = await db.guideSequence.findMany({
+      where: { publicSlug: { not: null } },
+      select: { publicSlug: true },
+    });
+    const taken = new Set(rows.map((row) => row.publicSlug as string));
+    slug = uniqueRushPublicSlug(slugifyRushQuestName(sequence.subGuideName), taken);
+  }
+
+  await db.guideSequence.update({
+    where: { id: sequence.id },
+    data: { publicSlug: slug, isPublished: input.publish },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequence.id,
+    metadata: {
+      op: input.publish ? "publish-rush-sequence" : "unpublish-rush-sequence",
+      slug,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/guides/rush-sylvestre");
+  if (slug) revalidatePath(`/guides/rush-sylvestre/q/${slug}`);
+  return { success: true, slug, isPublished: input.publish };
+}
 
 /**
  * (God) Supprime une séquence Rush — **IDEMPOTENT**.

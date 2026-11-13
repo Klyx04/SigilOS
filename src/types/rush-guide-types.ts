@@ -91,6 +91,10 @@ export type RushSequence = {
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: RushActivityTag[];
+  /** Bloc B — page publique : slug figé à la publication, `null` tant que non publiée. */
+  publicSlug?: string | null;
+  /** Bloc B — la page publique existe-t-elle ? */
+  isPublished?: boolean;
 };
 
 export type RushMilestoneType =

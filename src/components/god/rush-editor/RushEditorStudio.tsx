@@ -23,6 +23,7 @@ import {
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
   ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
+  Globe, GlobeLock,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -34,6 +35,7 @@ import {
   bulkUpdateRushSequencesRoute,
   bulkMoveRushSequences,
   bulkDeleteRushSequences,
+  publishRushSequence,
   deleteRushSequence,
   updateRushSylvestreSettings,
   updateRushUIConfig,
@@ -171,6 +173,9 @@ type Sequence = {
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: ActivityTag[];
+  /** Bloc B — page publique : slug figé à la publication. */
+  publicSlug?: string | null;
+  isPublished?: boolean;
 };
 
 /** Route appliquée à un bloc (G1) — une valeur vide **efface** celle du bloc. */
@@ -862,6 +867,30 @@ export function RushSylvestreAdminClient({
     });
   }, [router, editingSeqId]);
 
+  /**
+   * Bloc B — publie ou dépublie **une** quête. Le slug est figé côté serveur à la
+   * première publication ; on ne le recalcule jamais ici.
+   */
+  const handlePublishQuest = useCallback((sequenceId: string, publish: boolean) => {
+    startTransition(async () => {
+      try {
+        const res = await publishRushSequence({ sequenceId, publish });
+        setLocalMilestones(prev => prev.map(m => ({
+          ...m,
+          sequences: m.sequences.map(s => (
+            s.id === sequenceId
+              ? { ...s, publicSlug: res.slug, isPublished: res.isPublished }
+              : s
+          )),
+        })));
+        toast.success(res.isPublished ? "Quête publiée ✓" : "Quête dépubliée");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Publication impossible");
+      }
+    });
+  }, [router]);
+
   const handleDeleteSequence = useCallback((id: string) => {
     // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
     // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
@@ -1117,6 +1146,7 @@ export function RushSylvestreAdminClient({
       onBulkRoute={handleBulkRoute}
       onBulkMove={handleBulkMove}
       onBulkDelete={handleBulkDelete}
+      onPublishQuest={handlePublishQuest}
     />
   ) : selectedQuest && selectedQuestBlock ? (
     questFullscreen ? (
@@ -2208,7 +2238,7 @@ function SortableMilestoneRow(props: {
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
   onApplyBlockRoute, onSelectQuest, onAddSequence,
-  milestones, onBulkRoute, onBulkMove, onBulkDelete,
+  milestones, onBulkRoute, onBulkMove, onBulkDelete, onPublishQuest,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -2230,6 +2260,8 @@ function BlockInspectorForm({
   onBulkRoute: (sequenceIds: string[], route: RushBlockRouteValues) => void;
   onBulkMove: (sequenceIds: string[], targetMilestoneId: string) => void;
   onBulkDelete: (sequenceIds: string[]) => void;
+  /** Bloc B — publier / dépublier la page publique d'une quête. */
+  onPublishQuest: (sequenceId: string, publish: boolean) => void;
 }) {
   const color = milestone.accentColor || "#10b981";
   const type = editingData?.type ?? milestone.type;
@@ -2418,6 +2450,37 @@ function BlockInspectorForm({
                       className="min-w-0 flex-1 truncate text-left text-xs text-foreground hover:underline"
                     >
                       {seq.subGuideName || seq.subGuideRef}
+                    </button>
+                    {seq.isPublished && seq.publicSlug && (
+                      <a
+                        href={`/guides/rush-sylvestre/q/${seq.publicSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="max-w-[10rem] shrink-0 truncate text-caption text-primary hover:underline"
+                        title="Ouvrir la page publique"
+                      >
+                        /{seq.publicSlug}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => onPublishQuest(seq.id, !seq.isPublished)}
+                      aria-label={
+                        seq.isPublished
+                          ? `Dépublier ${seq.subGuideName || seq.subGuideRef}`
+                          : `Publier ${seq.subGuideName || seq.subGuideRef}`
+                      }
+                      title={seq.isPublished ? "Dépublier (la page repasse en 404)" : "Publier une page publique"}
+                      className={`shrink-0 rounded-md p-1 transition-colors disabled:opacity-40 ${
+                        seq.isPublished
+                          ? "text-primary hover:bg-primary/10"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {seq.isPublished
+                        ? <Globe className="h-3.5 w-3.5" aria-hidden />
+                        : <GlobeLock className="h-3.5 w-3.5" aria-hidden />}
                     </button>
                   </div>
                 </li>

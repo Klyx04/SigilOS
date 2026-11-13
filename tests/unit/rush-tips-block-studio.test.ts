@@ -35,7 +35,8 @@ describe("Studio GOD — bloc CONSEIL / TIPS", () => {
     // Le drapeau qui commande tous ces affichages.
     expect(CODE).toMatch(/const isTips = milestone\.type === "INFO"/);
     expect(CODE, "badge opt. toujours rendu").toMatch(/\{!isTips && milestone\.isOptional &&/);
-    expect(CODE, "compteur de quêtes toujours rendu").toMatch(/\{!isTips && \(\s*<span className="text-caption text-zinc-600/);
+    // E4 — le compteur garde sa structure, la couleur passe au token de la DA.
+    expect(CODE, "compteur de quêtes toujours rendu").toMatch(/\{!isTips && \(\s*<span className="text-caption text-subtle-foreground/);
     expect(CODE, "chevron de dépliage toujours rendu").toMatch(/\{!isTips && \(isExpanded \?/);
   });
 

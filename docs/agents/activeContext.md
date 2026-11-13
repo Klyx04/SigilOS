@@ -13,6 +13,29 @@
 > **Preuves** : 3 tests neufs — `server-actions-god-guard` (5, invariants), `security-report-auth` (3, comportement), `storage-guild-isolation` (4) — + 15 fichiers impactés **147 tests ✓** · suite **671 fichiers ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**.
 > **Reste / ops** : PR `fix/actions-god-auth` → `dev` ; puis AUD-04 (jeton legacy sans expiration), AUD-05 (SVG proxy-image), AUD-07→11 (durcissements). Rapport complet : `src/temp/audit-sec-2.md` (zone volatile).
 > **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+## 📝 Session 13/11/2026 — **Blocs Combat + liens + markdown + modale de bloc** — branche `feat/rush-studio-masse-da-block` (PR #1360)
+
+> **Demande user (verbatim)** : « mets aussi tous les autres type de bloc stp en modale éditable et les champ libre c imbuvable la zone est mini pas possible de l'agrandir » · « ajoute un nouveau type de bloc : Combat tactique / Combat semi tactique » · « pouvoir ajouter un ou plusieurs liens vers des sites… donner un nom à la vidéo + afficher sa favicon automatiquement… pouvoir ajouter un champ libre aussi d'édition pour expliquer brièvement la strat, markdown couleur etc » · « pouvoir importer une image aussi du combat / du monstre etc comme d'hab ».
+> **Schéma** : migration additive `20270131000000_add_rush_combat_blocks` — enum `GuideMilestoneType` + `COMBAT_TACTIQUE` / `COMBAT_SEMI_TACTIQUE`, colonne `GuideMilestone.links Json?` (liens nommés, 10 max). Appliquée en local.
+> **Images** : les deux fichiers fournis étaient des **PNG déguisés en `.webp`** (585×427 et 541×461) ; convertis en vrai WebP (25 Ko / 18 Ko) dans `public/assets/rush/blocks/`, métadonnées retirées.
+> **Règles pures** : `rush-block-types` (`isRushInfoBlock`, `isRushNonQuestBlock`, méta des deux types), `rush-block-links` (`safeExternalUrl`, 10 max, 120 car., dédoublonnage), `rush-markdown` (gras, italique, titres, listes, liens http(s), couleurs `{or}/{vert}/{danger}/{ambre}/{info}` ; HTML brut jamais interprété) — **26 tests**.
+> **Rendu** : `RushCombatBanner` partagé (dashboard, guide public, overlay `page`/`pip`), `RushMarkdown`, `SiteFavicon` (DuckDuckGo + repli `Globe`, CSP `img-src` mise à jour) ; les blocs Combat sont **non cochables** et exclus des compteurs par `isRushNonQuestBlock`.
+> **Studio** : palette +2 (image en icône), formulaire de bloc en **modale 1 100 px** pour tous les types (`blockForm` monté une seule fois), champ libre `resize-y` (min-h 160 px), barre d'outils markdown, aperçu du texte, éditeur de liens (nom + URL + favicon), aperçu membre réel ; l'image du bloc reste importable (`BlockImageField`).
+> **Preuves** : suite complète **678 fichiers / 7 295 tests ✓** · `tsc` 0 · ESLint **0 erreur** · migration appliquée en local · verrou `rush-combat-blocks` **14**.
+> **Reste / ops** : **jouer la migration `20270131000000` en bêta puis en prod** · G7 (hero) et composition G9 (captures) · E5 · V-C · backfill contraintes Tougli.
+> **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+## 📝 Session 12/11/2026 (suite 7) — **Rush : E3c + E4 + T-4a + bloc B, une seule PR** — branche `feat/rush-studio-masse-da-block`
+
+> **Demande user (verbatim)** : « on fais 1 2 4 5, 3 plus tard, une seule PR, un commit par chantier ».
+> **E3c (`83f287cd`)** : sélection multiple dans l'inspecteur de bloc (cases, tout sélectionner, barre d'actions) + **3 actions serveur** bornées (route / déplacement / suppression, **200 ids max**), appartenance au guide `rush-sylvestre` vérifiée **dans une transaction** (rollback si un id manque), rate limit Redis et `logGodWrite`. Règles pures `rush-bulk-selection` + verrous `rush-bulk-actions` / `rush-bulk-selection`.
+> **E4 (`a71e0cd8`)** : **572 → 0** motif interdit dans `RushEditorStudio.tsx` (zinc 316, emerald 94, font-black 78, tracking-widest 52, purple 27, backdrop-blur 4, rounded-3xl 1) et **29 → 0** dans le kit God ; couleurs en dur (indigo/cyan/blue/violet/rose) remplacées par les tokens, rayons ≤ 12 px, overlays `bg-background/80`, boutons `text-primary-foreground` ; verrou `rush-editor-ui` (studio + kit).
+> **T-4a (`95fd3e0c`)** : `RushCollapse` (dépli `grid-template-rows` `0fr → 1fr`, `inert`, `aria-hidden`, `motion-reduce`), rotation infinie coupée si `useReducedMotion`, célébration tokenisée (`--da-amber`, `bg-background`, plus de `zinc`/`blur`, éclats coupés en reduced motion). **G7 (hero) et la composition G9 restent ouverts** (captures attendues).
+> **Bloc B (`ef8ce3d7`)** : route publique `/guides/rush-sylvestre/q/[slug]` (lecture `cache`, 404 si non publiée, `noindex` si guide en construction), slug **figé** à la première publication (collisions `-2`, `-3`), action `publishRushSequence` (rate limit, journal, appartenance au guide), bouton publier/dépublier dans l'inspecteur de bloc, sitemap conditionnel. Règles `rush-public-slug` + verrou `rush-public-quest`.
+> **Preuves** : suite complète **674 fichiers / 7 255 tests ✓** · `tsc` 0 · ESLint 0 (hook pre-commit) · `git status` propre · **aucune migration**.
+> **Reste / ops** : **G7** (hero) et **composition G9** (captures) · **E5** (finitions studio) · **V-C** (purge WebP, ops VPS) · **nouveau lot demandé** : blocs **Combat tactique / semi-tactique** + liens nommés (favicon) + markdown couleur + modale de bloc + image du monstre/combat importable (migration enum + `GuideMilestone.links` à prévoir).
+> **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 ## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré, combat et donjon au choix** — branche `feat/rush-conditions-combat`
@@ -48,22 +71,3 @@
 > **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 12/11/2026 (suite 3) — **Rang 59 · Navigation par bloc dans les deux guides** — branche `feat/rush-nav-blocs`
-
-> **Demande user (verbatim)** : « je veux que dans les guides navigateurs on ait tous ces fameux blocs là comme dans l'overlay » · « supprime le "tout" pour ne conserver que le mode paginé c plus performant non ? ».
-> **Mesure** : le sommaire listait les **chapitres** (5 sur la route Bontarien) et une page = UN chapitre montait jusqu'à **89 quêtes** ; « Tout » rendait les **54 blocs** de la route d'un coup. Le guide public paginait **déjà par bloc** (`chapterPages` = un `ms` + ses bannières) ; seul le dashboard était resté au chapitre.
-> **Fait** : `RushChapterNav` liste **tous les blocs numérotés** (`rushChapterNumbers`, le même rang que l'en-tête de bloc et l'overlay), chapitre en mention secondaire (`.da-guide-nav-sub`, tokens `--da-*`), API `selectedMilestoneId` / `onSelectMilestone` ; le dashboard passe à **une page = un bloc** (`blockPages`, `showHeader: false`), le bouton **« Tout »** et l'état `isAllChapters` sont supprimés, et les liens internes (repère, prérequis, « Reprendre ») visent le **bloc** (`seqToMs` + `ensureMsFor`) ; le public branche la même sélection. `src/lib/rush-guide-pages.ts` (`mergeChapterPages`) est supprimé — plus aucun appelant.
-> **Corrigé le 12/11/2026 (retour user)** : ① « quand on clique sur suivant ça rescroll plus haut » — le pager ancre désormais sur `#guide-blocs` (`scrollToGuideTop`), plus sur le haut de la page ; ② le rail de droite (progression, donjons à prévoir, objets requis) est calculé sur le **bloc** affiché (`selectedMilestoneId`, prioritaire sur le chapitre) — il annonçait « 1 / 89 quêtes » et 20 donjons pour un bloc de 2 quêtes.
-> **Preuves** : `rush-block-navigation` **13** (neuf, dont 4 pour le rail et l'ancre) · `da-wakfu` **54** · `rush-public-parity` **48** · suite **664 fichiers / 7 126 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (sommaire 54 blocs, pager, rail sur le bloc).
-> **Rotation** : bloc « 11/11/2026 (suite) — Chantier 2/5 · Échanges Metamob » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite 2) — **Rang 59 · « Problèmes » : deux incohérences de route** — branche `feat/rush-problemes-route`
-
-> **Demande user (verbatim)** : « 2 contrôles "Problèmes" (quête de classe sans classe, quête d'alignement sans cité) » — puis, sur la mesure : « c du bolulot qui marchera que en local non ? sur le vps c différent ».
-> **Mesure (base locale 5433, 715 séquences — seed, **PAS** la prod)** : les **19** quêtes de classe portent **toutes** `classReq = cra` → 18 sortent pour la mauvaise classe. Une recherche par sous-chaîne est inutilisable (« Cania » → cra, « Srambad » → sram, « Ecaflipus » → ecaflip) ; en **mot entier**, seules **4** quêtes citent une classe (« Iop et hop », « Braquage à la Roublard », « Zobal Hibaba… » déclarées `cra`, « Sram d'Égoutant » sans classe). `alignOrderCode`/`alignLevelReq` sans `alignReq` = **0**. Corriger le seed local serait du travail jetable (le VPS a ses éditions God) ⇒ **aucune correction de données** : seul le contrôle est livré, et il lit les données de l'environnement où God ouvre l'onglet.
-> **Fait** : `rush-editor-problems` passe de **5** à **7** familles — `class-quest-misrouted` (le nom cite une classe, en **mot entier**, et `classReq` en déclare une autre ou aucune ; détail « dit iop · route cra ») via `classMentionedInName` (mot entier, sans casse ni accent, source unique `DOFUS_CLASSES`) et `alignment-quest-without-camp` (un Ordre ou un palier sans cité sort dans les deux camps) ; `detail` optionnel sur la cible, affiché à droite de la ligne.
-> **Preuves** : `rush-editor-problems` **22** (+9) · voisins `rush-class-branches` 10 · `rush-branches-cockpit` 8 · `rush-route-tooling` 19 ✓ · suite **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée, aucune lecture base depuis le studio (la règle reste pure).
-> **Reste** : contrôle visuel de l'onglet avec les deux nouvelles familles ; en prod le compte peut différer du local — c'est l'écran qui dit la vérité. Lots suivants : **3** (reset auto) → **13** (flaky).
-> **Rotation** : bloc « 11/11/2026 — Chantier 1/5 · Hub Communauté SigilOS » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 — **Sécurité · AUD-01/02/03 : actions God sans garde, stockage inter-guildes** — branche `fix/actions-god-auth`
+
+> **Demande user (verbatim)** : « refais une passe d'audit avec les audits précédents dans le contexte », puis validation du plan de correction (AUD-02 → AUD-01 → AUD-03).
+> **Mesures (2ᵉ passe, statique)** : `notifyGod` était exportée d'un fichier `"use server"` et importée par **deux composants client** (`proof-upload-dialog.tsx`, `safety-client.ts`) ⇒ action publique : écriture `GodNotification` + embed Discord via le bot **multi-tenant** avec `forceChannelId`/`ping` contrôlés. `markGodNotificationRead`/`markAllGodNotificationsRead` sans garde ⇒ masquage de toutes les alertes God. `/api/storage` sautait le contrôle d'appartenance quand `getUserContext()` (sans argument, guilde d'accueil) renvoyait `isAdmin` ⇒ lecture inter-guildes des preuves.
+> **Fait** : `notifyGod` déplacé dans `src/server/god-notifications.ts` (**sans** `"use server"`, invariant commenté) ; 28 importeurs serveur recâblés ; les 2 imports client supprimés (l'alerte God est créée **côté serveur** par `reportSecurityIncident`, avec `webOnly`, sans `forceChannelId`) ; garde `hasGodPanelAccess()` sur les 4 actions du panneau ; `reportSecurityIncident` exige `ctx.isMember` (AUD-06) et borne la description ; `/api/storage` exige l'appartenance à la guilde cible (God seul exempté, CUID → discordGuildId, cible inconnue = 403).
+> **Preuves** : 3 tests neufs — `server-actions-god-guard` (5, invariants), `security-report-auth` (3, comportement), `storage-guild-isolation` (4) — + 15 fichiers impactés **147 tests ✓** · suite **671 fichiers ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**.
+> **Reste / ops** : PR `fix/actions-god-auth` → `dev` ; puis AUD-04 (jeton legacy sans expiration), AUD-05 (SVG proxy-image), AUD-07→11 (durcissements). Rapport complet : `src/temp/audit-sec-2.md` (zone volatile).
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré, combat et donjon au choix** — branche `feat/rush-conditions-combat`
 
 > **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
@@ -57,13 +67,3 @@
 > **Preuves** : `rush-editor-problems` **22** (+9) · voisins `rush-class-branches` 10 · `rush-branches-cockpit` 8 · `rush-route-tooling` 19 ✓ · suite **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée, aucune lecture base depuis le studio (la règle reste pure).
 > **Reste** : contrôle visuel de l'onglet avec les deux nouvelles familles ; en prod le compte peut différer du local — c'est l'écran qui dit la vérité. Lots suivants : **3** (reset auto) → **13** (flaky).
 > **Rotation** : bloc « 11/11/2026 — Chantier 1/5 · Hub Communauté SigilOS » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite) — **Rang 59 · Numérotation des blocs : une seule règle pour les deux guides et l'overlay** — branche `feat/rush-numerotation-blocs`
-
-> **Demande user (verbatim)** : « Numérotation des blocs dans les 2 guides navigateur (même règle que l'overlay) » — décision actée le 12/11 : « **OUI** — même règle que l'overlay (`rushChapterPosition`) ».
-> **Mesures** : ① le guide **membre** numérotait avec `msIdx + 1` alors que sa liste ne porte **que les blocs d'un chapitre** (`milestoneList`) : chaque page repartait à 1 ; ② le guide **public** numérotait avec `milestones.indexOf(ms) + 1`, **bandeaux compris** : les numéros sautaient dès qu'un séparateur ou un encart s'intercalait ; ③ l'overlay suivait déjà la bonne règle (`rushChapterPosition`, bandeaux exclus) — trois surfaces, deux numérotations.
-> **Fait** : règle pure `rushChapterNumbers(blocks)` (`src/lib/rush-guide-utils.ts`) — table `id → rang` en O(n), construite sur `isNonCheckableBlock` ; `rushChapterPosition` **en dérive** (une seule source). Chaque parent calcule la table **une fois sur le guide complet** et la passe aux lignes : `blockNumbers` dans `RushTimelineClient` (prop `blockNumber` de `MilestoneRow`, fin de `blockIndex = msIdx + 1`) et dans `PublicRushGuideClient` (fin de `milestones.indexOf(ms)`). Un bloc non numéroté affiche une chaîne vide, jamais « 0 ».
-> **Preuves** : verrou neuf `rush-block-numbering` **5** (les deux guides et l'overlay sur la même règle, absence des deux anciens calculs) · `rush-guide-utils` **+4** (table, bandeaux absents, rang identique à `rushChapterPosition`, guide vide) · suite **664 fichiers / 7 110 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (un guide avec séparateurs : la suite des numéros ne doit plus sauter) ; puis **2** (deux contrôles « Problèmes ») → **3** (reset auto) → **13** (flaky), selon l'amorce.
-> **Rotation** : bloc « 10/11/2026 (suite 3) — V-H corrigé par la mesure » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

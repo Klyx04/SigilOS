@@ -591,7 +591,7 @@ export async function testBackupNotification(channelId?: string) {
         const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
         if (channelId) await clearDiscordChannelBlock(channelId);
 
-        const { notifyGod } = await import("./god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         const res = await notifyGod({
             title: "Sauvegarde Système (TEST)",
             message: "Ceci est une notification de test pour vérifier le bon fonctionnement du flux R2 / Cloudflare.",

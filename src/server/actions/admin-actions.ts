@@ -212,7 +212,7 @@ export async function onboardGuild(rawGuildId: string): Promise<ActionResponse> 
 
         // 🔔 ALERTE TEMPS RÉEL TOUR DE CONTRÔLE GOD
         try {
-            const { notifyGod } = await import("./god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: isAutonomous ? "🚀 Déploiement autonome réussi" : "✨ Déploiement guilde réussi",
                 message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Origine : **${origin.label}**`,

@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         // C4 — les listes ne sont plus coupées ICI (10 cartes / 5 erreurs) : on garde tout
         // jusqu'au plafond partagé (200, perte dite) et l'embed reste borné par la
         // projection du lot C1 — jamais par une coupe muette décidée dans la route.
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         const mapLines = (result.syncedMaps ?? []).map(
             (m) => `${m.dungeonName} : ${m.name} (#${m.mapId})${m.isBoss ? " 👑 Boss" : ""}`,
         );

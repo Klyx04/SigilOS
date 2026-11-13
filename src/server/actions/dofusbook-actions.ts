@@ -32,7 +32,7 @@ async function trackDofusbookFailure(kind: string, detail: string): Promise<void
         dofusbookLastAlertAt = now;
         dofusbookFailureCount = 0;
         try {
-            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: "⚠️ API Dofusbook en difficulté",
                 message: `L'API Dofusbook semble avoir changé ou bloquer les imports (${DOFUSBOOK_FAILURE_THRESHOLD}+ échecs : ${kind} — ${detail}). Les nouveaux stuffs importés peuvent être cassés. Vérifier le schéma de réponse ou le WAF Cloudflare.`,

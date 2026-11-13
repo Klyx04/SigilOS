@@ -31,7 +31,7 @@ async function notifyGodOnce(
     try {
         const ok = await redis.set(ALERT_KEY, "1", "EX", ALERT_TTL, "NX");
         if (!ok) return; // déjà notifié récemment
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title,
             message,

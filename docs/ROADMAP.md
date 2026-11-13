@@ -48,19 +48,7 @@
 | 8 | `presentation-access` | `presentation:view` existe mais n'est pas ouverte au rôle Membre ; l'ancienne page `/presentation` rend encore le règlement | 1 occurrence dans `src/` | ouvrir la permission + trancher la page | — | **D-P1** |
 ### 1bis. Reste de l'audit sécurité (13/11/2026)
 
-| Sujet | État | Action |
-|---|---|---|
-| **#4 WebSocket membre exclu** | **réel, ouvert** | lot `ws-revocation-membres` (4f) : canal Redis + éditeurs web/bot + déconnexion ciblée |
-| #3 TOCTOU DNS (rebinding) | résiduel | fetch avec DNS épinglé (lot de durcissement) |
-| #2 `/api/og/build` — scan complet | mitigé (cache 60 s + rate-limit) | index/table dédié si la volumétrie l'exige |
-| AUD-04 — vieux liens de preuves | code prêt, **inerte** | poser `STORAGE_LEGACY_TOKENS_UNTIL` (+30 j) puis supprimer la branche legacy |
-| SEC-05 — `next-auth` bêta | accepté | migrer vers une stable dès disponibilité, surveiller les avis |
-| AUD-12 — 2 dépendances modérées | build-time | attendre le correctif amont |
-| Ops — sauvegardes | non prouvé | jouer une restauration et noter le RTO |
-| Ops — protections de branches | non vérifié | require PR + checks + no force push |
-| Ops — workers Cloudflare | non vérifié | relire les routes dans le dashboard |
-| Ops — token Discord | à vérifier | rotation si le token complet a été exposé |
-
+Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure · SEC-05 next-auth stable · AUD-12 amont · ops (sauvegardes, branches, CF, token).
 ## 2. P1 — Chantiers produit (ordre proposé)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |

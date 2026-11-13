@@ -2,6 +2,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { resolve, basename, join, sep } from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
+import { isPrivateIp } from "@/lib/ip-safety";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before optimization
 
@@ -11,38 +12,6 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before optimization
 // services (Redis, Postgres, cloud metadata 169.254.169.254, ...).
 // We now block non-http(s) protocols + private/reserved IPs + DNS rebinding.
 const BLOCKED_PROTOCOLS = ["file:", "ftp:", "gopher:", "dict:", "ldap:", "smb:"];
-const PRIVATE_IP_BLOCKS: Array<[bigint, bigint]> = [
-  // 10.0.0.0/8
-  [0x0a000000n, 0x0affffffn],
-  // 127.0.0.0/8 (loopback)
-  [0x7f000000n, 0x7fffffffn],
-  // 169.254.0.0/16 (link-local / metadata AWS)
-  [0xa9fe0000n, 0xa9feffffn],
-  // 172.16.0.0/12
-  [0xac100000n, 0xac1fffffn],
-  // 192.168.0.0/16
-  [0xc0a80000n, 0xc0a8ffffn],
-  // 0.0.0.0/8
-  [0x00000000n, 0x00ffffffn],
-];
-
-function ipToNumber(ip: string): bigint | null {
-  const parts = ip.split(".");
-  if (parts.length !== 4) return null;
-  let result = 0n;
-  for (const part of parts) {
-    const n = Number(part);
-    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
-    result = (result << 8n) | BigInt(n);
-  }
-  return result;
-}
-
-function isPrivateIp(ip: string): boolean {
-  const num = ipToNumber(ip);
-  if (num === null) return true; // Invalid IP → treat as private/reject
-  return PRIVATE_IP_BLOCKS.some(([lo, hi]) => num >= lo && num <= hi);
-}
 
 /** Non-blocking DNS (ssrf): validate protocol + resolve & reject internal IPs. */
 export async function assertSafeUrl(rawUrl: string): Promise<void> {
@@ -68,11 +37,9 @@ export async function assertSafeUrl(rawUrl: string): Promise<void> {
     throw new Error("Résolution DNS impossible");
   }
   for (const addr of addresses) {
-    if (addr.family === 4 && isPrivateIp(addr.address)) {
+    // AUD-03 : couvre IPv4 **et** IPv6 (ULA, mapped, multicast, documentation…).
+    if (isPrivateIp(addr.address)) {
       throw new Error("Adresse IP interne bloquée");
-    }
-    if (addr.family === 6 && (addr.address.startsWith("::1") || addr.address.startsWith("fe80:"))) {
-      throw new Error("Adresse IPv6 loopback/link-local bloquée");
     }
   }
 }

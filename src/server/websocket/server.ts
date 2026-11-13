@@ -13,6 +13,7 @@ import { logger as AppLogger } from "../../lib/logger";
 import { createGuidePresence } from "./guide-presence";
 import { createDofusPresence } from "./dofus-presence";
 import { createRaidLivePresence } from "./raid-live";
+import { assertWsAuthPolicy } from "../../lib/ws-auth-policy";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
@@ -40,6 +41,10 @@ const logger = AppLogger || console;
 // ═════════════════════════════════════════════════════════════════════════════
 
 const WS_AUTH_ENABLED = process.env.WS_AUTH_ENABLED !== "false";
+// SEC-02 (audit 13/11/2026) : ce process est séparé de Next (`node ws-server.js`)
+// et n'exécute pas `instrumentation.ts` → il doit refuser lui-même le kill-switch
+// en production (fail-closed, arrêt du process).
+assertWsAuthPolicy(process.env.NODE_ENV, WS_AUTH_ENABLED);
 const AUTH_SECRET = process.env.AUTH_SECRET;
 // Cookie name matches auth.config.ts (secure prefix in production).
 const SESSION_COOKIE = process.env.NODE_ENV === "production"

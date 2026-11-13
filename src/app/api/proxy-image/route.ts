@@ -47,13 +47,13 @@ function mimeToExt(mime: string): string {
   if (mime.includes("webp")) return ".webp";
   if (mime.includes("png")) return ".png";
   if (mime.includes("gif")) return ".gif";
-  if (mime.includes("svg")) return ".svg";
   if (mime.includes("avif")) return ".avif";
   return ".jpg"; // fallback
 }
 
 function findCacheFile(hash: string): { filePath: string; ext: string } | null {
-  for (const ext of [".webp", ".jpg", ".png", ".gif", ".svg", ".avif"]) {
+  // AUD-05 : plus de `.svg` — le cache ne doit jamais resservir du contenu actif.
+  for (const ext of [".webp", ".jpg", ".png", ".gif", ".avif"]) {
     const fp = path.join(CACHE_DIR, `${hash}${ext}`);
     if (fs.existsSync(fp)) return { filePath: fp, ext };
   }
@@ -173,6 +173,7 @@ export async function GET(req: NextRequest) {
         headers: {
           "Content-Type": mime,
           "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
           "X-Cache": "HIT",
         },
       });
@@ -270,9 +271,18 @@ export async function GET(req: NextRequest) {
 
     const declaredCtype = response.headers.get("content-type") || "";
     const detected = detectMimeType(buffer);
-
-    // Known images: use the REAL detected type (ignores a spoofed header).
     const contentType = detected || declaredCtype || "application/octet-stream";
+
+    // 🔐 AUD-05 (audit 13/11/2026) : le SVG est du contenu ACTIF. Même sans
+    // `<script`, un `<svg onload=…>` ou `<foreignObject>` s'exécute si le
+    // navigateur navigue directement sur cette URL (same-origin). On refuse
+    // tout SVG/XML, y compris lorsqu'un `Content-Type` mensonger le présente
+    // comme une image.
+    const head = buffer.subarray(0, 1024).toString("utf8");
+    const looksLikeSvg = /<svg[\s>]/i.test(head) || /^\s*<\?xml/i.test(head);
+    if (looksLikeSvg || /svg|xml/i.test(contentType)) {
+      return NextResponse.json({ error: "SVG/XML not allowed" }, { status: 415 });
+    }
 
     // F-06: MIME spoofing defense — if we could not positively identify the bytes
     // as a known image, make sure we are NOT serving an HTML page or a script
@@ -301,6 +311,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
         "X-Cache": "MISS",
       },
     });

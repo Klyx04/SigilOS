@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { AUDIT_ACTION_FILTER_OPTIONS } from "@/lib/audit-taxonomy";
 
 // Action type to color mapping
 const ACTION_COLORS: Record<string, string> = {
@@ -43,6 +44,11 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CLOSED: "bg-warning/20 text-warning border-warning/30",
     POLL_DELETED: "bg-danger/20 text-danger border-danger/30",
     POLL_CREATOR_ROLE_ACQUIRED: "bg-info/10 text-info border-info/20 ",
+    // Sondages programmés (module staff)
+    SCHEDULED_POLL_CREATED: "bg-info/20 text-info border-info/30",
+    SCHEDULED_POLL_UPDATED: "bg-surface/40 text-muted-foreground border-border",
+    SCHEDULED_POLL_CANCELLED: "bg-muted/20 text-muted-foreground border-border",
+    SCHEDULED_POLL_PUBLISHED: "bg-success/20 text-success border-success/30",
     // GDPR
     USER_GDPR_DELETE: "bg-danger/20 text-danger border-danger/30",
 };
@@ -81,6 +87,11 @@ const ACTION_LABELS: Record<string, string> = {
     POLL_CLOSED: "🔒 Sondage clôturé",
     POLL_DELETED: "🗑️ Sondage supprimé",
     POLL_CREATOR_ROLE_ACQUIRED: "🎤 Micro acquis",
+    // Sondages programmés (module staff)
+    SCHEDULED_POLL_CREATED: "🗓️ Sondage programmé créé",
+    SCHEDULED_POLL_UPDATED: "🗓️ Sondage programmé modifié",
+    SCHEDULED_POLL_CANCELLED: "🗓️ Sondage programmé annulé",
+    SCHEDULED_POLL_PUBLISHED: "📣 Sondage programmé publié",
     // GDPR
     USER_GDPR_DELETE: "🗑️ Suppression RGPD",
 };
@@ -127,16 +138,14 @@ function formatReason(reason: unknown): string | null {
     return reason;
 }
 
-const ACTION_OPTIONS = [    { value: "all", label: "Toutes les actions" },
-    { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
-    { value: "RBAC_UPDATE", label: "Permissions modifiées" },
-    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
-    { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
-    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & Micro" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,PLATFORM_ARRIVAL,PLATFORM_DEPARTURE,PROFILE_ARCHIVED,PROFILE_REACTIVATED,MEMBER_PSEUDO_UPDATE,MEMBER_ANKAMA_ID_UPDATE", label: "🔄 Mouvements" },
-    { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
-    { value: "ADMIN_FULL_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },
-    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
+// Filtre d'actions de la page guilde : **la source partagée** (`@/lib/audit-taxonomy`), pas une
+// copie locale. Mesure du 31/10/2026 : la liste locale ne couvrait que 8 groupes et laissait
+// **~36 actions déclarées** hors de tout filtre (calendrier/raids, RBAC, mouvements Discord,
+// cycle de vie du profil, guildaton, God…) — les lignes existaient en base, l'écran ne les
+// proposait pas.
+const ACTION_OPTIONS = [
+    { value: "all", label: "Toutes les actions" },
+    ...AUDIT_ACTION_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
 ];
 
 type PermissionChange = {

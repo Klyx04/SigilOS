@@ -13,7 +13,6 @@ import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import {
     getMarketSettings,
     updateMarketSettings,
-    testMarketConfiguration,
     listMarketForumAvailableTags,
     type MarketForumTagOption,
 } from "@/server/actions/market-admin-actions";
@@ -24,7 +23,7 @@ import {
     type MarketForumTagMap,
 } from "@/lib/market/forum-tags";
 import { toast } from "sonner";
-import { AlertTriangle, FlaskConical, Hash, Loader2, Save, ShieldCheck, Tags } from "lucide-react";
+import { Hash, Loader2, Save, Tags } from "lucide-react";
 
 type Role = { id: string; name: string; color: string };
 
@@ -64,9 +63,7 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
-    const [isTesting, setIsTesting] = useState(false);
     const [channelKind, setChannelKind] = useState<string | null>(null);
-    const [issues, setIssues] = useState<string[]>([]);
     /** D20 / S3.13 — tags **existants** du salon forum (sélecteurs). */
     const [forumTagOptions, setForumTagOptions] = useState<MarketForumTagOption[]>([]);
     const [forumTagsAvailable, setForumTagsAvailable] = useState(false);
@@ -162,25 +159,6 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
         });
     }
 
-    function handleTest() {
-        setIsTesting(true);
-        startTransition(async () => {
-            const result = await testMarketConfiguration(guildId);
-            setIsTesting(false);
-            if (result.success && result.data) {
-                setChannelKind(result.data.channelKind);
-                setIssues(result.data.issues);
-                if (result.data.issues.length === 0) {
-                    toast.success("Configuration valide : le marché est prêt.");
-                } else {
-                    toast.warning("Configuration testée — vérifie les points signalés.");
-                }
-            } else {
-                toast.error(result.error || "Test impossible");
-            }
-        });
-    }
-
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-8">
@@ -188,7 +166,6 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
             </div>
         );
     }
-
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -205,9 +182,11 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                                 </span>
                                 Salon de publication Discord
                             </CardTitle>
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">
-                                {channelKind === "FORUM" ? "Forum" : channelKind === "TEXT" ? "Textuel" : "Non testé"}
-                            </Badge>
+                            {channelKind && (
+                                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">
+                                    {channelKind === "FORUM" ? "Forum" : "Textuel"}
+                                </Badge>
+                            )}
                         </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
@@ -320,53 +299,6 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                     publication, les rôles pinguables et les tags du forum.
                     Les colonnes `GuildConfig.market*` restent en base (aucune migration) et
                     continuent d'être lues par le serveur (héritage du panneau God). */}
-            </div>
-
-            {/* Diagnostic */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-surface/60 border-border rounded-2xl">
-                    <CardHeader className="p-6 pb-2">
-                        <CardTitle className="text-sm font-black uppercase tracking-wider text-foreground flex items-center gap-2">
-                            <FlaskConical className="w-4 h-4 text-info" />
-                            Tester la configuration
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 pt-2 space-y-4">
-                        <p className="text-xs text-muted-foreground">
-                            Vérifie que le salon est joignable par le bot et détecte son type (texte ou forum).
-                        </p>
-                        <Button variant="outline" className="gap-2" onClick={handleTest} disabled={isTesting || isPending}>
-                            {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
-                            Lancer le test
-                        </Button>
-                        {issues.length > 0 && (
-                            <ul className="space-y-1">
-                                {issues.map((issue) => (
-                                    <li key={issue} className="text-[11px] text-warning flex items-start gap-2">
-                                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                                        {issue}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-info/5 border-info/10 rounded-2xl">
-                    <CardContent className="p-5 flex gap-3">
-                        <div className="p-2 bg-info/20 rounded-xl shrink-0 h-fit border border-info/30">
-                            <ShieldCheck className="w-4 h-4 text-info" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <h4 className="text-sm font-black uppercase tracking-wider text-info">Rappel de sécurité</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                                Le salon est revalidé côté serveur à chaque sauvegarde : un identifiant fourni par le
-                                client n&apos;est jamais utilisé aveuglément. Les annonces hors de la guilde restent
-                                inaccessibles.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
         </div>
     );

@@ -4,9 +4,11 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { fetchDofusNews, fetchTwitchLiveStreams, fetchYouTubeLatestVideos, fetchDPLNNews, ExtractedContent } from "@/lib/feed-aggregators";
+import { FEED_CACHE_PURGE_WHERE, dedupeFeedCacheRows } from "@/lib/feed-cache";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { redis } from "@/lib/redis";
+import { LIVE_SNAPSHOT_KEY, liveAvatarKey, normalizeTwitchLogin } from "@/lib/live-notify";
 
 const CACHE_MINUTES = 15;
 
@@ -116,52 +118,35 @@ export async function getAggregatedFeed(guildId: string, forceRefresh = false) {
 
             const allContent: ExtractedContent[] = [...news, ...streams, ...videos, ...dpln];
 
-            // Update Database (Upsert based on unique constraint)
+            // Update Database (purge + réinsertion en **lot**)
             if (allContent.length > 0) {
+                // Le cache du feed est une **image** : on purge les familles dont le feed
+                // est propriétaire (règle unique `FEED_CACHE_PURGE_WHERE`), puis on
+                // réinsère un lot dédupliqué en **une** écriture.
+                //
+                // Correctif du 22/10/2026 (Sentry `JAVASCRIPT-NEXTJS-24`) : l'ancien code
+                // purgeait TWITCH / Ankama / DPLN mais **pas** YouTube, puis faisait un
+                // `upsert` par contenu (`Promise.all`, 1 requête par ligne). YouTube sort
+                // donc de la purge, et l'écriture redevient un seul `INSERT` idempotent.
                 // @ts-ignore
-                await db.contentCache.deleteMany({
-                    where: {
-                        OR: [
-                            { type: "TWITCH" },
-                            { creatorId: "DPLN" },
-                            { creatorId: "Ankama" }
-                        ]
-                    }
+                await db.contentCache.deleteMany({ where: FEED_CACHE_PURGE_WHERE });
+
+                // `createMany` refuse deux lignes de même clé dans la même instruction :
+                // la déduplication est faite par la règle pure, pas par la base.
+                // @ts-ignore
+                await db.contentCache.createMany({
+                    data: dedupeFeedCacheRows(allContent).map((item) => ({
+                        type: item.type,
+                        creatorId: item.creatorId,
+                        title: item.title,
+                        url: item.url,
+                        thumbnail: item.thumbnail,
+                        description: item.description || null,
+                        published: item.published,
+                        fetchedAt: now,
+                    })),
+                    skipDuplicates: true,
                 });
-
-                // Insert/Update new content
-                // Prisma currently doesn't have an easy upsertMany without extensions, so we'll do individual upset tasks
-                const upsertPromises = allContent.map(item =>
-                    // @ts-ignore
-                    db.contentCache.upsert({
-                        where: {
-                            type_creatorId_url: {
-                                type: item.type,
-                                creatorId: item.creatorId,
-                                url: item.url
-                            }
-                        },
-                        update: {
-                            title: item.title,
-                            thumbnail: item.thumbnail,
-                            description: item.description || null,
-                            published: item.published,
-                            fetchedAt: now
-                        },
-                        create: {
-                            type: item.type,
-                            creatorId: item.creatorId,
-                            title: item.title,
-                            url: item.url,
-                            thumbnail: item.thumbnail,
-                            description: item.description || null,
-                            published: item.published,
-                            fetchedAt: now
-                        }
-                    })
-                );
-
-                await Promise.all(upsertPromises);
             }
         }
 
@@ -190,23 +175,68 @@ export async function getAggregatedFeed(guildId: string, forceRefresh = false) {
 
 /**
  * Gets currently live streamers from the cache.
+ *
+ * 📌 02/11/2026 — deux sources, dans cet ordre :
+ * 1. l'**instantané du cron** (`live:snapshot`, 15 min) : c'est lui qui porte la photo de profil,
+ *    le jeu et le nombre de spectateurs, et il ne dépend d'aucune visite ;
+ * 2. le **cache de feed** (`ContentCache`), historique, si le cron n'a pas encore tourné.
+ * L'avatar de repli vient de `live:avatar:<login>` (écrit par le cron) — plus jamais la
+ * miniature du stream, qui n'est pas un visage.
  */
 export async function getLiveStreamers(guildId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
+        const rawSnapshot = await redis.get(LIVE_SNAPSHOT_KEY).catch(() => null);
+        if (rawSnapshot) {
+            try {
+                const snapshot = JSON.parse(rawSnapshot) as Array<{
+                    login?: string;
+                    displayName?: string;
+                    title?: string;
+                    gameName?: string | null;
+                    viewers?: number;
+                    avatarUrl?: string | null;
+                    url?: string;
+                }>;
+                const lives = snapshot
+                    .filter((item) => Boolean(item?.url))
+                    .map((item) => ({
+                        creatorId: item.displayName || item.login || "Créateur",
+                        url: item.url as string,
+                        title: item.title || "En direct",
+                        avatarUrl: item.avatarUrl ?? null,
+                        gameName: item.gameName ?? null,
+                        viewers: typeof item.viewers === "number" ? item.viewers : null,
+                        platform: "TWITCH" as const,
+                        login: item.login ?? null,
+                    }));
+                return { success: true, data: lives };
+            } catch {
+                // Instantané illisible : on retombe sur le cache de feed.
+            }
+        }
+
         // @ts-ignore
         const live = await db.contentCache.findMany({
             where: { type: "TWITCH" },
             select: { creatorId: true, url: true, title: true, thumbnail: true }
         });
 
-        return { success: true, data: live.map((l: any) => ({
+        const avatars = await Promise.all(
+            live.map((item: any) => redis.get(liveAvatarKey(item.creatorId)).catch(() => null))
+        );
+
+        return { success: true, data: live.map((l: any, index: number) => ({
             creatorId: l.creatorId,
             url: l.url,
             title: l.title,
-            avatarUrl: l.thumbnail || null
+            avatarUrl: avatars[index] || null,
+            gameName: null,
+            viewers: null,
+            platform: "TWITCH",
+            login: normalizeTwitchLogin(l.creatorId),
         })) };
     } catch (error) {
         logger.error("Failed to get live streamers", { error: (error as Error).message, guildId });

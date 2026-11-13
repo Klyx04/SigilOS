@@ -17,15 +17,14 @@ const TOUR_PHASE_TO_DOC_SLUG: Record<string, { slug: string; title: string }> = 
     missions:          { slug: "missions",                          title: "Missions & Défis" },
     presentation:      { slug: "admin-presentation",                title: "Identité & Présentation" },
     ocre:              { slug: "quete-ocre",                        title: "Quête Ocre" },
-    quetesDofus:       { slug: "quetes-dofus",                      title: "Les Quêtes Dofus" },
+    quetesDofus:       { slug: "quetes-dofus",                      title: "Objectif Dofus" },
     ressources:        { slug: "ressources",                        title: "Ressources Dofus" },
     services:          { slug: "services",                          title: "Services de Guilde" },
     sondages:          { slug: "sondages",                          title: "Sondages Communautaires" },
     songes:            { slug: "songes",                            title: "Songes Infinis" },
-    stats:             { slug: "introduction",                      title: "Statistiques de Guilde" },
     succes:            { slug: "succes",                            title: "Succès Donjons" },
     marche:            { slug: "marche",                            title: "Marché de Guilde" },
-    guide:             { slug: "quetes-dofus",                      title: "Les Quêtes Dofus" },
+    guide:             { slug: "quetes-dofus",                      title: "Objectif Dofus" },
     admin:             { slug: "admin-getting-started",             title: "Panneau Admin" },
     adminOverview:     { slug: "admin-getting-started",             title: "Panneau Admin" },
     adminMembers:      { slug: "admin-members",                     title: "Audit & Membres" },
@@ -53,7 +52,15 @@ const TOUR_PHASE_TO_DOC_SLUG: Record<string, { slug: string; title: string }> = 
  * - Affiche [ ❓ Tutoriel ] (lance le tour interactif du module)
  * Design professionnel, épuré, dark-glass, zéro AI-slop.
  */
-export function ModuleTourReplayButton({ phase, className }: { phase: TourPhase; className?: string }) {
+export function ModuleTourReplayButton({
+    phase,
+    className,
+    appearance,
+}: {
+    phase: TourPhase;
+    className?: string;
+    appearance?: "standalone" | "grouped";
+}) {
     const docInfo = phase ? TOUR_PHASE_TO_DOC_SLUG[phase] : null;
 
     return (
@@ -62,6 +69,7 @@ export function ModuleTourReplayButton({ phase, className }: { phase: TourPhase;
             docTitle={docInfo?.title}
             tourPhase={phase}
             className={className}
+            appearance={appearance}
         />
     );
 }

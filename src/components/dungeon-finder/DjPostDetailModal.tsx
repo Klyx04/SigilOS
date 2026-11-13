@@ -1,21 +1,30 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
+import { QuestThumbnail } from "./quest-thumbnail";
+import { MinimapGrid as MinimapGridView } from "@/components/worldmap/minimap-grid";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-    Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
+    Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock, ChevronDown,
+    Pause, Play, Crown,
 } from "lucide-react";
 import {
     acceptDjParticipant,
     rejectDjParticipant,
     joinDjPost,
     leaveDjPost,
+    republishDjMultiLayout,
+    setDjPostStandBy,
+    transferDjLead,
 } from "@/server/actions/dungeon-finder-actions";
+import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { DjEditModal } from "./DjEditModal";
 import { DjCloseModal } from "./DjCloseModal";
 import { DjReminderModal } from "./DjReminderModal";
@@ -25,7 +34,7 @@ import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons, getMultiMessageIds, isDjDungeonClosed } from "@/lib/dungeon-finder-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -53,44 +62,113 @@ export function DjPostDetailModal({
 }: DjPostDetailModalProps) {
     const [classe, setClasse] = useState("");
     const [message, setMessage] = useState("");
+    /**
+     * #26 — donjons **visés** par la candidature (cases à cocher). Vide par défaut : on ne
+     * devine jamais la sélection à la place du joueur (l'ancien formulaire inscrivait
+     * « global », donc dans **tous** les donjons — constat du 16/10/2026).
+     */
+    const [targets, setTargets] = useState<number[]>([]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     // Clôture (bilan des succès/points + fermeture Discord) : action principale du
     // créateur. La suppression du groupe a été retirée (elle détruisait le bilan).
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+    /** Reprise de lead (lot B) : profil choisi dans la liste des inscrits acceptés. */
+    const [transferTarget, setTransferTarget] = useState("");
+    /**
+     * Clôture **unitaire** : index du donjon visé, ou `null` pour la clôture du groupe entier.
+     * `null` est le défaut du bouton « Terminer le post » (comportement historique).
+     */
+    const [closeDungeonIndex, setCloseDungeonIndex] = useState<number | null>(null);
+    /**
+     * #26 — accordéon « un bloc par donjon » : le premier est déplié d'office (on voit
+     * tout de suite où on en est), les autres s'ouvrent à la demande. Responsive par
+     * construction : un seul niveau de pliage, aucune colonne fixe.
+     */
+    const [openDungeons, setOpenDungeons] = useState<number[]>([0]);
+    const toggleDungeonOpen = (index: number) =>
+        setOpenDungeons((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]));
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
-    const myParticipation = currentProfileId
-        ? post.participants.find((p) => p.profile.id === currentProfileId)
-        : null;
 
     // Multi-donjons
     const multiDungeons = getMultiDungeons(post.dungeonsJson);
     const isMulti = multiDungeons.length > 0;
     const postTitle = getDjPostTitle(post);
     const postSubtitle = getDjPostSubtitle(post);
+
+    /**
+     * **Une seule** règle de comptage des places (#203) : par donjon en multi, globale sur
+     * un post simple. Avant, cet écran affichait un ratio global sur un post de 5 donjons
+     * alors que Discord comptait donjon par donjon.
+     */
+    const stats = getDjDungeonStats(post);
+    const summary = summarizeDjDungeons(stats);
+    /**
+     * Le post est-il **déjà** au format « un message par donjon » (un id par donjon) ?
+     * Sert à n'afficher le bouton de republication que lorsqu'il a quelque chose à faire
+     * (post hérité, ou message de donjon manquant) — jamais comme un réglage permanent.
+     */
+    const hasPerDungeonLayout = isMulti
+        && getMultiMessageIds(post.dungeonsJson).length === multiDungeons.length;
+    /** Mes inscriptions — **plusieurs** possibles sur un post multi (une par donjon). */
+    const myParticipations = currentProfileId
+        ? post.participants.filter((p) => p.profile.id === currentProfileId)
+        : [];
+    const myIndexes = myParticipations.map((p) => p.dungeonIndex ?? -1);
+    /** Inscriptions « sans donjon » (créées avant la reprise) : elles ne visent aucun donjon. */
+    const myLegacy = myParticipations.filter((p) => p.dungeonIndex == null);
+    const isJoinablePost = post.status === "OPEN" || post.status === "FULL";
+    /** Donjons que je peux encore rejoindre (jamais deux fois le même). */
+    const joinable = stats.filter((s) => !myIndexes.includes(s.index));
+    const canJoin = isJoinablePost && !isOwner && (isMulti ? joinable.length > 0 : myParticipations.length === 0);
     const coverImage = !isMulti
-        ? (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null)
+        ? (post.mode === "DONJON"
+            ? (post.dungeon?.imageUrl || "/assets/dofus/modules/dofus.png")
+            : post.mode === "QUETE"
+            ? "/assets/dofus/modules/quest.png"
+            : post.mode === "DEFI"
+            ? (post.defi?.imageUrl || "/assets/dofus/icons/challenges.png")
+            : post.mode === "TITAN"
+            ? (post.titan?.imageUrl || "/assets/dofus/icons/crown.png")
+            : null)
         : null;
 
-    // Creator counts as 1 slot, ACCEPTED participants fill remaining slots
     const acceptedParticipants = post.participants.filter((p) => p.status === "ACCEPTED");
     const pendingParticipants = post.participants.filter((p) => p.status === "PENDING");
-    const acceptedCount = acceptedParticipants.length + 1; // +1 for creator
-    const spotsLeft = post.maxMembers - acceptedCount;
+
+    /** Places restantes du groupe d'un inscrit (par donjon en multi, #203). */
+    const spotsLeftFor = (dungeonIndex?: number | null): number =>
+        (stats.find((s) => s.index === (dungeonIndex ?? -1)) ?? stats[0])?.spotsLeft ?? 0;
+
+    /** Coche / décoche un donjon dans la candidature (jamais une inscription immédiate). */
+    const toggleTarget = (index: number) =>
+        setTargets((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index].sort((a, b) => a - b)));
+
+    /** Les groupes visés sont-ils **tous** complets (⇒ file d'attente) ? */
+    const targetsAllFull = isMulti
+        ? targets.length > 0 && targets.every((i) => stats.find((s) => s.index === i)?.isFull)
+        : (stats[0]?.spotsLeft ?? 0) <= 0;
 
     // #179 — la copie des pseudos est UNITAIRE (voir `PseudoChip`) : plus de bouton
     // global qui collait toute la liste `\n/w Pseudo`.
 
     function handleJoin() {
         startTransition(async () => {
-            const res = await joinDjPost(guildId, post.id, { classe: classe || null, message: message || null });
+            const res = await joinDjPost(guildId, post.id, {
+                classe: classe || null,
+                message: message || null,
+                // Post multi : les donjons cochés. Post simple : aucun index (un seul groupe).
+                dungeonIndexes: isMulti ? targets : null,
+            });
             if (res.success) {
-                const wasWaitlisted = (res as any).data?.waitlisted;
-                toast.success(wasWaitlisted
-                    ? "Tu as été placé en file d'attente !"
-                    : "Candidature envoyée !"
+                const data = (res as { data?: { joined?: number; waitlistedCount?: number } }).data;
+                const joinedCount = data?.joined ?? 0;
+                const waiting = data?.waitlistedCount ?? 0;
+                toast.success(joinedCount > 0
+                    ? `Candidature envoyée${joinedCount > 1 ? ` — ${joinedCount} donjons` : ""} !`
+                    : `Place en file d'attente${waiting > 1 ? ` (${waiting} donjons)` : ""} !`
                 );
                 onRefresh();
                 onClose();
@@ -100,11 +178,63 @@ export function DjPostDetailModal({
         });
     }
 
-    function handleLeave() {
+    /** Quitter **un** groupe précis — jamais « la première participation » du post. */
+    function handleLeave(dungeonIndex: number | null) {
         startTransition(async () => {
-            const res = await leaveDjPost(guildId, post.id);
-            if (res.success) { toast.success("Parti du post."); onRefresh(); onClose(); }
+            const res = await leaveDjPost(guildId, post.id, dungeonIndex);
+            if (res.success) { toast.success("Inscription retirée."); onRefresh(); }
             else toast.error(res.error);
+        });
+    }
+
+    /**
+     * Stand-by (30/10/2026) : suspend le rappel H-1, les relances d'inactivité et la
+     * clôture J+21. Les inscriptions restent ouvertes (contrat `@/lib/group-standby`).
+     */
+    function handleToggleStandBy() {
+        const paused = !isStandByActive(post.standBy);
+        startTransition(async () => {
+            const res = await setDjPostStandBy(guildId, post.id, paused);
+            if (res.success) {
+                toast.success(paused
+                    ? "Groupe mis en stand-by — rappels et relances suspendus."
+                    : "Stand-by levé — rappels et relances reprennent.");
+                onRefresh();
+            } else {
+                toast.error(res.error || "Changement impossible.");
+            }
+        });
+    }
+
+    /**
+     * Reprise de lead (lot B, 30/10/2026) : quand le créateur s'en va, un inscrit accepté
+     * reprend le groupe. Le serveur arbitre (créateur ou admin) et libère la place occupée
+     * par la cible (le créateur compte déjà `+1`).
+     */
+    function handleTransferLead() {
+        if (!transferTarget) return;
+        startTransition(async () => {
+            const res = await transferDjLead(guildId, post.id, transferTarget);
+            if (res.success) {
+                toast.success("Lead transféré.");
+                setTransferTarget("");
+                onRefresh();
+            } else {
+                toast.error(res.error || "Transfert impossible.");
+            }
+        });
+    }
+
+    /** Republier le post **déjà en ligne** au format « un message par donjon » (#26). */
+    function handleRepublishLayout() {
+        startTransition(async () => {
+            const res = await republishDjMultiLayout(guildId, post.id);
+            if (res.success) {
+                toast.success("Post Discord republié — un message par donjon.");
+                onRefresh();
+            } else {
+                toast.error(res.error);
+            }
         });
     }
 
@@ -132,70 +262,88 @@ export function DjPostDetailModal({
                 <SheetContent side="right" className="w-full sm:max-w-xl p-0 gap-0 overflow-y-auto border-border bg-background text-foreground custom-scrollbar motion-reduce:animate-none">
 
                     {/* Hero Image / Banner */}
-                    <div className="relative h-24 bg-surface border-b border-border overflow-hidden shrink-0">
-                        {/* Ambiance : léger voile du visuel du donjon (flouté + fondu, jamais pixelisé) */}
+                    <div className="relative h-24 bg-surface/80 border-b border-border/70 overflow-hidden shrink-0">
+                        {/* Ambiance : halo vert émeraude discret et fond de carte épuré */}
                         {(isMulti && multiDungeons[0]?.imageUrl) || (!isMulti && coverImage) ? (
                             <img
                                 src={isMulti ? multiDungeons[0]!.imageUrl! : coverImage!}
                                 alt=""
                                 aria-hidden
-                                className="absolute inset-0 w-full h-full object-cover opacity-[0.10] blur-2xl scale-110"
+                                className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-xl scale-110"
                             />
                         ) : (
-                            <div className="absolute inset-0 bg-gradient-to-r from-info/10 via-transparent to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-success/10 via-transparent to-transparent" />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
-                        <div className="relative z-10 flex items-center gap-4 px-5 h-full">
-                            <div className={cn("w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg", post.mode === "DONJON" ? "bg-elevated/80 border-border" : post.mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : "bg-info/80 border-info/30")}>
+                        {/* `pr-12` : réserve la place de la croix du Sheet — le badge de statut
+                            ne doit jamais passer dessous. */}
+                        <div className="relative z-10 flex items-center gap-4 pl-5 pr-12 h-full">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-border/70 bg-surface/90 p-1.5">
                                 {isMulti ? (
                                     <DjMultiBossAvatars dungeons={multiDungeons} size="lg" />
                                 ) : coverImage ? (
-                                    <img src={coverImage} alt="" className="w-full h-full object-cover" />
+                                    <img src={coverImage} alt="" className="w-full h-full object-contain" />
                                 ) : post.mode === "DEFI" ? (
-                                    <Zap className="w-6 h-6 text-amber-500" />
+                                    <Zap className="w-6 h-6 text-warning" />
                                 ) : post.mode === "DONJON" ? (
                                     <Swords className="w-6 h-6 text-muted-foreground" />
                                 ) : (
-                                    <Map className="w-6 h-6 text-info" />
+                                    <Map className="w-6 h-6 text-success" />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h2 className="text-xl font-black text-foreground truncate">
+                                <h2 className="text-xl font-bold text-foreground truncate">
                                     {postTitle}
                                 </h2>
-                                <p className="text-sm font-medium text-muted-foreground">
+                                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                                     {postSubtitle}
                                 </p>
                             </div>
-                            <Badge className="text-caption font-black uppercase tracking-wider px-2.5 py-1 border-border-strong bg-elevated text-foreground backdrop-blur-md">
-                                <DofusUiIcon
-                                    name={post.status === "OPEN" ? "open" : "closed"}
-                                    size={12}
-                                    className="mr-1.5 inline-block align-[-1px]"
-                                />
-                                {post.status === "OPEN" ? "Ouvert" : post.status === "FULL" ? "Complet" : "Fermé"}
-                            </Badge>
+                            {post.status === "OPEN" ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-semibold bg-success/10 border border-success/30 text-success shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                                    Ouvert
+                                </span>
+                            ) : post.status === "FULL" ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-semibold bg-warning/10 border border-warning/30 text-warning shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                                    Complet
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-mono font-medium bg-muted/40 border border-border text-muted-foreground shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
+                                    Fermé
+                                </span>
+                            )}
                         </div>
                     </div>
 
                     <div className="p-6 space-y-6">
                         {/* Info grid */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="bg-surface/40 rounded-xl p-4 border border-border shadow-inner">
-                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="dungeon" size={14} /> Mode</p>
-                                <p className="font-black text-foreground text-base">{MODE_LABELS[post.mode] ?? post.mode}</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70">
+                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1 flex items-center gap-1.5"><DofusUiIcon name="dungeon" size={13} /> Mode</p>
+                                <p className="font-bold text-foreground text-sm">{MODE_LABELS[post.mode] ?? post.mode}</p>
                             </div>
-                            <div className="bg-surface/40 rounded-xl p-4 border border-border shadow-inner">
-                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="player" size={14} /> Places</p>
-                                <p className="font-black text-foreground text-base">
-                                    {acceptedCount}/{post.maxMembers} — {spotsLeft > 0 ? <span className="text-muted-foreground font-medium">{`${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}`}</span> : "Complet"}
+                            <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70">
+                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1 flex items-center gap-1.5"><DofusUiIcon name="player" size={13} /> {isMulti ? "Places (par donjon)" : "Places"}</p>
+                                <p className="font-bold text-foreground text-sm">
+                                    {isMulti ? (
+                                        summary.allFull
+                                            ? <span className="text-warning font-mono">Complet partout</span>
+                                            : <span className="text-success font-mono font-medium">{summary.label}</span>
+                                    ) : (
+                                        <>
+                                            {summary.label} — {stats[0].spotsLeft > 0 ? <span className="text-success font-mono font-medium">{`${stats[0].spotsLeft} dispo${stats[0].spotsLeft > 1 ? "s" : ""}`}</span> : <span className="text-warning font-mono">Complet</span>}
+                                        </>
+                                    )}
                                 </p>
                             </div>
                             {post.targetDate && (
-                                <div className="bg-surface/40 rounded-xl p-4 border border-border col-span-2 shadow-inner">
-                                    <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="date" size={14} /> Date prévue</p>
-                                    <p className="font-bold text-foreground">
+                                <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70 col-span-2">
+                                    <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1 flex items-center gap-1.5"><DofusUiIcon name="date" size={13} /> Date prévue</p>
+                                    <p className="font-bold text-foreground text-sm">
                                         {formatDjDateLabel(post.targetDate)}
                                     </p>
                                 </div>
@@ -203,13 +351,13 @@ export function DjPostDetailModal({
                         </div>
 
                         {/* Quest & Dungeon Guide Links (DPLN & Dofensive) */}
-                        <div className="bg-surface/40 border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="bg-surface/50 border border-border/70 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
                             <div className="flex flex-1 items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-surface/80 border border-border/70 flex items-center justify-center shrink-0">
                                     <DofusUiIcon name={post.mode === "QUETE" ? "quest" : "dungeon"} size={16} />
                                 </div>
                                 <div>
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
                                     <span className="text-sm text-foreground font-bold">
                                         {postTitle}
                                     </span>
@@ -218,68 +366,305 @@ export function DjPostDetailModal({
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
                                 {post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        className="text-caption font-semibold text-muted-foreground hover:text-foreground border border-border/70 hover:bg-surface/80 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
-                                {/* Lien Dofensive → fiche SigilOS (demande user, 11/10/2026), via la
-                                    source unique `dungeonFicheHref` : aucune URL inventée. */}
                                 {(() => {
                                     const ficheHref = dungeonFicheHref(guildId, post.dungeon);
                                     if (!ficheHref) return null;
                                     return (
                                         <a href={ficheHref} target="_blank" rel="noopener noreferrer"
-                                            className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
-                                            <span>🛡️</span> Fiche SigilOS
+                                            className="text-caption font-semibold text-success hover:text-success border border-success/30 hover:bg-success/10 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
+                                            <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-3.5 h-3.5 rounded-sm object-contain" /> Fiche SigilOS
                                         </a>
                                     );
                                 })()}
                                 {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-semibold text-muted-foreground hover:text-foreground border border-border/70 hover:bg-surface/80 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
                                 {post.questId && post.questId !== -1 && (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-semibold text-muted-foreground hover:text-success border border-border/70 hover:bg-surface/80 rounded-lg px-2.5 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
                                     </a>
                                 )}
                             </div>
                         </div>
 
+                        {/* 🗺️ Quête liée : sa **capture de zone** — la carte du monde autour de sa map de
+                            lancement, avec le repère (mêmes tuiles que la carte interactive) + lien
+                            direct. DofusDB n'expose aucune image de quête : la donnée vient de notre
+                            `worldmap.json`, résolue côté serveur. Repli : le plan de la map, puis rien. */}
+                        {post.questName && (
+                            <div className="overflow-hidden rounded-xl border border-border/70 bg-surface/40">
+                                <div className="flex items-center gap-3 p-2.5">
+                                    {!post.questMinimap && (
+                                        <span className="w-24 h-16 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                            <QuestThumbnail quest={{ imageUrl: post.questImageUrl }} />
+                                        </span>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground flex items-center gap-1.5">
+                                            <Map className="w-3.5 h-3.5" /> Quête liée
+                                        </p>
+                                        <p className="text-sm font-semibold text-foreground truncate">{post.questName}</p>
+                                        <p className="text-caption text-muted-foreground truncate">
+                                            {post.questMinimap
+                                                ? `Départ en [${post.questMinimap.x}, ${post.questMinimap.y}]${post.questMinimap.subAreaName ? ` · ${post.questMinimap.subAreaName}` : post.questMinimap.worldName ? ` · ${post.questMinimap.worldName}` : ""}`
+                                                : post.questImageUrl
+                                                    ? "Carte de lancement (asset du jeu)"
+                                                    : "Carte de lancement non disponible"}
+                                        </p>
+                                        {post.questNpc && (
+                                            <p className="text-caption text-muted-foreground truncate">
+                                                Aller voir{" "}
+                                                <span className="font-semibold text-foreground/90">{post.questNpc.name}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                    {post.questMinimap && (
+                                        <a
+                                            href={post.questMinimap.grid.mapHref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0 text-caption font-semibold text-success transition-colors hover:text-success"
+                                        >
+                                            Carte →
+                                        </a>
+                                    )}
+                                </div>
+                                {post.questMinimap && (
+                                    <a href={post.questMinimap.grid.mapHref} className="group block" title="Ouvrir la carte interactive">
+                                        <MinimapGridView
+                                            grid={post.questMinimap.grid}
+                                            marker={<span className="h-2.5 w-2.5 rounded-full bg-danger" />}
+                                        />
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         {/* Multi-donjons : liste de la session (#26) */}
                         {isMulti && (
                             <div className="space-y-2">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
-                                {multiDungeons.map((d, idx) => (
-                                    <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface/40 border border-border">
-                                        {d.imageUrl ? (
-                                            <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border shrink-0 p-0.5" />
-                                        ) : (
-                                            <span className="w-9 h-9 rounded-lg bg-background border border-border shrink-0 flex items-center justify-center text-muted-foreground">
-                                                <Swords className="w-4 h-4" />
+                                {stats.map((s) => {
+                                    const d = multiDungeons[s.index];
+                                    const myRow = myParticipations.find((p) => (p.dungeonIndex ?? -1) === s.index);
+                                    const ticked = targets.includes(s.index);
+                                    const classesForDungeon: string[] = (d?.requiredClasses?.length ? d.requiredClasses : (post.requiredClasses ?? []));
+                                    const open = openDungeons.includes(s.index);
+                                    return (
+                                    <div key={d?.dungeonId ?? s.index} className="rounded-xl bg-surface/50 border border-border/70 overflow-hidden">
+                                        {/* En-tête toujours visible (nom, places) : cliquer replie/déplie. */}
+                                        <button type="button" onClick={() => toggleDungeonOpen(s.index)}
+                                            className="w-full flex items-center gap-2.5 p-2.5 text-left hover:bg-surface/70 transition-colors">
+                                            {d?.imageUrl ? (
+                                                <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border/70 shrink-0 p-0.5" />
+                                            ) : (
+                                                <span className="w-9 h-9 rounded-lg bg-background border border-border/70 shrink-0 flex items-center justify-center text-muted-foreground">
+                                                    <Swords className="w-4 h-4" />
+                                                </span>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-bold text-foreground truncate">{d?.name}</p>
+                                                <p className="text-caption text-muted-foreground font-mono">
+                                                    Lvl {d?.level}
+                                                    {(d?.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d!.wantedAchievementIds!.length} succès`}
+                                                    {classesForDungeon.length > 0 && ` · ${classesForDungeon.length} classe${classesForDungeon.length > 1 ? "s" : ""}`}
+                                                    {d?.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
+                                                </p>
+                                            </div>
+                                            <span className={cn(
+                                                "text-caption font-mono font-bold shrink-0 px-2 py-1 rounded-lg border",
+                                                s.isFull
+                                                    ? "text-warning border-warning/30 bg-warning/10"
+                                                    : "text-success border-success/30 bg-success/10"
+                                            )}>
+                                                {s.acceptedCount}/{s.maxMembers}
                                             </span>
+                                            {isDjDungeonClosed(d) && (
+                                                <span className="text-caption font-bold uppercase tracking-wider text-success shrink-0">Clôturé</span>
+                                            )}
+                                            <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{s.index + 1}</span>
+                                            <ChevronDown className={cn("w-4 h-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+                                        </button>
+                                        {open && (
+                                        <div className="px-2.5 pb-2.5 space-y-2.5">
+                                            {/* Clôture UNITAIRE de ce donjon : modale de validation des
+                                                succès de CE donjon, puis suppression de son message
+                                                Discord (les autres donjons restent ouverts). */}
+                                            {isDjDungeonClosed(d) ? (
+                                                <p className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-success">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Donjon clôturé
+                                                </p>
+                                            ) : isOwner && (post.status === "OPEN" || post.status === "FULL") ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-8 text-caption font-bold gap-1.5 border-border/70"
+                                                    onClick={() => { setCloseDungeonIndex(s.index); setIsCloseModalOpen(true); }}
+                                                    disabled={isPending}
+                                                    title="Clôturer ce donjon : bilan des succès de ce donjon, puis suppression de son message Discord"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    Clôturer ce donjon
+                                                </Button>
+                                            ) : null}
+                                            {/* Classes recherchées de CE donjon (#26) */}
+                                            {classesForDungeon.length > 0 && (
+                                                <div className="space-y-1">
+                                                    <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">Classes recherchées</p>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {classesForDungeon.map((c) => {
+                                                            const classData = getClass(c);
+                                                            return (
+                                                                <span key={c} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
+                                                                    {classData?.icon && (
+                                                                        <img src={classData.icon} alt="" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                                                    )}
+                                                                    {classData?.name || c}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Note de CE donjon (dungeonsJson[].message) */}
+                                            {d?.message && (
+                                                <p className="text-caption text-foreground italic bg-surface/60 border border-border/60 rounded-lg px-2.5 py-2 break-words [overflow-wrap:anywhere]">
+                                                    &ldquo;{d.message}&rdquo;
+                                                </p>
+                                            )}
+
+                                            {/* Succès visés de CE donjon (snapshot du post) */}
+                                            {(d?.wantedAchievementIds?.length ?? 0) > 0 && (
+                                                <div className="space-y-1">
+                                                    <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">Succès visés</p>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {(d!.achievements ?? [])
+                                                            .filter((a) => d!.wantedAchievementIds!.includes(a.id))
+                                                            .map((a) => (
+                                                                <span key={a.id} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
+                                                                    <AchievementIcon iconUrl={a.iconUrl} slug={a.slug ?? null} size={16} />
+                                                                    {a.name}
+                                                                </span>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Roster de CE donjon : créateur + inscrits, puis la file (actions par personne) */}
+                                            <div className="space-y-1.5">
+                                                <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">
+                                                    Inscrits ({s.acceptedCount}/{s.maxMembers})
+                                                </p>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <span className="text-caption font-semibold text-foreground">{displayName(post.profile)}</span>
+                                                    <span className="text-caption text-muted-foreground">créateur</span>
+                                                    {s.accepted.map((p) => (
+                                                        <PseudoChip key={p.id} pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground" />
+                                                    ))}
+                                                    {s.accepted.length === 0 && (
+                                                        <span className="text-caption text-muted-foreground italic">personne d&apos;autre pour l&apos;instant</span>
+                                                    )}
+                                                </div>
+                                                {s.pending.length > 0 && (
+                                                    <div className="space-y-1">
+                                                        <p className="text-caption font-mono text-warning flex items-center gap-1">
+                                                            <AlarmClock className="w-3 h-3" /> En attente ({s.pending.length})
+                                                        </p>
+                                                        {s.pending.map((p) => (
+                                                            <div key={p.id} className="flex items-center justify-between gap-2 bg-surface/40 rounded-lg px-2 py-1.5 border border-border/60">
+                                                                <PseudoChip pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground min-w-0 truncate" />
+                                                                {(isOwner || isAdmin) && post.status === "OPEN" && (
+                                                                    <div className="flex gap-1 shrink-0">
+                                                                        {s.spotsLeft > 0 && (
+                                                                            <Button size="icon" variant="ghost"
+                                                                                className="w-7 h-7 text-success hover:bg-success/20 hover:text-success rounded-md"
+                                                                                onClick={() => handleAccept(p.id)} disabled={isPending}
+                                                                                title="Accepter dans ce donjon">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button size="icon" variant="ghost"
+                                                                            className="w-7 h-7 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
+                                                                            onClick={() => handleReject(p.id)} disabled={isPending}
+                                                                            title="Refuser">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        {!isOwner && isJoinablePost && (
+                                            myRow ? (
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-caption font-mono font-semibold border",
+                                                        myRow.status === "ACCEPTED"
+                                                            ? "bg-success/10 border-success/20 text-success"
+                                                            : "bg-warning/10 border-warning/20 text-warning"
+                                                    )}>
+                                                        {myRow.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
+                                                    </span>
+                                                    <Button size="sm" variant="outline"
+                                                        className="h-8 px-2.5 text-xs font-bold rounded-lg border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger"
+                                                        onClick={() => handleLeave(s.index)} disabled={isPending}>
+                                                        <LogOut className="w-3.5 h-3.5 mr-1" /> Se désinscrire
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Button size="sm" variant="outline"
+                                                    className={cn(
+                                                        "h-8 px-2.5 text-xs font-bold rounded-lg",
+                                                        ticked
+                                                            ? "border-success/50 bg-success/15 text-success hover:bg-success/25"
+                                                            : "border-border/70 bg-surface/80 text-foreground hover:bg-surface"
+                                                    )}
+                                                    onClick={() => toggleTarget(s.index)} disabled={isPending}>
+                                                    {ticked ? <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> : <LogIn className="w-3.5 h-3.5 mr-1" />}
+                                                    {ticked ? "Donjon visé" : "Rejoindre ce donjon"}
+                                                </Button>
+                                            )
                                         )}
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-bold text-foreground truncate">{d.name}</p>
-                                            <p className="text-caption text-muted-foreground">
-                                                Lvl {d.level}
-                                                {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds!.length} succès`}
-                                                {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
-                                            </p>
                                         </div>
-                                        <span className="text-caption font-black text-info/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                        )}
                                     </div>
-                                ))}
+                                    );
+                                })}
+
+                                {/* Inscriptions « sans donjon » (antérieures à la reprise #26) :
+                                    visibles et résiliables, jamais silencieuses. */}
+                                {myLegacy.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-warning/30 bg-warning/10">
+                                        <span className="text-caption text-warning font-semibold">
+                                            {`Ton inscription « sans donjon » (${myLegacy.length}) n'est rattachée à aucun donjon précis.`}
+                                        </span>
+                                        <Button size="sm" variant="outline"
+                                            className="h-8 px-2.5 text-xs font-bold rounded-lg border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger"
+                                            onClick={() => handleLeave(null)} disabled={isPending}>
+                                            <LogOut className="w-3.5 h-3.5 mr-1" /> Se désinscrire
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {/* Message */}
-                        {post.message && (
-                            <div className="bg-surface/40 rounded-xl p-4 border-l-2 border-info shadow-inner">
-                                <p className="text-sm text-foreground leading-relaxed italic opacity-90">"{post.message}"</p>
+                        {/* Message — post simple (en multi, la note vit **dans** son donjon) */}
+                        {!isMulti && post.message && (
+                            <div className="bg-surface/40 rounded-xl p-3.5 border border-border/70 border-l-2 border-l-success/60 min-w-0">
+                                <p className="text-sm text-foreground leading-relaxed italic opacity-90 break-words [overflow-wrap:anywhere] break-all">
+                                    &ldquo;{post.message.length > 200 ? `${post.message.slice(0, 200)}…` : post.message}&rdquo;
+                                </p>
                             </div>
                         )}
 
@@ -291,10 +676,8 @@ export function DjPostDetailModal({
                                     {post.dungeon.achievements
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
                                         .map((a) => (
-                                            <div key={a.id} className="flex items-center gap-2 bg-surface/40 border border-border rounded-lg px-2.5 py-1.5">
-                                                {a.challenge.iconUrl && (
-                                                    <img src={a.challenge.iconUrl} alt="" className="w-4 h-4 object-contain" />
-                                                )}
+                                             <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-success/30 transition-colors">
+                                                <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={16} />
                                                 <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>
                                         ))}
@@ -303,14 +686,15 @@ export function DjPostDetailModal({
                         )}
 
                         {/* Required classes */}
-                        {post.requiredClasses && post.requiredClasses.length > 0 && (
+                        {/* Classes demandées — post simple (en multi, elles sont **par donjon**) */}
+                        {!isMulti && post.requiredClasses && post.requiredClasses.length > 0 && (
                             <div className="space-y-2">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Classes demandées</p>
                                 <div className="flex gap-1.5 flex-wrap">
                                     {post.requiredClasses.map((c) => {
                                         const classData = getClass(c);
                                         return (
-                                            <div key={c} className="flex items-center bg-surface/40 border border-border rounded-md py-1 px-2 gap-1.5">
+                                            <div key={c} className="flex items-center bg-surface/50 border border-border/70 rounded-lg py-1 px-2.5 gap-1.5">
                                                 <div className="w-4 h-4 rounded overflow-hidden">
                                                     <img src={classData?.icon} alt={classData?.name || c} className="w-full h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </div>
@@ -322,26 +706,28 @@ export function DjPostDetailModal({
                             </div>
                         )}
 
-                        {/* Participants list */}
+                        {/* Participants list — posts **simples** uniquement : en multi, chaque
+                            donjon a son roster (inscrits, file, actions) dans l'accordéon ci-dessus. */}
+                        {!isMulti && (
                         <div>
-                            <div className="flex items-center justify-between gap-3 mb-2">
+                            <div className="flex items-center justify-between gap-3 mb-2.5">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-2">
-                                    <Users className="w-3 h-3" /> Participants ({acceptedCount}/{post.maxMembers})
+                                    <Users className="w-3.5 h-3.5" /> Participants {isMulti ? "· par donjon" : `(${summary.label})`}
                                 </p>
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                                 {/* Creator row */}
-                                <div className="flex items-center gap-4 bg-surface/40 rounded-xl p-3 border border-border-strong">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-1 ring-border-strong">
+                                <div className="flex items-center gap-3.5 bg-surface/60 rounded-xl p-3 border border-border/80 shadow-sm">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-1 ring-border/80">
                                         {post.profile.user.image && <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <PseudoChip
                                             pseudo={displayName(post.profile)}
                                             classe={post.profile.classe}
-                                            className="text-sm font-black text-foreground"
+                                            className="text-sm font-bold text-foreground"
                                         />
-                                        <span className="text-caption text-muted-foreground font-bold flex items-center mt-0.5">
+                                        <span className="text-caption text-muted-foreground font-semibold flex items-center mt-0.5">
                                             <DofusUiIcon name="leader" size={12} className="mr-1" /> Créateur du groupe
                                         </span>
                                     </div>
@@ -349,9 +735,9 @@ export function DjPostDetailModal({
 
                                 {/* Participants ACCEPTED */}
                                 {acceptedParticipants.map((p) => (
-                                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border hover:bg-surface/60 transition-colors group">
-                                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-white/10">
+                                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border/60 hover:bg-surface/60 hover:border-success/30 transition-all group">
+                                        <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-border/70">
                                                 {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -361,27 +747,31 @@ export function DjPostDetailModal({
                                                         classe={p.classe}
                                                         className="text-sm font-bold text-foreground"
                                                     />
-                                                    {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
-                                                        <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5 max-w-[120px] truncate">
-                                                            {(post.dungeonsJson as any[])[p.dungeonIndex]?.name}
+                                                    {isMulti && (p.dungeonIndex != null && multiDungeons[p.dungeonIndex]?.name ? (
+                                                        <Badge variant="outline" className="text-caption h-4 border-border/60 text-muted-foreground px-1.5 max-w-[120px] truncate">
+                                                            {multiDungeons[p.dungeonIndex].name}
                                                         </Badge>
-                                                    )}
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-caption h-4 border-warning/40 text-warning px-1.5">
+                                                            Sans donjon
+                                                        </Badge>
+                                                    ))}
                                                 </div>
                                                 <p className="text-caption text-muted-foreground mt-0.5">
                                                     Inscrit {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
                                                 </p>
-                                                {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
+                                                {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">&ldquo;{p.message}&rdquo;</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                                            <Badge className="text-caption font-bold uppercase tracking-wider border-border bg-surface/50 text-muted-foreground">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-success/10 border border-success/20 text-success">
                                                 Inscrit
-                                            </Badge>
+                                            </span>
                                             {/* Self leave button — visible only for the current participant */}
                                             {p.profile.id === currentProfileId && post.status === "OPEN" && (
                                                 <Button size="sm" variant="outline"
-                                                    className="border-danger/50 bg-danger/10 text-danger hover:bg-danger/30 hover:text-danger h-8 px-2.5 text-xs font-bold"
-                                                    onClick={handleLeave} disabled={isPending}
+                                                    className="border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger h-8 px-2.5 text-xs font-bold rounded-lg"
+                                                    onClick={() => handleLeave(p.dungeonIndex ?? null)} disabled={isPending}
                                                     title="Se désinscrire">
                                                     <LogOut className="w-3.5 h-3.5 mr-1" />
                                                     Quitter
@@ -389,7 +779,7 @@ export function DjPostDetailModal({
                                             )}
                                             {/* Owner / admin actions */}
                                             {(isOwner || isAdmin) && p.profile.id !== currentProfileId && post.status === "OPEN" && (
-                                                <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
+                                                <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border/70 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
                                                     <Button size="icon" variant="ghost"
                                                         className="w-8 h-8 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
                                                         onClick={() => handleReject(p.id)} disabled={isPending}
@@ -411,17 +801,17 @@ export function DjPostDetailModal({
                             {pendingParticipants.length > 0 && (
                                 <div className="mt-4">
                                     <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
-                                        <AlarmClock className="w-3 h-3" /> File d'attente ({pendingParticipants.length})
+                                        <AlarmClock className="w-3.5 h-3.5 text-warning" /> File d'attente ({pendingParticipants.length})
                                     </p>
                                     <div className="space-y-1.5">
                                         {pendingParticipants.map((p, idx) => (
-                                            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border hover:bg-surface/60 transition-colors group">
-                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border/60 hover:bg-surface/60 transition-colors group">
+                                                <div className="flex items-center gap-3.5 flex-1 min-w-0">
                                                     <div className="relative">
-                                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-border">
+                                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-border/70">
                                                             {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                                         </div>
-                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-border-strong bg-elevated text-foreground text-caption font-black flex items-center justify-center">{idx + 1}</span>
+                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-border/70 bg-elevated text-foreground text-caption font-bold flex items-center justify-center">{idx + 1}</span>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap">
@@ -434,14 +824,14 @@ export function DjPostDetailModal({
                                                         <p className="text-caption text-muted-foreground mt-0.5">
                                                             En attente depuis {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
                                                         </p>
-                                                        {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
+                                                        {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">&ldquo;{p.message}&rdquo;</p>}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                                                     {/* Owner actions */}
                                                     {(isOwner || isAdmin) && post.status === "OPEN" && (
-                                                        <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
-                                                            {spotsLeft > 0 && (
+                                                        <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border/70 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
+                                                            {spotsLeftFor(p.dungeonIndex) > 0 && (
                                                                 <Button size="icon" variant="ghost"
                                                                     className="w-8 h-8 text-success hover:bg-success/20 hover:text-success rounded-md"
                                                                     onClick={() => handleAccept(p.id)} disabled={isPending}
@@ -464,25 +854,61 @@ export function DjPostDetailModal({
                                 </div>
                             )}
                         </div>
+                        )}
 
-                        {/* Join form — visible si OPEN ou FULL (file d'attente) */}
-                        {!isOwner && !myParticipation && (post.status === "OPEN" || post.status === "FULL") && (
-                            <div className="border-t border-border pt-6 space-y-4">
+                        {/* Candidature — post multi : on **coche les donjons visés** (jamais un
+                            « global » invisible) ; post simple : un seul groupe, comme avant. */}
+                        {canJoin && (
+                            <div className="border-t border-border/70 pt-6 space-y-4">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">
-                                    {spotsLeft > 0 ? "Candidature" : "Rejoindre la file d'attente"}
+                                    {isMulti
+                                        ? `Candidature${targets.length > 0 ? ` — ${targets.length} donjon${targets.length > 1 ? "s" : ""} visé${targets.length > 1 ? "s" : ""}` : ""}`
+                                        : stats[0].spotsLeft > 0 ? "Candidature" : "Rejoindre la file d'attente"}
                                 </p>
-                                {spotsLeft <= 0 && (
-                                    <div className="flex items-start gap-2.5 bg-warning/8 border border-warning/20 rounded-xl px-3.5 py-3">
+                                {isMulti && (
+                                    <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70 space-y-2">
+                                        <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block">Donjons visés</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {joinable.map((s) => {
+                                                const isTicked = targets.includes(s.index);
+                                                return (
+                                                    <button key={s.index} type="button" onClick={() => toggleTarget(s.index)}
+                                                        className={cn(
+                                                            "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all",
+                                                            isTicked
+                                                                ? "border-success bg-success/15 text-success"
+                                                                : "border-border/60 bg-surface/70 text-muted-foreground hover:border-border hover:text-foreground"
+                                                        )}>
+                                                        {isTicked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded border border-border/70" />}
+                                                        <span className="max-w-[150px] truncate">#{s.index + 1} {s.dungeon?.name}</span>
+                                                        <span className={cn("font-mono", s.isFull ? "text-warning" : "text-success")}>
+                                                            {s.isFull ? "file" : `${s.spotsLeft} dispo${s.spotsLeft > 1 ? "s" : ""}`}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {joinable.some((s) => s.isFull) && (
+                                            <p className="text-caption text-warning">
+                                                Un donjon complet t&apos;inscrit en file d&apos;attente de ce donjon précis.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                                {targetsAllFull && (
+                                    <div className="flex items-start gap-2.5 bg-warning/10 border border-warning/20 rounded-xl px-3.5 py-3">
                                         <AlarmClock className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                                         <p className="text-xs text-foreground leading-relaxed">
-                                            Le groupe est <strong>complet</strong>. Tu peux rejoindre la file d'attente — si une place se libère, le créateur pourra t'accepter.
+                                            {isMulti
+                                                ? <>Les donjons visés sont <strong>complets</strong>. Tu rejoindras leur file d&apos;attente — si une place se libère, le créateur pourra t&apos;accepter.</>
+                                                : <>Le groupe est <strong>complet</strong>. Tu peux rejoindre la file d&apos;attente — si une place se libère, le créateur pourra t&apos;accepter.</>}
                                         </p>
                                     </div>
                                 )}
-                                <div className="bg-surface/40 rounded-xl p-4 border border-border grid grid-cols-1 gap-4 shadow-inner">
+                                <div className="bg-surface/50 rounded-xl p-4 border border-border/70 grid grid-cols-1 gap-4">
                                     <div>
                                         <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block mb-2">Ta classe</label>
-                                        <div className="grid grid-cols-7 sm:grid-cols-10 gap-2 p-2 rounded-xl bg-surface border border-border shadow-inner">
+                                        <div className="grid grid-cols-7 sm:grid-cols-10 gap-2 p-2 rounded-xl bg-surface/70 border border-border/60">
                                             {DOFUS_CLASSES.map((c) => {
                                                 const isSelected = classe === c.name;
                                                 return (
@@ -494,8 +920,8 @@ export function DjPostDetailModal({
                                                         className={cn(
                                                             "aspect-square rounded-lg flex items-center justify-center transition-all border group/class",
                                                             isSelected
-                                                                ? "border-info/50 bg-info/20  scale-110 z-10"
-                                                                : "border-transparent opacity-40 hover:opacity-100 hover:bg-surface hover:border-border"
+                                                                ? "border-success bg-success/20 z-10 /40"
+                                                                : "border-border/40 opacity-40 hover:opacity-100 hover:bg-surface hover:border-border"
                                                         )}
                                                     >
                                                         <img
@@ -510,69 +936,89 @@ export function DjPostDetailModal({
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block mb-1.5">Message (opt.)</label>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block">Message (opt.)</label>
+                                            <span className="text-[11px] font-mono text-muted-foreground">{message.length}/200</span>
+                                        </div>
                                         <input
                                             type="text"
                                             value={message}
+                                            maxLength={200}
                                             onChange={(e) => setMessage(e.target.value.slice(0, 200))}
                                             placeholder="Ex: Dispo toute la soirée, j'ai le stuff..."
-                                            className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/50 shadow-inner"
+                                            className="w-full bg-surface/60 border border-border/70 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-success/40 focus:ring-1 focus:ring-success/20"
                                         />
                                     </div>
                                 </div>
                                 <Button
                                     className={cn(
-                                        "w-full font-black h-12 shadow-lg",
-                                        spotsLeft > 0
-                                            ? "bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground"
-                                            : "bg-warning/15 text-warning border border-warning/30 hover:bg-warning hover:text-warning-foreground"
+                                        "w-full font-bold h-11 rounded-xl shadow-md transition-all cursor-pointer",
+                                        isMulti && targets.length === 0
+                                            ? "bg-surface/60 text-muted-foreground border border-border/70"
+                                            : targetsAllFull
+                                                ? "bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20 hover:text-warning"
+                                                : "bg-success hover:bg-success/90 text-success-foreground  border border-success/40"
                                     )}
                                     onClick={handleJoin}
-                                    disabled={isPending}
+                                    disabled={isPending || (isMulti && targets.length === 0)}
                                 >
-                                    <LogIn className="w-5 h-5 mr-2" />
-                                    {spotsLeft > 0 ? "Envoyer ma candidature" : "Rejoindre la file d'attente"}
+                                    <LogIn className="w-4 h-4 mr-2" />
+                                    {isMulti
+                                        ? targets.length > 0
+                                            ? `Envoyer ma candidature — ${targets.length} donjon${targets.length > 1 ? "s" : ""}`
+                                            : "Choisis au moins un donjon"
+                                        : targetsAllFull ? "Rejoindre la file d'attente" : "Envoyer ma candidature"}
                                 </Button>
                             </div>
                         )}
 
-                        {/* My pending / waitlist status */}
-                        {myParticipation?.status === "PENDING" && (
-                            <div className="border-t border-border pt-5 flex items-center justify-between">
-                                <p className="text-sm font-bold text-warning flex items-center gap-2">
-                                    <AlarmClock className="w-4 h-4" /> En file d'attente — le créateur peut t'accepter si une place se libère
-                                </p>
-                                <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
-                                    className="border-danger/50 bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger">
-                                    <LogOut className="w-4 h-4 mr-1.5" /> Se retirer
-                                </Button>
+                        {/* Mes inscriptions — **une par donjon** en multi (#26). Avant, un seul
+                            état global : impossible de voir (ni de retirer) un donjon précis. */}
+                        {!isOwner && myParticipations.length > 0 && (
+                            <div className="border-t border-border/70 pt-5 space-y-2">
+                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Mes inscriptions</p>
+                                {myParticipations.map((p) => {
+                                    const dungeonName = p.dungeonIndex != null ? multiDungeons[p.dungeonIndex]?.name : null;
+                                    return (
+                                        <div key={p.id} className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className={cn("text-sm font-semibold flex items-center gap-2 shrink-0", p.status === "ACCEPTED" ? "text-success" : "text-warning")}>
+                                                    {p.status === "ACCEPTED" ? <CheckCircle2 className="w-4 h-4" /> : <AlarmClock className="w-4 h-4" />}
+                                                    {p.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
+                                                </span>
+                                                <span className={cn("text-xs truncate", dungeonName ? "text-muted-foreground" : "text-warning")}>
+                                                    {dungeonName ? `· ${dungeonName}` : isMulti ? "· sans donjon" : ""}
+                                                </span>
+                                            </div>
+                                            <Button size="sm" variant="outline" onClick={() => handleLeave(p.dungeonIndex ?? null)} disabled={isPending}
+                                                className="shrink-0 border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger rounded-lg">
+                                                <LogOut className="w-4 h-4 mr-1.5" /> Se désinscrire
+                                            </Button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
-                        {/* My accepted status — se désinscrire */}
-                        {myParticipation?.status === "ACCEPTED" && !isOwner && post.status === "OPEN" && (
-                            <div className="border-t border-border pt-5 flex items-center justify-between gap-4">
-                                <p className="text-sm font-bold text-success flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4" /> Tu es inscrit à ce post
-                                </p>
-                                <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
-                                    className="shrink-0 border-danger/50 bg-danger/10 text-danger hover:bg-danger/30 hover:text-danger">
-                                    <LogOut className="w-4 h-4 mr-1.5" /> Se désinscrire
-                                </Button>
+                        {/* Stand-by (30/10/2026) : l'état est visible par tous (le groupe est
+                            gelé), l'action reste réservée au créateur ou à un admin. */}
+                        {isStandByActive(post.standBy) && (
+                            <div className="rounded-lg border border-border/70 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+                                ⏸️ <span className="text-foreground font-semibold">En stand-by</span>
+                                {standByAuthorName(post.standBy) ? ` par ${standByAuthorName(post.standBy)}` : ""}
+                                {" — "}rappels et relances suspendus, inscriptions ouvertes.
                             </div>
                         )}
 
-                        {/* Actions du créateur (ou d'un admin) : relancer, modifier, TERMINER.
-                            Trois gestes lisibles, dans cet ordre — le bouton de clôture est le
-                            seul en couleur pleine, c'est le but de la session. */}
+                        {/* Actions du créateur (ou d'un admin) : relancer, modifier, TERMINER. */}
                         {(isOwner || isAdmin) && (post.status === "OPEN" || post.status === "FULL") && (
-                            <div className="border-t border-border pt-5 flex flex-wrap gap-3">
+                            <div className="border-t border-border/70 pt-5 flex flex-wrap gap-3">
                                 {isOwner && (
                                     <>
-                                        {post.isDiscordPublished && post.discordMessageId && acceptedCount > 1 && (
+                                        {post.isDiscordPublished && post.discordMessageId && acceptedParticipants.length > 0 && (
                                             <Button
                                                 variant="outline"
-                                                className="border-warning/30 bg-warning/10 text-warning hover:text-warning hover:bg-warning/30 font-bold h-11 transition-all px-4"
+                                                className="h-11 rounded-xl border-warning/30 bg-warning/10 px-4 font-semibold text-warning hover:bg-warning/15 hover:text-warning"
                                                 onClick={() => setIsReminderModalOpen(true)}
                                                 disabled={isPending}
                                                 title="Envoyer une relance personnalisée aux participants"
@@ -583,21 +1029,79 @@ export function DjPostDetailModal({
                                         )}
                                         <Button
                                             variant="outline"
-                                            className="flex-1 min-w-[180px] border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all"
+                                            className="h-11 min-w-[180px] flex-1 rounded-xl border-border bg-surface/60 font-semibold text-foreground hover:bg-surface hover:text-foreground"
                                             onClick={() => setIsEditModalOpen(true)}
                                             disabled={isPending}
                                         >
-                                            <Pencil className="w-4 h-4 mr-2" strokeWidth={2.5} />
+                                            <Pencil className="w-4 h-4 mr-2" />
                                             Modifier le groupe
                                         </Button>
                                     </>
                                 )}
-                                {/* Terminer = clôture AVEC bilan (succès validés, points de
-                                    contribution, embed Discord fermé). L'ancien « Supprimer le
-                                    groupe » effaçait le post sans rien valider : retiré. */}
+                                {/* Posts dont le message d'ouverture porte **encore tout** (ancien
+                                    format : N embeds + N rangées) ou dont un message de donjon
+                                    manque : on republie en « un message par donjon ». Visible
+                                    créateur **et** admin — c'est un outil de reprise, jamais un
+                                    réglage (disparaît dès que le format est bon). */}
+                                {isMulti && post.isDiscordPublished && post.discordMessageId && !hasPerDungeonLayout && (
+                                    <Button
+                                        variant="outline"
+                                        className="h-11 rounded-xl border-border bg-surface/60 px-4 font-semibold text-foreground hover:bg-surface hover:text-foreground"
+                                        onClick={handleRepublishLayout}
+                                        disabled={isPending}
+                                        title="Réparer le post Discord : un message par donjon (le message d'ouverture devient le chapeau, les anciens messages de donjon sont remplacés)"
+                                    >
+                                        <Layers className="w-4 h-4 mr-2" />
+                                        Republier en 1 msg/donjon
+                                    </Button>
+                                )}
+                                {/* Reprise de lead (lot B) : un inscrit accepté reprend le groupe
+                                    quand le créateur s'en va. Liste = les autres inscrits only. */}
+                                {acceptedParticipants.length > 0 && (
+                                    <div className="w-full flex flex-col sm:flex-row gap-2">
+                                        <Select
+                                            value={transferTarget || undefined}
+                                            onValueChange={setTransferTarget}
+                                            disabled={isPending}
+                                        >
+                                            <SelectTrigger
+                                                aria-label="Nouveau lead du groupe"
+                                                className="h-11 w-full flex-1 min-w-0 rounded-xl border-border bg-surface/60 px-3 text-sm text-foreground"
+                                            >
+                                                <SelectValue placeholder="Transférer le lead à…" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {acceptedParticipants.map((p) => (
+                                                    <SelectItem key={p.profile.id} value={p.profile.id}>
+                                                        {displayName(p.profile)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="outline"
+                                            className="h-11 rounded-xl border-border bg-surface/60 px-4 font-semibold"
+                                            onClick={handleTransferLead}
+                                            disabled={!transferTarget || isPending}
+                                        >
+                                            <Crown className="w-4 h-4 mr-2" /> Transférer
+                                        </Button>
+                                    </div>
+                                )}
                                 <Button
-                                    className="flex-1 min-w-[180px] bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-black h-11 transition-all"
-                                    onClick={() => setIsCloseModalOpen(true)}
+                                    variant="outline"
+                                    className="h-11 min-w-[160px] flex-1 rounded-xl border-border bg-surface/60 font-semibold text-foreground hover:bg-surface hover:text-foreground"
+                                    onClick={handleToggleStandBy}
+                                    disabled={isPending}
+                                    title="Suspendre les rappels et les relances sans fermer le groupe"
+                                >
+                                    {isStandByActive(post.standBy)
+                                        ? <><Play className="w-4 h-4 mr-2" /> Reprendre</>
+                                        : <><Pause className="w-4 h-4 mr-2" /> Stand-by</>}
+                                </Button>
+                                <Button
+                                    className="h-11 min-w-[180px] flex-1 rounded-xl border border-success/30 bg-success font-semibold text-success-foreground hover:bg-success/90"
+                                    onClick={() => { setCloseDungeonIndex(null); setIsCloseModalOpen(true); }}
                                     disabled={isPending}
                                     title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}
                                 >
@@ -634,12 +1138,16 @@ export function DjPostDetailModal({
                     isOpen={isCloseModalOpen}
                     post={post}
                     guildId={guildId}
+                    dungeonIndex={closeDungeonIndex}
                     adminMode={!!isAdmin && !isOwner}
                     onClose={() => setIsCloseModalOpen(false)}
                     onClosed={() => {
                         setIsCloseModalOpen(false);
                         onRefresh();
-                        onClose();
+                        // Clôture d'UN donjon : la fiche reste ouverte (on peut enchaîner sur un
+                        // autre donjon). Clôture du groupe entier : on ferme la fiche, comme avant.
+                        if (closeDungeonIndex === null) onClose();
+                        setCloseDungeonIndex(null);
                     }}
                 />
             )}

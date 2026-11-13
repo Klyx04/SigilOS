@@ -1,23 +1,70 @@
 "use client";
 
-import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info } from "lucide-react";
+import React, { memo, useState } from "react";
+import { Check, Flag, BookmarkCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { getSequenceCoord, getDungeons, isDungeonSequence } from "./overlay-utils";
+import { RushOverlayPrereqModal } from "./RushOverlayPrereqModal";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
-import { getAlignmentSet } from "@/lib/rush-helpers";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { safeExternalUrl, safeImageUrl } from "@/lib/security";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
+import type {
+  RushDungeonMemberState,
+  RushDungeonState,
+  RushDungeonStateMap,
+} from "@/lib/rush-dungeons";
+import { dungeonKeyOf, type RushMissingDungeon } from "@/lib/rush-dungeons";
+
+/**
+ * Vignette cliquable d'un donjon **manquant** : la vraie image du donjon, ou **rien**.
+ * Aucun picto générique de repli — il se répétait à l'identique et donnait l'impression
+ * d'une icône factice (retour user du 22/10/2026). Le nom reste en infobulle.
+ */
+function MissingDungeonThumb({
+  name,
+  imageUrl,
+  onOpen,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  onOpen: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (!imageUrl || broken) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`Cocher : ${name}`}
+      aria-label={`Ouvrir ${name} dans les donjons de cette quête`}
+      className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-4 w-4 rounded-[2px] object-cover"
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    </button>
+  );
+}
 
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
   isDone: boolean;
   isBookmarked: boolean;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
+  /**
+   * Première quête ni validée ni verrouillée du chapitre affiché : c'est celle que
+   * « Reprendre » vise et que le fil de sève atteint. Le libellé reste « À faire »
+   * (aucun état inventé) — seul le nœud est accentué.
+   */
+  isNext?: boolean;
   onToggle: () => void;
   onBookmark: () => void;
   onOpenDetail: () => void;
@@ -28,11 +75,33 @@ interface RushOverlayQuestListItemProps {
   isLocked?: boolean;
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
+  /**
+   * Donjons **requis** de la quête qui ne sont pas encore cochés (noms lisibles).
+   * Non vide ⇒ la quête est verrouillée : on dit **quoi cocher** au lieu de laisser
+   * partir un clic que le serveur refusera (mesure du 22/10/2026).
+   */
+  missingDungeons?: RushMissingDungeon[];
   onGoToPrereq?: (seqId: string, milestoneId: string) => void;
   /** Ouvre la modale listant les membres en attente ici (avatars cliquables). */
   onOpenBookmarkers?: () => void;
   /** Guilde de la surface : sert à construire le lien de la fiche donjon du module. */
   guildId?: string;
+  /**
+   * Coche des donjons, **par occurrence** : mêmes états que la surface (base pour la
+   * guilde, `localStorage` pour l'invité). Absent ⇒ la pastille ouvre la liste en
+   * lecture seule.
+   */
+  dungeonActions?: {
+    states: RushDungeonStateMap;
+    busyKey: string | null;
+    others: RushDungeonMemberState[];
+    onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
+    ensureLoaded: () => void;
+  };
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état ocre inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
 }
 
 /**
@@ -57,12 +126,23 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   bookmarkers = [],
   isLocked = false,
   prereqs = [],
+  missingDungeons = [],
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
+  isNext = false,
+  dungeonActions,
+  capturedOcreNames,
+  onOpenOcre,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
-  const itemTags = getItemTags(seq.activityTags);
+  // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
+  // manquants l'ouvrent **en ciblant** le donjon cliqué (`targetKey`).
+  const [dungeonPanelOpen, setDungeonPanelOpen] = useState(false);
+  const [dungeonTarget, setDungeonTarget] = useState<string | null>(null);
+  // Mini-modale des prérequis (un seul encadré dans la ligne, la liste s'ouvre au clic).
+  const [prereqsOpen, setPrereqsOpen] = useState(false);
+  // (le chip « ressources » a été retiré : le détail vit dans la fiche « i »)
   const hasDungeon = isDungeonSequence(seq);
   // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
   const dungeons = React.useMemo(() => (hasDungeon ? getDungeons(seq) : []), [hasDungeon, seq]);
@@ -76,10 +156,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
       : alignmentSet.camp
     : null;
   // Lien externe prioritaire : DofusPourLesNoobs, sinon DofusDB.
-  const externalUrl = seq.dofuspourlesnoobsUrl || seq.dofusdbUrl || null;
-  const externalLabel = seq.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB";
+  // CodeQL `js/xss-through-dom` : ces URL viennent de la base ; on ne rend un lien
+  // que si le schéma est http(s) (jamais javascript:/data:). `safeExternalUrl`
+  // normalise et encode l'URL ; `safeImageUrl` protège les icônes ci-dessous.
+  const noobsUrl = safeExternalUrl(seq.dofuspourlesnoobsUrl);
+  const dbUrl = safeExternalUrl(seq.dofusdbUrl);
+  const externalUrl = noobsUrl || dbUrl || null;
+  const externalLabel = noobsUrl ? "DofusPourLesNoobs" : "DofusDB";
   // Icône de type choisie en God (repli : rien, le titre suffit).
-  const seqIcon = resolveRushSeqIcon(seq.icon);
+  const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   /**
    * Étiquette d'information : filet 1 px, rayon 3 px, texte atténué. La couleur
    * ne sert qu'à qualifier (ocre = donnée de jeu, rouge = verrou), jamais à
@@ -88,61 +173,47 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
   const chip = "inline-flex items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground";
+  /**
+   * Libellé d'état — la couleur ne porte JAMAIS seule l'information (AA + daltonisme).
+   * Vocabulaire de la DA : « Validée », « Verrouillée », « Je suis ici », « À faire ».
+   * Le repère passe AVANT le verrou : on peut être « ici » sur une quête encore verrouillée.
+   */
+  const daState = isDone ? "Validée" : isBookmarked ? "Je suis ici" : isLocked ? "Verrouillée" : "À faire";
 
   return (
     <div
       id={`overlay-seq-${seq.id}`}
-      className={cn(
-        "overflow-hidden rounded-[4px] border transition-colors",
-        // DEUX états, DEUX couleurs — jamais la même carte :
-        //   · VERROUILLÉ (prérequis non terminés) ⇒ rouge `danger` : c'est un blocage ;
-        //   · REPÈRE (« Je suis ici ») ⇒ ambre `warning` : c'est un marqueur de reprise.
-        // Avant, une quête bloquée restait neutre et une quête repérée prenait l'ambre :
-        // deux états voisins, indistinguables d'un coup d'œil dans la fenêtre de jeu.
-        // Le repère se signale en plus par un filet gauche (3 px) et une teinte, jamais
-        // par un halo : c'est lisible dans une fenêtre PiP réduite.
-        isDone
-          ? "border-border bg-surface opacity-60"
-          : isLocked
-          ? "border-danger/30 bg-danger/[0.05]"
-          : isBookmarked
-          ? "border-warning/40 border-l-[3px] border-l-warning bg-warning/10"
-          : "border-border bg-surface hover:border-border-strong hover:bg-elevated"
-      )}
+      className="da-row"
+      data-state={isDone ? "done" : isLocked ? "locked" : isNext ? "next" : "todo"}
+      data-here={isBookmarked && !isDone ? "true" : "false"}
     >
-      {/* Ligne principale */}
-      <div className="flex items-center gap-2 px-2.5 py-2">
-        {/* Case de validation — cercle plein quand la quête est faite */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isLocked) onToggle();
-          }}
-          disabled={isLocked}
-          aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
-          className={cn(
-            "shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-            isLocked && "cursor-not-allowed"
-          )}
-        >
-          <span
-            className={cn(
-              "grid h-4 w-4 place-items-center rounded-full border transition-colors",
-              isDone
-                ? "border-accent bg-accent text-accent-foreground"
-                : isLocked
-                ? "border-danger/40 bg-background text-danger"
-                : "border-border-strong bg-background hover:border-accent"
-            )}
-          >
-            {isDone ? (
-              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
-            ) : isLocked ? (
-              <Lock className="h-2.5 w-2.5 stroke-[2.5]" aria-hidden="true" />
-            ) : null}
-          </span>
-        </button>
+      {/* Nœud de validation — HORS de la carte : le fil de sève passe derrière lui.
+          Validée / à faire maintenant / à faire / verrouillée ; le repère
+          « je suis ici » colore la CARTE, jamais le nœud (un seul point focal). */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isLocked) onToggle();
+        }}
+        disabled={isLocked}
+        aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée (prérequis ou donjon requis) — le repère « je suis ici » reste possible" : "Marquer comme terminée"}
+        className={cn("da-node cursor-pointer", isLocked && "cursor-not-allowed")}
+      >
+        {isDone ? (
+          <Check className="h-3.5 w-3.5 stroke-[3]" aria-hidden="true" />
+        ) : isLocked ? (
+          <img
+            src="/assets/dofus-ui/pictos/verrou.png"
+            alt=""
+            aria-hidden="true"
+            className="h-3 w-3 shrink-0 object-contain"
+          />
+        ) : null}
+      </button>
+
+      {/* Carte : bord peint irrégulier, filet teinté par le bloc actif */}
+      <div className="da-card items-center">
 
         {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB).
             Le bloc est une COLONNE : le nom prend toute la largeur (2 lignes max) et les
@@ -159,6 +230,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
           )}
           <div className="min-w-0 flex-1">
+          <span className="da-state">{daState}</span>
           {externalUrl ? (
             <a
               href={externalUrl}
@@ -166,10 +238,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               title={`Ouvrir la fiche sur ${externalLabel}`}
-              className={cn(
-                "block w-full text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through opacity-50"
-              )}
+              className="da-qtitle block w-full text-left transition-colors hover:text-accent hover:underline line-clamp-2"
             >
               {name}
             </a>
@@ -181,10 +250,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 onOpenDetail();
               }}
               title="Voir les détails"
-              className={cn(
-                "block w-full cursor-pointer text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through opacity-50"
-              )}
+              className="da-qtitle block w-full cursor-pointer text-left transition-colors hover:text-accent hover:underline line-clamp-2"
             >
               {name}
             </button>
@@ -193,17 +259,17 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </div>
 
           {/* 2e ligne : indicateurs (chips harmonisés) — toute la largeur de la ligne */}
-          {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
+          {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet) && (
             <div className="flex flex-wrap items-center gap-1">
               {alignmentSet && alignLabel && (
-                <span className={chip} title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}>
+                <span className={chip} title={`Quête d'alignement → ${alignLabel}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={alignmentSet.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"}
                     alt=""
                     className="h-3 w-3 shrink-0 object-contain"
                   />
-                  Alignement {alignLabel} {alignmentSet.level}
+                  Alignement {alignLabel}
                 </span>
               )}
               {parsedCoord && (
@@ -218,8 +284,25 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 // Le badge n'était qu'un `title` natif : au survol (ou au clic), on montre les
                 // donjons requis — vignette du boss, nom, badge Ocre — et chaque ligne ouvre sa
                 // fiche (page publique pour l'overlay public, fiche boss du module sinon).
-                <RushOverlayDungeonPopover dungeons={dungeons} guildId={guildId}>
-                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — survoler pour le détail">
+                <RushOverlayDungeonPopover
+                  seq={seq}
+                  dungeons={dungeons}
+                  guildId={guildId}
+                  open={dungeonPanelOpen}
+                  onOpenChange={(next) => {
+                    setDungeonPanelOpen(next);
+                    if (!next) setDungeonTarget(null);
+                  }}
+                  targetKey={dungeonTarget}
+                  states={dungeonActions?.states}
+                  busyKey={dungeonActions?.busyKey}
+                  others={dungeonActions?.others}
+                  onSet={dungeonActions?.onSet}
+                  onEnsureLoaded={dungeonActions?.ensureLoaded}
+                  capturedOcreNames={capturedOcreNames}
+                  onOpenOcre={onOpenOcre}
+                >
+                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — cliquer pour cocher fait / à faire">
                     {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le
                         compteur dit combien de donjons la quête demande (×1, ×2…). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -233,12 +316,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   </span>
                 </RushOverlayDungeonPopover>
               )}
-              {itemTags.length > 0 && (
-                <span className={chip} title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />×{itemTags.length}
-                </span>
-              )}
               {!isDone && bookmarkers.length > 0 && (
                 <RushOverlayMemberBubbles
                   members={bookmarkers}
@@ -249,38 +326,75 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             </div>
           )}
           {isLocked && prereqs.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                <Lock className="h-3 w-3" aria-hidden="true" /> À terminer avant :
+            /* UN SEUL encadré (retour user du 22/10/2026 : « si on a plusieurs prérequis
+               on empile plusieurs blocs rouges, c'est moche ») → ouvre la liste. */
+            <button
+              type="button"
+              onClick={() => setPrereqsOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={prereqsOpen}
+              title={`Aller à : ${prereqs.map((p) => p.name).join(", ")}`}
+              className="inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] font-semibold text-danger transition-colors hover:bg-danger/10"
+            >
+              <span className="shrink-0 text-danger/80">Terminer :</span>
+              <span className="min-w-0 truncate">
+                {prereqs[0].name}
+                {prereqs.length > 1 ? ` +${prereqs.length - 1}` : ""}
               </span>
-              {prereqs.map((p) => (
-                <button
-                  key={p.seqId}
-                  type="button"
-                  onClick={() => onGoToPrereq?.(p.seqId, p.milestoneId)}
-                  className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
-                  title={`Aller à : ${p.name}`}
-                >
-                  {p.name}
-                </button>
-              ))}
+            </button>
+          )}
+          {prereqsOpen && (
+            <RushOverlayPrereqModal
+              prereqs={prereqs}
+              onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
+              onClose={() => setPrereqsOpen(false)}
+            />
+          )}
+          {missingDungeons.length > 0 && (
+            /* Une seule mention + les **vignettes** des donjons manquants : chacune ouvre
+               le panneau de la quête en ciblant SON donjon (anneau + mise en vue). Les
+               noms restent en infobulle — la liste en texte alourdissait la ligne
+               (retour user du 22/10/2026). */
+            <div className="flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                Donjons requis non validés
+              </span>
+              {missingDungeons.map((d) => {
+                const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
+                // VRAIE vignette du donjon uniquement : sans image (ou image 404), on
+                // n'affiche RIEN — un picto générique répété 3 fois faisait « faux »
+                // (retour user du 22/10/2026).
+                return (
+                  <MissingDungeonThumb
+                    key={d.key}
+                    name={d.name}
+                    imageUrl={info?.imageUrl ?? null}
+                    onOpen={() => {
+                      setDungeonTarget(d.key);
+                      setDungeonPanelOpen(true);
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Repère */}
+        {/* Repère — TOUJOURS proposé (11/11/2026) : un donjon requis ou un prérequis bloque
+            la **validation**, pas le fait de dire où l'on en est. Seule une quête déjà
+            validée le désactive (soit validée, soit repère). */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            if (!isLocked && !isDone) onBookmark();
+            if (!isDone) onBookmark();
           }}
-          disabled={isLocked || isDone}
-          aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : isLocked ? "Repère indisponible (prérequis)" : "Poser le repère ici"}
-          title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : isLocked ? "Repère indisponible (prérequis non terminés)" : "Je suis ici"}
+          disabled={isDone}
+          aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
+          title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : "Je suis ici"}
           className={cn(
             "shrink-0 rounded-[3px] p-1 transition-colors",
-            (isLocked || isDone) && "cursor-not-allowed opacity-40",
+            isDone && "cursor-not-allowed opacity-40",
             isBookmarked && !isDone
               ? "bg-warning/15 text-warning"
               : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
@@ -288,8 +402,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
         >
           {isBookmarked && !isDone ? (
             <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : isLocked ? (
-            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
           ) : (
             <Flag className="h-3.5 w-3.5" aria-hidden="true" />
           )}

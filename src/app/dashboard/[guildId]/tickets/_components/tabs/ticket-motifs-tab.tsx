@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * 🎫 Tickets — **onglet « Motifs »** (unique) : un motif = un bouton sur un
- * panneau Discord (« Candidature », « Support »), avec son salon, son équipe,
- * ses règles de fermeture et son questionnaire (20 questions au plus).
+ * 🎫 Tickets — **onglet « Types de demande »** (unique) : un type = un bouton sur un
+ * panneau Discord (« Candidature », « Support »), avec son salon, son message
+ * d'ouverture, son équipe, ses règles de fermeture et son questionnaire
+ * (20 questions au plus).
  *
- * Remplace « Parcours » (assistant 5 étapes, brouillon/publié) et « Catégories
- * & Modals » (5 questions texte) : enregistrer = publié, sans étape cachée.
- * Les anciens motifs v1 se migrent en un clic (« Tout passer en Motifs »),
- * les tickets déjà ouverts ne sont jamais touchés.
+ * Enregistrer = publié, sans étape cachée. Les anciennes catégories v1 sont
+ * migrées **automatiquement** à l'ouverture de l'onglet (aucun bouton, aucune
+ * bannière) : leurs tickets déjà ouverts ne sont jamais touchés.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Tags,
@@ -21,7 +21,8 @@ import {
     Power,
     X,
     ListPlus,
-    ArrowRight,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,6 @@ import {
     migrateCategoriesToMotifsAction,
 } from "@/server/actions/ticket-bot-actions";
 import { TICKET_ICON_PRESETS, normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
-import { ticketLabel } from "@/lib/tickets/ticket-texts";
 import {
     MOTIF_ON_NO_LABELS,
     MOTIF_QUESTION_KINDS,
@@ -56,16 +56,28 @@ import {
 } from "@/lib/tickets/journey-wizard";
 import {
     readTicketPermissionSettings,
+    readTicketMotifButtons,
+    ticketButtonLayoutForMotif,
     type TicketCategoryClosePolicy,
+    type TicketMotifButtonOverrides,
 } from "@/lib/tickets/category-permissions";
+import {
+    TICKET_BUTTON_ADMIN_LABELS,
+    TICKET_BUTTON_KEYS,
+    readTicketButtonSettings,
+    type TicketButtonKey,
+} from "@/lib/tickets/button-config";
+import { buildTicketOpeningContent } from "@/lib/tickets/notifications";
 
 interface TicketMotifsTabProps {
     guildId: string;
     journeys: any[];
     forms: any[];
-    /** Anciennes catégories v1 non migrées (bannière + bouton de migration). */
+    /** Anciennes catégories v1 : migrées automatiquement (silencieuses à l'écran). */
     legacyCategories: any[];
     permissionSettings?: unknown;
+    /** Transcripts activés sur la guilde (contrôle la visibilité du bouton Transcript dans l'aperçu). */
+    enableTranscripts?: boolean;
     onRefresh: () => void;
 }
 
@@ -77,16 +89,41 @@ const MOTIF_BUTTON_PREVIEW_COLORS: Record<"PRIMARY" | "SECONDARY" | "SUCCESS" | 
     DANGER: "#ed4245",
 };
 
+/** Met en valeur les mentions Discord avec des badges stylisés dans la prévisualisation. */
+function formatDiscordPreviewMentions(content: string) {
+    if (!content) return null;
+    const parts = content.split(/(<@!?[0-9]+>|<@&[0-9]+>)/g);
+    return parts.map((part, i) => {
+        if (part.startsWith("<@&")) {
+            return (
+                <span key={i} className="inline-block bg-[#5865f2]/30 text-[#c9cdfb] font-semibold px-1 py-0.5 rounded text-[11px] align-baseline">
+                    @STAFF
+                </span>
+            );
+        }
+        if (part.startsWith("<@")) {
+            return (
+                <span key={i} className="inline-block bg-[#5865f2]/30 text-[#c9cdfb] font-semibold px-1 py-0.5 rounded text-[11px] align-baseline">
+                    @Demandeur
+                </span>
+            );
+        }
+        return <span key={i}>{part}</span>;
+    });
+}
+
 export function TicketMotifsTab({
     guildId,
     journeys,
     forms,
     legacyCategories,
     permissionSettings,
+    enableTranscripts = true,
     onRefresh,
 }: TicketMotifsTabProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [activeModalTab, setActiveModalTab] = useState<"appearance" | "messages" | "access" | "questions">("appearance");
     const [isPending, startTransition] = useTransition();
 
     const [name, setName] = useState("");
@@ -96,14 +133,51 @@ export function TicketMotifsTab({
     const [emoji, setEmoji] = useState("🎫");
     const [buttonStyle, setButtonStyle] = useState<"PRIMARY" | "SECONDARY" | "SUCCESS" | "DANGER">("PRIMARY");
     const [channelParentId, setChannelParentId] = useState("");
+    const [channelPositionInCategory, setChannelPositionInCategory] = useState<"TOP" | "BOTTOM">("BOTTOM");
     const [staffRoleIds, setStaffRoleIds] = useState<string[]>([]);
     const [notifyRoleIds, setNotifyRoleIds] = useState<string[]>([]);
+    // 🆕 Ouverture (RBAC) + notification personnalisée (16/10/2026).
+    const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([]);
+    const [notifyEnabled, setNotifyEnabled] = useState(true);
+    const [notifyMessage, setNotifyMessage] = useState("");
+    const [creatorMessage, setCreatorMessage] = useState("");
     const [additionalRoleIds, setAdditionalRoleIds] = useState<string[]>([]);
     const [namingPattern, setNamingPattern] = useState("ticket-{num}");
     const [closePolicy, setClosePolicy] = useState<TicketCategoryClosePolicy>("STAFF_OR_CREATOR");
     const [requireConfirm, setRequireConfirm] = useState(true);
+    const [welcomeMessage, setWelcomeMessage] = useState("");
     const [isEnabled, setIsEnabled] = useState(true);
     const [questions, setQuestions] = useState<MotifQuestion[]>([]);
+    // 🆕 Boutons surchargés pour CE motif (retiré / renommé — héritage du global sinon).
+    const [motifButtons, setMotifButtons] = useState<
+        Partial<Record<TicketButtonKey, { disabled: boolean; label: string }>>
+    >({});
+
+    /**
+     * 🧹 Migration auto des anciennes catégories v1 (one-shot R2) : un seul
+     * passage par montage, idempotent côté serveur, toast honnête. Plus aucun
+     * bouton ni bannière « à convertir » : ça migre, puis ça disparaît.
+     */
+    const autoMigratedRef = useRef(false);
+    useEffect(() => {
+        if (autoMigratedRef.current || legacyCategories.length === 0) return;
+        autoMigratedRef.current = true;
+        startTransition(async () => {
+            const res = await migrateCategoriesToMotifsAction(guildId);
+            if (!res.success) {
+                toast.error(res.error || "Migration automatique impossible");
+                return;
+            }
+            const data = res.data as { migrated?: number; skipped?: number } | undefined;
+            if ((data?.migrated ?? 0) > 0) {
+                toast.success(
+                    `${data?.migrated} ancienne(s) catégorie(s) convertie(s) — pense à redéployer tes panneaux.`
+                );
+                onRefresh();
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [legacyCategories.length]);
 
     const takenSlugs = useMemo(
         () => journeys.filter((journey) => journey.id !== editingId).map((journey) => String(journey.slug)),
@@ -127,14 +201,22 @@ export function TicketMotifsTab({
         setEmoji("🎫");
         setButtonStyle("PRIMARY");
         setChannelParentId("");
+        setChannelPositionInCategory("BOTTOM");
+        setActiveModalTab("appearance");
         setStaffRoleIds([]);
         setNotifyRoleIds([]);
+        setAllowedRoleIds([]);
+        setNotifyEnabled(true);
+        setNotifyMessage("");
+        setCreatorMessage("");
         setAdditionalRoleIds([]);
         setNamingPattern("ticket-{num}");
         setClosePolicy("STAFF_OR_CREATOR");
         setRequireConfirm(true);
+        setWelcomeMessage("");
         setIsEnabled(true);
         setQuestions([]);
+        setMotifButtons({});
     };
 
     const openCreateModal = () => {
@@ -158,8 +240,22 @@ export function TicketMotifsTab({
         setIsEnabled(journey.isEnabled !== false);
         const settings = readTicketPermissionSettings(permissionSettings);
         const override = settings.categories[journey.id];
+        setChannelPositionInCategory(override?.channelPositionInCategory ?? "BOTTOM");
+        setActiveModalTab("appearance");
         setRequireConfirm(override?.requireConfirm ?? settings.requireCloseConfirm);
         setAdditionalRoleIds(override?.additionalRoleIds ?? []);
+        setAllowedRoleIds(override?.allowedRoleIds ?? []);
+        setNotifyEnabled(override?.notifyEnabled !== false);
+        setNotifyMessage(override?.notifyMessage ?? "");
+        setCreatorMessage(override?.creatorMessage ?? "");
+        setWelcomeMessage(override?.welcomeMessage || journey.welcomeMessage || "");
+        const motifButtonOverrides = readTicketMotifButtons(override?.buttons);
+        const motifButtonState: Partial<Record<TicketButtonKey, { disabled: boolean; label: string }>> = {};
+        for (const key of TICKET_BUTTON_KEYS) {
+            const entry = motifButtonOverrides[key];
+            if (entry) motifButtonState[key] = { disabled: entry.disabled === true, label: entry.label ?? "" };
+        }
+        setMotifButtons(motifButtonState);
         const form = forms.find((candidate) => candidate.id === journey.formId);
         setQuestions(form ? definitionToMotifQuestions(readTicketForm(form.draftSchemaJson)) : []);
         setModalOpen(true);
@@ -178,6 +274,21 @@ export function TicketMotifsTab({
 
     const removeQuestion = (key: string) => {
         setQuestions((previous) => previous.filter((item) => item.key !== key));
+    };
+
+    /**
+     * 🆕 **Réordonne une question** (16/10/2026) : l'ordre affiché ici est **exactement**
+     * celui posé au membre (`buildTicketFormSteps` — les textes forment des pages de 5, les
+     * questions à choix se répondent à leur place).
+     */
+    const moveQuestion = (index: number, direction: -1 | 1) => {
+        setQuestions((previous) => {
+            const target = index + direction;
+            if (target < 0 || target >= previous.length) return previous;
+            const next = [...previous];
+            [next[index], next[target]] = [next[target], next[index]];
+            return next;
+        });
     };
 
     const handleSave = () => {
@@ -199,11 +310,25 @@ export function TicketMotifsTab({
                 name: name.trim(),
                 slug: cleanSlug,
                 description: description.trim() || undefined,
+                welcomeMessage: welcomeMessage.trim() || undefined,
                 emoji: normalizeTicketIcon(emoji.trim() || "🎫"),
                 buttonStyle,
                 channelParentId: channelParentId.trim() || undefined,
+                channelPositionInCategory,
                 staffRoleIds,
                 notifyRoleIds,
+                allowedRoleIds,
+                notifyEnabled,
+                notifyMessage: notifyMessage.trim() || undefined,
+                creatorMessage: creatorMessage.trim() || undefined,
+                motifButtons: Object.fromEntries(
+                    TICKET_BUTTON_KEYS.flatMap((key) => {
+                        const entry = motifButtons[key];
+                        const label = entry?.label.trim() ?? "";
+                        if (!entry?.disabled && !label) return [];
+                        return [[key, { disabled: entry?.disabled === true, ...(label ? { label } : {}) }]];
+                    })
+                ),
                 namingPattern: namingPattern.trim() || "ticket-{num}",
                 closePolicy,
                 requireConfirm,
@@ -217,7 +342,7 @@ export function TicketMotifsTab({
                 toast.error(res.error || "Erreur enregistrement");
                 return;
             }
-            toast.success("Motif enregistré et visible sur Discord !");
+            toast.success("Type de demande enregistré et synchronisé avec Discord !");
             setModalOpen(false);
             onRefresh();
         });
@@ -230,42 +355,26 @@ export function TicketMotifsTab({
                 toast.error(res.error || "Erreur mise à jour");
                 return;
             }
-            toast.success(journey.isEnabled ? "Motif désactivé." : "Motif activé.");
+            toast.success(journey.isEnabled ? "Type de demande désactivé." : "Type de demande activé.");
             onRefresh();
         });
     };
 
     const handleDelete = (journey: any) => {
-        if (!confirm(`Supprimer le motif « ${journey.name} » ? Les tickets déjà ouverts ne sont pas touchés.`)) {
+        const hasTickets = (journey.openTickets ?? journey._count?.tickets ?? 0) > 0;
+        const confirmMsg = hasTickets
+            ? `Ce type de demande a des tickets associés. Voulez-vous détacher ces tickets (l'historique et les archives seront préservés) et supprimer ce type de demande ?`
+            : `Supprimer le type de demande « ${journey.name} » ? Les tickets déjà ouverts ne sont pas touchés.`;
+        if (!confirm(confirmMsg)) {
             return;
         }
         startTransition(async () => {
-            const res = await deleteTicketJourneyAction(guildId, journey.id);
+            const res = await deleteTicketJourneyAction(guildId, journey.id, hasTickets);
             if (!res.success) {
                 toast.error(res.error || "Erreur suppression");
                 return;
             }
-            toast.success("Motif supprimé.");
-            onRefresh();
-        });
-    };
-
-    const handleMigrate = () => {
-        if (
-            !confirm(
-                `${legacyCategories.length} ancien(s) motif(s) à convertir. Les tickets déjà ouverts ne sont pas touchés. Continuer ?`
-            )
-        ) {
-            return;
-        }
-        startTransition(async () => {
-            const res = await migrateCategoriesToMotifsAction(guildId);
-            if (!res.success) {
-                toast.error(res.error || "Erreur migration");
-                return;
-            }
-            const data = res.data as { migrated?: number; skipped?: number } | undefined;
-            toast.success(`${data?.migrated ?? 0} motif(s) converti(s)${data?.skipped ? `, ${data.skipped} déjà migré(s)` : ""}.`);
+            toast.success("Type de demande supprimé.");
             onRefresh();
         });
     };
@@ -275,44 +384,32 @@ export function TicketMotifsTab({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Tags className="h-5 w-5 text-amber-400" /> Motifs & Formulaires
+                        <Tags className="h-5 w-5 text-emerald-400" /> Types de Demande & Formulaires
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        Un motif = un bouton sur un panneau Discord (« Candidature », « Support »).
-                        Enregistrer = visible immédiatement, questionnaire compris.
+                        Un type de demande = un bouton sur un panneau Discord (« Candidature », « Support »).
+                        Enregistrer = visible immédiatement sur Discord, avec son message d'ouverture,
+                        son questionnaire et son salon dédié.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {legacyCategories.length > 0 && (
-                        <Button onClick={handleMigrate} disabled={isPending} size="sm" variant="outline" className="text-xs">
-                            <ArrowRight className="h-4 w-4 mr-1" /> Tout passer en Motifs ({legacyCategories.length})
-                        </Button>
-                    )}
-                    <Button onClick={openCreateModal} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
-                        <Plus className="h-4 w-4 mr-1" /> Nouveau motif
+                    <Button onClick={openCreateModal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                        <Plus className="h-4 w-4 mr-1" /> Nouveau type de demande
                     </Button>
                 </div>
             </div>
-
-            {legacyCategories.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-                    {legacyCategories.length} ancien(s) motif(s) (avant la refonte) ne sont pas encore convertis :
-                    leurs boutons continuent de fonctionner, mais seul le bouton « Tout passer en Motifs »
-                    leur donne le questionnaire 20 questions et les nouvelles règles de fermeture.
-                </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {journeys.length === 0 ? (
                     <div className="col-span-full text-center py-12 border border-dashed border-border rounded-2xl bg-surface/30">
                         <Tags className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                        <h3 className="text-base font-semibold text-foreground mb-1">Aucun motif</h3>
+                        <h3 className="text-base font-semibold text-foreground mb-1">Aucun type de demande</h3>
                         <p className="text-xs text-muted-foreground mb-4">
-                            Crée ton premier motif : il apparaîtra sur tes panneaux Discord.
+                            Créez votre premier type de demande : il sera associable à vos panneaux Discord.
                         </p>
                         <Button onClick={openCreateModal} size="sm" variant="outline" className="text-xs">
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau motif
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau type de demande
                         </Button>
                     </div>
                 ) : (
@@ -331,7 +428,14 @@ export function TicketMotifsTab({
                                         </div>
                                     </div>
 
-                                    <Badge variant="outline" className="text-[10px]">
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-[10px] ${
+                                            journey.isEnabled
+                                                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                                : "text-muted-foreground"
+                                        }`}
+                                    >
                                         {journey.isEnabled ? "Visible" : "Désactivé"}
                                     </Badge>
                                 </div>
@@ -346,13 +450,21 @@ export function TicketMotifsTab({
                                         <span className="text-foreground font-semibold">{questionCountLabel(journey)}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
+                                        <span>Salon / Catégorie :</span>
+                                        <span className="text-foreground font-semibold font-mono text-[11px]">
+                                            {journey.channelParentId ? `#${journey.channelParentId}` : "Par défaut"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
                                         <span>Tickets ouverts :</span>
-                                        <span className="text-foreground font-semibold">{journey._count?.tickets ?? 0}</span>
+                                        <span className="text-foreground font-semibold">
+                                            {journey.openTickets ?? journey._count?.tickets ?? 0}
+                                        </span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span>Fermeture :</span>
                                         <span className="text-foreground font-semibold">
-                                            {journey.closePolicy === "STAFF_ONLY" ? "Équipe uniquement" : "Équipe + demandeur"}
+                                            {journey.closePolicy === "STAFF_ONLY" ? "Staff uniquement" : "Staff + demandeur"}
                                         </span>
                                     </div>
                                 </div>
@@ -395,376 +507,725 @@ export function TicketMotifsTab({
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editingId ? "Modifier le motif" : "Nouveau motif"}</DialogTitle>
+                        <DialogTitle>{editingId ? "Modifier le type de demande" : "Nouveau type de demande"}</DialogTitle>
                     </DialogHeader>
+                    {/* Navigation par onglets dans la modale */}
+                    <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-2.5 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab("appearance")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                activeModalTab === "appearance"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface/60"
+                            }`}
+                        >
+                            1. Apparence & Panneau
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab("messages")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                activeModalTab === "messages"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface/60"
+                            }`}
+                        >
+                            2. Messages & Pings
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab("access")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                activeModalTab === "access"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface/60"
+                            }`}
+                        >
+                            3. Équipe & Accès
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab("questions")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                                activeModalTab === "questions"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface/60"
+                            }`}
+                        >
+                            4. Questionnaire
+                            {questions.length > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
+                                    {questions.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 py-2 text-xs">
                     <div className="space-y-6 min-w-0">
-                        {/* Identité */}
-                        <div className="space-y-3">
-                            <div className="grid grid-cols-4 gap-2">
-                                <div className="col-span-1 space-y-1.5">
-                                    <label className="font-semibold text-foreground">Icône</label>
-                                    <Input value={emoji} onChange={(e) => setEmoji(e.target.value)} className="text-xs h-8 text-center text-lg" />
+                        {/* 1 · Bouton sur le panneau & Apparence */}
+                        {activeModalTab === "appearance" && (
+                            <div className="space-y-4">
+                                <h4 className="font-bold text-foreground">1 · Bouton sur le panneau</h4>
+                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="col-span-1 space-y-1.5">
+                                        <label className="font-semibold text-foreground">Icône</label>
+                                        <Input value={emoji} onChange={(e) => setEmoji(e.target.value)} className="text-xs h-8 text-center text-lg" />
+                                    </div>
+                                    <div className="col-span-3 space-y-1.5">
+                                        <label className="font-semibold text-foreground">Nom vu par les membres</label>
+                                        <Input
+                                            placeholder="ex: Candidature"
+                                            value={name}
+                                            maxLength={TICKET_JOURNEY_NAME_MAX}
+                                            onChange={(e) => {
+                                                const next = e.target.value;
+                                                setName(next);
+                                                if (!slugTouched) {
+                                                    setSlug(ensureUniqueTicketJourneySlug(slugifyTicketJourneySlug(next), takenSlugs));
+                                                }
+                                            }}
+                                            className="text-xs h-8"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="col-span-3 space-y-1.5">
-                                    <label className="font-semibold text-foreground">Nom vu par les membres</label>
-                                    <Input
-                                        placeholder="ex: Candidature"
-                                        value={name}
-                                        maxLength={TICKET_JOURNEY_NAME_MAX}
-                                        onChange={(e) => {
-                                            const next = e.target.value;
-                                            setName(next);
-                                            if (!slugTouched) {
-                                                setSlug(ensureUniqueTicketJourneySlug(slugifyTicketJourneySlug(next), takenSlugs));
-                                            }
-                                        }}
-                                        className="text-xs h-8"
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="flex flex-wrap gap-1.5">
-                                {TICKET_ICON_PRESETS.map((preset) => (
-                                    <button
-                                        key={preset}
-                                        type="button"
-                                        onClick={() => setEmoji(preset)}
-                                        title={`Icône ${preset}`}
-                                        className={`h-8 w-8 rounded-lg border text-base transition-colors ${
-                                            emoji === preset
-                                                ? "border-amber-500/60 bg-amber-500/15"
-                                                : "border-border bg-surface/50 hover:bg-surface"
-                                        }`}
-                                    >
-                                        {preset}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-foreground">Couleur du bouton</label>
-                                    <select
-                                        value={buttonStyle}
-                                        onChange={(e) => setButtonStyle(e.target.value as any)}
-                                        className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
-                                    >
-                                        <option value="PRIMARY">Bleu</option>
-                                        <option value="SECONDARY">Gris</option>
-                                        <option value="SUCCESS">Vert</option>
-                                        <option value="DANGER">Rouge</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="font-semibold text-foreground">Dossier Discord des tickets</label>
-                                    <p className="text-[11px] text-muted-foreground">
-                                        Là où les salons de ce motif sont créés.
-                                    </p>
-                                </div>
-                            </div>
-                            <TicketCategoryPicker guildId={guildId} value={channelParentId} onChange={setChannelParentId} />
-
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Message d'accueil du salon</label>
-                                <Input
-                                    placeholder="ex : Présente ta candidature, on te répond vite."
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="text-xs h-8"
-                                />
-                            </div>
-
-                            <details className="rounded-xl border border-border bg-surface/40 px-3 py-2">
-                                <summary className="cursor-pointer text-xs font-semibold text-foreground">
-                                    Réglages avancés (nom des salons)
-                                </summary>
-                                <div className="space-y-1.5 pt-2">
-                                    <Input value={namingPattern} onChange={(e) => setNamingPattern(e.target.value)} className="text-xs h-8 font-mono" />
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {"{num}"} = numéro du ticket, {"{user}"} = pseudo du membre, {"{journey}"} = nom du motif.
-                                        {" "}Exemple : <span className="font-mono text-foreground">{previewTicketChannelName(namingPattern, name || "motif")}</span>
-                                    </p>
-                                </div>
-                            </details>
-                        </div>
-
-                        {/* Équipe */}
-                        <div className="space-y-3 pt-4 border-t border-border/50">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Rôles staff de ce motif</label>
-                                <TicketRolesPicker
-                                    guildId={guildId}
-                                    value={staffRoleIds}
-                                    onChange={setStaffRoleIds}
-                                    description="Ces rôles voient et traitent les tickets de ce motif."
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Rôles mentionnés à l'ouverture</label>
-                                <TicketRolesPicker
-                                    guildId={guildId}
-                                    value={notifyRoleIds}
-                                    onChange={setNotifyRoleIds}
-                                    description="Notifiés à chaque ouverture. Jamais @everyone."
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Rôles invités (observateurs)</label>
-                                <TicketRolesPicker
-                                    guildId={guildId}
-                                    value={additionalRoleIds}
-                                    onChange={setAdditionalRoleIds}
-                                    description="Voient le salon sans le traiter (droits réglés dans Configuration)."
-                                />
-                            </div>
-                        </div>
-
-                        {/* Fermeture */}
-                        <div className="space-y-3 pt-4 border-t border-border/50">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Qui peut fermer ?</label>
-                                <select
-                                    value={closePolicy}
-                                    onChange={(e) => setClosePolicy(e.target.value as TicketCategoryClosePolicy)}
-                                    className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
-                                >
-                                    <option value="STAFF_OR_CREATOR">L'équipe et le demandeur (conseillé)</option>
-                                    <option value="STAFF_ONLY">L'équipe uniquement</option>
-                                </select>
-                            </div>
-                            <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
-                                <input
-                                    type="checkbox"
-                                    checked={requireConfirm}
-                                    onChange={(e) => setRequireConfirm(e.target.checked)}
-                                    className="rounded border-border"
-                                />
-                                <span>Demander confirmation avant de fermer (« Oui, fermer / Annuler »)</span>
-                            </label>
-                        </div>
-
-                        {/* Questionnaire */}
-                        <div className="space-y-3 pt-4 border-t border-border/50">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="font-bold text-foreground">Questionnaire d'ouverture</h4>
-                                    <p className="text-[11px] text-muted-foreground">
-                                        Les Oui/Non et les choix se répondent avant la modale, les textes 5 par 5.
-                                        Vide = ouverture directe.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    {MOTIF_QUESTION_KINDS.map((kind) => (
-                                        <Button
-                                            key={kind}
+                                <div className="flex flex-wrap gap-1.5">
+                                    {TICKET_ICON_PRESETS.map((preset) => (
+                                        <button
+                                            key={preset}
                                             type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => addQuestion(kind)}
-                                            disabled={questions.length >= TICKET_FORM_MAX_FIELDS}
-                                            className="h-7 text-[11px] px-2"
-                                            title={MOTIF_QUESTION_KIND_LABELS[kind]}
+                                            onClick={() => setEmoji(preset)}
+                                            title={`Icône ${preset}`}
+                                            className={`h-8 w-8 rounded-lg border text-base transition-colors ${
+                                                emoji === preset
+                                                    ? "border-emerald-500/60 bg-emerald-500/15"
+                                                    : "border-border bg-surface/50 hover:bg-surface"
+                                            }`}
                                         >
-                                            <ListPlus className="h-3 w-3 mr-1" /> {MOTIF_QUESTION_KIND_LABELS[kind]}
-                                        </Button>
+                                            {preset}
+                                        </button>
                                     ))}
                                 </div>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">{questions.length}/{TICKET_FORM_MAX_FIELDS} questions</p>
 
-                            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-                                {questions.length === 0 ? (
-                                    <div className="p-6 text-center border border-dashed border-border rounded-xl bg-surface/30 text-muted-foreground">
-                                        <p className="text-xs">Aucune question : le ticket s'ouvrira directement.</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">Couleur du bouton</label>
+                                        <select
+                                            value={buttonStyle}
+                                            onChange={(e) => setButtonStyle(e.target.value as any)}
+                                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                        >
+                                            <option value="PRIMARY">Bleu</option>
+                                            <option value="SECONDARY">Gris</option>
+                                            <option value="SUCCESS">Vert</option>
+                                            <option value="DANGER">Rouge</option>
+                                        </select>
                                     </div>
-                                ) : (
-                                    questions.map((question, index) => (
-                                        <div key={question.key} className="p-3 rounded-xl bg-surface/60 border border-border/80 space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-amber-400 text-xs">
-                                                    Question #{index + 1} — {MOTIF_QUESTION_KIND_LABELS[question.kind]}
-                                                </span>
-                                                <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
-                                                    <X className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">Dossier / Catégorie Discord</label>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Catégorie où seront créés les salons.
+                                        </p>
+                                    </div>
+                                </div>
+                                <TicketCategoryPicker guildId={guildId} value={channelParentId} onChange={setChannelParentId} />
 
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <Input
-                                                    placeholder="Intitulé (ex: Ton pseudo en jeu)"
-                                                    value={question.label}
-                                                    onChange={(e) => patchQuestion(question.key, { label: e.target.value })}
-                                                    className="text-xs h-7"
-                                                />
-                                                <select
-                                                    value={question.kind}
-                                                    onChange={(e) => {
-                                                        const kind = e.target.value as MotifQuestionKind;
-                                                        patchQuestion(question.key, {
-                                                            kind,
-                                                            maxLength: kind === "text_long" ? 4000 : 256,
-                                                            options:
-                                                                kind === "select" && question.options.length === 0
-                                                                    ? [
-                                                                          { value: "choix-1", label: "Choix 1" },
-                                                                          { value: "choix-2", label: "Choix 2" },
-                                                                      ]
-                                                                    : question.options,
-                                                        });
-                                                    }}
-                                                    className="h-7 px-2 text-xs rounded border border-border bg-background"
+                                <div className="space-y-1.5">
+                                    <label className="font-semibold text-foreground">Position des salons dans la catégorie Discord</label>
+                                    <select
+                                        value={channelPositionInCategory}
+                                        onChange={(e) => setChannelPositionInCategory(e.target.value as "TOP" | "BOTTOM")}
+                                        className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                    >
+                                        <option value="BOTTOM">En fin de catégorie (défaut Discord — nouveaux salons en bas)</option>
+                                        <option value="TOP">Tout en haut de catégorie (visible en premier au-dessus)</option>
+                                    </select>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Définit si les salons générés pour ce motif sont placés tout en haut ou en fin de catégorie.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="font-semibold text-foreground">Description interne (mémo staff)</label>
+                                    <Input
+                                        placeholder="ex : Présente ta candidature pour rejoindre la guilde."
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="text-xs h-8"
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Visible uniquement sur le dashboard pour expliquer cette demande à votre équipe — <strong>ne part jamais sur Discord</strong>.
+                                    </p>
+                                </div>
+
+                                <details className="rounded-xl border border-border bg-surface/40 p-3">
+                                    <summary className="cursor-pointer text-xs font-semibold text-foreground flex items-center justify-between">
+                                        <span>Format du nom des salons Discord</span>
+                                        <span className="text-[10px] text-emerald-400 font-mono">#{previewTicketChannelName(namingPattern, name || "motif")}</span>
+                                    </summary>
+                                    <div className="space-y-2.5 pt-3">
+                                        <Input value={namingPattern} onChange={(e) => setNamingPattern(e.target.value)} className="text-xs h-8 font-mono bg-background" />
+                                        
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Cliquez sur une variable pour l&apos;insérer dans le modèle de nom :
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { tag: "{num}", label: "{num}", desc: "N° ticket (ex: 0042)" },
+                                                { tag: "{user}", label: "{user}", desc: "Pseudo Discord membre" },
+                                                { tag: "{journey}", label: "{journey}", desc: "Nom court du motif" },
+                                            ].map(({ tag, label, desc }) => (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => setNamingPattern((prev) => `${prev ? `${prev}-` : ""}${tag}`.replace(/--+/g, "-"))}
+                                                    className="inline-flex items-center gap-1.5 text-[11px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-2 py-1 rounded-md border border-border text-foreground transition-all"
+                                                    title={desc}
                                                 >
-                                                    {MOTIF_QUESTION_KINDS.map((kind) => (
-                                                        <option key={kind} value={kind}>
-                                                            {MOTIF_QUESTION_KIND_LABELS[kind]}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    <span className="font-mono text-emerald-400 font-bold">{label}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
+                                            <span>Aperçu en direct sur Discord :</span>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#2b2d31] text-[#949ba4] font-mono text-xs border border-[#3f4147]">
+                                                <span className="text-muted-foreground">#</span>
+                                                <span className="text-foreground font-semibold">{previewTicketChannelName(namingPattern, name || "motif")}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        )}
+
+                        {/* 2 · Message d'ouverture (façon TicketTool : texte + mentions) */}
+                        {activeModalTab === "messages" && (
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-foreground">2 · Message d'ouverture du salon</h4>
+                                </div>
+                                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs space-y-1">
+                                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                                        <span>💬 Messages d&apos;accueil et pings automatiques</span>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Dès qu&apos;un salon ticket s&apos;ouvre sur Discord, le bot publie un embed d&apos;accueil et peut mentionner votre staff ou le demandeur.
+                                        Toutes les balises <code className="text-emerald-400 font-mono">{"{...}"}</code> sont automatiquement remplacées lors de la création.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between flex-wrap gap-1">
+                                        <label className="font-semibold text-foreground text-xs">Texte d&apos;accueil dans l&apos;embed du salon</label>
+                                        <div className="flex items-center flex-wrap gap-1">
+                                            {[
+                                                { tag: "{demandeur}", label: "@{demandeur}", desc: "Ping membre" },
+                                                { tag: "{pseudo}", label: "{pseudo}", desc: "Nom sans @" },
+                                                { tag: "{motif}", label: "{motif}", desc: "Nom du motif" },
+                                                { tag: "{numero}", label: "#{numero}", desc: "N° ticket" },
+                                            ].map(({ tag, label, desc }) => (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => setWelcomeMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
+                                                    className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground transition-colors"
+                                                    title={desc}
+                                                >
+                                                    <span className="font-mono text-emerald-400 font-semibold">{label}</span>
+                                                    <span className="text-[9px] text-muted-foreground">{desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <Textarea
+                                        placeholder="ex : Bienvenue {demandeur} ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
+                                        value={welcomeMessage}
+                                        onChange={(e) => setWelcomeMessage(e.target.value)}
+                                        rows={3}
+                                        className="text-xs min-h-[75px] resize-y"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Texte affiché dans l&apos;embed principal. Markdown Discord supporté (gras <code>**texte**</code>, italique <code>*texte*</code>, listes).
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3 rounded-xl border border-border/70 bg-surface/40 p-3">
+                                    <label className="flex items-center justify-between gap-2 cursor-pointer">
+                                        <span className="font-semibold text-foreground">Prévenir l&apos;équipe à l&apos;ouverture</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={notifyEnabled}
+                                            onChange={(event) => setNotifyEnabled(event.target.checked)}
+                                            className="rounded border-border"
+                                        />
+                                    </label>
+
+                                    {notifyEnabled ? (
+                                        <>
+                                            <div className="space-y-1.5">
+                                                <label className="font-semibold text-foreground">Rôles à mentionner</label>
+                                                <TicketRolesPicker
+                                                    guildId={guildId}
+                                                    value={notifyRoleIds}
+                                                    onChange={setNotifyRoleIds}
+                                                    title="Rôles mentionnés"
+                                                    triggerPlaceholder="Sélectionner les rôles à prévenir..."
+                                                    emptyTitle="Aucun rôle à prévenir"
+                                                    description="Ces rôles sont mentionnés à chaque ouverture — jamais @everyone."
+                                                />
                                             </div>
-
-                                            <Input
-                                                placeholder="Aide affichée sous la question (optionnel)"
-                                                value={question.help}
-                                                onChange={(e) => patchQuestion(question.key, { help: e.target.value })}
-                                                className="text-xs h-7"
-                                            />
-
-                                            {(question.kind === "text_short" || question.kind === "text_long") && (
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    <Input
-                                                        placeholder="Exemple de réponse"
-                                                        value={question.placeholder}
-                                                        onChange={(e) => patchQuestion(question.key, { placeholder: e.target.value })}
-                                                        className="text-xs h-7"
-                                                    />
-                                                    <Input
-                                                        type="number"
-                                                        title="Longueur minimale"
-                                                        placeholder="Min"
-                                                        value={question.minLength}
-                                                        onChange={(e) => patchQuestion(question.key, { minLength: Number(e.target.value) })}
-                                                        className="text-xs h-7"
-                                                    />
-                                                    <Input
-                                                        type="number"
-                                                        title="Longueur maximale"
-                                                        placeholder="Max"
-                                                        value={question.maxLength}
-                                                        onChange={(e) => patchQuestion(question.key, { maxLength: Number(e.target.value) })}
-                                                        className="text-xs h-7"
-                                                    />
-                                                </div>
-                                            )}
-
-                                            {question.kind === "yes_no" && (
-                                                <div className="space-y-2">
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <Input
-                                                            placeholder="Libellé Oui"
-                                                            value={question.yesLabel}
-                                                            onChange={(e) => patchQuestion(question.key, { yesLabel: e.target.value })}
-                                                            className="text-xs h-7"
-                                                        />
-                                                        <Input
-                                                            placeholder="Libellé Non"
-                                                            value={question.noLabel}
-                                                            onChange={(e) => patchQuestion(question.key, { noLabel: e.target.value })}
-                                                            className="text-xs h-7"
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <select
-                                                            value={question.onNo}
-                                                            onChange={(e) => patchQuestion(question.key, { onNo: e.target.value as TicketOnNoPolicy })}
-                                                            className="h-7 px-2 text-xs rounded border border-border bg-background"
-                                                            title="Si la réponse est Non"
-                                                        >
-                                                            {TICKET_ON_NO_POLICIES.map((policy) => (
-                                                                <option key={policy} value={policy}>
-                                                                    Si Non : {MOTIF_ON_NO_LABELS[policy]}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <Input
-                                                            placeholder="Message si Non (optionnel)"
-                                                            value={question.onNoMessage}
-                                                            onChange={(e) => patchQuestion(question.key, { onNoMessage: e.target.value })}
-                                                            className="text-xs h-7"
-                                                        />
+                                            <div className="space-y-1.5">
+                                                <div className="flex items-center justify-between flex-wrap gap-1">
+                                                    <label className="font-semibold text-foreground">Message envoyé avec le ping</label>
+                                                    <div className="flex items-center flex-wrap gap-1">
+                                                        {[
+                                                            { label: "@{demandeur}", tag: "{demandeur}", desc: "Mention membre (@Aventurier)" },
+                                                            { label: "@{roles}", tag: "{roles}", desc: "Mention rôles staff (@Modérateurs)" },
+                                                            { label: "{pseudo}", tag: "{pseudo}", desc: "Nom brut sans @" },
+                                                            { label: "{motif}", tag: "{motif}", desc: "Nom motif" },
+                                                            { label: "#{numero}", tag: "{numero}", desc: "N° ticket (#0042)" },
+                                                        ].map(({ label, tag, desc }) => (
+                                                            <button
+                                                                key={tag}
+                                                                type="button"
+                                                                onClick={() => setNotifyMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
+                                                                className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground font-mono transition-colors"
+                                                                title={desc}
+                                                            >
+                                                                <span className="text-emerald-400 font-bold">{label}</span>
+                                                                <span className="text-[9px] text-muted-foreground">{desc}</span>
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            )}
+                                                <Textarea
+                                                    value={notifyMessage}
+                                                    onChange={(event) => setNotifyMessage(event.target.value)}
+                                                    maxLength={900}
+                                                    rows={3}
+                                                    placeholder="ex : Nouveau ticket de {demandeur} pour l'équipe {roles} (#{numero}) !\nMerci de prendre en charge rapidement."
+                                                    className="text-xs min-h-[70px] resize-y"
+                                                />
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    Multi-lignes et Markdown Discord supportés. Séparé du message demandeur par un double saut de ligne.
+                                                </p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Personne n&apos;est mentionné à l&apos;ouverture (le demandeur, lui, est toujours pingé).
+                                        </p>
+                                    )}
 
-                                            {question.kind === "select" && (
-                                                <div className="space-y-1.5">
-                                                    {question.options.map((option, optionIndex) => (
-                                                        <div key={optionIndex} className="flex items-center gap-2">
-                                                            <Input
-                                                                placeholder={`Option ${optionIndex + 1}`}
-                                                                value={option.label}
-                                                                onChange={(e) => {
-                                                                    const options = question.options.map((current, currentIndex) =>
-                                                                        currentIndex === optionIndex
-                                                                            ? { ...current, label: e.target.value }
-                                                                            : current
-                                                                    );
-                                                                    patchQuestion(question.key, { options });
-                                                                }}
-                                                                className="text-xs h-7"
-                                                            />
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between flex-wrap gap-1">
+                                            <label className="font-semibold text-foreground">Message envoyé au demandeur</label>
+                                            <div className="flex items-center flex-wrap gap-1">
+                                                {[
+                                                    { label: "@{demandeur}", tag: "{demandeur}", desc: "Mention membre (@Aventurier)" },
+                                                    { label: "{pseudo}", tag: "{pseudo}", desc: "Nom brut sans @" },
+                                                    { label: "{motif}", tag: "{motif}", desc: "Nom motif" },
+                                                    { label: "#{numero}", tag: "{numero}", desc: "N° ticket (#0042)" },
+                                                ].map(({ label, tag, desc }) => (
+                                                    <button
+                                                        key={tag}
+                                                        type="button"
+                                                        onClick={() => setCreatorMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
+                                                        className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground font-mono transition-colors"
+                                                        title={desc}
+                                                    >
+                                                        <span className="text-emerald-400 font-bold">{label}</span>
+                                                        <span className="text-[9px] text-muted-foreground">{desc}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <Textarea
+                                            value={creatorMessage}
+                                            onChange={(event) => setCreatorMessage(event.target.value)}
+                                            maxLength={900}
+                                            rows={3}
+                                            placeholder="ex : Bonjour {demandeur} !\nTon ticket #{numero} pour {motif} a bien été créé.\nUn membre de l'équipe va te répondre sous peu."
+                                            className="text-xs min-h-[70px] resize-y"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground">
+                                            {"{demandeur}"} (ou {"{membre}"}) = sa mention (insérée au début si omise). Multi-lignes et Markdown supportés.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3 · Équipe & Accès et Fermeture */}
+                        {activeModalTab === "access" && (
+                            <div className="space-y-5">
+                                <div className="space-y-3">
+                                    <h4 className="font-bold text-foreground">3 · Équipe et accès</h4>
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">Équipe qui traite ce motif</label>
+                                        <TicketRolesPicker
+                                            guildId={guildId}
+                                            value={staffRoleIds}
+                                            onChange={setStaffRoleIds}
+                                            description="Ces rôles voient le salon et traitent les tickets de ce motif."
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">
+                                            Qui peut ouvrir ce type de demande ? (liste blanche)
+                                        </label>
+                                        <TicketRolesPicker
+                                            guildId={guildId}
+                                            value={allowedRoleIds}
+                                            onChange={setAllowedRoleIds}
+                                            title="Rôles autorisés à ouvrir"
+                                            triggerPlaceholder="Sélectionner les rôles autorisés à ouvrir..."
+                                            emptyTitle="Tout le monde peut ouvrir"
+                                            description="Vide = tout le monde (hors rôles bloqués). Sinon, seuls ces rôles — un administrateur Discord passe toujours."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">Rôles invités (observateurs)</label>
+                                        <TicketRolesPicker
+                                            guildId={guildId}
+                                            value={additionalRoleIds}
+                                            onChange={setAdditionalRoleIds}
+                                            description="Voient le salon sans le traiter (droits réglés dans Configuration)."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 pt-4 border-t border-border/50">
+                                    <h4 className="font-bold text-foreground">4 · Fermeture et boutons du salon</h4>
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground">Qui peut fermer ?</label>
+                                        <select
+                                            value={closePolicy}
+                                            onChange={(e) => setClosePolicy(e.target.value as TicketCategoryClosePolicy)}
+                                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                        >
+                                            <option value="STAFF_OR_CREATOR">L'équipe et le demandeur (conseillé)</option>
+                                            <option value="STAFF_ONLY">L'équipe uniquement</option>
+                                        </select>
+                                    </div>
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={requireConfirm}
+                                            onChange={(e) => setRequireConfirm(e.target.checked)}
+                                            className="rounded border-border"
+                                        />
+                                        <span>Demander confirmation avant de fermer (« Oui, fermer / Annuler »)</span>
+                                    </label>
+
+                                    <div className="space-y-2 rounded-xl border border-border/70 bg-surface/40 p-3">
+                                        <div className="font-semibold text-foreground">
+                                            Boutons affichés dans le salon de ce motif
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Héritent du réglage global (<strong>Configuration → Boutons du salon</strong>).
+                                            Ici tu peux <strong>retirer</strong> un bouton de ce salon ou le <strong>renommer</strong>.
+                                        </p>
+                                        {TICKET_BUTTON_KEYS.map((key) => {
+                                            const entry = motifButtons[key] ?? { disabled: false, label: "" };
+                                            return (
+                                                <div key={key} className="flex items-center gap-2">
+                                                    <label className="flex items-center gap-1.5 cursor-pointer min-w-32">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!entry.disabled}
+                                                            onChange={() =>
+                                                                setMotifButtons((previous) => ({
+                                                                    ...previous,
+                                                                    [key]: { disabled: !entry.disabled, label: entry.label },
+                                                                }))
+                                                            }
+                                                            className="rounded border-border"
+                                                        />
+                                                        <span className="text-xs text-foreground">{TICKET_BUTTON_ADMIN_LABELS[key]}</span>
+                                                    </label>
+                                                    <Input
+                                                        value={entry.label}
+                                                        maxLength={80}
+                                                        disabled={entry.disabled}
+                                                        placeholder="Nom pour ce salon (vide = nom global)"
+                                                        onChange={(event) =>
+                                                            setMotifButtons((previous) => ({
+                                                                ...previous,
+                                                                [key]: { disabled: entry.disabled, label: event.target.value },
+                                                            }))
+                                                        }
+                                                        className="text-xs h-8 flex-1"
+                                                        aria-label={`Nom du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]} pour ce motif`}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4 · Questionnaire */}
+                        {activeModalTab === "questions" && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-bold text-foreground">5 · Questionnaire d'ouverture</h4>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            L&apos;ordre ci-dessous est <strong>exactement</strong> celui posé au membre :
+                                            les questions texte forment des modales Discord de 5 questions, les choix se
+                                            répondent <strong>à leur place</strong>. Vide = ouverture directe.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {MOTIF_QUESTION_KINDS.map((kind) => (
+                                            <Button
+                                                key={kind}
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => addQuestion(kind)}
+                                                disabled={questions.length >= TICKET_FORM_MAX_FIELDS}
+                                                className="h-7 text-[11px] px-2"
+                                                title={MOTIF_QUESTION_KIND_LABELS[kind]}
+                                            >
+                                                <ListPlus className="h-3 w-3 mr-1" /> {MOTIF_QUESTION_KIND_LABELS[kind]}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">{questions.length}/{TICKET_FORM_MAX_FIELDS} questions</p>
+
+                                <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                                    {questions.length === 0 ? (
+                                        <div className="p-6 text-center border border-dashed border-border rounded-xl bg-surface/30 text-muted-foreground">
+                                            <p className="text-xs">Aucune question : le ticket s'ouvrira directement.</p>
+                                        </div>
+                                    ) : (
+                                        questions.map((question, index) => (
+                                            <div key={question.key} className="space-y-3">
+                                                {index > 0 && index % 5 === 0 && (
+                                                    <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground font-semibold">
+                                                        <div className="h-px bg-border flex-1" />
+                                                        <span className="bg-surface/80 border border-border/80 px-2.5 py-0.5 rounded-full text-emerald-400">
+                                                            📄 Modale Discord suivante (page {Math.floor(index / 5) + 1})
+                                                        </span>
+                                                        <div className="h-px bg-border flex-1" />
+                                                    </div>
+                                                )}
+                                                <div className="p-3 rounded-xl bg-surface/60 border border-border/80 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-emerald-400 text-xs">
+                                                            Question #{index + 1} — {MOTIF_QUESTION_KIND_LABELS[question.kind]}
+                                                        </span>
+                                                        <div className="flex items-center gap-1">
                                                             <button
                                                                 type="button"
-                                                                onClick={() =>
-                                                                    patchQuestion(question.key, {
-                                                                        options: question.options.filter((_, currentIndex) => currentIndex !== optionIndex),
-                                                                    })
-                                                                }
-                                                                className="text-muted-foreground hover:text-destructive shrink-0"
+                                                                onClick={() => moveQuestion(index, -1)}
+                                                                disabled={index === 0}
+                                                                title="Monter la question"
+                                                                aria-label={`Monter la question ${index + 1}`}
+                                                                className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
                                                             >
+                                                                <ArrowUp className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => moveQuestion(index, 1)}
+                                                                disabled={index === questions.length - 1}
+                                                                title="Descendre la question"
+                                                                aria-label={`Descendre la question ${index + 1}`}
+                                                                className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                                            >
+                                                                <ArrowDown className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
                                                                 <X className="h-3.5 w-3.5" />
                                                             </button>
                                                         </div>
-                                                    ))}
-                                                    {question.options.length < 25 && (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                patchQuestion(question.key, {
-                                                                    options: [
-                                                                        ...question.options,
-                                                                        { value: `choix-${question.options.length + 1}`, label: `Choix ${question.options.length + 1}` },
-                                                                    ],
-                                                                })
-                                                            }
-                                                            className="h-7 text-[11px]"
-                                                        >
-                                                            <Plus className="h-3 w-3 mr-1" /> Ajouter une option
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    </div>
 
-                                            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={question.required}
-                                                    onChange={(e) => patchQuestion(question.key, { required: e.target.checked })}
-                                                    className="rounded border-border"
-                                                />
-                                                <span>Obligatoire</span>
-                                            </label>
-                                        </div>
-                                    ))
-                                )}
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <Input
+                                                            placeholder="Intitulé (ex: Ton pseudo en jeu)"
+                                                            value={question.label}
+                                                            onChange={(e) => patchQuestion(question.key, { label: e.target.value })}
+                                                            className="text-xs h-7"
+                                                        />
+                                                        <select
+                                                            value={question.kind}
+                                                            onChange={(e) => {
+                                                                const kind = e.target.value as MotifQuestionKind;
+                                                                patchQuestion(question.key, {
+                                                                    kind,
+                                                                    maxLength: kind === "text_long" ? 4000 : 256,
+                                                                    options:
+                                                                        kind === "select" && question.options.length === 0
+                                                                            ? [
+                                                                                  { value: "choix-1", label: "Choix 1" },
+                                                                                  { value: "choix-2", label: "Choix 2" },
+                                                                              ]
+                                                                            : question.options,
+                                                                });
+                                                            }}
+                                                            className="h-7 px-2 text-xs rounded border border-border bg-background"
+                                                        >
+                                                            {MOTIF_QUESTION_KINDS.map((kind) => (
+                                                                <option key={kind} value={kind}>
+                                                                    {MOTIF_QUESTION_KIND_LABELS[kind]}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    <Input
+                                                        placeholder="Aide affichée sous la question (optionnel)"
+                                                        value={question.help}
+                                                        onChange={(e) => patchQuestion(question.key, { help: e.target.value })}
+                                                        className="text-xs h-7"
+                                                    />
+
+                                                    {(question.kind === "text_short" || question.kind === "text_long") && (
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            <Input
+                                                                placeholder="Exemple de réponse"
+                                                                value={question.placeholder}
+                                                                onChange={(e) => patchQuestion(question.key, { placeholder: e.target.value })}
+                                                                className="text-xs h-7"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                title="Longueur minimale"
+                                                                placeholder="Min"
+                                                                value={question.minLength}
+                                                                onChange={(e) => patchQuestion(question.key, { minLength: Number(e.target.value) })}
+                                                                className="text-xs h-7"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                title="Longueur maximale"
+                                                                placeholder="Max"
+                                                                value={question.maxLength}
+                                                                onChange={(e) => patchQuestion(question.key, { maxLength: Number(e.target.value) })}
+                                                                className="text-xs h-7"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {question.kind === "yes_no" && (
+                                                        <div className="space-y-2">
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <Input
+                                                                    placeholder="Libellé Oui"
+                                                                    value={question.yesLabel}
+                                                                    onChange={(e) => patchQuestion(question.key, { yesLabel: e.target.value })}
+                                                                    className="text-xs h-7"
+                                                                />
+                                                                <Input
+                                                                    placeholder="Libellé Non"
+                                                                    value={question.noLabel}
+                                                                    onChange={(e) => patchQuestion(question.key, { noLabel: e.target.value })}
+                                                                    className="text-xs h-7"
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <select
+                                                                    value={question.onNo}
+                                                                    onChange={(e) => patchQuestion(question.key, { onNo: e.target.value as TicketOnNoPolicy })}
+                                                                    className="h-7 px-2 text-xs rounded border border-border bg-background"
+                                                                    title="Si la réponse est Non"
+                                                                >
+                                                                    {TICKET_ON_NO_POLICIES.map((policy) => (
+                                                                        <option key={policy} value={policy}>
+                                                                            Si Non : {MOTIF_ON_NO_LABELS[policy]}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                                <Input
+                                                                    placeholder="Message si Non (optionnel)"
+                                                                    value={question.onNoMessage}
+                                                                    onChange={(e) => patchQuestion(question.key, { onNoMessage: e.target.value })}
+                                                                    className="text-xs h-7"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {question.kind === "select" && (
+                                                        <div className="space-y-1.5">
+                                                            {question.options.map((option, optionIndex) => (
+                                                                <div key={optionIndex} className="flex items-center gap-2">
+                                                                    <Input
+                                                                        placeholder={`Option ${optionIndex + 1}`}
+                                                                        value={option.label}
+                                                                        onChange={(e) => {
+                                                                            const options = question.options.map((current, currentIndex) =>
+                                                                                currentIndex === optionIndex
+                                                                                    ? { ...current, label: e.target.value }
+                                                                                    : current
+                                                                            );
+                                                                            patchQuestion(question.key, { options });
+                                                                        }}
+                                                                        className="text-xs h-7"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            patchQuestion(question.key, {
+                                                                                options: question.options.filter((_, currentIndex) => currentIndex !== optionIndex),
+                                                                            })
+                                                                        }
+                                                                        className="text-muted-foreground hover:text-destructive shrink-0"
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {question.options.length < 25 && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() =>
+                                                                        patchQuestion(question.key, {
+                                                                            options: [
+                                                                                ...question.options,
+                                                                                { value: `choix-${question.options.length + 1}`, label: `Choix ${question.options.length + 1}` },
+                                                                            ],
+                                                                        })
+                                                                    }
+                                                                    className="h-7 text-[11px]"
+                                                                >
+                                                                    <Plus className="h-3 w-3 mr-1" /> Ajouter une option
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={question.required}
+                                                            onChange={(e) => patchQuestion(question.key, { required: e.target.checked })}
+                                                            className="rounded border-border"
+                                                        />
+                                                        <span>Obligatoire</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
-                    {/* Prévisualisation live (bouton du panneau + salon d'accueil) */}
+                    {/* Prévisualisation live (message d'ouverture + salon d'accueil) */}
                     <div className="space-y-3 lg:sticky lg:top-0 self-start">
                         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Aperçu Discord en direct
@@ -790,6 +1251,28 @@ export function TicketMotifsTab({
                                 </span>
                             </div>
 
+                            {(() => {
+                                const line = buildTicketOpeningContent({
+                                    creatorDiscordId: "123456789012345678",
+                                    creatorName: "Toi",
+                                    roleIds: notifyRoleIds,
+                                    notifyEnabled,
+                                    notifyMessage: notifyMessage || undefined,
+                                    creatorMessage: creatorMessage || undefined,
+                                    motif: name.trim() || "motif",
+                                    numero: 42,
+                                });
+                                if (!line) return null;
+                                return (
+                                    <>
+                                        <div className="text-[11px] text-[#949ba4]">Message envoyé en haut du salon :</div>
+                                        <div className="text-xs text-white break-words whitespace-pre-wrap leading-relaxed">
+                                            {formatDiscordPreviewMentions(line)}
+                                        </div>
+                                    </>
+                                );
+                            })()}
+
                             <div
                                 className="rounded bg-[#1e1f22] p-3 text-xs border-l-4 space-y-2"
                                 style={{ borderLeftColor: MOTIF_BUTTON_PREVIEW_COLORS[buttonStyle] }}
@@ -798,64 +1281,78 @@ export function TicketMotifsTab({
                                     {normalizeTicketIcon(emoji.trim() || "🎫")} Ticket #0042 — {name.trim() || "Nom du motif"}
                                 </div>
                                 <div className="text-[#dbdee1] whitespace-pre-wrap">
-                                    {description.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande."}
+                                    {welcomeMessage.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande sous peu."}
                                 </div>
                                 {questions.length > 0 && (
                                     <div className="space-y-1.5 pt-1">
                                         {questions.slice(0, 3).map((question, index) => (
-                                            <div key={question.key} className="rounded bg-[#2b2d31] px-2 py-1.5">
-                                                <div className="text-[10px] font-semibold text-[#949ba4]">
-                                                    📋 {question.label.trim() || `Question ${index + 1}`}
-                                                </div>
-                                                <div className="text-[#dbdee1]">
-                                                    {question.kind === "yes_no"
-                                                        ? `${question.yesLabel.trim() || "Oui"} / ${question.noLabel.trim() || "Non"}`
-                                                        : question.kind === "select"
-                                                          ? question.options.slice(0, 3).map((option) => option.label.trim() || "Option").join(" · ") || "Choix…"
-                                                          : "Réponse libre…"}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {questions.length > 3 && (
-                                            <div className="text-[10px] text-[#949ba4]">+ {questions.length - 3} autre(s) question(s)…</div>
-                                        )}
-                                    </div>
-                                )}
-                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
-                                    SigilOS Ticket System
-                                </div>
-                            </div>
+                                             <div key={question.key} className="rounded bg-[#2b2d31] px-2 py-1.5">
+                                                 <div className="text-[10px] font-semibold text-[#949ba4]">
+                                                     📋 {question.label.trim() || `Question ${index + 1}`}
+                                                 </div>
+                                                 <div className="text-[#dbdee1]">
+                                                     {question.kind === "yes_no"
+                                                         ? `${question.yesLabel.trim() || "Oui"} / ${question.noLabel.trim() || "Non"}`
+                                                         : question.kind === "select"
+                                                           ? question.options.slice(0, 3).map((option) => option.label.trim() || "Option").join(" · ") || "Choix…"
+                                                           : "Réponse libre…"}
+                                                 </div>
+                                             </div>
+                                         ))}
+                                         {questions.length > 3 && (
+                                             <div className="text-[10px] text-[#949ba4]">+ {questions.length - 3} autre(s) question(s)…</div>
+                                         )}
+                                     </div>
+                                 )}
+                                 <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                     SigilOS Ticket System
+                                 </div>
+                             </div>
 
-                            <div className="text-[11px] text-[#949ba4]">Boutons dans le salon (staff) :</div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {[ticketLabel("claim"), ticketLabel("add"), ticketLabel("note"), ticketLabel("rename")].map((label) => (
-                                    <span key={label} className="px-2 py-1 rounded bg-[#4e5058] text-white text-[10px] font-semibold">
-                                        {label}
-                                    </span>
-                                ))}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {[ticketLabel("close"), ticketLabel("transcript"), ticketLabel("delete")].map((label, index) => (
-                                    <span
-                                        key={label}
-                                        className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${index === 1 ? "bg-[#4e5058]" : "bg-[#ed4245]"}`}
-                                    >
-                                        {label}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    </div>
+                             <div className="text-[11px] text-[#949ba4]">Boutons dans le salon de ce motif :</div>
+                             {(() => {
+                                 const overrides: TicketMotifButtonOverrides = {};
+                                 for (const key of TICKET_BUTTON_KEYS) {
+                                     const entry = motifButtons[key];
+                                     if (entry?.disabled) overrides[key] = { disabled: true };
+                                     else if (entry?.label.trim()) overrides[key] = { label: entry.label.trim() };
+                                 }
+                                 const global = readTicketButtonSettings(permissionSettings);
+                                 const render = (status: "OPEN" | "CLOSED") =>
+                                     ticketButtonLayoutForMotif(status, overrides, global, "fr", { enableTranscripts }).map((button) => (
+                                         <span
+                                             key={button.key}
+                                             className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${
+                                                 button.key === "claim" || button.key === "reopen"
+                                                     ? "bg-[#57f287]"
+                                                     : button.key === "transcript"
+                                                       ? "bg-[#4e5058]"
+                                                       : "bg-[#ed4245]"
+                                             }`}
+                                         >
+                                             {button.label}
+                                         </span>
+                                     ));
+                                 return (
+                                     <div className="space-y-1.5">
+                                         <div className="flex flex-wrap gap-1.5">{render("OPEN")}</div>
+                                         <div className="text-[10px] text-[#949ba4]">Après fermeture :</div>
+                                         <div className="flex flex-wrap gap-1.5">{render("CLOSED")}</div>
+                                     </div>
+                                 );
+                             })()}
+                          </div>
+                     </div>
+                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-amber-600 hover:bg-amber-700 text-white">
-                            Enregistrer et publier
-                        </Button>
-                    </DialogFooter>
+                     <DialogFooter>
+                         <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+                             Annuler
+                         </Button>
+                         <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                             Enregistrer et publier
+                         </Button>
+                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

@@ -21,6 +21,8 @@ import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDofusWeek } from "@/lib/date-utils";
 import { getKamaStats } from "./kama-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
+import { missionCategoryImage } from "@/lib/mission-category-images";
+import { getAppBaseUrl } from "@/lib/utils";
 
 
 // --- Types & Schemas ---
@@ -40,7 +42,7 @@ const MissionSchema = z.object({
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
-    payload: z.record(z.any()),
+    payload: z.record(z.string(), z.any()),
 }); // No .strict() — extra fields from DB are ignored safely
 
 const CreateWeekSchema = z.object({
@@ -52,7 +54,7 @@ const CreateWeekSchema = z.object({
     notifyMembers: z.boolean().optional(),
 }).strict();
 
-async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string): Promise<string | undefined> {
+async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string, imageUrl?: string | null): Promise<string | undefined> {
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -76,7 +78,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         if (discordChannelId) {
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
-                const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+                const absoluteLink = link ? `${getAppBaseUrl()}${link}` : undefined;
                 const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
 
                 // Compact validation alert with proof screenshot + action buttons
@@ -117,28 +119,33 @@ async function notifyValidators(guildId: string, title: string, message: string,
 
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm
-        const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
-        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
+        try {
+            const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
+            const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
 
-        if (validators.length === 0) {
-            logger.warn(`[Notification] No validators found for guild ${guildId}`);
-            return;
+            if (validators.length > 0) {
+                // 2. Notify all of them (granular prefs will be checked in createNotification)
+                const notificationPromises = validators.map(v =>
+                    createNotification(
+                        v.userId,
+                        "NEW_SUBMISSION_PENDING",
+                        title,
+                        message,
+                        link,
+                        guildId,
+                        "ADMIN_ALERT",
+                        imageUrl ?? null,
+                        "MISSION"
+                    )
+                );
+
+                await Promise.allSettled(notificationPromises);
+            } else {
+                logger.warn(`[Notification] No validators found for guild ${guildId}`);
+            }
+        } catch (inAppError) {
+            logger.warn("[NotifyValidators] In-app notification error", { error: inAppError });
         }
-
-        // 2. Notify all of them (granular prefs will be checked in createNotification)
-        const notificationPromises = validators.map(v =>
-            createNotification(
-                v.userId,
-                "NEW_SUBMISSION_PENDING",
-                title,
-                message,
-                link,
-                guildId,
-                "ADMIN_ALERT"
-            )
-        );
-
-        await Promise.all(notificationPromises);
 
         return resultDiscordId;
     } catch (e) {
@@ -192,12 +199,16 @@ export async function createWeekMissions(
         seen.add(signature);
     }
 
+    /** Id interne de la guilde, capturé dans la transaction pour l'annonce d'après-commit. */
+    let internalGuildId: string | null = null;
+
     try {
         await db.$transaction(async (tx) => {
             // DEEP ISOLATION: Ensure we only touch the specific discordGuildId provided
             const guild = await tx.guildConfig.findUniqueOrThrow({
                 where: { discordGuildId: data.guildId }
             });
+            internalGuildId = guild.id;
 
             // 5. DATABASE UNIQUENESS CHECK: Check against existing missions in DB
             const existingMissions = await tx.mission.findMany({
@@ -276,31 +287,27 @@ export async function createWeekMissions(
                 });
             }
 
-            // 4. Global Notification if requested
-            if (data.notifyMembers) {
-                const activeProfiles = await tx.userProfile.findMany({
-                    where: { guildId: guild.id, status: 'ACTIVE' },
-                    select: { userId: true }
-                });
-
-                if (activeProfiles.length > 0) {
-                    // We don't use createMany because we want to check individual preferences via createNotification
-                    // Although createNotification is "use server", we call it here. 
-                    // Note: transactions and async hooks might be tricky but for notifications it's fine to run after or use Promise.all
-                    const notificationPromises = activeProfiles.map(p =>
-                        createNotification(
-                            p.userId,
-                            "SYSTEM_INFO",
-                            "🎯 Nouvel objectif hebdomadaire",
-                            `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
-                            `/dashboard/${data.guildId}/missions`,
-                            data.guildId
-                        )
-                    );
-                    await Promise.all(notificationPromises);
-                }
-            }
         });
+
+
+        // Annonce **unique** dans le flux de vie de la guilde — jamais une ligne par membre.
+        //
+        // 🗑️ Ce qui a été retiré (mesure du 15/10/2026) : une `Notification` par membre ACTIF
+        // (« 🎯 Nouvel objectif hebdomadaire », **1 324 lignes** en base bêta pour 2 guildes) à
+        // chaque publication de semaine. Le flux porte l'événement, la bulle de **chaque** membre
+        // en découle, et le membre peut enfin le **couper** (interrupteur « Objectifs de la
+        // semaine », catégorie `objectifs`) — ce qu'une copie par membre ne permettait pas.
+        // Émis **après** le commit : une annonce ne doit jamais survivre à un rollback.
+        if (data.notifyMembers && internalGuildId) {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: internalGuildId,
+                userId: session.user.id,
+                kind: "objectifs",
+                entityId: `${data.year}-W${data.weekNumber}`,
+                detail: String(data.weekNumber),
+            });
+        }
 
         revalidatePath(`/dashboard/${data.guildId}/missions`);
         revalidatePath(`/dashboard/${data.guildId}/missions/manage`);
@@ -954,7 +961,10 @@ export async function submitMissionProof(
             `**${userName}** a posté une preuve pour : **${missionTitle}**`,
             `/dashboard/${mission.guild.discordGuildId}/admin/validation`,
             proofUrl,
-            submission.id  // ← pour les custom_id des boutons Discord
+            submission.id,  // ← pour les custom_id des boutons Discord
+            // Même picto de catégorie que la cloche du membre : les deux faces d'une même
+            // validation disent la même chose.
+            missionCategoryImage(mission.category)
         );
 
         if (discordMessageId) {
@@ -1085,7 +1095,12 @@ export async function validateSubmission(
                 `[Mission] ${submission.mission.title}`,
                 `Votre preuve a été ${resultMsg}`,
                 undefined,
-                truthGuildDiscordId
+                truthGuildDiscordId,
+                undefined,
+                // Picto de la **catégorie** de la mission (donjon, régulation, anomalie…) : la
+                // table `Mission` n'a pas de visuel propre, c'est la catégorie qui informe.
+                missionCategoryImage(submission.mission.category),
+                "MISSION"
             );
         }
 
@@ -1132,6 +1147,13 @@ export async function validateSubmission(
  * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
  */
 export async function getWeeklyGuildatons(profileId: string, week: number, year: number): Promise<number> {
+    // Fail-closed : lecture exposée via "use server" — session requise (les appelants
+    // internes tournent déjà avec une session admin ; page serveur aussi).
+    const session = await auth();
+    if (!session?.user?.id) return 0;
+    if (typeof profileId !== "string" || !profileId) return 0;
+    if (!Number.isInteger(week) || week < 1 || week > 53) return 0;
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return 0;
     const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
 
     const [missions, kamas] = await Promise.all([
@@ -1164,7 +1186,20 @@ export async function getWeeklyGuildatons(profileId: string, week: number, year:
 }
 
 export async function grantRewards(profileId: string, xp: number, guildatons: number = 0, week?: number, year?: number) {
+    // Fail-closed : action exposée via "use server" — session requise. Les 4 appelants
+    // internes (validation mission, dons, Discord) tournent avec une session admin.
+    const session = await auth();
+    if (!session?.user?.id) return;
+    if (typeof profileId !== "string" || !profileId) return;
+    // Bornes anti-mint : montants finis, plafonnés (le plafond hebdo reste appliqué dessous).
+    if (!Number.isFinite(xp) || !Number.isFinite(guildatons)) return;
     if (xp <= 0 && guildatons <= 0) return;
+    if (xp < 0 || xp > 100_000 || guildatons < 0 || guildatons > 10_000) return;
+    if (week !== undefined && (!Number.isInteger(week) || week < 1 || week > 53)) return;
+    if (year !== undefined && (!Number.isInteger(year) || year < 2000 || year > 2100)) return;
+    // La cible doit exister (évite les écritures aveugles sur ID deviné).
+    const target = await db.userProfile.findUnique({ where: { id: profileId }, select: { id: true } });
+    if (!target) return;
 
     try {
         let finalGuildatons = guildatons;
@@ -1662,7 +1697,9 @@ export async function publishMissionsToDiscord(
                 pingType, 
                 messageId, 
                 channelId: guild.missionNotifyChannelId,
-                actorId: session?.user?.id || "system"
+                actorId: session?.user?.id || "system",
+                weekNumber: week,
+                year
             }
         });
 
@@ -1682,7 +1719,7 @@ export async function publishMissionsToDiscord(
  * Priority: Event missions → Songes → Dungeon boss → Regulation (default Dofus Ébène)
  */
 function getMissionThumbnailUrl(missions: { category: string; payload: any }[]): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
 
     // Prefer event missions (most visual)
     const eventMission = missions.find(m => m.category === "EVENT");
@@ -1915,3 +1952,108 @@ export async function getMissionsByIds(ids: string[]) {
         return [];
     }
 }
+
+export async function isWeekPublished(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse<{ isPublished: boolean; channelId: string | null; notifyRoleId: string | null; vitrineMode: boolean }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionNotifyRoleId: true,
+                missionVitrineMode: true,
+            }
+        });
+
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // 1. Any member submission on this week's missions confirms it was already published
+        const submissionsCount = await db.submission.count({
+            where: {
+                mission: {
+                    guildId: guild.id,
+                    weekNumber,
+                    year
+                }
+            }
+        });
+
+        if (submissionsCount > 0) {
+            return {
+                success: true,
+                data: {
+                    isPublished: true,
+                    channelId: guild.missionNotifyChannelId,
+                    notifyRoleId: guild.missionNotifyRoleId,
+                    vitrineMode: !!guild.missionVitrineMode
+                }
+            };
+        }
+
+        // 2. Check AuditLog for prior publish actions for this week
+        const recentPublishLogs = await db.auditLog.findMany({
+            where: {
+                guildId: guild.id,
+                action: { in: ["MISSION_PUBLISH_DISCORD", "MISSION_PUBLISHED"] as any },
+                createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }
+            },
+            orderBy: { createdAt: "desc" },
+            take: 20
+        });
+
+        const isPublished = recentPublishLogs.some(log => {
+            const meta = log.metadata as Record<string, any> | null;
+            return meta && Number(meta.weekNumber) === weekNumber && Number(meta.year) === year;
+        });
+
+        return {
+            success: true,
+            data: {
+                isPublished,
+                channelId: guild.missionNotifyChannelId,
+                notifyRoleId: guild.missionNotifyRoleId,
+                vitrineMode: !!guild.missionVitrineMode
+            }
+        };
+    } catch (error) {
+        logger.error("isWeekPublished Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function finalizeSilentPublish(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        await logAction({
+            guildId,
+            action: "MISSION_PUBLISHED",
+            targetType: "MISSION",
+            metadata: {
+                silent: true,
+                weekNumber,
+                year,
+                actorId: session?.user?.id || "system"
+            }
+        });
+        return { success: true };
+    } catch (error) {
+        logger.error("finalizeSilentPublish error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

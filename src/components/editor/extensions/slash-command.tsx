@@ -282,6 +282,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             },
         },
         {
+            id: "image",
             title: "Image",
             description: "Ajouter une image depuis votre ordinateur.",
             searchTerms: ["photo", "picture", "media", "image"],
@@ -290,7 +291,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
                 editor.chain().focus().deleteRange(range).run();
                 const input = document.createElement("input");
                 input.type = "file";
-                input.accept = "image/*";
+                input.accept = "image/jpeg,image/png,image/webp";
                 input.onchange = async () => {
                     if (input.files?.length) {
                         const file = input.files[0];
@@ -458,10 +459,16 @@ const SlashCommand = Extension.create({
     },
 });
 
-export const configureSlashCommand = () => {
+export const configureSlashCommand = (options: { enableImages?: boolean } = {}) => {
+    const enableImages = options.enableImages !== false;
     return SlashCommand.configure({
         suggestion: {
-            items: getSuggestionItems,
+            // Un contenu sans pipeline d'upload n'expose pas la commande « Image » :
+            // le nœud image n'existe pas dans son schéma (cliquer planterait).
+            items: ({ query }: { query: string }) => {
+                const items = getSuggestionItems({ query });
+                return enableImages ? items : items.filter((item: any) => item.id !== "image");
+            },
             render: renderItems,
         },
     });

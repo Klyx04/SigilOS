@@ -66,7 +66,7 @@ vi.mock("@/server/actions/super-admin-actions", () => ({
 }));
 
 const mockNotifyGod = vi.fn();
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: (...args: any[]) => mockNotifyGod(...args),
 }));
 
@@ -136,8 +136,8 @@ describe("GET /api/cron/sync-monster-stats — skip frais", () => {
         });
         const now = Date.now();
         mockMonsterStatFindMany.mockResolvedValue([
-            { monsterName: "frais", lastSyncedAt: iso(now - H) },
-            { monsterName: "vieux", lastSyncedAt: iso(now - 30 * H) },
+            { monsterName: "frais", monsterId: 1, lastSyncedAt: iso(now - H), stats: { drops: [{ id: 1 }] } },
+            { monsterName: "vieux", monsterId: 2, lastSyncedAt: iso(now - 30 * H), stats: { drops: [{ id: 2 }] } },
         ]);
         mockGetMonsterStats.mockResolvedValue({
             success: true,

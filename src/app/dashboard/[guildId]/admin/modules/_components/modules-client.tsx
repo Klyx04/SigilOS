@@ -24,7 +24,6 @@ import Link from "next/link";
 const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]>> = {
     presentation: [{ label: "Présentation", href: "/dashboard/{guildId}/presentation" }],
     roster: [{ label: "Annuaire", href: "/dashboard/{guildId}/members" }],
-    stats: [{ label: "Stats Guilde", href: "/dashboard/{guildId}/stats" }],
     calendar: [{ label: "Calendrier", href: "/dashboard/{guildId}/calendar" }],
     missions: [
         { label: "Missions", href: "/dashboard/{guildId}/missions" },
@@ -47,7 +46,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
         { label: "Profil (Planning)", href: "/dashboard/{guildId}/profile?tab=planning" },
     ],
     minigames: [{ label: "Mini-Jeux", href: "/dashboard/{guildId}/mini-jeux" }],
-    quests: [{ label: "Quêtes Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
+    quests: [{ label: "Objectif Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
     worldmap: [{ label: "Carte du Monde", href: "/dashboard/{guildId}/worldmap" }],
     resources: [{ label: "Ressources Dofus", href: "/dashboard/{guildId}/ressources" }],
     profile: [

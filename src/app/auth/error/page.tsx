@@ -53,6 +53,10 @@ function ErrorContent() {
             title = t.auth.errorUnverifiedTitle;
             message = t.auth.errorUnverifiedDesc;
         }
+    } else if (error === "Configuration") {
+        // Cookie PKCE absent/illisible au retour de Discord (cf. mesure du 02/11/2026).
+        title = t.auth.errorConfigurationTitle;
+        message = t.auth.errorConfigurationDesc;
     } else if (error === "AccessDenied") {
         title = t.auth.errorAccessDeniedTitle;
         message = t.auth.errorAccessDeniedDesc;

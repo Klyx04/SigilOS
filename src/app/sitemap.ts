@@ -38,8 +38,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/modules`, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/carte-du-monde`, changeFrequency: "weekly", priority: 0.9 },
         // ⚠️ `/guides/rush-sylvestre` n'est **pas** ici : la page porte `noindex` tant que le
-        // toggle God « Mode Construction » est actif (`OptimizedGuide.isUnderConstruction`). Elle
-        // est publiée **conditionnellement** plus bas, à partir de la même source de vérité —
+        // drapeau PUBLIC « En construction » est actif (`OptimizedGuide.isPublicUnderConstruction`).
+        // Elle est publiée **conditionnellement** plus bas, à partir de cette même source de vérité —
         // publier une URL en `noindex` faisait remonter « Exclue par la balise noindex » dans
         // Search Console (constat du 29/09/2026).
         { url: `${baseUrl}/boss`, changeFrequency: "weekly", priority: 0.8 },
@@ -94,19 +94,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     // Guide « Rush Sylvestre » : page **conditionnelle**, seule de sa catégorie (contenu éditable
-    // en base + toggle God). Elle n'est publiée que si la page ne se déclare pas en `noindex`.
+    // en base + drapeau public). Elle n'est publiée que si la page ne se déclare pas en `noindex`
+    // — donc sur `isPublicUnderConstruction`, jamais sur l'avis de l'espace membres.
     // Fail-closed : si l'état n'est pas lisible, on ne publie pas (jamais d'URL en `noindex`).
     try {
         const rushGuide = await db.optimizedGuide.findUnique({
             where: { slug: "rush-sylvestre" },
-            select: { isUnderConstruction: true },
+            select: { isPublicUnderConstruction: true },
         });
-        if (rushGuide && !rushGuide.isUnderConstruction) {
+        if (rushGuide && !rushGuide.isPublicUnderConstruction) {
             routes.push({
                 url: `${baseUrl}/guides/rush-sylvestre`,
                 changeFrequency: "weekly",
                 priority: 0.9,
             });
+
+            // Bloc B — pages publiques des quêtes **publiées** uniquement. Le slug est
+            // figé à la publication ; une page non publiée répond 404 et n'a rien à
+            // faire dans le sitemap. Fail-closed : si la lecture échoue, on saute.
+            const rushQuests = await db.guideSequence.findMany({
+                where: {
+                    isPublished: true,
+                    publicSlug: { not: null },
+                    milestone: { guide: { slug: "rush-sylvestre" } },
+                },
+                select: { publicSlug: true },
+            });
+            for (const quest of rushQuests) {
+                if (!quest.publicSlug) continue;
+                routes.push({
+                    url: `${baseUrl}/guides/rush-sylvestre/q/${quest.publicSlug}`,
+                    changeFrequency: "monthly",
+                    priority: 0.6,
+                });
+            }
         }
     } catch (error) {
         logger.error("[Sitemap] Error fetching rush guide state", { error });

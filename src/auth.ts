@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
 import { fetchGuildMember } from "@/server/discord"
 import { logger } from "@/lib/logger"
+import { isUnknownAuthAction } from "@/lib/auth-log-filter"
+import { decideSignInAccess, isVisitorEntryEnabled } from "@/lib/sign-in-policy"
 
 import Discord from "next-auth/providers/discord"
 
@@ -32,6 +34,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // `src/instrumentation.ts`).
     logger: {
         error(error: Error) {
+            // Scan externe sur un chemin Auth.js inexistant (`/api/auth/v1/pin/verify`) : cas
+            // **normal**, pas une panne produit ⇒ `warn` (visible dans `docker logs`) au lieu
+            // d'une Issue Sentry. Mesure et règle : `src/lib/auth-log-filter.ts`.
+            if (isUnknownAuthAction(error)) {
+                logger.warn(`[auth] Action inconnue ignorée: ${error.message}`);
+                return;
+            }
             logger.error(`[auth] ${error.name}: ${error.message}`, { authError: error.name });
         },
         warn(code: string) {
@@ -108,7 +117,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     if (!res.ok) {
                         logger.error("[Auth Security] Failed to fetch user guilds from Discord:", { status: res.status });
                         // API KO (rate-limit/5xx) : autorise uniquement un membre connu, sinon refus fail-closed.
-                        if (await isKnownManagedMember()) return true;
+                        // ⚠️ Un visiteur n'entre PAS ici : sans réponse de Discord, on ne peut pas
+                        // distinguer un inconnu d'un compte banni côté Discord (fail-closed).
+                        const decision = decideSignInAccess({
+                            hasManagedGuild: false,
+                            isKnownManagedMember: await isKnownManagedMember(),
+                            discordApiOk: false,
+                            visitorEntryEnabled: isVisitorEntryEnabled(),
+                        });
+                        if (decision.allow) return true;
                         return deny("DISCORD_API_ERROR", false);
                     }
                     const userGuilds = await res.json() as { id: string; owner?: boolean; permissions?: string }[];
@@ -160,10 +177,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     //    on tolère un membre ACTIVE connu d'une guilde gérée.
                     if (await isKnownManagedMember()) return true;
 
+                    // 7. Espace visiteur (rang 57) : un compte sans guilde gérée entre comme
+                    //    VISITEUR. Cela n'ouvre AUCUNE page du dashboard — le layout de
+                    //    `src/app/dashboard/[guildId]/layout.tsx` refuse tout non-membre via
+                    //    `getUserContext` (verrou : tests/unit/sign-in-policy.test.ts).
+                    //    Interrupteur : `PUBLIC_VISITOR_ENTRY=0` referme la porte sans code.
+                    const decision = decideSignInAccess({
+                        hasManagedGuild: false,
+                        isKnownManagedMember: false,
+                        discordApiOk: true,
+                        visitorEntryEnabled: isVisitorEntryEnabled(),
+                    });
+                    if (decision.allow) return true;
                     return deny("NO_MANAGED_GUILD", true); // Redirect to specific error page
                 } catch (e) {
                     logger.error("[Auth Security] Critical error during sign-in check:", { error: (e as Error).message });
-                    if (await isKnownManagedMember()) return true;
+                    const decision = decideSignInAccess({
+                        hasManagedGuild: false,
+                        isKnownManagedMember: await isKnownManagedMember(),
+                        discordApiOk: false,
+                        visitorEntryEnabled: isVisitorEntryEnabled(),
+                    });
+                    if (decision.allow) return true;
                     return deny("DISCORD_API_ERROR", false);
                 }
             }
@@ -251,6 +286,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 });
             } catch (e) {
                 logger.error("[Auth] Failed to update encrypted account tokens:", { error: (e as Error).message });
+            }
+
+            // D-A (02/11/2026) : une connexion est la mesure d'activité la plus fiable — elle est
+            // écrite sans passer par le throttle de `touchLastSeen` (une connexion est rare).
+            try {
+                await prisma.user.updateMany({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
+            } catch (e) {
+                logger.warn("[Auth] lastSeenAt non écrit", { error: (e as Error).message });
             }
 
             // Sync Discord nickname for each guild the user is in

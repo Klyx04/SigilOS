@@ -18,7 +18,8 @@ import { clearCachePattern } from "@/lib/cache";
 import { buildProfileSlug } from "@/lib/profile-slug";
 import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
-import { formatDofusPseudo } from "@/lib/utils";
+import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
+import { resetProgressOnAlignmentChange } from "@/server/rush-alignment";
 // Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
 import {
     PSEUDO_PATTERN,
@@ -28,12 +29,15 @@ import {
     PSEUDO_TOO_LONG_MESSAGE,
     PSEUDO_FORMAT_MESSAGE,
 } from "@/lib/pseudo-validation";
+import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
+import { fetchLadderSnapshot } from "@/server/ladder-snapshot";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
 import { metierIds } from "@/lib/metiers";
 import { postChannelMessage } from "@/server/discord";
+
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -170,36 +174,6 @@ const ToggleHiddenNavItemSchema = z.object({
 // ============================================================================
 
 /**
- * Internal helper: check if a pseudo exists on the Dofus ladder.
- * Not rate-limited — only called server-side during save operations.
- * Returns true if found, false if not found, null if service unavailable (fail-open).
- */
-async function checkPseudoExistsOnLadder(pseudo: string, serverId: string): Promise<boolean | null> {
-    const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
-    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
-
-    if (!WORKER_URL) return null; // Service unavailable → fail-open (don't block)
-
-    try {
-        const headers: Record<string, string> = { "Accept": "application/json" };
-        if (WORKER_SECRET) headers["X-SigilOS-Key"] = WORKER_SECRET;
-
-        const url = `${WORKER_URL}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudo)}&type=general`;
-        const res = await fetch(url, {
-            headers,
-            signal: AbortSignal.timeout(5000),
-            cache: "no-store",
-        });
-
-        if (!res.ok) return null; // Network error → fail-open
-        const data = await res.json().catch(() => null);
-        return !!(data?.success || data?.found);
-    } catch {
-        return null; // Timeout/crash → fail-open
-    }
-}
-
-/**
  * Indique si le toggle God « Fallback Pseudo Manuel » est actif.
  * Utilisé côté client pour autoriser la saisie d'un pseudo SANS vérification
  * ladder Ankama (identité de combat / pseudo principal) quand la liaison est KO.
@@ -260,8 +234,8 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
 
     // Use a strict rate limit for this potentially expensive worker call
     const rateLimitKey = `rate-limit:verify-pseudo:${session.user.id}`;
-    const isRateLimited = await rateLimit(rateLimitKey, 10, 60); // 10 checks per minute
-    if (!isRateLimited) return { success: false, error: "Trop de tentatives. Veuillez patienter." };
+    const isRateLimited = await rateLimit(rateLimitKey, 10, 60_000); // 10 checks per minute
+    if (!isRateLimited.success) return { success: false, error: "Trop de tentatives. Veuillez patienter." };
 
     const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
     const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
@@ -767,12 +741,22 @@ export async function getMemberProfileBySlug(guildId: string, slug: string): Pro
     }
 }
 
-export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSchema>): Promise<ActionResponse> {
+export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSchema>): Promise<ActionResponse<{ cleared: number }>> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) {
+        logger.warn("[updateUserProfile] refus", { code: "PROFILE_UNAUTHORIZED" });
+        return { success: false, error: "Session expirée. Reconnecte-toi puis réessaie." };
+    }
 
     const validation = UpdateProfileSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Données invalides" };
+    if (!validation.success) {
+        // Le détail des champs fautifs reste dans les logs (jamais à l'écran).
+        logger.warn("[updateUserProfile] refus", {
+            code: "PROFILE_SCHEMA_INVALID",
+            fields: validation.error.issues.map((issue) => issue.path.join(".")),
+        });
+        return { success: false, error: "Certains champs sont invalides. Vérifie le pseudo et la classe." };
+    }
     const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, alignment, alignmentOrder, alignmentLevel, introduction, objectifs, preferredActivities, discordContact, targetUserId } = validation.data;
     let { pseudoDofus } = validation.data;
 
@@ -786,11 +770,17 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             where: { discordGuildId: guildId },
             select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        if (!guildConfig) {
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_GUILD_NOT_FOUND" });
+            return { success: false, error: "Guilde introuvable" };
+        }
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const user = await getUserContext(guildId);
-        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+        if (!user.isAuthenticated) {
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_UNAUTHORIZED" });
+            return { success: false, error: "Session expirée. Reconnecte-toi puis réessaie." };
+        }
 
         // Effective user is self, or target if God
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -798,7 +788,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized profile update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            // Aucun identifiant dans les logs (règle : jamais de snowflake).
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_FORBIDDEN" });
             return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
         }
 
@@ -822,6 +813,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             });
 
             if (existing) {
+                logger.warn("[updateUserProfile] refus", { code: "PROFILE_PSEUDO_TAKEN", pseudo: pseudoDofus });
                 return { success: false, error: `Le pseudo "${pseudoDofus}" est déjà utilisé par un autre membre.` };
             }
 
@@ -836,6 +828,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                     // preuve ladder (liaison Ankama KO). Sans lui → refus.
                     const manualFallback = await isLadderManualFallbackEnabled();
                     if (!manualFallback) {
+                        logger.warn("[updateUserProfile] refus", {
+                            code: "PROFILE_LADDER_NOT_FOUND",
+                            pseudo: pseudoDofus,
+                        });
                         return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                     }
                 }
@@ -843,57 +839,33 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             }
 
             // Snapshot ladder immédiat : la vérif ci-dessus prouve l'existence mais
-            // n'importait aucun point — le nouveau restait à 0 PTS + "MAUVAIS ÉLÈVE"
-            // jusqu'à la prochaine bulk (22 h). On importe dès la saisie du pseudo
-            // (meilleur effort : un ladder KO n'échoue jamais la sauvegarde).
-            if (pseudoDofus) {
-                try {
-                    const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
-                    const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
-                    if (workerUrl) {
-                        const headers: Record<string, string> = { "Accept": "application/json" };
-                        if (workerSecret) headers["X-SigilOS-Key"] = workerSecret;
-                        const base = `${workerUrl}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudoDofus)}`;
-
-                        const [succesRes, generalRes] = await Promise.all([
-                            fetch(base, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
-                            fetch(`${base}&type=general`, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
-                        ]);
-
-                        let level: number | undefined;
-                        if (succesRes?.ok) {
-                            const s = await succesRes.json().catch(() => null);
-                            if (s?.success && s?.found) {
-                                if (typeof s.points === "number") ladderSnapshot.successPoints = s.points;
-                                if (typeof s.level === "number") level = s.level;
-                            }
-                        }
-                        if (generalRes?.ok) {
-                            const g = await generalRes.json().catch(() => null);
-                            if (g?.success && g?.found) {
-                                if (g.totalXp) {
-                                    const cleanXp = String(g.totalXp).replace(/\D/g, "").slice(0, 15);
-                                    if (cleanXp) ladderSnapshot.totalXp = BigInt(cleanXp);
-                                }
-                                if (g.level && level === undefined) {
-                                    const lvl = Math.min(Math.max(Number(g.level), 1), 300);
-                                    if (Number.isFinite(lvl)) level = lvl;
-                                }
-                                if (g.classe) ladderSnapshot.classe = String(g.classe).slice(0, 50);
-                            }
-                        }
-                        if (level !== undefined) ladderSnapshot.dofusLevel = level;
-                        if (ladderSnapshot.successPoints !== undefined || ladderSnapshot.totalXp !== undefined) {
-                            ladderSnapshot.lastLadderUpdate = new Date();
-                        }
-                    }
-                } catch {
-                    // Snapshot raté : la sauvegarde du profil ne doit pas échouer pour ça
-                }
-            }
+            // n'importait aucun point — le nouveau restait à 0 PTS + « MAUVAIS ÉLÈVE »
+            // jusqu'à la prochaine bulk (22 h). On importe dès la saisie du pseudo.
+            // Noyau partagé avec le profil public (`src/server/ladder-snapshot.ts`) :
+            // un worker KO rend `{}` et n'échoue jamais la sauvegarde.
+            ladderSnapshot = await fetchLadderSnapshot(pseudoDofus, serverId);
         }
         // La classe explicite reste prioritaire : on l'isole du spread.
         const { classe: ladderClasse, ...ladderRest } = ladderSnapshot;
+
+        // Logique jeu : changer de cité/Ordre réinitialise la branche quittée. Le reset vit
+        // dans l'ACTION (pas dans un formulaire) : l'onboarding et les fiches profil écrivent
+        // aussi l'alignement, sans passer par le sélecteur du guide (mesure du 12/11/2026).
+        let cleared = 0;
+        if (alignment !== undefined || alignmentOrder !== undefined) {
+            const currentProfile = await db.userProfile.findUnique({
+                where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
+                select: { id: true, alignment: true, alignmentOrder: true },
+            });
+            if (currentProfile) {
+                cleared = await resetProgressOnAlignmentChange({
+                    profileId: currentProfile.id,
+                    characterSlot: "PRINCIPAL",
+                    current: { alignment: currentProfile.alignment, alignmentOrder: currentProfile.alignmentOrder },
+                    next: { alignment, alignmentOrder },
+                });
+            }
+        }
 
         const now = new Date();
         await db.userProfile.upsert({
@@ -955,10 +927,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         revalidatePath(`/dashboard/${guildId}/members`);
         // Snapshot ladder éventuel : purger le cache du module ladder aussi.
         await clearCachePattern(`ladder:*:${guildId}*`);
-        return { success: true };
+        return { success: true, data: { cleared } };
     } catch (error) {
-        logger.error("Update Profile Error", { error });
-        return { success: false, error: "Erreur lors de la sauvegarde" };
+        logger.error("[updateUserProfile] échec", { code: "PROFILE_DB_ERROR", error });
+        return { success: false, error: "Erreur lors de la sauvegarde. Réessaie dans un instant." };
     }
 }
 
@@ -1313,7 +1285,7 @@ const UpdateMuleAlignmentSchema = z.object({
         .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE),
     alignment: z.string().nullable(),
     alignmentOrder: z.string().nullable(),
-    alignmentLevel: z.number().min(0).max(100),
+    alignmentLevel: z.number().min(0).max(100).optional(),
 });
 
 /**
@@ -1322,7 +1294,7 @@ const UpdateMuleAlignmentSchema = z.object({
  * l'alignement d'une mule : la donnée vit dans le MÊME tableau `altPseudos`
  * que le profil perso → la synchro est parfaite dans les deux sens.
  */
-export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse> {
+export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse<{ cleared: number }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -1350,12 +1322,24 @@ export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlig
         const idx = alts.findIndex((m: any) => m.pseudo === pseudo);
         if (idx === -1) return { success: false, error: `La mule "${pseudo}" est introuvable sur votre profil.` };
 
+        // Même règle que le profil principal : la mule qui change de cité/Ordre est
+        // décochée sur SA branche (characterSlot = pseudo), avant l'écriture.
+        const cleared = await resetProgressOnAlignmentChange({
+            profileId: profile.id,
+            characterSlot: pseudo,
+            current: {
+                alignment: alts[idx].alignment ?? null,
+                alignmentOrder: alts[idx].alignmentOrder ?? null,
+            },
+            next: { alignment, alignmentOrder },
+        });
+
         const isNeutre = !alignment || alignment === "neutre";
         alts[idx] = {
             ...alts[idx],
             alignment: alignment || "neutre",
             alignmentOrder: isNeutre ? null : alignmentOrder,
-            alignmentLevel: isNeutre ? 0 : alignmentLevel,
+            alignmentLevel: isNeutre ? 0 : (alignmentLevel ?? alts[idx].alignmentLevel ?? 0),
         };
 
         await db.userProfile.update({
@@ -1369,7 +1353,7 @@ export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlig
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
-        return { success: true };
+        return { success: true, data: { cleared } };
     } catch (error) {
         logger.error("Update Mule Alignment Error", { error });
         return { success: false, error: "Erreur lors de la sauvegarde" };
@@ -1937,7 +1921,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         const securedPseudo = getDisplayName(profile);
 
         const channelId = guildConfig.absenceChannelId;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const appUrl = getAppBaseUrl();
         // 🔗 #126 : slug lisible pour le lien Discord (pseudoDofus → discordNickname → id)
         const profileSlug = encodeURIComponent(buildProfileSlug({
             pseudoDofus: profile.pseudoDofus,
@@ -2190,7 +2174,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 if (achievementChannel) {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
-                    const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+                    const absoluteLink = `${getAppBaseUrl()}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
                     const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
                     
                     const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;
@@ -2317,7 +2301,7 @@ export async function reviewAchievementSubmission(input: z.infer<typeof reviewAc
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = reviewAchievementSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
     try {
         const submission = await (db as any).achievementSubmission.findUnique({
@@ -2344,6 +2328,20 @@ export async function reviewAchievementSubmission(input: z.infer<typeof reviewAc
                 where: { id: submission.profileId },
                 data: { successPoints: submission.points }
             });
+
+            // Interrupteur « Succès validés » (chantier N, lot N-4) : la préférence existait dans
+            // le profil depuis N-1 mais **rien ne l'émettait** — elle ne filtrait donc rien. Une
+            // seule ligne de flux, le détail porte les points réellement accordés.
+            {
+                const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+                await emitGuildActivity({
+                    guildId: submission.guildId,
+                    profileId: submission.profileId,
+                    kind: "succes",
+                    entityId: submission.id,
+                    detail: `${submission.points} points`,
+                });
+            }
         }
 
         // Cleanup Discord embed

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getOrCreateRushSylvestreGuide } from "@/server/actions/optimized-guide-actions";
+import { buildRushBranches, buildRushClassBranches, type RushBranchSequence } from "@/lib/rush-branches";
 import { RushSylvestreAdminClient } from "./RushSylvestreAdminClient";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,26 @@ export default async function RushSylvestreGodPage() {
 
   const guide = await getOrCreateRushSylvestreGuide();
 
+  // S4-1 — la vue Branches est calculée ICI (règle pure) : le client reste léger et une seule
+  // source alimente les quatre surfaces du guide.
+  const sequences: RushBranchSequence[] = (guide?.milestones ?? []).flatMap((milestone) =>
+    (milestone.sequences ?? []).map((seq) => ({
+      id: seq.id,
+      order: seq.order,
+      // La position dans la SÉRIE = (ordre du bloc, ordre interne) : `seq.order` seul repart
+      // à 0 dans chaque bloc, ce qui faisait trier la vue par nom (alphabet).
+      blockOrder: milestone.order,
+      subGuideName: seq.subGuideName,
+      alignReq: seq.alignReq ?? null,
+      alignOrderCode: seq.alignOrderCode ?? null,
+      alignLevelReq: seq.alignLevelReq ?? null,
+      classReq: seq.classReq ?? null,
+    })),
+  );
+  const branches = buildRushBranches(sequences);
+  // 3ᵉ étage (G4) — les 19 classes, calculées par la même règle pure.
+  const classBranches = buildRushClassBranches(sequences);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <RushSylvestreAdminClient guide={guide as any} />;
+  return <RushSylvestreAdminClient guide={guide as any} branches={branches} classBranches={classBranches} />;
 }

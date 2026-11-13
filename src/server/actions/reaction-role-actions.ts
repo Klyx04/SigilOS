@@ -128,7 +128,7 @@ export async function createReactionRoleGroupAction(guildId: string, rawData: z.
 
         const parsed = ReactionRoleGroupSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         const guildConfig = await db.guildConfig.findUnique({
@@ -189,7 +189,7 @@ export async function updateReactionRoleGroupAction(
 
         const parsed = ReactionRoleGroupSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         const guildConfig = await db.guildConfig.findUnique({

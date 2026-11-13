@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo, useTransition } from "react";
 import { Check, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star, Sword, Sparkles, Info, Mars, Venus, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ClassFilter, GenderFilter, AdvancedTagFilter, TagWithIcons, getNumericClassId } from "@/components/gallery/gallery-filters";
+import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
 
 interface GalleryClientProps {
     initialBuilds: GalleryBuild[];
@@ -71,9 +72,13 @@ export function GalleryClient({
     const [sortBy, setSortBy] = useState<"newest" | "votes">("newest");
     
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+    /** Builds affichés avec leur **variante** (bascule Stuff ⇄ Variante de la carte). */
+    const [variantViews, setVariantViews] = useState<Set<string>>(new Set());
     const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
     const [sharingIds, setSharingIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isPending, startTransition] = useTransition();
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedSkin, setSelectedSkin] = useState<GallerySkin | null>(null);
 
@@ -96,7 +101,7 @@ export function GalleryClient({
     // Evite un refetch redondant au montage : la page 1 est deja rendue par le serveur.
     const didMountRef = useRef(false);
 
-    // Reset and re-fetch from page 1 when filters change
+    // Reset and re-fetch from page 1 when filters change (unique porte d'accès au fetch)
     const applyFilters = useCallback((
         query: string,
         tags: string[],
@@ -146,76 +151,88 @@ export function GalleryClient({
         setSearchQuery(value);
     };
 
-    // Use debounced search to trigger filtering
+    /** Bascule l'affichage « stuff d'origine ⇄ variante » d'une carte de la galerie. */
+    const toggleVariantView = (buildId: string) => {
+        setVariantViews((prev) => {
+            const next = new Set(prev);
+            if (next.has(buildId)) next.delete(buildId);
+            else next.add(buildId);
+            return next;
+        });
+    };
+
+    // Use debounced search and active filter changes to trigger unique re-fetch
     useEffect(() => {
         if (!didMountRef.current) {
             didMountRef.current = true;
             return;
         }
-        if (debouncedSearch !== undefined) {
-            applyFilters(debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
-        }
+        applyFilters(debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
     }, [debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource, applyFilters]);
 
     const handleElementChange = (element: string | null) => {
-        setSelectedElement(element);
-        applyFilters(searchQuery, element ? [element, ...selectedTags] : selectedTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedElement(element);
+        });
     };
 
     const handleToggleAdvancedTag = (tagId: string) => {
-        const nextTags = selectedTags.includes(tagId)
-            ? selectedTags.filter(t => t !== tagId)
-            : [...selectedTags, tagId];
-        setSelectedTags(nextTags);
-        applyFilters(searchQuery, selectedElement ? [selectedElement, ...nextTags] : nextTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedTags(prev => prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]);
+        });
     };
 
     const handleClassChange = (classId: string | number | null) => {
         const idStr = classId !== null ? String(classId) : null;
-        setSelectedClass(idStr);
-        applyFilters(searchQuery, activeTags, idStr, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedClass(idStr);
+        });
     };
 
     const handleGenderChange = (gender: string | null) => {
-        setSelectedGender(gender);
-        applyFilters(searchQuery, activeTags, selectedClass, gender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedGender(gender);
+        });
     };
 
     const handleSourceChange = (source: "dofusbook" | null) => {
-        setSelectedSource(source);
-        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, source);
+        startTransition(() => {
+            setSelectedSource(source);
+        });
     };
     
     const handleSortChange = (newSort: "newest" | "votes") => {
-        setSortBy(newSort);
-        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, newSort, activeTab, selectedSource);
+        startTransition(() => {
+            setSortBy(newSort);
+        });
     };
 
     const handleTabChange = (newTab: "STUFF" | "SKIN") => {
-        setActiveTab(newTab);
-        // Reseting filters when changing tab to avoid confusing state
-        setSelectedElement(null);
-        setSelectedTags([]);
-        setSelectedClass(null);
-        setSelectedGender(null);
-        setSelectedSource(null);
-        applyFilters(searchQuery, [], null, null, sortBy, newTab, null);
+        startTransition(() => {
+            setActiveTab(newTab);
+            setSelectedElement(null);
+            setSelectedTags([]);
+            setSelectedClass(null);
+            setSelectedGender(null);
+            setSelectedSource(null);
+        });
     };
 
     const handleResetFilters = () => {
-        setSearchQuery("");
-        setSelectedElement(null);
-        setSelectedTags([]);
-        setSelectedClass(null);
-        setSelectedGender(null);
-        setSelectedSource(null);
-        applyFilters("", [], null, null, sortBy, activeTab, null);
+        startTransition(() => {
+            setSearchQuery("");
+            setSelectedElement(null);
+            setSelectedTags([]);
+            setSelectedClass(null);
+            setSelectedGender(null);
+            setSelectedSource(null);
+        });
     };
 
-    // Infinite scroll: load next page
+    // Infinite scroll: load next page (sans bloquer toute l'interface)
     const loadMore = () => {
         const runLoadMore = async () => {
-            setIsLoading(true);
+            setIsLoadingMore(true);
             setLoadError(null);
             try {
                 if (activeTab === "STUFF") {
@@ -257,7 +274,7 @@ export function GalleryClient({
             } catch {
                 setLoadError("Erreur réseau lors du chargement de la suite.");
             } finally {
-                setIsLoading(false);
+                setIsLoadingMore(false);
             }
         };
         runLoadMore();
@@ -273,9 +290,14 @@ export function GalleryClient({
             // Dofusbook (Cloudflare) refuse les appels serveur (challenge anti-bot) : c'est
             // le NAVIGATEUR qui récupère les données via le worker CF signé, puis elles
             // sont enregistrées dans le profil du propriétaire.
-            const baked = await bakeDofusbookFromBrowser(build.url, guildId);
+            // `force` = contourne le cache edge du worker (sinon 24 h de données figées).
+            const baked = await bakeDofusbookFromBrowser(build.url, guildId, { force: true });
             if (baked.ok) {
-                toast.success(baked.persisted ? "Build mis à jour !" : "Données récupérées (non enregistrées)");
+                if (baked.changed === false) {
+                    toast.info(`Aucun changement pour « ${build.name} »`);
+                } else {
+                    toast.success(baked.persisted ? "Build mis à jour !" : "Données récupérées (non enregistrées)");
+                }
                 applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
             } else {
                 toast.error(baked.error || "Échec du rafraîchissement");
@@ -385,14 +407,17 @@ export function GalleryClient({
     return (
         <div className="space-y-6 pb-20">
             {/* Hero Header avec fond immersif subtil et accents SigilOS */}
-            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-surface/80 via-surface/40 to-background/90 p-6 lg:p-8 shadow-xl backdrop-blur-xl">
+            {/* Performance : aucun `backdrop-filter` ni `filter: blur()` ici. Ces couches sont
+                repeintes pendant le défilement ; deux dégradés radiaux donnent le même halo sans
+                coût de composition. */}
+            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-surface/80 via-surface/40 to-background/90 p-6 lg:p-8 shadow-xl">
                 {/* Background Artwork Layer */}
-                <div 
-                    className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none mix-blend-luminosity scale-105"
+                <div
+                    className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none"
                     style={{ backgroundImage: "url('/assets/dofus/gallery-hero-bg.png')" }}
                 />
-                <div className="absolute -top-24 -left-24 w-96 h-96 bg-success/15 rounded-full blur-[100px] pointer-events-none" />
-                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_55%)] pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_55%)] pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-4">
@@ -403,7 +428,7 @@ export function GalleryClient({
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-background/80 border border-border/80 h-11 p-1 rounded-2xl shadow-inner backdrop-blur-md">
+                                <TabsList className="bg-background/80 border border-border/80 h-11 p-1 rounded-2xl shadow-inner">
                                     <TabsTrigger 
                                         value="STUFF" 
                                         className="rounded-xl px-5 h-full text-xs font-bold gap-2 data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-md transition-all duration-200"
@@ -472,7 +497,7 @@ export function GalleryClient({
 
             {/* Filter Bar — 3 groupes : Filtres / Tri / Résultats */}
             <div className="sticky top-0 z-30 pt-1">
-                <div className="bg-surface/95 backdrop-blur-xl border border-border/80 rounded-2xl px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
+                <div className="bg-surface border border-border/80 rounded-2xl px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
                     {/* Groupe Filtres */}
                     <div className="flex items-center gap-3 flex-wrap min-h-[40px]">
                         <div className="flex items-center gap-2 bg-background/60 p-1 rounded-2xl border border-border/70 shadow-inner" data-tour="galerie-filters">
@@ -543,7 +568,7 @@ export function GalleryClient({
                                 <SelectTrigger size="sm" aria-label="Trier les résultats" className="w-[8.5rem] rounded-xl bg-background/80 border-border/80 text-xs font-semibold shadow-sm">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent align="end" className="bg-background/95 backdrop-blur-xl border-border rounded-xl shadow-xl">
+                                <SelectContent align="end" className="bg-background border-border rounded-xl shadow-xl">
                                     <SelectItem value="newest">
                                         <span className="flex items-center gap-2 font-medium"><RefreshCw className="w-3.5 h-3.5 text-success" /> Récents</span>
                                     </SelectItem>
@@ -588,12 +613,32 @@ export function GalleryClient({
                         <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "STUFF", selectedSource)} />
                     ) : stuffBuilds.length > 0 ? (
                         stuffBuilds.map((build) => (
-                            <div key={build.id} className="group/card flex flex-col gap-3">
+                            <div key={build.id} className="cv-auto group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} itemSets={build.itemSets} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
-                                        <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
+                                        <div className="flex items-center justify-end gap-1.5 bg-black/60 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
+                                            {/* Bascule Stuff ⇄ Variante — visible par TOUT LE MONDE dès que
+                                                l'auteur a publié une variante. Elle vit dans le voile (et non
+                                                dans la carte) : le voile `z-10` est un frère qui recouvre le
+                                                `z-30` interne, qui restait donc invisible en galerie. */}
+                                            {build.variants && Object.keys(build.variants).length > 0 && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleVariantView(build.id); }}
+                                                    aria-pressed={variantViews.has(build.id)}
+                                                    className={cn(
+                                                        "px-2 py-1 rounded-xl text-[10px] font-bold transition-colors pointer-events-auto",
+                                                        variantViews.has(build.id)
+                                                            ? "bg-warning text-warning-foreground shadow-sm"
+                                                            : "bg-white/10 text-foreground hover:bg-white/20",
+                                                    )}
+                                                    title={variantViews.has(build.id) ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée"}
+                                                    aria-label={variantViews.has(build.id) ? "Afficher le stuff d'origine" : "Afficher la variante proposée"}
+                                                >
+                                                    Variante ({Object.keys(build.variants).length})
+                                                </button>
+                                            )}
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}
@@ -664,7 +709,17 @@ export function GalleryClient({
                                         </div>
                                     </div>
                                 </div>
-                                <BuildStatsLine previewData={build.previewData} />
+                                {/* Stats clés : celles de la variante quand la bascule est active
+                                    (même donnée que la carte, recalculée par `applyVariantsToBuild`,
+                                    panoplies comprises). `null` = panoplies indisponibles : on garde
+                                    le stuff d'origine et la carte l'annonce explicitement. */}
+                                <BuildStatsLine
+                                    previewData={
+                                        variantViews.has(build.id) && build.variants
+                                            ? applyVariantsToBuild(build.previewData, build.variants ?? {}, build.itemSets) ?? build.previewData
+                                            : build.previewData
+                                    }
+                                />
                                 <div className="flex items-center justify-between px-3 py-1.5 bg-surface/40 rounded-2xl border border-border/50">
                                     <div className="flex items-center gap-2">
                                         <Avatar className="w-6 h-6 border border-border/80 shadow-xs">
@@ -710,7 +765,7 @@ export function GalleryClient({
                         <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "SKIN", selectedSource)} />
                     ) : skinBuilds.length > 0 ? (
                         skinBuilds.map((skin) => (
-                            <div key={skin.id} className="group/card flex flex-col gap-3">
+                            <div key={skin.id} className="cv-auto group/card flex flex-col gap-3">
                                 <div 
                                     onClick={() => setSelectedSkin(skin)}
                                     className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-surface group-hover/card:border-sky-500/50 transition-all cursor-pointer"
@@ -802,6 +857,10 @@ export function GalleryClient({
                                                     <img 
                                                         src={`https://www.google.com/s2/favicons?domain=${skin.provider === 'BARBOFUS' ? 'barbofus.com' : skin.provider === 'DOFUSSKINMANGA' ? 'dofusskinmanga.com' : 'google.com'}&sz=32`}
                                                         alt="" 
+                                                        width={14}
+                                                        height={14}
+                                                        loading="lazy"
+                                                        decoding="async"
                                                         className="w-3.5 h-3.5 object-contain rounded"
                                                     />
                                                 </a>
@@ -857,7 +916,7 @@ export function GalleryClient({
 
             {/* Skin Detail Modal */}
             <Dialog open={!!selectedSkin} onOpenChange={(open) => !open && setSelectedSkin(null)}>
-                <DialogContent className="bg-background/95 backdrop-blur-2xl border-border text-foreground sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
+                <DialogContent className="bg-background border-border text-foreground sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
                     <DialogTitle className="sr-only">Détails du Look</DialogTitle>
                     <DialogDescription className="sr-only">Aperçu et métadonnées du skin partagé par la guilde.</DialogDescription>
                     {selectedSkin && (
@@ -877,12 +936,12 @@ export function GalleryClient({
                                 )}
                                 
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                                    <div className="bg-sky-500/20 backdrop-blur-xl px-3 py-1 rounded-full border border-sky-500/30 w-fit">
+                                    <div className="bg-sky-500/20 px-3 py-1 rounded-full border border-sky-500/30 w-fit">
                                         <span className="text-caption font-black text-sky-400 tracking-widest uppercase">
                                             {selectedSkin.provider}
                                         </span>
                                     </div>
-                                    <div className="bg-background/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-border w-fit shadow-2xl flex items-center gap-2">
+                                    <div className="bg-background/80 px-3 py-1 rounded-xl border border-border w-fit shadow-2xl flex items-center gap-2">
                                         <Avatar className="w-4 h-4 border border-border">
                                             <AvatarImage src={selectedSkin.author.image || undefined} />
                                             <AvatarFallback className="text-caption bg-surface">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
@@ -1007,7 +1066,7 @@ export function GalleryClient({
                             </div>
 
                             {/* Sticky Footer */}
-                            <div className="p-4 bg-surface/80 backdrop-blur-lg border-t border-border grid grid-cols-2 gap-3 shrink-0">
+                            <div className="p-4 bg-surface border-t border-border grid grid-cols-2 gap-3 shrink-0">
                                 <Button 
                                     asChild
                                     variant="outline" 

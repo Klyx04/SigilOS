@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { logServiceActivity } from "./activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { LoanType, LoanStatus, NotificationType, NotificationCategory } from "@prisma/client";
@@ -29,6 +29,7 @@ import { hashImage } from "@/lib/llm-ocr";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { createNotification } from "./notification-actions";
 import { rateLimit } from "@/lib/ratelimit";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const profileSelect = {
     id: true,
@@ -157,7 +158,7 @@ export async function createLoan(
 
         const parsed = createLoanSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         if (parsed.data.borrowerProfileId === user.profileId) {
@@ -310,7 +311,7 @@ export async function createLoan(
                     // SECURITY: Validate channel belongs to this guild
                     const valid = await validateChannelBelongsToGuild(channelId, guildId);
                     if (valid) {
-                        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                        const appUrl = getAppBaseUrl();
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
                         // Discord needs an absolute URL with access token
                         const publicProofUrl = getDiscordPublicUrl(proofUrl);

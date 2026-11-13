@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import { raceWithDeadline } from "@/lib/discord/deadline";
+import { rateLimit } from "@/lib/ratelimit";
 import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
@@ -8,6 +11,12 @@ import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-c
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
+import { resolveGuildActivityState, type GuildActivityState } from "@/lib/discord-guild-state";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, isStandByActive } from "@/lib/group-standby";
+import { runInteractionRefusal } from "@/lib/songes/run-status";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
+import type { TicketAuthorizationContext } from "@/lib/tickets/access";
 import {
     buildTicketModalSubmittedReply,
     buildTicketOpenRefusal,
@@ -15,7 +24,11 @@ import {
     buildTicketTunnelReply,
     type TicketStepReply,
 } from "@/lib/tickets/journey-dispatch";
-import { TICKET_PICK_PREFIX, parseTicketCustomId } from "@/lib/tickets/interaction-routing";
+import {
+    TICKET_PICK_PREFIX,
+    parseTicketCustomId,
+    isTicketCustomId,
+} from "@/lib/tickets/interaction-routing";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -28,41 +41,19 @@ const VALID_CLASSES = [
 ];
 
 // ============================================
-// RATE LIMIT (simple in-memory, per Discord user)
+// RATE LIMIT (Redis, par utilisateur Discord)
 // ============================================
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
-
-    if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-        return true;
-    }
-
-    if (entry.count >= maxRequests) return false;
-
-    entry.count++;
-    return true;
-}
-
-/** Returns remaining wait seconds (0 = not rate-limited) */
-function getRateLimitRemaining(key: string, maxRequests: number, windowMs: number): number {
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
-
-    if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-        return 0;
-    }
-
-    if (entry.count >= maxRequests) {
-        return Math.ceil((entry.resetAt - now) / 1000);
-    }
-
-    entry.count++;
-    return 0;
+/**
+ * Consomme un jeton et renvoie l'attente en **secondes** (`0` = autorisé).
+ *
+ * Store **Redis** (`rateLimit`, avec son repli mémoire **borné** et purge) : l'ancienne
+ * `Map` locale de cette route grandissait sans purge et repartait de zéro à chaque
+ * déploiement — deux instances = deux compteurs (règle `AGENTS.md` §5.8).
+ */
+async function consumeRateLimit(key: string, maxRequests: number, windowMs: number): Promise<number> {
+    const result = await rateLimit(`discord-interaction:${key}`, maxRequests, windowMs);
+    if (result.success) return 0;
+    return Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
 }
 
 // ============================================
@@ -131,11 +122,219 @@ function ephemeralDiscordRefusal(content: string): NextResponse {
     return ephemeralDiscordMessage(content);
 }
 
+/**
+ * Bouton **« Stand-by »** (30/10/2026) — `dj:standby:{postId}`, `songes:standby:{runId}`,
+ * `calendar:standby:{eventId}`.
+ *
+ * Discord ne sait **pas** désactiver un bouton pour une seule personne : le contrôle du
+ * créateur est donc fait **ici**, et le refus est **éphémère** (jamais public). La levée par
+ * un administrateur existe côté dashboard (`setDjPostStandBy` / `setDreamRunStandBy` /
+ * `setEventStandBy`) : c'est la porte de sortie quand le créateur a quitté le serveur.
+ *
+ * La trace de qui a suspendu / repris est portée par la donnée elle-même
+ * (`standBy = { at, userId, name }`, règle `@/lib/group-standby`), recopiée dans l'embed.
+ *
+ * ⏱️ La mise à jour de l'embed part **après** la réponse (`after`) : l'interaction doit
+ * répondre en moins de 3 s, et l'édition Discord est un aller-retour réseau.
+ */
+async function handleStandByButton(args: {
+    prefix: string;
+    entityId: string;
+    discordGuildId: string;
+    accountUserId: string;
+}): Promise<NextResponse> {
+    const { prefix, entityId, discordGuildId, accountUserId } = args;
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return ephemeralDiscordRefusal("❌ Guilde introuvable sur SigilOS.");
+
+    let creatorUserId: string | null = null;
+    let current: unknown = null;
+
+    switch (prefix) {
+        case "dj": {
+            const post = await (db as any).djSearchPost.findFirst({
+                where: { id: entityId, guildId: guildConfig.id },
+                select: { id: true, standBy: true, status: true, profile: { select: { userId: true } } },
+            });
+            if (!post) return ephemeralDiscordRefusal("❌ Ce groupe n'existe plus ou a expiré.");
+            if (post.status === "CLOSED" || post.status === "EXPIRED") {
+                return ephemeralDiscordRefusal("❌ Ce groupe est fermé.");
+            }
+            creatorUserId = post.profile?.userId ?? null;
+            current = post.standBy;
+            break;
+        }
+        case "songes": {
+            // `DreamRun.guildId` porte l'un **ou** l'autre selon le chemin d'écriture (mesure du
+            // 30/10/2026 : création = id interne, fermeture = snowflake) — on accepte les deux.
+            const run = await db.dreamRun.findFirst({
+                where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                select: { id: true, leaderId: true, status: true, standBy: true },
+            });
+            if (!run) return ephemeralDiscordRefusal("❌ Cette run n'existe plus.");
+            // Une run close n'accepte plus aucune interaction — refus **par cause**
+            // (archivée / terminée / échouée), même règle que le bouton Postuler.
+            const refusal = runInteractionRefusal(run.status);
+            if (refusal) return ephemeralDiscordRefusal(`❌ ${refusal}`);
+            creatorUserId = run.leaderId;
+            current = run.standBy;
+            break;
+        }
+        case "calendar": {
+            const event = await db.guildEvent.findFirst({
+                where: { id: entityId, guildId: guildConfig.id },
+                select: { id: true, creatorId: true, status: true, standBy: true, metadata: true },
+            });
+            if (!event) return ephemeralDiscordRefusal("❌ Cet événement n'existe plus.");
+            if (isAgendaMirror(event.metadata)) {
+                // Un miroir DJ/Songes suit sa source : la pause se pose sur le post d'origine.
+                return ephemeralDiscordRefusal("❌ Miroir lecture seule — mets le post d'origine en stand-by.");
+            }
+            if (event.status === "COMPLETED" || event.status === "CANCELLED") {
+                return ephemeralDiscordRefusal("❌ Cet événement est clôturé ou annulé.");
+            }
+            creatorUserId = event.creatorId;
+            current = event.standBy;
+            break;
+        }
+        default:
+            return ephemeralDiscordRefusal("❌ Action inconnue.");
+    }
+
+    // Fail-closed : sans créateur identifiable, personne ne manipule la pause depuis Discord.
+    if (!creatorUserId || creatorUserId !== accountUserId) {
+        return ephemeralDiscordRefusal("🚫 Seul le créateur du groupe peut le mettre en stand-by.");
+    }
+
+    const paused = !isStandByActive(current);
+    try {
+        if (paused) {
+            const profile = await db.userProfile.findFirst({
+                where: { userId: accountUserId, guildId: guildConfig.id },
+                select: { pseudoDofus: true, discordNickname: true, user: { select: { name: true } } },
+            });
+            const state = buildStandBy({
+                at: new Date(),
+                userId: accountUserId,
+                name:
+                    profile?.pseudoDofus ||
+                    profile?.discordNickname ||
+                    profile?.user?.name ||
+                    "un membre",
+            });
+            if (!state) return ephemeralDiscordRefusal("❌ Impossible d'identifier l'auteur de la pause.");
+
+            if (prefix === "dj") {
+                await (db as any).djSearchPost.updateMany({
+                    where: { id: entityId, guildId: guildConfig.id },
+                    data: { standBy: state },
+                });
+            } else if (prefix === "songes") {
+                await db.dreamRun.updateMany({
+                    where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                    data: { standBy: state as never },
+                });
+            } else {
+                await db.guildEvent.updateMany({
+                    where: { id: entityId, guildId: guildConfig.id },
+                    data: { standBy: state as never },
+                });
+            }
+        } else if (prefix === "dj") {
+            await (db as any).djSearchPost.updateMany({
+                where: { id: entityId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        } else if (prefix === "songes") {
+            await db.dreamRun.updateMany({
+                where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                data: { standBy: Prisma.DbNull },
+            });
+        } else {
+            await db.guildEvent.updateMany({
+                where: { id: entityId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        }
+    } catch (error) {
+        logger.error("[DiscordStandBy] écriture impossible", { prefix, entityId, error: String(error) });
+        return ephemeralDiscordRefusal("❌ Le stand-by n'a pas pu être enregistré.");
+    }
+
+    // Réponse immédiate (contrat des 3 s), puis rafraîchissement de l'embed + miroir agenda.
+    after(async () => {
+        try {
+            if (prefix === "dj") {
+                const { updateDjDiscordEmbed } = await import("@/server/actions/dungeon-finder-actions");
+                await updateDjDiscordEmbed(discordGuildId, entityId);
+                const { syncDjMirror } = await import("@/server/agenda-mirror-sync");
+                await syncDjMirror(discordGuildId, entityId).catch(() => null);
+            } else if (prefix === "songes") {
+                const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+                await updateDiscordRunEmbed(discordGuildId, entityId);
+                const { syncSongesMirror } = await import("@/server/agenda-mirror-sync");
+                await syncSongesMirror(discordGuildId, entityId).catch(() => null);
+            } else {
+                const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+                await updateDiscordEventEmbed(discordGuildId, entityId);
+            }
+        } catch (error) {
+            logger.warn("[DiscordStandBy] rafraîchissement différé en échec", {
+                prefix,
+                entityId,
+                error: String(error),
+            });
+        }
+    });
+
+    return ephemeralDiscordMessage(
+        paused
+            ? "⏸️ Groupe mis en **stand-by** : les rappels et les relances sont suspendus. Clique à nouveau pour reprendre."
+            : "▶️ **Stand-by levé** : les rappels et les relances reprennent."
+    );
+}
+
 /** Textes de refus partagés par les boutons **et** les modales (une source). */
 const DISCORD_ACCOUNT_REQUIRED =
     "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.";
 const DISCORD_PERMISSION_DENIED =
     "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.";
+const DISCORD_GUILD_INACTIVE =
+    "❌ Cette guilde est désactivée sur SigilOS : aucune action n'est possible. Son propriétaire peut la réactiver depuis le portail.";
+const DISCORD_GUILD_STATE_UNKNOWN =
+    "⏳ Impossible de vérifier l'état de cette guilde pour le moment. Réessaie dans un instant.";
+
+/**
+ * État de la guilde pour le **garde d'interactions**.
+ *
+ * 🐛 Mesure du 01/11/2026 : un soft-delete (`GuildConfig.isActive=false` / `deletedAt`) ferme le
+ * site, mais **pas Discord** — les messages et leurs boutons survivent, la résolution par
+ * `discordGuildId` ne filtre pas l'état, et `internalCheckPermission` ne le regarde pas non plus.
+ * Un clic continuait donc d'écrire sur une guilde désactivée.
+ *
+ * - `absent` : aucune config (guilde pas encore déployée) → comportement inchangé ;
+ * - `error` : lecture impossible → **fail-closed** (on ne devine pas un droit).
+ */
+async function readGuildActivityState(
+    discordGuildId: string,
+): Promise<GuildActivityState> {
+    try {
+        const row = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { isActive: true, deletedAt: true },
+        });
+        return resolveGuildActivityState(row);
+    } catch (error) {
+        logger.error("[Discord Interaction] état de guilde illisible — refus par défaut", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return "error";
+    }
+}
 
 /**
  * Gate RBAC **commun** aux deux types d'interaction (3 = bouton, 5 = modale).
@@ -273,19 +472,58 @@ async function ticketJourneyInteraction(input: {
 }
 
 export async function POST(request: NextRequest) {
+    const interactionStartedAt = Date.now();
+    let interactionLabel: string | null = null;
     try {
         const bodyText = await request.text();
         const isValid = await verifyDiscordSignature(request, bodyText);
 
         if (!isValid) {
+            // 🚨 Un refus de signature rend **toutes** les commandes muettes côté Discord
+            // (« L'application n'a pas répondu »). On garde une trace avec le contexte
+            // (jamais le secret lui-même) pour distinguer clé absente / proxy / rejeu.
+            logger.warn("[Discord Interaction] signature refusée", {
+                hasPublicKey: Boolean(
+                    process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY
+                ),
+                hasTimestamp: Boolean(request.headers.get("x-signature-timestamp")),
+                hasSignature: Boolean(request.headers.get("x-signature-ed25519")),
+            });
             return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
         }
 
         const payload = JSON.parse(bodyText);
 
+        // Étiquette de diagnostic (jamais de contenu utilisateur) : sert à savoir
+        // QUELLE interaction dépasse le budget de 3 s.
+        const rawCustomId = typeof payload?.data?.custom_id === "string" ? payload.data.custom_id : "";
+        interactionLabel =
+            payload?.type === 2
+                ? `/${String(payload.data?.name ?? "?")}`
+                : payload?.type === 3 || payload?.type === 5
+                  ? `${payload.type === 3 ? "button" : "modal"}:${rawCustomId.split(":")[0] || "?"}`
+                  : `type:${String(payload?.type ?? "?")}`;
+
         // 1. Handle Ping
         if (payload.type === 1) {
             return NextResponse.json({ type: 1 });
+        }
+
+        // 🔒 Guilde désactivée ou supprimée : plus aucune interaction n'écrit (garde unique, avant
+        // tout dispatch). God n'est **pas** exempté : il réactive la guilde depuis la console, puis
+        // teste — laisser écrire sur des données archivées les corromprait.
+        const interactionGuildId = typeof payload?.guild_id === "string" ? payload.guild_id : null;
+        if (interactionGuildId) {
+            const guildState = await readGuildActivityState(interactionGuildId);
+            if (guildState === "inactive" || guildState === "error") {
+                // L'autocomplete attend des **choix** (type 8), jamais un message éphémère.
+                if (payload.type === 4) {
+                    return NextResponse.json({ type: 8, data: { choices: [] } });
+                }
+                return ephemeralDiscordRefusal(
+                    guildState === "inactive" ? DISCORD_GUILD_INACTIVE : DISCORD_GUILD_STATE_UNKNOWN,
+                );
+            }
         }
 
         // 2. Handle Component Interaction (Button click)
@@ -315,7 +553,7 @@ export async function POST(request: NextRequest) {
             };
 
             // Rate limit: 10 interactions per 60s per discord user
-            if (!checkRateLimit(`interaction:${discordUserId}`, 10, 60_000)) {
+            if ((await consumeRateLimit(`interaction:${discordUserId}`, 10, 60_000)) > 0) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "⏳ Tu fais trop de requêtes. Réessaie dans quelques secondes.", flags: 64 },
@@ -326,8 +564,11 @@ export async function POST(request: NextRequest) {
             // #26 multi-donjons : custom_id = dj:join:{postId}:{idx} → index du donjon
             const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
 
+            // Les tickets (v1 `ticket:`, v2 `tb:` et `tb_pick:`) et les rôles-réactions (`rr:`)
+            // ne requièrent aucun compte SigilOS (un candidat ou visiteur doit pouvoir postuler/ouvrir un ticket).
+            const isTicketInteraction = isTicketCustomId(custom_id) || prefix === "ticket";
             const account = await findUserByDiscordId(member.user.id);
-            if (!account && prefix !== "ticket" && prefix !== "rr") {
+            if (!account && !isTicketInteraction && prefix !== "rr") {
                 return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
             }
 
@@ -353,7 +594,7 @@ export async function POST(request: NextRequest) {
 
                 if (prefix === "dj") {
                     const djKey = `dj:${member.user.id}:${entityId}`;
-                    const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                    const waitSecs = await consumeRateLimit(djKey, 3, 30_000);
                     if (waitSecs > 0) {
                         return ephemeralDiscordMessage(`⏳ Doucement ! Réessaie dans **${waitSecs}s**.`);
                     }
@@ -519,6 +760,26 @@ export async function POST(request: NextRequest) {
                 return ephemeralDiscordMessage("❌ Action calendrier inconnue.");
             } else if (prefix === "songes") {
                 if (action === "join") {
+                    // Une run close ne doit plus ouvrir la modale : le refus arrivait APRÈS
+                    // soumission, avec un message qui parlait de « candidatures » alors que
+                    // la run avait été archivée automatiquement (mesure du 05/11/2026).
+                    const guildConfig = await db.guildConfig.findUnique({
+                        where: { discordGuildId: guild_id },
+                        select: { id: true },
+                    });
+                    // `DreamRun.guildId` porte l'un **ou** l'autre selon le chemin d'écriture
+                    // (mesure du 30/10/2026) — même portée que le handler stand-by.
+                    const run = await db.dreamRun.findFirst({
+                        where: {
+                            id: entityId,
+                            guildId: { in: [guild_id, ...(guildConfig ? [guildConfig.id] : [])] },
+                        },
+                        select: { status: true },
+                    });
+                    if (!run) return ephemeralDiscordRefusal("❌ Cette run n'existe plus.");
+                    const refusal = runInteractionRefusal(run.status);
+                    if (refusal) return ephemeralDiscordRefusal(`❌ ${refusal}`);
+
                     // Open a Modal for class selection + optional message
                     return NextResponse.json({
                         type: 9, // MODAL
@@ -562,6 +823,15 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account!.userId);
                 }
+            } else if (action === "standby") {
+                // Stand-by (30/10/2026) : bouton visible pour tous, action réservée au
+                // créateur — Discord ne sait pas griser un bouton par personne.
+                return await handleStandByButton({
+                    prefix,
+                    entityId,
+                    discordGuildId: guild_id,
+                    accountUserId: account!.userId,
+                });
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     // Find the internal guild config by discordGuildId (guild_id)
@@ -604,7 +874,7 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "dj") {
                 // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
                 const djKey = `dj:${member.user.id}:${entityId}`;
-                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                const waitSecs = await consumeRateLimit(djKey, 3, 30_000);
                 if (waitSecs > 0) {
                     return NextResponse.json({
                         type: 4,
@@ -1003,6 +1273,18 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Réponse éphémère à l'admin (l'embed a été supprimé par internalValidate*)
+                // Garantie fail-safe : suppression explicite du message cliqué si présent
+                const interactionChannelId = payload.channel_id || payload.message?.channel_id;
+                const interactionMessageId = payload.message?.id;
+                if (interactionChannelId && interactionMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(interactionChannelId, interactionMessageId);
+                    } catch (_) {
+                        // Best-effort (peut avoir déjà été supprimé par internalValidate*)
+                    }
+                }
+
                 return NextResponse.json({
                     type: 4, // CHANNEL_MESSAGE_WITH_SOURCE (éphémère)
                     data: {
@@ -1046,7 +1328,7 @@ export async function POST(request: NextRequest) {
                 // =========================================================
                 if (action === "open") {
                     // RATE LIMIT: 1 ticket every 10 seconds per user
-                    const waitSec = getRateLimitRemaining(`ticket:${member.user.id}`, 1, 10_000);
+                    const waitSec = await consumeRateLimit(`ticket:${member.user.id}`, 1, 10_000);
                     if (waitSec > 0) {
                         return NextResponse.json({
                             type: 4,
@@ -1376,6 +1658,7 @@ export async function POST(request: NextRequest) {
                     internalHandleTicketTranscript,
                     internalHandleTicketDelete,
                     internalHandleTicketCsat,
+                    guardTicketAction,
                 } = await import("@/server/actions/ticket-bot-actions");
                 const { buildCloseConfirmRows, buildDeleteConfirmRows } = await import(
                     "@/lib/tickets/embeds"
@@ -1389,19 +1672,73 @@ export async function POST(request: NextRequest) {
                         return NextResponse.json({ type: 4, data: { content: "Catégorie non spécifiée", flags: 64 } });
                     }
 
-                    // 🆕 Blacklist : un rôle bloqué ne peut pas ouvrir de ticket.
+                    // 🆕 Contrôles préalables immédiats au 1er clic (fail-fast, aucun questionnaire affiché si non éligible)
                     {
                         const { db: blacklistDb } = await import("@/lib/prisma");
-                        const { readTicketPermissionSettings, isBlacklisted } = await import(
-                            "@/lib/tickets/category-permissions"
-                        );
+                        const { readTicketPermissionSettings, isBlacklisted, isTicketOpenAllowedByRoles } =
+                            await import("@/lib/tickets/category-permissions");
                         const guildForBlacklist = await blacklistDb.guildConfig.findUnique({
                             where: { discordGuildId: guild_id },
                             select: {
                                 id: true,
-                                ticketConfig: { select: { settingsJson: true } },
+                                ticketConfig: {
+                                    select: {
+                                        isEnabled: true,
+                                        settingsJson: true,
+                                        maxActiveTicketsPerUser: true,
+                                        maxTicketsTotalGuild: true,
+                                    },
+                                },
                             },
                         });
+
+                        if (!guildForBlacklist?.ticketConfig?.isEnabled) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Le module de support n'est pas activé sur ce serveur.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Quota actif par membre (vérifié AVANT de proposer un formulaire)
+                        const maxActiveUser = guildForBlacklist.ticketConfig.maxActiveTicketsPerUser ?? 1;
+                        const activeUserTickets = await blacklistDb.ticketRecord.count({
+                            where: {
+                                guildId: guildForBlacklist.id,
+                                creatorDiscordId: ticketActorContext.discordUserId,
+                                status: { in: ["OPEN", "CLAIMED", "PENDING_USER"] },
+                            },
+                        });
+                        if (activeUserTickets >= maxActiveUser) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: `❌ Tu as déjà ${activeUserTickets} ticket(s) ouvert(s). Attends leur résolution avant d'en ouvrir un nouveau.`,
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Quota global du serveur
+                        const maxGuildTickets = guildForBlacklist.ticketConfig.maxTicketsTotalGuild ?? 50;
+                        const activeGuildTickets = await blacklistDb.ticketRecord.count({
+                            where: {
+                                guildId: guildForBlacklist.id,
+                                status: { in: ["REQUESTED", "OPEN", "CLAIMED", "PENDING_USER", "RESOLVED", "ARCHIVE_FAILED"] },
+                            },
+                        });
+                        if (activeGuildTickets >= maxGuildTickets) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: `❌ Cette guilde a déjà ${activeGuildTickets} ticket(s) ouvert(s) (maximum ${maxGuildTickets}). Réessaie après une clôture.`,
+                                    flags: 64,
+                                },
+                            });
+                        }
+
                         const blacklistSettings = readTicketPermissionSettings(
                             (guildForBlacklist?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
                         );
@@ -1410,6 +1747,27 @@ export async function POST(request: NextRequest) {
                                 type: 4,
                                 data: {
                                     content: "🚫 Tu ne peux pas ouvrir de ticket sur ce serveur. / You cannot open a ticket on this server.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // 🆕 RBAC d'ouverture (16/10/2026) : seuls les rôles choisis pour CE motif
+                        // peuvent l'ouvrir. Liste vide = tout le monde (comportement historique) ;
+                        // un administrateur Discord passe toujours. Refus **motivé**, jamais muet.
+                        if (
+                            !isTicketOpenAllowedByRoles({
+                                settings: blacklistSettings,
+                                motifKey: categoryId,
+                                actorRoleIds: ticketActorContext.discordUserRoleIds,
+                                actorIsAdmin: ticketActorContext.discordUserIsAdmin,
+                            })
+                        ) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content:
+                                        "🚫 Ton rôle ne permet pas d'ouvrir ce type de demande. / Your role cannot open this request type.",
                                     flags: 64,
                                 },
                             });
@@ -1528,6 +1886,18 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "note") {
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut ajouter une note.", flags: 64 },
+                        });
+                    }
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
@@ -1553,6 +1923,18 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "rename") {
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut renommer ce ticket.", flags: 64 },
+                        });
+                    }
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
@@ -1582,11 +1964,45 @@ export async function POST(request: NextRequest) {
                     // (`requireConfirm: false` dans `settingsJson`). Le motif est demandé
                     // à l'étape suivante (`close_confirm` → modale `modal_close`).
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff_or_creator",
+                        buttonKey: "close",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Tu n'as pas l'autorisation de fermer ce ticket.", flags: 64 },
+                        });
+                    }
+                    const { db: closeDb } = await import("@/lib/prisma");
+                    const {
+                        readTicketPermissionSettings,
+                        requireCloseConfirm,
+                        readTicketMessagingSettings,
+                    } = await import("@/lib/tickets/category-permissions");
+                    const { resolveTicketLang, ticketLabel } = await import("@/lib/tickets/ticket-texts");
+                    const ticketForClose = await closeDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            categoryId: true,
+                            journeyId: true,
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const ticketForCloseSettingsJson =
+                        (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                            ?.settingsJson;
+                    const closeLang = resolveTicketLang(
+                        readTicketMessagingSettings(ticketForCloseSettingsJson).ticketLanguage
+                    );
                     const closeModal = {
                         type: 9, // MODAL
                         data: {
                             custom_id: `tb:modal_close:${ticketId}`,
-                            title: "Fermer / Close",
+                            title: ticketLabel("close", closeLang),
                             components: [
                                 {
                                     type: 1,
@@ -1594,9 +2010,12 @@ export async function POST(request: NextRequest) {
                                         {
                                             type: 4,
                                             custom_id: "close_reason",
-                                            label: "Motif (optionnel) / Reason (optional)",
+                                            label: ticketLabel("closeNeedsReason", closeLang),
                                             style: 2,
-                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
+                                            placeholder:
+                                                closeLang === "en"
+                                                    ? "Solved, inactive, duplicate..."
+                                                    : "Problème résolu, inactivité, doublon...",
                                             required: false,
                                             max_length: 500,
                                         },
@@ -1606,21 +2025,7 @@ export async function POST(request: NextRequest) {
                         },
                     } as const;
                     {
-                        const { db: closeDb } = await import("@/lib/prisma");
-                        const { readTicketPermissionSettings, requireCloseConfirm } = await import(
-                            "@/lib/tickets/category-permissions"
-                        );
-                        const ticketForClose = await closeDb.ticketRecord.findFirst({
-                            where: { id: ticketId, discordGuildId: guild_id },
-                            select: {
-                                categoryId: true,
-                                journeyId: true,
-                                guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
-                            },
-                        });
-                        const closeSettings = readTicketPermissionSettings(
-                            (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
-                        );
+                        const closeSettings = readTicketPermissionSettings(ticketForCloseSettingsJson);
                         if (!requireCloseConfirm(closeSettings, ticketForClose?.categoryId ?? ticketForClose?.journeyId)) {
                             return NextResponse.json(closeModal);
                         }
@@ -1629,18 +2034,39 @@ export async function POST(request: NextRequest) {
                         type: 4,
                         data: {
                             content:
-                                "Fermer ce ticket ? / Close this ticket?\nLe salon restera visible par l'équipe. / The channel stays visible to the staff.",
+                                closeLang === "en"
+                                    ? `${ticketLabel("closeConfirmTitle", closeLang)}\nThe channel stays visible to the staff.`
+                                    : `${ticketLabel("closeConfirmTitle", closeLang)}\nLe salon restera visible par l'équipe.`,
                             flags: 64,
-                            components: buildCloseConfirmRows(ticketId),
+                            components: buildCloseConfirmRows(ticketId, closeLang),
                         },
                     });
                 } else if (action === "close_confirm") {
                     const ticketId = entityId;
+                    const { db: confirmDb } = await import("@/lib/prisma");
+                    const { readTicketMessagingSettings: readConfirmMessaging } = await import(
+                        "@/lib/tickets/category-permissions"
+                    );
+                    const { resolveTicketLang: resolveConfirmLang, ticketLabel: confirmLabel } = await import(
+                        "@/lib/tickets/ticket-texts"
+                    );
+                    const ticketForConfirm = await confirmDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const confirmLang = resolveConfirmLang(
+                        readConfirmMessaging(
+                            (ticketForConfirm?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                                ?.settingsJson
+                        ).ticketLanguage
+                    );
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
                             custom_id: `tb:modal_close:${ticketId}`,
-                            title: "Fermer / Close",
+                            title: confirmLabel("close", confirmLang),
                             components: [
                                 {
                                     type: 1,
@@ -1648,9 +2074,12 @@ export async function POST(request: NextRequest) {
                                         {
                                             type: 4,
                                             custom_id: "close_reason",
-                                            label: "Motif (optionnel) / Reason (optional)",
+                                            label: confirmLabel("closeNeedsReason", confirmLang),
                                             style: 2,
-                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
+                                            placeholder:
+                                                confirmLang === "en"
+                                                    ? "Solved, inactive, duplicate..."
+                                                    : "Problème résolu, inactivité, doublon...",
                                             required: false,
                                             max_length: 500,
                                         },
@@ -1662,18 +2091,52 @@ export async function POST(request: NextRequest) {
                 } else if (action === "cancel_close" || action === "cancel_delete") {
                     return NextResponse.json({
                         type: 4,
-                        data: { content: "Annulé. / Cancelled.", flags: 64 },
+                        data: { content: "Annulé.", flags: 64 },
                     });
                 } else if (action === "delete") {
                     // 🆕 La suppression est un geste explicite avec confirmation.
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        buttonKey: "delete",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut supprimer ce ticket.", flags: 64 },
+                        });
+                    }
+                    const { db: deleteDb } = await import("@/lib/prisma");
+                    const { readTicketMessagingSettings: readDeleteMessaging } = await import(
+                        "@/lib/tickets/category-permissions"
+                    );
+                    const { resolveTicketLang: resolveDeleteLang, ticketLabel: deleteLabel } = await import(
+                        "@/lib/tickets/ticket-texts"
+                    );
+                    const ticketForDelete = await deleteDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const deleteLang = resolveDeleteLang(
+                        readDeleteMessaging(
+                            (ticketForDelete?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                                ?.settingsJson
+                        ).ticketLanguage
+                    );
                     return NextResponse.json({
                         type: 4,
                         data: {
                             content:
-                                "Supprimer ce salon ? / Delete this channel?\nSuppression définitive. La copie reste dans les archives si activée. / Permanently deletes the channel.",
+                                deleteLang === "en"
+                                    ? `${deleteLabel("deleteConfirmTitle", deleteLang)}\nPermanently deletes the channel.`
+                                    : `${deleteLabel("deleteConfirmTitle", deleteLang)}\nSuppression définitive. La copie reste dans les archives si activée.`,
                             flags: 64,
-                            components: buildDeleteConfirmRows(ticketId),
+                            components: buildDeleteConfirmRows(ticketId, deleteLang),
                         },
                     });
                 } else if (action === "delete_confirm") {
@@ -1681,12 +2144,17 @@ export async function POST(request: NextRequest) {
                     const { internalHandleTicketDelete: doDelete } = await import(
                         "@/server/actions/ticket-bot-actions"
                     );
+                    // 🆕 Suppression **avec compte à rebours** (4 s) : la réponse part tout de
+                    // suite (< 3 s exigées par Discord), le décompte est édité ensuite, et le
+                    // salon disparaît à la fin — sauf s'il a été rouvert entre-temps.
                     const res = await doDelete({
                         discordGuildId: guild_id,
                         discordUserId: member.user.id,
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
                         actor: ticketActorContext,
+                        applicationId: payload.application_id,
+                        interactionToken: payload.token,
                     });
                     return NextResponse.json({
                         type: 4,
@@ -1782,13 +2250,39 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "csat") {
                     const ticketId = entityId;
-                    const rating = parseInt(extra, 10) || 5;
+                    const parsed = parseInt(extra, 10);
+                    const safeRating = parsed >= 1 && parsed <= 5 ? parsed : 5;
                     const res = await internalHandleTicketCsat({
                         discordUserId: member.user.id,
                         ticketId,
-                        rating,
+                        rating: safeRating,
                         actor: ticketActorContext,
                     });
+                    if (res.success) {
+                        const STARS_BY_RATING: Record<number, string> = {
+                            1: "⭐",
+                            2: "⭐⭐",
+                            3: "⭐⭐⭐",
+                            4: "⭐⭐⭐⭐",
+                            5: "⭐⭐⭐⭐⭐",
+                        };
+                        const stars = STARS_BY_RATING[safeRating] ?? "⭐⭐⭐⭐⭐";
+                        const originalEmbed = (payload.message?.embeds?.[0] as Record<string, unknown>) || {};
+                        return NextResponse.json({
+                            type: 7, // UPDATE_MESSAGE : met à jour le message et retire définitivement les boutons de vote
+                            data: {
+                                embeds: [
+                                    {
+                                        ...originalEmbed,
+                                        title: "⭐ Avis enregistré !",
+                                        description: `Merci d'avoir pris le temps de donner votre avis !\nVotre note : ${stars} (**${safeRating}/5**) a bien été enregistrée.`,
+                                        color: 0x22c55e,
+                                    },
+                                ],
+                                components: [], // Supprime définitivement les boutons pour empêcher le vote multiple
+                            },
+                        });
+                    }
                     return NextResponse.json({
                         type: 4,
                         data: { content: res.message, flags: 64 },
@@ -1866,7 +2360,7 @@ export async function POST(request: NextRequest) {
             const [prefix, action, entityId, extra] = custom_id.split(":");
 
             // Rate limit: 5 modal submits per 5min per discord user
-            if (!checkRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) {
+            if ((await consumeRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) > 0) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "⏳ Trop de candidatures. Réessaie dans quelques minutes.", flags: 64 },
@@ -2562,31 +3056,21 @@ export async function POST(request: NextRequest) {
                 }
             } else if (prefix === "valrecrue" && action === "submit") {
                 // ── Soumission de la modale /valider-recrue (Staff) ────────────────
-                const { internalCheckPermission } = await import("@/server/actions/user-actions");
-                const { PERMISSIONS } = await import("@/lib/permissions");
-                let isStaff = false;
-                try {
-                    isStaff = guild_id
-                        ? await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.STAFF_MEMBER_MGMT)
-                        : false;
-                } catch {
-                    isStaff = false;
-                }
-                if (!isStaff) {
-                    return ephemeralDiscordRefusal("🚫 `/valider-recrue` est réservée au staff (permission « Ressources Humaines »).");
-                }
-
+                // ⚡⚡ FIX LONG TERME (25/10/2026) : ACK IMMÉDIAT (type 5, Deferred)
+                // Discord impose une réponse en moins de 3 s à la soumission d'une modale.
+                // L'écriture DB et surtout les appels API Discord pour attribuer/retirer
+                // les rôles (addGuildMemberRole, removeGuildMemberRole) et leurs rate-limits
+                // dépassent souvent ce délai, causant « L'application n'a pas répondu à temps »
+                // et figeant la modale à l'écran du staff.
+                // En renvoyant immédiatement `type: 5` (deferred reply éphémère) :
+                // 1. Discord FERME la modale instantanément.
+                // 2. Le staff voit « SigilOS réfléchit... ».
+                // 3. Le traitement (DB, rôles Discord, audit) s'exécute en arrière-plan
+                //    sans contrainte de 3 s (le token reste valide 15 minutes).
+                // 4. `editInteractionMessage` publie l'embed vert de confirmation final.
                 const targetId = entityId;
                 if (!targetId || !guild_id) {
                     return ephemeralDiscordMessage("❌ Interaction de validation invalide.");
-                }
-
-                const guildConfig = await db.guildConfig.findUnique({
-                    where: { discordGuildId: guild_id },
-                    select: { id: true, trialDurationDays: true },
-                });
-                if (!guildConfig) {
-                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
                 }
 
                 // Extraire les champs saisis dans la modale
@@ -2623,173 +3107,277 @@ export async function POST(request: NextRequest) {
                 }
                 const arrivalDate = new Date(`${ymd}T12:00:00`);
 
-                const findGuildProfile = async (discordId: string) => {
-                    const account = await db.account.findFirst({
-                        where: { provider: "discord", providerAccountId: discordId },
-                        include: {
-                            user: {
+                // Réponse immédiate de type 5 pour libérer Discord et fermer la modale
+                const deferredResponse = NextResponse.json({
+                    type: 5,
+                    data: { flags: 64 },
+                });
+
+                // Traitement complet en arrière-plan
+                // `after()` (Next 16) **garantit** l'exécution après l'envoi de la réponse : une
+                // promesse flottante peut être perdue si Next recycle le contexte de requête, et
+                // le staff resterait devant « SigilOS réfléchit… » jusqu'à l'expiration du token.
+                after(async () => {
+                    const { editInteractionMessage } = await import("@/server/discord");
+                    try {
+                        const guildConfig = await db.guildConfig.findUnique({
+                            where: { discordGuildId: guild_id },
+                            select: {
+                                id: true,
+                                trialDurationDays: true,
+                                trialRoleId: true,
+                                rolesMapping: true,
+                                usersMapping: true,
+                                slashCommandPermissions: {
+                                    where: { commandName: "valider-recrue" },
+                                    select: { roleIds: true },
+                                },
+                            },
+                        });
+                        if (!guildConfig) {
+                            await editInteractionMessage(payload.application_id, payload.token, "❌ Ce serveur n'est pas lié à SigilOS.");
+                            return;
+                        }
+
+                        const { hasMappedPermission } = await import("@/lib/discord/permission-mapping");
+                        const { PERMISSIONS } = await import("@/lib/permissions");
+                        const submitRoleIds: string[] = member?.roles ?? [];
+                        const isSubmitAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                        const mappedStaff = hasMappedPermission({
+                            memberRoleIds: submitRoleIds,
+                            discordUserId: member.user.id,
+                            rolesMapping: guildConfig.rolesMapping,
+                            usersMapping: guildConfig.usersMapping,
+                            permission: PERMISSIONS.STAFF_MEMBER_MGMT,
+                        });
+                        const allowedByGuildRole = (guildConfig.slashCommandPermissions[0]?.roleIds ?? []).some(
+                            (roleId) => submitRoleIds.includes(roleId)
+                        );
+                        if (!isSubmitAdmin && !mappedStaff && !allowedByGuildRole) {
+                            await editInteractionMessage(
+                                payload.application_id,
+                                payload.token,
+                                "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
+                            );
+                            return;
+                        }
+
+                        const findGuildProfile = async (discordId: string) => {
+                            const account = await db.account.findFirst({
+                                where: { provider: "discord", providerAccountId: discordId },
                                 include: {
-                                    profiles: {
-                                        where: { guildId: guildConfig.id },
-                                        take: 1,
-                                        select: {
-                                            id: true,
-                                            pseudoDofus: true,
-                                            discordNickname: true,
-                                            ankamaId: true,
-                                            trialValidated: true,
-                                            trialEndsAt: true,
-                                            guildJoinedAt: true,
-                                            recruitedById: true,
+                                    user: {
+                                        include: {
+                                            profiles: {
+                                                where: { guildId: guildConfig.id },
+                                                take: 1,
+                                                select: {
+                                                    id: true,
+                                                    pseudoDofus: true,
+                                                    discordNickname: true,
+                                                    ankamaId: true,
+                                                    trialValidated: true,
+                                                    trialEndsAt: true,
+                                                    guildJoinedAt: true,
+                                                    recruitedById: true,
+                                                },
+                                            },
                                         },
                                     },
                                 },
-                            },
-                        },
-                    });
-                    return account?.user?.profiles?.[0] ?? null;
-                };
+                            });
+                            return account?.user?.profiles?.[0] ?? null;
+                        };
 
-                const profile = await findGuildProfile(targetId);
-                if (!profile) {
-                    return ephemeralDiscordMessage(`❌ <@${targetId}> n'a pas encore de profil SigilOS dans cette guilde : il doit se connecter au dashboard (ou être synchronisé), puis relance la commande.`);
-                }
+                        const profile = await findGuildProfile(targetId);
+                        // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Un membre
+                        // hors dashboard a désormais sa ligne dédiée (`MemberRegistryEntry`, clé guilde +
+                        // ID Discord) — on l'écrit au même titre qu'un profil.
+                        const registryEntry = profile
+                            ? null
+                            : await db.memberRegistryEntry.findUnique({
+                                  where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                                  select: { id: true, trialValidated: true, trialEndsAt: true },
+                              });
 
-                // Recruteur : analysé si fourni, sinon l'auteur de l'interaction (le staff)
-                let recruiterProfileId: string | null = null;
-                let recruiterLabel: string | null = null;
-                if (rawRecruiter) {
-                    const matchSnowflake = rawRecruiter.match(/^<@!?(\d{5,25})>$/) || rawRecruiter.match(/^(\d{5,25})$/);
-                    if (matchSnowflake) {
-                        const recProfile = await findGuildProfile(matchSnowflake[1]);
-                        if (recProfile) {
-                            recruiterProfileId = recProfile.id;
-                            recruiterLabel = recProfile.pseudoDofus || recProfile.discordNickname || "Recruteur";
-                        }
-                    }
-                    if (!recruiterProfileId) {
-                        const cleanQuery = rawRecruiter.trim();
-                        const rec = await db.userProfile.findFirst({
-                            where: {
-                                guildId: guildConfig.id,
-                                OR: [
-                                    { pseudoDofus: { equals: cleanQuery, mode: "insensitive" } },
-                                    { discordNickname: { equals: cleanQuery, mode: "insensitive" } },
-                                    { user: { name: { equals: cleanQuery, mode: "insensitive" } } },
-                                ],
-                            },
-                            select: { id: true, pseudoDofus: true, discordNickname: true },
-                        });
-                        if (rec) {
-                            recruiterProfileId = rec.id;
-                            recruiterLabel = rec.pseudoDofus || rec.discordNickname || cleanQuery;
+                        // Recruteur : analysé si fourni, sinon l'auteur de l'interaction (le staff)
+                        let recruiterProfileId: string | null = null;
+                        let recruiterLabel: string | null = null;
+                        if (rawRecruiter) {
+                            const matchSnowflake = rawRecruiter.match(/^<@!?(\d{5,25})>$/) || rawRecruiter.match(/^(\d{5,25})$/);
+                            if (matchSnowflake) {
+                                const recProfile = await findGuildProfile(matchSnowflake[1]);
+                                if (recProfile) {
+                                    recruiterProfileId = recProfile.id;
+                                    recruiterLabel = recProfile.pseudoDofus || recProfile.discordNickname || "Recruteur";
+                                }
+                            }
+                            if (!recruiterProfileId) {
+                                const cleanQuery = rawRecruiter.trim();
+                                const rec = await db.userProfile.findFirst({
+                                    where: {
+                                        guildId: guildConfig.id,
+                                        OR: [
+                                            { pseudoDofus: { equals: cleanQuery, mode: "insensitive" } },
+                                            { discordNickname: { equals: cleanQuery, mode: "insensitive" } },
+                                            { user: { name: { equals: cleanQuery, mode: "insensitive" } } },
+                                        ],
+                                    },
+                                    select: { id: true, pseudoDofus: true, discordNickname: true },
+                                });
+                                if (rec) {
+                                    recruiterProfileId = rec.id;
+                                    recruiterLabel = rec.pseudoDofus || rec.discordNickname || cleanQuery;
+                                } else {
+                                    await editInteractionMessage(
+                                        payload.application_id,
+                                        payload.token,
+                                        `❌ Recruteur « ${cleanQuery} » introuvable parmi les membres de la guilde.`
+                                    );
+                                    return;
+                                }
+                            }
                         } else {
-                            return ephemeralDiscordMessage(`❌ Recruteur « ${cleanQuery} » introuvable parmi les membres de la guilde.`);
+                            const authorProfile = await findGuildProfile(member.user.id);
+                            recruiterProfileId = authorProfile?.id ?? null;
+                            recruiterLabel = authorProfile ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi" : null;
                         }
+
+                        // Mise en essai si la recrue n'est ni validée ni déjà en essai daté
+                        // (l'état est lu sur le profil **ou** sur la ligne de registre du hors dashboard).
+                        const trialValidated = profile?.trialValidated ?? registryEntry?.trialValidated ?? false;
+                        const trialAlreadyDated = profile?.trialEndsAt ?? registryEntry?.trialEndsAt ?? null;
+                        const needsTrial = !trialValidated && !trialAlreadyDated;
+                        const trialBase = arrivalDate ?? new Date();
+                        const trialEndsAt = needsTrial
+                            ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
+                            : undefined;
+
+                        // Rôles appliqués par défaut selon réglage dashboard
+                        const { parseValiderRecrueConfig } = await import("@/lib/slash-commands-catalog");
+                        const permRow = await db.guildSlashCommandPermission.findUnique({
+                            where: { guildId_commandName: { guildId: guildConfig.id, commandName: "valider-recrue" } },
+                            select: { config: true },
+                        });
+                        const dashboardRoles = parseValiderRecrueConfig(permRow?.config);
+                        const addRoleId = dashboardRoles.addRoleId;
+                        const removeRoleId = dashboardRoles.removeRoleId;
+
+                        const registryData = {
+                            pseudoDofus: rawPseudo,
+                            ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
+                            guildJoinedAt: arrivalDate,
+                            ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
+                            ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
+                        };
+
+                        if (profile) {
+                            await db.userProfile.update({ where: { id: profile.id }, data: registryData });
+                        } else {
+                            // Recrue hors dashboard : la ligne de registre est créée si besoin, sinon complétée.
+                            await db.memberRegistryEntry.upsert({
+                                where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                                create: { guildId: guildConfig.id, discordId: targetId, ...registryData },
+                                update: registryData,
+                            });
+                        }
+
+                        // Application des rôles sur Discord
+                        const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
+                        const roleOutcomes: string[] = [];
+                        if (addRoleId) {
+                            const r = await addGuildMemberRole(guild_id, targetId, addRoleId, "SigilOS /valider-recrue (modale)");
+                            roleOutcomes.push(r.success ? `+ <@&${addRoleId}>` : `⚠️ ajout <@&${addRoleId}> : ${r.error}`);
+                        }
+                        if (removeRoleId) {
+                            const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue (modale)");
+                            roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
+                        }
+
+                        // Rôle d'essai : MÊME source que la fiche membre (`GuildConfig.trialRoleId`,
+                        // réglé dans Paramètres ▸ Fin d'essai). Optionnel — sans réglage, aucun geste,
+                        // donc le comportement historique de la commande est conservé à l'identique.
+                        if (needsTrial && guildConfig.trialRoleId) {
+                            const trialRole = await addGuildMemberRole(
+                                guild_id,
+                                targetId,
+                                guildConfig.trialRoleId,
+                                "SigilOS /valider-recrue (essai)"
+                            );
+                            roleOutcomes.push(
+                                trialRole.success ? "+ rôle d'essai" : `⚠️ rôle d'essai non ajouté : ${trialRole.error}`
+                            );
+                        }
+
+                        const { createAuditLog } = await import("@/server/actions/audit-actions");
+                        await createAuditLog({
+                            guildId: guildConfig.id,
+                            actorUserId: `discord:${member.user.id}`,
+                            actorName: "Discord /valider-recrue (modale)",
+                            action: "SETTINGS_UPDATED",
+                            targetType: "USER_PROFILE",
+                            targetId: profile?.id ?? registryEntry?.id ?? targetId,
+                            newValue: {
+                                pseudoDofus: rawPseudo,
+                                ankamaId: rawAnkama,
+                                guildJoinedAt: arrivalDate,
+                                recruitedById: recruiterProfileId,
+                                addRoleId,
+                                removeRoleId,
+                            },
+                            metadata: { source: "modal-valider-recrue", channelId: payload.channel_id ?? null },
+                        }).catch(() => null);
+
+                        const seniority = computeSeniorityDays(arrivalDate.toISOString());
+                        const appBaseUrl = getAppBaseUrl();
+                        const fields: { name: string; value: string; inline?: boolean }[] = [
+                            { name: "Pseudo Dofus", value: rawPseudo, inline: true },
+                            { name: "Tag Ankama", value: rawAnkama || "—", inline: true },
+                            { name: "Recruté par", value: recruiterLabel || "—", inline: true },
+                            {
+                                name: "Arrivée",
+                                value: `${new Date(arrivalDate).toLocaleDateString("fr-FR")} (${seniority} j)`,
+                                inline: true,
+                            },
+                            {
+                                name: "Essai",
+                                value: needsTrial
+                                    ? `démarré (${guildConfig.trialDurationDays} j)`
+                                    : trialValidated
+                                      ? "déjà validé"
+                                      : "en cours",
+                                inline: true,
+                            },
+                            {
+                                name: "Fiche",
+                                value: profile ? "Profil dashboard" : "Hors dashboard (registre)",
+                                inline: true,
+                            },
+                            ...(roleOutcomes.length > 0
+                                ? [{ name: "Rôles Discord", value: roleOutcomes.join("\n"), inline: false }]
+                                : []),
+                        ];
+
+                        await editInteractionMessage(payload.application_id, payload.token, {
+                            embeds: [{
+                                title: `✅ Ligne registre complétée — <@${targetId}>`,
+                                color: 0x22C55E,
+                                fields,
+                                url: `${appBaseUrl}/dashboard/${guild_id}/admin/members`,
+                                footer: { text: "SigilOS • Registre staff" },
+                            }],
+                        });
+                    } catch (bgError) {
+                        logger.error("[valider-recrue] Échec traitement arrière-plan:", bgError);
+                        await editInteractionMessage(
+                            payload.application_id,
+                            payload.token,
+                            "❌ Une erreur interne est survenue lors de l'enregistrement de la recrue."
+                        ).catch(() => null);
                     }
-                } else {
-                    const authorProfile = await findGuildProfile(member.user.id);
-                    recruiterProfileId = authorProfile?.id ?? null;
-                    recruiterLabel = authorProfile ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi" : null;
-                }
-
-                // Mise en essai si la recrue n'est ni validée ni déjà en essai daté.
-                const needsTrial = !profile.trialValidated && !profile.trialEndsAt;
-                const trialBase = arrivalDate ?? new Date();
-                const trialEndsAt = needsTrial
-                    ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
-                    : undefined;
-
-                // Rôles appliqués par défaut selon réglage dashboard
-                const { parseValiderRecrueConfig } = await import("@/lib/slash-commands-catalog");
-                const permRow = await db.guildSlashCommandPermission.findUnique({
-                    where: { guildId_commandName: { guildId: guildConfig.id, commandName: "valider-recrue" } },
-                    select: { config: true },
-                });
-                const dashboardRoles = parseValiderRecrueConfig(permRow?.config);
-                const addRoleId = dashboardRoles.addRoleId;
-                const removeRoleId = dashboardRoles.removeRoleId;
-
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        pseudoDofus: rawPseudo,
-                        ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
-                        guildJoinedAt: arrivalDate,
-                        ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
-                        ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
-                    },
                 });
 
-                // Application des rôles sur Discord
-                const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
-                const roleOutcomes: string[] = [];
-                if (addRoleId) {
-                    const r = await addGuildMemberRole(guild_id, targetId, addRoleId, "SigilOS /valider-recrue (modale)");
-                    roleOutcomes.push(r.success ? `+ <@&${addRoleId}>` : `⚠️ ajout <@&${addRoleId}> : ${r.error}`);
-                }
-                if (removeRoleId) {
-                    const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue (modale)");
-                    roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
-                }
-
-                const { createAuditLog } = await import("@/server/actions/audit-actions");
-                await createAuditLog({
-                    guildId: guildConfig.id,
-                    actorUserId: `discord:${member.user.id}`,
-                    actorName: "Discord /valider-recrue (modale)",
-                    action: "SETTINGS_UPDATED",
-                    targetType: "USER_PROFILE",
-                    targetId: profile.id,
-                    newValue: {
-                        pseudoDofus: rawPseudo,
-                        ankamaId: rawAnkama,
-                        guildJoinedAt: arrivalDate,
-                        recruitedById: recruiterProfileId,
-                        addRoleId,
-                        removeRoleId,
-                    },
-                    metadata: { source: "modal-valider-recrue", channelId: payload.channel_id ?? null },
-                }).catch(() => null);
-
-                const seniority = computeSeniorityDays(arrivalDate.toISOString());
-                const appBaseUrl = getAppBaseUrl();
-                const fields: { name: string; value: string; inline?: boolean }[] = [
-                    { name: "Pseudo Dofus", value: rawPseudo, inline: true },
-                    { name: "Tag Ankama", value: rawAnkama || "—", inline: true },
-                    { name: "Recruté par", value: recruiterLabel || "—", inline: true },
-                    {
-                        name: "Arrivée",
-                        value: `${new Date(arrivalDate).toLocaleDateString("fr-FR")} (${seniority} j)`,
-                        inline: true,
-                    },
-                    {
-                        name: "Essai",
-                        value: needsTrial
-                            ? `démarré (${guildConfig.trialDurationDays} j)`
-                            : profile.trialValidated
-                              ? "déjà validé"
-                              : "en cours",
-                        inline: true,
-                    },
-                    ...(roleOutcomes.length > 0
-                        ? [{ name: "Rôles Discord", value: roleOutcomes.join("\n"), inline: false }]
-                        : []),
-                ];
-
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: `✅ Ligne registre complétée — <@${targetId}>`,
-                            color: 0x22C55E,
-                            fields,
-                            url: `${appBaseUrl}/dashboard/${guild_id}/admin/members?tab=registre`,
-                            footer: { text: "SigilOS • Registre staff" },
-                        }],
-                        flags: 64,
-                    },
-                });
+                return deferredResponse;
             }
 
             return NextResponse.json({ type: 4, data: { content: "Modal inconnu", flags: 64 } });
@@ -2983,6 +3571,20 @@ export async function POST(request: NextRequest) {
 
                 if (guildConfig) {
                     const perm = guildConfig.slashCommandPermissions[0];
+                    // Commande `staffOnly` (ex. `/valider-recrue`) : elle n'existe sur la
+                    // guilde que si God l'a autorisée. Aucune ligne = pas déployée = refus,
+                    // même si un client Discord l'a encore en cache (fail-closed).
+                    const { SLASH_COMMANDS_CATALOG: catalogForGate } = await import("@/lib/slash-commands-catalog");
+                    const catalogCommand = catalogForGate.find((command) => command.name === commandName);
+                    if (catalogCommand?.staffOnly && !perm) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "🚫 Cette commande n'est pas déployée sur ce serveur.",
+                                flags: 64,
+                            },
+                        });
+                    }
                     if (perm && !perm.isEnabled) {
                         return NextResponse.json({
                             type: 4,
@@ -3016,43 +3618,6 @@ export async function POST(request: NextRequest) {
                             });
                         }
                     }
-                }
-            }
-
-            // ── /status ───────────────────────────────────────────────
-            if (commandName === "status") {
-                try {
-                    const baseUrl = getAppBaseUrl();
-                    const healthRes = await fetch(`${baseUrl}/api/health`);
-                    const health = await healthRes.json();
-
-                    const statusEmoji = health.status === "healthy" ? "🟢" : health.status === "degraded" ? "🟡" : "🔴";
-                    const dbStatus = health.services.database.status === "up" ? "🟢 Opérationnel" : "🔴 Hors ligne";
-                    const redisStatus = health.services.redis.status === "up" ? "🟢 Opérationnel" :
-                        health.services.redis.status === "not_configured" ? "⚪ Non configuré" : "🔴 Hors ligne";
-
-                    return NextResponse.json({
-                        type: 4,
-                        data: {
-                            embeds: [{
-                                title: "🏰 SigilOS Status",
-                                color: health.status === "healthy" ? 0x10b981 : health.status === "degraded" ? 0xf59e0b : 0xef4444,
-                                fields: [
-                                    { name: "État Global", value: `${statusEmoji} ${health.status === "healthy" ? "Opérationnel" : health.status === "degraded" ? "Dégradé" : "Critique"}`, inline: false },
-                                    { name: "Base de données", value: `${dbStatus}${health.services.database.latency ? ` (${health.services.database.latency}ms)` : ""}`, inline: true },
-                                    { name: "Cache Redis", value: `${redisStatus}${health.services.redis.latency ? ` (${health.services.redis.latency}ms)` : ""}`, inline: true },
-                                ],
-                                footer: { text: `Version: ${health.version || "unknown"}` },
-                                timestamp: new Date().toISOString()
-                            }]
-                        }
-                    });
-                } catch (error) {
-                    console.error("[Discord Status Command] Error:", error);
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: "❌ Impossible de récupérer le statut.", flags: 64 }
-                    });
                 }
             }
 
@@ -3321,22 +3886,35 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
-                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-                const res = await getMonsterStats(monsterName);
+                // ⚡ Discord impose une réponse < 3 s : lecture 100 % locale, ZÉRO réseau.
+                // L'ancien chemin réseau enchaînait jusqu'à ~6 fetch externes (8 s chacun)
+                // dès que le boss manquait en local ⇒ timeout systématique (« n'a pas répondu »).
+                const { getLocalMonsterFiche } = await import("@/lib/monster-stats-core");
+                const fiche = await getLocalMonsterFiche(monsterName);
 
-                if (!res.success || !res.data) {
+                if (!fiche?.data) {
                     return NextResponse.json({
                         type: 4,
                         data: {
-                            content: `❌ Boss « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            content: `❌ Boss « ${monsterName} » introuvable en local.\n💡 Choisis un nom dans la liste d'autocomplétion, ou ouvre la fiche complète sur le site.`,
                             flags: 64
                         }
                     });
                 }
 
-                const mob = res.data;
-                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const mob = fiche.data;
+                const grades = Array.isArray(mob.grades) ? mob.grades : [];
+                const g = grades[grades.length - 1] || grades[0];
                 const resists = g?.resists || {};
+                // Nom du donjon pour l'embed (la fiche Unity n'en porte pas).
+                let bossDungeonName: string | undefined = mob.dungeonName;
+                if (!bossDungeonName) {
+                    const dj = await db.dungeon.findFirst({
+                        where: { bossName: { equals: monsterName, mode: "insensitive" } },
+                        select: { name: true },
+                    });
+                    if (dj?.name) bossDungeonName = dj.name;
+                }
                 const succesUrl = guild_id
                     ? `${appBaseUrl}/dashboard/${guild_id}/succes`
                     : `${appBaseUrl}`;
@@ -3345,7 +3923,7 @@ export async function POST(request: NextRequest) {
                     { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
                     { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
                     { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Donjon", inline: true },
-                    ...(mob.dungeonName ? [{ name: "🏰 Donjon", value: `${mob.dungeonName}`, inline: false }] : []),
+                    ...(bossDungeonName ? [{ name: "🏰 Donjon", value: `${bossDungeonName}`, inline: false }] : []),
                     {
                         name: "🛡️ Résistances",
                         value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
@@ -3399,21 +3977,23 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
-                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-                const res = await getMonsterStats(monsterName);
+                // ⚡ Même contrainte < 3 s que /boss : lecture 100 % locale, ZÉRO réseau.
+                const { getLocalMonsterFiche } = await import("@/lib/monster-stats-core");
+                const fiche = await getLocalMonsterFiche(monsterName);
 
-                if (!res.success || !res.data) {
+                if (!fiche?.data) {
                     return NextResponse.json({
                         type: 4,
                         data: {
-                            content: `❌ Monstre « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            content: `❌ Monstre « ${monsterName} » introuvable en local.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
                             flags: 64
                         }
                     });
                 }
 
-                const mob = res.data;
-                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const mob = fiche.data;
+                const monsterGrades = Array.isArray(mob.grades) ? mob.grades : [];
+                const g = monsterGrades[monsterGrades.length - 1] || monsterGrades[0];
                 const resists = g?.resists || {};
                 const succesUrl = guild_id
                     ? `${appBaseUrl}/dashboard/${guild_id}/succes`
@@ -3612,21 +4192,9 @@ export async function POST(request: NextRequest) {
 
             // ── /valider-recrue (STAFF — ouvre la modale de saisie registre) ──
             if (commandName === "valider-recrue") {
-                // Gate staff : permission dashboard, fail-closed (pas de session ici).
-                const { internalCheckPermission } = await import("@/server/actions/user-actions");
-                const { PERMISSION_IDS } = await import("@/lib/permissions");
-                let isStaff = false;
-                try {
-                    isStaff = guild_id
-                        ? await internalCheckPermission(guild_id, discordUserId, PERMISSION_IDS.STAFF_MEMBER_MGMT)
-                        : false;
-                } catch {
-                    isStaff = false;
-                }
-                if (!isStaff) {
-                    return ephemeralDiscordRefusal("🚫 `/valider-recrue` est réservée au staff (permission « Ressources Humaines »).");
-                }
-
+                // ⚡ **ACK d'abord** (mesure du 24/10/2026) : l'ancienne version appelait
+                // `internalCheckPermission` ici, soit trois appels à l'API Discord
+                // AVANT la réponse → dépassement des 3 s. Le gate a été basculé à la soumission.
                 const opt = (name: string): string | undefined =>
                     payload.data?.options?.find((o: any) => o.name === name)?.value;
                 const targetId: string | undefined = opt("membre");
@@ -3634,22 +4202,30 @@ export async function POST(request: NextRequest) {
                     return ephemeralDiscordMessage("❌ Utilise `/valider-recrue membre:@pseudo` dans un serveur lié à SigilOS.");
                 }
 
-                const guildConfig = await db.guildConfig.findUnique({
-                    where: { discordGuildId: guild_id },
-                    select: { id: true, trialDurationDays: true },
-                });
-                if (!guildConfig) {
-                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
-                }
+                // Résolution instantanée depuis le payload Discord (0 ms, 0 I/O) :
+                // Pour une recrue qui vient d'arriver sur le serveur et n'a jamais été sur le dashboard,
+                // Discord fournit déjà son surnom serveur (`nick`), son nom global ou son username.
+                const resolvedUser = payload.data?.resolved?.users?.[targetId];
+                const resolvedMember = payload.data?.resolved?.members?.[targetId];
+                const targetDiscordName: string =
+                    resolvedMember?.nick ||
+                    resolvedUser?.global_name ||
+                    resolvedUser?.username ||
+                    "Recrue";
 
-                const findGuildProfile = async (discordId: string) => {
+                // ⏱️ **Budget de pré-remplissage** : cette commande répond par une modale (`type: 9`),
+                // qui doit partir en moins de 3 s. Si la recrue a déjà un profil ou une ligne registre,
+                // on pré-remplit les champs ; au-delà du budget, la modale s'ouvre avec son nom Discord.
+                const VALRECRUE_PREFILL_BUDGET_MS = 700;
+
+                const findGuildProfile = async (discordId: string, internalGuildId: string) => {
                     const account = await db.account.findFirst({
                         where: { provider: "discord", providerAccountId: discordId },
                         include: {
                             user: {
                                 include: {
                                     profiles: {
-                                        where: { guildId: guildConfig.id },
+                                        where: { guildId: internalGuildId },
                                         take: 1,
                                         select: {
                                             id: true,
@@ -3665,16 +4241,56 @@ export async function POST(request: NextRequest) {
                     return account?.user?.profiles?.[0] ?? null;
                 };
 
-                const profile = await findGuildProfile(targetId);
-                if (!profile) {
-                    return ephemeralDiscordMessage(`❌ <@${targetId}> n'a pas encore de profil SigilOS dans cette guilde : il doit se connecter au dashboard (ou être synchronisé), puis relance la commande.`);
+                const prefillOutcome = await raceWithDeadline(
+                    (async () => {
+                        const guildConfigRead = await db.guildConfig.findUnique({
+                            where: { discordGuildId: guild_id },
+                            select: { id: true },
+                        });
+                        if (!guildConfigRead) {
+                            return { linked: false as const, profile: null, registryEntry: null };
+                        }
+                        const internalGuildId = guildConfigRead.id;
+
+                        const profileRead = await findGuildProfile(targetId, internalGuildId);
+                        // Sans profil dashboard, on préremplit depuis la ligne de registre si elle existe.
+                        const registryRead = profileRead
+                            ? null
+                            : await db.memberRegistryEntry.findUnique({
+                                  where: { guildId_discordId: { guildId: internalGuildId, discordId: targetId } },
+                                  select: { pseudoDofus: true, ankamaId: true },
+                              });
+
+                        return { linked: true as const, profile: profileRead, registryEntry: registryRead };
+                    })(),
+                    VALRECRUE_PREFILL_BUDGET_MS
+                );
+
+                if (prefillOutcome.status === "done" && !prefillOutcome.value.linked) {
+                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
+                }
+                if (prefillOutcome.status === "timeout") {
+                    logger.warn("[valider-recrue] pré-remplissage au-delà du budget — modale ouverte avec nom résolu");
                 }
 
-                // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour et non la date existante, éditable)
+                const prefill = prefillOutcome.status === "done" ? prefillOutcome.value : null;
+                const profile = prefill?.profile ?? null;
+                const registryEntry = prefill?.registryEntry ?? null;
+
+                // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour, éditable)
                 const now = new Date();
                 const pad = (n: number) => n.toString().padStart(2, "0");
                 const todayFr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
-                const targetName = profile.pseudoDofus || profile.discordNickname || "Recrue";
+                const targetName =
+                    profile?.pseudoDofus ||
+                    profile?.discordNickname ||
+                    registryEntry?.pseudoDofus ||
+                    targetDiscordName;
+
+                const initialPseudoDofus =
+                    profile?.pseudoDofus ||
+                    registryEntry?.pseudoDofus ||
+                    (targetDiscordName !== "Recrue" ? targetDiscordName : "");
 
                 return NextResponse.json({
                     type: 9, // MODAL
@@ -3694,7 +4310,7 @@ export async function POST(request: NextRequest) {
                                         required: true,
                                         min_length: 2,
                                         max_length: 30,
-                                        value: profile.pseudoDofus || "",
+                                        value: initialPseudoDofus,
                                     },
                                 ],
                             },
@@ -3709,7 +4325,7 @@ export async function POST(request: NextRequest) {
                                         placeholder: "Ex: Michmich#4777",
                                         required: false,
                                         max_length: 60,
-                                        value: profile.ankamaId || "",
+                                        value: profile?.ankamaId || registryEntry?.ankamaId || "",
                                     },
                                 ],
                             },
@@ -3751,13 +4367,216 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            // ── Commandes Slash Personnalisées de Tickets ─────────────────────────
+            if (guild_id) {
+                const { readTicketCustomCommands, interpolateTicketCommandTokens } = await import(
+                    "@/lib/tickets/custom-commands"
+                );
+                const { addRoleToMember, removeRoleFromMember } = await import("@/server/discord");
+                const { internalHandleTicketClose } = await import("@/server/actions/ticket-bot-actions");
+
+                const ticketConfig = await db.ticketGuildConfig.findFirst({
+                    where: { guild: { discordGuildId: guild_id } },
+                    include: { guild: true },
+                });
+
+                if (ticketConfig?.isEnabled) {
+                    const customCommands = readTicketCustomCommands(ticketConfig.settingsJson);
+                    const matchedCmd = customCommands.find(
+                        (c) => c.isEnabled && c.name.toLowerCase() === commandName.toLowerCase()
+                    );
+
+                    if (matchedCmd) {
+                        const channelId: string = payload.channel_id || payload.channel?.id || "";
+
+                        // Verrou 1 : Salon ticket ouvert obligatoire
+                        const ticket = await db.ticketRecord.findFirst({
+                            where: {
+                                guildId: ticketConfig.guildId,
+                                discordChannelId: channelId,
+                                status: { in: ["OPEN", "CLAIMED"] },
+                            },
+                            include: { journey: true },
+                        });
+
+                        if (!ticket) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "💡 Cette commande est un outil d'assistance réservé aux salons tickets.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Verrou anti-spam : max 3 exécutions par 5s par utilisateur
+                        if ((await consumeRateLimit(`ticket-cmd:${discordUserId}:${channelId}`, 3, 5_000)) > 0) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "⏳ Merci de patienter quelques secondes avant de réutiliser une commande sur ce ticket.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Verrou 2 : Whitelist & Autorisations
+                        const isGuildAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                        const motifStaff = ticket.journey?.staffRoleIds || [];
+                        const globalStaff = ticketConfig.staffRoleIds || [];
+                        const allStaffRoleIds = [...new Set([...motifStaff, ...globalStaff])];
+                        let isAllowed = isGuildAdmin;
+
+                        if (!isAllowed) {
+                            if (matchedCmd.permissionMode === "ALL") {
+                                isAllowed = true;
+                            } else if (matchedCmd.permissionMode === "CUSTOM_ROLES") {
+                                const allowed = matchedCmd.allowedRoleIds || [];
+                                isAllowed = allowed.length === 0 || userRoleIds.some((r) => allowed.includes(r));
+                            } else {
+                                // STAFF_ONLY
+                                isAllowed = allStaffRoleIds.length === 0 || userRoleIds.some((r) => allStaffRoleIds.includes(r));
+                            }
+                        }
+
+                        if (!isAllowed) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette commande.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Résolution du membre cible (option `membre` ou demandeur)
+                        const memberOption = payload.data?.options?.find((opt: any) => opt.name === "membre");
+                        const targetUserId = memberOption?.value ? String(memberOption.value) : ticket.creatorDiscordId;
+                        const targetUserObj = payload.data?.resolved?.users?.[targetUserId];
+                        const targetPseudo =
+                            payload.data?.resolved?.members?.[targetUserId]?.nick ||
+                            targetUserObj?.global_name ||
+                            targetUserObj?.username ||
+                            (targetUserId === ticket.creatorDiscordId ? ticket.creatorDiscordName : "Membre");
+                        const targetAvatar = targetUserObj?.avatar
+                            ? `https://cdn.discordapp.com/avatars/${targetUserId}/${targetUserObj.avatar}.png`
+                            : undefined;
+
+                        // Exécution des actions sur les rôles
+                        if (matchedCmd.addRoleIds && matchedCmd.addRoleIds.length > 0) {
+                            for (const rId of matchedCmd.addRoleIds) {
+                                await addRoleToMember(guild_id, targetUserId, rId);
+                            }
+                        }
+                        if (matchedCmd.removeRoleIds && matchedCmd.removeRoleIds.length > 0) {
+                            for (const rId of matchedCmd.removeRoleIds) {
+                                await removeRoleFromMember(guild_id, targetUserId, rId);
+                            }
+                        }
+
+                        // Contexte pour le remplacement des variables
+                        const cmdCtx = {
+                            demandeurId: ticket.creatorDiscordId,
+                            demandeurPseudo: ticket.creatorDiscordName,
+                            targetId: targetUserId,
+                            targetPseudo,
+                            targetAvatar,
+                            staffId: discordUserId,
+                            staffPseudo: member?.user?.global_name || member?.user?.username || member?.nick || "Staff",
+                            staffRoleIds: allStaffRoleIds,
+                            ticketNumero: ticket.ticketNumber,
+                            ticketMotif: ticket.journey?.name || "Support",
+                            channelId,
+                            serverName: ticketConfig.guild.name,
+                        };
+
+                        const textContent = interpolateTicketCommandTokens(matchedCmd.content, cmdCtx);
+
+                        // Construction de l'embed
+                        const responseEmbeds: any[] = [];
+                        if (matchedCmd.embedEnabled && matchedCmd.embed) {
+                            const emb = matchedCmd.embed;
+                            const embTitle = interpolateTicketCommandTokens(emb.title, cmdCtx);
+                            const embDesc = interpolateTicketCommandTokens(emb.description, cmdCtx);
+                            const embFooter = interpolateTicketCommandTokens(emb.footer, cmdCtx);
+
+                            const colorHex = emb.color?.replace("#", "").trim() || "5865F2";
+                            const colorInt = parseInt(colorHex, 16) || 0x5865f2;
+
+                            responseEmbeds.push({
+                                title: embTitle || undefined,
+                                description: embDesc || undefined,
+                                color: colorInt,
+                                image: emb.imageUrl ? { url: emb.imageUrl } : undefined,
+                                thumbnail: emb.thumbnailUrl ? { url: emb.thumbnailUrl } : undefined,
+                                footer: embFooter ? { text: embFooter } : undefined,
+                            });
+                        }
+
+                        // Clôture automatique du ticket si demandée
+                        if (matchedCmd.autoCloseTicket) {
+                            try {
+                                const actor = resolveInteractionActor(payload);
+                                if (actor) {
+                                    const ticketActorContext: TicketAuthorizationContext = {
+                                        discordUserId: actor.discordUserId,
+                                        discordUserName: actor.displayName,
+                                        discordUserRoleIds: actor.roleIds,
+                                        discordUserIsAdmin: actor.isGuildAdmin,
+                                        hasStaffPermission: isAllowed,
+                                    };
+                                    await internalHandleTicketClose({
+                                        discordGuildId: guild_id,
+                                        discordUserId: actor.discordUserId,
+                                        discordUserName: actor.displayName,
+                                        ticketId: ticket.id,
+                                        actor: ticketActorContext,
+                                        reason: `Exécution de la commande /${matchedCmd.name}`,
+                                    });
+                                }
+                            } catch (closeErr) {
+                                logger.warn("[TicketCustomCommand] Échec clôture automatique:", closeErr);
+                            }
+                        }
+
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: textContent || (responseEmbeds.length === 0 ? "✅ Commande exécutée." : undefined),
+                                embeds: responseEmbeds.length > 0 ? responseEmbeds : undefined,
+                                flags: matchedCmd.ephemeral ? 64 : undefined,
+                            },
+                        });
+                    }
+                }
+            }
+
             return NextResponse.json({ type: 4, data: { content: "Commande inconnue.", flags: 64 } });
         }
 
         return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
     } catch (error) {
-        console.error("[Discord Interaction] Error:", error);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+        // 🔇 Une réponse 5xx s'affiche « L'application n'a pas répondu » dans Discord.
+        // On répond donc **toujours** une interaction valide (refus éphémère) et on
+        // journalise l'erreur réelle pour Sentry.
+        logger.error("[Discord Interaction] Error:", error);
+        return NextResponse.json({
+            type: 4,
+            data: {
+                content: "❌ Une erreur interne est survenue. Réessaie dans un instant.",
+                flags: 64,
+            },
+        });
+    } finally {
+        // ⏱️ Trace **par chemin** : jusqu'ici, rien ne disait quelle interaction
+        // frôlait les 3 s de Discord (les logs bêta étaient vides sur 40 min).
+        const elapsedMs = Date.now() - interactionStartedAt;
+        if (elapsedMs > 2_500) {
+            logger.warn("[Discord Interaction] interaction lente (> budget)", {
+                elapsedMs,
+                interaction: interactionLabel,
+            });
+        }
     }
 }

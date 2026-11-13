@@ -14,9 +14,38 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
-import { isAgendaMirror } from "@/lib/agenda-mirror";
-import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import { decrypt } from "@/lib/encryption";
+import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
+import { shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import {
+    deleteEventDiscordMessage,
+    deleteReminderMessageRefs,
+    type ReminderMessageRef,
+} from "@/server/calendar-message-cleanup";
 import { startOfWeek, addDays } from "date-fns";
+import { getAppBaseUrl } from "@/lib/utils";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, canToggleStandBy, isStandByActive } from "@/lib/group-standby";
+import {
+    assertRaidClosureRoute,
+    buildRaidUndoMetadata,
+    shouldRepublishAfterUndo,
+    validateRaidClosureInput,
+    resolveUndoRefundPurpleKamas,
+} from "@/lib/raid-closure-rules";
+import {
+    buildRaidPresenceRows,
+    raidPresenceRetentionCutoff,
+    summarizeRaidPresence,
+    validateRaidAbsences,
+    RAID_PRESENCE_RETENTION_DAYS,
+    RAID_PRESENCE_STATUSES,
+    type RaidAbsenceReason,
+    type RaidPresenceStatus,
+    type RaidPresenceSummary,
+} from "@/lib/raid-presence";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -58,6 +87,11 @@ const GuildEventSchema = z.object({
     missionIds: z.array(z.string()).optional(), // For SESSION_MISSIONS
     publishOnDiscord: z.boolean().optional().default(false),
     mentionRoleIds: z.array(z.string()).optional().default([]),
+    /**
+     * Classe du créateur — utilisée là où il est **inscrit d'office** (raids : slot 1).
+     * Validée côté serveur contre son roster (main + mules), fail-closed.
+     */
+    creatorClass: z.string().max(30).nullable().optional(),
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
@@ -101,25 +135,15 @@ async function isReadonlyMirror(guildId: string, eventId: string): Promise<boole
 
 export type GuildEventInput = z.infer<typeof GuildEventSchema>;
 
-/** Entrée `metadata.reminderMessages` : le `messageKey` permet de résoudre le
- * vrai snowflake quand l'envoi est passé par l'outbox (`outbox:<jobId>`). */
-export type ReminderMessageRef = {
-    channelId: string;
-    messageId: string;
-    messageKey?: string | null;
-};
-
-/** Supprime des messages de rappel en résolvant les IDs outbox via Redis. */
-async function deleteReminderMessageRefs(refs: ReminderMessageRef[]): Promise<void> {
-    if (!refs || refs.length === 0) return;
-    const tasks: Promise<unknown>[] = [];
-    for (const rm of refs) {
-        if (!rm?.channelId || !rm?.messageId) continue;
-        tasks.push(
-            deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false)
-        );
-    }
-    if (tasks.length > 0) await Promise.allSettled(tasks);
+/**
+ * Retire les marqueurs de clôture **d'office** : le capitaine reprend la main
+ * (`metadata.completedAt` devient le seul discriminant d'une clôture humaine).
+ */
+function stripSystemClosure(meta: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...meta };
+    delete next.closedBySystem;
+    delete next.systemClosedAt;
+    return next;
 }
 
 // ============================================
@@ -149,13 +173,11 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 
         const now = new Date();
 
-        // Clôture d'office des événements terminés — règle partagée (`blindAutoCloseWhere`) :
-        // un RAID_OFFICIAL n'est clôturé qu'à +48 h, sinon le rappel de clôture (24 h après
-        // la fin) ne pourrait jamais partir (raid déjà COMPLETED, embed supprimé).
-        await db.guildEvent.updateMany({
-            where: blindAutoCloseWhere(guildConfig.id, now),
-            data: { status: "COMPLETED" }
-        }).catch(() => {});
+        // ⚠️ LECTURE SEULE : la clôture d'office vit désormais dans la passe de fond
+        // (`@/server/calendar-auto-close-core`, cron `calendar-auto-close`), seule à
+        // purger les messages Discord. Une lecture ne doit jamais changer un statut
+        // (c'est ce qui clôturait des raids sans points, sans rien nettoyer).
+        // Ici on ne fait que **dériver** l'affichage avec la règle unique.
 
         const events = await db.guildEvent.findMany({
             where: {
@@ -212,13 +234,22 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                     const results = await getKralamoureEvents({
                         serverId: userProfile.metamobServerId,
                         from: start.toISOString(),
-                        guildApiKey: userProfile.metamobApiKey,
+                        // 🔑 La clé API est **chiffrée en base** : envoyée brute, elle fait
+                        // répondre « Erreur 400 de l'API » (mesure Sentry du 09/11/2026,
+                        // `JAVASCRIPT-NEXTJS-2N`, 400 sur `/v1/kralove`). Même règle que
+                        // `getMyOcreProgress` : on déchiffre, sinon pas d'en-tête.
+                        guildApiKey: userProfile.metamobApiKey
+                            ? decrypt(userProfile.metamobApiKey) || undefined
+                            : undefined,
                         revalidate: 60 // 1 minute cache
                     });
                     if (results) liveKralaEvents = results;
                 }
             } catch (err) {
-                logger.error("[Calendar] Failed to sync Krala counts in list:", err);
+                // Configuration utilisateur (clé absente/invalide) ou amont indisponible :
+                // ce n'est PAS une panne du produit — `warn`, hors Sentry (même règle que
+                // `getGuildKralamoureEvents`, mesure du 18/10/2026).
+                logger.warn("[Calendar] Failed to sync Krala counts in list", err);
             }
         }
 
@@ -226,7 +257,13 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
             // Même règle que la passe de fond : un raid qui attend sa clôture reste affiché
             // « Publié » (le rappel de clôture part à +24 h, la clôture d'office n'a lieu
             // qu'à +48 h) — sinon l'agenda annoncerait « terminé » un raid non clôturé.
-            const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
+            // Un miroir DJ/Songes n'est jamais « terminé » par sa seule date.
+            const isPast = shouldBlindAutoClose({
+                type: event.type,
+                endDate: event.endDate,
+                now,
+                isMirror: isAgendaMirror(event.metadata),
+            });
             const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
@@ -348,19 +385,17 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        // Auto-complete past event if still PUBLISHED
+        // Statut **dérivé** pour l'affichage — aucune écriture (la clôture d'office vit
+        // dans la passe de fond, avec la purge Discord). Même règle unique : un raid n'est
+        // « terminé » qu'à +48 h, pour que le rappel de clôture ait le temps de partir.
         const now = new Date();
-        // Même règle que la passe de fond : un raid n'est « terminé » qu'à +48 h, pour que
-        // le rappel de clôture (24 h après la fin) ait le temps de partir.
-        const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
+        const isPast = shouldBlindAutoClose({
+            type: event.type,
+            endDate: event.endDate,
+            now,
+            isMirror: isAgendaMirror(event.metadata),
+        });
         const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
-
-        if (isPast && event.status === "PUBLISHED") {
-            db.guildEvent.update({
-                where: { id: event.id },
-                data: { status: "COMPLETED" }
-            }).catch(() => {});
-        }
 
         // Clone event to allow modification
         const eventData = { ...event, status: effectiveStatus as any };
@@ -456,7 +491,35 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             }));
         }
 
-        return { success: true, event: eventData, hasMetamobKey };
+        const mirrorSource = agendaMirrorSource(eventData.metadata);
+        let mirrorDjPost = null;
+        let mirrorDreamRun = null;
+
+        if (mirrorSource?.kind === "DJ") {
+            const { getDjPostById } = await import("@/server/actions/dungeon-finder-actions");
+            const djRes = await getDjPostById(guildId, mirrorSource.id);
+            if (djRes.success && djRes.data) {
+                mirrorDjPost = djRes.data;
+            }
+        } else if (mirrorSource?.kind === "SONGES") {
+            const { getDreamRunById } = await import("@/server/actions/songes/dream-run-actions");
+            const songesRes = await getDreamRunById(guildId, mirrorSource.id);
+            if (songesRes.success && songesRes.run) {
+                mirrorDreamRun = songesRes.run;
+            }
+        }
+
+        return {
+            success: true,
+            event: {
+                ...eventData,
+                mirrorDjPost,
+                mirrorDreamRun,
+            },
+            hasMetamobKey,
+            currentProfileId: ctx.profileId,
+            isAdmin: ctx.isAdmin,
+        };
     } catch (error) {
         logger.error("[Calendar] getEventDetails Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -586,7 +649,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
     }
 
     const validated = GuildEventSchema.safeParse(data);
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message };
+    if (!validated.success) return { success: false, error: validated.error.issues[0].message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -595,7 +658,15 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const { publishOnDiscord, missionIds, mentionRoleIds, ...eventData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, creatorClass, ...eventData } = validated.data;
+
+        // Classe du créateur : validée contre SON roster (main + mules), fail-closed —
+        // une classe qu'il ne possède pas n'est jamais écrite sur son inscription.
+        const ownedCreatorClass = resolveOwnedClass(
+            creatorClass,
+            await loadClassProfileByUserId(ctx.id!, guildId)
+        );
+        if (!ownedCreatorClass.success) return { success: false, error: ownedCreatorClass.error };
 
         if (isPastDay(eventData.startDate)) {
             return { success: false, error: "Impossible de créer un événement sur un jour passé." };
@@ -665,6 +736,20 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
             }
         });
 
+        // Interrupteur « Agenda » (chantier N, lot N-4) : l'événement entre dans le **flux** de vie
+        // de la guilde — un événement qui existe est exactement ce que la préférence annonce
+        // (« Un événement existe ou approche »). Une seule ligne, jamais une par membre.
+        {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: guildConfig.id,
+                profileId: ctx.id,
+                kind: "events",
+                entityId: event.id,
+                detail: event.title,
+            });
+        }
+
         if (event.type === "RAID_OFFICIAL") {
             // Kamas gate applies to the creator too — consistent with processRegistration
             // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
@@ -702,15 +787,21 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 }
             }
 
-            await db.eventParticipant.create({
-                data: {
-                    eventId: event.id,
-                    userId: ctx.id!,
-                    status: "REGISTERED",
-                    position: 1,
-                }
-            });
         }
+
+        // Option B (décision du 23/10/2026) : le créateur est inscrit d'office sur **tous**
+        // les événements (plus seulement les raids), slot 1, avec la classe qu'il a choisie.
+        // C'est ce qui permet au sélecteur de classe d'exister hors raid.
+        await db.eventParticipant.create({
+            data: {
+                eventId: event.id,
+                userId: ctx.id!,
+                status: "REGISTERED",
+                position: 1,
+                // Absente ⇒ repli sur `UserProfile.classe` à l'affichage, comme avant.
+                ...(ownedCreatorClass.classe ? { classe: ownedCreatorClass.classe } : {}),
+            }
+        });
 
 
 
@@ -729,7 +820,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         }
 
 
-        revalidatePath(`/dashboard/${guildId}/calendar`);
+        // B13 (audit du 30/10/2026) : `revalidatePath` était appelé **deux fois** de suite.
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, eventId: event.id, discordSent, discordError };
     } catch (error) {
@@ -816,6 +907,19 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
             }
         });
 
+        // Interrupteur « Agenda » (chantier N, lot N-4) : même annonce que pour un événement saisi
+        // à la main — l'import Metamob crée un vrai événement d'agenda, il nourrit le flux.
+        {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: guildConfig.id,
+                profileId: ctx.id,
+                kind: "events",
+                entityId: event.id,
+                detail: event.title,
+            });
+        }
+
         // Try to fetch participants immediately to populate metadata
         try {
             const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
@@ -888,7 +992,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
     if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
     const validated = GuildEventSchema.safeParse(data);
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message };
+    if (!validated.success) return { success: false, error: validated.error.issues[0].message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -904,7 +1008,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         }
 
         // Exclude virtual fields
-        const { publishOnDiscord, missionIds, mentionRoleIds, ...updateData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, creatorClass, ...updateData } = validated.data;
         if (isPastDay(updateData.startDate)) {
             return { success: false, error: "Impossible de déplacer un événement sur un jour passé." };
         }
@@ -926,6 +1030,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         const nextStartMs = updateData.startDate ? new Date(updateData.startDate).getTime() : null;
         if (prevStartMs !== null && nextStartMs !== null && prevStartMs !== nextStartMs) {
             delete (finalMetadata as any).raidReminderSentAt;
+            delete (finalMetadata as any).raidReminder24hSentAt;
             delete (finalMetadata as any).eventReminderSentAt;
         }
 
@@ -939,6 +1044,29 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
                 metadata: finalMetadata
             }
         });
+
+        // Classe du créateur (édition) : seulement si elle CHANGE — une mule retirée du
+        // profil ne doit pas faire échouer l'édition d'un autre champ. On met à jour SON
+        // inscription si elle existe (jamais de création implicite ici).
+        if (creatorClass !== undefined) {
+            const mine = await db.eventParticipant.findFirst({
+                where: { eventId, userId: ctx.id! },
+                select: { id: true, classe: true },
+            });
+            if (mine) {
+                const owned = resolveOwnedClass(
+                    creatorClass,
+                    await loadClassProfileByUserId(ctx.id!, guildId)
+                );
+                if (!owned.success) return { success: false, error: owned.error };
+                if ((owned.classe ?? null) !== (mine.classe ?? null)) {
+                    await db.eventParticipant.update({
+                        where: { id: mine.id },
+                        data: { classe: owned.classe },
+                    });
+                }
+            }
+        }
 
         // Sync Discord embed if the event was published on Discord
         if (event.discordMessageId && event.discordChannelId) {
@@ -960,7 +1088,6 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 export async function cancelCalendarEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -971,13 +1098,15 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, title: true, type: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status !== "PUBLISHED") return { success: false, error: "Seuls les événements publiés peuvent être annulés" };
         if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
-        if (event.creatorId !== ctx.id && !ctx.isAdmin) {
+
+        const canCancel = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
+        if (!canCancel) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut l'annuler." };
         }
 
@@ -989,13 +1118,59 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
         await deleteReminderMessageRefs(cancelReminders);
         const cancelDeleteTasks: Promise<unknown>[] = [];
         if (event?.discordChannelId && event?.discordMessageId) {
-            cancelDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
+            const { eventMessageKey } = await import("@/server/calendar-service");
+            cancelDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId, eventMessageKey(eventId)).catch(() => false));
         }
         if (cancelDeleteTasks.length > 0) await Promise.allSettled(cancelDeleteTasks);
 
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
             data: { status: "CANCELLED" }
+        });
+
+        // D7 (décision du 31/10/2026) : l'annulation n'est plus **muette**. Chaque **inscrit**
+        // reçoit une notification **dans le tableau de bord** — aucun DM, aucun message Discord :
+        // l'embed du salon est supprimé juste au-dessus (B3). Fail-soft assumé : l'annulation est
+        // faite ; une notification ratée est journalisée et ne défait pas l'acte.
+        let notified = 0;
+        try {
+            const registered = await db.eventParticipant.findMany({
+                where: { eventId, status: "REGISTERED" },
+                select: { userId: true },
+                take: 200,
+            });
+            const { createNotification } = await import("./notification-actions");
+            const notifyTitle = event.type === "RAID_OFFICIAL" ? "Raid annulé" : "Événement annulé";
+            for (const participant of registered) {
+                await createNotification(
+                    participant.userId,
+                    "SYSTEM_INFO",
+                    notifyTitle,
+                    `« ${event.title} » a été annulé par l'organisateur.`,
+                    `/dashboard/${guildId}/calendar`,
+                    guildId,
+                    "EVENT",
+                );
+                notified++;
+            }
+        } catch (error) {
+            logger.warn("[Calendar] cancelCalendarEvent : notifications non écrites", {
+                eventId,
+                error: String(error),
+            });
+        }
+
+        // B7 (audit du 30/10/2026) : une annulation ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_CANCELLED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { status: "CANCELLED", notified },
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
@@ -1007,12 +1182,117 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
 }
 
 /**
- * Delete an event (hard delete — only for CANCELLED events)
+ * **Stand-by** d'un événement calendrier (30/10/2026) — pause posée par le **créateur** ou
+ * un **administrateur**.
+ *
+ * Contrat (`@/lib/group-standby`) : suspend le rappel H-24 / H-1, le rappel de clôture et
+ * la **clôture d'office** ; les inscriptions restent ouvertes ; `paused` est idempotent.
+ *
+ * Un **miroir agenda** (DJ/Songes) est refusé : sa pause se pose sur le post d'origine, et
+ * `syncDjMirror` / `syncSongesMirror` la recopie ici (une seule vérité).
+ */
+export async function setEventStandBy(
+    guildId: string,
+    eventId: string,
+    paused: boolean,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    const limit = await rateLimit(`event-standby:${guildId}:${ctx.id ?? "anon"}`, 10, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de changements en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findFirst({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true, creatorId: true, status: true, metadata: true, standBy: true },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
+
+        if (!canToggleStandBy({
+            isCreator: event.creatorId === ctx.id,
+            isAdmin: Boolean(ctx.isAdmin || ctx.canManageCalendar),
+        })) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le mettre en stand-by." };
+        }
+        if (event.status === "COMPLETED" || event.status === "CANCELLED") {
+            return { success: false, error: "Un événement clôturé ou annulé ne peut pas être mis en stand-by." };
+        }
+        if (isStandByActive(event.standBy) === paused) return { success: true };
+
+        if (paused) {
+            const authorProfile = await db.userProfile.findFirst({
+                where: { userId: ctx.id ?? "", guildId: guildConfig.id },
+                select: { pseudoDofus: true, discordNickname: true },
+            });
+            const state = buildStandBy({
+                at: new Date(),
+                userId: ctx.id ?? "",
+                name: authorProfile?.pseudoDofus || authorProfile?.discordNickname || ctx.name || "un membre",
+            });
+            if (!state) return { success: false, error: "Impossible d'identifier l'auteur de la pause." };
+            await db.guildEvent.update({
+                where: { id: eventId, guildId: guildConfig.id },
+                data: { standBy: state as never },
+            });
+        } else {
+            await db.guildEvent.update({
+                where: { id: eventId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        }
+
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_STANDBY",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            metadata: {
+                paused,
+                byAdmin: Boolean(ctx.isAdmin || ctx.canManageCalendar),
+                reason: (reason ?? "").slice(0, 300) || (paused ? "Mise en stand-by" : "Reprise"),
+            },
+        });
+
+        try {
+            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+            await updateDiscordEventEmbed(guildId, eventId);
+        } catch (embedErr) {
+            logger.warn("[setEventStandBy] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Calendar] setEventStandBy Error:", error);
+        return { success: false, error: "Erreur lors du changement de stand-by" };
+    }
+}
+
+/**
+ * Delete an event (hard delete)
  */
 export async function deleteCalendarEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1027,9 +1307,11 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
-        if (event.status !== "CANCELLED") return { success: false, error: "Seuls les événements annulés peuvent être supprimés définitivement." };
+        if (event.status === "COMPLETED") return { success: false, error: "Les événements clôturés sont conservés pour l'historique." };
         if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
-        if (event.creatorId !== ctx.id && !ctx.isAdmin) {
+
+        const canDelete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
+        if (!canDelete) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le supprimer." };
         }
 
@@ -1039,12 +1321,26 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
         await deleteReminderMessageRefs(deleteReminders);
         const hardDeleteTasks: Promise<unknown>[] = [];
         if (event?.discordChannelId && event?.discordMessageId) {
-            hardDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
+            const { eventMessageKey } = await import("@/server/calendar-service");
+            hardDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId, eventMessageKey(eventId)).catch(() => false));
         }
         if (hardDeleteTasks.length > 0) await Promise.allSettled(hardDeleteTasks);
 
         await db.guildEvent.delete({
             where: { id: eventId, guildId: guildConfig.id }
+        });
+
+        // B8 (audit du 30/10/2026) : une suppression ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_DELETED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { deleted: true },
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
@@ -1101,7 +1397,6 @@ export async function publishEvent(guildId: string, eventId: string) {
 export async function completeEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1124,6 +1419,16 @@ export async function completeEvent(guildId: string, eventId: string) {
         if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
         if (isAgendaMirror((event as any).metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
 
+        // B9 (audit du 30/10/2026) : ce chemin crédite **tous** les inscrits (+50 XP pour un raid)
+        // sans sélection des présents — il contournait la clôture raid. Un raid n'a qu'une porte.
+        const raidRoute = assertRaidClosureRoute(event.type);
+        if (!raidRoute.ok) return { success: false, error: raidRoute.error };
+
+        const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
+        if (!canComplete) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le clôturer." };
+        }
+
         const xpReward = event.type === "RAID_OFFICIAL" ? 50 : 20;
 
         // Mark event as completed
@@ -1132,16 +1437,16 @@ export async function completeEvent(guildId: string, eventId: string) {
             data: { status: "COMPLETED" }
         });
 
-        // Close Discord message + cleanup reminder messages (await allSettled — le forEach
-        // original lâchait les promesses sans attendre, le runtime coupait avant la fin).
+        // Close Discord message + cleanup reminder messages (attendu : le runtime Next
+        // coupait les promesses non attendues). Purge partagée avec la passe de fond.
         const cleanupMeta = (event.metadata as any) || {};
         const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
         await deleteReminderMessageRefs(reminderMessages);
-        const completeTasks: Promise<unknown>[] = [];
-        if (event.discordChannelId && event.discordMessageId) {
-            completeTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
-        }
-        if (completeTasks.length > 0) await Promise.allSettled(completeTasks);
+        await deleteEventDiscordMessage({
+            id: eventId,
+            discordChannelId: event.discordChannelId,
+            discordMessageId: event.discordMessageId,
+        });
 
         // Distribute XP to all registered participants
         if (event.participants.length > 0) {
@@ -1157,6 +1462,19 @@ export async function completeEvent(guildId: string, eventId: string) {
             });
         }
 
+        // B6 (audit du 30/10/2026) : aucune trace de clôture n'existait, alors que bonus et marché en ont.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_CLOSED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { status: "COMPLETED", rewarded: event.participants.length, xpReward },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, participantsRewarded: event.participants.length, xpReward };
     } catch (error) {
@@ -1171,66 +1489,126 @@ export async function completeEvent(guildId: string, eventId: string) {
 export async function completeRaidEvent(
     guildId: string,
     eventId: string,
-    data: { score: string; presentUserIds: string[] }
+    data: {
+        score: string;
+        presentUserIds: string[];
+        /** Motif de chaque inscrit décoché — **obligatoire** dès qu'un inscrit n'est pas présent. */
+        absences?: { userId: string; reason: RaidAbsenceReason }[];
+    }
 ) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
-    const score = data.score?.trim() || null;
-    const presentUserIds = data.presentUserIds || [];
+    // F5 (audit du 30/10/2026) : le score était **facultatif** (`data.score?.trim() || null`) ;
+    // l'entrée est désormais bornée (Zod) et un score vide refuse la clôture — rien n'est écrit.
+    const closure = validateRaidClosureInput({ score: data?.score, presentUserIds: data?.presentUserIds });
+    if (!closure.ok) return { success: false, error: closure.error };
+    const score = closure.score;
+    const presentUserIds = closure.presentUserIds;
+
+    // R1 (31/10/2026) : un inscrit décoché **doit** porter un motif. Sans ça, un oubli de clic
+    // devenait un no-show dans le registre — exactement ce que ce lot devait empêcher.
+    const absencesCheck = validateRaidAbsences(data?.absences);
+    if (!absencesCheck.ok) return { success: false, error: absencesCheck.error };
+    const absences = absencesCheck.absences;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, raidRequireKamaDonation: true, raidKamaDonationThreshold: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
-        });
-
-        if (!event) return { success: false, error: "Événement introuvable" };
-        if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
-        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
-
-        // Save score + completion data in metadata
-        const existingMeta = (event.metadata as any) || {};
-        await db.guildEvent.update({
-            where: { id: eventId },
-            data: {
-                status: "COMPLETED",
-                metadata: {
-                    ...existingMeta,
-                    raidScore: score,
-                    raidPresentUserIds: presentUserIds,
-                    completedAt: new Date().toISOString(),
-                    completedBy: ctx.id
-                }
+            select: {
+                id: true, creatorId: true, status: true, metadata: true,
+                discordChannelId: true, discordMessageId: true,
+                // R1 : le registre se construit sur les **inscrits**, résolus côté serveur —
+                // jamais sur la liste envoyée par l'écran (qui pourrait créditer un non-inscrit).
+                participants: { where: { status: "REGISTERED" }, select: { userId: true } },
             }
         });
 
-        // Close Discord message + cleanup reminder messages (await allSettled — même
-        // correction que completeEvent : on attend toutes les suppressions Discord).
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
+
+        // Clôture **humaine** = `metadata.completedAt`. Un raid clôturé d'office par la
+        // passe de fond (`closedBySystem`, sans `completedAt`) reste donc complétable :
+        // c'est ce qui évite un raid définitivement « terminé » sans points.
+        const existingMeta = (event.metadata as any) || {};
+        if (existingMeta.completedAt) {
+            return { success: false, error: "Déjà clôturé par le capitaine" };
+        }
+
+        // R1 (31/10/2026) : la clôture est un acte d'**officier** — `RAID_OFFICER`
+        // (`canManageRaid`) et le **capitaine** du raid (`metadata.raidCaptainId`, posé par
+        // `transferRaidLead`) s'ajoutent au créateur et aux administrateurs.
+        const isRaidCaptain = (existingMeta.raidCaptainId as string | null | undefined) === ctx.id;
+        const canComplete =
+            ctx.isAdmin || ctx.canManageCalendar || ctx.canManageRaid || event.creatorId === ctx.id || isRaidCaptain;
+        if (!canComplete) {
+            return { success: false, error: "Seuls le capitaine du raid, un officier de raid ou un administrateur peuvent le clôturer." };
+        }
+
+        // R1 : registre complet (une ligne par inscrit) construit **avant** d'écrire quoi que ce
+        // soit — un motif manquant ou un identifiant hors inscrits refuse la clôture entière.
+        const presence = buildRaidPresenceRows({
+            registeredUserIds: (event.participants ?? []).map((p) => p.userId),
+            presentUserIds,
+            absences,
+        });
+        if (!presence.ok) return { success: false, error: presence.error };
+
+        // Calcul du coût en Kamas Violets (0 si le don est désactivé)
+        const requireKamas = guildConfig.raidRequireKamaDonation ?? true;
+        const purpleKamasCost = requireKamas ? ((guildConfig.raidKamaDonationThreshold ?? 3) * 10) : 0;
+
+        // Save score + completion data in metadata (la clôture d'office éventuelle est
+        // effacée : le capitaine reprend la main, `completedAt` devient le discriminant).
+        // R1 : le registre est **réécrit** (rejouer une clôture après un undo ne laisse aucun
+        // doublon) dans la **même transaction** que la clôture — jamais un raid clos sans
+        // registre, jamais un registre orphelin d'une clôture annulée.
+        await db.$transaction([
+            db.raidPresence.deleteMany({ where: { eventId } }),
+            db.raidPresence.createMany({
+                data: presence.rows.map((row) => ({
+                    guildId: guildConfig.id,
+                    eventId,
+                    userId: row.userId,
+                    status: row.status,
+                    recordedBy: ctx.id ?? null,
+                })),
+            }),
+            db.guildEvent.update({
+                where: { id: eventId },
+                data: {
+                    status: "COMPLETED",
+                    metadata: {
+                        ...stripSystemClosure(existingMeta),
+                        raidScore: score,
+                        raidPresentUserIds: presentUserIds,
+                        raidPurpleKamasCost: purpleKamasCost,
+                        completedAt: new Date().toISOString(),
+                        completedBy: ctx.id
+                    }
+                }
+            }),
+        ]);
+
+        // Close Discord message + cleanup reminder messages (même purge partagée que la
+        // passe de fond : rappels outbox résolus par leur clé Redis + embed de publication).
         const cleanupMeta = (event.metadata as any) || {};
         const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
         await deleteReminderMessageRefs(reminderMessages);
-        const raidCompleteTasks: Promise<unknown>[] = [];
-        if (event.discordChannelId && event.discordMessageId) {
-            raidCompleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
-        }
-        if (raidCompleteTasks.length > 0) await Promise.allSettled(raidCompleteTasks);
+        await deleteEventDiscordMessage({
+            id: eventId,
+            discordChannelId: event.discordChannelId,
+            discordMessageId: event.discordMessageId,
+        });
 
         // Distribute XP + deduct Purple Kamas for present members (dynamic threshold + stored for undo)
-        let purpleKamasCost = 30; // default fallback
         if (presentUserIds.length > 0) {
-            const raidConfig = await db.guildConfig.findUnique({
-                where: { discordGuildId: guildId },
-                select: { raidKamaDonationThreshold: true }
-            });
-            purpleKamasCost = (raidConfig?.raidKamaDonationThreshold ?? 3) * 10;
             await db.userProfile.updateMany({
                 where: {
                     userId: { in: presentUserIds },
@@ -1238,13 +1616,35 @@ export async function completeRaidEvent(
                 },
                 data: {
                     xp: { increment: 50 },
-                    purpleKamasConsumed: { increment: purpleKamasCost }
+                    ...(purpleKamasCost > 0 ? { purpleKamasConsumed: { increment: purpleKamasCost } } : {})
                 }
             });
         }
 
+        // B6 (audit du 30/10/2026) : la clôture raid ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_CLOSED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status, completedAt: existingMeta.completedAt ?? null },
+            newValue: {
+                score,
+                presentCount: presence.present,
+                purpleKamasCost,
+                // R1 : la clôture dit aussi ce qu'elle a **constaté**, sans exposer de nom.
+                absentCount: presence.absent,
+                noShows: presence.noShows,
+                warned: presence.warned,
+                excused: presence.excused,
+            },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, rewarded: presentUserIds.length, score };
+        return { success: true, rewarded: presence.present, score, absent: presence.absent, noShows: presence.noShows };
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
@@ -1274,10 +1674,14 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status !== "COMPLETED") return { success: false, error: "Le raid n'est pas clôturé" };
 
-        // 24h window check
+        // Fenêtre de 24 h : clôture du capitaine (`completedAt`) **ou** clôture d'office
+        // (`systemClosedAt`). Un raid clôturé d'office n'a aucun remboursement à faire
+        // (aucun présent, aucun Kamas consommé).
         const meta = (event.metadata as any) || {};
-        const completedAt = meta.completedAt ? new Date(meta.completedAt) : null;
-        if (!completedAt || (Date.now() - completedAt.getTime()) > 24 * 60 * 60 * 1000) {
+        const closedAt = meta.completedAt
+            ? new Date(meta.completedAt)
+            : (meta.systemClosedAt ? new Date(meta.systemClosedAt) : null);
+        if (!closedAt || (Date.now() - closedAt.getTime()) > 24 * 60 * 60 * 1000) {
             return { success: false, error: "Délai de 24h dépassé. Vous ne pouvez plus annuler cette clôture." };
         }
 
@@ -1286,50 +1690,243 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
             return { success: false, error: "Seul l'initiateur du raid ou un gestionnaire du calendrier peut annuler la clôture." };
         }
 
-        // Refund Purple Kamas + XP to present members (prevents double-counting on re-complete)
+        // Rembourse l'XP et les Kamas Violets **réellement** décomptés aux présents.
+        // D2 (décision du 30/10/2026) : fail-closed — un raid clôturé **avant** l'enregistrement du
+        // coût (`raidPurpleKamasCost`) n'a pas de montant connu : on rembourse **0** au lieu de
+        // l'ancien repli `?? 30`, qui créditait une valeur inventée. Règle pure + testée.
         const presentUserIds: string[] = meta.raidPresentUserIds || [];
-        const purpleKamasCost = meta.raidPurpleKamasCost ?? 30;
+        const refund = resolveUndoRefundPurpleKamas(meta);
+        const purpleKamasCost = refund.purpleKamasCost;
         if (presentUserIds.length > 0) {
+            if (!refund.known) {
+                logger.warn("[Calendar] undoCompleteRaidEvent : coût Kamas Violets inconnu (raid antérieur) — remboursement 0", {
+                    eventId,
+                });
+            }
             await db.userProfile.updateMany({
                 where: {
                     userId: { in: presentUserIds },
                     guildId: guildConfig.id
                 },
                 data: {
-                    purpleKamasConsumed: { decrement: purpleKamasCost },
-                    xp: { decrement: 50 }
+                    xp: { decrement: 50 },
+                    ...(purpleKamasCost > 0 ? { purpleKamasConsumed: { decrement: purpleKamasCost } } : {}),
                 }
             });
         }
 
-        // Revert event to PUBLISHED
+        // R1 : le registre appartient à la clôture — la rouvrir l'**efface**, l'état d'avant
+        // revient exactement (présences, points, Kamas, no-shows).
+        const removedPresences = await db.raidPresence.deleteMany({ where: { eventId } });
+
+        // F1/F2 (audit du 30/10/2026) : la clôture a **supprimé** l'embed et les rappels. Le undo se
+        // contentait de PATCHer le message (mort) et laissait les marqueurs d'idempotence en place
+        // ⇒ raid « fantôme », sans rappels. On rouvre avec des métadonnées propres.
         await db.guildEvent.update({
             where: { id: eventId },
             data: {
                 status: "PUBLISHED",
-                metadata: {
-                    ...meta,
-                    raidScore: null,
-                    raidPresentUserIds: [],
-                    completedAt: null,
-                    completedBy: null,
-                    raidUndoneAt: new Date().toISOString(),
-                    raidUndoneBy: ctx.id
-                }
+                metadata: buildRaidUndoMetadata(meta, ctx.id ?? ""),
             }
         });
 
-        // Re-send Discord embed if previously had one
-        if (event.discordChannelId) {
-            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-            updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
+        // F1 : on **republie** dès que le raid avait un embed — jamais de PATCH sur un message mort.
+        let discordRepublished = false;
+        if (shouldRepublishAfterUndo(event)) {
+            const { publishDiscordEvent } = await import("@/server/calendar-service");
+            const published = await publishDiscordEvent(guildId, eventId);
+            discordRepublished = published.success === true;
+            if (!discordRepublished) {
+                logger.warn("[Calendar] undoCompleteRaidEvent : republication Discord impossible", {
+                    eventId,
+                    error: published.error,
+                });
+            }
         }
 
+        // B6 (audit du 30/10/2026) : aucune trace de l'annulation de clôture.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_CLOSURE_UNDONE",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { score: meta.raidScore ?? null, presentCount: presentUserIds.length, purpleKamasCost, presenceRows: removedPresences.count },
+            newValue: { status: "PUBLISHED", discordRepublished },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, refunded: presentUserIds.length };
+        return { success: true, refunded: presentUserIds.length, refundedPurpleKamas: purpleKamasCost, discordRepublished };
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
+    }
+}
+
+/** Ligne de présence vue par la **fiche membre** (staff) — un raid, un statut. */
+export type MemberRaidPresenceRow = {
+    eventId: string;
+    eventTitle: string;
+    eventDate: string;
+    status: RaidPresenceStatus;
+    recordedBy: string | null;
+    updatedAt: string;
+};
+
+/** Vue staff d'un membre : ses présences de raid + son compteur 90 jours. */
+export type MemberRaidPresence = {
+    success: boolean;
+    error?: string;
+    rows?: MemberRaidPresenceRow[];
+    summary?: RaidPresenceSummary;
+    retentionDays?: number;
+    /** `true` = l'appelant peut corriger un statut (officier de raid ou admin). */
+    canCorrect?: boolean;
+};
+
+/**
+ * Présences de raid **d'un membre**, lues depuis sa fiche (R1, décision D3 du 31/10/2026).
+ *
+ * Le registre n'est **pas** un objet du raid : on le consulte quand on gère un membre
+ * (« a-t-il séché trois raids ce trimestre ? »), pas en clôturant. La garde est donc celle de
+ * la gestion membre **ou** de l'officier de raid — et elle est re-vérifiée ici, jamais héritée
+ * de la page. Isolation : tout est filtré par le `guildId` **résolu côté serveur**.
+ */
+export async function getMemberRaidPresence(guildId: string, userId: string): Promise<MemberRaidPresence> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!(ctx.isAdmin || ctx.canManageMembers || ctx.canManageRaid)) {
+        return { success: false, error: "Permission insuffisante" };
+    }
+    const targetUserId = typeof userId === "string" ? userId.trim() : "";
+    if (!targetUserId || targetUserId.length > 64) {
+        return { success: false, error: "Membre invalide" };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const rows = await db.raidPresence.findMany({
+            where: { guildId: guildConfig.id, userId: targetUserId },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+            select: {
+                eventId: true,
+                status: true,
+                recordedBy: true,
+                updatedAt: true,
+                createdAt: true,
+                event: { select: { title: true, startDate: true } },
+            },
+        });
+
+        const cutoff = raidPresenceRetentionCutoff();
+        const recent = rows.filter((row) => row.createdAt >= cutoff).map((row) => row.status);
+
+        return {
+            success: true,
+            rows: rows.map((row) => ({
+                eventId: row.eventId,
+                eventTitle: row.event.title,
+                eventDate: row.event.startDate.toISOString(),
+                status: row.status,
+                recordedBy: row.recordedBy ?? null,
+                updatedAt: row.updatedAt.toISOString(),
+            })),
+            summary: summarizeRaidPresence(recent),
+            retentionDays: RAID_PRESENCE_RETENTION_DAYS,
+            canCorrect: ctx.isAdmin || ctx.canManageRaid,
+        };
+    } catch (error) {
+        logger.error("[Calendar] getMemberRaidPresence Error:", error);
+        return { success: false, error: "Registre illisible" };
+    }
+}
+
+/**
+ * Correction d'un statut de présence par un **officier** (R1) — auditée avant → après.
+ *
+ * ⚠️ Corriger le registre **ne rejoue pas** les points ni les Kamas Violets : c'est un constat,
+ * pas un paiement. Pour repayer, on annule la clôture puis on la refait (undo + clôture).
+ */
+export async function correctRaidPresence(
+    guildId: string,
+    eventId: string,
+    userId: string,
+    status: RaidPresenceStatus,
+) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!(ctx.isAdmin || ctx.canManageRaid)) return { success: false, error: "Permission insuffisante" };
+    if (!(RAID_PRESENCE_STATUSES as readonly string[]).includes(status)) {
+        return { success: false, error: "Statut de présence invalide." };
+    }
+
+    const limit = await rateLimit(`raid-presence:${guildId}:${ctx.id ?? "anon"}`, 20, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de corrections en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        const existing = await db.raidPresence.findUnique({
+            where: { eventId_userId: { eventId, userId } },
+            select: { status: true, guildId: true },
+        });
+        if (!existing || existing.guildId !== guildConfig.id) {
+            return { success: false, error: "Aucune présence à corriger pour ce membre." };
+        }
+        if (existing.status === status) return { success: true, unchanged: true };
+
+        // Garde d'état dans le `WHERE` : deux officiers qui corrigent en même temps ne
+        // s'écrasent pas silencieusement.
+        const updated = await db.raidPresence.updateMany({
+            where: { eventId, userId, guildId: guildConfig.id, status: existing.status },
+            data: { status, recordedBy: ctx.id ?? null },
+        });
+        if (updated.count === 0) {
+            return { success: false, error: "La présence a changé entre-temps : rechargez le registre." };
+        }
+
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_PRESENCE_CORRECTED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: existing.status },
+            newValue: { status },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, from: existing.status, to: status };
+    } catch (error) {
+        logger.error("[Calendar] correctRaidPresence Error:", error);
+        return { success: false, error: "Correction impossible" };
     }
 }
 
@@ -1670,13 +2267,22 @@ export async function sendEventReminder(
             where: { id: eventId },
             include: {
                 participants: {
-                    where: { status: { in: ["REGISTERED", "RESERVE"] } },
+                    // Même population que le rappel automatique (`raid-reminder-service`) :
+                    // un inscrit passé en CONFIRMED doit être pingé et notifié lui aussi.
+                    where: { status: { in: ["REGISTERED", "CONFIRMED", "RESERVE"] } },
                     include: { user: { select: { id: true, name: true } } }
                 }
             }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+
+        // Stand-by (30/10/2026) : la pause suspend AUSSI les rappels **manuels**.
+        // Les passes automatiques (`raid-reminder-service`, `event-reminder-service`)
+        // skippent déjà ; sans cette garde, le bouton serait un faux silence.
+        if (isStandByActive(event.standBy)) {
+            return { success: false, error: "Cet événement est en stand-by : reprends-le avant d'envoyer un rappel." };
+        }
 
         const isRaid = event.type === "RAID_OFFICIAL";
 
@@ -1802,17 +2408,20 @@ export async function sendEventReminder(
                     }
                 }
 
-                // Build mention content (rôle optionnel + inscrits absents du vocal).
-                if (isRaid) {
-                    // Inscrits = REGISTERED + CONFIRMED (même règle que le rappel
-                    // auto — la file/RESERVE n'est jamais pingée sur Discord).
-                    const participantUserIds = event.participants
+                // Build mention content (rôle optionnel + inscrits & créateur).
+                // Même contrat pour tous les événements (raids, donjons, quêtes, songes) :
+                // inscrits (REGISTERED + CONFIRMED) + organisateur (créateur de l'événement).
+                const targetUserIds = Array.from(new Set([
+                    ...event.participants
                         .filter(p => p.status === "REGISTERED" || (p as any).status === "CONFIRMED")
-                        .map(p => p.userId);
+                        .map(p => p.userId),
+                    event.creatorId
+                ].filter(Boolean)));
 
+                if (targetUserIds.length > 0) {
                     const accounts = await db.account.findMany({
                         where: {
-                            userId: { in: participantUserIds },
+                            userId: { in: targetUserIds },
                             provider: "discord"
                         },
                         select: {
@@ -1823,11 +2432,7 @@ export async function sendEventReminder(
 
                     let discordIds = accounts.map(acc => acc.providerAccountId);
                     if (onlyAbsentFromVoice && discordIds.length > 0) {
-                        // « Suivre le capitaine » : le capitaine = créateur de l'event.
-                        const captainAccount = await db.account.findFirst({
-                            where: { userId: event.creatorId, provider: "discord" },
-                            select: { providerAccountId: true },
-                        });
+                        const captainAccount = accounts.find(a => a.userId === event.creatorId);
                         const { splitByVoice } = await import("@/server/voice-reminder-service");
                         const split = await splitByVoice(guildId, discordIds, captainAccount?.providerAccountId ?? null);
                         discordIds = split.absentDiscordIds;
@@ -1839,36 +2444,6 @@ export async function sendEventReminder(
                     voicePinged = discordPings ? discordPings.split(" ").length : 0;
                     if (discordPings) {
                         mentionContent = mentionContent ? `${mentionContent} ${discordPings}` : discordPings;
-                    }
-                } else if (onlyAbsentFromVoice) {
-                    // Events non-raid : le rappel manuel ping désormais aussi les
-                    // inscrits (REGISTERED) absents du vocal — avant, seul le rôle
-                    // optionnel était pingé, les inscrits n'étaient jamais notifiés.
-                    const participantUserIds = event.participants
-                        .filter(p => p.status === "REGISTERED")
-                        .map(p => p.userId);
-                    if (participantUserIds.length > 0) {
-                        const accounts = await db.account.findMany({
-                            where: { userId: { in: participantUserIds }, provider: "discord" },
-                            select: { providerAccountId: true },
-                        });
-                        const captainAccount = await db.account.findFirst({
-                            where: { userId: event.creatorId, provider: "discord" },
-                            select: { providerAccountId: true },
-                        });
-                        const { splitByVoice } = await import("@/server/voice-reminder-service");
-                        const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
-                        const split = await splitByVoice(
-                            guildId,
-                            accounts.map(a => a.providerAccountId),
-                            captainAccount?.providerAccountId ?? null
-                        );
-                        const pings = buildRaidReminderMentions(split.absentDiscordIds);
-                        voicePinged = pings ? pings.split(" ").length : 0;
-                        voiceSkipped = split.presentCount;
-                        if (pings) {
-                            mentionContent = mentionContent ? `${mentionContent} ${pings}` : pings;
-                        }
                     }
                 }
 
@@ -1911,11 +2486,15 @@ export async function sendEventReminder(
             }
         }
 
-        // Update lastRemindedAt
-        await db.guildEvent.update({
-            where: { id: eventId },
-            data: { lastRemindedAt: new Date() }
-        });
+        // `lastRemindedAt` met les rappels AUTOMATIQUES en silence 30 min (anti-double
+        // ping) : on ne le pose que si quelque chose est réellement parti. Un rappel qui
+        // n'a rien pu envoyer ne doit pas bloquer le cron pour rien.
+        if (discordSent || sentCount > 0) {
+            await db.guildEvent.update({
+                where: { id: eventId },
+                data: { lastRemindedAt: new Date() }
+            });
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, sentCount, discordSent, pinged: voicePinged, skipped: voiceSkipped };
@@ -2035,72 +2614,6 @@ export async function getEventsNeedingReminders() {
     } catch (error) {
         logger.error("[Calendar] getEventsNeedingReminders Error:", error);
         return { success: false, events: [] };
-    }
-}
-
-// ============================================
-// AUTO-CLOSE EXPIRED EVENTS
-// ============================================
-
-/**
- * Auto-close events that have passed their end date
- * Called on dashboard load or via cron job
- */
-export async function autoCloseExpiredEvents(guildId: string) {
-    try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return { success: false, closedCount: 0 };
-
-        const now = new Date();
-
-        // Événements terminés à clôturer d'office — règle partagée (`blindAutoCloseWhere`) :
-        // à +48 h seulement pour les raids, dès la fin pour tous les autres types.
-        const expiredEvents = await db.guildEvent.findMany({
-            where: blindAutoCloseWhere(guildConfig.id, now),
-            select: { id: true, title: true, metadata: true, discordChannelId: true, discordMessageId: true }
-        });
-
-        if (expiredEvents.length === 0) {
-            return { success: true, closedCount: 0 };
-        }
-
-        // Mark them as COMPLETED
-        await db.guildEvent.updateMany({
-            where: {
-                id: { in: expiredEvents.map(e => e.id) }
-            },
-            data: {
-                status: "COMPLETED"
-            }
-        });
-
-        // ── Chantier #31 : supprimer les embeds Discord + messages de rappel des événements clôturés ──
-        const { deleteChannelMessage } = await import("@/server/discord");
-        const deleteTasks: Promise<unknown>[] = [];
-        for (const event of expiredEvents) {
-            const meta = (event.metadata as any) || {};
-            const reminderMessages: ReminderMessageRef[] = meta.reminderMessages || [];
-            for (const rm of reminderMessages) {
-                if (rm?.channelId && rm?.messageId) {
-                    deleteTasks.push(deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false));
-                }
-            }
-            if (event.discordChannelId && event.discordMessageId) {
-                deleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
-            }
-        }
-        if (deleteTasks.length > 0) {
-            await Promise.allSettled(deleteTasks);
-        }
-
-        revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, closedCount: expiredEvents.length };
-    } catch (error) {
-        logger.error("[Calendar] autoCloseExpiredEvents Error:", error);
-        return { success: false, closedCount: 0 };
     }
 }
 

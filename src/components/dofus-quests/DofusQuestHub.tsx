@@ -6,6 +6,7 @@ import { Gem, Users, Search, RefreshCw, CheckCircle2, BookOpen, ChevronLeft, Arr
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { DofusGemCard } from "./DofusGemCard";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { GuildDofusOverview } from "./GuildDofusOverview";
 import { OptimizedGuideTab } from "./OptimizedGuideTab";
 import { QuestFeedbackButton } from "./QuestFeedbackButton";
@@ -327,12 +328,12 @@ export function DofusQuestHub({
                                                         style={{ zIndex: 10 - i }}
                                                         title={m.pseudo || m.userName}
                                                     >
-                                                        {m.avatarUrl ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
-                                                            <img src={m.avatarUrl} alt={m.pseudo} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="text-caption font-semibold text-success">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
-                                                        )}
+                                                        <MemberAvatar
+                                                            src={m.avatarUrl}
+                                                            name={m.pseudo || m.userName}
+                                                            alt={m.pseudo}
+                                                            fallbackClassName="text-caption font-semibold text-success"
+                                                        />
                                                     </div>
                                                 ))}
                                                 {guildStats.totalMembers > 6 && (
@@ -464,11 +465,12 @@ export function DofusQuestHub({
                             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-info/10 border border-info/20 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                                        {selectedMember.avatarUrl ? (
-                                            <img src={selectedMember.avatarUrl} alt={selectedMember.pseudo} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-base font-black text-info italic">{selectedMember.pseudo.charAt(0).toUpperCase()}</span>
-                                        )}
+                                        <MemberAvatar
+                                            src={selectedMember.avatarUrl}
+                                            name={selectedMember.pseudo}
+                                            alt={selectedMember.pseudo}
+                                            fallbackClassName="text-base font-black text-info italic"
+                                        />
                                     </div>
                                     <div>
                                         <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">Fiche du Membre</span>

@@ -3,14 +3,12 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, Handshake, ExternalLink, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { getOcreConfig, updateOcreChannel } from "@/server/actions/admin-actions";
 import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface OcreSettingsClientProps {
     guildId: string;
@@ -92,56 +90,56 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                 Centralisez les demandes d'échange d'archimonstres de vos membres.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-8">
-                            <div className="space-y-6">
-                                <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-muted" />
-                                    </div>
-                                    <h3 className="text-sm font-medium text-foreground mb-2 text-left">1. Récupérer l'ID du salon</h3>
-                                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                                        Créez un salon dédié (ex: <span className="text-success">🤝┊échanges-ocre</span>) pour que le bot puisse avertir les membres quand ils peuvent s'entraider.
+                        <CardContent className="space-y-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-1">
+                                        Salon des notifications d&apos;échanges
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mb-4">
+                                        Sélectionnez le salon où le bot annoncera automatiquement les opportunités d&apos;échanges d&apos;archimonstres entre membres.
                                     </p>
-                                </div>
-
-                                <div className="relative pl-6 border-l-2 border-success/50">
-                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-success border-2 border-border " />
-                                    <h3 className="text-sm font-medium text-foreground mb-4 text-left">2. Coller l'identifiant</h3>
-
-                                    <div className="space-y-4">
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <div className="relative flex-1 group/input">
-                                                <Input
-                                                    value={channelId}
-                                                    onChange={(e) => setChannelId(e.target.value)}
-                                                    placeholder="ID du salon (ex: 123...)"
-                                                    className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-success/50 transition-colors"
-                                                />
-                                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-success transition-colors" />
-                                            </div>
-                                            <Button onClick={handleSave} disabled={isPending} className="min-w-[140px] bg-success hover:bg-success h-11 font-bold shadow-lg shadow-emerald-600/20">
-                                                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                                SAUVEGARDER
-                                            </Button>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <DiscordChannelPicker
+                                                guildId={guildId}
+                                                value={channelId}
+                                                onChange={setChannelId}
+                                                placeholder="Sélectionner un salon..."
+                                                allowEmptyLabel="Aucun salon (désactivé)"
+                                            />
                                         </div>
-                                        <ChannelPreview guildId={guildId} channelId={channelId} color="emerald" />
-                                        
-                                        {isConfigured ? (
-                                            <div className="flex justify-end">
-                                                <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-caption font-black uppercase tracking-widest">
-                                                    Désactiver l'intégration
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="p-3 rounded-xl bg-warning/5 border border-warning/10 flex items-start gap-3">
-                                                <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
-                                                <p className="text-caption text-muted-foreground leading-relaxed italic">
-                                                    Aucun salon configuré. Les demandes d'échange ne seront pas relayées sur Discord.
-                                                </p>
-                                            </div>
-                                        )}
+                                        <Button
+                                            onClick={handleSave}
+                                            disabled={isPending}
+                                            className="min-w-[140px] bg-success hover:bg-success h-11 font-bold shadow-lg shadow-emerald-600/20"
+                                        >
+                                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                            Sauvegarder
+                                        </Button>
                                     </div>
                                 </div>
+
+                                {isConfigured ? (
+                                    <div className="flex justify-end pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleClear}
+                                            disabled={isPending}
+                                            className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-caption font-black uppercase tracking-widest"
+                                        >
+                                            Désactiver l&apos;intégration
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 rounded-xl bg-warning/5 border border-warning/10 flex items-start gap-3">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                                        <p className="text-caption text-muted-foreground leading-relaxed italic">
+                                            Aucun salon configuré. Les demandes d&apos;échange ne seront pas relayées sur Discord.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

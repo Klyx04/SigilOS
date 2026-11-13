@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import { getAppBaseUrl } from "@/lib/utils";
 
 /**
  * CRON: Mission Management Reset Notification
@@ -60,7 +61,7 @@ export async function GET(req: Request) {
             // Build the Ping & Embed
             const pings = roleId ? `<@&${roleId}>` : "";
             const isVitrine = guild.missionVitrineMode === true;
-            const dashboardBase = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guild.discordGuildId}`;
+            const dashboardBase = `${getAppBaseUrl()}/dashboard/${guild.discordGuildId}`;
             const targetUrl = isVitrine ? `${dashboardBase}/missions/manage` : `${dashboardBase}/admin/validation`;
 
             const embedTitle = isVitrine
@@ -93,7 +94,7 @@ export async function GET(req: Request) {
                     embedDescription,
                     embedColor: 0x6366f1, // Indigo
                     mentionContent: pings,
-                    embedThumbnail: "https://sigilos.fr/assets/icons/icone-quete.png",
+                    embedThumbnail: `${getAppBaseUrl()}/assets/icons/icone-quete.png`,
                     components: [
                         {
                             type: 1, // Action Row
@@ -133,7 +134,7 @@ export async function GET(req: Request) {
                         embedColor: 0x8b5cf6, // Violet
                         mentionContent: ping,
                         embedFooter: "SigilOS Platform Management",
-                        embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png"
+                        embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
                     }
                 );
             }

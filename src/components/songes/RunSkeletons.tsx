@@ -20,7 +20,7 @@ export function RunCardSkeleton() {
                         <Skeleton className="h-10 w-10 rounded-full bg-surface" />
                         <div className="flex -space-x-2">
                             {[1, 2, 3].map(i => (
-                                <Skeleton key={i} className="h-8 w-8 rounded-full border-2 border-zinc-950 bg-surface" />
+                                <Skeleton key={i} className="h-8 w-8 rounded-full border-2 border-surface bg-surface" />
                             ))}
                         </div>
                     </div>

@@ -26,6 +26,15 @@ import {
     specialAchievementKey,
     buildSpecialChallengePatch,
     siphonSpecialAchievements,
+    stripFrenchArticle,
+    isBossAchievementName,
+    pickSpecialAchievement,
+    fetchBossAchievementCandidates,
+    fetchMonsterAchievementIds,
+    fetchAchievementById,
+    fetchChallengeById,
+    challengeIdFromAchievement,
+    fetchRealBossName,
     type ChallengeRow,
 } from "@/lib/achievement-details-siphon";
 import { getAchievementIconUrl, getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
@@ -183,8 +192,17 @@ describe("icône de succès — proxy d'abord, plus de case noire", () => {
         // seedé `slug: "sp-cial"` (le slugifier transforme « é » en « - ») avec
         // `iconUrl: "/game-data/achievements/spécial.png"` — et ce fichier **existe** au dépôt.
         // Reconstruire le chemin depuis le slug demandait `sp-cial.png` ⇒ 404 + case noire.
+        //
+        // ⚠️ Mesure du 16/10/2026 : l'URL encodée de `spécial.png` répondait **200** et le
+        // succès restait pourtant **noir** dans les fiches interne et externe (accent dans un
+        // chemin = encodage, cache d'un ancien 404, mojibake, normalisation du FS). On sert
+        // donc la forme **ASCII** — le nom jumeau déjà présent au dépôt, comme les 27 autres.
         expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/spécial.png")).toBe(
-            "/game-data/achievements/sp%C3%A9cial.png"
+            "/game-data/achievements/special.png"
+        );
+        // Même en NFD (le « é » décomposé) : la sortie reste ASCII.
+        expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/spe\u0301cial.png")).toBe(
+            "/game-data/achievements/special.png"
         );
         // Le repli par slug reste en vigueur quand la base ne porte AUCUN chemin.
         expect(getAchievementIconUrl("sp-cial", null)).toBe("/game-data/achievements/sp-cial.png");
@@ -566,20 +584,25 @@ describe("outil d'exploitation des succès spéciaux — complet et lançable en
     });
 });
 
-describe("« Donjon validé » — plus créé, plus rendu", () => {
-    it("la fiche publique l'écarte et n'affiche plus de phrase générique", () => {
+describe("« Donjon validé » — rendu ciblé (revirement du 25/10/2026)", () => {
+    it("la fiche publique le rend **seulement** s'il est le seul succès du donjon", () => {
         const tab = read("src/app/boss/[dungeonId]/_components/PublicBossAchievementsTab.tsx");
-        expect(tab).toContain("NO_ACHIEVEMENT_CHALLENGE_SLUG");
-        expect(tab).toMatch(/achievements\.filter\(\(a\) => a\.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG\)/);
+        expect(tab).toContain("visibleDungeonAchievements");
+        expect(tab).toMatch(/const visible = visibleDungeonAchievements\(achievements\)/);
+        // La règle pure : écarté dès qu'un vrai succès existe (décision du 11/10 conservée)…
+        const rule = read("src/lib/dungeon-no-achievement.ts");
+        expect(rule).toMatch(/achievementSlug\(achievement\) !== NO_ACHIEVEMENT_CHALLENGE_SLUG/);
+        // … et conservé quand c'est la seule ligne (la coche « je l'ai fait »).
+        expect(rule).toMatch(/return real\.length > 0 \? real : \[\.\.\.achievements\]/);
         expect(tab).not.toContain("pour l&apos;obtenir");
     });
 
-    it("le hub ET « Mes Succès » ne le reçoivent plus du tout (filtre à la source)", () => {
-        // `SuccesTracker` compte `achievements.length` (totaux + « tranches complètes ») : sans ce
-        // filtre, le pseudo-succès restait comptabilisé côté interne, même après le retrait du rendu.
+    it("le hub ET « Mes Succès » passent par la même règle (jamais un faux succès compté)", () => {
+        // `SuccesTracker` compte `achievements.length` (totaux + « tranches complètes ») : la règle
+        // partagée garantit qu'un donjon avec de vrais succès ne voit **jamais** le pseudo-succès.
         const actions = read("src/server/actions/game-data-actions.ts");
-        expect(actions).toContain('import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement"');
-        expect(actions).toMatch(/achievement\?\.challenge\?\.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG/);
+        expect(actions).toContain('import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement"');
+        expect(actions).toMatch(/visibleDungeonAchievements\(dungeon\.achievements \?\? \[\]\)/);
     });
 
     it("l'outil d'exploitation existe, en dry-run par défaut", () => {
@@ -588,6 +611,279 @@ describe("« Donjon validé » — plus créé, plus rendu", () => {
         expect(script).toContain('"retirer-donjon-valide"');
         expect(script).toMatch(/--apply/);
         expect(script).toMatch(/if \(!apply\)/);
+    });
+
+    /**
+     * Défaut mesuré le 30/10/2026 : `reparer-butins` imprimait son rapport puis **ne rendait jamais
+     * la main** (le client Prisma de `@/lib/prisma` et Redis sont des singletons jamais fermés par
+     * le script) — `ps` montrait encore le process et la commande suivante du shell ne démarrait
+     * pas. Le script doit donc sortir **explicitement** après `main()`.
+     */
+    it("rend la main après le rapport (`process.exit` explicite, singletons Prisma/Redis)", () => {
+        const script = read("scripts/succes-speciaux.ts");
+        expect(script).toContain('"reparer-butins"');
+        expect(script).toMatch(/process\.stdout\.write\("", \(\) => process\.exit\(code\)\)/);
+        expect(script).toMatch(/\.catch\(\(error\) => \{/);
+        // Plus de `void main();` nu : c'est exactement ce qui laissait le terminal bloqué.
+        expect(script).not.toMatch(/^void main\(\);\s*$/m);
+    });
+});
+
+
+/**
+ * Le module Donjons & Quêtes doit passer par **la même règle** que la page GOD `?tab=game-data`.
+ *
+ * 🐛 Récidive mesurée le 16/10/2026 : les modales DJ affichaient des icônes **assombries**
+ * (champ brut / repli `?? iconUrl`) et parfois **aucune icône** — soit parce que le chemin
+ * accentué (`spécial.png`) partait brut dans le `<img>`, soit parce que la liste de clôture
+ * testait `Array.isArray(post.dungeonsJson)`, faux dès que le post porte l'enveloppe
+ * `{ _items }` (rappels, ids de messages) ⇒ **toutes** les icônes remplacées par Trophy.
+ *
+ * 🐛 Même date, cause suivante (même famille) : trois succès portaient un chemin **mort**
+ * (`…/econome.webp`, `…/intouchable.webp`, `…/temps-qui-court.webp` — en base, absents du dépôt)
+ * et les écrans DJ rendaient `<img>` **sans repli** ⇒ glyphe « image cassée » du navigateur.
+ * D'où le composant **unique** `<AchievementIcon>` (résolution + repli sur `onError`) : plus
+ * aucun écran ne décide seul comment rendre une icône de succès.
+ */
+describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le champ brut", () => {
+    const FILES = [
+        "src/components/dungeon-finder/DjPostCard.tsx",
+        "src/components/dungeon-finder/DjPostDetailModal.tsx",
+        "src/components/dungeon-finder/DjEditModal.tsx",
+        "src/components/dungeon-finder/DjCloseModal.tsx",
+        "src/components/dungeon-finder/DjMultiDungeonModal.tsx",
+        "src/components/dungeon-finder/DjPostCreateModal.tsx",
+        "src/components/admin/ChallengeManager.tsx",
+    ];
+
+    it("aucun écran DJ ne rend l'URL stockée brute", () => {
+        for (const file of FILES) {
+            const src = readFileSync(file, "utf8");
+            expect(src, `${file} : doit rendre l'icône par <AchievementIcon>`).toContain("<AchievementIcon");
+            expect(src, `${file} : plus de normalizeChallengeIconUrl`).not.toContain("normalizeChallengeIconUrl");
+            expect(src, `${file} : l'URL stockée ne part jamais dans un src`).not.toMatch(/src=\{[^}]*\.iconUrl\}/);
+            // Ni la règle appelée à la main (une seule source : le composant).
+            expect(src, `${file} : la résolution passe par le composant, pas par un appel local`)
+                .not.toContain("getAchievementIconUrl(");
+        }
+    });
+
+    it("le composant partagé résout la règle ET replie sur le glyphe (jamais d'image cassée)", () => {
+        const src = readFileSync("src/components/ui/achievement-icon.tsx", "utf8");
+        // La règle est **une seule** : `achievementIconCandidates` (asset local par slug, puis
+        // repli ASCII, puis proxy interne). Le composant ne recompose aucun chemin à la main.
+        expect(src).toContain("achievementIconCandidates(");
+        expect(src).toContain("onError");
+        expect(src).toContain("<Trophy");
+        // Le repli est rendu quand il n'y a plus de candidat à charger : `onError` avance dans
+        // `candidates` (asset local → repli ASCII → proxy) et `if (!src)` rend le glyphe.
+        expect(src).toMatch(/if \(!src\) \{/);
+        expect(src).toContain("setAttempt((current) => current + 1)");
+    });
+
+    it("la liste de clôture tolère l'enveloppe `{ _items }` (sinon zéro icône)", () => {
+        const src = readFileSync("src/components/dungeon-finder/DjCloseModal.tsx", "utf8");
+        expect(src).toContain("getMultiDungeons(post.dungeonsJson)");
+        expect(src).not.toContain("Array.isArray(post.dungeonsJson)");
+    });
+});
+
+/**
+ * A5 du 30/10/2026 — les **3 vrais cas** de succès « Spécial » (mesures DofusDB) que la passe
+ * ratait : `dechireuse`, `blop-indigo-royal`, `dramak`. Et la fin de l'affamement : `limit` compte
+ * désormais les **écritures**, pas les lignes examinées.
+ */
+describe("succès « Spécial » — boss, monstre, vrai boss", () => {
+    /** Succès DofusDB avec son `ChallengeData` imbriqué (forme mesurée sur 6150 / 6204 / 8834). */
+    function achievement(
+        name: string,
+        iconId: number,
+        challenge: { id: number; name: string; description: string; iconId: number }
+    ) {
+        return {
+            id: iconId,
+            name: { fr: name },
+            iconId,
+            objectives: [
+                {
+                    criterion: `(EH>${challenge.id},0)`,
+                    readableCriterion: [
+                        {
+                            className: "ChallengeData",
+                            name: { fr: challenge.name },
+                            description: { fr: challenge.description },
+                            iconId: challenge.iconId,
+                        },
+                    ],
+                },
+            ],
+        };
+    }
+
+    const NOMADE = achievement("La Déchireuse (Nomade)", 449, {
+        id: 1039,
+        name: "Nomade",
+        iconId: 12,
+        description: "Les combattants alliés doivent utiliser tous leurs points de mouvement.",
+    });
+    const BLOPS = achievement("Blops Royaux (Spécial)", 19, {
+        id: 994,
+        name: "Blops Royaux",
+        iconId: 19,
+        description: "Les invocations ennemies ne doivent subir aucun dommage.",
+    });
+    const PANTINS = achievement("Maître des Pantins (Statue)", 1014, {
+        id: 291,
+        name: "Statue",
+        iconId: 1014,
+        description: "Vaincre le Maître des Pantins dans son donjon en validant le challenge.",
+    });
+    const CONFLIT = achievement("L'Éternel Conflit (Zombie)", 900, {
+        id: 1000,
+        name: "Zombie",
+        iconId: 900,
+        description: "Ne pas tuer les zombies avant le tour 5.",
+    });
+    const MOB_EPONGE = achievement("Mob l'Éponge (Spécial)", 10, {
+        id: 979,
+        name: "Passer l'éponge",
+        iconId: 977,
+        description: "À partir du tour 2, Mob l'éponge doit être poussé ou attiré.",
+    });
+
+    it("retire l'article et exige TOUS les mots du boss (jamais « ça ressemble »)", () => {
+        expect(stripFrenchArticle("La Déchireuse")).toBe("Déchireuse");
+        expect(stripFrenchArticle("L'Éternel Conflit")).toBe("Éternel Conflit");
+        expect(isBossAchievementName("La Déchireuse (Nomade)", "La Déchireuse")).toBe(true);
+        expect(isBossAchievementName("Blops Royaux (Spécial)", "Blop Indigo Royal")).toBe(false);
+    });
+
+    it("« La Déchireuse (Nomade) » est trouvé par le NOM DU BOSS", async () => {
+        const fetchImpl = (async () => jsonResponse({ data: [NOMADE] })) as never;
+        const candidates = await fetchBossAchievementCandidates("La Déchireuse", fetchImpl);
+        expect(candidates).toHaveLength(1);
+        const picked = pickSpecialAchievement(candidates, "La Déchireuse");
+        expect(picked).toBe(NOMADE);
+        const patch = buildSpecialChallengePatch(picked, nestedChallengeOf(picked));
+        expect(patch?.description).toBe(NOMADE.objectives[0].readableCriterion[0].description.fr);
+        expect(patch?.achievementImageUrl).toBe("/api/assets-dofus/achievements/449");
+    });
+
+    it("« Blops Royaux (Spécial) » est trouvé par les ACHIEVEMENTS DU MONSTRE", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/monsters/1186")) return jsonResponse({ achievements: [6164, 6165] });
+            if (url.includes("/achievements/6164")) return jsonResponse(BLOPS);
+            if (url.includes("/achievements/6165")) return jsonResponse({ id: 6165, name: { fr: "Blops Royaux" }, iconId: 1 });
+            return jsonResponse({ data: [] });
+        }) as never;
+        expect(await fetchMonsterAchievementIds(1186, fetchImpl)).toEqual([6164, 6165]);
+        const candidates = [
+            await fetchAchievementById(6164, fetchImpl),
+            await fetchAchievementById(6165, fetchImpl),
+        ];
+        expect(pickSpecialAchievement(candidates, "Blop Indigo Royal")).toBe(candidates[0]);
+    });
+
+    /** Payloads **réels** mesurés le 30/10/2026 (DofusDB), pas des formes inventées. */
+    const BLOPS_REEL = {
+        id: 6164,
+        name: { fr: "Blops Royaux (Spécial)" },
+        iconId: 19,
+        // DofusDB ne déplie PAS le challenge en lecture par id : il reste une référence.
+        description: { fr: "Vaincre Blops Royaux dans son donjon en validant le challenge [challenge,996]." },
+    };
+    const CHALLENGE_996 = {
+        id: 996,
+        name: { fr: "Touche pas à mon blop" },
+        iconId: 977,
+        description: { fr: "Les invocations ennemies ne doivent subir aucun dommage." },
+    };
+
+    it("« Blops Royaux (Spécial) » : challenge seulement RÉFÉRENCÉ (`[challenge,996]`)", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/achievements/6164")) return jsonResponse(BLOPS_REEL);
+            if (url.includes("/achievements/")) return jsonResponse({ name: { fr: "Succès ordinaire" } });
+            // 7972 = jumeau **vide** (mesure réelle : achievements: []), 1186 = le vrai.
+            if (url.includes("/monsters/7972")) return jsonResponse({ achievements: [] });
+            if (url.includes("/monsters/1186")) return jsonResponse({ achievements: [36, 684, 685, 503, 6164] });
+            if (url.includes("/challenges/996")) return jsonResponse(CHALLENGE_996);
+            return jsonResponse({ data: [] });
+        }) as never;
+
+        expect(challengeIdFromAchievement(BLOPS_REEL)).toBe(996);
+        expect((await fetchChallengeById(996, fetchImpl))?.name.fr).toBe("Touche pas à mon blop");
+
+        const db = {
+            dungeonAchievement: {
+                findMany: async () => [
+                    {
+                        id: "da-blops",
+                        description: null,
+                        imageUrl: null,
+                        dungeon: { bossName: "Blop Indigo Royal", name: "Donjon des Blops" },
+                        challenge: { id: "c-generic", name: "Spécial", slug: "sp-cial" },
+                    },
+                ],
+                update: async () => {},
+            },
+            challenge: { findFirst: async () => ({ id: "c-generic", name: "Spécial", slug: "sp-cial" }) },
+            // Le doublon vide est le PLUS RÉCENT — c'est le piège mesuré du 30/10/2026.
+            monsterStat: { findMany: async () => [{ monsterId: 7972 }, { monsterId: 1186 }] },
+        };
+
+        const report = await siphonSpecialAchievements({ db: db as any, apply: false, fetchImpl });
+        expect(report.updated).toBe(1);
+        expect(report.details[0]).toContain("Les invocations ennemies ne doivent subir aucun dommage.");
+        expect(report.details[0]).toContain("succès du monstre");
+    });
+
+    it("« Maître des Pantins (Statue) » est trouvé par le VRAI BOSS du donjon", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/dungeons?")) {
+                return jsonResponse({ data: [{ name: { fr: "Donjon de Dramak" }, monsters: [1014] }] });
+            }
+            if (url.includes("/monsters/1014")) return jsonResponse({ name: { fr: "Maître des Pantins" } });
+            return jsonResponse({ data: [PANTINS] });
+        }) as never;
+        expect(await fetchRealBossName("Donjon de Dramak", fetchImpl)).toBe("Maître des Pantins");
+        const candidates = await fetchBossAchievementCandidates("Maître des Pantins", fetchImpl);
+        expect(pickSpecialAchievement(candidates, "Maître des Pantins")).toBe(PANTINS);
+    });
+
+    it("n'élit jamais un succès sans parenthèse ni un succès de chasse", () => {
+        expect(pickSpecialAchievement([{ name: { fr: "Cour du Bouftou Royal" }, objectives: [] }], "Bouftou Royal")).toBeNull();
+        expect(pickSpecialAchievement([{ name: { fr: "Serviteurs de Dramak (Chasse)" }, objectives: [] }], "Dramak")).toBeNull();
+    });
+
+    it("non-régression : « L'Éternel Conflit (Zombie) » reste résolu", () => {
+        expect(pickSpecialAchievement([CONFLIT], "L'Éternel Conflit")).toBe(CONFLIT);
+    });
+
+    it("`limit` compte les ÉCRITURES : 25 introuvables n'affament plus la 26e", async () => {
+        const generic = { id: "c-generic", name: "Spécial", slug: "sp-cial" };
+        const rows = Array.from({ length: 26 }, (_, i) => ({
+            id: `da${i}`,
+            description: null,
+            imageUrl: null,
+            dungeon: { bossName: i === 25 ? "Mob l'Eponge" : `Boss ${i}`, name: `Donjon ${i}` },
+            challenge: generic,
+        }));
+        const db = {
+            dungeonAchievement: { findMany: async () => rows, update: async () => {} },
+            challenge: { findFirst: async () => generic },
+        };
+        const fetchImpl = (async (url: string) => {
+            // Index ET recherche par nom : DofusDB ne rend que le succès du boss connu.
+            if (url.includes("%24regex")) return jsonResponse({ data: [MOB_EPONGE] });
+            return jsonResponse({ data: [] });
+        }) as never;
+
+        const report = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 25, fetchImpl });
+        // L'ancienne borne (`scanned >= limit`) s'arrêtait après 25 lignes introuvables, sans
+        // jamais atteindre la 26e complétable.
+        expect(report.scanned).toBe(26);
+        expect(report.written).toBe(1);
+        expect(report.missing).toBe(25);
     });
 });
 

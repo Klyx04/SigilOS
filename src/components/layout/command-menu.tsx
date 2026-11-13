@@ -132,7 +132,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
         { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canValidateMissions },
         { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canViewSettings },
         
-        { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        { title: "Mises à jour / Changelog", href: `/dashboard/${guildId}/changelog`, icon: History, category: "Plateforme", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
     ], [guildId, user]);
 
     const filteredSearchItems = React.useMemo(() => 

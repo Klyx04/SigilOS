@@ -36,7 +36,7 @@ export const SOLAR_ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 187959554,
                 red: [233, 262, 291, 320, 340, 349, 369, 398, 427, 456],
                 blue: [172, 201, 227, 230, 256, 259, 288, 314, 317, 343],
@@ -56,7 +56,7 @@ export const SOLAR_ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 187959556,
                 red: [297, 352, 354, 356, 407, 409, 411, 464, 466, 523],
                 blue: [50, 105, 107, 160, 162, 164, 219, 221, 274, 276],
@@ -76,7 +76,7 @@ export const SOLAR_ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 187959296,
                 red: [272, 298, 328, 340, 366, 370, 423, 426, 438, 506],
                 blue: [188, 273, 283, 299, 359, 367, 369, 393, 399, 476],
@@ -96,7 +96,7 @@ export const SOLAR_ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 187959558,
                 red: [142, 184, 242, 258, 300, 316, 358, 374, 416, 432],
                 blue: [73, 157, 215, 227, 273, 285, 331, 343, 386, 389],
@@ -116,7 +116,7 @@ export const SOLAR_ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 187959560,
                 red: [312, 314, 316, 318, 324, 333, 370, 372, 411, 414],
                 blue: [159, 162, 202, 204, 240, 249, 256, 258, 260, 262],

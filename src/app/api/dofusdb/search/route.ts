@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
+import { isNonStatEffectId } from "@/lib/dofus-stat-lines";
 
 /**
  * GET /api/dofusdb/search?q=...&limit=8
@@ -93,12 +94,22 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get("q")?.trim() ?? "";
     const rawLimit = parseInt(searchParams.get("limit") ?? "8", 10);
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), MAX_LIMIT) : 8;
+    // Filtre souverain (catégorie locale `GameItem.category`) : appliqué à la
+    // recherche locale. Le repli réseau l'ignore (DofusDB ne trie pas par nos seaux).
+    const rawCategory = searchParams.get("category")?.trim() ?? "all";
+    const category =
+        rawCategory === "equipment" ||
+        rawCategory === "resources" ||
+        rawCategory === "consumables" ||
+        rawCategory === "cosmetics"
+            ? rawCategory
+            : "all";
 
     if (!q || q.length < 2) {
         return NextResponse.json({ data: [] });
     }
 
-    const cacheKey = `${q.toLowerCase()}:${limit}`;
+    const cacheKey = `${q.toLowerCase()}:${limit}:${category}`;
     const cached = getCachedSearch(cacheKey);
     if (cached) {
         return NextResponse.json({ data: cached });
@@ -108,23 +119,54 @@ export async function GET(req: NextRequest) {
         // 0. LOCAL-FIRST : Recherche d'abord dans notre base locale GameItem (0ms, zéro dépendance réseau)
         try {
             const { searchLocalGameItems } = await import("@/server/actions/game-item-actions");
-            const localRes = await searchLocalGameItems(q, "all", limit);
-            if (localRes.success && localRes.data && localRes.data.length > 0) {
-                const formatted = localRes.data.map((item) => normalizeItem({
-                    id: item.ankamaId,
-                    name: { fr: item.name },
-                    level: item.level,
-                    type: { name: { fr: item.typeName } },
-                    description: item.description ? { fr: item.description } : undefined,
-                    effects: item.effects,
-                    hasRecipe: item.hasRecipe,
-                    img: item.iconUrl || `/uploads/assets-dofus/items/${item.ankamaId}.webp`,
-                }));
-                setCachedSearch(cacheKey, formatted);
-                return NextResponse.json({ data: formatted });
+            const localRes = await searchLocalGameItems(q, category, limit);
+            const formattedLocal =
+                localRes.success && localRes.data
+                    ? localRes.data.map((item) => {
+                          /**
+                           * 🧨 Constat du 26/10/2026 (encyclopédie, trophée **Arcaniste**) : la fiche
+                           * affichait « **Effet** +6 » avec une case d'icône vide. Cause : cette route
+                           * **jetait** `nativeEffects`, alors que `searchLocalGameItems` renvoie déjà les
+                           * lignes **résolues** (libellé officiel + signe depuis `GameEffect` /
+                           * `GameCharacteristic`). On transmet ces lignes, métadonnées mesurées écartées
+                           * (traits de monture, portées de sort, titres) — cf. `dofus-stat-lines`.
+                           */
+                          const nativeLines: Array<{ effectId?: number | null }> = Array.isArray(item.nativeEffects)
+                              ? (item.nativeEffects as Array<{ effectId?: number | null }>)
+                              : [];
+                          return normalizeItem({
+                              id: item.ankamaId,
+                              name: { fr: item.name },
+                              level: item.level,
+                              type: { name: { fr: item.typeName } },
+                              description: item.description ? { fr: item.description } : undefined,
+                              effects: item.effects,
+                              nativeEffects: nativeLines.filter((fx) => !isNonStatEffectId(fx.effectId ?? null)),
+                              hasRecipe: item.hasRecipe,
+                              // Métas déjà siphonnées : la fiche les affiche sans appel réseau.
+                              realWeight: item.realWeight,
+                              itemSetName: item.itemSetName,
+                              img: item.iconUrl || `/uploads/assets-dofus/items/${item.ankamaId}.webp`,
+                          });
+                      })
+                    : [];
+            if (category !== "all") {
+                // Filtre souverain actif : jamais de repli réseau non filtré
+                // (sinon « Équipements » renverrait des Ressources). Local vide ⇒ vide.
+                setCachedSearch(cacheKey, formattedLocal);
+                return NextResponse.json({ data: formattedLocal });
+            }
+            if (formattedLocal.length > 0) {
+                setCachedSearch(cacheKey, formattedLocal);
+                return NextResponse.json({ data: formattedLocal });
             }
         } catch {
             // Poursuite vers le réseau si DB locale non alimentée
+            if (category !== "all") {
+                // … sauf filtre actif : on ne renvoie jamais du non filtré.
+                setCachedSearch(cacheKey, []);
+                return NextResponse.json({ data: [] });
+            }
         }
 
         // 1. RECHERCHE DIRECTE DofusDB (Ultra-rapide, 1 seul appel ~150-250ms)

@@ -181,13 +181,16 @@ describe("dégressivité appliquée PAR CIBLE sur la grille", () => {
 
     it("une cible prise dans la zone est mise en évidence (plus de cible muette)", () => {
         expect(GRID).toMatch(/fillColor = isTokenCell \? "#f2b53a" : "#e0a320";/);
-        expect(GRID).toMatch(/if \(isInZone\(c, r\) && !obs && !isCaster\) \{/);
+        // 23/10/2026 — la peinture de cases ajoute `!isHole` : un trou n'est ni une cible ni une
+        // zone (il est infranchissable). L'intention du verrou est conservée : la zone ne
+        // s'affiche que hors obstacle, et un jeton garde sa mise en évidence.
+        expect(GRID).toMatch(/if \(isInZone\(c, r\) && !obs && !isHole && !isCaster\) \{/);
         expect(GRID).toMatch(/if \(isInZone\(x, y\) && !isCaster\) \{/);
     });
 
     it("le badge d'une cible porte son total, son malus de distance, son critique et ses lignes d'élément", () => {
         const layer = GRID.slice(
-            GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
+            GRID.indexOf("{showDamage && !hideMapDamageBadges && damageInfo.lines.length > 0 && zonePreview"),
             GRID.indexOf("</svg>")
         );
         expect(layer).toMatch(/formatDamageRange\(target\.total\.min, target\.total\.max\)/);
@@ -325,7 +328,7 @@ describe("blocs « Dégâts estimés » & « Réglages du plateau » — refonte
         expect(GRID).toMatch(/simT\.damageTargetEnemy\.replace\("\{index\}"/);
         expect(GRID).toMatch(/simT\.damageTargetAlly\.replace\("\{index\}"/);
         // Le panneau affiche les données, il n'en invente aucune.
-        expect(HUD).toMatch(/perTarget\.map\(\(target\) => \(/);
+        expect(HUD).toMatch(/perTarget\.map\(\(target\) => \{/);
         expect(HUD).toMatch(/\{target\.label\}/);
     });
 
@@ -342,7 +345,7 @@ describe("blocs « Dégâts estimés » & « Réglages du plateau » — refonte
 
     it("les badges nomment leur cible (on sait QUI porte la valeur)", () => {
         const layer = GRID.slice(
-            GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
+            GRID.indexOf("{showDamage && !hideMapDamageBadges && damageInfo.lines.length > 0 && zonePreview"),
             GRID.indexOf("</svg>")
         );
         expect(layer).toMatch(/\{target\.label\}/);

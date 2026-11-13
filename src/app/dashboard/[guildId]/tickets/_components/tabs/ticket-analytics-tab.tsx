@@ -39,11 +39,23 @@ export function TicketAnalyticsTab({ stats, tickets }: TicketAnalyticsTabProps) 
         <div className="space-y-6">
             <div>
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-amber-400" /> Métriques de Support & Satisfaction
+                    <BarChart3 className="h-5 w-5 text-emerald-400" /> Avis & Satisfaction Membres
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                    Performance de l'équipe, temps de réponse et retours des membres.
+                    Performance de l'équipe, réactivité et retours d'expérience des membres.
                 </p>
+            </div>
+
+            {/* Educational Info */}
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                    <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                        <Smile className="h-4 w-4 text-emerald-400" /> Enquête de satisfaction sécurisée
+                    </div>
+                    <p className="text-muted-foreground text-[11px]">
+                        À la clôture, une demande d'avis (1 à 5 étoiles) est adressée <strong>exclusivement au créateur</strong> du ticket (dans le salon ou par DM selon vos paramètres). Les votes anonymisés sont consolidés ici.
+                    </p>
+                </div>
             </div>
 
             {/* KPI Cards */}
@@ -57,9 +69,9 @@ export function TicketAnalyticsTab({ stats, tickets }: TicketAnalyticsTabProps) 
 
                 <div className="p-5 rounded-2xl bg-card border border-border space-y-1 shadow-sm">
                     <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-amber-400" /> En Cours / Ouverts
+                        <Clock className="h-3.5 w-3.5 text-emerald-400" /> En Cours / Ouverts
                     </div>
-                    <div className="text-3xl font-bold text-amber-400">
+                    <div className="text-3xl font-bold text-emerald-400">
                         {stats.openCount + stats.claimedCount}
                     </div>
                 </div>
@@ -73,7 +85,7 @@ export function TicketAnalyticsTab({ stats, tickets }: TicketAnalyticsTabProps) 
 
                 <div className="p-5 rounded-2xl bg-card border border-border space-y-1 shadow-sm">
                     <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                        <Star className="h-3.5 w-3.5 text-yellow-400" /> Note Moyenne CSAT
+                        <Star className="h-3.5 w-3.5 text-yellow-400" /> Note Moyenne Avis
                     </div>
                     <div className="text-3xl font-bold text-foreground">
                         {stats.avgCsat ? `${stats.avgCsat} / 5` : "N/A"}
@@ -85,7 +97,7 @@ export function TicketAnalyticsTab({ stats, tickets }: TicketAnalyticsTabProps) 
             {/* Staff Leaderboard */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-400" /> Classement des Prises en Charge Staff
+                    <Shield className="h-4 w-4 text-emerald-400" /> Classement des Prises en Charge Staff
                 </h3>
 
                 {staffList.length === 0 ? (
@@ -102,7 +114,7 @@ export function TicketAnalyticsTab({ stats, tickets }: TicketAnalyticsTabProps) 
                                     <span className="font-semibold text-foreground">{staff.name}</span>
                                 </div>
 
-                                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
                                     {staff.count} tickets gérés
                                 </Badge>
                             </div>

@@ -12,7 +12,7 @@
 |---|---|---|
 | Node.js | **22+** | aligné sur `Dockerfile` (`node:22-alpine`) et la CI |
 | Docker + Compose | récent | fournit PostgreSQL, Redis, Caddy et le monitoring en local |
-| Git | récent | hooks `husky` installés automatiquement par `npm install` |
+| Git | récent | hooks `husky` installés par `npm run install:safe` (ou `npm install`) |
 
 ## 2. Les trois fichiers d'environnement
 
@@ -28,8 +28,10 @@
 ## 3. Démarrage pas à pas
 
 ```bash
-# 1. Dépendances (installe aussi le hook pre-commit husky)
-npm install
+# 1. Dépendances SANS exécuter le code des paquets (recommandé — cf. TensorLake/MALFEX)
+#    installe aussi le hook pre-commit husky et le moteur de migration Prisma
+npm run install:safe
+#    Alternative historique, moins sûre : `npm install` exécute le code d'installation de TOUS les paquets
 
 # 2. Environnement
 cp .env.example .env          # puis renseigner DATABASE_URL, AUTH_SECRET, Discord…
@@ -38,11 +40,10 @@ cp .env.example .env          # puis renseigner DATABASE_URL, AUTH_SECRET, Disco
 docker compose up -d db redis
 
 # 4. Client Prisma + schéma + données de référence
-npx prisma generate
-npx prisma migrate deploy      # ou `npx prisma migrate dev` si tu crées une migration
+npx prisma generate            # requis : `install:safe` n'exécute pas ce script par sécurité
+npx prisma migrate deploy      # migrations EN ATTENTE sur la base locale (`migrate dev` est inutilisable ici)
 npm run seed                   # données de base
 npm run seed:game-data         # données de jeu (monstres, donjons, items…)
-npm run seed:docs              # catalogue de la documentation publique
 
 # 5. Application (http://localhost:3000)
 npm run dev
@@ -59,11 +60,12 @@ docker compose up -d
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js (dev / build de prod / serveur) |
-| `npm run test:run` | Suite Vitest complète (≈ 1 700 tests) |
+| `npm run install:safe` | Installation reproductible **sans exécuter les scripts** des paquets (+ moteur Prisma + husky) |
+| `npm run test:run` | Suite Vitest complète (4 604 tests) |
 | `npm run test:coverage` | Idem avec couverture |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Vérification TypeScript (aussi jouée par le hook pre-commit) |
-| `npm run seed` / `seed:game-data` / `seed:docs` | Seeds (défauts / données de jeu / catalogue docs) |
+| `npm run seed` / `seed:game-data` | Seeds (défauts / données de jeu) |
 | `npm run worker` · `npm run ws` | Worker BullMQ · serveur WebSocket (dev) |
 | `npm run build:worker` · `build:ws` · `build:seeds` · `build:maintenance` | Bundles esbuild utilisés par le Dockerfile |
 | `npm run migrate:uploads` | Migration des fichiers `public/uploads` → `private_uploads` |
@@ -96,3 +98,4 @@ docker compose up -d
 | Admin God : images manquantes | vérifier `public/game-data/{monsters,achievements,dungeons}` |
 | Un fichier ne se commite pas | `git check-ignore -v <fichier>` — et **ne jamais** écrire un source avec `>` sous PowerShell 5.1 (UTF-16 → fichier corrompu) |
 | `The column X does not exist` juste après une migration | Un `next dev` **déjà lancé** garde l'**ancien client Prisma** dans ses chunks SSR (un `include` demande alors toutes les colonnes) : redémarrer le serveur après `npx prisma generate` |
+| `⨯ uncaughtException: Error: aborted` / `code: 'ECONNRESET'` dans la console de `next dev` | Requête **abandonnée par le client** (rechargement à chaud, modale fermée, action serveur en vol) : Next la journalise sans arrêter le serveur, et la page suivante fonctionne. **Rien à faire** si l'app répond ; en boucle **sans** interaction, chercher l'action qui n'aboutit pas (onglet Réseau du navigateur) |

@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, ArrowLeft, Moon } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ import Link from "next/link";
 import { getSongesConfig, updateSongesChannel } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/shared/DiscordChannelPicker";
 import { DIFFICULTIES } from "@/lib/songes/types";
 
 interface SongesSettingsClientProps {
@@ -111,58 +110,52 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                     </CardHeader>
 
                     <CardContent className="space-y-6">
-                        {/* Step 1 */}
-                        <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                            </div>
-                            <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
-                            <p className="text-xs text-muted-foreground mb-3">
-                                Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
-                            </p>
-                        </div>
-
-                        {/* Step 2 */}
-                        <div className="relative pl-6 border-l-2 border-info/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-info border-2 border-zinc-950 " />
-                            <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
-
-                            <div className="space-y-4">
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={channelId}
-                                        onChange={(e) => setChannelId(e.target.value)}
-                                        placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-border"
-                                    />
-                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info">
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-foreground mb-1">
+                                    Salon des expéditions Songes Infinis
+                                </h4>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Sélectionnez le salon (textuel ou forum) où seront publiées les annonces de groupes et les candidatures.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1">
+                                        <DiscordChannelPicker
+                                            guildId={guildId}
+                                            value={channelId}
+                                            onChange={setChannelId}
+                                            allowedTypes={DISCORD_FORUM_CHANNEL_TYPES}
+                                            placeholder="Sélectionner un salon (texte ou forum)..."
+                                            allowEmptyLabel="Aucun salon (désactivé)"
+                                        />
+                                    </div>
+                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info text-info-foreground font-bold">
                                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                         Sauvegarder
                                     </Button>
                                 </div>
-                                <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
-                                {/* Salon FORUM : SigilOS pose le tag du palier sur chaque sujet
-                                    (il ne crée jamais de tag) — les noms attendus sont ceux du
-                                    référentiel des paliers, pour que le filtre marche. */}
-                                <div className="rounded-lg border border-border bg-black/20 p-3 space-y-1">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                                        Filtre par palier (salon forum)
-                                    </p>
-                                    <p className="text-caption text-muted-foreground leading-relaxed">
-                                        Créez ces tags dans le forum pour classer les runs automatiquement :
-                                        <span className="text-foreground font-medium">
-                                            {" "}{Object.values(DIFFICULTIES).map(d => d.label).join(" · ")}
-                                        </span>
-                                    </p>
-                                </div>
-                                {isConfigured && (
-                                    <div className="flex justify-end">
-                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
-                                            Désactiver l'intégration
-                                        </Button>
-                                    </div>
-                                )}
                             </div>
+
+                            {/* Salon FORUM : tags de palier */}
+                            <div className="rounded-lg border border-border bg-black/20 p-3 space-y-1">
+                                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                    Filtre par palier (si salon forum)
+                                </p>
+                                <p className="text-caption text-muted-foreground leading-relaxed">
+                                    Créez ces tags dans votre forum Discord pour classer les runs automatiquement :
+                                    <span className="text-foreground font-medium">
+                                        {" "}{Object.values(DIFFICULTIES).map(d => d.label).join(" · ")}
+                                    </span>
+                                </p>
+                            </div>
+
+                            {isConfigured && (
+                                <div className="flex justify-end">
+                                    <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
+                                        Désactiver l&apos;intégration
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
 

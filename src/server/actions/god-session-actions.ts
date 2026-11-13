@@ -15,6 +15,9 @@ export async function openGodSession(): Promise<{ sessionId?: string }> {
     try {
         const session = await auth();
         if (!session?.user?.id) return {};
+        // Audit 06/11/2026 : cette action créait une ligne `GodSessionLog` pour
+        // n'importe quel compte connecté — donc de fausses sessions God dans les stats.
+        if ((session as { isGod?: boolean }).isGod !== true) return {};
 
         const active = await db.godSessionLog.findFirst({
             where: { userId: session.user.id, active: true },
@@ -51,6 +54,7 @@ export async function updateGodSessionHeartbeat(): Promise<void> {
     try {
         const session = await auth();
         if (!session?.user?.id) return;
+        if ((session as { isGod?: boolean }).isGod !== true) return;
 
         const active = await db.godSessionLog.findFirst({
             where: { userId: session.user.id, active: true },
@@ -75,6 +79,7 @@ export async function closeGodSession(): Promise<void> {
     try {
         const session = await auth();
         if (!session?.user?.id) return;
+        if ((session as { isGod?: boolean }).isGod !== true) return;
 
         await db.godSessionLog.updateMany({
             where: { userId: session.user.id, active: true },

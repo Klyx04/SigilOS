@@ -38,12 +38,23 @@ export default async function ModulesPage() {
     const { getUserContext } = await import("@/server/actions/user-actions");
     const [userContext] = await Promise.all([getUserContext(), getServerI18n()]);
 
+    // 🔒 Kill-switch God « auto-onboarding » : la page publique ne doit pas promettre une
+    // ouverture autonome que le serveur refuse (mesure du 01/11/2026 : les deux boutons
+    // « Configurer ma guilde » restaient affichés alors que le réglage était INACTIF).
+    // ⚠️ `revalidate = 86400` : la bascule du réglage peut mettre jusqu'à 24 h à se voir ici.
+    const { getPlatformConfig } = await import("@/server/actions/platform-config-actions");
+    const platformRes = await getPlatformConfig().catch(() => null);
+    const autoOnboardingOn =
+        (platformRes?.success
+            ? (platformRes.data as { autoOnboardingEnabled?: boolean } | undefined)?.autoOnboardingEnabled
+            : undefined) !== false;
+
     return (
         <div className="registre min-h-screen bg-background text-foreground flex flex-col">
             <PublicHeader user={session?.user} isMember={userContext.isMember} activePage="modules" />
 
             <main className="flex-1 w-full">
-                <ModulesExplorer />
+                <ModulesExplorer autoOnboardingOn={autoOnboardingOn} />
             </main>
 
             <GalacticFooter isMember={userContext.isMember} />

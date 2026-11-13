@@ -28,6 +28,11 @@ import {
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+// 🏷️ Miroir du formatage de l'app (image du bot sans `src/`) — parité verrouillée par un test.
+import { renameTicketChannelName } from './ticket-name.mjs';
+// 🔒 Règle de plafond de guildes — **une seule source** (`src/lib/guild-limit.ts`), copiée dans le
+// paquet au build (`npm run sync:shared`). L'image du bot ne contient pas `src/`.
+import { isGuildLimitReachedOnJoin, resolveGuildLimit } from './shared/guild-limit.js';
 
 // SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
 // app (docker-compose provides it). The previous code reassembled the connection
@@ -55,6 +60,10 @@ try {
 }
 
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
+// ⚠️ AUD-06 (audit 13/11/2026) : ce client est BRUT (sans l'extension de
+// chiffrement de `src/lib/prisma.ts`). Ne jamais écrire ici `Account.access_token`,
+// `refresh_token`, `id_token` ni `UserProfile.metamobApiKey` : les données
+// seraient stockées EN CLAIR. Le bot ne doit écrire que des compteurs/statuts.
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
 
@@ -106,9 +115,9 @@ function executorMeta(ex: GuildExecutor | null, targetId: string) {
 
 // #223 P2 — Intents privilégiés (doc stabilité long terme) :
 //  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
-//  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
-//    (blacklist #85). Activation : 2026 — réexamen / re-apply annuel requis
-//    au-delà de 10 000 utilisateurs (review Discord).
+//  - MessageContent : RETIRÉ (13/11/2026) — le Ladder ne classe plus sur les
+//    caractères ; le nombre de messages ne nécessite PAS le contenu. Le bot ne
+//    lit donc plus le texte des messages (minimisation RGPD).
 //  - GuildMessageTyping : retiré (F-24, least privilege — pas besoin de lire
 //    les frappes clavier).
 const client = new Client({
@@ -119,7 +128,6 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.MessageContent,
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
         // #1 validé : GuildModeration (non-privilégié) requis pour GuildBanAdd/Remove
@@ -175,10 +183,93 @@ client.once(Events.ClientReady, (readyClient) => {
 });
 
 // ========================
+// LG-4 — Plafond de guildes du propriétaire, à l'invitation
+// ========================
+
+/**
+ * État du plafond pour le **propriétaire** de la guilde qui vient d'inviter le bot.
+ *
+ * `GuildCreate` arrive **sans session utilisateur** : c'est le seul endroit d'où le bot peut savoir
+ * que le portail refusera le déploiement (chantier « limite-guildes », `docs/ROADMAP.md`). Trois états,
+ * jamais deux : une lecture en échec ne doit **pas** promettre l'activation (fail-closed).
+ */
+type OwnerLimitState =
+    | { status: 'within' | 'over'; limit: number }
+    | { status: 'unknown' };
+
+/** « la limite de 2 guildes » — jamais un chiffre inventé quand la lecture a échoué. */
+function limitLabel(state: OwnerLimitState): string {
+    if (state.status === 'unknown') return 'la limite de guildes';
+    return `la limite de ${state.limit} guilde${state.limit > 1 ? 's' : ''}`;
+}
+
+async function readOwnerLimitState(guild: Guild): Promise<OwnerLimitState> {
+    try {
+        const platformConfig = await (db as any).platformConfig.findUnique({
+            where: { id: 'singleton' },
+            select: { maxGuildsPerUser: true },
+        });
+        const limit = resolveGuildLimit(platformConfig?.maxGuildsPerUser);
+
+        // God exempté (décision du 31/10/2026) : la liste vit dans l'environnement, comme côté site.
+        const godIds = (process.env.SUPER_ADMIN_IDS ?? '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+        const isGod = godIds.includes(guild.ownerId);
+        // Sortie anticipée : un God n'est pas compté du tout (aucune requête de comptage).
+        if (isGod) return { status: 'within', limit };
+
+        // `GuildConfig.ownerId` porte soit un snowflake Discord (onboarding), soit un UUID interne
+        // (succession — voir `maybeSuccessionOnLeave`) : on résout les deux formes, sinon un
+        // propriétaire ayant reçu la guilde serait compté pour zéro.
+        const account = await db.account.findFirst({
+            where: { provider: 'discord', providerAccountId: guild.ownerId },
+            select: { userId: true },
+        });
+        const ownerIds = [guild.ownerId, account?.userId].filter((id): id is string => Boolean(id));
+
+        const [current, owned, profiles] = await Promise.all([
+            db.guildConfig.findUnique({ where: { discordGuildId: guild.id }, select: { id: true } }),
+            db.guildConfig.findMany({ where: { ownerId: { in: ownerIds } }, select: { id: true } }),
+            account?.userId
+                ? db.userProfile.findMany({
+                      where: { userId: account.userId, status: 'ACTIVE' },
+                      select: { guildId: true },
+                  })
+                : Promise.resolve([] as { guildId: string }[]),
+        ]);
+
+        const over = isGuildLimitReachedOnJoin({
+            // Même espace d'identifiants que `currentGuildId` : des UUID internes, jamais des snowflakes.
+            ownerGuildIds: [...owned.map((row) => row.id), ...profiles.map((row) => row.guildId)],
+            currentGuildId: current?.id ?? null,
+            limit,
+            isGod,
+        });
+
+        return { status: over ? 'over' : 'within', limit };
+    } catch (error) {
+        // Jamais de snowflake ni de nom de serveur dans le log.
+        console.error(
+            '[Discord Bot] Plafond de guildes illisible — annonce neutre (fail-closed) :',
+            error instanceof Error ? error.message : error,
+        );
+        return { status: 'unknown' };
+    }
+}
+
+// ========================
 // Event: Guild Create (Bot Added)
 // ========================
 client.on(Events.GuildCreate, async (guild) => {
     console.log(`[Discord Bot] ➕ Guild added: ${guild.name} (${guild.id})`);
+
+    // 🔒 LG-4 — l'annonce doit dire la même vérité que le portail : un propriétaire au plafond ne
+    // pourra pas déployer (garde G2), donc on ne promet jamais « actif immédiatement » à tort.
+    const limitState = await readOwnerLimitState(guild);
+    const overLimit = limitState.status === 'over';
+    const limitKnown = limitState.status !== 'unknown';
 
     try {
         // Check if already whitelisted
@@ -215,20 +306,35 @@ client.on(Events.GuildCreate, async (guild) => {
 
             // 🔔 NOTIFY GOD — Nouveau serveur détecté (info ; action seulement si abus)
             try {
+                // Trois vérités possibles, dans cet ordre : propriétaire au plafond, auto-actif, à valider.
+                const godTitle = overLimit
+                    ? "🟠 Nouveau serveur — propriétaire au plafond"
+                    : autoOnboardingOn
+                        ? "🟢 Nouveau serveur (auto-actif)"
+                        : "🚨 Nouveau serveur non-whitelisté";
+                const godMessage = overLimit
+                    ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — **pas encore déployable** : son propriétaire a atteint ${limitLabel(limitState)}. Il doit en quitter une depuis le portail.`
+                    : autoOnboardingOn
+                        ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
+                        : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`;
+                const godOperation = overLimit
+                    ? 'GUILD_CREATE_OWNER_AT_LIMIT'
+                    : autoOnboardingOn
+                        ? 'GUILD_CREATE_AUTO'
+                        : 'GUILD_CREATE_UNWHITELISTED';
+
                 // 1. Create DB notification
                 await (db as any).godNotification.create({
                     data: {
-                        title: autoOnboardingOn ? "🟢 Nouveau serveur (auto-actif)" : "🚨 Nouveau serveur non-whitelisté",
-                        message: autoOnboardingOn
-                            ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
-                            : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
+                        title: godTitle,
+                        message: godMessage,
                         type: "SYSTEM",
                         success: autoOnboardingOn,
                         metadata: {
                             discordGuildId: guild.id,
                             guildName: guild.name,
                             addedBy: 'SYSTEM_GATEWAY',
-                            operation: autoOnboardingOn ? 'GUILD_CREATE_AUTO' : 'GUILD_CREATE_UNWHITELISTED'
+                            operation: godOperation
                         },
                     },
                 });
@@ -243,29 +349,41 @@ client.on(Events.GuildCreate, async (guild) => {
                 if (godChannelId) {
                     const channel = await client.channels.fetch(godChannelId).catch(() => null);
                     if (channel && channel.isTextBased() && 'send' in channel) {
-                        await channel.send({
-                            embeds: [autoOnboardingOn ? {
-                                title: '🟢 Nouveau serveur (auto-actif)',
-                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n✅ Ce serveur est **actif immédiatement** — aucune approbation requise. Modération a posteriori (ban / gel / expulsion) depuis le GOD Dashboard si abus.`,
-                                color: 0x22c55e,
-                                fields: [
-                                    { name: 'Serveur', value: guild.name, inline: true },
-                                    { name: 'ID', value: guild.id, inline: true },
-                                ],
-                                timestamp: new Date().toISOString(),
-                                footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
-                            } : {
-                                title: '🚨 Nouveau serveur non-whitelisté',
-                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist** et l'auto-onboarding est **fermé**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
-                                color: 0xef4444,
-                                fields: [
-                                    { name: 'Serveur', value: guild.name, inline: true },
-                                    { name: 'ID', value: guild.id, inline: true },
-                                ],
-                                timestamp: new Date().toISOString(),
-                                footer: { text: 'SigilOS Gateway Bot • Sécurité' },
-                            }]
-                        }).catch((e: unknown) => console.error('[GodNotify] Failed to send Discord alert:', e));
+                        // ⚠️ L'embed DOIT dire la même vérité que la notification en base : trois états,
+                        // jamais « actif immédiatement » quand le propriétaire est au plafond.
+                        const godEmbed = overLimit ? {
+                            title: '🟠 Nouveau serveur — propriétaire au plafond',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⏳ **Pas encore déployable** : le propriétaire du serveur a atteint ${limitLabel(limitState)}. Il doit en quitter une depuis le portail, puis déployer ce serveur.\n\nAucune action staff n'est requise.`,
+                            color: 0xf59e0b,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
+                        } : autoOnboardingOn ? {
+                            title: '🟢 Nouveau serveur (auto-actif)',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n✅ Ce serveur est **actif immédiatement** — aucune approbation requise. Modération a posteriori (ban / gel / expulsion) depuis le GOD Dashboard si abus.`,
+                            color: 0x22c55e,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
+                        } : {
+                            title: '🚨 Nouveau serveur non-whitelisté',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist** et l'auto-onboarding est **fermé**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
+                            color: 0xef4444,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Sécurité' },
+                        };
+
+                        await channel.send({ embeds: [godEmbed] }).catch((e: unknown) => console.error('[GodNotify] Failed to send Discord alert:', e));
                     }
                 }
             } catch (godErr) {
@@ -322,9 +440,21 @@ client.on(Events.GuildCreate, async (guild) => {
                     return;
                 }
                 const baseUrl = (process.env.SIGILOS_BASE_URL || "https://beta.sigilos.fr").replace(/\/$/, "");
+                // 🔒 LG-4 — le message public ne promet l'activation que si le propriétaire a une place.
+                // Lecture impossible (`unknown`) ⇒ on n'affirme rien et on renvoie au portail.
+                const welcomeDescription = overLimit
+                    ? "Le bot est installé. Une condition reste à remplir avant le déploiement."
+                    : limitKnown
+                        ? "Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute."
+                        : "Le bot est installé. Vérifiez sur le portail que ce serveur peut être déployé.";
+                const deployStepValue = overLimit
+                    ? `Ce serveur ne peut pas encore être déployé : le propriétaire du serveur a atteint ${limitLabel(limitState)} sur SigilOS. Il doit en quitter une depuis **[le dashboard](${baseUrl}/dashboard)**, puis déployer ce serveur.`
+                    : limitKnown
+                        ? 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.'
+                        : `Ouvrez **[le dashboard](${baseUrl}/dashboard)** : l'état du déploiement n'a pas pu être vérifié automatiquement. Si le serveur apparaît dans **« Déploiement »**, cliquez sur **"Déployer"**.`;
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
-                    .setDescription("Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute.")
+                    .setDescription(welcomeDescription)
                     .setColor(0x10b981)
                     .addFields(
                         {
@@ -334,7 +464,7 @@ client.on(Events.GuildCreate, async (guild) => {
                         },
                         {
                             name: 'Étape 2 — Déployer',
-                            value: 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.',
+                            value: deployStepValue,
                             inline: false,
                         },
                         {
@@ -507,6 +637,55 @@ async function maybeSuccessionOnLeave(
 }
 
 // ========================
+// Event: Guild Update — transfert de propriété Discord
+// ========================
+/**
+ * Le propriétaire d'un serveur Discord peut changer (transfert). Aucun autre chemin ne le
+ * répercute : `GUILD_CREATE` ne repasse pas, et la succession (`maybeSuccessionOnLeave`) ne couvre
+ * que le **départ** du propriétaire. Conséquence mesurée le 01/11/2026 : `GuildConfig.ownerId`
+ * restait l'ancien propriétaire (ou `null`), et le plafond de guildes ne comptait plus la guilde
+ * pour son vrai propriétaire.
+ *
+ * ⚠️ `GuildUpdate` est émis à **chaque** changement (nom, icône…) : on sort **sans requête** si le
+ * propriétaire n'a pas bougé.
+ */
+client.on(Events.GuildUpdate, async (oldGuild, newGuild) => {
+    if (oldGuild.ownerId === newGuild.ownerId) return;
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: newGuild.id },
+            select: { id: true },
+        });
+        if (!config) return;
+
+        await db.guildConfig.update({
+            where: { id: config.id },
+            data: { ownerId: newGuild.ownerId },
+        });
+
+        await db.auditLog.create({
+            data: {
+                guildId: config.id,
+                actorUserId: 'SYSTEM',
+                actorName: 'Bot SigilOS',
+                action: 'GUILD_OWNER_CHANGED',
+                targetType: 'GUILD',
+                targetId: config.id,
+                oldValue: { ownerId: oldGuild.ownerId },
+                newValue: { ownerId: newGuild.ownerId },
+                metadata: { discordGuildId: newGuild.id },
+            },
+        });
+
+        console.log(`[Discord Bot] 👑 Propriétaire mis à jour pour ${newGuild.name}`);
+    } catch (error) {
+        // Jamais de snowflake dans le log : le nom du serveur suffit au diagnostic.
+        console.error(`[Discord Bot] Échec de la mise à jour du propriétaire:`, error);
+    }
+});
+
+// ========================
 // Event: Guild Delete (Bot Removed)
 // ========================
 client.on(Events.GuildDelete, async (guild) => {
@@ -584,6 +763,13 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
         if (!guildConfig) return;
 
+        // Lot 7 — l'activité de TOUS les membres existe, inscrit ou non ; elle démarre ici
+        // et un retour efface le départ (`leftDiscordAt = null`).
+        await trackMemberActivity(member.user.id, member.guild.id, {
+            joined: true,
+            displayName: serverNickname,
+        });
+
         // Find user account
         const account = await db.account.findFirst({
             where: {
@@ -660,6 +846,13 @@ client.on(Events.GuildMemberRemove, async (member) => {
         });
 
         if (!guildConfig) return;
+
+        // Lot 7 — le départ est posé pour **tous** les membres (même sans profil) :
+        // c'est le point de départ de la purge à 365 jours.
+        await trackMemberActivity(member.user.id, member.guild.id, {
+            left: true,
+            displayName: serverNickname,
+        });
 
         // Find user account (peut être absent : owner snowflake sans profil SigilOS)
         const account = await db.account.findFirst({
@@ -747,6 +940,10 @@ client.on(Events.GuildMemberRemove, async (member) => {
         }
 
         // Archive profile (#6 validé : 12 mois, aligné sur le sync — plus 30 jours)
+        // ⚠️ La **fermeture du contenu publié** (posts DJ, runs Songes, événements du
+        // calendrier) n'est pas faite ici : cette image n'a pas accès à `src/`. Elle est
+        // assurée par la passe `closeOrphanContentForGuild`, branchée sur la synchro
+        // (`/api/cron/sync-members`, ≤ 1 h) — lot B du 30/10/2026.
         const twelveMonthsFromNow = new Date();
         twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
         const result = await db.userProfile.updateMany({
@@ -991,16 +1188,88 @@ client.on(Events.GuildBanRemove, async (ban) => {
 // ========================
 // Event: Member Update (Nicknames & Roles)
 // ========================
+/**
+ * 🏷️ **Renommage temps réel** des salons de tickets du membre qui vient de changer de
+ * pseudo (surnom serveur **ou** nom d'utilisateur).
+ *
+ * Ne touche qu'aux tickets **ouverts** ; le nom est recalculé par remplacement du slug
+ * de l'ancien pseudo dans le nom **actuel** (`renameTicketChannelName`), donc :
+ *  - `ticket-0044-retro-slide` → `ticket-0044-baboba` ;
+ *  - `ticket-0044` (motif sans `{user}`) → **inchangé** ;
+ *  - un nom retouché à la main sans l'ancien pseudo → **inchangé**.
+ *
+ * Le cron `sync-members` reste le filet de sécurité (bot hors-ligne au moment du changement).
+ */
+async function syncTicketChannelNames(oldMember: any, newMember: any) {
+    const oldDisplayName = oldMember.nickname || oldMember.displayName || oldMember.user.username;
+    const newDisplayName = newMember.nickname || newMember.displayName || newMember.user.username;
+    if (!oldDisplayName || !newDisplayName || oldDisplayName === newDisplayName) return;
+
+    const tickets = await db.ticketRecord.findMany({
+        where: {
+            discordGuildId: newMember.guild.id,
+            creatorDiscordId: newMember.id,
+            status: 'OPEN',
+            discordChannelId: { not: null },
+        },
+        select: { id: true, ticketNumber: true, discordChannelId: true, creatorDiscordName: true },
+    }).catch(() => []);
+
+    for (const ticket of tickets) {
+        if (!ticket.discordChannelId) continue;
+
+        if (ticket.creatorDiscordName !== newDisplayName) {
+            await db.ticketRecord
+                .update({ where: { id: ticket.id }, data: { creatorDiscordName: newDisplayName } })
+                .catch(() => null);
+        }
+
+        try {
+            const channel: any = newMember.guild.channels.cache.get(ticket.discordChannelId)
+                || (await newMember.guild.channels.fetch(ticket.discordChannelId).catch(() => null));
+            if (!channel || typeof channel.setName !== 'function') continue;
+
+            const nextName = renameTicketChannelName(channel.name, oldDisplayName, newDisplayName);
+            if (!nextName) continue;
+
+            await channel.setName(nextName, 'SigilOS · pseudo Discord du demandeur mis à jour');
+            console.log(`[Discord Bot] 🏷️ Ticket #${ticket.ticketNumber} renommé → ${nextName}`);
+        } catch (error) {
+            console.error(`[Discord Bot] Ticket rename failed for #${ticket.ticketNumber}:`, error);
+        }
+    }
+}
+
+
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    // 🐛 Faux événements (mesure du 31/10/2026, beta 20:36) : quand le membre n'est **pas dans
+    // le cache** (bot redémarré, cache partiel), discord.js émet un `oldMember` **partiel** qui
+    // ne porte que `@everyone`. Tous les rôles paraissent alors « ajoutés » (`+GARDIENS, +MEMBRES,
+    // …`) et `oldMember.nickname` retombe sur le nom d'utilisateur ⇒ un « changement de surnom »
+    // vieux de plusieurs semaines réapparaît à l'heure du redémarrage. On ne peut pas diffuser ce
+    // qu'on n'a pas vu : on ignore l'événement et on laisse le prochain changement réel l'écrire.
+    if ((oldMember as { partial?: boolean }).partial === true) return;
+
     const oldNick = oldMember.nickname || oldMember.displayName;
     const newNick = newMember.nickname || newMember.displayName;
     const nickChanged = oldMember.nickname !== newMember.nickname;
+    // Un changement de **nom d'utilisateur** (sans surnom serveur) ne levait aucun traitement :
+    // ni le cache du profil ni le salon du ticket ne suivaient.
+    const usernameChanged = oldMember.user.username !== newMember.user.username;
 
     const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const rolesChanged = addedRoles.size > 0 || removedRoles.size > 0;
 
-    if (!nickChanged && !rolesChanged) return;
+    // Ceinture et bretelles : un « ajout » qui couvre **tous** les rôles alors que l'ancien
+    // membre n'en portait aucun est un cache froid, pas une promotion. On n'écrit rien.
+    const coldCache = rolesChanged
+        && removedRoles.size === 0
+        && oldMember.roles.cache.size <= 1
+        && addedRoles.size === newMember.roles.cache.size - 1;
+    if (coldCache) return;
+
+    if (!nickChanged && !usernameChanged && !rolesChanged) return;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1011,7 +1280,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         if (!guildConfig) return;
 
         // Si le surnom a changé, mettre à jour le cache UserProfile
-        if (nickChanged) {
+        if (nickChanged || usernameChanged) {
             console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldNick} -> ${newNick})`);
 
             await db.userProfile.updateMany({                where: {
@@ -1052,6 +1321,10 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                     },
                 },
             });
+
+            // 🏷️ **Temps réel** : le salon du ticket suit le pseudo (remplacement « sur place »,
+            // donc un nom sans le pseudo ou personnalisé par le staff n'est pas touché).
+            await syncTicketChannelNames(oldMember, newMember);
         }
 
         // Si les rôles ont changé, logguer la modification de rôles Discord
@@ -1098,6 +1371,69 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 const voiceSessions = new Map<string, number>();
 const streamSessions = new Map<string, number>();
 
+// ========================
+// Lot 7 — activité de TOUS les membres (pas seulement ceux qui ont un profil).
+// `UserProfile.discordVoice*/discordMessage*` ne voit que les inscrits au dashboard :
+// un membre non inscrit pesait 0 dans le vocal. Cette table (guildId, discordId) est la
+// maison commune de l'activité, `leftDiscordAt` compris. Aucun contenu de message.
+// ========================
+const internalGuildIdCache = new Map<string, string | null>();
+
+async function resolveInternalGuildId(discordGuildId: string): Promise<string | null> {
+    if (internalGuildIdCache.has(discordGuildId)) return internalGuildIdCache.get(discordGuildId) ?? null;
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true },
+    }).catch(() => null);
+    internalGuildIdCache.set(discordGuildId, guild?.id ?? null);
+    return guild?.id ?? null;
+}
+
+type MemberActivityPatch = {
+    displayName?: string | null;
+    message?: boolean;
+    /** Durée de vocal écoulée, en **secondes** (jamais négative). */
+    voiceSeconds?: number;
+    voiceStarted?: boolean;
+    joined?: boolean;
+    left?: boolean;
+};
+
+async function trackMemberActivity(discordId: string, discordGuildId: string, patch: MemberActivityPatch) {
+    try {
+        const guildId = await resolveInternalGuildId(discordGuildId);
+        if (!guildId) return;
+        const now = new Date();
+        const seconds = patch.voiceSeconds && patch.voiceSeconds > 0 ? Math.round(patch.voiceSeconds) : 0;
+
+        await db.discordMemberActivity.upsert({
+            where: { guildId_discordId: { guildId, discordId } },
+            create: {
+                guildId,
+                discordId,
+                displayName: patch.displayName ?? null,
+                lastMessageAt: patch.message ? now : null,
+                lastVoiceAt: patch.voiceStarted ? now : null,
+                messagesTotal: patch.message ? 1 : 0,
+                voiceSecondsTotal: seconds,
+                leftDiscordAt: patch.left ? now : null,
+            },
+            update: {
+                lastSeenAt: now,
+                ...(patch.displayName ? { displayName: patch.displayName } : {}),
+                ...(patch.message ? { lastMessageAt: now, messagesTotal: { increment: 1 } } : {}),
+                ...(patch.voiceStarted ? { lastVoiceAt: now } : {}),
+                ...(seconds > 0 ? { voiceSecondsTotal: { increment: seconds } } : {}),
+                ...(patch.joined ? { leftDiscordAt: null } : {}),
+                ...(patch.left ? { leftDiscordAt: now } : {}),
+            },
+        });
+    } catch (e) {
+        // Jamais bloquant pour l'événement Discord : on le dit, on continue.
+        console.error("[Discord Bot] Member activity not tracked:", e);
+    }
+}
+
 // Helper to update DB by Discord ID with better performance and logging
 async function updateDiscordActivity(discordId: string, guildId: string | null, data: any, activityType: string) {
     try {
@@ -1122,15 +1458,15 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
         });
 
         if (result.count > 0) {
-            console.log(`[Discord Bot] ${activityType} tracked for ${discordId} (${result.count} profile(s))`);
+            console.log(`[Discord Bot] ${activityType} tracked (${result.count} profile(s))`);
         } else {
             // ⚠️ Aucun profil trouvé : le matching repose sur user.accounts (table Account d'Auth.js).
             // Un membre qui ne s'est JAMAIS connecté au Dashboard n'a aucun compte lié → count=0.
             // On le loggue pour ne plus échouer en silence (diagnostic du Ladder Discord).
-            console.warn(`[Discord Bot] ⚠️ ${activityType} NOT tracked for ${discordId} — aucun UserProfile correspondant (user.accounts vide ? membre jamais connecté au Dashboard ? guildId=${guildId ?? 'null'})`);
+            console.warn(`[Discord Bot] ⚠️ ${activityType} NOT tracked — aucun UserProfile correspondant (user.accounts vide ? membre jamais connecté au Dashboard ?)`);
         }
     } catch (e) {
-        console.error(`[Discord Bot] Error updating activity for ${discordId}:`, e);
+        console.error("[Discord Bot] Error updating activity:", e);
     }
 }
 
@@ -1138,7 +1474,9 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    const charCount = message.content ? message.content.length : 0;
+    // AUD-08 (13/11/2026) : plus de lecture du contenu — le Ladder classe sur le
+    // nombre de messages. `message.content` n'est plus touché, l'intent
+    // MessageContent peut être désactivé côté portail Discord.
     const isReply = message.reference && message.reference.messageId ? 1 : 0;
 
     const incrementData: any = {
@@ -1146,12 +1484,6 @@ client.on(Events.MessageCreate, async (message) => {
         discordMessageCountMonthly: { increment: 1 },
         discordMessageCountTotal: { increment: 1 }
     };
-
-    if (charCount > 0) {
-        incrementData.discordCharactersWeekly = { increment: charCount };
-        incrementData.discordCharactersMonthly = { increment: charCount };
-        incrementData.discordCharactersTotal = { increment: charCount };
-    }
 
     if (isReply) {
         incrementData.discordRepliesWeekly = { increment: 1 };
@@ -1163,6 +1495,13 @@ client.on(Events.MessageCreate, async (message) => {
         lastDiscordMessageAt: new Date(),
         ...incrementData
     }, 'Message');
+
+    // Lot 7 — même fait, **autre étagère** : l'activité existe aussi pour un membre sans
+    // profil dashboard (aucun contenu de message n'est stocké, seulement le compteur).
+    await trackMemberActivity(message.author.id, message.guild.id, {
+        displayName: message.member?.nickname || message.author.globalName || message.author.username,
+        message: true,
+    });
 
     // 1bis. DÉTECTION D'ACTIVITÉ SUR LES POSTS DJ/QUÊTES & SONGES
     // Si des membres discutent dans le salon ou thread lié à un post, on actualise
@@ -1271,6 +1610,8 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
     if (!oldState.channelId && newState.channelId) {
         voiceSessions.set(userId, now);
         await updateDiscordActivity(userId, guildId, { lastDiscordVoiceAt: new Date() }, 'Voice Start');
+        // Lot 7 — la présence vocale est tracée pour tous les membres.
+        await trackMemberActivity(userId, guildId, { voiceStarted: true });
     }
     // User left voice completely
     else if (oldState.channelId && !newState.channelId) {
@@ -1283,6 +1624,9 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
                     discordVoiceTimeMonthly: { increment: durationMin },
                     discordVoiceTimeTotal: { increment: durationMin }
                 }, `Voice Session (${durationMin}m)`);
+
+                // Lot 7 — durée réelle en secondes (arrondi minute conservé côté profil).
+                await trackMemberActivity(userId, guildId, { voiceSeconds: durationMin * 60 });
             }
             voiceSessions.delete(userId);
         }
@@ -1368,7 +1712,6 @@ setInterval(async () => {
                 data: {
                     discordVoiceTimeWeekly: 0,
                     discordMessageCountWeekly: 0,
-                    discordCharactersWeekly: 0,
                     discordReactionsReceivedWeekly: 0,
                     discordVoiceStreamTimeWeekly: 0,
                     discordRepliesWeekly: 0
@@ -1394,7 +1737,6 @@ setInterval(async () => {
                 data: {
                     discordVoiceTimeMonthly: 0,
                     discordMessageCountMonthly: 0,
-                    discordCharactersMonthly: 0,
                     discordReactionsReceivedMonthly: 0,
                     discordVoiceStreamTimeMonthly: 0,
                     discordRepliesMonthly: 0

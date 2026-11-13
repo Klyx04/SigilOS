@@ -16,13 +16,14 @@ import { ChangelogContent } from "@/components/changelog/changelog-content";
 import { cn } from "@/lib/utils";
 import { ChangelogCategory } from "@prisma/client";
 import { logger } from "@/lib/logger";
+import { CHANGELOG_CATEGORY_LABELS } from "@/lib/changelog-meta";
 
 const categoryConfig: Record<ChangelogCategory, { label: string; bg: string; text: string; border: string; icon: any }> = {
-    FEATURE: { label: "Nouveauté", bg: "bg-success/10", text: "text-success", border: "border-success/30", icon: Rocket },
-    BUGFIX: { label: "Correction", bg: "bg-warning/10", text: "text-warning", border: "border-warning/30", icon: Bug },
-    SECURITY: { label: "Sécurité", bg: "bg-danger/10", text: "text-danger", border: "border-danger/30", icon: Shield },
-    PERFORMANCE: { label: "Performance", bg: "bg-info/10", text: "text-info", border: "border-info/30", icon: Zap },
-    DOCUMENTATION: { label: "Documentation", bg: "bg-info/10", text: "text-info", border: "border-info/30", icon: BookOpen },
+    FEATURE: { label: CHANGELOG_CATEGORY_LABELS.FEATURE, bg: "bg-success/10", text: "text-success", border: "border-success/30", icon: Rocket },
+    BUGFIX: { label: CHANGELOG_CATEGORY_LABELS.BUGFIX, bg: "bg-warning/10", text: "text-warning", border: "border-warning/30", icon: Bug },
+    SECURITY: { label: CHANGELOG_CATEGORY_LABELS.SECURITY, bg: "bg-danger/10", text: "text-danger", border: "border-danger/30", icon: Shield },
+    PERFORMANCE: { label: CHANGELOG_CATEGORY_LABELS.PERFORMANCE, bg: "bg-info/10", text: "text-info", border: "border-info/30", icon: Zap },
+    DOCUMENTATION: { label: CHANGELOG_CATEGORY_LABELS.DOCUMENTATION, bg: "bg-info/10", text: "text-info", border: "border-info/30", icon: BookOpen },
 };
 
 export function ChangelogModal() {

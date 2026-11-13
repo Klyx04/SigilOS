@@ -39,4 +39,28 @@ describe("Missions UI Deslop & Normes", () => {
     it("supprime la classe d'animation kitch mission-card-ring", () => {
         expect(missionCardCode).not.toContain("mission-card-ring");
     });
+
+    it("affiche l'asset / illustration dans les cartes de la grille de mission-editor", () => {
+        const missionEditorPath = path.resolve(process.cwd(), "src/components/missions/mission-editor.tsx");
+        const missionEditorCode = fs.readFileSync(missionEditorPath, "utf-8");
+
+        expect(missionEditorCode).toContain("imageUrl");
+        expect(missionEditorCode).toContain("/uploads/assets-dofus/monsters/");
+        expect(missionEditorCode).toContain("img");
+        expect(missionEditorCode).toContain("CategoryIcon");
+    });
+
+    it("propose directement le choix silencieux vs reping Discord dans mission-publish-flow-dialog lors d'un republish", () => {
+        const publishDialogPath = path.resolve(process.cwd(), "src/components/missions/mission-publish-flow-dialog.tsx");
+        const publishDialogCode = fs.readFileSync(publishDialogPath, "utf-8");
+
+        // Présence du mode republish direct
+        expect(publishDialogCode).toContain("handleSilentSave");
+        expect(publishDialogCode).toContain("handleRepingSave");
+        expect(publishDialogCode).toContain("Enregistrer sans ping");
+        expect(publishDialogCode).toContain("Repinger la guilde sur Discord");
+        // Première publication
+        expect(publishDialogCode).toContain("handleFirstPublish");
+        expect(publishDialogCode).toContain("DiscordEmbedPreview");
+    });
 });

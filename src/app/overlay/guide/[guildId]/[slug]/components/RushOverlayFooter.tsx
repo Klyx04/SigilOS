@@ -9,7 +9,6 @@ interface RushOverlayFooterProps {
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
-  isLightMode?: boolean;
   /** Libellé central, ex : "1 / 5" */
   label?: string;
   className?: string;
@@ -25,40 +24,28 @@ export function RushOverlayFooter({
   onNext,
   canPrev,
   canNext,
-  isLightMode = false,
   label,
   className,
 }: RushOverlayFooterProps) {
-  const baseBtn = "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold disabled:opacity-20 transition-all shadow-sm";
+  // Bouton planche de la DA : le relief vient de `.da-btn::before` (coin 7/2,
+  // rayures de bois, bord « rough »), plus une bordure Tailwind empilée.
+  const baseBtn = "da-btn gap-1.5 px-3 py-1.5 text-xs";
 
   return (
     <footer
       className={cn(
-        "flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 border-t",
-        isLightMode ? "border-slate-200 bg-slate-100" : "border-[#28303a]/70 bg-[#0d1014]",
+        "flex shrink-0 items-center justify-between gap-3 border-t border-border-strong bg-surface px-4 py-2.5",
         className
       )}
     >
-      <button
-        type="button"
-        onClick={onPrev}
-        disabled={!canPrev}
-        className={cn(
-          baseBtn,
-          isLightMode
-            ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-            : "border-[#28303a] bg-[#181e25] hover:bg-[#202732] text-[#c4cad2] hover:text-white"
-        )}
-      >
+      <button type="button" onClick={onPrev} disabled={!canPrev} className={baseBtn}>
         <ChevronLeft className="w-3.5 h-3.5" />
         <span>Précédent</span>
       </button>
 
       <div className="flex items-center gap-2">
         {label && (
-          <span className={cn("text-[11px] font-mono font-bold", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
-            {label}
-          </span>
+          <span className="font-mono text-[11px] font-semibold text-muted-foreground">{label}</span>
         )}
       </div>
 
@@ -66,10 +53,8 @@ export function RushOverlayFooter({
         type="button"
         onClick={onNext}
         disabled={!canNext}
-        className={cn(
-          baseBtn,
-          "border-[#39bc95]/40 bg-[#39bc95]/15 hover:bg-[#39bc95]/25 text-xs font-bold text-[#2b9f7d] dark:text-[#74d6b6]"
-        )}
+        data-variant="main"
+        className={baseBtn}
       >
         <span>Suivant</span>
         <ChevronRight className="w-3.5 h-3.5" />

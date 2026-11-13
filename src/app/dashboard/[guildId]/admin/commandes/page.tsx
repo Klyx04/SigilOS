@@ -4,8 +4,8 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { fetchGuildRoles, fetchGuildChannels } from "@/server/discord";
-import { getGuildSlashCommandPermissionsAction } from "@/server/actions/slash-command-actions";
 import { SlashCommandsRbacPanel } from "@/components/admin/SlashCommandsRbacPanel";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Terminal, Eye } from "lucide-react";
 import Link from "next/link";
@@ -29,8 +29,16 @@ export default async function AdminCommandesPage({ params }: Props) {
     }
 
     const user = await getUserContext(guildId);
-    // Pilotage natif uniquement (owner/0x8) — voir page Pilotage, onglet Commandes.
-    if (!user.isAuthenticated || !user.isDiscordAdmin) {
+    // Accès : admins SigilOS OU staff ayant au moins une permission de gestion active.
+    const hasAccess = user.isAuthenticated && (
+        user.isAdmin ||
+        user.canManageRBAC ||
+        user.canViewSettings ||
+        user.canManageTickets ||
+        user.canManageMembers ||
+        user.canManageMissions
+    );
+    if (!hasAccess) {
         return <AccessDenied />;
     }
 
@@ -59,18 +67,30 @@ export default async function AdminCommandesPage({ params }: Props) {
     ]);
 
     const { SLASH_COMMANDS_CATALOG } = await import("@/lib/slash-commands-catalog");
+    const { isCatalogCommandDeployed } = await import("@/lib/discord/command-permissions");
     const permMap = new Map(permissions.map(p => [p.commandName, p]));
 
-    const slashPerms = SLASH_COMMANDS_CATALOG.map(cmd => {
-        const existing = permMap.get(cmd.name);
-        return {
-            command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
-            isEnabled: existing ? existing.isEnabled : true,
-            roleIds: existing ? existing.roleIds : [],
-            channelIds: existing ? existing.channelIds : [],
-            config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
-        };
-    });
+    const slashPerms = SLASH_COMMANDS_CATALOG
+        // Une commande non déployée sur la guilde (God l'a retirée, ou `staffOnly`
+        // jamais autorisée) **ne doit pas** apparaître : elle n'existe pas sur Discord,
+        // donc il n'y a rien à configurer ici.
+        .filter((cmd) => {
+            const existing = permMap.get(cmd.name);
+            return isCatalogCommandDeployed(
+                cmd,
+                existing ? { commandName: existing.commandName, isEnabled: existing.isEnabled } : null
+            );
+        })
+        .map(cmd => {
+            const existing = permMap.get(cmd.name);
+            return {
+                command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
+                isEnabled: existing ? existing.isEnabled : true,
+                roleIds: existing ? existing.roleIds : [],
+                channelIds: existing ? existing.channelIds : [],
+                config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
+            };
+        });
 
     const discordRoles = rawRoles.map((r: any) => ({
         id: r.id,
@@ -93,12 +113,20 @@ export default async function AdminCommandesPage({ params }: Props) {
                 icon={Terminal}
                 backHref={`/dashboard/${guildId}/admin`}
                 actions={
-                    <Button asChild variant="outline" size="sm" className="gap-2 rounded-xl border-border text-xs font-bold">
-                        <Link href={`/dashboard/${guildId}/commandes`}>
-                            <Eye className="w-3.5 h-3.5 text-accent" />
-                            Guide Visuel Membres
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* 📚 Documentation du module : contenu géré en base (God → Docs),
+                            jamais commité dans le dépôt (règle `.clinerules/04-docs.md`). */}
+                        <ModuleHelpActions
+                            docSlug="commandes-discord"
+                            docTitle="Faire fonctionner les commandes SigilOS sur Discord"
+                        />
+                        <Button asChild variant="outline" size="sm" className="gap-2 rounded-xl border-border text-xs font-bold">
+                            <Link href={`/dashboard/${guildId}/commandes`}>
+                                <Eye className="w-3.5 h-3.5 text-accent" />
+                                Guide Visuel Membres
+                            </Link>
+                        </Button>
+                    </div>
                 }
             />
 

@@ -25,7 +25,6 @@ const UpdateModulesSchema = z.object({
     // Général
     presentation: z.boolean(),
     roster: z.boolean(),
-    stats: z.boolean(),
     calendar: z.boolean(),
     // Fonctionnalités
     missions: z.boolean(),
@@ -57,6 +56,7 @@ const UpdateModulesSchema = z.object({
     reactionRoles: z.boolean(),
     tickets: z.boolean(),
     commandes: z.boolean(),
+    scheduledPolls: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -117,7 +117,6 @@ async function readGuildModules(discordGuildId: string): Promise<CachedGuildModu
         const data: GuildModulesState = {
             ...DEFAULT_MODULES,
             presentation: dbModules.presentation ?? DEFAULT_MODULES.presentation,            roster: dbModules.roster ?? DEFAULT_MODULES.roster,
-            stats: dbModules.stats ?? DEFAULT_MODULES.stats,
             calendar: dbModules.calendar ?? DEFAULT_MODULES.calendar,
             missions: dbModules.missions ?? DEFAULT_MODULES.missions,
             songes: dbModules.songes ?? DEFAULT_MODULES.songes,
@@ -143,6 +142,7 @@ async function readGuildModules(discordGuildId: string): Promise<CachedGuildModu
             marche: dbModules.marche ?? DEFAULT_MODULES.marche,
             tickets: dbModules.tickets ?? DEFAULT_MODULES.tickets,
             commandes: dbModules.commandes ?? DEFAULT_MODULES.commandes,
+            scheduledPolls: dbModules.scheduledPolls ?? DEFAULT_MODULES.scheduledPolls,
         };
 
         const entry: CachedGuildModules = {
@@ -294,6 +294,28 @@ export async function updateGuildModules(
                 updatedBy: session.user.id,
             },
         });
+
+        // 🔗 Synchronisation bidirectionnelle avec le module Ticket
+        // (`TicketGuildConfig.isEnabled`). La sync est **annexe** : un échec (table
+        // indisponible, environnement sans la ligne) est journalisé, jamais une raison
+        // d'annuler le toggle déjà appliqué — un `.catch()` posé sur la promesse ne
+        // protégeait pas la construction de l'appel lui-même.
+        if (parsed.data.tickets !== undefined) {
+            try {
+                await db.ticketGuildConfig.upsert({
+                    where: { guildId: guildConfig.id },
+                    create: {
+                        guildId: guildConfig.id,
+                        isEnabled: parsed.data.tickets,
+                    },
+                    update: {
+                        isEnabled: parsed.data.tickets,
+                    },
+                });
+            } catch (err) {
+                logger.warn("[updateGuildModules] échec sync TicketGuildConfig.isEnabled", { err });
+            }
+        }
 
         // 🛡️ CRITICAL: Invalidate Server-side memory caches
         await invalidateModuleCache(discordGuildId);

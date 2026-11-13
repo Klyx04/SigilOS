@@ -10,6 +10,7 @@
 |------|----------------|
 | **Auth on every action** | `await auth()` or `getUserContext(guildId)` at start |
 | **Guild isolation** | All DB queries MUST filter by `guildId` |
+| **Notifications : guilde obligatoire** | Toute lecture/écriture de `Notification` est scopée par `userId` **et** guilde résolue ; **fail-closed** si la guilde n'est pas identifiable (`createNotification` **n'écrit rien**). Une notification sans guilde s'affichait dans **toutes** les guildes de son destinataire — voir le commentaire de `buildGuildScopeFilter` (`src/server/actions/notification-actions.ts`) |
 | **Admin check for mutations** | `if (!user.isAdmin) return 403` |
 | **Super-admin for GOD actions** | `await isSuperAdmin()` on lifecycle operations |
 | **Input validation** | Zod schemas on all user input |
@@ -98,6 +99,7 @@ if (!user.isSuperAdmin && !targetBelongsToGuild) {
 | **Aucun secret dans le dépôt, jamais** | le dépôt est **public** | secret scanning + push protection GitHub ; hook `pre-commit` (motifs Discord/GitHub/AWS/OpenAI/URL PostgreSQL) ; `.env*` gitignorés sauf `.env.example` |
 | **Secrets de CI uniquement via GitHub Secrets / environments** | évite toute fuite par les logs d'un runner | jamais d'`AUTH_SECRET` sur un runner `pull_request` (garde-fou F-18 de `verify.yml`) |
 | **Installation déterministe** : `npm ci` + lockfile avec `integrity`, `save-exact=true`, `overrides` épinglés | rejoue exactement l'arbre testé, bloque une dérive silencieuse | `verify.yml` (lockfile integrity + `npm audit --audit-level=high`), `.npmrc` |
+| **Aucun script d'installation non justifié** : tout paquet du lock qui déclare `hasInstallScript` doit figurer dans l'allowlist de `scripts/check-install-scripts.mjs`, avec sa raison écrite ; la CI installe avec `npm ci --ignore-scripts` puis rend la main **aux seuls** paquets qui en ont besoin (`npm rebuild prisma @prisma/engines`) | TensorLake (2026-10) et MALFEX (`tlxbnhd`) exécutent du code via `preinstall`/`install`/`postinstall` ; le lock fige la version, pas le comportement du mainteneur | `npm run security:install-scripts` (job `verify`, **avant** `npm ci`) · `npm ci --ignore-scripts` + `npm rebuild` (jobs `verify` et hebdo) · `tests/unit/install-scripts-allowlist.test.ts` (5 cas) |
 | **Un changement de schéma Prisma = une migration** (additive, idempotente) ; **jamais** modifier une migration appliquée (checksum Prisma) | sinon beta/prod se désynchronisent au deploy | hook `pre-commit` (refus) + revue |
 | **`git commit --no-verify` = décision explicite**, justifiée dans la PR | le hook porte la vérification la moins chère (secrets, tsc, migrations) | convention de PR |
 | **Rapports d'audit jamais versionnés** | ils décrivent des vulnérabilités exploitables | `.gitignore` : `docs/audits/`, `AUDIT_*.md`, `src/audit-*` |
@@ -117,6 +119,55 @@ src/
     ├── actions/   # Server Actions (main business logic)
     └── discord.ts # Discord API integration
 ```
+
+---
+
+## 🎨 UI — une seule DA (la landing), partout
+
+Le produit n'a **qu'une** direction artistique : celle de la landing (sobre, registre). Toute
+surface connectée (dashboard, admin, modales, tiroirs) la reprend — jamais une variante locale.
+
+- **Aucune couleur en dur** (`emerald-*`, `amber-*`, `zinc-*`, `indigo-*`, `#5865F2`…) : uniquement
+  les tokens (`success`, `warning`, `danger`, `info`, `surface`, `border`, `muted-foreground`).
+- **Un seul accent par écran** : la couleur dit un **état** (ouvert / complet / erreur), jamais une
+  décoration.
+- **Rayons ≤ 12 px** (`rounded-xl` max), **pas de `backdrop-blur`**, **pas d'ombre colorée**, **pas de
+  `hover:-translate`** : un survol change la bordure ou le fond, pas la géométrie.
+- **Pas de boîte dans la boîte** : un seul contour par groupe ; un séparateur vertical ne se pose
+  qu'entre deux zones réellement distinctes — jamais en bord de groupe.
+- **Un contrôle natif non thémé est un défaut** (`<select>`, `color`, `range`…) : passer par les
+  composants maison (`Select`, `Button`, `Sheet`…).
+- Les surfaces flottantes (`SupportOrb`, toasts) restent **sous** les modales (`z-40` < `z-50`).
+
+Garde-fou : `tests/unit/ui-tokens-dj.test.ts` verrouille les surfaces DJ/Quête.
+
+---
+
+## 📐 Responsive — le skill, et le cliquet
+
+Toute UI, tout layout, tout composant et **tout correctif d'affichage** passent par le skill
+`.cline/skills/responsive/` (règles + références `tailwind-v4.md` et `sigilos.md`). Il n'est pas
+optionnel : c'est la seule façon d'éviter qu'un écran neuf réintroduise un anti-pattern déjà payé.
+
+- **Quatre largeurs de contrôle** : 390 / 768 / 1 024 / 1 440 — plus **320 px** pour le reflow.
+  Une livraison UI cite les largeurs réellement contrôlées, sinon ce n'est pas une vérification.
+- **Aucune largeur fixe de conteneur** : `w-[min(…,calc(100vw-2rem))]`, jamais `w-[420px]` seul ;
+  un enfant de flex qui refuse de rétrécir reçoit `min-w-0`.
+- **Hauteur d'écran** : `svh` / `dvh`, jamais `100vh` ni `h-screen` (barre d'URL mobile).
+- **Cliquet** : `tests/unit/responsive-guard.test.ts` plafonne `100vh`, `h-screen` et les largeurs
+  fixes > 400 px. Le budget ne peut que **descendre** ; un lot qui corrige baisse le budget dans le
+  même commit. Ce n'est pas un big bang : **452 fichiers sur 799** utilisent déjà des variantes
+  responsive, le cliquet empêche la régression pendant qu'on corrige écran par écran.
+
+---
+
+## ⚡ Performance de défilement
+
+- **Jamais de `backdrop-filter` sur une surface de défilement** : barre `sticky`, en-tête fixe, carte répétée. Le flou est recalculé à chaque frame ; un fond opaque ou légèrement translucide suffit.
+- **Pas de `filter: blur()` sur une grande couche** (halos décoratifs) : préférer `radial-gradient`.
+- **Longues grilles** : `.cv-auto` (`content-visibility: auto` + `contain-intrinsic-size: auto 480px`) sur les **cartes**, jamais sur le conteneur.
+- **Images hors écran** : `loading="lazy"`, `decoding="async"`, dimensions explicites.
+- **Virtualisation** seulement au-delà de ~100 cartes (TanStack Virtual / react-virtuoso) ; inutile pour une page de 24.
 
 ---
 
@@ -332,7 +383,7 @@ Utilise toujours `./scripts/deploy.sh [beta|prod]` depuis la racine du projet su
 - **Prod** : Déploie la branche `main` sur `sigilos.fr`.
 
 ### 2. Monitoring
-Accède à la tour de contrôle sur `monitor.sigilos.fr`. 
+Accède à la tour de contrôle via God → Système & Infra.
 - Authentification via GitHub uniquement.
 - Ne jamais désactiver le 2FA GitHub.
 
@@ -343,14 +394,14 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 
 ## 📖 Règle de Documentation — OBLIGATOIRE
 
-> **Toute modification d'un module existant ou création d'un nouveau module implique une mise à jour (ou création) de sa documentation officielle dans `prisma/seed-docs.ts`.**
+> **Toute modification d'un module existant ou création d'un nouveau module implique une mise à jour (ou création) de sa fiche de documentation via `/god/docs` (base `DocPage`, groupée par module) — squelette même vide (titre + `h2` + encadré « en cours de rédaction »), jamais de page manquante.**
 
 ### Déclencheurs obligatoires
 
 | Événement | Action requise |
 |-----------|----------------|
-| **Nouveau module créé** (`/admin/xxx`, `/dashboard/xxx`) | Créer un doc `slug: 'nom-du-module'` dans `seed-docs.ts` avec contenu HTML riche |
-| **Module existant modifié en profondeur** | Mettre à jour le contenu du doc correspondant |
+| **Nouveau module créé** (`/admin/xxx`, `/dashboard/xxx`) | Créer la fiche `slug: 'nom-du-module'` dans `/god/docs` avec contenu HTML riche — **ou le squelette vide** + entrée dans `MODULE_DOC_COVERAGE` (`src/lib/docs-modules.ts`, le test `docs-modules` l'exige) |
+| **Module existant modifié en profondeur** | Mettre à jour le contenu de la fiche correspondante |
 | **Nouveau champ Prisma ou nouvelle Server Action** | Documenter le nouveau comportement dans la doc du module concerné |
 | **Nouvelle permission RBAC ajoutée dans `permissions.ts`** | L'ajouter dans la doc `admin-permissions` (toutes les permissions doivent être documentées) |
 | **Nouveau module ajouté à la sidebar** (`app-sidebar.tsx`) | Lui associer un bouton `<ModuleHelpActions docSlug="..." />` |
@@ -376,13 +427,11 @@ Conseil pratique basé sur l'usage réel de la fonctionnalité.
 //              chiffres ou exemples spécifiques à une guilde.
 ```
 
-### Après chaque mise à jour de `seed-docs.ts`
+### Publication
 
 ```bash
-# TOUJOURS exécuter pour synchroniser la DB locale
-npm run seed:docs
-
-# Le VPS est mis à jour automatiquement via scripts/deploy.sh (npm run seed:docs inclus)
+# Rien à jouer : la fiche éditée dans /god/docs est publiée aussitôt
+# (revalidatePath). La doc suit les sauvegardes de la base.
 ```
 
 ---
@@ -417,10 +466,10 @@ Sur Next 16, le proxy de routage doit être **`src/proxy.ts`** (pas `src/middlew
 ### Pattern recommandé (Server Action)
 
 ```typescript
-import { checkRateLimit } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/ratelimit";
 
-const allowed = await checkRateLimit(userId, "quest:toggle", { max: 10, windowMs: 60_000 });
-if (!allowed) {
+const rl = await rateLimit(`quest:toggle:${userId}`, 10, 60_000);
+if (!rl.success) {
   return { success: false, error: "Trop de requêtes, réessaie dans quelques secondes" };
 }
 ```

@@ -106,6 +106,11 @@ REPO_OWNED=(
     "public/songes"
     "public/module-dofus"
     "public/banners"
+    # 🗺️ Ajoutée le 16/10/2026 (mesure : « M » sur le VPS à chaque déploiement) :
+    # note déposée en 2025, **aucun écrivain runtime** (`git grep` : rien dans `src/`
+    # ni `scripts/`) ⇒ même règle que les médias ci-dessus, la version du dépôt fait
+    # foi. Même liste que `deploy-cd.sh`, verrouillée par le test de parité.
+    "public/game-data/worldmap/.routes-2025-api"
 )
 for _dir in "${REPO_OWNED[@]}"; do
     while IFS= read -r _tracked; do
@@ -139,8 +144,8 @@ rm -rf "$CURATED_DIR"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)
 info "📊 Mise à jour de l'infrastructure de monitoring..."
-sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus grafana node-exporter cadvisor postgres-exporter
-sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus grafana node-exporter cadvisor postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus node-exporter postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus node-exporter postgres-exporter
 
 # -----------------------------------------------------------------------------
 # 🔁 Fonction : seeding conditionnel des données de jeu
@@ -173,9 +178,7 @@ run_conditional_seed() {
         dim "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
     fi
 
-    # 🛑 Plus de synchronisation de la doc au déploiement (décision user du 12/10/2026) :
-    # `seed:docs` écrase les fiches `DocPage` par le catalogue et supprime les slugs absents
-    # du catalogue (cf. la note détaillée dans `deploy-cd.sh`). À publier à la demande.
+    # La documentation vit en base (`DocPage`, éditée via /god/docs) : aucun seed de docs ici.
 }
 
 # -----------------------------------------------------------------------------

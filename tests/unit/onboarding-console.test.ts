@@ -17,6 +17,10 @@ vi.mock("@/lib/prisma", () => ({
         platformConfig: { upsert: vi.fn(), findUnique: vi.fn() },
         guildModules: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), updateMany: vi.fn() },
         guildConfig: { findUnique: vi.fn(), findFirst: vi.fn() },
+        // 16/10/2026 — `updateGuildModules` synchronise le module « tickets » avec
+        // `TicketGuildConfig.isEnabled` : sans cette table mockée, l'appel levait
+        // (`undefined.upsert`) et faisait échouer TOUT le toggle, pas seulement la sync.
+        ticketGuildConfig: { upsert: vi.fn().mockResolvedValue({}) },
         userProfile: { findFirst: vi.fn() },
         guildRecoveryClaim: {
             findFirst: vi.fn(),
@@ -26,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
         },
     },
 }));
-vi.mock("@/server/actions/god-notif-actions", () => ({
+vi.mock("@/server/god-notifications", () => ({
     notifyGod: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
@@ -80,13 +84,15 @@ const mockGetUserContext = getUserContext as ReturnType<typeof vi.fn>;
 
 function allOn(): Record<string, boolean> {
     return {
-        presentation: true, roster: true, stats: true, calendar: true,
+        presentation: true, roster: true, calendar: true,
         missions: true, songes: true, ocre: true, ladder: true,
         services: true, donjons: true, profile: true, docs: true,
         polls: true, availability: true, logs: true, admin: true,
         reactionRoles: true, tickets: true, quests: true, worldmap: true,
         resources: true, gallery: true, ladderSync: true, manualLadderSync: true,
         minigames: true, succes: true, commandes: true, marche: true,
+        // Module staff « Sondages programmés » (créneaux publiés automatiquement).
+        scheduledPolls: true,
     };
 }
 
@@ -146,6 +152,7 @@ describe("updateGuildModules — gate native + verrou God", () => {
         mockDb.guildConfig.findUnique.mockResolvedValue({ id: "guild-uuid-1", modules: null });
         mockDb.guildModules.findFirst.mockResolvedValue({ disabledByGod: [] });
         mockDb.guildModules.upsert.mockResolvedValue({});
+        mockDb.ticketGuildConfig.upsert.mockResolvedValue({});
     });
 
     const payload = allOn();

@@ -13,10 +13,12 @@
  */
 
 export const TICKET_PLATFORM_LIMIT_DEFAULTS = {
-    transcriptsEnabled: true,
-    retentionArchivesDays: 90,
-    retentionNotesDays: 90,
-    retentionAuditDays: 180,
+    // Désactivé par défaut (revue 14/10) : le staff l'active en connaissance
+    // de cause (copies stockées sur le VPS, rétention branchée sur le janitor).
+    transcriptsEnabled: false,
+    retentionArchivesDays: 7,
+    retentionNotesDays: 7,
+    retentionAuditDays: 90,
     maxPerUserCap: 5,
     maxGuildCap: 100,
 } as const;
@@ -30,11 +32,27 @@ export type TicketPlatformLimits = {
     maxGuildCap: number;
 };
 
+/**
+ * Statuts qui comptent comme « ticket ouvert » (boîte de réception, compteur
+ * du motif, garde de suppression, quotas). Tout le reste (`CLOSED`, `REFUSED`)
+ * est de l'historique : il n'empêche jamais de supprimer un motif.
+ */
+export const TICKET_OPEN_STATUSES = [
+    "REQUESTED",
+    "OPEN",
+    "CLAIMED",
+    "PENDING_USER",
+    "RESOLVED",
+    "ARCHIVE_FAILED",
+] as const;
+
+export type TicketOpenStatus = (typeof TICKET_OPEN_STATUSES)[number];
+
 /** Bornes du panneau God (une guilde ne peut pas remplir le VPS). */
 export const TICKET_PLATFORM_LIMIT_BOUNDS = {
-    retentionArchivesDays: { min: 7, max: 365 },
-    retentionNotesDays: { min: 7, max: 365 },
-    retentionAuditDays: { min: 30, max: 730 },
+    retentionArchivesDays: { min: 3, max: 365 },
+    retentionNotesDays: { min: 3, max: 365 },
+    retentionAuditDays: { min: 14, max: 730 },
     maxPerUserCap: { min: 1, max: 10 },
     maxGuildCap: { min: 5, max: 500 },
 } as const;
@@ -52,7 +70,7 @@ export function readTicketPlatformLimits(raw: unknown): TicketPlatformLimits {
             ? (raw as Record<string, unknown>)
             : null;
     return {
-        transcriptsEnabled: input?.ticketTranscriptsEnabled !== false,
+        transcriptsEnabled: input?.ticketTranscriptsEnabled === true,
         retentionArchivesDays: clampInt(
             input?.ticketRetentionArchivesDays,
             TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.min,

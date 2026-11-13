@@ -3,9 +3,28 @@ import { db } from "@/lib/prisma";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
+import { boundCronList } from "@/lib/cron-metrics";
+import { normalizeLadderLevel, normalizeLadderXp } from "@/server/ladder-snapshot";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
+import { emitSuccessPointsMilestone, emitLadderTopEntry } from "@/server/ladder-milestones";
 
 // Wait function to avoid spamming the worker / Ankama
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+/**
+ * Rang d'un membre dans le ladder succès de sa guilde (`1` = premier), pour un score donné.
+ *
+ * Un score inconnu (`null`) ne produit **aucun** rang : `successPoints` est nullable en base, et
+ * un `null` ne doit jamais devenir « premier du ladder » (fail-closed). Les profils dont le score
+ * est `null` ne sont pas comptés non plus côté `Postgres` (`gt` sur `NULL` est faux).
+ */
+async function resolveLadderRank(guildId: string, points: unknown): Promise<number | null> {
+    if (typeof points !== "number" || !Number.isFinite(points)) return null;
+    const ahead = await db.userProfile.count({
+        where: { guildId, status: "ACTIVE", successPoints: { gt: points } },
+    });
+    return ahead + 1;
+}
 
 export async function GET(req: Request) {
     try {
@@ -44,6 +63,9 @@ export async function GET(req: Request) {
                 id: true, 
                 pseudoDofus: true, 
                 guildId: true,
+                // Chantier N (lot N-2) : l'ancien score est nécessaire pour détecter un **palier**
+                // franchi — un franchissement se constate entre deux relevés, pas dans l'absolu.
+                successPoints: true,
                 guild: {
                     select: { dofusServerId: true }
                 }
@@ -51,7 +73,7 @@ export async function GET(req: Request) {
         });
 
         if (profiles.length === 0) {
-            await recordCronExecution("ladder_sync", { success: true, durationMs: Date.now() - startedAt, summary: "Aucun profil à synchroniser (0)", details: { batch: 0, success_count: 0, fail_count: 0 } });
+            await recordCronExecution("ladder_sync", { success: true, durationMs: Date.now() - startedAt, summary: "Aucun profil à synchroniser (0)", details: { profilsTraites: 0, profilsReussis: 0, echecs: 0 } });
             return NextResponse.json({ message: "No profiles to update.", count: 0 });
         }
 
@@ -88,19 +110,68 @@ export async function GET(req: Request) {
 
                     if (succesData.success && typeof succesData.points === 'number') {
                         updateData.successPoints = succesData.points;
-                        if (succesData.level) updateData.dofusLevel = succesData.level;
                     }
 
+                    const generalXp = generalData.success
+                        ? normalizeLadderXp(generalData.totalXp)
+                        : undefined;
                     if (generalData.success) {
-                        if (generalData.level) updateData.dofusLevel = generalData.level;
-                        if (generalData.totalXp) updateData.totalXp = BigInt(generalData.totalXp);
-                        if (generalData.classe) updateData.classe = generalData.classe;
+                        if (generalXp !== undefined) updateData.totalXp = generalXp;
+                        if (generalData.classe) updateData.classe = String(generalData.classe).slice(0, 50);
                     }
+
+                    // Niveau **total** (200 + Oméga) : le ladder ne renvoie que le niveau
+                    // Oméga, l'XP totale tranche. La fiche générale fait foi sur le niveau.
+                    const totalLevel = toTotalDofusLevel(
+                        normalizeLadderLevel(
+                            (generalData.success ? generalData.level : undefined) ??
+                                (succesData.success ? succesData.level : undefined)
+                        ),
+                        generalXp
+                    );
+                    if (totalLevel !== null) updateData.dofusLevel = totalLevel;
+
+                    // Chantier N (lot N-2) : le **rang** dans le ladder de la guilde ne se lit qu'ici —
+                    // « avant » se compte avant l'écriture (l'ancien score est encore en base),
+                    // « après » juste après (le membre ne se compte pas lui-même : son score n'est
+                    // pas supérieur à lui-même). Deux comptages **seulement** quand les points ont
+                    // bougé, pour ne pas payer un classement à vide.
+                    const pointsAfter = succesData.success && typeof succesData.points === "number"
+                        ? succesData.points
+                        : null;
+                    const rankBefore = pointsAfter === null
+                        ? null
+                        : await resolveLadderRank(profile.guildId, profile.successPoints);
 
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: updateData
                     });
+
+                    const rankAfter = pointsAfter === null
+                        ? null
+                        : await resolveLadderRank(profile.guildId, pointsAfter);
+
+                    // Chantier N (lot N-2) : un palier de points franchi est annoncé **une seule
+                    // fois** dans le flux de vie de la guilde, et l'**entrée** dans le top du ladder
+                    // avec lui. C'est ici et pas à la validation : les points arrivent par cette
+                    // passe, seul endroit qui connaît l'avant/après.
+                    if (pointsAfter !== null) {
+                        await emitSuccessPointsMilestone({
+                            guildId: profile.guildId,
+                            profileId: profile.id,
+                            displayName: pseudo,
+                            before: profile.successPoints,
+                            after: pointsAfter,
+                        });
+                        await emitLadderTopEntry({
+                            guildId: profile.guildId,
+                            profileId: profile.id,
+                            displayName: pseudo,
+                            rankBefore,
+                            rankAfter,
+                        });
+                    }
 
                     results.push({ pseudo, success: true, points: succesData.points, level: generalData.level || succesData.level });
                 } else {
@@ -123,7 +194,7 @@ export async function GET(req: Request) {
         // liste les échecs (qui + pourquoi), les champs d'embed sont en français.
         const summary = summarizeLadderSync(results);
 
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "Ladder General/Succès Sync",
             message: buildLadderSyncMessage(summary),
@@ -132,19 +203,31 @@ export async function GET(req: Request) {
             // étaient vertes alors que des profils avaient échoué (la couleur mentait).
             success: summary.allSucceeded,
             metadata: {
-                batch_size: summary.batchSize,
-                success_count: summary.successCount,
-                fail_count: summary.failCount,
-                failures: summary.failures.map((f) => `${f.pseudo}: ${f.reason}`),
+                // C4 — mêmes clés que les autres crons (français, explicites) : plus de
+                // `batch_size`/`success_count`/`fail_count` dans le repli de la console.
+                profilsTraites: summary.batchSize,
+                profilsReussis: summary.successCount,
+                echecs: summary.failCount,
+                listeEchecs: boundCronList(summary.failures.map((f) => `${f.pseudo} : ${f.reason}`)).text,
             },
             fields: buildLadderSyncFields(summary),
         });
 
+        const failures = boundCronList(summary.failures.map((f) => `${f.pseudo} — ${f.reason}`), 100);
         await recordCronExecution("ladder_sync", {
             success: true,
             durationMs: Date.now() - startedAt,
             summary: `${summary.batchSize} profils traités (${summary.successCount} réussis, ${summary.failCount} échecs)`,
-            details: { batch: summary.batchSize, success_count: summary.successCount, fail_count: summary.failCount },
+            details: {
+                profilsTraites: summary.batchSize,
+                profilsReussis: summary.successCount,
+                echecs: summary.failCount,
+                // Une ligne par échec dans la fiche du journal (lot C2).
+                ...Object.fromEntries(failures.shown.map((line, index) => [`Échec ${index + 1}`, line])),
+                ...(failures.hidden > 0
+                    ? { "… autres échecs": `${failures.hidden} échec(s) non affiché(s) (plafond 100).` }
+                    : {}),
+            },
         });
 
         return NextResponse.json({
@@ -157,7 +240,7 @@ export async function GET(req: Request) {
         console.error("Cron Ladder Sync Error:", error);
         
         // Notify of fatal failure
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "CRITICAL: Ladder Sync Failed",
             message: `Erreur fatale dans le cron ladder sync : ${error.message || String(error)}`,

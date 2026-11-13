@@ -8,7 +8,9 @@ Proxy edge vers l'API publique Dofusbook. **Seul émetteur autorisé** vers
 | Route | Auth | Usage |
 |---|---|---|
 | `GET /:id` | header `X-SigilOS-Key` | appels **serveur** SigilOS (proxy interne, warm cache) |
+| `GET /:id?force=true` | header `X-SigilOS-Key` | rafraîchissement **explicite** (contourne le cache edge) |
 | `GET /s/:id?e=<exp>&t=<hmac>` | jeton HMAC (query) | appels **navigateur** (galerie : ajout/actualisation de build) |
+| `GET /s/:id?e=…&t=…&force=1` | jeton HMAC (query) | bouton **Actualiser** de la fiche / de la galerie |
 | `OPTIONS` | — | CORS preflight |
 
 `id` = id **numérique** Dofusbook (les liens courts `d-bk.net` sont résolus côté SigilOS
@@ -26,6 +28,12 @@ Le worker met en cache **les succès uniquement** via la Cache API Cloudflare, s
 **stable** (`https://www.dofusbook.net/api/stuffs/dofus/public/<id>`), indépendante du
 jeton du navigateur — sinon chaque rafraîchissement rappellerait Dofusbook. Les échecs
 (403/5xx) ne sont **jamais** mis en cache.
+
+🐞 **Corrigé le 25/10/2026** : la TTL était de **24 h pour toutes** les réponses, `force`
+était ignoré ⇒ un build modifié sur Dofusbook restait figé une journée. Désormais `force`
+(vrai sur `/:id?force=true` et `/s/:id?…&force=1`) **ne lit pas** le cache, envoie
+`cf: { cacheTtl: 0 }` à Dofusbook et **remplace** l'entrée avec une TTL de **60 s** (deux
+clics rapprochés ne martèlent pas la source). Une lecture normale garde 24 h.
 
 ## Variables d'environnement (Cloudflare → Worker → Settings → Variables)
 

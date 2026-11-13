@@ -87,6 +87,7 @@ const ACTION_LABELS: Record<string, string> = {
     CONFIG_UPDATED: "Configuration modifiée",
     SETTINGS_UPDATED: "Réglages modifiés",
     RBAC_UPDATE: "Permissions modifiées",
+    GUILD_PURGED: "Guilde supprimée définitivement",
 };
 
 function actionLabel(action: string): string {

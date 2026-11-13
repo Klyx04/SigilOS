@@ -28,21 +28,23 @@ function QuestGroup({
             <div className="p-3.5 border-b border-border/70 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0">
-                        {dofusImageUrl ? (
-                            <img
-                                src={dofusImageUrl}
-                                alt=""
-                                className="w-full h-full object-contain"
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
-                            />
-                        ) : (
-                            <img
-                                src="/assets/dofus/icons/success.png"
-                                alt=""
-                                className="w-full h-full object-contain"
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
-                            />
-                        )}
+                        {/* Image du Dofus si on l'a, sinon la **vraie** icône de quête du client
+                            (`btnIcon_quest.png`), puis `quests.png`. Le trophée « succès » utilisé
+                            avant ne disait pas qu'il s'agissait de quêtes (constat du 30/10/2026). */}
+                        <img
+                            src={dofusImageUrl || "/assets/dofus/icons/btnIcon_quest.png"}
+                            alt=""
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                                const img = e.currentTarget;
+                                if (!img.dataset.fallback) {
+                                    img.dataset.fallback = "1";
+                                    img.src = "/assets/dofus/icons/quests.png";
+                                    return;
+                                }
+                                img.style.display = "none";
+                            }}
+                        />
                     </div>
                     <div className="min-w-0">
                         <h4 className="text-sm font-bold text-foreground truncate">{chainName}</h4>

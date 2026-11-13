@@ -32,6 +32,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 03h05",
         logFile: "cleanup-logs.log",
     },
+    creator_watch: {
+        name: "Annonces de créateurs (live Twitch + vidéos YouTube)",
+        schedule: "Toutes les 5 min",
+        logFile: "creator-watch.log",
+    },
     account_retention: {
         name: "Purge RGPD Comptes Orphelins",
         schedule: "Quotidien 06h00",
@@ -112,6 +117,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 04h25 (UTC)",
         logFile: "guild-orphan-watch.log",
     },
+    guild_purge: {
+        name: "Purge des guildes supprimées (échéance J+30)",
+        schedule: "Quotidien 04h45 (UTC)",
+        logFile: "guild-purge.log",
+    },
     ladder_sync: {
         name: "Sync Ladder Général/Succès",
         schedule: "Toutes les 12h",
@@ -136,6 +146,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         name: "Rappel Raids — ping des inscrits (1 h avant)",
         schedule: "Toutes les 10 min",
         logFile: "raid-reminders.log",
+    },
+    calendar_auto_close: {
+        name: "Calendrier — clôture d'office + purge Discord",
+        schedule: "Toutes les 10 min",
+        logFile: "calendar-auto-close.log",
     },
     event_reminders: {
         name: "Rappel Events — ping des inscrits (fenêtre notifyBefore)",
@@ -162,16 +177,33 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 04h10 (UTC)",
         logFile: "sync-raid-spells.log",
     },
+    publish_scheduled_polls: {
+        name: "Sondages programmés — publication automatique",
+        // « Toutes les 1 min » : même format que les autres tâches, pour que la
+        // surveillance « tâche muette » (2× cadence + marge = ~32 min) s'applique.
+        schedule: "Toutes les 1 min",
+        logFile: "publish-scheduled-polls.log",
+    },
+    seniority_roles: {
+        name: "Rôles automatiques par ancienneté",
+        schedule: "Quotidien 04h30",
+        logFile: "seniority-roles.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";
 const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 jours
+/** Nombre d'exécutions conservées **par tâche** (le journal God en affiche autant). */
+export const CRON_HISTORY_LIMIT = 10;
+/** Rétention de l'historique Redis, en jours — dite explicitement dans la console God. */
+export const CRON_HISTORY_TTL_DAYS = 7;
 
 /**
  * 🔔 Check-in Sentry du moniteur de cette tâche — « je viens de tourner » (ou « j'ai échoué »).
  *
- * **Un seul point de branchement pour les 25 crons** : toutes les routes `/api/cron/*`
- * passent par `recordCronExecution` (vérifié le 11/10/2026 : 25/25) ⇒ aucune route à
+ * **Un seul point de branchement pour les crons** : toutes les routes `/api/cron/*`
+ * passent par `recordCronExecution` (vérifié le 11/10/2026 : 25/25 — tient
+ * toujours avec `publish_scheduled_polls`, ajouté le 13/10/2026) ⇒ aucune route à
  * modifier, aucune oubliable, toute route future surveillée d'office.
  *
  * Jamais bloquant, jamais fatal : l'observabilité ne doit pas casser un cron (et en
@@ -242,7 +274,7 @@ export async function recordCronExecution(
         // Ajout à la liste d'historique (10 dernières exécutions)
         const historyKey = `${REDIS_PREFIX}history:${cronId}`;
         await redis.lpush(historyKey, JSON.stringify(record));
-        await redis.ltrim(historyKey, 0, 9);
+        await redis.ltrim(historyKey, 0, CRON_HISTORY_LIMIT - 1);
         await redis.expire(historyKey, TTL_SECONDS);
 
         return true;
@@ -339,7 +371,7 @@ export async function getAllCronStatuses(): Promise<CronExecutionRecord[]> {
 export async function getCronHistory(cronId: string): Promise<CronExecutionRecord[]> {
     try {
         const historyKey = `${REDIS_PREFIX}history:${cronId}`;
-        const rows = await redis.lrange(historyKey, 0, 9);
+        const rows = await redis.lrange(historyKey, 0, CRON_HISTORY_LIMIT - 1);
         return rows
             .map((raw) => {
                 try {
@@ -352,5 +384,43 @@ export async function getCronHistory(cronId: string): Promise<CronExecutionRecor
     } catch (err) {
         logger.error("[CronTelemetry] Failed to get cron history:", { cronId, error: err });
         return [];
+    }
+}
+
+/** Une tâche et son historique (structurellement compatible avec `CronJournalSource`). */
+export interface CronHistorySource {
+    cronId: string;
+    name: string;
+    schedule: string;
+    records: CronExecutionRecord[];
+}
+
+/**
+ * Lit l'historique de **toutes** les tâches connues, en une passe.
+ *
+ * `ok: false` = Redis indisponible. L'appelant doit le **dire** : un journal vide ne
+ * signifie pas « aucune exécution » — c'est exactement la confusion que l'onglet
+ * « Tâches CRON » corrige déjà pour les statuts (`unknown` vs « jamais tourné »).
+ */
+export async function getAllCronHistories(): Promise<{ ok: boolean; sources: CronHistorySource[] }> {
+    try {
+        const sources = await Promise.all(
+            Object.entries(KNOWN_CRON_TASKS).map(async ([cronId, meta]) => {
+                const rows = await redis.lrange(`${REDIS_PREFIX}history:${cronId}`, 0, CRON_HISTORY_LIMIT - 1);
+                const records: CronExecutionRecord[] = [];
+                for (const raw of rows) {
+                    try {
+                        records.push(JSON.parse(raw) as CronExecutionRecord);
+                    } catch {
+                        // Ligne illisible : ignorée — une entrée corrompue ne vide pas le journal.
+                    }
+                }
+                return { cronId, name: meta.name, schedule: meta.schedule, records };
+            }),
+        );
+        return { ok: true, sources };
+    } catch (err) {
+        logger.error("[CronTelemetry] Failed to read cron histories:", { error: err });
+        return { ok: false, sources: [] };
     }
 }

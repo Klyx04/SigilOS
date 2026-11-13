@@ -2,6 +2,7 @@ import { unlink, rmdir } from "fs/promises";
 import { join, dirname, normalize } from "path";
 import { logger } from "@/lib/logger";
 import { createHmac, timingSafeEqual } from "crypto";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SIGNED STORAGE URLS (F-02 / audit 2026)
@@ -17,6 +18,9 @@ import { createHmac, timingSafeEqual } from "crypto";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_TTL_SECONDS = 60 * 60 * 24; // 24h default
+
+/** Évite de répéter l'avertissement legacy à chaque requête. */
+let legacyTokenWarned = false;
 
 // New dedicated signing secret — fail-closed if missing.
 function getSigningSecret(): string | null {
@@ -162,10 +166,29 @@ export function verifyStorageToken(path: string, token: string): boolean {
     // ── Legacy format: bare HMAC over path (no expiry) ────────────────────────
     // Transition only: verify against AUTH_SECRET so previously issued URLs keep
     // working until they are re-signed. Not used to sign new tokens.
+    //
+    // 🔐 AUD-04 (audit 13/11/2026) : date de coupure optionnelle. Tant que la
+    // variable n'est pas posée, le comportement historique est conservé (liens
+    // déjà envoyés sur Discord). Dès qu'elle est posée et dépassée, la branche
+    // legacy est refusée ; une date invalide est fail-closed.
+    const legacyUntil = process.env.STORAGE_LEGACY_TOKENS_UNTIL?.trim();
+    if (legacyUntil) {
+        const cutoff = Date.parse(legacyUntil);
+        if (!Number.isFinite(cutoff) || Date.now() > cutoff) return false;
+    }
+
     const legacySecret = getLegacySecret();
     if (!legacySecret) return false;
     const legacyHmac = createHmac("sha256", legacySecret).update(path).digest("hex");
-    if (token.length === legacyHmac.length && safeEqual(token, legacyHmac)) return true;
+    if (token.length === legacyHmac.length && safeEqual(token, legacyHmac)) {
+        if (!legacyTokenWarned) {
+            legacyTokenWarned = true;
+            logger.warn(
+                "[Storage] Jeton legacy (sans expiration) accepté — posez STORAGE_LEGACY_TOKENS_UNTIL pour le retirer.",
+            );
+        }
+        return true;
+    }
 
     return false;
 }
@@ -176,7 +199,7 @@ export function verifyStorageToken(path: string, token: string): boolean {
 export function getDiscordPublicUrl(proofUrl: string | null | undefined): string | undefined {
     if (!proofUrl) return undefined;
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
     const baseUrl = proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`;
 
     // Extract path for signature (part after /api/storage/)

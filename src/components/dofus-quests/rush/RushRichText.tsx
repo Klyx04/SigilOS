@@ -87,36 +87,6 @@ export function splitTipLines(rawText: string | null | undefined): string[] {
     .filter((line) => line.length > 0);
 }
 
-/**
- * Conseils en puces — SOURCE UNIQUE des conseils & notes pour l'overlay (modale de détail,
- * vue de jeu) et le dashboard (blocs repliables). Chaque puce rend son texte par
- * `RushRichText` (liens nommés + positions copiables).
- */
-export function RushTipLines({
-  text,
-  className,
-}: {
-  text: string | null | undefined;
-  className?: string;
-}) {
-  const lines = splitTipLines(text);
-  if (lines.length === 0) return null;
-  return (
-    <ul className={cn("space-y-1.5", className)}>
-      {lines.map((line, i) => (
-        <li key={i} className="flex items-start gap-1.5">
-          <span aria-hidden="true" className="mt-[0.4rem] h-1 w-1 shrink-0 rounded-full bg-warning" />
-          {/* `min-w-0` obligatoire : `RushRichText` rend un `span.contents`, qui ne peut pas
-              rétrécir seul dans une puce en flex. */}
-          <span className="min-w-0">
-            <RushRichText text={line} />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** Lien externe du texte enrichi : le libellé est cliquable, l'URL reste invisible. */
 function RushTextLink({ label, href }: { label: string; href: string }) {
   return (

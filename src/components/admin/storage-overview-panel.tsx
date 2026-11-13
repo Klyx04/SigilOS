@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     getStorageOverview, godDeleteFile, setGuildStorageLimit, getGuildLogsStats, cleanOrphanStorage,
-    type StorageGuildEntry, type StorageOverview, type PendingFile, type GuildAsset, type AssetDbField, type DiskFile
+    getGodTranscriptsList, godDeleteTicketTranscript,
+    type StorageGuildEntry, type StorageOverview, type PendingFile, type GuildAsset, type AssetDbField, type DiskFile, type GodTranscriptEntry
 } from "@/server/actions/storage-actions";
 import {
     HardDrive, FolderOpen, Loader2, RefreshCw,
     FileImage, Coins, Trophy, Shield, Search, Clock, Image as ImageIcon,
-    X, Trash2, Handshake, ScrollText, AlertTriangle,
+    X, Trash2, Handshake, ScrollText, AlertTriangle, FileText,
     ChevronRight
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,6 +37,7 @@ const TYPE_CFG = {
     ICON: { label: "Icône", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", dot: "bg-sky-500", barColor: "bg-sky-500" },
     BANNER: { label: "Bannière de guilde", color: "text-success", bg: "bg-success/10", border: "border-success/20", dot: "bg-success", barColor: "bg-success" },
     PHOTO: { label: "Photo de guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", dot: "bg-info", barColor: "bg-info" },
+    TRANSCRIPT: { label: "Transcripts Tickets", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", dot: "bg-indigo-500", barColor: "bg-indigo-500" },
 };
 
 // ─── Path Display ─────────────────────────────────────────────────────────────
@@ -302,8 +304,13 @@ export function StorageOverviewPanel() {
     const [orphansOpen, setOrphansOpen] = useState(false);
     const [sortBy, setSortBy] = useState<'size' | 'name' | 'files'>('size');
     const [page, setPage] = useState(1);
-    const [activeTab, setActiveTab] = useState<'guildes' | 'orphelins' | 'logs'>('guildes');
+    const [activeTab, setActiveTab] = useState<'guildes' | 'transcripts' | 'orphelins' | 'logs'>('guildes');
     const [logs, setLogs] = useState<Awaited<ReturnType<typeof getGuildLogsStats>>["data"] | null>(null);
+    const [transcriptsList, setTranscriptsList] = useState<GodTranscriptEntry[]>([]);
+    const [transcriptsLoading, setTranscriptsLoading] = useState(false);
+    const [transcriptsSearch, setTranscriptsSearch] = useState("");
+    const [transcriptsSort, setTranscriptsSort] = useState<"date" | "size" | "expiry">("date");
+    const [transcriptsDeletingId, setTranscriptsDeletingId] = useState<string | null>(null);
     const PAGE_SIZE = 25;
 
     const purgeOrphans = async () => {
@@ -316,6 +323,36 @@ export function StorageOverviewPanel() {
         }
     };
 
+    const loadTranscripts = useCallback(async () => {
+        setTranscriptsLoading(true);
+        try {
+            const res = await getGodTranscriptsList();
+            if (res.success && res.data) {
+                setTranscriptsList(res.data.transcripts);
+            }
+        } catch {
+            toast.error("Erreur lors du chargement des transcripts");
+        } finally {
+            setTranscriptsLoading(false);
+        }
+    }, []);
+
+    const deleteTranscript = async (id: string, ticketNumber: number, guildName: string) => {
+        if (!confirm(`Supprimer définitivement l'archive du ticket #${ticketNumber} de la guilde "${guildName}" ?\nCette opération est irréversible.`)) {
+            return;
+        }
+        setTranscriptsDeletingId(id);
+        const res = await godDeleteTicketTranscript(id);
+        setTranscriptsDeletingId(null);
+        if (res.success) {
+            toast.success(`Transcript #${ticketNumber} supprimé définitivement`);
+            setTranscriptsList((prev) => prev.filter((t) => t.id !== id));
+            load(true);
+        } else {
+            toast.error(res.error || "Erreur lors de la suppression");
+        }
+    };
+
     const load = useCallback(async (force = false) => {
         setLoading(true);
         const res = await getStorageOverview(force);
@@ -323,7 +360,10 @@ export function StorageOverviewPanel() {
         setLoading(false);
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        load();
+        loadTranscripts();
+    }, [load, loadTranscripts]);
 
     // Logs par guilde (30j) — chargés une fois à l'ouverture
     useEffect(() => {
@@ -337,8 +377,30 @@ export function StorageOverviewPanel() {
 
     const sortedGuilds = [...filteredGuilds].sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'files') return (b.missionsCount + b.kamaCount + b.achievementCount + b.presentationCount) - (a.missionsCount + a.kamaCount + a.achievementCount + a.presentationCount);
+        if (sortBy === 'files') return (b.missionsCount + b.kamaCount + b.achievementCount + b.presentationCount + (b.transcriptsCount || 0)) - (a.missionsCount + a.kamaCount + a.achievementCount + a.presentationCount + (a.transcriptsCount || 0));
         return b.totalBytes - a.totalBytes;
+    });
+
+    const filteredTranscripts = transcriptsList.filter(t => {
+        if (!transcriptsSearch) return true;
+        const s = transcriptsSearch.toLowerCase();
+        return (
+            t.guildName.toLowerCase().includes(s) ||
+            t.creatorDiscordName.toLowerCase().includes(s) ||
+            String(t.ticketNumber).includes(s) ||
+            t.categoryName.toLowerCase().includes(s) ||
+            t.discordGuildId.includes(s)
+        );
+    });
+
+    const sortedTranscripts = [...filteredTranscripts].sort((a, b) => {
+        if (transcriptsSort === "size") return b.sizeBytes - a.sizeBytes;
+        if (transcriptsSort === "expiry") {
+            const expA = a.expiresAt ? new Date(a.expiresAt).getTime() : Infinity;
+            const expB = b.expiresAt ? new Date(b.expiresAt).getTime() : Infinity;
+            return expA - expB;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     const totalPages = Math.max(1, Math.ceil(sortedGuilds.length / PAGE_SIZE));
@@ -387,17 +449,25 @@ export function StorageOverviewPanel() {
                     <div className="flex items-center gap-1 border-b border-border overflow-x-auto no-scrollbar">
                         {([
                             { id: "guildes" as const, label: "Guildes", icon: Shield },
+                            { id: "transcripts" as const, label: "Transcripts tickets", icon: FileText },
                             { id: "orphelins" as const, label: "Fichiers orphelins", icon: AlertTriangle },
                             { id: "logs" as const, label: "Logs par guilde", icon: ScrollText },
                         ]).map((tab) => {
                             const Icon = tab.icon;
-                            const badge = tab.id === "orphelins" ? overview?.orphanFiles.length || 0 : tab.id === "logs" ? logs?.totals.total : undefined;
+                            const badge =
+                                tab.id === "transcripts"
+                                    ? overview?.totalTranscriptsCount ?? transcriptsList.length
+                                    : tab.id === "orphelins"
+                                    ? overview?.orphanFiles.length || 0
+                                    : tab.id === "logs"
+                                    ? logs?.totals.total
+                                    : undefined;
                             return (
                                 <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("flex items-center gap-2 px-4 py-3 -mb-px border-b-2 text-caption font-black uppercase tracking-widest transition-all whitespace-nowrap", activeTab === tab.id ? "border-info text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                                     <Icon className="w-4 h-4" />
                                     {tab.label}
                                     {badge != null && badge > 0 && (
-                                        <span className={cn("flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-caption font-black", tab.id === "orphelins" ? "bg-danger text-danger-foreground" : "bg-info text-info-foreground")}>{badge > 99 ? "99+" : badge}</span>
+                                        <span className={cn("flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-caption font-black", tab.id === "orphelins" ? "bg-danger text-danger-foreground" : tab.id === "transcripts" ? "bg-indigo-500 text-white" : "bg-info text-info-foreground")}>{badge > 99 ? "99+" : badge}</span>
                                     )}
                                 </button>
                             );
@@ -467,6 +537,153 @@ export function StorageOverviewPanel() {
                             </div>
                         </div>
                     )}
+
+                {/* ── Onglet Transcripts tickets ── */}
+                {activeTab === "transcripts" && (
+                    <div className="space-y-4">
+                        {/* Barre d'outils : recherche + tri + rafraîchir */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 bg-surface/40 border border-border rounded-2xl p-4">
+                            <div className="relative flex-1 min-w-[260px] group">
+                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-info transition-colors">
+                                    <Search className="w-4 h-4" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Rechercher par guilde, ticket #, demandeur, catégorie..."
+                                    value={transcriptsSearch}
+                                    onChange={(e) => setTranscriptsSearch(e.target.value)}
+                                    className="w-full bg-surface/60 border border-border rounded-xl py-2 pl-11 pr-4 text-xs focus:border-info/50 focus:bg-surface/80 transition-all outline-none"
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1 p-1 bg-surface/60 border border-border rounded-xl">
+                                    <span className="px-2 text-caption font-black text-muted-foreground uppercase tracking-widest">Tri</span>
+                                    {([
+                                        ["date", "Date"],
+                                        ["size", "Taille"],
+                                        ["expiry", "Expiration"],
+                                    ] as const).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setTranscriptsSort(key)}
+                                            className={cn(
+                                                "px-3 py-1 rounded-lg text-caption font-black uppercase tracking-widest transition-all",
+                                                transcriptsSort === key
+                                                    ? "bg-indigo-500 text-white"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={loadTranscripts}
+                                    disabled={transcriptsLoading}
+                                    title="Rafraîchir les transcripts"
+                                    className="p-2 rounded-xl bg-surface/60 border border-border text-muted-foreground hover:text-foreground transition-all"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4", transcriptsLoading && "animate-spin")} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Liste des transcripts */}
+                        <div className="bg-surface/40 border border-border rounded-2xl overflow-hidden shadow-sm">
+                            {sortedTranscripts.length === 0 ? (
+                                <div className="py-16 text-center text-muted-foreground space-y-2">
+                                    <FileText className="w-8 h-8 mx-auto opacity-40 text-indigo-400" />
+                                    <p className="text-sm font-bold text-foreground">Aucun transcript ticket trouvé</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {transcriptsSearch ? "Aucun résultat ne correspond à votre recherche." : "Les transcripts apparaîtront dès qu'un ticket sera fermé sur une guilde."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-surface border-b border-border text-caption uppercase tracking-widest text-muted-foreground">
+                                            <tr>
+                                                <th className="px-6 py-4 font-black">Guilde</th>
+                                                <th className="px-6 py-4 font-black">Ticket</th>
+                                                <th className="px-6 py-4 font-black">Type</th>
+                                                <th className="px-6 py-4 font-black text-right font-mono">Taille</th>
+                                                <th className="px-6 py-4 font-black text-center">Messages</th>
+                                                <th className="px-6 py-4 font-black">Rétention &amp; Auto-Suppression</th>
+                                                <th className="px-6 py-4 font-black text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/40 text-xs">
+                                            {sortedTranscripts.map((t) => (
+                                                <tr key={t.id} className="hover:bg-surface/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-xs font-black text-foreground uppercase tracking-tight">{t.guildName}</p>
+                                                        <p className="text-[10px] font-mono text-muted-foreground">{t.discordGuildId}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-xs font-mono font-black text-indigo-400">#{t.ticketNumber}</p>
+                                                        <p className="text-caption text-foreground font-medium">{t.creatorDiscordName}</p>
+                                                        <p className="text-[10px] text-muted-foreground">{t.categoryName}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {t.kind === "SHAREABLE" ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase">
+                                                                Conversation
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase">
+                                                                Annexe Staff
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right font-mono font-black text-foreground">
+                                                        {formatBytes(t.sizeBytes)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center font-bold text-muted-foreground">
+                                                        {t.messageCount}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {t.expiresAt ? (
+                                                            <CountdownChip providedExpiresAt={t.expiresAt} labelPrefix="EXP : " />
+                                                        ) : (
+                                                            <span className="text-caption text-muted-foreground font-medium">Permanent</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <a
+                                                                href={`/api/tickets/transcript/${t.secretToken}`}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                title="Visualiser le transcript HTML"
+                                                                className="p-2 rounded-xl bg-surface hover:bg-surface/80 border border-border text-foreground transition-all"
+                                                            >
+                                                                <FolderOpen className="w-3.5 h-3.5" />
+                                                            </a>
+                                                            <button
+                                                                onClick={() => deleteTranscript(t.id, t.ticketNumber, t.guildName)}
+                                                                disabled={transcriptsDeletingId === t.id}
+                                                                title="Supprimer définitivement ce transcript"
+                                                                className="p-2 rounded-xl bg-danger/10 hover:bg-danger/20 border border-danger/30 text-danger transition-all disabled:opacity-40"
+                                                            >
+                                                                {transcriptsDeletingId === t.id ? (
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Onglet Fichiers orphelins ── */}
                 {activeTab === "orphelins" && (
@@ -610,6 +827,7 @@ function StorageMiniItem({
                 type === "KAMA" ? <Coins className="w-4 h-4" /> :
                 type === "PRESENTATION" ? <ImageIcon className="w-4 h-4" /> :
                 type === "LOAN_PROOF" ? <Handshake className="w-4 h-4" /> :
+                type === "TRANSCRIPT" ? <FileText className="w-4 h-4" /> :
                 <Trophy className="w-4 h-4" />;
 
     return (
@@ -764,8 +982,8 @@ function GuildAssetsStrip({ guild, onReload }: { guild: StorageGuildEntry; onRel
 }
 
 function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () => void }) {
-    const subTotal = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes + guild.presentationBytes;
-    const totalCount = guild.missionsCount + guild.kamaCount + guild.achievementCount + guild.presentationCount;
+    const subTotal = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes + guild.presentationBytes + (guild.transcriptsBytes || 0);
+    const totalCount = guild.missionsCount + guild.kamaCount + guild.achievementCount + guild.presentationCount + (guild.transcriptsCount || 0);
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -825,6 +1043,17 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
                                     Succès: {formatBytes(guild.achievementBytes)}
                                 </TooltipContent>
                             </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 bg-indigo-500/5 px-2 py-1 rounded-md border border-indigo-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                        <span className="text-caption font-black text-indigo-400/80">{guild.transcriptsCount || 0}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-background border-indigo-500/20 text-indigo-400 font-black text-caption uppercase tracking-widest">
+                                    Transcripts: {formatBytes(guild.transcriptsBytes || 0)}
+                                </TooltipContent>
+                            </Tooltip>
                         </TooltipProvider>
                     </div>
                 </td>
@@ -859,11 +1088,12 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                             <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                             <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                             <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                             <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                            <StorageMiniItem type="TRANSCRIPT" count={guild.transcriptsCount || 0} bytes={guild.transcriptsBytes || 0} files={guild.transcriptsFiles || []} dir="TicketTranscripts (PostgreSQL)" pendingFiles={[]} onReload={onReload} guildName={guild.name} />
                         </div>
 
                         <GuildAssetsStrip guild={guild} onReload={onReload} />

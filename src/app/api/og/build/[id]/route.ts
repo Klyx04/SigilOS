@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
+import { withCache } from "@/lib/cache";
+import { rateLimit } from "@/lib/ratelimit";
+import { logger } from "@/lib/logger";
 import sharp, { type OverlayOptions } from "sharp";
 import path from "node:path";
 import fs from "node:fs";
 import { ASSET_DIRS, siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { dofusbookItemIconId } from "@/lib/dofusbook-utils";
+import { resolveVariantPreview } from "@/server/build-item-sets";
 
 // Layout grid matching the Dofusbook / SigilOS web preview
 const SLOT_COORDINATES: Record<string, { x: number; y: number }> = {
@@ -38,16 +42,32 @@ export async function GET(
     context: { params: Promise<{ id: string }> }
 ) {
     try {
+        // AUD-03 (audit 13/11/2026) : route publique et coûteuse (scan des profils
+        // + rendu Sharp). Rate-limit IP fail-closed.
+        const ip = req.headers.get("x-real-ip") || "unknown";
+        const rl = await rateLimit(`og-build:${ip}`, 60, 60_000);
+        if (!rl.success) {
+            return new NextResponse("Too many requests", {
+                status: 429,
+                headers: { "Retry-After": "60" },
+            });
+        }
+
         const { id: itemId } = await context.params;
         if (!itemId) {
             return new NextResponse("Build ID required", { status: 400 });
         }
 
         // 1. Fetch Build previewData from UserProfile in DB
-        const profiles = await db.userProfile.findMany({
-            where: { status: "ACTIVE" },
-            select: { dofusBookLinks: true }
-        });
+        // AUD-03 : cache court (60 s) de l'index des profils. Sans lui, chaque
+        // requête (même un ID inexistant) scanne toute la table et charge les
+        // JSON en mémoire Node.
+        const profiles = await withCache("og:build:profiles:v1", 60, () =>
+            db.userProfile.findMany({
+                where: { status: "ACTIVE" },
+                select: { dofusBookLinks: true }
+            })
+        );
 
         let build: any = null;
         for (const p of profiles) {
@@ -63,8 +83,14 @@ export async function GET(
         }
 
         const pd = build.previewData;
-        const items = pd?.items || {};
-        const classNum = Number(pd?.classId || build.classId || 0);
+        /**
+         * 🟡 **Variante** (arbitrage du 23/10/2026) : l'image d'aperçu montre le stuff **tel qu'il
+         * est proposé**. Si la variante n'est pas calculable (panoplies indisponibles), on garde le
+         * stuff d'origine **sans** tag — on n'annonce jamais une variante qu'on n'a pas appliquée.
+         */
+        const variantView = await resolveVariantPreview(pd, build.variants);
+        const items = variantView.preview?.items || {};
+        const classNum = Number(variantView.preview?.classId || pd?.classId || build.classId || 0);
 
         // 2. Fetch or load item pictures
         const compositeOperations: OverlayOptions[] = [];
@@ -156,6 +182,14 @@ export async function GET(
             <circle cx="292" cy="190" r="85" fill="url(#pedestalGlow)" />
             <circle cx="292" cy="190" r="68" fill="#141520" stroke="#2a2c3d" stroke-width="2" />
 
+            <!-- 🟡 Tag « Variante » : posé **seulement** quand la variante a été appliquée -->
+            ${variantView.variantApplied ? `
+                <g>
+                    <rect x="217" y="9" width="150" height="28" rx="14" fill="#f59e0b" fill-opacity="0.14" stroke="#f59e0b" stroke-opacity="0.55" stroke-width="1.5" />
+                    <text x="292" y="28" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="800" fill="#f59e0b" letter-spacing="1.2">VARIANTE</text>
+                </g>
+            ` : ""}
+
             <!-- Equipment slot frames -->
             ${slotKeys.map(slot => {
                 const c = SLOT_COORDINATES[slot];
@@ -185,6 +219,8 @@ export async function GET(
             },
         });
     } catch (err: any) {
-        return new NextResponse(`Error rendering build image: ${err?.message || err}`, { status: 500 });
+        // AUD-03 : jamais de détail interne dans la réponse publique.
+        logger.error("[OG Build] render failed", { error: err?.message || String(err) });
+        return new NextResponse("Erreur de génération de l'image", { status: 500 });
     }
 }

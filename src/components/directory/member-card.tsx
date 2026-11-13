@@ -140,7 +140,7 @@ export function MemberCard({ profile, guildId, readOnly = false }: MemberCardPro
         >
             <Card
                 className={cn(
-                    "group relative overflow-hidden border rounded-md transition-colors duration-200 bg-surface",
+                    "cv-auto group relative overflow-hidden border rounded-md transition-colors duration-200 bg-surface",
                     readOnly ? "cursor-default" : "cursor-pointer",
                     roleColor ? "" : "border-border hover:border-border-strong",
                     isOnVacation && "border-border-strong"
@@ -244,7 +244,6 @@ export function MemberCard({ profile, guildId, readOnly = false }: MemberCardPro
                                         </TooltipTrigger>
                                         <TooltipContent side="left" className="bg-surface border-border text-caption font-black uppercase tracking-widest">
                                             <p>{alignmentData?.name}{orderData ? ` - ${orderData.name}` : ""}</p>
-                                            {profile.alignmentLevel ? <p className="text-muted-foreground">Niveau {profile.alignmentLevel}</p> : null}
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>

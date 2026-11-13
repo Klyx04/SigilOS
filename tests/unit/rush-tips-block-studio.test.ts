@@ -18,7 +18,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
-const ADMIN = "src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx";
+const ADMIN = "src/components/god/rush-editor/RushEditorStudio.tsx";
 
 const CODE = readFileSync(ADMIN, "utf8")
   .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -35,11 +35,15 @@ describe("Studio GOD — bloc CONSEIL / TIPS", () => {
     // Le drapeau qui commande tous ces affichages.
     expect(CODE).toMatch(/const isTips = milestone\.type === "INFO"/);
     expect(CODE, "badge opt. toujours rendu").toMatch(/\{!isTips && milestone\.isOptional &&/);
-    expect(CODE, "compteur de quêtes toujours rendu").toMatch(/\{!isTips && \(\s*<span className="text-caption text-zinc-600/);
+    // E4 — le compteur garde sa structure, la couleur passe au token de la DA.
+    expect(CODE, "compteur de quêtes toujours rendu").toMatch(/\{!isTips && \(\s*<span className="text-caption text-subtle-foreground/);
     expect(CODE, "chevron de dépliage toujours rendu").toMatch(/\{!isTips && \(isExpanded \?/);
   });
 
   it("aucune quête ne peut être ajoutée à un bloc Tips", () => {
-    expect(CODE, "section quêtes non gardée").toMatch(/\{!isTips && isExpanded && !isEditing && \(/);
+    // E1 : l'édition inline a disparu (l'inspecteur la remplace) — le `!isEditing` n'a donc
+    // plus d'objet. La garde qui compte, `!isTips`, reste intacte : un bloc Tips n'affiche
+    // jamais de liste de quêtes.
+    expect(CODE, "section quêtes non gardée").toMatch(/\{!isTips && isExpanded && \(/);
   });
 });

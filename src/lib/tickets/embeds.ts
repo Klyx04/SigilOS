@@ -16,15 +16,31 @@ import {
     type DiscordComponent,
     type TicketFormDefinition,
 } from "./form-schema";
-import { TICKET_BUTTON_EMOJIS, ticketLabel } from "./ticket-texts";
+import { TICKET_BUTTON_EMOJIS, ticketLabel, type TicketLang } from "./ticket-texts";
+import { ticketButtonLayout, type TicketButtonKey, type TicketButtonSettings } from "./button-config";
+import {
+    ticketButtonLayoutForMotif,
+    type TicketMotifButtonOverrides,
+} from "./category-permissions";
 import { ticketIconPayload } from "./ticket-icons";
+import { isDiscordAvatarUrl } from "@/lib/discord-avatars";
+
+// 🏷️ Le formatage des noms de salon vit dans un module **sans import** (le bot gateway
+// le recalcule au renommage d'un demandeur) : on le réexporte ici pour les appelants
+// historiques — une seule implémentation, deux consommateurs.
+export {
+    DEFAULT_CLOSED_CHANNEL_PATTERN,
+    DISCORD_CHANNEL_NAME_MAX,
+    formatClosedTicketChannelName,
+    formatTicketChannelName,
+    type TicketChannelNameVars,
+} from "./channel-name-format";
 
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
 export const DISCORD_MAX_ROWS = 5;
 export const DISCORD_TITLE_MAX = 256;
 export const DISCORD_DESCRIPTION_MAX = 4096;
 export const DISCORD_FIELD_VALUE_MAX = 1024;
-export const DISCORD_CHANNEL_NAME_MAX = 100;
 
 /**
  * Neutralise les mentions d'un contenu fourni par un membre : une réponse de
@@ -49,33 +65,6 @@ export function truncate(text: string, max: number): string {
 /** Texte destiné à un embed : mentions neutralisées puis borné. */
 export function sanitizeEmbedText(text: string | null | undefined, max = DISCORD_FIELD_VALUE_MAX): string {
     return truncate(neutralizeMentions(text), max);
-}
-
-/**
- * Nom de salon Discord : minuscules, `[a-z0-9-_]`, 100 caractères maximum.
- * `{num}` `{user}` `{journey}` (alias `{category}`) sont remplacés, puis le résultat
- * est assaini — un nom de parcours accentué ne casse plus la création du salon.
- */
-export function formatTicketChannelName(
-    pattern: string,
-    vars: { number: number; user: string; journey: string }
-): string {
-    const filled = (pattern || "ticket-{num}")
-        .replace(/\{num\}/g, String(vars.number).padStart(4, "0"))
-        .replace(/\{user\}/g, vars.user || "membre")
-        .replace(/\{journey\}/g, vars.journey || "ticket")
-        .replace(/\{category\}/g, vars.journey || "ticket");
-
-    const slug = filled
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9-_]+/g, "-")
-        .replace(/-{2,}/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, DISCORD_CHANNEL_NAME_MAX);
-
-    return slug.length > 0 ? slug : `ticket-${String(vars.number).padStart(4, "0")}`;
 }
 
 /** `#6366f1` → entier Discord ; toute valeur douteuse retombe sur l'indigo SigilOS. */
@@ -178,161 +167,254 @@ export function discordButtonStyle(value: string | null | undefined): number {
     }
 }
 
-/** Embed d'accueil du ticket : demandeur, motif, statut lisible et réponses du formulaire. */
+/**
+ * Embed n°1 — **accueil** : demandeur, motif, statut et photo du créateur.
+ * Le texte libre du motif (`welcomeMessage`, écrit par le staff : markdown et
+ * mentions autorisés) ouvre le salon ; les réponses du questionnaire partent
+ * dans un **second** embed (`buildTicketAnswersEmbed`).
+ */
 export function buildTicketWelcomeEmbed(input: {
     ticketNumber: number;
     journeyName: string;
     emoji?: string | null;
     creatorDiscordId: string;
+    creatorAvatarUrl?: string | null;
     statusLabel: string;
-    form?: TicketFormDefinition | null;
-    answers?: Record<string, unknown> | null;
-    description?: string | null;
+    welcomeMessage?: string | null;
+    lang?: TicketLang;
+    /**
+     * 🆕 Flocon du membre qui a pris en charge : ajouté à l'embed et **mis à jour en
+     * direct** au clic sur « Prendre en charge » (constat : le salon n'indiquait nulle
+     * part qui traitait la demande).
+     */
+    claimedByDiscordId?: string | null;
 }): Record<string, unknown> {
+    const lang = input.lang ?? "fr";
     const fields: Array<{ name: string; value: string; inline: boolean }> = [
-        { name: "Demandeur", value: `<@${input.creatorDiscordId}>`, inline: true },
-        { name: "Motif", value: truncate(neutralizeMentions(input.journeyName), 256), inline: true },
-        { name: "Statut", value: truncate(input.statusLabel, 256), inline: true },
+        { name: lang === "en" ? "Requester" : "Demandeur", value: `<@${input.creatorDiscordId}>`, inline: true },
+        { name: lang === "en" ? "Reason" : "Motif", value: truncate(neutralizeMentions(input.journeyName), 256), inline: true },
+        { name: lang === "en" ? "Status" : "Statut", value: truncate(input.statusLabel, 256), inline: true },
     ];
 
-    if (input.form && input.answers) {
-        for (const row of formatAnswersForDisplay(input.form, input.answers)) {
-            fields.push({
-                name: truncate(`📋 ${row.label}`, DISCORD_TITLE_MAX),
-                value: sanitizeEmbedText(row.value) || "*Non renseigné*",
-                inline: false,
-            });
-        }
+    // Un flocon valide seulement : jamais un `User.id` interne (mention morte).
+    const claimer = String(input.claimedByDiscordId ?? "").trim();
+    if (/^\d{15,21}$/.test(claimer)) {
+        fields.push({
+            name: lang === "en" ? "Handled by" : "Pris en charge par",
+            value: `<@${claimer}>`,
+            inline: true,
+        });
     }
 
-    return {
+    const fallback =
+        lang === "en"
+            ? `Welcome <@${input.creatorDiscordId}>! A staff member will take care of your request.`
+            : `Bienvenue <@${input.creatorDiscordId}> ! Un membre de l'équipe prendra en charge ta demande.`;
+    // Message du staff : on borne la longueur mais on garde son markdown et ses
+    // mentions (c'est lui qui ping le créateur et les rôles, pas un membre).
+    const description = (input.welcomeMessage?.trim() || "").slice(0, DISCORD_DESCRIPTION_MAX) || fallback;
+
+    const embed: Record<string, unknown> = {
         title: `${input.emoji || "🎫"} Ticket #${input.ticketNumber} — ${truncate(
             neutralizeMentions(input.journeyName),
             200
         )}`,
-        description:
-            sanitizeEmbedText(input.description, DISCORD_DESCRIPTION_MAX) ||
-            `Bienvenue <@${input.creatorDiscordId}> ! Un membre de l'équipe prendra en charge ta demande.`,
+        description,
         color: 0x6366f1,
         fields: fields.slice(0, 25),
+        footer: { text: "SigilOS Ticket System" },
+        timestamp: new Date().toISOString(),
+    };
+    // Filet : un hash brut ou une URL non-Discord en thumbnail fait rejeter TOUT
+    // le message par Discord (constat bêta du 16/10/2026 : bienvenue, pings et
+    // boutons perdus). Seule une vraie URL d'avatar voyage.
+    if (input.creatorAvatarUrl && isDiscordAvatarUrl(input.creatorAvatarUrl)) {
+        embed.thumbnail = { url: input.creatorAvatarUrl };
+    }
+    return embed;
+}
+
+/**
+ * Champs Discord d'un embed : **25 maximum**. Le contrat de formulaire borne déjà les
+ * questions à `TICKET_FORM_MAX_FIELDS` (20) : aucune réponse ne peut donc être perdue ici.
+ * La constante reste explicite (et testée contre la borne des questions) pour qu'une
+ * future hausse du nombre de questions ne se traduise pas par des réponses muettes.
+ */
+export const DISCORD_EMBED_FIELDS_MAX = 25;
+
+/**
+ * Valeur d'un champ de réponse, **honnête** : mentions neutralisées, et si Discord impose
+ * une coupe (1 024 caractères — un paragraphe peut monter à 4 000), on l'**écrit** au lieu
+ * de tronquer en silence.
+ */
+function embedAnswerValue(raw: string): string {
+    const text = neutralizeMentions(raw);
+    if (!text.trim()) return "*Non renseigné*";
+    // Bloc de code : la réponse se copie d'un geste et ne se confond plus avec la
+    // question (demande user du 16/10/2026). Les backticks internes sont neutralisés
+    // pour ne jamais échapper du bloc ; la place des clôtures est réservée.
+    const fenced = (body: string) => `\`\`\`\n${body.replace(/`/g, "´")}\n\`\`\``;
+    if (text.length + 8 <= DISCORD_FIELD_VALUE_MAX) return fenced(text);
+    const marker = " … *(suite dans la copie des messages)*";
+    return `${fenced(truncate(text, Math.max(1, DISCORD_FIELD_VALUE_MAX - marker.length - 8)))}${marker}`;
+}
+
+/** Embed n°2 — **réponses du questionnaire** (absent en ouverture directe). */
+export function buildTicketAnswersEmbed(input: {
+    ticketNumber: number;
+    form: TicketFormDefinition;
+    answers: Record<string, unknown>;
+    lang?: TicketLang;
+}): Record<string, unknown> | null {
+    const rows = formatAnswersForDisplay(input.form, input.answers);
+    if (rows.length === 0) return null;
+
+    return {
+        title: input.lang === "en" ? `📋 Ticket #${input.ticketNumber} — Answers` : `📋 Ticket #${input.ticketNumber} — Réponses`,
+        color: 0x57f287,
+        fields: rows.slice(0, DISCORD_EMBED_FIELDS_MAX).map((row) => ({
+            name: truncate(`📋 ${row.label}`, DISCORD_TITLE_MAX),
+            value: embedAnswerValue(row.value),
+            inline: false,
+        })),
         footer: { text: "SigilOS Ticket System" },
         timestamp: new Date().toISOString(),
     };
 }
 
 /**
- * 🔒 **Correctif P0-2** — les boutons d'action du ticket (complets, bilingues FR/EN).
+ * Embed de l'**enquête de satisfaction** (pur : le serveur l'envoie, en MP ou dans le
+ * salon fermé). Une seule source de vérité ⇒ la fermeture depuis Discord **et** depuis
+ * le dashboard posent exactement la même question (constat : le chemin dashboard
+ * n'envoyait aucune enquête).
+ */
+export function buildTicketCsatEmbed(input: {
+    ticketNumber: number;
+    motifName: string;
+    guildName: string;
+    lang?: TicketLang;
+    customTitle?: string | null;
+    customDescription?: string | null;
+    creatorDiscordId?: string | null;
+}): { title: string; description: string; color: number; footer: { text: string } } {
+    const isEn = input.lang === "en";
+    const defaultTitle = isEn
+        ? `⭐ Your feedback on Ticket #${input.ticketNumber}`
+        : `⭐ Votre avis sur le Ticket #${input.ticketNumber}`;
+    const defaultDescription = isEn
+        ? `Your ticket about **${input.motifName}** on **${input.guildName}** has just been closed.\n\nHow would you rate the handling of your request?`
+        : `Votre ticket concernant **${input.motifName}** sur **${input.guildName}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`;
+
+    const interpolate = (tpl: string): string => {
+        const numeroFormatted = `#${String(input.ticketNumber).padStart(4, "0")}`;
+        return tpl
+            .replace(/#\{numero\}/gi, numeroFormatted)
+            .replace(/\{numero\}/gi, numeroFormatted)
+            .replace(/#\{ticket\.numero\}/gi, numeroFormatted)
+            .replace(/\{ticket\.numero\}/gi, numeroFormatted)
+            .replace(/\{motif\}/gi, input.motifName || "Ticket")
+            .replace(/\{serveur\}/gi, input.guildName || "Serveur")
+            .replace(/\{guilde\}/gi, input.guildName || "Serveur")
+            .replace(/\{demandeur\}/gi, input.creatorDiscordId ? `<@${input.creatorDiscordId}>` : "@Demandeur");
+    };
+
+    const finalTitle = input.customTitle?.trim() ? interpolate(input.customTitle.trim()) : defaultTitle;
+    const finalDescription = input.customDescription?.trim() ? interpolate(input.customDescription.trim()) : defaultDescription;
+
+    return {
+        title: finalTitle,
+        description: finalDescription,
+        color: 0x5865f2,
+        footer: { text: "SigilOS Feedback" },
+    };
+}
+
+/** Libellé d'état affiché dans l'embed d'accueil (une seule source, FR/EN). */
+export function ticketStatusLabel(status: string, lang: TicketLang = "fr"): string {
+    const fr: Record<string, string> = {
+        OPEN: "🟡 En attente de prise en charge",
+        CLAIMED: "🟢 Pris en charge",
+        PENDING_USER: "🟡 En attente du demandeur",
+        CLOSED: "📦 Fermé",
+        ARCHIVE_FAILED: "🟠 Archive incomplète",
+        REFUSED: "⛔ Refusé",
+    };
+    const en: Record<string, string> = {
+        OPEN: "🟡 Waiting for staff",
+        CLAIMED: "🟢 Claimed",
+        PENDING_USER: "🟡 Waiting for the requester",
+        CLOSED: "📦 Closed",
+        ARCHIVE_FAILED: "🟠 Incomplete archive",
+        REFUSED: "⛔ Refused",
+    };
+    const table = lang === "en" ? en : fr;
+    return table[status] ?? table.OPEN;
+}
+
+/** Styles Discord des boutons du salon (un bouton fermer/rouge, un prendre en charge/vert). */
+const TICKET_BUTTON_STYLES: Record<TicketButtonKey, number> = {
+    claim: 3, // vert — « je m'en occupe »
+    close: 4, // rouge — geste destructif sur la demande
+    reopen: 3, // vert — on remet le ticket en service
+    transcript: 2, // gris — consultation
+    delete: 4, // rouge — suppression définitive du salon
+};
+
+/**
+ * Boutons d'action du salon — **demande user du 16/10/2026** : deux boutons seulement
+ * (« Prendre en charge », « Fermer le ticket »), puis après clôture **Rouvrir**,
+ * **Transcript** et **Supprimer le salon**.
  *
- * Le demandeur ne reçoit **jamais** les boutons de staff. S'il a le droit de
- * fermer lui-même, il reçoit **uniquement** « Fermer ma demande », selon la
- * politique publiée du parcours **ou** du motif (v1 : `settingsJson`).
- *
- * Staff (2 lignes, 7 boutons au plus) :
- *   ligne 1 : Je m'en occupe / Ajouter / Note privée / Renommer
- *   ligne 2 : Fermer / Copie / Supprimer le salon
- * La fermeture et la suppression passent par une **confirmation** : `tb:close`
- * affiche `buildCloseConfirmRows`, `tb:delete` affiche `buildDeleteConfirmRows`.
- * Après fermeture, le salon reçoit `buildModerationRows`
- * (Rouvrir / Copie / Supprimer).
+ * Chaque bouton est **renommable et ré-icônifiable** (réglages `settingsJson.buttons`) et
+ * son **droit est appliqué au clic** (`guardTicketAction`, fail-closed) : Discord affiche
+ * les mêmes composants à tout le monde, donc cacher un bouton à une personne est
+ * impossible — c'est l'action qui décide, jamais l'affichage.
  */
 export function buildActionRows(input: {
     ticketId: string;
     status: string;
-    viewerIsStaff: boolean;
-    viewerIsCreator: boolean;
-    closePolicy?: "STAFF_ONLY" | "STAFF_OR_CREATOR" | null;
-    claimed?: boolean;
+    lang?: TicketLang;
+    /** Réglages de boutons de la guilde (`settingsJson.buttons`), déjà nettoyés. */
+    buttons?: TicketButtonSettings | null;
+    /**
+     * 🆕 Surcharge du motif (`settingsJson.categories[<motif>].buttons`) : un
+     * bouton retiré ou renommé pour CE salon. Absent = héritage total du global.
+     */
+    motifButtons?: TicketMotifButtonOverrides | null;
+    /** Désactivation globale des transcripts sur la guilde ou par la plateforme. */
+    enableTranscripts?: boolean;
 }): DiscordActionRow[] {
-    const openStatuses = new Set(["OPEN", "CLAIMED", "PENDING_USER", "ARCHIVE_FAILED"]);
-    if (!openStatuses.has(input.status)) return [];
+    const lang = input.lang ?? "fr";
+    const buttons = input.motifButtons
+        ? ticketButtonLayoutForMotif(input.status, input.motifButtons, input.buttons, lang, {
+              enableTranscripts: input.enableTranscripts,
+          })
+        : ticketButtonLayout(input.status, input.buttons, lang, {
+              enableTranscripts: input.enableTranscripts,
+          });
+    if (buttons.length === 0) return [];
 
-    if (input.viewerIsStaff) {
-        return [
-            {
-                type: DISCORD_ACTION_ROW,
-                components: [
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 3,
-                        label: ticketLabel(input.claimed ? "release" : "claim"),
-                        custom_id: `tb:${input.claimed ? "release" : "claim"}:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.claim },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("add"),
-                        custom_id: `tb:add:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.add },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("note"),
-                        custom_id: `tb:note:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.note },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("rename"),
-                        custom_id: `tb:rename:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.rename },
-                    },
-                ],
-            },
-            {
-                type: DISCORD_ACTION_ROW,
-                components: [
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 4,
-                        label: ticketLabel("close"),
-                        custom_id: `tb:close:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.close },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("transcript"),
-                        custom_id: `tb:transcript:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 4,
-                        label: ticketLabel("delete"),
-                        custom_id: `tb:delete:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.delete },
-                    },
-                ],
-            },
-        ];
-    }
-
-    // Demandeur : uniquement la fermeture, et seulement si la politique la lui donne.
-    if (input.viewerIsCreator && (input.closePolicy ?? "STAFF_ONLY") === "STAFF_OR_CREATOR") {
-        return [
-            {
-                type: DISCORD_ACTION_ROW,
-                components: [
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("closeMine"),
-                        custom_id: `tb:close:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.close },
-                    },
-                ],
-            },
-        ];
-    }
-
-    return [];
+    return [
+        {
+            type: DISCORD_ACTION_ROW,
+            components: buttons.map(
+                (button): DiscordComponent => ({
+                    type: DISCORD_BUTTON,
+                    style:
+                        button.key === "claim" && input.status === "CLAIMED"
+                            ? 2
+                            : TICKET_BUTTON_STYLES[button.key],
+                    label: button.label,
+                    custom_id: `tb:${button.key}:${input.ticketId}`,
+                    emoji: button.emoji ? { name: button.emoji } : undefined,
+                })
+            ),
+        },
+    ];
 }
 
-/** Confirmation de fermeture : « Oui, fermer / Annuler » (éphémère). */
-export function buildCloseConfirmRows(ticketId: string): DiscordActionRow[] {
+/** Confirmation de fermeture (éphémère). */
+export function buildCloseConfirmRows(ticketId: string, lang: TicketLang = "fr"): DiscordActionRow[] {
     return [
         {
             type: DISCORD_ACTION_ROW,
@@ -340,14 +422,14 @@ export function buildCloseConfirmRows(ticketId: string): DiscordActionRow[] {
                 {
                     type: DISCORD_BUTTON,
                     style: 4,
-                    label: ticketLabel("confirmClose"),
+                    label: ticketLabel("confirmClose", lang),
                     custom_id: `tb:close_confirm:${ticketId}`,
                     emoji: { name: TICKET_BUTTON_EMOJIS.close },
                 },
                 {
                     type: DISCORD_BUTTON,
                     style: 2,
-                    label: ticketLabel("cancel"),
+                    label: ticketLabel("cancel", lang),
                     custom_id: `tb:cancel_close:${ticketId}`,
                     emoji: { name: TICKET_BUTTON_EMOJIS.cancel },
                 },
@@ -356,8 +438,8 @@ export function buildCloseConfirmRows(ticketId: string): DiscordActionRow[] {
     ];
 }
 
-/** Confirmation de suppression : « Oui, supprimer / Annuler » (éphémère). */
-export function buildDeleteConfirmRows(ticketId: string): DiscordActionRow[] {
+/** Confirmation de suppression (éphémère). */
+export function buildDeleteConfirmRows(ticketId: string, lang: TicketLang = "fr"): DiscordActionRow[] {
     return [
         {
             type: DISCORD_ACTION_ROW,
@@ -365,14 +447,14 @@ export function buildDeleteConfirmRows(ticketId: string): DiscordActionRow[] {
                 {
                     type: DISCORD_BUTTON,
                     style: 4,
-                    label: ticketLabel("confirmDelete"),
+                    label: ticketLabel("confirmDelete", lang),
                     custom_id: `tb:delete_confirm:${ticketId}`,
                     emoji: { name: TICKET_BUTTON_EMOJIS.delete },
                 },
                 {
                     type: DISCORD_BUTTON,
                     style: 2,
-                    label: ticketLabel("cancel"),
+                    label: ticketLabel("cancel", lang),
                     custom_id: `tb:cancel_delete:${ticketId}`,
                     emoji: { name: TICKET_BUTTON_EMOJIS.cancel },
                 },
@@ -382,40 +464,21 @@ export function buildDeleteConfirmRows(ticketId: string): DiscordActionRow[] {
 }
 
 /**
- * Message de modération posté **dans le salon après fermeture** (façon
- * TicketTool « Moderator message ») : Rouvrir / Copie / Supprimer.
- * Le salon n'est **plus supprimé** à la clôture : la suppression est un geste
- * explicite avec confirmation.
+ * Message de modération posté **dans le salon après fermeture** (façon TicketTool
+ * « Moderator message ») : Rouvrir / Transcript / Supprimer — **exactement** la même barre
+ * que celle révélée dans l'embed d'accueil (`buildActionRows` en état `CLOSED`), donc
+ * jamais deux vérités ni deux boutons « Supprimer » différents.
+ * Le salon n'est **plus supprimé** à la clôture : la suppression est un geste explicite
+ * avec confirmation (et compte à rebours depuis le 16/10/2026).
  */
-export function buildModerationRows(ticketId: string): DiscordActionRow[] {
-    return [
-        {
-            type: DISCORD_ACTION_ROW,
-            components: [
-                {
-                    type: DISCORD_BUTTON,
-                    style: 3,
-                    label: ticketLabel("reopen"),
-                    custom_id: `tb:reopen:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.reopen },
-                },
-                {
-                    type: DISCORD_BUTTON,
-                    style: 2,
-                    label: ticketLabel("transcript"),
-                    custom_id: `tb:transcript:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
-                },
-                {
-                    type: DISCORD_BUTTON,
-                    style: 4,
-                    label: ticketLabel("delete"),
-                    custom_id: `tb:delete:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.delete },
-                },
-            ],
-        },
-    ];
+export function buildModerationRows(
+    ticketId: string,
+    lang: TicketLang = "fr",
+    buttons?: TicketButtonSettings | null,
+    motifButtons?: TicketMotifButtonOverrides | null,
+    enableTranscripts?: boolean
+): DiscordActionRow[] {
+    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons, motifButtons, enableTranscripts });
 }
 
 /** Boutons d'approbation d'une demande d'ouverture (aucun salon n'existe encore). */

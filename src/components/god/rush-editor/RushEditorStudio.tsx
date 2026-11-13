@@ -1,0 +1,6234 @@
+"use client";
+
+import {
+  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode, type RefObject
+} from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy, arrayMove
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { readableOn } from "@/lib/rush-dofus-accent";
+import {
+  Zap, Plus, Trash2, ChevronDown, ChevronRight, ChevronUp,
+  Settings, Check, X,
+  Link2, Pencil, Layers, Sword, ExternalLink,
+  BookOpen, AlertCircle, Info, GripVertical,
+  Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
+  ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
+  Globe, GlobeLock,
+} from "lucide-react";
+import {
+  upsertRushMilestone,
+  deleteRushMilestone,
+  upsertRushSequence,
+  moveRushSequence,
+  splitRushSequence,
+  updateRushBlockRoute,
+  bulkUpdateRushSequencesRoute,
+  bulkMoveRushSequences,
+  bulkDeleteRushSequences,
+  publishRushSequence,
+  deleteRushSequence,
+  updateRushSylvestreSettings,
+  updateRushUIConfig,
+  reorderRushMilestones,
+  reorderRushSequences,
+  duplicateRushSequenceAsTwin,
+  duplicateRushSequenceAsOrderTwins,
+  seedRushSylvestreFromGuide,
+  importRushGuide,
+} from "@/server/actions/optimized-guide-actions";
+import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
+import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
+import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
+import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
+import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
+import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
+import { uploadImageFile } from "@/components/editor/utils/image-upload";
+import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
+import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
+import { alignmentSetContradictsCamp } from "@/lib/rush-route";
+import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
+import {
+  constraintsFromLegacyTips,
+  constraintsToInfos,
+  isEmptyConstraints,
+  RUSH_CONSTRAINT_LABELS,
+  sanitizeConstraints,
+} from "@/lib/rush-constraints";
+import { RushConditionsEditor } from "./fields/RushConditionsEditor";
+import {
+  splitTipLines,
+  RUSH_RICH_TEXT_SYNTAX,
+  RUSH_RICH_TEXT_NOT_ACCEPTED,
+} from "@/components/dofus-quests/rush/RushRichText";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
+import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushQuestConstraints } from "@/types/rush-constraints";
+import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
+import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
+// La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
+// composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
+import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { RushMarkdown } from "@/components/dofus-quests/rush/RushMarkdown";
+import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
+import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
+import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
+import { parseRushMarkdown } from "@/lib/rush-markdown";
+import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { isDirty, UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
+// E1 — le studio est découpé : coquille, barre, arbre, inspecteur et palette vivent dans
+// `src/components/god/rush-editor/**` (plafond God 77/77 respecté). Les formulaires
+// existants sont **montés tels quels** dans l'inspecteur — aucune réécriture.
+import { RushEditorShell } from "@/components/god/rush-editor/RushEditorShell";
+import { RushEditorTopbar, type RushEditorTab } from "@/components/god/rush-editor/RushEditorTopbar";
+import { RushEditorTree } from "@/components/god/rush-editor/RushEditorTree";
+import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/rush-editor/RushEditorInspector";
+import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
+import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
+import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
+import { SectionGroupHeader } from "@/components/god/rush-editor/fields/SectionGroupHeader";
+import {
+  parseRushEditorDraft,
+  rushEditorDraftKey,
+  serializeRushEditorDraft,
+} from "@/lib/rush-editor-draft";
+import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
+import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
+import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
+import {
+  pruneRushBulkSelection,
+  rushBulkSelectionState,
+  selectAllRushBulk,
+  toggleRushBulkSelection,
+} from "@/lib/rush-bulk-selection";
+import {
+  findRushEditorBlock,
+  isRushOutsideChapter,
+  isRushSeparator,
+  selectionAfterRushEditorBlockRemoved,
+  selectionAfterRushEditorQuestRemoved,
+  selectionTargetsRushEditorBlock,
+  type RushEditorCommand,
+} from "@/lib/rush-editor-selection";
+
+type DungeonResult = { id: string; name: string; imageUrl?: string | null; level: number; bossName?: string };
+
+type ActivityTagType =
+  | "combat_tactique"
+  | "combat_vagues"
+  | "songes"
+  | "combat_solo"
+  | "combat_plusieurs"
+  | "contrainte_horaire"
+  | "donjon"
+  | "plusieurs_personnes"
+  | "sort"
+  | "metier"
+  | "solver"
+  | "quest_group"
+  | "item";
+
+type ActivityTag = { type: ActivityTagType; name?: string; camp?: string | null; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
+
+/** Lot 4 — variante de texte par camp, sur une seule quête (vide ⇒ texte de base). */
+type SequenceRouteVariant = { name?: string; tips?: string };
+type SequenceRouteVariants = { bontarien?: SequenceRouteVariant; brakmarien?: SequenceRouteVariant };
+
+type Sequence = {
+  id: string;
+  subGuideRef: string;
+  subGuideName: string;
+  note: string | null;
+  order: number;
+  dungeonId?: string | null;
+  dungeonIds?: string[];
+  dofusdbUrl?: string | null;
+  dofuspourlesnoobsUrl?: string | null;
+  tips?: string | null;
+  constraints?: RushQuestConstraints | null;
+  alignReq?: string | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
+  routeVariants?: SequenceRouteVariants | null;
+  /** Ids DofusDB des quêtes incarnées (`GameQuest.dofusDbId`) — bornés côté serveur. */
+  questDbIds?: number[];
+  dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
+  /** Donjons li├®s ; `isOptional` = affich├® mais non bloquant (S0-6). */
+  dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null; isOptional?: boolean }[];
+  isSuccess?: boolean;
+  icon?: string | null;
+  metamobMonsterId?: number | null;
+  activityTags?: ActivityTag[];
+  /** Bloc B — page publique : slug figé à la publication. */
+  publicSlug?: string | null;
+  isPublished?: boolean;
+};
+
+/** Route appliquée à un bloc (G1) — une valeur vide **efface** celle du bloc. */
+type RushBlockRouteValues = {
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+};
+
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED" | "COMBAT_TACTIQUE" | "COMBAT_SEMI_TACTIQUE";
+
+type Milestone = {
+  id: string;
+  chapter: number;
+  chapterLabel: string;
+  title: string;
+  description: string | null;
+  accentColor: string | null;
+  /** Image du bloc — TOUS les types. Rendu : nue, à droite du bloc, sans cadre. */
+  imageUrl?: string | null;
+  isOptional: boolean;
+  order: number;
+  tips?: string | null;
+  /** Liens externes nommés (blocs Combat / Conseils) — stockés sur le bloc. */
+  links?: RushBlockLink[] | null;
+  dofusId?: string | null;
+  type?: MilestoneType;
+  sequences: Sequence[];
+};
+
+type Guide = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  isUnderConstruction: boolean;
+  /** « En construction » côté PAGE PUBLIQUE + sitemap — indépendant de l'avis membres. */
+  isPublicUnderConstruction: boolean;
+  displayMode: string;
+  milestones: Milestone[];
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const COLOR_PALETTE = [
+  { label: "Émeraude", value: "#10b981" },
+  { label: "Indigo", value: "#6366f1" },
+  { label: "Ambre", value: "#f59e0b" },
+  { label: "Rose", value: "#f43f5e" },
+  { label: "Cyan", value: "#06b6d4" },
+  { label: "Violet", value: "#8b5cf6" },
+  { label: "Orange", value: "#f97316" },
+  { label: "Lime", value: "#84cc16" },
+];
+
+const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactNode; color: string }[] = [
+  { value: "QUETE_SERIE", label: "Quêtes", icon: <BookOpen className="w-3 h-3" />, color: "#10b981" },
+  { value: "PREREQUIS",  label: "Prérequis", icon: <Star className="w-3 h-3" />, color: "#f59e0b" },
+  { value: "ALIGNEMENT", label: "Alignement", icon: <AlignLeft className="w-3 h-3" />, color: "#6366f1" },
+  { value: "DOFUS",      label: "Dofus", icon: <Gem className="w-3 h-3" />, color: "#f43f5e" },
+  { value: "SUCCES",     label: "Succès", icon: <Trophy className="w-3 h-3" />, color: "#f97316" },
+  { value: "ZONE",       label: "Zone", icon: <MapPin className="w-3 h-3" />, color: "#06b6d4" },
+  { value: "DONJON",     label: "Donjon", icon: <Sword className="w-3 h-3" />, color: "#8b5cf6" },
+  { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
+  { value: "SEPARATEUR", label: "Séparateur", icon: <Sparkles className="w-3 h-3" />, color: "#f59e0b" },
+  { value: "DOFUS_OBTAINED", label: "Obtention Dofus", icon: <Gem className="w-3 h-3" />, color: "#d4a853" },
+  {
+    value: "COMBAT_TACTIQUE",
+    label: "Combat tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.accent,
+  },
+  {
+    value: "COMBAT_SEMI_TACTIQUE",
+    label: "Combat semi-tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.accent,
+  },
+];
+
+// Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`) partagée avec le
+// guide (interne + public) et l'overlay. Cette liste existait en cinq copies
+// divergentes (mesuré le 08/10/2026 : `argente`, `pourpre`, `ebene`, `sylvestre`
+// ne concordaient pas d'un écran à l'autre) — une seule table désormais.
+const DOFUS_LIST = RUSH_DOFUS_META;
+
+// ─── Activity Tags ────────────────────────────────────────────────────────────
+// Picto, libellé et couleur viennent du référentiel partagé
+// (`RUSH_ACTIVITY_TAG_CONFIG` → `public/assets/dofus-ui/pictos/`) : une seule
+// vérité avec la vue publique et l'overlay. Ici on ne déclare que ce qui est
+// propre à l'éditeur GOD (champs de saisie complémentaires).
+type PrereqChoice = { id: string; name: string };
+
+type ActivityTagDef = {
+  type: ActivityTagType;
+  hasName?: boolean;
+  hasLevel?: boolean;
+  hasUrl?: boolean;
+};
+
+const ACTIVITY_TAG_DEFS: ActivityTagDef[] = [
+  { type: "combat_tactique" },
+  { type: "combat_vagues" },
+  { type: "songes" },
+  { type: "combat_solo" },
+  { type: "combat_plusieurs" },
+  { type: "contrainte_horaire", hasName: true },
+  { type: "donjon" },
+  { type: "plusieurs_personnes" },
+  { type: "sort" },
+  { type: "metier", hasName: true, hasLevel: true },
+  { type: "solver", hasUrl: true },
+  { type: "quest_group", hasName: true },
+];
+
+const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean; hasUrl?: boolean }[] =
+  ACTIVITY_TAG_DEFS.map((def) => {
+    const cfg = RUSH_ACTIVITY_TAG_CONFIG[def.type];
+    return {
+      ...def,
+      imagePath: cfg?.imagePath ?? "/assets/icons/dofusdb.png",
+      label: cfg?.label ?? def.type,
+      color: cfg?.color ?? "#94a3b8",
+    };
+  });
+
+function getMilestoneTypeInfo(type?: MilestoneType) {
+  return MILESTONE_TYPES.find(t => t.value === type) ?? MILESTONE_TYPES[0];
+}
+
+/** Un bloc SEPARATEUR ne porte ni quête ni option (règle partagée avec l'arbre). */
+const isSeparatorMilestone = isRushSeparator;
+
+/** Séparateur, bannière Dofus et bloc Conseil / Tips restent hors chapitre. */
+const isOutsideChapterMilestone = isRushOutsideChapter;
+
+function sortMilestonesByOrder(milestones: Milestone[]) {
+  return [...milestones].sort((a, b) => a.order - b.order);
+}
+
+function countContentChapters(milestones: Milestone[]) {
+  return new Set(
+    milestones.filter((m) => !isSeparatorMilestone(m) && m.chapter > 0).map((m) => m.chapter),
+  ).size;
+}
+
+/**
+ * Conteneur de défilement du panneau God.
+ *
+ * 🎯 Il est **déclaré** par le layout (`src/app/god/layout.tsx` : `data-god-scroll-container`).
+ * Avant, le studio le devinait par une classe Tailwind (`closest('.flex-1.overflow-y-auto')`) —
+ * or `.flex-1.overflow-y-auto` habille aussi la **barre latérale** : selon l'élément trouvé,
+ * le suivi de défilement et les boutons « Haut / Bas » pouvaient viser le mauvais conteneur
+ * (mesuré le 08/10/2026 : deux sites concernés, ici et sur les deux boutons flottants).
+ */
+function godScrollContainer(): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector<HTMLElement>("[data-god-scroll-container]");
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export function RushSylvestreAdminClient({
+  guide: initialGuide,
+  branches,
+  classBranches,
+}: {
+  guide: Guide;
+  /** Vue Branches (S4-1) — calculée côté serveur par la règle pure `buildRushBranches`. */
+  branches?: RushBranchesView;
+  /** 3ᵉ étage (G4) — les 19 classes, calculées par `buildRushClassBranches`. */
+  classBranches?: RushClassBranchesView;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [isActive, setIsActive] = useState(initialGuide.isActive);
+  const [isUnderConstruction, setIsUnderConstruction] = useState(initialGuide.isUnderConstruction);
+  const [isPublicUnderConstruction, setIsPublicUnderConstruction] = useState(initialGuide.isPublicUnderConstruction);
+
+  // Scroll to top/bottom state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  useEffect(() => {
+    // Le conteneur vient du layout (contrat `data-god-scroll-container`), jamais d'une classe.
+    const container = godScrollContainer();
+    if (!container) return;
+
+    const handleScroll = () => {
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      setShowScrollTop(container.scrollTop > 100);
+      setShowScrollBottom(container.scrollTop < maxScroll - 100);
+    };
+    // La fenêtre qui PORTE réellement le conteneur (`ownerDocument.defaultView`) : dans une
+    // fenêtre Document Picture-in-Picture, le `window` du module ne reçoit aucun événement.
+    const win = container.ownerDocument.defaultView ?? window;
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    win.addEventListener("resize", handleScroll);
+    handleScroll();
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      win.removeEventListener("resize", handleScroll);
+    };
+  }, []);
+
+  // Local sortable milestones for optimistic DnD
+  const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
+  useEffect(() => { if (!draggingRef.current) setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
+
+  const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
+  /** E3b — les manques du contenu (l'onglet « Problèmes » et sa pastille). */
+  const problems = useMemo(() => analyzeRushEditorProblems(localMilestones), [localMilestones]);
+  const problemsCount = useMemo(() => countRushEditorProblems(problems), [problems]);
+  const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
+  // Métiers requis agrégés sur tout le guide — affichés dans l'onglet « Lancement ».
+  const launchMetiers = useMemo(() => getGuideMetiersRequires(localMilestones as any), [localMilestones]);
+
+  /**
+   * Route « telle que la voit le joueur » (G3) : mêmes jalons, réduits aux champs dont
+   * `resolveRushRoute` a besoin. On ne réimplémente **aucun** filtre ici.
+   */
+  const routeMilestones = useMemo<RushMilestone[]>(
+    () => sortedMilestones.map((m) => ({
+      id: m.id,
+      chapter: m.chapter,
+      chapterLabel: m.chapterLabel,
+      title: m.title,
+      order: m.order,
+      isOptional: m.isOptional,
+      type: m.type,
+      sequences: m.sequences.map((s) => ({
+        id: s.id,
+        subGuideRef: s.subGuideRef,
+        subGuideName: s.subGuideName,
+        order: s.order,
+        isOptional: false,
+        alignReq: s.alignReq ?? null,
+        alignOrderCode: s.alignOrderCode ?? null,
+        classReq: s.classReq ?? null,
+        // Lot 4 : l'aperçu de route montre le texte de la variante du camp choisi.
+        routeVariants: s.routeVariants ?? null,
+      })),
+    })),
+    [sortedMilestones],
+  );
+
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+  const [addingStep, setAddingStep] = useState(false);
+  const [activeTab, setActiveTab] = useState<RushEditorTab>("content");
+
+  // ─── E1 : une seule sélection, recherche, filtres, palette ─────────────────
+  // `editingMilestone` (copie de travail du bloc) et `editingSeqId` (quête) sont pilotés
+  // par la sélection : c'est l'inspecteur qui les affiche, plus la liste.
+  const editor = useRushEditorSelection(localMilestones);
+  const [editingSeqId, setEditingSeqId] = useState<string | null>(null);
+  /** Bloc dont on est en train d'ajouter une quête (formulaire monté dans l'inspecteur). */
+  const [addingSequenceTo, setAddingSequenceTo] = useState<string | null>(null);
+  /**
+   * E2c — route **pré-remplie** demandée par le cockpit Branches (cité, Ordre, palier,
+   * classe). `null` = création lancée depuis la liste : le formulaire part vide, comme avant.
+   */
+  const [sequenceRouteDefaults, setSequenceRouteDefaults] = useState<{
+    alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string;
+  } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  /** Le formulaire de quête signale ses modifications non enregistrées. */
+  const [sequenceDirty, setSequenceDirty] = useState(false);
+  /**
+   * E2d — le formulaire de quête est-il monté dans la **modale large** (1 100 px) plutôt
+   * que dans l'inspecteur (460–560 px) ? Le geste vit dans l'en-tête du formulaire.
+   */
+  const [questFullscreen, setQuestFullscreen] = useState(false);
+  // Changer de quête referme la modale : on ne garde jamais une fiche fantôme à l'écran.
+  useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);
+  /** E5 — le formulaire de bloc (TOUS les types) dans la modale large. */
+  const [blockFullscreen, setBlockFullscreen] = useState(false);
+  useEffect(() => { setBlockFullscreen(false); }, [editingMilestone?.id]);
+  /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
+  const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
+
+  /** Le bloc édité diffère-t-il de sa version enregistrée ? (`isDirty` = comparaison JSON) */
+  const blockDirty = useMemo(() => {
+    if (!editingMilestone) return false;
+    const original = localMilestones.find((m) => m.id === editingMilestone.id);
+    return !!original && isDirty(editingMilestone, original);
+  }, [editingMilestone, localMilestones]);
+  const hasUnsavedChanges = blockDirty || sequenceDirty;
+
+  // Config UI/UX éditable (pense-bête + options modale de lancement) — lue depuis le guide.
+  const [uiConfig, setUiConfig] = useState<RushUIConfig>(() => resolveRushUIConfig((initialGuide as any).rushUIConfig));
+  const [uiSaving, setUiSaving] = useState(false);
+  const handleSaveUiConfig = useCallback(async () => {
+    setUiSaving(true);
+    try {
+      const res = await updateRushUIConfig({ rushUIConfig: uiConfig });
+      if (res.success) { toast.success("Config UI enregistrée"); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setUiSaving(false); }
+  }, [uiConfig, router]);
+  const [importPreview, setImportPreview] = useState<null | { plan: { milestones: number; sequences: number; items: number; metiers: number; dungeons: number }; totalToCreate: number }>(null);
+  const [importing, startImport] = useTransition();
+  // Bloc en attente de confirmation de suppression. Le `confirm()` natif ne pouvait ni se
+  // styler, ni lister ce qui part avec le bloc (ses quêtes), et certains navigateurs le
+  // bloquent : on garde la cible en état et la modale Radix se charge du reste (`E4`).
+  const [pendingDelete, setPendingDelete] = useState<Milestone | null>(null);
+  /** S4-4 — dialogue d'import consolidé (dry-run obligatoire avant d'écrire). */
+  const [importJsonOpen, setImportJsonOpen] = useState(false);
+
+  const runSeed = useCallback(async (apply: boolean) => {
+    startImport(async () => {
+      try {
+        const res = await seedRushSylvestreFromGuide({ apply });
+        if (res?.success) {
+          if (apply) {
+            toast.success(`Guide importé : ${res.created?.milestones ?? 0} jalons · ${res.created?.sequences ?? 0} quêtes`);
+            setImportPreview(null);
+            router.refresh();
+          } else {
+            setImportPreview(res as any);
+          }
+        } else {
+          toast.error("Échec de l'import");
+        }
+      } catch (e) {
+        toast.error("Erreur d'import");
+      }
+    });
+  }, [router]);
+
+  // New step form
+  const [newChapterNum, setNewChapterNum] = useState<number>(1);
+  const [newChapterLabel, setNewChapterLabel] = useState("");
+  const [newStepTitle, setNewStepTitle] = useState("");
+  const [newStepColor, setNewStepColor] = useState("#10b981");
+  const [newStepType, setNewStepType] = useState<MilestoneType>("QUETE_SERIE");
+  const [newDofusId, setNewDofusId] = useState<string | null>(null);
+  // Image du bloc (upload scope `guides` — servie aussi aux visiteurs anonymes).
+  const [newStepImage, setNewStepImage] = useState("");
+  // Description libre ou métadonnées (position, lien) pour séparateur ou étape
+  const [newStepDescription, setNewStepDescription] = useState("");
+  // Texte du bloc CONSEIL / TIPS : c'est SON contenu (le bandeau le rend tel quel côté
+  // membre). Sans ce champ à la création, il fallait créer le bloc puis le rouvrir en
+  // édition pour écrire le conseil — absurde pour un bloc qui ne porte que ça.
+  const [newStepTips, setNewStepTips] = useState("");
+
+  useEffect(() => {
+    if (!addingStep) setNewChapterNum(chapterCount + 1);
+  }, [chapterCount, addingStep]);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // DnD — bloc en cours de glissement (pour le fantôme `DragOverlay`) et drapeau qui
+  // PROTÈGE la liste d'une resynchronisation serveur pendant le geste : un `router.refresh()`
+  // qui atterrissait en plein drag remplaçait `localMilestones` (nouvelle identité de
+  // tableau) et l'index du bloc glissé n'existait plus ⇒ le drag « partait en vrille »
+  // après quelques secondes, surtout en remontant loin (scroll automatique).
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const draggingRef = useRef(false);
+
+  const handleMilestoneDragStart = useCallback((event: DragStartEvent) => {
+    draggingRef.current = true;
+    setActiveDragId(String(event.active.id));
+  }, []);
+
+  const handleMilestoneDragCancel = useCallback(() => {
+    draggingRef.current = false;
+    setActiveDragId(null);
+  }, []);
+
+  // Une SEULE source d'ordre pour le drag : `sortedMilestones` — l'array réellement rendu,
+  // celui du `SortableContext`. Avant, les index venaient de `localMilestones` pendant que
+  // le DOM suivait `sortedMilestones` : au moindre écart, le bloc sautait ailleurs.
+  const handleMilestoneDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const overIndex = sortedMilestones.findIndex(m => m.id === over.id);
+    if (activeIndex === -1 || overIndex === -1) return;
+
+    const activeMs = sortedMilestones[activeIndex];
+    const overMs = sortedMilestones[overIndex];
+
+    const reorder = (item: Milestone) => {
+      const updated = [...sortedMilestones];
+      updated.splice(activeIndex, 1);
+      updated.splice(overIndex, 0, item);
+      setLocalMilestones(updated.map((m, idx) => ({ ...m, order: idx })));
+    };
+
+    if (isSeparatorMilestone(activeMs) || isSeparatorMilestone(overMs)) {
+      reorder(activeMs);
+      return;
+    }
+
+    // Survol d'un bloc d'un autre chapitre : on montre le rattachement (il est persisté au
+    // drop). INFO, DOFUS_OBTAINED, SEPARATEUR restent hors chapitre — aucune réassignation.
+    if (activeMs.chapter !== overMs.chapter && !isOutsideChapterMilestone(activeMs)) {
+      reorder({ ...activeMs, chapter: overMs.chapter, chapterLabel: overMs.chapterLabel });
+    }
+  }, [sortedMilestones]);
+
+  const handleMilestoneDragEnd = useCallback((event: DragEndEvent) => {
+    draggingRef.current = false;
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const oldIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const newIndex = sortedMilestones.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const targetMilestone = sortedMilestones[newIndex];
+    const sourceMilestone = sortedMilestones[oldIndex];
+
+    // Finaliser le tri
+    const updatedMilestones = [...sortedMilestones];
+    const [movedItem] = updatedMilestones.splice(oldIndex, 1);
+
+    // INFO, DOFUS_OBTAINED, SEPARATEUR stay outside chapters — don't reassign
+    if (!isOutsideChapterMilestone(movedItem) && !isOutsideChapterMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
+      movedItem.chapter = targetMilestone.chapter;
+      movedItem.chapterLabel = targetMilestone.chapterLabel;
+    }
+
+    updatedMilestones.splice(newIndex, 0, movedItem);
+    const finalMilestones = updatedMilestones.map((m, idx) => ({
+      ...m,
+      order: idx
+    }));
+
+    setLocalMilestones(finalMilestones);
+
+    startTransition(async () => {
+      try {
+        await reorderRushMilestones(finalMilestones.map(m => m.id));
+        // Si le chapitre a changé, on persiste
+        if (!isOutsideChapterMilestone(sourceMilestone) && !isOutsideChapterMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
+          await upsertRushMilestone({
+            id: sourceMilestone.id,
+            chapter: String(targetMilestone.chapter),
+            chapterLabel: targetMilestone.chapterLabel,
+            label: sourceMilestone.title,
+            description: sourceMilestone.description ?? undefined,
+            accentColor: sourceMilestone.accentColor ?? "#10b981",
+            isOptional: sourceMilestone.isOptional,
+            order: newIndex,
+            tips: sourceMilestone.tips ?? undefined,
+            dofusId: sourceMilestone.dofusId,
+            type: sourceMilestone.type,
+          });
+        }
+        router.refresh();
+      } catch {
+        toast.error("Erreur lors du réordonnancement du bloc");
+      }
+    });
+  }, [sortedMilestones, router]);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleAddStep = useCallback(() => {
+    if (!newStepTitle.trim()) { toast.error(newStepType === "SEPARATEUR" ? "Titre de section requis" : "Nom de l'étape requis"); return; }
+    const isSeparator = newStepType === "SEPARATEUR";
+    const isDofusBanner = newStepType === "DOFUS_OBTAINED";
+    const isInfoBlock = newStepType === "INFO";
+    const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
+    // Placement à la CRÉATION : le bloc partait toujours en fin de guide (« order » = nombre de
+    // blocs) — donc hors de son chapitre et à l'autre bout du scroll, à remonter à la main. On
+    // calcule donc sa place **avant** l'écriture (`findMilestoneInsertIndex`, la règle du
+    // glisser-déposer) et on la donne à l'action serveur, qui **ouvre le créneau** dans la même
+    // transaction (`E3`) : un seul aller-retour, aucun doublon d'`order`, et le bloc est à sa
+    // place dès le premier rendu.
+    const insertAt = findMilestoneInsertIndex(sortedMilestones, {
+      type: newStepType,
+      chapter: isOutsideChapter ? 0 : newChapterNum,
+    });
+    startTransition(async () => {
+      try {
+        const res = await upsertRushMilestone({
+          chapter: isOutsideChapter ? "0" : String(newChapterNum),
+          chapterLabel: isOutsideChapter ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
+          label: newStepTitle.trim(),
+          accentColor: isOutsideChapter ? (newStepColor || "#d4a853") : newStepColor,
+          order: insertAt,
+          type: newStepType,
+          dofusId: isSeparator ? null : newDofusId,
+          description: isSeparator
+            ? (newStepDescription.trim() || undefined)
+            : (newStepDescription.trim() || undefined),
+          // Texte du conseil : uniquement pour un bloc Tips (c'est son contenu). Le champ
+          // du modèle est `tips?: string` (pas de null côté action) → undefined si vide.
+          tips: isInfoBlock && newStepTips.trim() ? newStepTips.trim() : undefined,
+          // Image du bloc : posée dès la création (le séparateur l'affiche à droite de
+          // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
+          imageUrl: newStepImage.trim() || null,
+        });
+        // Le bloc est **déjà à sa place** : l'action serveur a ouvert le créneau `order` dans sa
+        // transaction (`E3`). Il ne reste qu'à le déplier pour qu'on le voie tout de suite, même
+        // hors écran.
+        const created = res?.milestone;
+        if (created?.id) {
+          setExpandedMilestones(prev => new Set(prev).add(created.id));
+        }
+        toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setNewStepTips(""); setNewStepDescription(""); setAddingStep(false);
+        router.refresh();
+      } catch (e: any) { toast.error(e.message); }
+    });
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, newStepTips, newStepDescription, sortedMilestones, router]);
+
+  const handleSaveMilestone = useCallback((m: Milestone) => {
+    startTransition(async () => {
+      try {
+        await upsertRushMilestone({
+          id: m.id,
+          chapter: String(isOutsideChapterMilestone(m) ? 0 : m.chapter),
+          chapterLabel: isOutsideChapterMilestone(m) ? "" : m.chapterLabel,
+          label: m.title,
+          description: m.description ?? undefined,
+          accentColor: m.accentColor ?? "#10b981",
+          isOptional: m.isOptional,
+          order: m.order,
+          tips: m.tips ?? undefined,
+          dofusId: m.dofusId,
+          type: m.type,
+          imageUrl: m.imageUrl ?? null,
+          links: m.links ?? undefined,
+        });
+        toast.success("Étape sauvegardée ✓");
+        // Le bloc enregistré devient la **nouvelle référence** : `localMilestones` est mis à
+        // jour tout de suite, sinon `blockDirty` repasserait à vrai jusqu'au refresh serveur
+        // et la garde de saisie bloquerait le clic suivant sans raison.
+        setLocalMilestones(prev => prev.map(item => (item.id === m.id ? { ...item, ...m } : item)));
+        setEditingMilestone({ ...m });
+        router.refresh();
+      } catch (e: any) { toast.error(e.message); }
+    });
+  }, [router]);
+
+  /**
+   * Suppression d'un bloc **déjà confirmée** (la modale Radix a recueilli l'accord : plus de
+   * `confirm()` natif, `E4`).
+   */
+  const handleDeleteMilestone = useCallback((id: string) => {
+    // Optimiste : la ligne quitte la liste AVANT l'aller-retour serveur. Sans ça, la
+    // liste gardait la ligne tant que le refresh n'était pas arrivé → un second clic (ou
+    // un clic sur une ligne déjà supprimée ailleurs) visait une ligne absente en base,
+    // et Prisma remontait un P2025 en plein studio. En cas d'échec réel, le `refresh()`
+    // fait foi : la ligne encore en base réapparaît.
+    setLocalMilestones(prev => prev.filter(m => m.id !== id));
+    // L'inspecteur ne garde jamais une épave : la sélection glisse sur le bloc qui prend
+    // la place (ou le précédent), et les formulaires de ce bloc sont refermés.
+    if (selectionTargetsRushEditorBlock(editor.selection, id)) {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setSequenceDirty(false);
+    }
+    editor.setSelection((prev) => selectionAfterRushEditorBlockRemoved(prev, editor.tree, id));
+    startTransition(async () => {
+      try {
+        const res = await deleteRushMilestone(id);
+        toast.success(res?.alreadyDeleted ? "Étape déjà supprimée" : "Étape supprimée");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
+    });
+  }, [router]);
+
+  /**
+   * Déplacement d'UNE quête vers un autre bloc (action dédiée, 05/11/2026).
+   *
+   * Optimiste : la ligne quitte le bloc source et arrive en fin de bloc cible avant
+   * l'aller-retour. Le serveur ne réécrit que `milestoneId` + `order` ; en cas
+   * d'échec, `router.refresh()` resynchronise (jamais un état optimiste qui ment).
+   */
+  const handleMoveSequence = useCallback((sequenceId: string, targetMilestoneId: string) => {
+    setLocalMilestones(prev => {
+      const source = prev.find(m => m.sequences.some(s => s.id === sequenceId));
+      const seq = source?.sequences.find(s => s.id === sequenceId);
+      const target = prev.find(m => m.id === targetMilestoneId);
+      if (!source || !seq || !target || source.id === target.id) return prev;
+      const nextOrder = target.sequences.reduce((max, s) => Math.max(max, s.order ?? 0), -1) + 1;
+      return prev.map(m => {
+        if (m.id === source.id) return { ...m, sequences: m.sequences.filter(s => s.id !== sequenceId) };
+        if (m.id === target.id) return { ...m, sequences: [...m.sequences, { ...seq, order: nextOrder }] };
+        return m;
+      });
+    });
+    startTransition(async () => {
+      try {
+        const res = await moveRushSequence(sequenceId, targetMilestoneId);
+        toast.success(res.moved ? "Quête déplacée ✓" : "Quête déjà dans ce bloc");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Déplacement impossible");
+        router.refresh();
+      }
+    });
+  }, [router]);
+
+  /**
+   * Scission d'un bloc multi-quêtes en N quêtes individuelles (05/11/2026).
+   * L'action serveur crée les N séquences, reporte la progression et supprime le bloc ;
+   * ici on ne fait que rafraîchir la liste (pas d'optimisme : N ids inconnus avant l'appel).
+   */
+  const handleSplitSequence = useCallback((sequenceId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await splitRushSequence(sequenceId);
+        toast.success(
+          `${res.created} quêtes créées ✓${res.droppedDungeons ? ` · ${res.droppedDungeons} donjon(s) non reconnu(s) ignoré(s)` : ""}`,
+        );
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Scission impossible");
+      }
+    });
+  }, [router]);
+
+  const handleSaveSequence = useCallback((data: any) => {
+    startTransition(async () => {
+      try {
+        await upsertRushSequence(data);
+        toast.success(data.id ? "Quête mise à jour ✓" : "Quête ajoutée ✓");
+        // Le formulaire n'est plus « sale » : la garde de saisie retombe immédiatement.
+        setSequenceDirty(false);
+        if (!data.id) setAddingSequenceTo(null);
+        router.refresh();
+      } catch (e: any) { toast.error(e.message); }
+    });
+  }, [router]);
+
+  /**
+   * Route appliquée à un **bloc entier** (G1). Le serveur borne et vérifie tout ; ici on
+   * ne fait que remonter le compte réellement écrit.
+   */
+  const handleApplyBlockRoute = useCallback((milestoneId: string, route: RushBlockRouteValues) => {
+    startTransition(async () => {
+      try {
+        const res = await updateRushBlockRoute({ milestoneId, ...route });
+        toast.success(`Route appliquée à ${res.count} quête${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Application impossible");
+      }
+    });
+  }, [router]);
+
+  /**
+   * E3c — route appliquée à une **sélection** de quêtes. Le serveur revalide chaque
+   * id et refuse si une seule quête n'appartient pas au guide Rush.
+   */
+  const handleBulkRoute = useCallback((sequenceIds: string[], route: RushBlockRouteValues) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkUpdateRushSequencesRoute({ sequenceIds, ...route });
+        toast.success(`Route appliquée à ${res.count} quête${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Application impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkMove = useCallback((sequenceIds: string[], targetMilestoneId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await bulkMoveRushSequences({ sequenceIds, targetMilestoneId });
+        toast.success(`${res.moved} quête${res.moved !== 1 ? "s" : ""} déplacée${res.moved !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Déplacement impossible");
+      }
+    });
+  }, [router]);
+
+  const handleBulkDelete = useCallback((sequenceIds: string[]) => {
+    const ids = new Set(sequenceIds);
+    // Optimiste : la sélection quitte la liste immédiatement ; le serveur confirme.
+    setLocalMilestones(prev => prev.map(m => ({
+      ...m,
+      sequences: m.sequences.filter(s => !ids.has(s.id)),
+    })));
+    if (editingSeqId && ids.has(editingSeqId)) {
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+    }
+    startTransition(async () => {
+      try {
+        const res = await bulkDeleteRushSequences({ sequenceIds });
+        toast.success(`${res.count} quête${res.count !== 1 ? "s" : ""} supprimée${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
+    });
+  }, [router, editingSeqId]);
+
+  /**
+   * Bloc B — publie ou dépublie **une** quête. Le slug est figé côté serveur à la
+   * première publication ; on ne le recalcule jamais ici.
+   */
+  const handlePublishQuest = useCallback((sequenceId: string, publish: boolean) => {
+    startTransition(async () => {
+      try {
+        const res = await publishRushSequence({ sequenceId, publish });
+        setLocalMilestones(prev => prev.map(m => ({
+          ...m,
+          sequences: m.sequences.map(s => (
+            s.id === sequenceId
+              ? { ...s, publicSlug: res.slug, isPublished: res.isPublished }
+              : s
+          )),
+        })));
+        toast.success(res.isPublished ? "Quête publiée ✓" : "Quête dépubliée");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Publication impossible");
+      }
+    });
+  }, [router]);
+
+  const handleDeleteSequence = useCallback((id: string) => {
+    // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
+    // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
+    setLocalMilestones(prev => prev.map(m => ({ ...m, sequences: m.sequences.filter(s => s.id !== id) })));
+    // La sélection suit la suppression : quête suivante du même bloc, sinon le bloc.
+    if (editingSeqId === id) {
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+    }
+    editor.setSelection((prev) => {
+      const block = prev.kind === "quest" ? findRushEditorBlock(editor.tree, prev.blockId) : null;
+      return selectionAfterRushEditorQuestRemoved(prev, block, id);
+    });
+    startTransition(async () => {
+      try {
+        const res = await deleteRushSequence(id);
+        toast.success(res?.alreadyDeleted ? "Quête déjà supprimée" : "Quête supprimée");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
+    });
+  }, [router]);
+
+  const handleReorderSequences = useCallback((milestoneId: string, orderedIds: string[]) => {
+    // Optimistic
+    setLocalMilestones(prev => prev.map(m => {
+      if (m.id !== milestoneId) return m;
+      const seqMap = new Map(m.sequences.map(s => [s.id, s]));
+      return { ...m, sequences: orderedIds.map((id, i) => ({ ...seqMap.get(id)!, order: i })) };
+    }));
+    startTransition(async () => {
+      try {
+        await reorderRushSequences(milestoneId, orderedIds);
+        router.refresh();
+      } catch { toast.error("Erreur réordonnancement quêtes"); }
+    });
+  }, [router]);
+
+  const handleToggle = useCallback((field: "isActive" | "isUnderConstruction" | "isPublicUnderConstruction") => {
+    const next =
+      field === "isActive" ? !isActive
+        : field === "isUnderConstruction" ? !isUnderConstruction
+          : !isPublicUnderConstruction;
+    if (field === "isActive") setIsActive(next);
+    else if (field === "isUnderConstruction") setIsUnderConstruction(next);
+    else setIsPublicUnderConstruction(next);
+    startTransition(async () => {
+      try {
+        await updateRushSylvestreSettings({ [field]: next });
+        toast.success("Paramètre mis à jour ✓");
+      } catch (e: any) {
+        if (field === "isActive") setIsActive(!next);
+        else if (field === "isUnderConstruction") setIsUnderConstruction(!next);
+        else setIsPublicUnderConstruction(!next);
+        toast.error(e.message);
+      }
+    });
+  }, [isActive, isUnderConstruction, isPublicUnderConstruction]);
+
+  // ─── E1 : garde de saisie, sélection, palette ──────────────────────────────
+
+  /**
+   * Change-t-on de cible alors qu'une saisie n'est pas enregistrée ? On demande l'accord
+   * dans une **modale Radix** (le `confirm()` natif est interdit par le verrou E4) ; la
+   * garde de navigation (`UnsavedChangesGuard`) couvre, elle, la sortie de page.
+   */
+  const guardEditorSwitch = useCallback((action: () => void) => {
+    if (blockDirty || sequenceDirty) setPendingSwitch(() => action);
+    else action();
+  }, [blockDirty, sequenceDirty]);
+
+  /** Ouvre un bloc dans l'inspecteur (la liste ne porte plus aucun formulaire). */
+  const selectBlock = useCallback((blockId: string) => {
+    const milestone = localMilestones.find((m) => m.id === blockId);
+    if (!milestone) return;
+    guardEditorSwitch(() => {
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setEditingMilestone({ ...milestone });
+      editor.setSelection({ kind: "block", blockId });
+      editor.setTreeOpen(false);
+      editor.setInspectorOpen(true);
+    });
+  }, [localMilestones, guardEditorSwitch, editor]);
+
+  /** Ouvre une quête dans l'inspecteur. */
+  const selectQuest = useCallback((blockId: string, questId: string) => {
+    if (!localMilestones.some((m) => m.id === blockId && m.sequences.some((s) => s.id === questId))) return;
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setAddingSequenceTo(null);
+      setEditingSeqId(questId);
+      // E3b-fix (12/11/2026) : sans cette bascule, un clic depuis « Problèmes » ou
+      // « Branches » sélectionnait la quête **sans quitter l'onglet** — donc sans effet
+      // visible. L'inspecteur n'existe que dans l'onglet Contenu.
+      setActiveTab("content");
+      editor.setSelection({ kind: "quest", blockId, questId });
+      editor.setTreeOpen(false);
+      editor.setInspectorOpen(true);
+    });
+  }, [localMilestones, guardEditorSwitch, editor]);
+
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+
+  /** Ouvre la création d'une quête dans l'inspecteur (bouton de la liste). */
+  const startAddSequence = useCallback((blockId: string) => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+      // Création « nue » (liste) : aucune route pré-remplie, le formulaire part vide.
+      setSequenceRouteDefaults(null);
+      setAddingSequenceTo(blockId);
+      editor.setSelection({ kind: "block", blockId });
+      editor.setInspectorOpen(true);
+    });
+  }, [guardEditorSwitch, editor]);
+
+  /**
+   * E2c — emplacement **vide** du cockpit Branches : on ouvre la création dans le bloc
+   * d'accueil choisi, avec la cité, l'Ordre, le palier et la classe **déjà remplis**.
+   * Aucun second chemin d'écriture : c'est le même formulaire et la même action serveur.
+   */
+  const createQuestFromBranch = useCallback((target: RushQuestRouteTarget) => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setSequenceDirty(false);
+      setSequenceRouteDefaults({
+        alignReq: target.alignReq,
+        alignOrderCode: target.alignOrderCode,
+        alignLevelReq: target.alignLevelReq,
+        classReq: target.classReq,
+      });
+      setAddingSequenceTo(target.blockId);
+      // On bascule sur l'onglet qui porte l'inspecteur : le geste se voit immédiatement.
+      setActiveTab("content");
+      editor.setSelection({ kind: "block", blockId: target.blockId });
+      editor.setInspectorOpen(true);
+    });
+  }, [guardEditorSwitch, editor]);
+
+  /** Actions de la palette (les quêtes et les blocs viennent de la règle pure). */
+  const paletteActions = useMemo<RushEditorCommand[]>(() => [
+    { id: "action:add-block", kind: "action", label: "Créer un bloc", hint: "Contenu", keywords: "creer bloc ajouter", actionId: "add-block" },
+    { id: "action:branches", kind: "action", label: "Ouvrir Branches", hint: "Cité → Ordre → classe", keywords: "branches route", actionId: "branches" },
+    { id: "action:settings", kind: "action", label: "Ouvrir Config", hint: "Paramètres du guide", keywords: "config parametres", actionId: "settings" },
+    { id: "action:launch", kind: "action", label: "Ouvrir Lancement", hint: "Modale d'accueil", keywords: "lancement accueil", actionId: "launch" },
+  ], []);
+
+  const runPaletteCommand = useCallback((command: RushEditorCommand) => {
+    if (command.actionId) {
+      if (command.actionId === "add-block") { setActiveTab("content"); setAddingStep(true); }
+      else if (command.actionId === "branches") setActiveTab("branches");
+      else if (command.actionId === "settings") setActiveTab("settings");
+      else if (command.actionId === "launch") setActiveTab("launch");
+      return;
+    }
+    if (command.selection?.kind === "block") selectBlock(command.selection.blockId);
+    else if (command.selection?.kind === "quest") selectQuest(command.selection.blockId, command.selection.questId);
+  }, [selectBlock, selectQuest]);
+
+  /** Ferme l'inspecteur — avec l'accord de l'utilisateur si une saisie est en cours. */
+  const closeInspector = useCallback(() => {
+    guardEditorSwitch(() => {
+      setEditingMilestone(null);
+      setEditingSeqId(null);
+      setAddingSequenceTo(null);
+      setSequenceDirty(false);
+      editor.setSelection({ kind: "none" });
+    });
+  }, [guardEditorSwitch, editor]);
+
+  // ─── E1 : ce que l'inspecteur affiche ──────────────────────────────────────
+  const selectedBlockNode = editor.selection.kind === "block" || editor.selection.kind === "quest"
+    ? findRushEditorBlock(editor.tree, editor.selection.blockId)
+    : null;
+  const selectedQuest = editingSeqId
+    ? localMilestones.flatMap((m) => m.sequences).find((s) => s.id === editingSeqId) ?? null
+    : null;
+  const selectedQuestBlock = selectedQuest
+    ? localMilestones.find((m) => m.id === selectedBlockNode?.id) ?? null
+    : null;
+  // E3a — le séparateur s'édite **ici** comme les autres blocs : plus aucun formulaire dans la liste.
+  const blockBeingEdited = editingMilestone;
+
+  const inspectorTitle = addingSequenceTo
+    ? "Nouvelle quête"
+    : blockBeingEdited
+      ? blockBeingEdited.title
+      : selectedQuest
+        ? (selectedQuest.subGuideName || selectedQuest.subGuideRef)
+        : "Aucune sélection";
+
+  const inspectorSubtitle = addingSequenceTo
+    ? localMilestones.find((m) => m.id === addingSequenceTo)?.title ?? null
+    : blockBeingEdited
+      ? `${blockBeingEdited.sequences.length} quête${blockBeingEdited.sequences.length !== 1 ? "s" : ""} · ${isOutsideChapterMilestone(blockBeingEdited) ? "hors chapitre" : `chapitre ${blockBeingEdited.chapter}`}`
+      : selectedQuestBlock
+        ? `Quête · ${selectedQuestBlock.title}`
+        : null;
+
+  /**
+   * E2d — le formulaire de quête est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (panneau 460–560 px ou modale large de 1 100 px). Deux
+   * instances montées en parallèle auraient divergé sur le brouillon et les coches.
+   */
+  const questForm = selectedQuest && selectedQuestBlock ? (
+    <SequenceEditForm
+      // Lot 5 — une instance PAR quête : sans cette clé, React réutilisait le formulaire
+      // déjà monté (les champs gardaient la quête précédente, et le brouillon local se
+      // serait appliqué au mauvais bloc).
+      key={selectedQuest.id}
+      seq={selectedQuest}
+      milestoneId={selectedQuestBlock.id}
+      isPending={isPending}
+      milestones={localMilestones}
+      onMove={handleMoveSequence}
+      onSplit={handleSplitSequence}
+      onDirtyChange={setSequenceDirty}
+      onSave={(data) => handleSaveSequence({ ...data, id: selectedQuest.id, milestoneId: selectedQuestBlock.id })}
+      onCancel={closeInspector}
+      isFullscreen={questFullscreen}
+      onToggleFullscreen={() => setQuestFullscreen((v) => !v)}
+    />
+  ) : null;
+
+  /**
+   * E5 — le formulaire de bloc est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (inspecteur ou modale large), jamais deux instances.
+   */
+  const blockForm = blockBeingEdited ? (
+    <BlockInspectorForm
+      milestone={blockBeingEdited}
+      editingData={blockBeingEdited}
+      isPending={isPending}
+      onEditChange={(patch) => setEditingMilestone((prev) => (prev ? { ...prev, ...patch } : prev))}
+      onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+      onCancelEdit={closeInspector}
+      onApplyBlockRoute={handleApplyBlockRoute}
+      onSelectQuest={(questId) => selectQuest(blockBeingEdited.id, questId)}
+      onAddSequence={() => startAddSequence(blockBeingEdited.id)}
+      milestones={localMilestones}
+      onBulkRoute={handleBulkRoute}
+      onBulkMove={handleBulkMove}
+      onBulkDelete={handleBulkDelete}
+      onPublishQuest={handlePublishQuest}
+      isFullscreen={blockFullscreen}
+      onToggleFullscreen={() => setBlockFullscreen((v) => !v)}
+    />
+  ) : null;
+
+  const inspectorBody = addingSequenceTo ? (
+    <AddSequenceForm
+      // E2c — la clé force un **remontage** quand la cible change : sans elle, React
+      // réutilisait le formulaire déjà monté et les valeurs pré-remplies d'un second
+      // emplacement (autre bloc, autre palier) n'étaient jamais appliquées.
+      key={`${addingSequenceTo}:${sequenceRouteDefaults?.alignReq ?? ""}:${sequenceRouteDefaults?.alignOrderCode ?? ""}:${sequenceRouteDefaults?.alignLevelReq ?? ""}:${sequenceRouteDefaults?.classReq ?? ""}`}
+      milestoneId={addingSequenceTo}
+      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
+      isPending={isPending}
+      defaultRoute={sequenceRouteDefaults}
+    />
+  ) : blockBeingEdited ? (
+    blockFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setBlockFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : blockForm
+  ) : selectedQuest && selectedQuestBlock ? (
+    questFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setQuestFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : questForm
+  ) : (
+    <RushEditorInspectorEmpty />
+  );
+
+  return (
+    <div className="min-h-screen bg-surface text-foreground" data-rush-admin-root>
+      {/* Barre unique (E1) — guide, état, recherche, onglets, données. */}
+      <div className="sticky top-0 z-40 border-b border-border bg-surface">
+        <RushEditorTopbar
+          guideName={initialGuide.name}
+          isActive={isActive}
+          isUnderConstruction={isUnderConstruction}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          query={editor.filters.query}
+          onQueryChange={(query) => editor.patchFilters({ query })}
+          onOpenPalette={openPalette}
+          onOpenTree={() => editor.setTreeOpen(true)}
+          visibleQuestCount={editor.visibleQuestCount}
+          totalQuestCount={editor.totalQuestCount}
+          problemsCount={problemsCount}
+          actions={
+            <>
+              <button onClick={() => setImportJsonOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong"
+                title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
+                <ClipboardList className="w-3 h-3" aria-hidden /> JSON
+              </button>
+              <button onClick={() => runSeed(false)} disabled={importing}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong disabled:opacity-50"
+                title="Importer le guide Laniyelle (métiers, ressources, donjons)">
+                <Sparkles className="w-3 h-3" aria-hidden /> Importer
+              </button>
+            </>
+          }
+        />
+      </div>
+
+      {/*
+        E2d (12/11/2026) — **modale large** d'édition d'une quête. Mesure : l'inspecteur
+        donne 460–560 px (une grille à 2 colonnes y tient dans ~200 px par colonne), alors
+        que le formulaire en compte neuf sections. Ici : 1 100 px, `max-h-90vh`, défilement
+        interne — et le **même** formulaire, jamais une seconde instance.
+      */}
+      <Dialog open={questFullscreen && !!questForm} onOpenChange={(open) => { if (!open) setQuestFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {selectedQuest ? (selectedQuest.subGuideName || selectedQuest.subGuideRef) : "Quête"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {selectedQuestBlock ? `Quête · ${selectedQuestBlock.title}` : "Édition de la quête"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{questForm}</div>
+        </DialogContent>
+      </Dialog>
+
+      {/* E5 — la même modale large pour TOUS les types de bloc (Conseils, Combat, Séparateur…). */}
+      <Dialog open={blockFullscreen && !!blockForm} onOpenChange={(open) => { if (!open) setBlockFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {blockBeingEdited ? blockBeingEdited.title : "Bloc"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {blockBeingEdited
+                ? `Bloc · ${blockBeingEdited.chapterLabel || "hors chapitre"} · ${blockBeingEdited.sequences.length} quête(s)`
+                : "Édition du bloc"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{blockForm}</div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal d'aperçu d'import */}
+      <AnimatePresence>
+        {importPreview && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4"
+            onClick={() => setImportPreview(null)}>
+            <motion.div initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-surface border border-border rounded-xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground">Importer le Guide Rush Sylvestre Unifié</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">Aperçu du dataset unifié (Dofusyelle + Tougli + SigilOS Engine). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                <PreviewStat label="Jalons" value={importPreview.plan.milestones} />
+                <PreviewStat label="Quêtes" value={importPreview.plan.sequences} />
+                <PreviewStat label="Donjons" value={importPreview.plan.dungeons} />
+                <PreviewStat label="Objets" value={importPreview.plan.items} />
+                <PreviewStat label="Prérequis" value={(importPreview.plan as any)?.prereqs ?? 0} />
+                <PreviewStat label="À créer" value={importPreview.totalToCreate ?? 0} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setImportPreview(null)} disabled={importing}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground bg-muted border border-border transition-all">Annuler</button>
+                <button onClick={() => runSeed(true)} disabled={importing}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-all disabled:opacity-50">
+                  {importing ? "Import…" : "Appliquer"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="relative px-2 py-2 sm:px-3 sm:py-3">
+        {activeTab === "content" && (
+          <RushEditorShell
+            tree={
+              <RushEditorTree
+                tree={editor.visibleTree}
+                selection={editor.selection}
+                filters={editor.filters}
+                filtersActive={editor.filtersActive}
+                onFiltersChange={editor.patchFilters}
+                onResetFilters={editor.resetFilters}
+                onSelectBlock={selectBlock}
+                onSelectQuest={selectQuest}
+              />
+            }
+            inspector={
+              <RushEditorInspector title={inspectorTitle} subtitle={inspectorSubtitle} onClose={closeInspector}>
+                {inspectorBody}
+              </RushEditorInspector>
+            }
+            treeOpen={editor.treeOpen}
+            onTreeOpenChange={editor.setTreeOpen}
+            inspectorOpen={editor.inspectorOpen}
+            onInspectorOpenChange={editor.setInspectorOpen}
+            onOpenPalette={openPalette}
+            list={
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            {/* Stats */}
+            <div className="flex items-center gap-6 px-5 py-3 bg-surface/60 border border-border rounded-xl">
+              <StatPill label="Chapitres" value={chapterCount} />
+              <div className="w-px h-8 bg-muted/50" />
+              <StatPill label="Blocs" value={localMilestones.filter((m) => !isSeparatorMilestone(m)).length} />
+              <div className="w-px h-8 bg-muted/50" />
+              <StatPill label="Quêtes" value={localMilestones.reduce((s, m) => s + m.sequences.length, 0)} />
+              <div className="flex-1" />
+              <button onClick={() => setAddingStep(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Ajouter un bloc
+              </button>
+            </div>
+
+            {/* Dofus Configuration Status */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
+              {DOFUS_LIST.map(d => {
+                const linkedMilestones = localMilestones.filter(m => m.dofusId === d.id);
+                const questCount = linkedMilestones.reduce((acc, m) => acc + m.sequences.length, 0);
+                return (
+                  <div key={d.id} className="p-3 bg-surface/40 border border-border rounded-xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={d.imageUrl} alt={d.label} className="w-10 h-10 object-contain mb-1 drop-shadow-lg" />
+                    <p className="text-caption font-semibold uppercase tracking-wide" style={{ color: readableOn(d.color, GOD_DOFUS_SURFACE).color }}>{d.label}</p>
+                    <p className="text-xs font-bold text-foreground mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
+                    <p className="text-caption text-subtle-foreground">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add bloc form */}
+            <AnimatePresence>
+              {addingStep && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <div className="p-5 bg-primary/20 border border-primary/20 rounded-xl space-y-4">
+                    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Nouveau bloc</h3>
+
+                    {/* Type selector */}
+                    <div>
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Type de bloc</label>
+                      <div className="flex flex-wrap gap-2">
+                        {MILESTONE_TYPES.map(t => (
+                          <button key={t.value} onClick={() => {
+                            setNewStepType(t.value);
+                            if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
+                          }}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold border transition-all ${newStepType === t.value ? "border-border text-foreground bg-muted/50" : "border-border text-muted-foreground hover:text-foreground"}`}
+                            style={newStepType === t.value ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" } : {}}
+                          >
+                            {t.icon}{t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" && newStepType !== "INFO" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">N° chapitre *</label>
+                        <input type="number" min={1} value={newChapterNum}
+                          onChange={e => setNewChapterNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/50 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Label chapitre</label>
+                        <input value={newChapterLabel} onChange={e => setNewChapterLabel(e.target.value)}
+                          placeholder="ex: Incarnam & Astrub"
+                          className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                    </div>
+                    ) : newStepType === "INFO" ? (
+                      <p className="text-caption text-primary/70 leading-relaxed">
+                        Le bloc Conseil/Tips est un bandeau informatif autonome — il n'appartient à aucun chapitre et peut être déplacé librement entre les quêtes.
+                      </p>
+                    ) : newStepType === "SEPARATEUR" ? (
+                      <p className="text-caption text-warning/70 leading-relaxed">
+                        Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
+                        L&apos;image importée remplit la droite de son bandeau, côté membre comme dans le guide public.
+                      </p>
+                    ) : (
+                      <p className="text-caption text-warning/70 leading-relaxed">
+                        La bannière d'obtention est un bloc visuel autonome — il n'appartient à aucun chapitre et n'est pas cochable.
+                      </p>
+                    )}
+                    <div>
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+                        {newStepType === "SEPARATEUR" ? "Titre de section *" : newStepType === "INFO" ? "Titre du conseil *" : "Nom du bloc *"}
+                      </label>
+                      <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleAddStep()}
+                        placeholder={newStepType === "SEPARATEUR" ? "ex: Dofus Turquoise" : "ex: Quêtes Incarnam de base"}
+                        className="w-full bg-background/80 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* Bloc CONSEIL / TIPS : son contenu enrichi (position, lien cliquable, note) */}
+                    {newStepType === "INFO" && (
+                      <RushBlockMetaEditor
+                        values={parseBlockMeta(newStepTips)}
+                        onChange={(patch) => {
+                          const current = parseBlockMeta(newStepTips);
+                          const updated = formatBlockMeta({ ...current, ...patch });
+                          setNewStepTips(updated);
+                        }}
+                        accentColor={newStepColor || "#a855f7"}
+                        isSeparator={false}
+                      />
+                    )}
+
+                    {/* Bloc SÉPARATEUR : position, lien cliquable et description de section */}
+                    {newStepType === "SEPARATEUR" && (
+                      <RushBlockMetaEditor
+                        values={parseBlockMeta(newStepDescription)}
+                        onChange={(patch) => {
+                          const current = parseBlockMeta(newStepDescription);
+                          const updated = formatBlockMeta({ ...current, ...patch });
+                          setNewStepDescription(updated);
+                        }}
+                        accentColor={newStepColor || "#d4a853"}
+                        isSeparator={true}
+                      />
+                    )}
+
+                    {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
+                    {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (
+                      <div>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Dofus associé <span className="text-subtle-foreground">(clic pour sélectionner)</span></label>
+                        <div className="flex flex-wrap gap-2">
+                          {DOFUS_LIST.map(d => (
+                            <button key={d.id} type="button"
+                              onClick={() => setNewDofusId(prev => prev === d.id ? null : d.id)}
+                              title={d.label}
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold border transition-all ${
+                                newDofusId === d.id
+                                  ? "border-border scale-105"
+                                  : "border-border opacity-40 hover:opacity-80"
+                              }`}
+                              style={newDofusId === d.id ? { color: readableOn(d.color, GOD_MODAL_SURFACE).color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={d.imageUrl} alt={d.label} className="w-5 h-5 object-contain" />
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                        {newDofusId && (
+                          <p className="mt-1.5 text-caption text-primary/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Couleur accent</label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {COLOR_PALETTE.map(c => (
+                          <button key={c.value} onClick={() => setNewStepColor(c.value)} title={c.label}
+                            className={`w-6 h-6 rounded-full border-2 transition-all ${newStepColor === c.value ? "border-border scale-125" : "border-transparent opacity-60 hover:opacity-100"}`}
+                            style={{ backgroundColor: c.value }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Image du bloc — champ partagé avec l'édition (upload scope `guides`,
+                        aperçu nu, retrait). Sur un SÉPARATEUR, elle remplit la droite du bandeau. */}
+                    <BlockImageField value={newStepImage} onChange={setNewStepImage} />
+
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleAddStep} disabled={isPending}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Créer
+                      </button>
+                      <button onClick={() => setAddingStep(false)}
+                        className="px-4 py-2 bg-muted hover:bg-muted text-muted-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Liste ordonnée (séparateurs + blocs) */}
+            {localMilestones.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 border border-dashed border-border rounded-xl">
+                <Zap className="w-12 h-12 text-subtle-foreground mb-4" />
+                <p className="text-subtle-foreground font-semibold uppercase text-xs tracking-wide italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
+              </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleMilestoneDragStart}
+                onDragOver={handleMilestoneDragOver}
+                onDragEnd={handleMilestoneDragEnd}
+                onDragCancel={handleMilestoneDragCancel}
+              >
+                <SortableContext items={sortedMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {sortedMilestones.map((m, index) => {
+                      const prevContent = sortedMilestones.slice(0, index).reverse().find((item) => !isSeparatorMilestone(item));
+                      const showChapterLabel = !isSeparatorMilestone(m) && (!prevContent || prevContent.chapter !== m.chapter);
+
+                      return (
+                        <div key={m.id} className="space-y-2">
+                          {showChapterLabel && (
+                            <div className="flex items-center gap-2 pt-2 pb-1 px-1">
+                              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-caption font-semibold font-mono rounded tracking-wide border border-border">
+                                CH.{m.chapter}
+                              </span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{m.chapterLabel}</span>
+                            </div>
+                          )}
+                          {isSeparatorMilestone(m) ? (
+                            <SortableSeparatorRow
+                              milestone={m}
+                              isPending={isPending}
+                              onSelect={() => selectBlock(m.id)}
+                              onDelete={() => setPendingDelete(m)}
+                            />
+                          ) : (
+                            <div className="border border-border rounded-xl overflow-hidden bg-surface/10">
+                              <SortableMilestoneRow
+                                milestone={m}
+                                isExpanded={expandedMilestones.has(m.id)}
+                                isSelected={selectionTargetsRushEditorBlock(editor.selection, m.id)}
+                                isPending={isPending}
+                                onToggle={() => setExpandedMilestones(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })}
+                                onSelect={() => selectBlock(m.id)}
+                                onSelectQuest={(questId) => selectQuest(m.id, questId)}
+                                onAddSequence={() => startAddSequence(m.id)}
+                                onDelete={() => setPendingDelete(m)}
+                                onDeleteSequence={handleDeleteSequence}
+                                onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+                {/* Fantôme du bloc saisi : il suit le curseur HORS du flux de la liste. Sans
+                    lui, l'élément glissé restait solidaire du conteneur qui défile — sur une
+                    longue remontée (scroll automatique), il dérivait du curseur et le drop
+                    tombait à côté. */}
+                <DragOverlay dropAnimation={null}>
+                  {(() => {
+                    const dragged = activeDragId ? sortedMilestones.find(x => x.id === activeDragId) : null;
+                    if (!dragged) return null;
+                    const t = getMilestoneTypeInfo(dragged.type as MilestoneType);
+                    return (
+                      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-2 shadow-2xl">
+                        <span
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                          style={{ background: t.color + "20", color: t.color }}
+                        >
+                          {t.icon}
+                        </span>
+                        <span className="truncate text-sm font-bold text-foreground">{dragged.title}</span>
+                        <span className="shrink-0 text-caption text-muted-foreground">
+                          {dragged.sequences.length} quête{dragged.sequences.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </motion.div>
+            }
+          />
+        )}
+
+        {activeTab === "branches" && (
+          <RushBranchesCockpit
+            view={branches}
+            classView={classBranches}
+            milestones={routeMilestones}
+            onOpenQuest={selectQuest}
+            onCreateQuest={createQuestFromBranch}
+          />
+        )}
+
+        {activeTab === "problems" && (
+          <RushProblemsPanel
+            milestones={localMilestones}
+            onOpenQuest={selectQuest}
+            onOpenBlock={selectBlock}
+          />
+        )}
+
+        {activeTab === "settings" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Paramètres du guide</h2>
+              <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
+              <div className="h-px bg-muted/50" />
+              <ToggleRow label="En construction — espace membres" description="Remplace le guide par l'avis d'arrivée dans le tableau de bord et le hub de quêtes. Aucun effet sur la page publique." value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
+              <div className="h-px bg-muted/50" />
+              <ToggleRow label="En construction — page publique" description="Sert l'avis d'arrivée sur /guides/rush-sylvestre, la passe en noindex et la retire du sitemap. Éteint = guide public et indexable." value={isPublicUnderConstruction} onToggle={() => handleToggle("isPublicUnderConstruction")} disabled={isPending} color="amber" />
+              <div className="h-px bg-muted/50" />
+              <div className="p-3 bg-muted/60 rounded-xl text-caption text-muted-foreground space-y-1">
+                <p><span className="text-muted-foreground font-bold">Slug :</span> rush-sylvestre</p>
+                <p><span className="text-muted-foreground font-bold">Mode :</span> TIMELINE</p>
+                <p><span className="text-muted-foreground font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
+                {/* La page PUBLIQUE lit `isPublicUnderConstruction` (drapeau distinct) : on donne le
+                    lien direct et son état pour contrôler le rendu sans chercher l'URL. */}
+                <p>
+                  <span className="text-muted-foreground font-bold">URL publique :</span>{" "}
+                  <a
+                    href="/guides/rush-sylvestre"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline decoration-dotted underline-offset-2 hover:text-primary"
+                  >
+                    /guides/rush-sylvestre
+                  </a>
+                  <span className={isPublicUnderConstruction ? "text-warning" : "text-muted-foreground"}>
+                    {isPublicUnderConstruction ? " · en construction" : " · publiée"}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/*
+              Colonne 2 (E2c) — l'effet **mesuré** de chaque interrupteur. Avant, la page
+              s'arrêtait à 576 px et laissait la moitié droite vide : on y écrit ce que
+              chaque bascule coupe réellement, et l'état du guide que ces bascules servent.
+            */}
+            <aside className="space-y-4">
+              <div className="p-5 bg-surface/60 border border-border rounded-xl space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Ce que chaque interrupteur coupe</h3>
+                <ul className="space-y-2 text-caption">
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-primary" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">Guide actif</b> — éteint, le guide disparaît du tableau de bord et du hub de quêtes ; rien n&apos;est supprimé.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isUnderConstruction ? "bg-warning" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">En construction — espace membres</b> — remplace le guide par l&apos;avis d&apos;arrivée. La page publique n&apos;est pas touchée.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isPublicUnderConstruction ? "bg-warning" : "bg-muted"}`} aria-hidden />
+                    <span className="text-muted-foreground">
+                      <b className="text-foreground">En construction — page publique</b> — avis d&apos;arrivée, <code>noindex</code> et retrait du sitemap. Éteint = page indexable.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-5 bg-surface/60 border border-border rounded-xl space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">État du guide</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <PreviewStat label="Blocs" value={localMilestones.length} />
+                  <PreviewStat label="Quêtes" value={editor.totalQuestCount} />
+                </div>
+                <p className="text-caption text-muted-foreground">
+                  Une bascule s&apos;applique tout de suite ; le studio garde l&apos;état réel de la base (aucun brouillon).
+                </p>
+              </div>
+            </aside>
+          </motion.div>
+        )}
+        {activeTab === "launch" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
+            {/* Colonne 1 — le parcours de lancement et les métiers détectés. */}
+            <div className="space-y-4">
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#e6b96b]" /> Lancement du Rush
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Aperçu du parcours de lancement proposé aux membres. Les <b className="text-foreground">métiers requis</b> sont
+                <b className="text-foreground"> détectés automatiquement</b> à partir des séquences (tag « métier »).
+              </p>
+
+              <div className="h-px bg-muted/50" />
+
+              {/* Parcours */}
+              <div className="space-y-2">
+                {[
+                  { icon: "spark", label: "Choix du personnage", desc: "Personnage principal ou mule (traçé par characterSlot)." },
+                  { icon: "link", label: "Liaison Metamob", desc: "Détecte si le pseudo est déjà relié (sinon bouton « Lier »)." },
+                  { icon: "reset", label: "Réinitialiser l'alignement", desc: "Action optionnelle proposée à l'utilisateur." },
+                ].map((s) => (
+                  <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border">
+                    {s.icon === "spark" ? <Sparkles className="w-4 h-4 text-primary" /> : s.icon === "link" ? <Link2 className="w-4 h-4 text-primary" /> : <RotateCcw className="w-4 h-4 text-[#e6b96b]" />}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{s.label}</p>
+                      <p className="text-caption text-muted-foreground">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-px bg-muted/50" />
+
+              {/* Métiers requis détectés */}
+              <div>
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-2">
+                  <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis détectés ({launchMetiers.length})
+                </p>
+                {launchMetiers.length === 0 ? (
+                  <p className="text-caption text-muted-foreground">Aucun métier requis sur ce guide.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {launchMetiers.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-[#121821] border border-border">
+                        <span className="text-xs font-bold text-foreground">{m.name}</span>
+                        <span className="text-caption font-mono font-bold text-[#e6b96b]">Niv. {m.level}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="h-px bg-muted/50" />
+              <p className="text-caption text-muted-foreground">
+                👉 Face au membre : les métiers <b className="text-foreground">déjà déclarés</b> sur son profil apparaissent
+                cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
+              </p>
+            </div>
+            </div>
+
+            {/* Colonne 2 (E2c) — d'abord ce que le membre lit réellement, puis son édition. */}
+            <div className="space-y-4">
+              <MemberPreviewFrame label="Aperçu membre — modale de lancement">
+                <div className="space-y-2 text-xs">
+                  <ul className="space-y-1">
+                    {uiConfig.launch.showMetamob && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Link2 className="h-3.5 w-3.5" aria-hidden /> Liaison Metamob (bouton « Lier » si le pseudo n&apos;est pas relié)
+                      </li>
+                    )}
+                    {uiConfig.launch.showResetAlignment && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Réinitialiser l&apos;alignement (optionnel)
+                      </li>
+                    )}
+                    {uiConfig.launch.showMetiers && (
+                      <li className="flex items-center gap-1.5 text-foreground">
+                        <Hammer className="h-3.5 w-3.5" aria-hidden /> Métiers requis :{" "}
+                        {launchMetiers.length > 0
+                          ? launchMetiers.map((m) => `${m.name} (niv. ${m.level})`).join(" · ")
+                          : "aucun"}
+                      </li>
+                    )}
+                  </ul>
+                  {uiConfig.penseBete.map((sec) => (
+                    <div key={sec.id} className="rounded-lg border border-border bg-elevated p-2">
+                      <p className="font-semibold text-foreground">{sec.title}</p>
+                      <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                        {sec.items.map((item) => (
+                          <li key={item.id}>
+                            {item.label}
+                            {item.detail ? ` — ${item.detail}` : ""}
+                          </li>
+                        ))}
+                        {sec.items.length === 0 && <li>Aucun item</li>}
+                      </ul>
+                    </div>
+                  ))}
+                  {uiConfig.penseBete.length === 0 && (
+                    <p className="text-muted-foreground">Aucune section : la modale n&apos;affiche pas de pense-bête.</p>
+                  )}
+                </div>
+              </MemberPreviewFrame>
+
+            {/* Config GOD éditable */}
+            <div className="p-6 bg-surface/60 border border-border rounded-xl space-y-5">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <Settings className="w-4 h-4 text-[#e6b96b]" /> Configurable
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Éditez le <b className="text-foreground">pense-bête</b> + options de la modale de lancement (visible par tous).
+              </p>
+              <div className="space-y-2">
+                {([
+                  { k: "showMetamob", label: "Afficher la liaison Metamob" },
+                  { k: "showResetAlignment", label: "Afficher le reset d'alignement" },
+                  { k: "showMetiers", label: "Afficher la détection des métiers" },
+                ] as const).map((opt) => (
+                  <label key={opt.k} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border border-border cursor-pointer">
+                    <span className="text-xs font-bold text-foreground">{opt.label}</span>
+                    <input type="checkbox" checked={uiConfig.launch[opt.k]} onChange={(e) => setUiConfig((c) => ({ ...c, launch: { ...c.launch, [opt.k]: e.target.checked } }))} className="accent-amber-400" />
+                  </label>
+                ))}
+              </div>
+              <div className="h-px bg-muted/50" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Pense-bête</p>
+                  <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: [...c.penseBete, { id: `s-${Date.now()}`, title: "Nouvelle section", items: [] }] }))} className="px-2 py-1 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-caption font-semibold uppercase">+ Section</button>
+                </div>
+                {uiConfig.penseBete.map((sec, si) => (
+                  <div key={sec.id || si} className="space-y-2 p-3 rounded-xl bg-[#121821] border border-border">
+                    <div className="flex items-center gap-2">
+                      <input value={sec.title} onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], title: e.target.value }; return { ...c, penseBete: n }; })} className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si > 0) { const tmp = n[si - 1]; n[si - 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; if (si < n.length - 1) { const tmp = n[si + 1]; n[si + 1] = n[si]; n[si] = tmp; } return { ...c, penseBete: n }; })} disabled={si === uiConfig.penseBete.length - 1} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: c.penseBete.filter((_, j) => j !== si) }))} className="p-1.5 rounded-md text-destructive hover:bg-destructive/40"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                    {sec.items.map((item, ii) => (
+                      <div key={item.id || ii} className="space-y-1 p-2 rounded-lg bg-background/30 border border-border">
+                        <input value={item.label} placeholder="Libellé" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, label: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={item.detail || ""} placeholder="Détail" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, detail: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={(item.metiers || []).join(", ")} placeholder="Métiers (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, metiers: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <input value={(item.alternative || []).join(", ")} placeholder="Alternative (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, alternative: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground" />
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii > 0) { const tmp = items2[ii - 1]; items2[ii - 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; const items2 = [...n[si].items]; if (ii < items2.length - 1) { const tmp = items2[ii + 1]; items2[ii + 1] = items2[ii]; items2[ii] = tmp; } n[si] = { ...n[si], items: items2 }; return { ...c, penseBete: n }; })} disabled={ii === sec.items.length - 1} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
+                          <span className="flex-1" />
+                          <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.filter((_, j) => j !== ii) }; return { ...c, penseBete: n }; })} className="text-[10px] text-destructive hover:underline">Retirer</button>
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: [...n[si].items, { id: `i-${Date.now()}-${n[si].items.length}`, label: "" }] }; return { ...c, penseBete: n }; })} className="px-2 py-1 rounded-lg bg-muted hover:bg-muted text-foreground text-caption font-semibold uppercase">+ Item</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold uppercase tracking-wider disabled:opacity-50">
+                {uiSaving ? "Enregistrement…" : "Enregistrer la config"}
+              </button>
+            </div>
+            </div>
+          </motion.div>
+        )}
+
+      </div>
+      {/* S4-4 — import consolidé : dry-run obligatoire, jamais destructif. */}
+      <RushImportDialog open={importJsonOpen} onClose={() => setImportJsonOpen(false)} />
+
+      {/* Confirmation de suppression — `Dialog` Radix (Échap, focus piégé, `aria-*`) au lieu
+          du `confirm()` natif : on peut enfin dire ce qui part avec le bloc (`E4`). */}
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer « {pendingDelete?.title} » ?</DialogTitle>
+            <DialogDescription>
+              {pendingDelete && pendingDelete.sequences.length > 0
+                ? `${pendingDelete.sequences.length} quête${pendingDelete.sequences.length > 1 ? "s" : ""} de ce bloc ${pendingDelete.sequences.length > 1 ? "partiront" : "partira"} avec lui. `
+                : "Ce bloc ne contient aucune quête. "}
+              Suppression immédiate, sans retour en arrière possible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingDelete(null)}
+              className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide text-foreground bg-muted hover:bg-muted border border-border transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const target = pendingDelete;
+                setPendingDelete(null);
+                if (target) handleDeleteMilestone(target.id);
+              }}
+              disabled={isPending}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wide bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30 transition-all disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3" /> Supprimer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Palette Ctrl+K + garde de sortie (E1). */}
+      <RushEditorCommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        commands={editor.commands}
+        actions={paletteActions}
+        onRun={runPaletteCommand}
+      />
+      <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
+
+      {/* Changement de cible alors qu'une saisie n'est pas enregistrée : modale Radix,
+          jamais `confirm()` natif (verrou E4). */}
+      <Dialog open={!!pendingSwitch} onOpenChange={(open) => { if (!open) setPendingSwitch(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifications non enregistrées</DialogTitle>
+            <DialogDescription>
+              La saisie en cours sera perdue si vous changez de bloc ou de quête.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setPendingSwitch(null)}
+              className="rounded-lg border border-border bg-muted px-4 py-2 text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-muted">
+              Rester ici
+            </button>
+            <button type="button"
+              onClick={() => { const action = pendingSwitch; setPendingSwitch(null); action?.(); }}
+              className="rounded-lg border border-destructive/30 bg-destructive/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-destructive transition-colors hover:bg-destructive/30">
+              Continuer sans enregistrer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Navigation flottante — pilule verticale */}
+      {typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-surface/90 border border-primary/20 rounded-xl py-2 px-1.5 shadow-2xl "
+          style={{ top: '50%', transform: 'translateY(-50%)' }}
+        >
+          <button
+            onClick={() => {
+              const container = godScrollContainer();
+              if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            disabled={!showScrollTop}
+            className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer' : 'text-subtle-foreground cursor-not-allowed'}`}
+            title="Haut"
+            aria-label="Haut"
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              const container = godScrollContainer();
+              if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+              else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+            }}
+            disabled={!showScrollBottom}
+            className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer' : 'text-subtle-foreground cursor-not-allowed'}`}
+            title="Bas"
+            aria-label="Bas"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ─── StatPill ─────────────────────────────────────────────────────────────────
+function StatPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="text-center">
+      <p className="text-xl font-semibold text-foreground">{value}</p>
+      <p className="text-caption text-muted-foreground uppercase tracking-wide">{label}</p>
+    </div>
+  );
+}
+
+function PreviewStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="px-3 py-2 rounded-xl bg-muted/70 border border-border">
+      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className="text-caption text-muted-foreground uppercase tracking-wide">{label}</p>
+    </div>
+  );
+}
+
+// ─── ToggleRow ────────────────────────────────────────────────────────────────
+function ToggleRow({ label, description, value, onToggle, disabled, color }: { label: string; description: string; value: boolean; onToggle: () => void; disabled: boolean; color: "emerald" | "amber" }) {
+  const on = color === "emerald" ? "bg-primary border-primary" : "bg-warning border-warning";
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-foreground">{label}</p>
+        {/* `break-words` : une description longue (URL, « En construction ») ne doit jamais
+            élargir la ligne au-delà de la carte — sinon le bouton part hors du cadre. */}
+        <p className="text-caption text-muted-foreground break-words">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
+        onClick={onToggle}
+        disabled={disabled}
+        className={`relative mt-0.5 h-6 w-12 shrink-0 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-muted border-border-strong"}`}
+      >
+        <div className={`pointer-events-none absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
+      </button>
+    </div>
+  );
+}
+
+// ─── BlockImageField ──────────────────────────────────────────────────────────
+/**
+ * Champ « Image du bloc » — PARTAGÉ par les trois formulaires du studio (création,
+ * édition d'un bloc, édition d'un séparateur) : une seule écriture du couple
+ * upload + URL + aperçu + retrait, donc aucun formulaire ne peut l'oublier.
+ * Upload en scope `guides` : l'image sert le guide PUBLIC (visiteur anonyme) —
+ * `docs` est réservé aux pièces privées. Aperçu NU (ni tuile ni cadre).
+ */
+function BlockImageField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const preview = value ? safeImageUrl(value) : "";
+  return (
+    <div>
+      <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+        Image du bloc <span className="text-subtle-foreground">(optionnel)</span>
+      </label>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/50"
+          placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
+        />
+        <label className="cursor-pointer px-2 py-1 bg-muted hover:bg-muted text-foreground rounded-lg text-caption flex items-center gap-1">
+          Importer
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const url = await uploadImageFile(f, "guides");
+              if (url) { onChange(url); toast.success("Image importée ✓"); }
+              else toast.error("Upload impossible");
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {value ? (
+          <>
+            {/* Aperçu nu : on voit ce qu'on pose avant d'enregistrer. */}
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={preview}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
+              />
+            ) : null}
+            <button type="button" onClick={() => onChange("")} title="Retirer l'image"
+              className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ─── RichTextSyntaxHint ──────────────────────────────────────────────────────
+/**
+ * Rappel de syntaxe du texte enrichi, affiché sous CHAQUE champ de conseil (bloc Tips,
+ * tips d'un bloc, tips d'une quête) : sans ça, la syntaxe du lien nommé et la position
+ * copiable resteraient un secret d'initié. **Source unique** de l'aide.
+ *
+ * ⚠️ Les exemples viennent de `RUSH_RICH_TEXT_SYNTAX` (le module du rendu lui-même) et
+ * `tests/unit/rush-rich-text.test.ts` vérifie qu'ils sont TOUS reconnus par `splitRichText` :
+ * l'aide ne peut donc ni promettre une forme que le rendu ignore, ni passer sous silence une
+ * forme reconnue — `/w` manquait jusqu'au 08/10/2026, alors que le parseur l'accepte depuis
+ * toujours, et une position nue laissait croire qu'elle suffisait.
+ */
+function RichTextSyntaxHint() {
+  return (
+    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+      Lien nommé : <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.link}</code> — seul le nom
+      s&apos;affiche, jamais l&apos;URL. Position copiable :{" "}
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.bracket}</code>,{" "}
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.w}</code> ou{" "}
+      <code className="text-primary/80">{RUSH_RICH_TEXT_SYNTAX.travel}</code> · un clic copie{" "}
+      <code className="text-primary/80">/travel x,y</code>. Sans crochets ni commande, une position
+      reste du texte (<code className="text-primary/80">{RUSH_RICH_TEXT_NOT_ACCEPTED}</code>).
+    </p>
+  );
+}
+
+// ─── MemberPreviewFrame ──────────────────────────────────────────────────────
+/**
+ * Cadre d'aperçu « côté membre ».
+ *
+ * 🎯 Les composants du membre (ligne de quête, puces de conseils, fiche « Détails ») ne se
+ * peignent qu'avec les **jetons de thème**, alors que le studio God pose ses couleurs en dur
+ * (`bg-surface`) : sans ce cadre, l'aperçu montrerait autre chose que ce que le joueur voit
+ * (thème clair de la personne connectée appliqué à un écran sombre). On repose donc le thème du
+ * membre (`.dark`, celui par défaut de l'overlay) sur ce seul sous-arbre — mesuré le 08/10/2026.
+ */
+function MemberPreviewFrame({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="dark rounded-xl border border-border bg-surface p-3 text-foreground">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+// ─── TipsLinesEditor ─────────────────────────────────────────────────────────
+/**
+ * Champ « conseils » d'une quête — **une ligne = une puce**.
+ *
+ * 🎯 Mesure (08/10/2026) : côté membre, les conseils se lisent en puces (`splitTipLines` →
+ * `RushTipLines`, la brique partagée de l'overlay et du dashboard), mais le studio n'offrait
+ * qu'un `textarea` muet : rien n'annonçait qu'une **ligne** devient une puce, et l'auteur
+ * pouvait tout écrire d'un trait sans comprendre pourquoi le rendu était un pavé. L'aperçu
+ * ci-dessous est celui du **membre** : ce que l'auteur voit est ce que le joueur lira.
+ */
+function TipsLinesEditor({
+  value, onChange, rows = 3, placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const bullets = splitTipLines(value);
+  return (
+    <div className="space-y-1.5">
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-warning/80 focus:outline-none focus:border-warning/30 resize-none"
+      />
+      <RichTextSyntaxHint />
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Une ligne = une puce ({bullets.length > 0 ? `${bullets.length} puce${bullets.length > 1 ? "s" : ""}` : "aucune pour l'instant"}) ·
+        un <code className="text-primary/80">+</code> ou un{" "}
+        <code className="text-primary/80">·</code> sépare aussi deux puces.
+      </p>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {`Les lignes « ${RUSH_CONSTRAINT_LABELS.join(" : … », « ")} : … » deviennent des infos illustrées (icônes Dofus) dans le guide, le dashboard et l'overlay.`}
+      </p>
+      {bullets.length > 0 && (
+        <MemberPreviewFrame label="Aperçu membre — conseils">
+          <RushTipLines text={value} />
+        </MemberPreviewFrame>
+      )}
+    </div>
+  );
+}
+
+// ─── SortableSeparatorRow ─────────────────────────────────────────────────────
+function SortableSeparatorRow(props: {
+  milestone: Milestone;
+  isPending: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SeparatorRowAdmin {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
+function SeparatorRowAdmin({
+  milestone,
+  isPending,
+  onSelect,
+  onDelete,
+  dragHandleProps,
+}: {
+  milestone: Milestone;
+  isPending: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  dragHandleProps?: any;
+}) {
+  const color = milestone.accentColor || "#d4a853";
+
+  return (
+    <div className="group rounded-xl border border-warning/15 bg-warning/[0.04] px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground transition-colors flex-shrink-0 touch-none">
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+        <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color }} />
+
+            <div className="flex-1 min-w-0 py-1">
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning/60 mb-1">Séparateur</p>
+              <p
+                className="font-[family-name:var(--font-cinzel)] text-sm sm:text-base font-bold uppercase tracking-[0.14em] truncate"
+                style={{ color, textShadow: `0 0 18px ${color}30` }}
+              >
+                {milestone.title}
+              </p>
+            </div>
+            {/* Vignette : on voit l'image posée sur le bandeau sans ouvrir l'édition. */}
+            {milestone.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={safeImageUrl(milestone.imageUrl)}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
+              />
+            )}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button onClick={onSelect} aria-label="Éditer ce séparateur dans l'inspecteur" className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
+              <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
+            </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SortableMilestoneRow ─────────────────────────────────────────────────────
+function SortableMilestoneRow(props: {
+  milestone: Milestone;
+  isExpanded: boolean;
+  isSelected: boolean;
+  isPending: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
+  onDelete: () => void;
+  onDeleteSequence: (id: string) => void;
+  onReorderSequences: (ids: string[]) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <MilestoneRow {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
+// ─── MilestoneRow ─────────────────────────────────────────────────────────────
+// ─── E5 — markdown et liens des blocs Combat / Conseils ──────────────────────
+
+const RUSH_MARKDOWN_TOOLS = [
+  { label: "G", title: "Gras", before: "**", after: "**" },
+  { label: "I", title: "Italique", before: "*", after: "*" },
+  { label: "H", title: "Titre", before: "## ", after: "" },
+  { label: "•", title: "Liste", before: "- ", after: "" },
+  { label: "or", title: "Texte or", before: "{or}", after: "{/or}" },
+  { label: "vert", title: "Texte vert", before: "{vert}", after: "{/vert}" },
+  { label: "danger", title: "Texte danger", before: "{danger}", after: "{/danger}" },
+  { label: "ambre", title: "Texte ambre", before: "{ambre}", after: "{/ambre}" },
+  { label: "info", title: "Texte info", before: "{info}", after: "{/info}" },
+] as const;
+
+function RushMarkdownToolbar({
+  textareaRef,
+  value,
+  onChange,
+}: {
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const apply = (before: string, after: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onChange(`${value}${before}${after}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = value.slice(start, end) || "texte";
+    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1" role="toolbar" aria-label="Mise en forme du conseil">
+      {RUSH_MARKDOWN_TOOLS.map((tool) => (
+        <button
+          key={tool.label}
+          type="button"
+          onClick={() => apply(tool.before, tool.after)}
+          title={tool.title}
+          aria-label={tool.title}
+          className="rounded border border-border px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
+// ─── BlockInspectorForm (E1) ─────────────────────────────────────────────────
+/**
+ * Formulaire d'édition d'un bloc, **extrait tel quel** de `MilestoneRow` (E1).
+ *
+ * La liste ne porte plus aucun formulaire : ce panneau est monté par l'inspecteur.
+ * Le JSX est celui du studio d'origine (aucune réécriture) — la DA sera reprise en E4.
+ */
+function RushBlockLinksEditor({
+  links,
+  onChange,
+}: {
+  links: RushBlockLink[];
+  onChange: (links: RushBlockLink[]) => void;
+}) {
+  const update = (index: number, patch: Partial<RushBlockLink>) => {
+    onChange(links.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+  };
+  const remove = (index: number) => onChange(links.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border p-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+          Liens ({links.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => onChange([...links, { label: "", url: "" }])}
+          disabled={links.length >= 10}
+          className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-40"
+        >
+          + Lien
+        </button>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-caption text-muted-foreground">Aucun lien : vidéo YouTube, guide écrit…</p>
+      ) : (
+        <ul className="space-y-1">
+          {links.map((link, index) => (
+            <li key={index} className="flex flex-wrap items-center gap-1.5">
+              <input
+                value={link.label}
+                onChange={(e) => update(index, { label: e.target.value })}
+                placeholder="Nom (ex. Vidéo : le donjon)"
+                className="min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              <input
+                value={link.url}
+                onChange={(e) => update(index, { url: e.target.value })}
+                placeholder="https://…"
+                className="min-w-0 flex-[2] rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              {link.url && <SiteFavicon url={link.url} className="h-4 w-4" />}
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                aria-label="Supprimer ce lien"
+                className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-caption text-muted-foreground">
+        10 liens max · http(s) uniquement · la favicon est automatique.
+      </p>
+    </div>
+  );
+}
+
+
+function BlockInspectorForm({
+  milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
+  onApplyBlockRoute, onSelectQuest, onAddSequence,
+  milestones, onBulkRoute, onBulkMove, onBulkDelete, onPublishQuest,
+  isFullscreen, onToggleFullscreen,
+}: {
+  milestone: Milestone;
+  editingData: Milestone;
+  isPending: boolean;
+  onEditChange: (patch: Partial<Milestone>) => void;
+  onSave: () => void;
+  onCancelEdit: () => void;
+  /**
+   * E3a — la **route du bloc** (cité / Ordre / palier / classe) s'applique ici. Elle vivait
+   * dans la liste, sous la ligne dépliée : un formulaire au milieu d'une liste, exactement
+   * ce qu'E1 a supprimé pour les quêtes.
+   */
+  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3a — les quêtes du bloc, cliquables, sans quitter l'inspecteur. */
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
+  /** E3c — les autres blocs du guide, pour « Déplacer vers ». */
+  milestones: Milestone[];
+  onBulkRoute: (sequenceIds: string[], route: RushBlockRouteValues) => void;
+  onBulkMove: (sequenceIds: string[], targetMilestoneId: string) => void;
+  onBulkDelete: (sequenceIds: string[]) => void;
+  /** Bloc B — publier / dépublier la page publique d'une quête. */
+  onPublishQuest: (sequenceId: string, publish: boolean) => void;
+  /** Tous les types de bloc : même instance, montée dans l'inspecteur ou en modale. */
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+}) {
+  const color = milestone.accentColor || "#10b981";
+  const type = editingData?.type ?? milestone.type;
+  const isTips = type === "INFO";
+  // Le séparateur porte ses métadonnées dans `description` (position, lien, note) : on ne
+  // montre donc pas le champ « description » brut, qui les corromprait.
+  const isSeparator = type === "SEPARATEUR";
+  const isCombat = isRushCombatBlock(type);
+  const sequences = milestone.sequences ?? [];
+  // E3c — la sélection est locale au bloc inspecté : changer de bloc repart à zéro.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState("");
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  /** E5 — markdown : la barre d'outils insère au curseur, pas à la fin. */
+  const tipsRef = useRef<HTMLTextAreaElement>(null);
+  const draftLinks = parseRushBlockLinks(editingData?.links);
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkTarget("");
+    setPendingBulkDelete(false);
+  }, [milestone.id]);
+  const sequenceIds = useMemo(() => sequences.map((seq) => seq.id), [sequences]);
+  const bulk = rushBulkSelectionState(selectedIds, sequenceIds);
+  const bulkIds = () => [...pruneRushBulkSelection(selectedIds, sequenceIds)];
+  const targetBlocks = milestones.filter(
+    (m) => m.id !== milestone.id && m.type !== "SEPARATEUR" && m.type !== "INFO",
+  );
+
+  return (
+    <div className="space-y-2">
+      {/* Type selector inline */}
+      <div className="flex flex-wrap gap-1">
+        {MILESTONE_TYPES.map(t => (
+          <button key={t.value} onClick={() => onEditChange({ type: t.value })}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-semibold border transition-all"
+            style={(editingData?.type ?? milestone.type) === t.value
+              ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" }
+              : { color: "#71717a", borderColor: "transparent" }
+            }
+          >
+            {t.icon}{t.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          aria-label={isFullscreen ? "Revenir au panneau" : "Ouvrir le bloc en grand"}
+          className="ml-auto rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {isFullscreen
+            ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+            : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input value={editingData?.title ?? ""} onChange={e => onEditChange({ title: e.target.value })}
+          className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/50"
+          placeholder="Nom du bloc" autoFocus
+        />
+        {!isSeparator && (
+          <input value={editingData?.description ?? ""} onChange={e => onEditChange({ description: e.target.value })}
+            className="flex-1 min-w-[160px] bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:border-primary/50"
+            placeholder="Description (optionnel)"
+          />
+        )}
+      </div>
+
+      {/* E3a — route du bloc ; E3c — la même barre vise la sélection dès qu'il y en a une. */}
+      {!isTips && !isSeparator && !isCombat && (
+        <RushRouteBlockBar
+          milestoneId={milestone.id}
+          count={bulk.count > 0 ? bulk.count : sequences.length}
+          isPending={isPending}
+          onApply={(_, route) => {
+            if (bulk.count > 0) onBulkRoute(bulkIds(), route);
+            else onApplyBlockRoute(milestone.id, route);
+          }}
+          title={bulk.count > 0 ? "Route de la sélection" : undefined}
+          applyLabel={bulk.count > 0 ? `Appliquer à la sélection (${bulk.count})` : undefined}
+          scopeLabel={bulk.count > 0 ? "de la sélection" : undefined}
+        />
+      )}
+      {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
+      {isTips ? (
+        <RushBlockMetaEditor
+          values={parseBlockMeta(editingData?.tips ?? "")}
+          onChange={(patch) => {
+            const current = parseBlockMeta(editingData?.tips ?? "");
+            const updated = formatBlockMeta({ ...current, ...patch });
+            onEditChange({ tips: updated });
+          }}
+          accentColor={editingData?.accentColor ?? color}
+          isSeparator={false}
+        />
+      ) : isSeparator ? (
+        // E3a — le bandeau s'édite **ici** (titre, position, lien, note, image, couleur) :
+        // c'était le dernier formulaire inline de la liste.
+        <RushBlockMetaEditor
+          values={parseBlockMeta(editingData?.description ?? "")}
+          onChange={(patch) => {
+            const current = parseBlockMeta(editingData?.description ?? "");
+            const updated = formatBlockMeta({ ...current, ...patch });
+            onEditChange({ description: updated });
+          }}
+          accentColor={editingData?.accentColor ?? color}
+          isSeparator={true}
+        />
+      ) : (
+        <>
+          <textarea
+            ref={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={e => onEditChange({ tips: e.target.value })}
+            className="min-h-[160px] w-full resize-y rounded-lg border border-border bg-background/80 px-2 py-1.5 text-xs text-warning/80 focus:border-warning/30 focus:outline-none"
+            placeholder="💡 Stratégie / conseils — markdown : **gras**, *italique*, ## titre, - liste, {or}…{/or}"
+            rows={6}
+          />
+          <RushMarkdownToolbar
+            textareaRef={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={(tips) => onEditChange({ tips })}
+          />
+          <RichTextSyntaxHint />
+          <div className="rounded-lg border border-border bg-background/40 p-2">
+            <p className="mb-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Aperçu du texte
+            </p>
+            <RushMarkdown blocks={parseRushMarkdown(editingData?.tips)} />
+          </div>
+          {isCombat && (
+            <RushBlockLinksEditor
+              links={draftLinks}
+              onChange={(links) => onEditChange({ links })}
+            />
+          )}
+        </>
+      )}
+      {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
+          DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
+          dans la ligne). Champ partagé avec la création et le séparateur. */}
+      <BlockImageField
+        value={editingData?.imageUrl ?? ""}
+        onChange={(url) => onEditChange({ imageUrl: url })}
+      />
+      {isCombat && (
+        <div className="space-y-1 rounded-xl border border-dashed border-border p-2">
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+            Aperçu membre
+          </p>
+          <RushCombatBanner
+            type={type}
+            title={editingData?.title}
+            bodyText={editingData?.tips}
+            imageUrl={editingData?.imageUrl}
+            links={editingData?.links}
+            surface="page"
+          />
+        </div>
+      )}
+      {/* Dofus selector si type DOFUS */}
+      {editingData?.type === "DOFUS" && (
+        <div className="flex flex-wrap gap-1.5">
+          {DOFUS_LIST.map(d => (
+            <button key={d.id} onClick={() => onEditChange({ dofusId: d.id })}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-semibold border transition-all ${editingData.dofusId === d.id ? "border-border" : "border-border opacity-50 hover:opacity-100"}`}
+              style={{ color: d.color, borderColor: editingData.dofusId === d.id ? d.color : undefined, background: d.color + "15" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={d.imageUrl} alt={d.label} className="w-4 h-4 object-contain" />
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1">
+          {COLOR_PALETTE.map(c => (
+            <button key={c.value} onClick={() => onEditChange({ accentColor: c.value })} title={c.label}
+              className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+              style={{ backgroundColor: c.value }}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-1 ml-auto">
+          <button onClick={onSave} disabled={isPending} aria-label="Enregistrer le bloc" className="p-1.5 bg-primary/15 hover:bg-primary/30 text-primary rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
+          <button onClick={onCancelEdit} aria-label="Annuler l'édition du bloc" className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+
+      {/* E3a — les quêtes du bloc, cliquables ; E3c — cochables pour agir en masse. */}
+      {!isTips && !isSeparator && !isCombat && (
+        <div className="space-y-1.5 rounded-xl border border-border p-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Quêtes du bloc ({sequences.length})
+            </p>
+            <div className="flex items-center gap-2">
+              {sequences.length > 0 && (
+                <label className="flex cursor-pointer items-center gap-1.5 text-caption text-muted-foreground">
+                  <Checkbox
+                    checked={bulk.all ? true : bulk.some ? "indeterminate" : false}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds(checked === true ? selectAllRushBulk(sequenceIds) : new Set())
+                    }
+                    aria-label="Tout sélectionner"
+                  />
+                  Tout
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={onAddSequence}
+                className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                + Quête
+              </button>
+            </div>
+          </div>
+          {sequences.length === 0 ? (
+            <p className="text-caption text-muted-foreground">Aucune quête : ce bloc est vide.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {sequences.map((seq) => (
+                <li key={seq.id}>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.has(seq.id)}
+                      onCheckedChange={() =>
+                        setSelectedIds((prev) => toggleRushBulkSelection(prev, seq.id))
+                      }
+                      aria-label={`Sélectionner ${seq.subGuideName || seq.subGuideRef}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onSelectQuest(seq.id)}
+                      className="min-w-0 flex-1 truncate text-left text-xs text-foreground hover:underline"
+                    >
+                      {seq.subGuideName || seq.subGuideRef}
+                    </button>
+                    {seq.isPublished && seq.publicSlug && (
+                      <a
+                        href={`/guides/rush-sylvestre/q/${seq.publicSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="max-w-[10rem] shrink-0 truncate text-caption text-primary hover:underline"
+                        title="Ouvrir la page publique"
+                      >
+                        /{seq.publicSlug}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => onPublishQuest(seq.id, !seq.isPublished)}
+                      aria-label={
+                        seq.isPublished
+                          ? `Dépublier ${seq.subGuideName || seq.subGuideRef}`
+                          : `Publier ${seq.subGuideName || seq.subGuideRef}`
+                      }
+                      title={seq.isPublished ? "Dépublier (la page repasse en 404)" : "Publier une page publique"}
+                      className={`shrink-0 rounded-md p-1 transition-colors disabled:opacity-40 ${
+                        seq.isPublished
+                          ? "text-primary hover:bg-primary/10"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {seq.isPublished
+                        ? <Globe className="h-3.5 w-3.5" aria-hidden />
+                        : <GlobeLock className="h-3.5 w-3.5" aria-hidden />}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {/* E3c — actions de masse : visibles seulement quand une quête est cochée. */}
+      {!isTips && !isSeparator && bulk.count > 0 && (
+        <div className="space-y-1.5 rounded-xl border border-primary/30 bg-primary/5 p-2">
+          <p className="text-caption font-medium text-foreground">
+            {bulk.count} quête{bulk.count !== 1 ? "s" : ""} sélectionnée{bulk.count !== 1 ? "s" : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={bulkTarget} onValueChange={setBulkTarget}>
+              <SelectTrigger size="sm" aria-label="Bloc de destination" className="min-w-[140px]">
+                <SelectValue placeholder="Déplacer vers…" />
+              </SelectTrigger>
+              <SelectContent>
+                {targetBlocks.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              disabled={!bulkTarget || isPending}
+              onClick={() => {
+                onBulkMove(bulkIds(), bulkTarget);
+                setSelectedIds(new Set());
+                setBulkTarget("");
+              }}
+              className="rounded-lg border border-border px-2 py-1 text-caption font-medium text-foreground transition-colors hover:border-border-strong disabled:opacity-40"
+            >
+              Déplacer
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => setPendingBulkDelete(true)}
+              className="rounded-lg border border-destructive/30 px-2 py-1 text-caption font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
+            >
+              Supprimer
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Désélectionner
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation : la suppression de masse est irréversible, on liste ce qui part. */}
+      <Dialog open={pendingBulkDelete} onOpenChange={setPendingBulkDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer la sélection</DialogTitle>
+            <DialogDescription>
+              {bulk.count} quête{bulk.count !== 1 ? "s" : ""} vont être supprimées. Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-40 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+            {sequences
+              .filter((seq) => selectedIds.has(seq.id))
+              .slice(0, 8)
+              .map((seq) => (
+                <li key={seq.id} className="truncate">{seq.subGuideName || seq.subGuideRef}</li>
+              ))}
+            {bulk.count > 8 && <li>… et {bulk.count - 8} autre{bulk.count - 8 !== 1 ? "s" : ""}</li>}
+          </ul>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingBulkDelete(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                setPendingBulkDelete(false);
+                onBulkDelete(bulkIds());
+                setSelectedIds(new Set());
+              }}
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-caption font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-40"
+            >
+              Supprimer {bulk.count}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  );
+}
+
+function MilestoneRow({
+  milestone, isExpanded, isSelected, isPending,
+  onToggle, onSelect, onSelectQuest, onAddSequence, onDelete,
+  onDeleteSequence, onReorderSequences, dragHandleProps,
+}: {
+  milestone: Milestone; isExpanded: boolean; isSelected: boolean; isPending: boolean;
+  onToggle: () => void;
+  /** Ouvre le bloc dans l'inspecteur — la liste ne porte plus aucun formulaire. */
+  onSelect: () => void;
+  onSelectQuest: (questId: string) => void;
+  onAddSequence: () => void;
+  onDelete: () => void;
+  onDeleteSequence: (id: string) => void;
+  onReorderSequences: (ids: string[]) => void;
+  dragHandleProps?: any;
+}) {
+  const color = milestone.accentColor || "#10b981";
+  const typeInfo = getMilestoneTypeInfo(milestone.type);
+
+  // Dnd for sequences
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleSeqDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = milestone.sequences.map(s => s.id);
+    const oldIdx = ids.indexOf(active.id as string);
+    const newIdx = ids.indexOf(over.id as string);
+    onReorderSequences(arrayMove(ids, oldIdx, newIdx));
+  };
+
+  const dofusInfo = milestone.dofusId ? DOFUS_LIST.find(d => d.id === milestone.dofusId) : null;
+
+  // Un bloc CONSEIL / TIPS n'est pas un chapitre : il porte un texte + une image, rien
+  // d'autre. Ni option, ni compteur de quêtes, ni liste à déplier, ni ajout de quête.
+  const isTips = milestone.type === "INFO";
+
+  return (
+    <div className={isSelected ? "bg-surface/60" : "bg-surface/40"}>
+      <div className="flex items-center gap-2 px-4 py-2.5 group">
+        {/* Drag handle */}
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground transition-colors flex-shrink-0 touch-none">
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+
+        {/* Type badge */}
+        <div className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center" style={{ background: typeInfo.color + "20", color: typeInfo.color }}>
+          {typeInfo.icon}
+        </div>
+
+        {/* Color dot */}
+        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+
+        <button
+          onClick={() => { if (!isTips) onToggle(); }}
+          aria-expanded={isTips ? undefined : isExpanded}
+          className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
+        >
+              <span className="text-sm font-bold text-foreground truncate">{milestone.title}</span>
+              {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-muted text-muted-foreground font-bold uppercase flex-shrink-0">opt.</span>}
+              {!isTips && dofusInfo && (
+                <span className="flex items-center flex-shrink-0" title={dofusInfo.label}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={dofusInfo.imageUrl} alt={dofusInfo.label} className="w-4 h-4 object-contain" />
+                </span>
+              )}
+              {milestone.tips && (
+                <span title={milestone.tips} className="flex-shrink-0">
+                  <Info className="w-3 h-3 text-warning/60" />
+                </span>
+              )}
+              {/* Vignette de l'image du bloc : on voit ce qui est posé sans ouvrir l'édition.
+                  Le séparateur est celui qui en profite le plus (bandeau sans quêtes). */}
+              {milestone.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={safeImageUrl(milestone.imageUrl)}
+                  alt=""
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-border object-cover"
+                />
+              )}
+              {!isTips && (
+                <span className="text-caption text-subtle-foreground flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
+              )}
+              {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-subtle-foreground ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-subtle-foreground ml-auto flex-shrink-0" />)}
+            </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={onSelect} className="p-1.5 bg-muted hover:bg-muted text-muted-foreground rounded-lg transition-all" aria-label="Éditer ce bloc"><Pencil className="w-3 h-3" /></button>
+          <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-all" aria-label="Supprimer ce bloc"><Trash2 className="w-3 h-3" /></button>
+        </div>
+      </div>
+
+      {/* Sequences — jamais pour un bloc CONSEIL / TIPS : il n'accueille aucune quête. */}
+      <AnimatePresence>
+        {!isTips && isExpanded && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="pl-10 pr-4 pb-3 space-y-1.5">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
+                <SortableContext items={milestone.sequences.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  {milestone.sequences.map(seq => (
+                    <SortableSequenceRow
+                      key={seq.id}
+                      seq={seq}
+                      color={color}
+                      onEdit={() => onSelectQuest(seq.id)}
+                      onDelete={() => onDeleteSequence(seq.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+              {/* Le formulaire « Ajouter une quête » vit dans l'inspecteur : la liste ne
+                  pousse plus la position quand on édite (cause racine n°1 de la refonte). */}
+              <button
+                type="button"
+                onClick={onAddSequence}
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border px-2 py-1.5 text-caption text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+              >
+                <Plus className="w-3 h-3" aria-hidden /> Ajouter une quête
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── RushClassSelect (G2) ────────────────────────────────────────────────────
+/**
+ * Liste **fermée** des 19 classes (G2).
+ *
+ * Un `<input>` libre laissait écrire `osa`, `Féca` ou une faute de frappe : la route
+ * (`isSequenceOnRoute`) compare des **ids** et masque alors la quête au joueur, sans
+ * aucun signal. Une valeur historique inconnue reste **visible** ici (option dédiée)
+ * et n'est jamais effacée en silence : l'admin doit la voir pour la corriger.
+ */
+// ─── RushRouteBlockBar (G1) ──────────────────────────────────────────────────
+/**
+ * Route du **bloc** : cité / Ordre / palier / classe appliqués d'un coup à ses quêtes
+ * (236 éditions quête par quête jusqu'ici).
+ *
+ * Deux garde-fous de geste :
+ *  · un champ vide **efface** la valeur du bloc — la confirmation l'écrit noir sur blanc ;
+ *  · la portée est le bloc seul (`count` quêtes), jamais le guide entier.
+ */
+function RushRouteBlockBar({
+  milestoneId, count, isPending, onApply,
+  title = "Route du bloc",
+  applyLabel,
+  clearLabel = "Effacer la route",
+  scopeLabel = "de ce bloc",
+}: {
+  milestoneId: string; count: number; isPending: boolean;
+  onApply: (milestoneId: string, route: RushBlockRouteValues) => void;
+  /** E3c — la même barre sert le bloc ou une sélection : le libellé dit laquelle. */
+  title?: string;
+  applyLabel?: string;
+  clearLabel?: string;
+  scopeLabel?: string;
+}) {
+  const [camp, setCamp] = useState("");
+  const [order, setOrder] = useState("");
+  const [level, setLevel] = useState("");
+  const [classId, setClassId] = useState("");
+  const [pending, setPending] = useState<{ mode: "apply" | "clear" } | null>(null);
+
+  // En mode « effacer », l'aperçu montre exactement ce qui part (quatre tirets).
+  const fields = pending?.mode === "clear"
+    ? { camp: "", order: "", level: "", classId: "" }
+    : { camp, order, level, classId };
+
+  const summary = [
+    `Cité : ${fields.camp || "—"}`,
+    `Ordre : ${fields.order ? (RUSH_ORDER_CODES.find((o) => o.code === fields.order)?.label ?? fields.order) : "—"}`,
+    `Palier : ${fields.level ? `≥ ${fields.level}` : "—"}`,
+    `Classe : ${fields.classId || "—"}`,
+  ];
+
+  const confirm = () => {
+    if (!pending) return;
+    onApply(milestoneId, {
+      alignReq: fields.camp || null,
+      alignOrderCode: fields.order || null,
+      alignLevelReq: fields.level ? Number(fields.level) : null,
+      classReq: fields.classId || null,
+    });
+    setPending(null);
+  };
+
+  const fieldClass = "w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none";
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-caption font-semibold uppercase tracking-wide text-primary/80">{title}</p>
+        <span className="text-caption text-muted-foreground">{count} quête{count !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div>
+          <label htmlFor={`route-camp-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Cité</label>
+          <select
+            id={`route-camp-${milestoneId}`}
+            value={camp}
+            onChange={(e) => { setCamp(e.target.value); setOrder(""); }}
+            className={fieldClass}
+          >
+            <option value="">— Aucune —</option>
+            <option value="bontarien">Bontarien</option>
+            <option value="brakmarien">Brakmarien</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-order-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Ordre</label>
+          <select
+            id={`route-order-${milestoneId}`}
+            value={order}
+            disabled={!camp}
+            onChange={(e) => setOrder(e.target.value)}
+            className={`${fieldClass} disabled:opacity-40`}
+          >
+            <option value="">— Aucun —</option>
+            {orderCodesForCamp(camp).map((o) => (
+              <option key={o.code} value={o.code}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-level-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Palier</label>
+          <select
+            id={`route-level-${milestoneId}`}
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">— Aucun —</option>
+            {[20, 40, 60, 80, 100].map((n) => (
+              <option key={n} value={n}>Alignement ≥ {n}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-class-${milestoneId}`} className="text-caption text-muted-foreground mb-1 block">Classe</label>
+          <RushClassSelect id={`route-class-${milestoneId}`} value={classId} onChange={setClassId} className={fieldClass} />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPending({ mode: "apply" })}
+          disabled={isPending || count === 0}
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 transition-colors disabled:opacity-40"
+        >
+          {applyLabel ?? `Appliquer au bloc (${count})`}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPending({ mode: "clear" })}
+          disabled={isPending || count === 0}
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-muted hover:bg-muted text-foreground border border-border transition-colors disabled:opacity-40"
+        >
+          {clearLabel}
+        </button>
+        <span className="text-caption text-muted-foreground">Les champs vides effacent la valeur du bloc.</span>
+      </div>
+
+      <RushRouteBlockDialog
+        open={!!pending}
+        isClear={pending?.mode === "clear"}
+        count={count}
+        summary={summary}
+        scopeLabel={scopeLabel}
+        isPending={isPending}
+        onCancel={() => setPending(null)}
+        onConfirm={confirm}
+      />
+    </div>
+  );
+}
+
+// ─── RushRouteBlockDialog (G1) ───────────────────────────────────────────────
+/** Confirmation d'une écriture de masse : la portée et les valeurs sont écrites noir sur blanc. */
+function RushRouteBlockDialog({
+  open, isClear, count, summary, isPending, onCancel, onConfirm,
+  scopeLabel = "de ce bloc",
+}: {
+  open: boolean; isClear: boolean; count: number; summary: string[];
+  isPending: boolean; onCancel: () => void; onConfirm: () => void;
+  /** E3c — « de ce bloc » ou « de la sélection ». */
+  scopeLabel?: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isClear ? "Effacer la route du bloc" : "Appliquer la route au bloc"}</DialogTitle>
+          <DialogDescription>
+            {count} quête{count !== 1 ? "s" : ""} {scopeLabel} {isClear ? "vont perdre leur route" : "vont recevoir"} :
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-1 text-xs text-foreground">
+          {summary.map((line) => <li key={line} className="font-mono">{line}</li>)}
+        </ul>
+        <p className="text-caption text-warning/90">
+          {isClear
+            ? "Cité, Ordre, palier et classe seront retirés de ce bloc."
+            : "Une valeur vide efface celle du bloc. Aucune autre quête n'est touchée."}
+        </p>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 rounded-lg text-caption font-bold bg-muted hover:bg-muted text-foreground"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`px-3 py-1.5 rounded-lg text-caption font-bold border transition-colors disabled:opacity-40 ${
+              isClear
+                ? "bg-destructive/15 hover:bg-destructive/25 text-destructive border-destructive/20"
+                : "bg-primary/15 hover:bg-primary/25 text-primary border-primary/20"
+            }`}
+          >
+            {isClear ? "Effacer" : "Appliquer"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── SortableSequenceRow ──────────────────────────────────────────────────────
+function SortableSequenceRow(props: { seq: Sequence; color: string; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.seq.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SequenceRowAdmin {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
+// ─── SequenceRowAdmin ─────────────────────────────────────────────────────────
+/**
+ * Bouton « Jumelle » (Lot 4) : crée la séquence du camp OPPOSÉ au même `order`.
+ * Le studio God est un formulaire : on ne touche pas à l'état de la ligne, on appelle
+ * l'action puis on rafraîchit les données serveur.
+ */
+function TwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsTwin(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer la jumelle du camp opposé (même ordre)"}
+      aria-label="Créer la jumelle du camp opposé"
+      className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-0.5 text-caption font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "Jumelle"}
+    </button>
+  );
+}
+
+/**
+ * Bouton « 3 Ordres » (jumelle d'ORDRE) : crée les 2 autres Ordres de la MÊME cité.
+ * Les 5 quêtes d'apprentissage ont un nom propre par Ordre — sans ça, trois saisies.
+ */
+function OrderTwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsOrderTwins(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer les 2 autres Ordres de cette cité (même ordre)"}
+      aria-label="Créer les 2 autres Ordres de cette cité"
+      className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-0.5 text-caption font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "3 Ordres"}
+    </button>
+  );
+}
+
+function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
+  seq: Sequence; color: string; onEdit: () => void; onDelete: () => void; dragHandleProps?: any;
+}) {
+  const hasCustomDb = !!seq.dofusdbUrl;
+  const hasCustomNoobs = !!seq.dofuspourlesnoobsUrl;
+  const dofusdbUrl = seq.dofusdbUrl || `https://dofusdb.fr/fr/database/quest?name=${encodeURIComponent(seq.subGuideName || seq.subGuideRef)}`;
+  const noobsUrl = seq.dofuspourlesnoobsUrl || `https://www.dofuspourlesnoobs.com/?s=${encodeURIComponent(seq.subGuideName || seq.subGuideRef)}`;
+
+  // Collect all dungeons to display
+  const displayDungeons = (Array.isArray(seq.dungeons) && seq.dungeons.length > 0) ? seq.dungeons : (seq.dungeon ? [seq.dungeon] : []);
+
+  return (
+    <div className="flex items-center gap-2 group/seq px-2 py-1.5 bg-surface/40 rounded-xl border border-border hover:border-border transition-colors">
+      <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-subtle-foreground hover:text-muted-foreground flex-shrink-0 touch-none">
+        <GripVertical className="w-3 h-3" />
+      </div>
+
+      {/* Boss image(s) — now shows ALL dungeons */}
+      {displayDungeons.length > 0 ? (
+        <div className="flex items-center -space-x-1.5 flex-shrink-0">
+          {displayDungeons.map((dd: any, di: number) => (
+            dd.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={dd.id || di} src={dd.imageUrl} alt={dd.bossName || dd.name} title={dd.name} className={`w-6 h-6 rounded object-cover border border-border ${di > 0 ? "ring-1 ring-background" : ""}`} />
+            ) : (
+              <div key={dd.id || di} title={dd.name} className="w-6 h-6 rounded bg-muted border border-border flex items-center justify-center">
+                <Sword className="w-3 h-3 text-muted-foreground" />
+              </div>
+            )
+          ))}
+        </div>
+      ) : (
+        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color + "80" }} />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {resolveRushSeqIcon((seq as any).icon) && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
+          )}
+          <span className="text-xs text-foreground font-medium">{seq.subGuideName || seq.subGuideRef}</span>
+          {displayDungeons.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {displayDungeons.map((dd: any, di: number) => (
+                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-caption font-bold text-primary truncate max-w-[140px]">
+                  <Sword className="w-2.5 h-2.5 text-primary shrink-0" />
+                  <span className="truncate">{dd.name}</span>
+                  {Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dd.id) && (
+                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-warning/20 text-warning text-caption font-semibold uppercase tracking-wide">
+                      <img src="/assets/icons/ocre.png" alt="" className="w-2 h-2 object-contain" />
+                      Ocre
+                    </span>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {seq.alignReq && (
+            <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-info/10 text-info border border-info/20">
+              {seq.alignReq}
+            </span>
+          )}
+          {seq.tips && (
+            <span title={seq.tips} className="flex-shrink-0">
+              <AlertCircle className="w-2.5 h-2.5 text-warning/60" />
+            </span>
+          )}
+          {/* Rendu des tags d'activité réels (texte seul, sans icône) */}
+          {Array.isArray(seq.activityTags) && seq.activityTags.map((tag: any, idx: number) => {
+            const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
+            if (!def) return null;
+            const isMetier = tag.type === "metier";
+            const label = isMetier && tag.name ? `${tag.name} (Niv. ${tag.level ?? 1})` : def.label;
+            return (
+              <span
+                key={idx}
+                title={label}
+                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption font-semibold bg-muted text-foreground border border-border"
+              >
+                <span className="max-w-[90px] truncate">{label}</span>
+                {tag.count && tag.count > 1 && <span className="text-warning font-mono text-caption ml-0.5">x{tag.count}</span>}
+              </span>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {hasCustomDb && <span className="text-caption text-primary/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />DB✓</span>}
+          {hasCustomNoobs && <span className="text-caption text-info/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />Noobs✓</span>}
+          {seq.note && <span className="text-caption text-warning/60 italic truncate">{seq.note}</span>}
+        </div>
+      </div>
+
+      {/* E3b — trois gestes au survol (DB, Noobs, éditer) + un menu « … » pour le reste :
+          la jumelle, les 3 Ordres et la suppression ne sont pas des badges de lecture. */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <a href={dofusdbUrl} target="_blank" rel="noreferrer"
+          className={`px-1 py-0.5 text-caption font-semibold uppercase rounded transition-colors ${hasCustomDb ? "text-primary" : "text-subtle-foreground hover:text-foreground"}`}
+        ><BookOpen className="w-2.5 h-2.5 inline" /> DB</a>
+        <a href={noobsUrl} target="_blank" rel="noreferrer"
+          className={`px-1 py-0.5 text-caption font-semibold uppercase rounded transition-colors ${hasCustomNoobs ? "text-info" : "text-subtle-foreground hover:text-foreground"}`}
+        ><ExternalLink className="w-2.5 h-2.5 inline" /> Noobs</a>
+        <button onClick={onEdit} aria-label={`Éditer la quête ${seq.subGuideName || seq.subGuideRef}`} className="p-1 text-subtle-foreground hover:text-foreground transition-all"><Pencil className="w-3 h-3" /></button>
+        <details className="relative">
+          <summary
+            aria-label={`Autres actions de la quête ${seq.subGuideName || seq.subGuideRef}`}
+            className="list-none cursor-pointer rounded px-1 text-caption font-semibold text-subtle-foreground transition-colors hover:text-foreground"
+          >
+            …
+          </summary>
+          <div className="absolute right-0 z-10 mt-1 w-44 space-y-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            {seq.alignReq && <TwinButton sequenceId={seq.id} />}
+            {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-caption text-warning transition-colors hover:bg-elevated"
+            >
+              <X className="h-3 w-3" aria-hidden /> Supprimer
+            </button>
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+// ─── RequiredItemsEditor ───────────────────────────────────────────────────
+function RequiredItemsEditor({
+  items,
+  onChange,
+}: {
+  items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>;
+  onChange: (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<any>(null);
+
+  const handleSearch = (q: string) => {
+    setQuery(q);
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    clearTimeout(searchTimeoutRef.current);
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const res = await searchItemsLocalThenDofusDB(q);
+      if (res.success && res.data) {
+        setResults(res.data);
+      }
+      setSearching(false);
+    }, 250);
+  };
+
+  const addItem = (it: any) => {
+    const existingIndex = items.findIndex(x => x.name.toLowerCase() === it.name.toLowerCase() || (it.id && x.id === it.id));
+    if (existingIndex >= 0) {
+      const next = [...items];
+      next[existingIndex].quantity += 1;
+      onChange(next);
+    } else {
+      onChange([...items, {
+        id: it.id,
+        name: it.name,
+        quantity: 1,
+        imageUrl: it.imageUrl,
+        level: it.level
+      }]);
+    }
+    setQuery("");
+    setResults([]);
+  };
+
+  const updateQuantity = (idx: number, qty: number) => {
+    const next = [...items];
+    next[idx].quantity = Math.max(1, qty);
+    onChange(next);
+  };
+
+  const removeItem = (idx: number) => {
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="space-y-2 p-3 bg-surface/60 rounded-xl border border-border relative">
+      <div className="flex items-center justify-between">
+        <label className="text-caption font-semibold text-warning uppercase tracking-wide flex items-center gap-1.5">
+          📦 Objets & Ressources nécessaires ({items.length})
+        </label>
+      </div>
+
+      {/* Liste des items ajoutés */}
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {items.map((it, idx) => (
+            <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-warning/10 border border-warning/25 text-xs text-warning">
+              {it.imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={it.imageUrl} alt={it.name} className="w-5 h-5 object-contain shrink-0" />
+              )}
+              <span className="font-bold truncate max-w-[140px]" title={it.name}>{it.name}</span>
+              <div className="flex items-center gap-1 bg-background/80 px-1.5 py-0.5 rounded-lg border border-warning/20">
+                <span className="text-[10px] text-muted-foreground font-mono">x</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={999999}
+                  value={it.quantity}
+                  onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
+                  className="w-14 bg-transparent text-warning font-semibold text-xs text-center focus:outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeItem(idx)}
+                className="hover:text-destructive text-muted-foreground transition-colors ml-0.5"
+                title="Supprimer la ressource"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Input de recherche avec dropdown */}
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Rechercher une ressource (ex: Reflet onirique, Riz, Pépite)..."
+          className="w-full bg-background/80 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-warning/50"
+        />
+        {searching && (
+          <span className="absolute right-3 top-2 text-caption text-muted-foreground animate-pulse">Recherche...</span>
+        )}
+
+        {results.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-0.5 ">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => addItem(r)}
+                className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-warning/20 text-left transition-colors group"
+              >
+                {r.imageUrl && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={r.imageUrl} alt={r.name} className="w-6 h-6 object-contain shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-foreground group-hover:text-foreground truncate">{r.name}</p>
+                  <p className="text-[10px] text-muted-foreground">Niv. {r.level} • {r.typeName || "Ressource"}</p>
+                </div>
+                <Plus className="w-3.5 h-3.5 text-warning shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── RushQuestPicker (identité de quête depuis le catalogue GameQuest) ─────────
+/**
+ * Le nom d'une quête du guide n'a plus à être tapé : le catalogue (siphon
+ * game-data, 1 976 quêtes) le fournit, avec son **id DofusDB** — celui que
+ * portent `questDbIds`. Le lien DPLN reste la première source et n'est pas dans
+ * ce catalogue : il reste saisi à la main (règle `applyQuestIdentity`).
+ */
+function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GameQuestResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const run = useCallback((value: string) => {
+    if (value.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    searchGameQuests(value)
+      .then((res) => setResults(res.success ? res.data : []))
+      .finally(() => setSearching(false));
+  }, []);
+
+  const handleChange = (value: string) => {
+    setQuery(value);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => run(value), 250);
+  };
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  return (
+    <div className="relative">
+      <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block">
+        Chercher dans le catalogue (nom + lien DofusDB)
+      </label>
+      <div className="relative">
+        <Search className="absolute left-2 top-2 w-3 h-3 text-primary" />
+        <input
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full bg-background/80 border border-primary/30 rounded-lg pl-7 pr-2 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
+          placeholder="Nom de la quête (2 lettres minimum)…"
+        />
+        {searching && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">…</span>}
+      </div>
+      {results.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-primary/30 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1 space-y-0.5">
+          {results.map((res) => (
+            <button
+              key={res.id}
+              type="button"
+              onClick={() => {
+                onPick({ name: res.name, dofusDbId: res.dofusDbId });
+                setQuery("");
+                setResults([]);
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              <span className="block text-xs font-medium text-foreground truncate">{res.name}</span>
+              <span className="block text-[10px] text-muted-foreground">
+                {res.category ?? "—"}
+                {res.levelMin ? ` · niv. ${res.levelMin}` : ""}
+                {res.dofusDbId ? ` · DofusDB #${res.dofusDbId}` : ""}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Corps du dialogue d'import : fichier + zone JSON + plan lisible. */
+function RushImportDialogBody({
+  text, setText, plan, issues, onTextChange,
+}: {
+  text: string;
+  setText: (value: string) => void;
+  plan: RushImportPlan | null;
+  issues: string[];
+  onTextChange: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Charger un fichier JSON"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            file.text().then((content) => { setText(content); onTextChange(); });
+          }}
+          className="text-caption text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-muted file:px-2 file:py-1 file:text-caption file:text-foreground"
+        />
+        <span className="text-caption text-muted-foreground">{text.length.toLocaleString("fr-FR")} caractères</span>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(event) => { setText(event.target.value); onTextChange(); }}
+        placeholder='{ "blocks": [ { "title": "...", "sequences": [ { "subGuideName": "#55 ..." } ] } ] }'
+        className="h-40 w-full resize-y rounded-xl border border-border bg-background/80 p-2 font-mono text-caption text-foreground focus:outline-none focus:border-primary/50"
+        aria-label="Contenu JSON à importer"
+      />
+
+      {issues.length > 0 && (
+        <ul className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-warning/30 bg-warning/5 p-2 text-caption text-warning">
+          {issues.slice(0, 12).map((issue, index) => (
+            <li key={index}>• {issue}</li>
+          ))}
+        </ul>
+      )}
+
+      {plan && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2 text-caption">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
+              {plan.totals.blocksNew} bloc(s) à créer · {plan.totals.blocksExisting} déjà là
+            </span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
+              {plan.totals.sequencesNew} quête(s) à créer
+            </span>
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
+              {plan.totals.sequencesExisting} déjà présentes · {plan.totals.sequencesSkipped} écartée(s)
+            </span>
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-border">
+            <table className="w-full text-caption">
+              <thead className="bg-surface/80 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1 text-left">Bloc</th>
+                  <th className="px-2 py-1 text-left">État</th>
+                  <th className="px-2 py-1 text-right">À créer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.blocks.map((block) => (
+                  <tr key={block.title} className="border-t border-border">
+                    <td className="px-2 py-1 text-foreground">{block.title}</td>
+                    <td className="px-2 py-1">
+                      <span className={block.status === "new" ? "text-primary" : "text-muted-foreground"}>
+                        {block.status === "new" ? "nouveau" : "existant"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums text-foreground">{block.toCreate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isRushImportNoop(plan) && (
+            <p className="text-caption text-muted-foreground">Rien à créer : ce fichier est déjà dans le guide.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RushImportDialog (S4-4 : import consolidé, dry-run obligatoire) ──────────
+/**
+ * Colle (ou charge) un `export-god.json`, **analyse** ce qu'il ajouterait, puis
+ * applique. L'analyse est obligatoire : le bouton « Appliquer » reste inactif
+ * tant qu'un dry-run n'a pas réussi sur le **même** texte. L'import ne supprime
+ * et ne réécrit jamais rien — il n'ajoute que ce qui manque.
+ */
+function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [analysedFor, setAnalysedFor] = useState<string | null>(null);
+  const [plan, setPlan] = useState<RushImportPlan | null>(null);
+  const [issues, setIssues] = useState<string[]>([]);
+  const [busy, startTransition] = useTransition();
+
+  const payload = useCallback((): { ok: true; value: unknown } | { ok: false; error: string } => {
+    try {
+      return { ok: true, value: JSON.parse(text) };
+    } catch {
+      return { ok: false, error: "Le texte n'est pas un JSON valide." };
+    }
+  }, [text]);
+
+  const analyse = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) {
+      setIssues([parsed.error]);
+      setPlan(null);
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, false);
+        if (res.success) {
+          setPlan(res.data.plan);
+          setIssues(res.data.plan.warnings);
+          setAnalysedFor(text);
+        } else {
+          setPlan(null);
+          setIssues(res.issues ?? [res.error]);
+        }
+      } catch (error) {
+        setIssues([error instanceof Error ? error.message : "Erreur d'analyse"]);
+      }
+    });
+  }, [payload, text]);
+
+  const applyImport = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) return;
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, true);
+        if (res.success) {
+          const applied = ("applied" in res.data ? res.data.applied : null) ?? { blocks: 0, sequences: 0 };
+          toast.success(`Import appliqué : ${applied.blocks} bloc(s), ${applied.sequences} quête(s)`);
+          onClose();
+          router.refresh();
+        } else {
+          toast.error(res.error);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Erreur d'import");
+      }
+    });
+  }, [payload, onClose, router]);
+
+  const canApply = analysedFor !== null && analysedFor === text && !!plan && !isRushImportNoop(plan);
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import consolidé — dry-run d&apos;abord</DialogTitle>
+          <DialogDescription>
+            Colle un <code>export-god.json</code> (ou le JSON d&apos;un bloc). L&apos;analyse liste ce qui serait
+            créé ; rien n&apos;est écrit avant « Appliquer ». Aucun bloc ni aucune quête existants ne sont modifiés.
+          </DialogDescription>
+        </DialogHeader>
+        <RushImportDialogBody
+          text={text} setText={setText} plan={plan} issues={issues}
+          onTextChange={() => { setAnalysedFor(null); setPlan(null); }}
+        />
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={analyse}
+            disabled={busy || text.trim().length === 0}
+            className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-caption font-bold text-primary disabled:opacity-40"
+          >
+            {busy ? "Analyse…" : "Analyser (dry-run)"}
+          </button>
+          <button
+            type="button"
+            onClick={applyImport}
+            disabled={busy || !canApply}
+            className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-1.5 text-caption font-bold text-warning disabled:opacity-40"
+            title={canApply ? "Crée les blocs et quêtes manquants" : "Analyse d'abord le même contenu"}
+          >
+            Appliquer
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Identité visuelle du studio ──────────────────────────────────────────────
+/**
+ * Surfaces réelles du studio God (thème sombre) — **mesurées**, pas supposées :
+ * la carte Dofus est en `bg-surface/40` sur `bg-surface` (≈ `#18181b`), la
+ * modale de création sur `bg-surface` (≈ `#09090b`). Un accent Dofus y est
+ * peint en **texte** : on le passe par `readableOn` pour garantir 4,5:1 (T-4/O14).
+ */
+const GOD_DOFUS_SURFACE = "#18181b";
+const GOD_MODAL_SURFACE = "#09090b";
+
+// ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMove, onSplit, milestones, onDirtyChange, isFullscreen, onToggleFullscreen }: {
+  seq: Sequence; milestoneId: string; isPending: boolean;
+  onSave: (data: any) => void; onCancel: () => void;
+  onMove: (sequenceId: string, targetMilestoneId: string) => void;
+  onSplit: (sequenceId: string) => void;
+  milestones?: Milestone[];
+  /** E1 — signale à l'inspecteur que la fiche diffère de la donnée enregistrée. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * E2d — le formulaire est-il monté dans la **modale large** ? Le bouton vit dans l'en-tête
+   * du formulaire, la décision (et le conteneur) restent au studio : la même instance est
+   * rendue à un seul endroit, jamais deux.
+   */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+}) {
+  // Lot 5 — brouillon local par quête : restauré après un rechargement, jeté à
+  // l'enregistrement. `null` = aucune saisie en attente (on lit la base).
+  const draft = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return parseRushEditorDraft(localStorage.getItem(rushEditorDraftKey(seq.id)));
+    } catch {
+      return null;
+    }
+  }, [seq.id]);
+  const [draftRestored, setDraftRestored] = useState(!!draft);
+  const [name, setName] = useState(draft?.name ?? (seq.subGuideName || seq.subGuideRef));
+  const [splitConfirm, setSplitConfirm] = useState(false);
+
+  const [dofusdbUrl, setDofusdbUrl] = useState(draft?.dofusdbUrl ?? (seq.dofusdbUrl || ""));
+  const [noobsUrl, setNoobsUrl] = useState(draft?.noobsUrl ?? (seq.dofuspourlesnoobsUrl || ""));
+  const [tips, setTips] = useState(draft?.tips ?? (seq.tips || ""));
+  // Conditions structurées : la donnée en base prime ; sinon on préremplit depuis les
+  // anciennes lignes `tips` (reprise), que l'auteur corrige dans la section « Conditions ».
+  const initialConstraints = useMemo(
+    () => seq.constraints ?? constraintsFromLegacyTips(seq.tips),
+    [seq.constraints, seq.tips],
+  );
+  const [constraints, setConstraints] = useState<RushQuestConstraints>(initialConstraints);
+  // Lot 4 — une seule quête, deux textes : le bon sort selon la cité du joueur (résolu par
+  // `resolveRushRoute`, donc les trois surfaces en bénéficient). Vide ⇒ texte de base.
+  const initialVariants = useMemo(() => (seq.routeVariants ?? {}) as SequenceRouteVariants, [seq.routeVariants]);
+  const [bontaName, setBontaName] = useState(draft ? draft.bontaName : initialVariants.bontarien?.name ?? "");
+  const [bontaTips, setBontaTips] = useState(draft ? draft.bontaTips : initialVariants.bontarien?.tips ?? "");
+  const [brakName, setBrakName] = useState(draft ? draft.brakName : initialVariants.brakmarien?.name ?? "");
+  const [brakTips, setBrakTips] = useState(draft ? draft.brakTips : initialVariants.brakmarien?.tips ?? "");
+  const [alignReq, setAlignReq] = useState(draft?.alignReq ?? (seq.alignReq || ""));
+  const [alignOrderCode, setAlignOrderCode] = useState(draft?.alignOrderCode ?? (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")));
+  const [alignLevelReq, setAlignLevelReq] = useState(draft?.alignLevelReq ?? (seq.alignLevelReq ? String(seq.alignLevelReq) : ""));
+  const [classReq, setClassReq] = useState(draft?.classReq ?? (seq.classReq || ""));
+  const [questDbIds, setQuestDbIds] = useState<number[]>(Array.isArray(seq.questDbIds) ? seq.questDbIds : []);
+  const [note, setNote] = useState(draft?.note ?? (seq.note || ""));
+  const [isSuccess, setIsSuccess] = useState(draft ? draft.isSuccess : (seq.isSuccess ?? false));
+  const [icon, setIcon] = useState(draft?.icon ?? (seq.icon || ""));
+  const [customIconUrl, setCustomIconUrl] = useState("");
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [metamobMonsterId, setMetamobMonsterId] = useState(draft?.metamobMonsterId ?? (seq.metamobMonsterId ? String(seq.metamobMonsterId) : ""));
+  const [activityTags, setActivityTags] = useState<ActivityTag[]>(
+    Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
+  );
+  const [requiredItems, setRequiredItems] = useState<Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>>(() => {
+    return (seq.activityTags as any[])?.filter(t => t.type === "item").map(t => ({
+      id: t.id || (t.dofusdbId ? String(t.dofusdbId) : undefined),
+      name: t.name || "",
+      quantity: Number(t.quantity || t.count || 1),
+      imageUrl: t.imageUrl,
+      level: t.level
+    })) || [];
+  });
+  const [selectedDofusId, setSelectedDofusId] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "dofus_link");
+    return existing?.name || "";
+  });
+
+  // Accordéon des sections d'édition
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    identity: true,
+    location: true,
+    prereqs: false,
+    conditions: false,
+    activities: false,
+    resources: false,
+    links: false,
+    variants: false,
+    route: false,
+    hints: false,
+    advanced: false,
+  });
+
+  const toggleSection = (s: string) => setOpenSections(prev => ({ ...prev, [s]: !prev[s] }));
+  const [showPreview, setShowPreview] = useState(false);
+  /**
+   * E2b-suite (12/11/2026) — les sections **vides** sont masquées par défaut : le
+   * formulaire déroulait neuf accordéons dont six vides. Un bouton les rouvre toutes pour
+   * remplir ; aucune donnée n'est cachée sans recours.
+   */
+  const [showAllSections, setShowAllSections] = useState(false);
+  // Fiche « Détails » du membre, ouverte depuis l'aperçu (elle gère son propre Échap).
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  const handleRequiredItemsChange = (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => {
+    setRequiredItems(items);
+    setActivityTags(prev => {
+      const nonItemTags = prev.filter((t: any) => t.type !== "item");
+      const itemTags = items.map(it => ({
+        type: "item" as any,
+        id: it.id,
+        name: it.name,
+        quantity: it.quantity,
+        count: it.quantity,
+        imageUrl: it.imageUrl,
+        level: it.level
+      }));
+      return [...nonItemTags, ...itemTags];
+    });
+  };
+
+  // Multiselect Prerequisites state
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>(() => {
+    const existingTags = (seq.activityTags as any[])?.filter(t => t.type === "prereq_text") || [];
+    if (existingTags.length > 0) {
+      return existingTags
+        .map(t => ({ id: typeof t.id === "string" ? t.id : "", name: String(t.name ?? "") }))
+        .filter(p => p.name);
+    }
+    return [];
+  });
+  const [prereqQuery, setPrereqQuery] = useState("");
+  const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
+  const [searchingPrereqs, setSearchingPrereqs] = useState(false);
+  const prereqSearchRef = useRef<any>(null);
+
+  const handlePrereqSearch = (q: string) => {
+    setPrereqQuery(q);
+    if (q.length < 2) { setPrereqResults([]); return; }
+    clearTimeout(prereqSearchRef.current);
+    setSearchingPrereqs(true);
+    prereqSearchRef.current = setTimeout(async () => {
+      const res = await searchGuideQuests(q);
+      if (res.success && res.data) {
+        setPrereqResults(res.data);
+      }
+      setSearchingPrereqs(false);
+    }, 250);
+  };
+
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
+    setPrereqs(nextPrereqs);
+    setPrereqQuery("");
+    setPrereqResults([]);
+    
+    // Sync activityTags
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
+    setPrereqs(nextPrereqs);
+    
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const [positionsInput, setPositionsInput] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
+    return existing?.name || "";
+  });
+
+  // PNJ donneur (référentiel client 100 % local) : tag `npc` {name, npcId}
+  // affiché côté membres (nom + portrait par convention).
+  const [npcQuery, setNpcQuery] = useState("");
+  const [npcResults, setNpcResults] = useState<{ npcId: number; name: string }[]>([]);
+  const npcSearchRef = useRef<any>(null);
+
+  const currentNpcTag = (activityTags as any[]).find((t: any) => t.type === "npc") || null;
+
+  const [npcImageUrl, setNpcImageUrl] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "npc");
+    return typeof existing?.imageUrl === "string" ? existing.imageUrl : "";
+  });
+  const [uploadingNpcImage, setUploadingNpcImage] = useState(false);
+
+  const syncNpcTag = (name: string, npcId: number | null, imageUrl: string) => {
+    const cleanImage = isSafeImageUrl(imageUrl) ? imageUrl.trim() : "";
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "npc");
+      if (!name.trim() && npcId === null && !cleanImage) return filtered;
+      return [...filtered, { type: "npc" as any, name: name.trim(), npcId, imageUrl: cleanImage || undefined }];
+    });
+  };
+
+  const handleNpcSearch = (q: string) => {
+    setNpcQuery(q);
+    if (q.length < 2) { setNpcResults([]); return; }
+    clearTimeout(npcSearchRef.current);
+    npcSearchRef.current = setTimeout(async () => {
+      const res = await searchNpcsLocal(q);
+      if (res.success && (res as any).data) setNpcResults((res as any).data);
+    }, 250);
+  };
+
+  const selectNpcTag = (npc: { npcId: number; name: string }) => {
+    setNpcImageUrl("");
+    setActivityTags(prev => [
+      ...prev.filter((t: any) => t.type !== "npc"),
+      { type: "npc" as any, name: npc.name, npcId: npc.npcId },
+    ]);
+    setNpcQuery(""); setNpcResults([]);
+  };
+
+  const clearNpcTag = () => {
+    setNpcImageUrl("");
+    setActivityTags(prev => prev.filter((t: any) => t.type !== "npc"));
+  };
+  const [positionsWorldId, setPositionsWorldId] = useState<number>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
+    return existing?.worldId ?? 1;
+  });
+  const [tougliText, setTougliText] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
+    return existing?.name || "";
+  });
+  const [tougliColor, setTougliColor] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
+    return existing?.color || "emerald";
+  });
+
+  const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
+    return (seq.activityTags as any[])?.some(t => t.type === "info_sequence") ?? false;
+  });
+  const [infoBlockColor, setInfoBlockColor] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "info_sequence");
+    return existing?.color || "#10b981";
+  });
+
+  const handleIsInfoBlockChange = (val: boolean) => {
+    setIsInfoBlock(val);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+      if (val) {
+        return [...filtered, { type: "info_sequence" as any, color: infoBlockColor }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleInfoBlockColorChange = (color: string) => {
+    setInfoBlockColor(color);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+      return [...filtered, { type: "info_sequence" as any, color }];
+    });
+  };
+
+  // ─── Quête d'alignement (tag alignment_set) ─────────────────────────────
+  const [alignmentSet, setAlignmentSet] = useState<{ camp: string; level: number } | null>(() => {
+    const t = (seq.activityTags as any[])?.find((x: any) => x.type === "alignment_set");
+    // `camp` = vocabulaire canonique ; `name` = legacy (imports et tags antérieurs).
+    const camp = t?.camp ?? t?.name;
+    return camp ? { camp: String(camp), level: typeof t.level === "number" ? t.level : 0 } : null;
+  });
+
+  const syncAlignmentTag = (next: { camp: string; level: number } | null) => {
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "alignment_set");
+      if (next) return [...filtered, { type: "alignment_set" as any, camp: next.camp, level: next.level }];
+      return filtered;
+    });
+  };
+  const handleAlignmentSetToggle = (on: boolean) => {
+    const next = on ? { camp: alignmentSet?.camp || "bontarien", level: alignmentSet?.level ?? 0 } : null;
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
+  };
+  const handleAlignmentCampChange = (camp: string) => {
+    const next = { camp, level: alignmentSet?.level ?? 0 };
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
+  };
+  const handleAlignmentLevelChange = (level: number) => {
+    const clamped = Math.max(0, Math.min(100, level));
+    const next = { camp: alignmentSet?.camp || "bontarien", level: clamped };
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
+  };
+
+  // ─── Métier requis (tag metier) — « qui peut aider » côté membre ──────────
+  const [metierTag, setMetierTag] = useState<{ name: string; level: number } | null>(() => {
+    const t = (seq.activityTags as any[])?.find((x: any) => x.type === "metier");
+    return t && t.name ? { name: t.name, level: typeof t.level === "number" ? t.level : 0 } : null;
+  });
+
+  const syncMetierTag = (next: { name: string; level: number } | null) => {
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "metier");
+      if (!next || !next.name) return filtered;
+      const tag: any = { type: "metier", name: next.name };
+      if (next.level > 0) tag.level = next.level;
+      return [...filtered, tag];
+    });
+  };
+  const handleMetierToggle = (on: boolean) => {
+    const first = Object.values(DOFUS_JOBS).flat()[0]?.name || "";
+    const next = on ? { name: metierTag?.name || first, level: metierTag?.level ?? 0 } : null;
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+  const handleMetierJobChange = (name: string) => {
+    const next = { name, level: metierTag?.level ?? 0 };
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+  const handleMetierLevelChange = (level: number) => {
+    const clamped = Math.max(0, Math.min(200, level));
+    const next = { name: metierTag?.name || "", level: clamped };
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+
+  const handleInsertLink = () => {
+    const label = prompt("Texte affiché pour le lien (ex: Le trésor de Totankama) :");
+    if (!label) return;
+    const url = prompt("URL du lien (ex: https://dofusdb.fr/...) :");
+    if (!url) return;
+    const markdown = `[${label}](${url})`;
+    setTougliText(prev => {
+      const newText = prev ? `${prev} ${markdown}` : markdown;
+      handleTougliTextChange(newText);
+      return newText;
+    });
+  };
+
+  // Détour zaap (choix God explicite) : le bouton `/zaap ; /travel` façon DPLN
+  // ne s'affiche côté membres que pour les positions cochées ici.
+  // 2e option (manuelle) : `zaapX/zaapY` saisis en God → les membres copient
+  // `/zaap zx,zy ; /travel x,y` tel quel (prioritaire sur l'auto).
+  const [allowZaap, setAllowZaap] = useState<boolean>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return existing?.allowZaap === true;
+  });
+  const [manualZaapX, setManualZaapX] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return Number.isSafeInteger(existing?.zaapX) ? String(existing.zaapX) : "";
+  });
+  const [manualZaapY, setManualZaapY] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return Number.isSafeInteger(existing?.zaapY) ? String(existing.zaapY) : "";
+  });
+
+  const handlePositionsChange = (text: string) => {
+    setPositionsInput(text);
+    syncPosTag(text, positionsWorldId, allowZaap, manualZaapX, manualZaapY);
+  };
+
+  const syncPosTag = (text: string, worldId: number, zaap: boolean, mZx?: string, mZy?: string) => {
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+      if (text.trim()) {
+        const zx = parseInt(String(mZx ?? manualZaapX).trim(), 10);
+        const zy = parseInt(String(mZy ?? manualZaapY).trim(), 10);
+        const hasManual = Number.isSafeInteger(zx) && Number.isSafeInteger(zy) && String(mZx ?? manualZaapX).trim() !== "" && String(mZy ?? manualZaapY).trim() !== "";
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap || hasManual ? { allowZaap: true } : {}), ...(hasManual ? { zaapX: zx, zaapY: zy } : {}) }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleAllowZaapChange = (enabled: boolean) => {
+    setAllowZaap(enabled);
+    syncPosTag(positionsInput, positionsWorldId, enabled, manualZaapX, manualZaapY);
+  };
+
+  const handleManualZaapChange = (zx: string, zy: string) => {
+    setManualZaapX(zx);
+    setManualZaapY(zy);
+    const nx = parseInt(zx.trim(), 10);
+    const ny = parseInt(zy.trim(), 10);
+    const hasManual = zx.trim() !== "" && zy.trim() !== "" && Number.isSafeInteger(nx) && Number.isSafeInteger(ny);
+    const nextAllow = allowZaap || hasManual;
+    if (nextAllow !== allowZaap) setAllowZaap(nextAllow);
+    syncPosTag(positionsInput, positionsWorldId, nextAllow, zx, zy);
+  };
+
+  const handleTougliTextChange = (text: string) => {
+    setTougliText(text);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "tougli_box");
+      if (text.trim()) {
+        return [...filtered, { type: "tougli_box" as any, name: text.trim(), color: tougliColor }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleTougliColorChange = (color: string) => {
+    setTougliColor(color);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "tougli_box");
+      if (tougliText.trim()) {
+        return [...filtered, { type: "tougli_box" as any, name: tougliText.trim(), color }];
+      }
+      return filtered;
+    });
+  };
+  const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>(
+    seq.dungeons && seq.dungeons.length > 0
+      ? seq.dungeons.map(d => ({ id: d.id, name: d.name, level: 0, imageUrl: d.imageUrl, bossName: d.bossName }))
+      : seq.dungeon ? [{ id: seq.dungeon.id, name: seq.dungeon.name, level: 0, imageUrl: seq.dungeon.imageUrl, bossName: seq.dungeon.bossName }] : []
+  );
+  const [dungeonQuery, setDungeonQuery] = useState("");
+  const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef<any>(null);
+
+  // Donjons marqu├®s ┬½ optionnels ┬╗ : affich├®s dans la qu├¬te, mais ils ne bloquent pas sa
+  // validation (verrou `isSequenceBlockedByDungeons`). Toujours un sous-ensemble de
+  // `selectedDungeons` ÔÇö le serveur re-borne l'intersection de son c├┤t├®.
+  const [optionalDungeonIds, setOptionalDungeonIds] = useState<string[]>(
+    () => (seq.dungeons ?? []).filter(d => d.isOptional).map(d => d.id)
+  );
+
+  const isDungeonOptional = (dungeonId: string) => optionalDungeonIds.includes(dungeonId);
+
+  const toggleDungeonOptional = (dungeonId: string) => {
+    setOptionalDungeonIds(prev =>
+      prev.includes(dungeonId) ? prev.filter(id => id !== dungeonId) : [...prev, dungeonId]
+    );
+  };
+
+  const isDungeonOcre = (dungeonId: string) => {
+    return activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dungeonId);
+  };
+
+  const toggleOcreForDungeon = (dungeonId: string) => {
+    if (isDungeonOcre(dungeonId)) {
+      setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === dungeonId)));
+    } else {
+      setActivityTags(prev => [...prev, { type: "ocre_dungeon" as any, name: dungeonId }]);
+    }
+  };
+
+  const handleDofusChange = (dofusId: string) => {
+    setSelectedDofusId(dofusId);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "dofus_link");
+      if (dofusId) {
+        return [...filtered, { type: "dofus_link" as any, name: dofusId }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleDungeonSearch = (q: string) => {
+    setDungeonQuery(q);
+    if (q.length < 2) { setDungeonResults([]); return; }
+    clearTimeout(searchRef.current);
+    setSearching(true);
+    searchRef.current = setTimeout(async () => {
+      const res = await searchDungeonsLocal(q);
+      if (res.success) setDungeonResults(res.data as DungeonResult[]);
+      setSearching(false);
+    }, 300);
+  };
+
+  const addDungeon = (d: DungeonResult) => {
+    if (!selectedDungeons.find(sd => sd.id === d.id)) {
+      setSelectedDungeons(prev => [...prev, d]);
+    }
+    setDungeonQuery(""); setDungeonResults([]);
+  };
+
+  const removeDungeon = (id: string) => {
+    setSelectedDungeons(prev => prev.filter(d => d.id !== id));
+    // Un donjon retir├® ne peut plus ├¬tre ┬½ optionnel ┬╗ : on ne laisse pas d'id orphelin
+    // dans le payload (le serveur le filtrerait, autant ne pas l'envoyer).
+    setOptionalDungeonIds(prev => prev.filter(optionalId => optionalId !== id));
+    setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === id)));
+  };
+
+  // Lot 4 — forme canonique des variantes : seuls les champs non vides partent (le serveur
+  // re-borne de toute façon). `null` = aucune variante, ce qui **efface** la colonne.
+  const nextVariants = useMemo<SequenceRouteVariants>(() => {
+    const bontarien: SequenceRouteVariant = {
+      ...(bontaName.trim() ? { name: bontaName.trim() } : {}),
+      ...(bontaTips.trim() ? { tips: bontaTips.trim() } : {}),
+    };
+    const brakmarien: SequenceRouteVariant = {
+      ...(brakName.trim() ? { name: brakName.trim() } : {}),
+      ...(brakTips.trim() ? { tips: brakTips.trim() } : {}),
+    };
+    return {
+      ...(Object.keys(bontarien).length ? { bontarien } : {}),
+      ...(Object.keys(brakmarien).length ? { brakmarien } : {}),
+    };
+  }, [bontaName, bontaTips, brakName, brakTips]);
+  const hasVariants = Object.keys(nextVariants).length > 0;
+
+  const isDirty = useMemo(() => {
+    return (
+      name !== (seq.subGuideName || seq.subGuideRef) ||
+      dofusdbUrl !== (seq.dofusdbUrl || "") ||
+      noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
+      tips !== (seq.tips || "") ||
+      // Conditions structurées : toute différence arme « Enregistrer ».
+      JSON.stringify(constraints) !== JSON.stringify(initialConstraints) ||
+      // Variantes de texte par camp : toute saisie arme « Enregistrer ».
+      JSON.stringify(nextVariants) !== JSON.stringify(initialVariants) ||
+      alignReq !== (seq.alignReq || "") ||
+      alignOrderCode !== (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")) ||
+      alignLevelReq !== (seq.alignLevelReq ? String(seq.alignLevelReq) : "") ||
+      classReq !== (seq.classReq || "") ||
+      questDbIds.join(",") !== (Array.isArray(seq.questDbIds) ? seq.questDbIds.join(",") : "") ||
+      note !== (seq.note || "") ||
+      isSuccess !== (seq.isSuccess ?? false) ||
+      icon !== (seq.icon || "") ||
+      metamobMonsterId !== (seq.metamobMonsterId ? String(seq.metamobMonsterId) : "") ||
+      // Le drapeau « optionnel » fait partie de la donnée enregistrée : le modifier doit
+      // armer le bouton « Enregistrer » comme n'importe quel autre champ.
+      optionalDungeonIds.slice().sort().join(",") !==
+        (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
+    );
+  }, [name, dofusdbUrl, noobsUrl, tips, constraints, initialConstraints, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+
+  // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+
+  /**
+   * Lot 5 — le brouillon suit la saisie : écrit tant que le formulaire est « non
+   * enregistré », supprimé dès qu'il ne l'est plus. Un stockage refusé/plein ne bloque
+   * jamais la saisie (le brouillon est un confort, pas une dépendance).
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = rushEditorDraftKey(seq.id);
+    try {
+      if (!isDirty) {
+        localStorage.removeItem(key);
+        return;
+      }
+      localStorage.setItem(
+        key,
+        serializeRushEditorDraft({
+          name,
+          note,
+          tips,
+          dofusdbUrl,
+          noobsUrl,
+          alignReq,
+          alignOrderCode,
+          alignLevelReq,
+          classReq,
+          metamobMonsterId,
+          icon,
+          bontaName,
+          bontaTips,
+          brakName,
+          brakTips,
+          isSuccess,
+        })
+      );
+    } catch {
+      /* stockage indisponible : on continue sans brouillon */
+    }
+  }, [isDirty, seq.id, name, note, tips, dofusdbUrl, noobsUrl, alignReq, alignOrderCode, alignLevelReq, classReq, metamobMonsterId, icon, bontaName, bontaTips, brakName, brakTips, isSuccess]);
+
+  /** Restaure les valeurs de la base et jette le brouillon (geste explicite). */
+  const discardDraft = () => {
+    try {
+      localStorage.removeItem(rushEditorDraftKey(seq.id));
+    } catch {
+      /* rien à jeter */
+    }
+    setName(seq.subGuideName || seq.subGuideRef);
+    setDofusdbUrl(seq.dofusdbUrl || "");
+    setNoobsUrl(seq.dofuspourlesnoobsUrl || "");
+    setTips(seq.tips || "");
+    setConstraints(initialConstraints);
+    setNote(seq.note || "");
+    setAlignReq(seq.alignReq || "");
+    setAlignOrderCode(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
+    setAlignLevelReq(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
+    setClassReq(seq.classReq || "");
+    setMetamobMonsterId(seq.metamobMonsterId ? String(seq.metamobMonsterId) : "");
+    setIcon(seq.icon || "");
+    setIsSuccess(seq.isSuccess ?? false);
+    const v = (seq.routeVariants ?? {}) as SequenceRouteVariants;
+    setBontaName(v.bontarien?.name ?? "");
+    setBontaTips(v.bontarien?.tips ?? "");
+    setBrakName(v.brakmarien?.name ?? "");
+    setBrakTips(v.brakmarien?.tips ?? "");
+    setDraftRestored(false);
+  };
+
+
+  // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
+  // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
+  // bas sont celles du MEMBRE (mêmes composants que l'overlay, le dashboard et le guide public),
+  // nourries par l'état vivant du formulaire — on relit donc ici ce que le joueur verra après
+  // « Enregistrer », position, donjons, ressources et conseils compris.
+  const previewSeq: RushSequence = useMemo(() => ({
+    id: seq.id,
+    subGuideRef: name.trim() || seq.subGuideRef,
+    subGuideName: name,
+    note: note || null,
+    isOptional: false,
+    order: seq.order,
+    dungeonId: selectedDungeons[0]?.id ?? null,
+    dungeonIds: selectedDungeons.map(d => d.id),
+    // L'aper├ºu doit montrer **exactement** ce que le joueur verra : le donjon optionnel
+    // reste list├®, mais il ne verrouille pas la validation.
+    dungeons: selectedDungeons.map(d => ({
+      id: d.id,
+      name: d.name,
+      bossName: d.bossName,
+      imageUrl: d.imageUrl ?? null,
+      isOptional: isDungeonOptional(d.id),
+    })),
+    dofusdbUrl: dofusdbUrl.trim() || null,
+    dofuspourlesnoobsUrl: noobsUrl.trim() || null,
+    tips: tips.trim() || null,
+    alignReq: alignReq.trim() || null,
+    alignOrderCode: alignOrderCode.trim() || null,
+    alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+    classReq: classReq.trim() || null,
+    isSuccess,
+    icon: icon.trim() || null,
+    metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
+    activityTags: activityTags as RushActivityTag[],
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, isSuccess, icon, metamobMonsterId, activityTags]);
+
+  /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
+  const previewMilestone: RushMilestone = useMemo(() => {
+    const found = milestones?.find(m => m.id === milestoneId);
+    return {
+      id: milestoneId,
+      chapter: found?.chapter ?? 0,
+      chapterLabel: found?.chapterLabel ?? "",
+      title: found?.title ?? (name || "Quête"),
+      description: found?.description ?? null,
+      accentColor: found?.accentColor ?? null,
+      imageUrl: found?.imageUrl ?? null,
+      isOptional: found?.isOptional ?? false,
+      order: found?.order ?? 0,
+      tips: found?.tips ?? null,
+      dofusId: found?.dofusId ?? null,
+      type: found?.type,
+      sequences: [],
+    };
+  }, [milestones, milestoneId, name]);
+
+  /** La ligne d'aperçu est inerte : rien ne s'écrit dans l'overlay depuis le studio. */
+  const previewNoop = useCallback(() => { /* aperçu : aucune écriture */ }, []);
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    // Le brouillon a rempli son rôle : la saisie part en base, on le jette.
+    try {
+      localStorage.removeItem(rushEditorDraftKey(seq.id));
+    } catch {
+      /* rien à jeter */
+    }
+    const nextConstraints = sanitizeConstraints(constraints);
+    setConstraints(nextConstraints);
+    onSave({
+      subGuideRef: name.trim(),
+      dungeonId: selectedDungeons[0]?.id ?? null,
+      dungeonIds: selectedDungeons.map(d => d.id),
+      // Seuls les donjons encore s├®lectionn├®s partent (le serveur re-borne l'intersection).
+      dungeonOptionalIds: optionalDungeonIds.filter(id => selectedDungeons.some(d => d.id === id)),
+      dofusdbUrl: dofusdbUrl.trim() || null,
+      dofuspourlesnoobsUrl: noobsUrl.trim() || null,
+      tips: tips.trim() || null,
+      constraints: isEmptyConstraints(nextConstraints) ? null : nextConstraints,
+
+      alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
+      // Lot 4 : `null` efface les variantes ; sinon seuls les champs saisis partent.
+      routeVariants: hasVariants ? nextVariants : null,
+
+      questDbIds,
+      note: note.trim() || undefined,
+      isSuccess,
+      icon: icon.trim() || null,
+      metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
+      activityTags,
+    });
+  };
+
+  /**
+   * E2b-suite — une section est « vide » quand **aucune** de ses données n'est posée.
+   * On ne teste pas le rendu : on teste les valeurs réellement enregistrables, donc
+   * masquer une section ne cache jamais une donnée existante.
+   */
+  const emptySections = {
+    location: !positionsInput.trim() && !currentNpcTag,
+    prereqs: prereqs.length === 0 && !selectedDofusId,
+    conditions: isEmptyConstraints(constraints),
+    activities: !alignmentSet && !metierTag,
+    resources: requiredItems.length === 0,
+    links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
+    route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
+    hints: !tips.trim(),
+    variants: !hasVariants,
+  } as const;
+  const hiddenSections = Object.values(emptySections).filter(Boolean).length;
+  /** Classe d'une section : masquée si vide et si l'auteur n'a pas demandé « tout afficher ». */
+  const sectionClass = (empty: boolean) =>
+    `rounded-xl border border-border bg-surface/40${empty && !showAllSections ? " hidden" : ""}`;
+
+  return (
+    <div className="p-3.5 bg-surface/90 border border-primary/30 rounded-xl space-y-3 shadow-xl">
+      {/* Header avec statut dirty et toggle preview */}
+      <div className="flex items-center justify-between pb-2 border-b border-border">
+        <div className="flex items-center gap-2">
+          <p className="text-caption font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
+            <Pencil className="w-3 h-3 text-primary" /> Édition quête
+          </p>
+          {isDirty && (
+            <span className="text-[10px] font-bold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+              ● Non enregistré
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "Réduire l'édition dans le panneau" : "Éditer en plein écran"}
+              title={isFullscreen ? "Revenir au panneau latéral" : "Ouvrir en plein écran (modale large)"}
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              {isFullscreen
+                ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+                : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPreview(v => !v)}
+            className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-caption font-medium transition-colors ${
+              showPreview
+                ? "border border-warning/40 bg-warning/10 text-warning"
+                : "border border-border bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
+          </button>
+        </div>
+      </div>
+      {/* Lot 5 — brouillon local restauré : la saisie non enregistrée est revenue. */}
+      {draftRestored && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-2.5 py-1.5 text-caption text-warning">
+          <span>Brouillon restauré (non enregistré).</span>
+          <button
+            type="button"
+            onClick={discardDraft}
+            className="rounded-md border border-warning/40 px-2 py-0.5 font-semibold text-warning transition-colors hover:bg-warning/10"
+          >
+            Jeter
+          </button>
+        </div>
+      )}
+
+
+
+      {/*
+        E2b (12/11/2026) — les gestes de la quête sont **en tête**. Mesure : « Déplacer vers »
+        et « Scinder » vivaient après les 9 accordéons, donc à ~1 600 lignes de défilement ;
+        la scission est maintenant dans un menu « … » et sa confirmation s'affiche ici.
+      */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2">
+        {seq.id && milestones && milestones.length > 1 && (
+          <label className="flex min-w-0 flex-1 items-center gap-2">
+            <Layers className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="shrink-0 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Déplacer vers
+            </span>
+            <select
+              value=""
+              aria-label="Déplacer la quête vers un autre bloc"
+              onChange={e => {
+                const targetId = e.target.value;
+                if (targetId && targetId !== milestoneId && seq.id) {
+                  onMove(seq.id, targetId);
+                  onCancel();
+                }
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-elevated px-2 py-1 text-caption text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <option value="">— Choisir un bloc —</option>
+              {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m) && m.type !== "INFO").map(m => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+          <details className="relative ml-auto">
+            <summary
+              aria-label="Autres actions de la quête"
+              className="list-none cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-1 text-caption font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              …
+            </summary>
+            <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border border-border bg-surface p-1 shadow-lg">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setSplitConfirm(true)}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-caption text-foreground transition-colors hover:bg-elevated disabled:opacity-40"
+              >
+                <Scissors className="h-3 w-3" aria-hidden />
+                Scinder en {seq.questDbIds.length} quêtes individuelles
+              </button>
+            </div>
+          </details>
+        )}
+      </div>
+
+      {/* E2b-suite — les sections vides sont masquées par défaut ; ce bandeau les rouvre. */}
+      {hiddenSections > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-caption text-muted-foreground">
+          <span>
+            {showAllSections
+              ? "Toutes les sections sont affichées."
+              : `${hiddenSections} section${hiddenSections > 1 ? "s" : ""} vide${hiddenSections > 1 ? "s" : ""} masquée${hiddenSections > 1 ? "s" : ""}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllSections((v) => !v)}
+            className="rounded-md border border-border px-2 py-0.5 font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            {showAllSections ? "Masquer les vides" : "Tout afficher"}
+          </button>
+        </div>
+      )}
+
+      {splitConfirm && seq.id && Array.isArray(seq.questDbIds) && seq.questDbIds.length > 1 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5">
+          <div className="flex items-start gap-2">
+            <Scissors className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning">
+                Cette étape contient {seq.questDbIds.length} quêtes dans une seule ligne
+              </p>
+              <p className="text-caption text-muted-foreground">
+                La scinder crée une quête par ligne, à la même place, avec la même route.
+                La progression de l&apos;étape est reportée ; les coches de donjons du bloc ne sont pas conservées.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { onSplit(seq.id!); onCancel(); }}
+              className="rounded-lg bg-warning px-3 py-1.5 text-caption font-semibold text-warning-foreground disabled:opacity-40"
+            >
+              Confirmer la scission ({seq.questDbIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitConfirm(false)}
+              className="rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Aperçu live — la ligne de quête et la fiche du MEMBRE, jamais une vignette maison (`E5`) */}
+      {showPreview && (
+        <MemberPreviewFrame label="Aperçu joueur — temps réel">
+          <RushOverlayQuestListItem
+            seq={previewSeq}
+            isDone={false}
+            isBookmarked={false}
+            onToggle={previewNoop}
+            onBookmark={previewNoop}
+            onOpenDetail={() => setShowPreviewModal(true)}
+          />
+          {tips.trim() && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Conseils (puces)</p>
+              <RushTipLines text={tips} />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPreviewModal(true)}
+            className="mt-3 w-full rounded-lg border border-border bg-elevated px-3 py-1.5 text-[11px] font-bold text-foreground transition-colors hover:bg-surface"
+          >
+            Ouvrir la fiche « Détails » du membre
+          </button>
+        </MemberPreviewFrame>
+      )}
+
+      {/* La fiche « Détails » est celle du membre : fond cliquable et Échap compris. */}
+      {showPreviewModal && (
+        <RushOverlayQuestDetailModal
+          milestone={previewMilestone}
+          seq={previewSeq}
+          isDone={false}
+          onClose={() => setShowPreviewModal(false)}
+        />
+      )}
+
+      {/* E2b - groupe 1/3 : Essentiel (identite, route, conseils) */}
+      <SectionGroupHeader group="essentiel" />
+      {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
+      <div className="rounded-xl border border-border bg-surface/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("identity")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-muted-foreground">
+            Identité de la quête *
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.identity && (
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
+            {/* Identité assistée : le catalogue `GameQuest` porte le nom ET l'id DofusDB
+                (celui de `questDbIds`). Le lien DPLN n'y est pas : il reste la 1ʳᵉ source. */}
+            <RushQuestPicker
+              onPick={(pick) => {
+                const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+                setName(next.name);
+                setDofusdbUrl(next.dofusdbUrl);
+                // La liaison forte : l'id DofusDB est celui que porte `questDbIds`.
+                if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
+              }}
+            />
+            {questDbIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Quête liée</span>
+                {questDbIds.map((id) => (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-caption font-bold text-primary"
+                  >
+                    DofusDB #{id}
+                    <button
+                      type="button"
+                      onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                      className="text-primary/70 hover:text-destructive"
+                      aria-label={`Retirer la liaison avec la quête ${id}`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Nom *</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full bg-background/80 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+                placeholder="Nom de la quête"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      <div className={sectionClass(emptySections.route)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("route")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
+            🧭 Route (cité / Ordre / palier / classe)
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.route && (
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">Cité (route)</label>
+                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                >
+                  <option value="">— Aucune (commune) —</option>
+                  <option value="bontarien">Bontarien</option>
+                  <option value="brakmarien">Brakmarien</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                  disabled={!alignReq}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">— Aucun —</option>
+                  {orderCodesForCamp(alignReq).map(o => (
+                    <option key={o.code} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">Palier requis (verrou)</label>
+                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                >
+                  <option value="">— Aucun —</option>
+                  {[20, 40, 60, 80, 100].map(n => (
+                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="rush-seq-class" className="text-caption text-subtle-foreground mb-1 block">Classe (quêtes de classe)</label>
+                <RushClassSelect
+                  id="rush-seq-class"
+                  value={classReq}
+                  onChange={setClassReq}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-caption text-muted-foreground">
+              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
+              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Conseils & Style Tougli ── */}
+      <div className={sectionClass(emptySections.hints)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("hints")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
+            💡 Conseils, Notes & Style Tougli
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.hints && (
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">💡 Tips</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const x = prompt("Position X :");
+                    if (!x) return;
+                    const y = prompt("Position Y :");
+                    if (!y) return;
+                    const pos = `/travel ${x},${y}`;
+                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
+                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
+                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
+                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+                  }}
+                  className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
+                </button>
+              </div>
+              <TipsLinesEditor
+                value={tips}
+                onChange={setTips}
+                placeholder="Conseil affiché côté membre…"
+              />
+            </div>
+
+            <div>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">⚠️ Note courte</label>
+              <input
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none"
+                placeholder="ex: Ne pas cliquer le portail !"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block">
+                  Mini bloc Tougli
+                </label>
+                <button
+                  type="button"
+                  onClick={handleInsertLink}
+                  className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  🔗 Insérer un lien
+                </button>
+              </div>
+              <textarea
+                value={tougliText}
+                onChange={e => handleTougliTextChange(e.target.value)}
+                className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50 resize-none font-sans"
+                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Lot 4 : texte par camp (une seule quête, deux textes) ── */}
+      <div className={sectionClass(emptySections.variants)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("variants")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
+            🎭 Texte par camp
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.variants ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.variants && (
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            <p className="text-caption text-muted-foreground leading-relaxed">
+              Une seule quête, deux textes : le joueur voit la variante de sa cité. Vide ⇒ le
+              nom et les conseils ci-dessus s&apos;appliquent à tout le monde.
+            </p>
+            {[
+              { camp: "Bontarien", name: bontaName, setName: setBontaName, tips: bontaTips, setTips: setBontaTips },
+              { camp: "Brakmarien", name: brakName, setName: setBrakName, tips: brakTips, setTips: setBrakTips },
+            ].map((v) => (
+              <div key={v.camp} className="space-y-1.5">
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">
+                  {v.camp}
+                </label>
+                <input
+                  value={v.name}
+                  onChange={(e) => v.setName(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none"
+                  placeholder={`Nom de la quête (${v.camp.toLowerCase()})`}
+                  aria-label={`Nom de la quête pour le camp ${v.camp}`}
+                />
+                <textarea
+                  value={v.tips}
+                  onChange={(e) => v.setTips(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none resize-none"
+                  placeholder={`Conseils (${v.camp.toLowerCase()}) — une ligne = une puce`}
+                  aria-label={`Conseils pour le camp ${v.camp}`}
+                  rows={2}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* E2b - groupe 2/3 : Contenu (destination, prerequis, ressources, liens) */}
+      <SectionGroupHeader group="contenu" />
+      {/* ── Section 2 : Destination & Coordonnées (Ouvert par défaut) ── */}
+      <div className={sectionClass(emptySections.location) + " relative"}>
+        <button
+          type="button"
+          onClick={() => toggleSection("location")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
+            📍 Destination & Coordonnées GPS
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.location ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.location && (() => {
+          const parsed = validateCoordinate(positionsInput);
+          const rawParts = positionsInput.split(",");
+          const curX = parsed ? String(parsed.x) : (rawParts[0]?.trim() || "");
+          const curY = parsed ? String(parsed.y) : (rawParts[1]?.trim() || "");
+
+          const updateXY = (newX: string, newY: string) => {
+            const trimmedX = newX.trim();
+            const trimmedY = newY.trim();
+            if (!trimmedX && !trimmedY) {
+              handlePositionsChange("");
+            } else {
+              handlePositionsChange(`${trimmedX}, ${trimmedY}`);
+            }
+          };
+
+          return (
+            <div className="p-3 pt-0 space-y-2 border-t border-border">
+              <div className="flex items-center justify-between">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block">
+                  Coordonnées GPS (X et Y)
+                </label>
+                {parsed ? (
+                  <span className="text-[10px] text-primary font-mono">
+                    ✓ Reconnue : [{parsed.formatted}] (copie /travel {parsed.formatted})
+                  </span>
+                ) : positionsInput.trim() ? (
+                  <span className="text-[10px] text-warning font-mono">
+                    Format : X et Y
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Champ X */}
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-muted-foreground font-mono font-bold">X:</span>
+                  <input
+                    type="text"
+                    value={curX}
+                    onChange={e => updateXY(e.target.value, curY)}
+                    className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -2"
+                  />
+                </div>
+
+                {/* Champ Y */}
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Y:</span>
+                  <input
+                    type="text"
+                    value={curY}
+                    onChange={e => updateXY(curX, e.target.value)}
+                    className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary font-mono focus:outline-none transition-colors"
+                    placeholder="ex: 0"
+                  />
+                </div>
+
+                {/* Monde / Dimension */}
+                <div className="relative shrink-0">
+                  <WorldPicker
+                    value={positionsWorldId}
+                    onChange={w => {
+                      setPositionsWorldId(w);
+                      syncPosTag(positionsInput, w, allowZaap);
+                    }}
+                  />
+                </div>
+
+                {positionsInput.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePositionsChange("")}
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-lg transition-colors"
+                    title="Effacer la position"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Détour zaap (choix éditorial façon DPLN) : coché ⇒ les membres
+                  voient le bouton qui copie `/zaap x,y ; /travel x,y`. */}
+              <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+                <input
+                  type="checkbox"
+                  checked={allowZaap}
+                  onChange={e => handleAllowZaapChange(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-primary"
+                />
+                <span className="text-caption text-muted-foreground font-medium">
+                  Proposer le détour zaap <span className="font-mono text-info/80">/zaap + /travel</span>
+                </span>
+              </label>
+
+              {/* Zaap manuel (2e option) : X / Y dissociés du zaap — les membres
+                  copient `/zaap zx,zy ; /travel x,y` tel quel (prioritaire). */}
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Zaap X:</span>
+                  <input
+                    type="text"
+                    value={manualZaapX}
+                    onChange={e => handleManualZaapChange(e.target.value, manualZaapY)}
+                    className="w-full bg-background/80 border border-info/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-info font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -20"
+                  />
+                </div>
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-muted-foreground font-mono font-bold">Zaap Y:</span>
+                  <input
+                    type="text"
+                    value={manualZaapY}
+                    onChange={e => handleManualZaapChange(manualZaapX, e.target.value)}
+                    className="w-full bg-background/80 border border-info/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-info font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -20"
+                  />
+                </div>
+                {(manualZaapX.trim() || manualZaapY.trim()) ? (
+                  <button
+                    type="button"
+                    onClick={() => handleManualZaapChange("", "")}
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-lg transition-colors"
+                    title="Effacer le zaap manuel (retour à l'auto)"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* PNJ donneur (recherche locale, 6 494 PNJ du client) */}
+              <div className="pt-1">
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide block mb-1">
+                  PNJ donneur
+                </label>
+                {currentNpcTag ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-caption font-bold">
+                        {currentNpcTag.name}
+                        {currentNpcTag.npcId ? <span className="font-mono opacity-70">#{currentNpcTag.npcId}</span> : null}
+                      </span>
+                      <button type="button" onClick={clearNpcTag} className="text-caption font-semibold uppercase tracking-wider text-muted-foreground hover:text-destructive">Retirer</button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {npcImageUrl && isSafeImageUrl(npcImageUrl) ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={safeImageUrl(npcImageUrl)} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      ) : null}
+                      <input
+                        value={npcImageUrl}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setNpcImageUrl(v);
+                          syncNpcTag(
+                            typeof currentNpcTag?.name === "string" ? currentNpcTag.name : "",
+                            typeof currentNpcTag?.npcId === "number" ? currentNpcTag.npcId : null,
+                            v,
+                          );
+                        }}
+                        placeholder="Image du PNJ (https://… ou /uploads/… — affichée à la place du nom)"
+                        className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/90 focus:outline-none focus:border-primary/50 placeholder:text-subtle-foreground"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById("rush-npc-upload")?.click()}
+                        disabled={uploadingNpcImage}
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-muted/60 text-caption font-semibold text-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                      >
+                        {uploadingNpcImage ? "…" : "⬆ Importer"}
+                      </button>
+                      <input
+                        id="rush-npc-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          setUploadingNpcImage(true);
+                          const url = await uploadImageFile(f, "guides");
+                          if (url) {
+                            setNpcImageUrl(url);
+                            syncNpcTag(
+                              typeof currentNpcTag?.name === "string" ? currentNpcTag.name : "",
+                              typeof currentNpcTag?.npcId === "number" ? currentNpcTag.npcId : null,
+                              url,
+                            );
+                          }
+                          setUploadingNpcImage(false);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={npcQuery}
+                      onChange={e => handleNpcSearch(e.target.value)}
+                      className="w-full bg-background/80 border border-primary/20 focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary focus:outline-none transition-colors placeholder:text-subtle-foreground"
+                      placeholder="Rechercher un PNJ… (ex : Mériana)"
+                    />
+                    {npcResults.length > 0 && (
+                      <div className="mt-1 space-y-0.5 max-h-40 overflow-y-auto">
+                        {npcResults.map((n) => (
+                          <button key={n.npcId} type="button" onClick={() => selectNpcTag(n)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-primary/10 text-left transition-all text-caption text-muted-foreground hover:text-primary font-medium">
+                            <span className="truncate">{n.name}</span>
+                            <span className="text-subtle-foreground shrink-0 ml-auto font-mono">#{n.npcId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* ── Section 3 : Prérequis & Dofus ── */}
+      <div className={sectionClass(emptySections.prereqs) + " relative"}>
+        <button
+          type="button"
+          onClick={() => toggleSection("prereqs")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
+            🔒 Prérequis ({prereqs.length}) & Dofus associé
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.prereqs && (
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="relative">
+                <label className="text-caption font-semibold text-warning/80 uppercase tracking-wide mb-1 block">
+                  Prérequis de quête
+                </label>
+                {prereqs.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {prereqs.map((p, pIdx) => (
+                      <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30 text-caption font-bold">
+                        <Lock className="w-2.5 h-2.5 text-warning" />
+                        <span className="max-w-[120px] truncate">{p.name}</span>
+                        <button type="button" onClick={() => removePrereq(p)} className="hover:text-destructive text-muted-foreground ml-0.5">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={prereqQuery}
+                    onChange={e => handlePrereqSearch(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && prereqQuery.trim()) {
+                        e.preventDefault();
+                        if (prereqResults[0]) addPrereq(prereqResults[0]);
+                      }
+                    }}
+                    className="w-full bg-background/80 border border-warning/20 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none focus:border-warning/50 placeholder:text-subtle-foreground"
+                    placeholder="Rechercher une quête prérequis..."
+                  />
+                  {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">...</span>}
+                </div>
+                {prereqResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                    {prereqResults.map((res) => (
+                      <button
+                        key={res.id}
+                        type="button"
+                        onClick={() => addPrereq({ id: res.id, name: res.name })}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-warning/20 hover:text-warning flex items-center gap-2 transition-colors"
+                      >
+                        <Search className="w-3 h-3 text-warning shrink-0" />
+                        <span className="truncate">{res.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block">
+                  🥚 Dofus associé
+                </label>
+                <select
+                  value={selectedDofusId}
+                  onChange={e => handleDofusChange(e.target.value)}
+                  className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50"
+                >
+                  <option value="">— Aucun Dofus associé —</option>
+                  {DOFUS_LIST.map(d => (
+                    <option key={d.id} value={d.id}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4 : Conditions (horaire, joueurs, métiers, sorts, notes) ── */}
+      <div className={sectionClass(emptySections.conditions) + " relative"}>
+        <button
+          type="button"
+          onClick={() => toggleSection("conditions")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
+            🎯 Conditions ({constraintsToInfos(sanitizeConstraints(constraints)).length})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.conditions ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.conditions && (
+          <div className="p-3 pt-0 border-t border-border">
+            <RushConditionsEditor value={constraints} onChange={setConstraints} />
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 5 : Ressources & Objets requis ── */}
+      <div className={sectionClass(emptySections.resources) + " relative"}>
+        <button
+          type="button"
+          onClick={() => toggleSection("resources")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-warning/90">
+            📦 Ressources & Objets nécessaires ({requiredItems.length})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.resources && (
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
+            <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 6 : Liens & Médias ── */}
+      <div className={sectionClass(emptySections.links)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("links")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-info/90">
+            🔗 Liens externes & Icône
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.links ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.links && (
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">URL DofusNoobs (DPLN)</label>
+                <input
+                  value={noobsUrl}
+                  onChange={e => setNoobsUrl(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-info/80 focus:outline-none focus:border-primary/50"
+                  placeholder="https://dofuspourlesnoobs.com/..."
+                />
+              </div>
+              <div>
+                <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">URL DofusDB</label>
+                <input
+                  value={dofusdbUrl}
+                  onChange={e => setDofusdbUrl(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/80 focus:outline-none focus:border-primary/50"
+                  placeholder="https://dofusdb.fr/fr/..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Icône du bloc (optionnel)</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { val: "", label: "Défaut", src: null as string | null },
+                  ...QUEST_TYPE_KEYS.map((key) => ({ val: key, label: QUEST_TYPE_LABELS[key].replace("Quête ", ""), src: questTypeIconPath(key) })),
+                  { val: "serie-de-quete", label: "Série de quêtes", src: "/assets/icons/serie-de-quete.png" },
+                  { val: "icone-succes", label: "Succès", src: "/assets/icons/icone-succes.png" },
+                ].map((opt) => (
+                  <button
+                    key={opt.val || "none"}
+                    type="button"
+                    onClick={() => { setIcon(opt.val); if (!opt.val) setCustomIconUrl(""); }}
+                    title={opt.label}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
+                      icon === opt.val ? "bg-primary/20 border-primary/40 text-primary" : "bg-muted/60 border-border text-subtle-foreground hover:text-muted-foreground"
+                    }`}
+                  >
+                    {opt.src ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={opt.src} alt={opt.label} className="w-4 h-4 object-contain" />
+                    ) : (
+                      <span className="w-4 h-4 flex items-center justify-center text-caption">✕</span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Icône personnalisée — URL ou import d'image (S5) */}
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={customIconUrl}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomIconUrl(v);
+                      if (v.trim()) {
+                        setIcon(isSafeImageUrl(v) ? v.trim() : "");
+                      } else {
+                        setIcon("");
+                      }
+                    }}
+                    placeholder="URL d'image (https://… ou /uploads/…)"
+                    className="flex-1 bg-background/80 border border-border rounded-lg px-2 py-1.5 text-caption text-primary/90 focus:outline-none focus:border-primary/50 placeholder:text-subtle-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("rush-icon-upload")?.click()}
+                    disabled={uploadingIcon}
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-muted/60 text-caption font-semibold text-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {uploadingIcon ? "…" : "⬆ Importer"}
+                  </button>
+                  <input
+                    id="rush-icon-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setUploadingIcon(true);
+                      const url = await uploadImageFile(f);
+                      if (url) { setIcon(url); setCustomIconUrl(url); }
+                      setUploadingIcon(false);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+                {resolveRushSeqIcon(icon) && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={safeImageUrl(resolveRushSeqIcon(icon) as string)} alt="" className="w-6 h-6 object-contain rounded-md" />
+                )}
+                {customIconUrl.trim() && !isSafeImageUrl(customIconUrl) && (
+                  <p className="text-[10px] text-destructive/80">URL d'image non autorisée (http(s) ou chemin relatif uniquement).</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* E2b - groupe 3/3 : Avance (alignement, options) */}
+      <SectionGroupHeader group="avance" />
+      {/* ── Section 4 : Activités & Tags ── */}
+      <div className={sectionClass(emptySections.activities)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("activities")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-info/90">
+            🎯 Alignement & Métier requis
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.activities && (
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
+            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="alignSetToggle"
+                  checked={!!alignmentSet}
+                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
+                />
+                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-primary cursor-pointer select-none">
+                  ⚔️ Quête d'alignement
+                  <span className="text-[10px] font-medium text-primary/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
+                </label>
+              </div>
+              {alignmentSet && (
+                <div className="flex flex-wrap items-center gap-2 pl-6">
+                  <span className="text-caption font-semibold text-primary/80 uppercase tracking-wide">Camp</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("bontarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
+                      alignmentSet.camp === "bontarien"
+                        ? "bg-info/20 border-info/50 text-info"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("brakmarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-semibold uppercase tracking-wide transition-all ${
+                      alignmentSet.camp === "brakmarien"
+                        ? "bg-destructive/20 border-destructive/50 text-destructive"
+                        : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
+                  </button>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-caption font-semibold text-primary/80 uppercase tracking-wide">Niveau</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={alignmentSet.level}
+                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
+                      className="w-16 bg-background/80 border border-primary/30 rounded-lg px-2 py-1 text-xs text-primary text-center focus:outline-none"
+                    />
+                  </div>
+                  <span className="ml-auto text-caption text-primary/60 italic">
+                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
+                  </span>
+                </div>
+              )}
+
+              {alignmentSet && alignmentSetContradictsCamp(alignReq, alignmentSet.camp) && (
+                <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/5 p-2 text-caption text-warning">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Ce camp contredit la <b>cité de la route</b> ({alignReq}) : la quête n&apos;est visible
+                    que dans l&apos;autre camp, et la cocher y basculerait le membre.
+                  </span>
+                </p>
+              )}
+
+              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="metierToggle"
+                    checked={!!metierTag}
+                    onChange={e => handleMetierToggle(e.target.checked)}
+                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-warning cursor-pointer select-none">
+                    🔨 Métier requis
+                    <span className="text-[10px] font-medium text-warning/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
+                  </label>
+                </div>
+                {metierTag && (
+                  <div className="flex flex-wrap items-center gap-2 pl-6">
+                    <select
+                      value={metierTag.name}
+                      onChange={e => handleMetierJobChange(e.target.value)}
+                      className="bg-background/80 border border-warning/30 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none"
+                    >
+                      <option value="">— Choisir un métier —</option>
+                      {Object.values(DOFUS_JOBS).flat().map(j => (
+                        <option key={j.id} value={j.name}>{j.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-caption font-semibold text-warning/80 uppercase tracking-wide">Niveau</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        value={metierTag.level}
+                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
+                        className="w-16 bg-background/80 border border-warning/30 rounded-lg px-2 py-1 text-xs text-warning text-center focus:outline-none"
+                      />
+                    </div>
+                    <span className="ml-auto text-caption text-warning/60 italic">
+                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Options Avancées & Donjons ── */}
+      <div className="rounded-xl border border-border bg-surface/40 relative">
+        <button
+          type="button"
+          onClick={() => toggleSection("advanced")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-destructive/90">
+            ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.advanced && (
+          <div className="p-3 pt-0 space-y-3 border-t border-border">
+            {/* Toggle Info Sequence */}
+            <div className="flex flex-col gap-2 p-2 rounded-xl bg-primary/10 border border-primary/20">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isInfoBlockToggle"
+                  checked={isInfoBlock}
+                  onChange={e => handleIsInfoBlockChange(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
+                />
+                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-primary cursor-pointer select-none">
+                  📌 Est un bloc d'information pur (non cochable)
+                </label>
+              </div>
+            </div>
+
+            {/* Donjons liés */}
+            <div>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block flex items-center gap-1">
+                <Sword className="w-2.5 h-2.5 text-primary" /> Donjons liés
+              </label>
+              {selectedDungeons.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {selectedDungeons.map(d => (
+                    <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {d.imageUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                          : <Sword className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                        <span className="text-caption font-bold text-foreground truncate">{d.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <label
+                          className="flex items-center gap-1 text-caption font-bold text-muted-foreground cursor-pointer select-none"
+                          title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDungeonOptional(d.id)}
+                            onChange={() => toggleDungeonOptional(d.id)}
+                            className="w-3 h-3 accent-primary cursor-pointer"
+                          />
+                          Optionnel
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => toggleOcreForDungeon(d.id)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-semibold uppercase tracking-wide transition-all ${
+                            isDungeonOcre(d.id)
+                              ? "bg-warning/20 border-warning/40 text-warning"
+                              : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
+                          {isDungeonOcre(d.id) ? "À capturer ✓" : "Ocre ?"}
+                        </button>
+                        <button type="button" onClick={() => removeDungeon(d.id)} className="text-muted-foreground hover:text-destructive p-0.5">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input
+                value={dungeonQuery}
+                onChange={e => handleDungeonSearch(e.target.value)}
+                className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
+                placeholder="Ajouter un donjon…"
+              />
+              {searching && <p className="text-caption text-subtle-foreground italic mt-1">Recherche…</p>}
+              {dungeonResults.length > 0 && (
+                <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto">
+                  {dungeonResults.map(d => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => addDungeon(d)}
+                      className="w-full flex items-center gap-2 px-2 py-1 hover:bg-primary/10 rounded-lg transition-colors text-left"
+                    >
+                      {d.imageUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                        : <div className="w-5 h-5 rounded bg-muted flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-subtle-foreground" /></div>}
+                      <p className="text-xs font-bold text-foreground">{d.name}</p>
+                      <p className="text-caption text-muted-foreground">Niv. {d.level}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/*
+        Pied **sticky** (E2b, 12/11/2026) : le formulaire fait ~1 600 lignes, « Enregistrer »
+        sortait de l'écran dès les premiers champs. La barre reste collée au bas de
+        l'inspecteur, sans flou (dette DA) ni couleur en dur.
+      */}
+      <div className="sticky bottom-0 z-20 -mx-3.5 -mb-3.5 mt-1 flex items-center justify-between gap-2 rounded-b-2xl border-t border-border bg-surface px-3.5 py-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending || !name.trim()}
+            className="flex items-center gap-1.5 rounded-lg bg-success px-3.5 py-2 text-caption font-semibold text-success-foreground transition-colors hover:opacity-90 disabled:opacity-40"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden /> Enregistrer la quête
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-border px-3 py-2 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            Annuler
+          </button>
+        </div>
+        {isDirty && (
+          <span className="text-caption font-medium text-warning">● Non enregistré</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── WorldPicker pour sélectionner un monde avec style ──────────────────────
+function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = DOFUS_WORLDS.find(w => w.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted border border-border-strong/60 text-foreground text-caption font-medium transition-all whitespace-nowrap"
+      >
+        <MapPin className="w-3 h-3 text-primary shrink-0" />
+        <span className="truncate max-w-[100px]">{selected ? `${selected.name}` : `Monde ${value}`}</span>
+        <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1.5 bg-surface border border-border-strong/80 rounded-xl shadow-2xl z-[100] min-w-[220px] max-h-60 overflow-y-auto p-1.5 ">
+          {DOFUS_WORLDS.map(w => (
+            <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
+              className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all ${
+                w.id === value
+                  ? "bg-primary/20 text-primary border border-primary/30 font-bold"
+                  : "text-foreground hover:bg-muted/80 border border-transparent"
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold font-mono shrink-0 ${
+                w.id === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>{w.id}</span>
+              <span className="font-medium truncate flex-1">{w.name}</span>
+              {w.id === value && <Check className="w-3.5 h-3.5 ml-auto text-primary shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AddSequenceForm ──────────────────────────────────────────────────────────
+function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
+  milestoneId: string; onAdd: (data: any) => void; isPending: boolean;
+  /**
+   * E2c — emplacement du cockpit Branches : la cité, l'Ordre, le palier et la classe
+   * arrivent **pré-remplis**. Sans cette prop (création depuis la liste), tout part vide.
+   */
+  defaultRoute?: { alignReq: string; alignOrderCode: string; alignLevelReq: string; classReq: string } | null;
+}) {
+  const [name, setName] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [dofusdbUrl, setDofusdbUrl] = useState("");
+  const [noobsUrl, setNoobsUrl] = useState("");
+  const [tips, setTips] = useState("");
+  const [alignReq, setAlignReq] = useState(defaultRoute?.alignReq ?? "");
+  const [alignOrderCode, setAlignOrderCode] = useState(defaultRoute?.alignOrderCode ?? "");
+  const [alignLevelReq, setAlignLevelReq] = useState(defaultRoute?.alignLevelReq ?? "");
+  const [classReq, setClassReq] = useState(defaultRoute?.classReq ?? "");
+  const [questDbIds, setQuestDbIds] = useState<number[]>([]);
+  const [note, setNote] = useState("");
+  const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
+  const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>([]);
+  // M├¬mes r├¿gles que l'├®diteur d'une qu├¬te existante : sous-ensemble des donjons li├®s.
+  const [optionalDungeonIds, setOptionalDungeonIds] = useState<string[]>([]);
+
+  const isDungeonOptional = (dungeonId: string) => optionalDungeonIds.includes(dungeonId);
+
+  const toggleDungeonOptional = (dungeonId: string) => {
+    setOptionalDungeonIds(prev =>
+      prev.includes(dungeonId) ? prev.filter(id => id !== dungeonId) : [...prev, dungeonId]
+    );
+  };
+
+  const removeDungeon = (dungeonId: string) => {
+    setSelectedDungeons(prev => prev.filter(d => d.id !== dungeonId));
+    setOptionalDungeonIds(prev => prev.filter(id => id !== dungeonId));
+  };
+  const [dungeonQuery, setDungeonQuery] = useState("");
+  const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef<any>(null);
+
+  // Info block state
+  const [isInfoBlockNew, setIsInfoBlockNew] = useState(false);
+  const [infoBlockColorNew, setInfoBlockColorNew] = useState("#10b981");
+
+  const [selectedDofusId, setSelectedDofusId] = useState<string>("");
+  
+  // Multiselect Prerequisites state
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>([]);
+  const [prereqQuery, setPrereqQuery] = useState("");
+  const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
+  const [searchingPrereqs, setSearchingPrereqs] = useState(false);
+  const prereqSearchRef = useRef<any>(null);
+
+  const handlePrereqSearch = (q: string) => {
+    setPrereqQuery(q);
+    if (q.length < 2) { setPrereqResults([]); return; }
+    clearTimeout(prereqSearchRef.current);
+    setSearchingPrereqs(true);
+    prereqSearchRef.current = setTimeout(async () => {
+      const res = await searchGuideQuests(q);
+      if (res.success && res.data) {
+        setPrereqResults(res.data);
+      }
+      setSearchingPrereqs(false);
+    }, 250);
+  };
+
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
+    setPrereqs(nextPrereqs);
+    setPrereqQuery("");
+    setPrereqResults([]);
+    
+    // Sync activityTags
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
+    setPrereqs(nextPrereqs);
+    
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const handleDofusChange = (dofusId: string) => {
+    setSelectedDofusId(dofusId);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "dofus_link");
+      if (dofusId) {
+        return [...filtered, { type: "dofus_link" as any, name: dofusId }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleDungeonSearch = (q: string) => {
+    setDungeonQuery(q);
+    if (q.length < 2) { setDungeonResults([]); return; }
+    clearTimeout(searchRef.current);
+    setSearching(true);
+    searchRef.current = setTimeout(async () => {
+      const res = await searchDungeonsLocal(q);
+      if (res.success) setDungeonResults(res.data as DungeonResult[]);
+      setSearching(false);
+    }, 300);
+  };
+
+  const addDungeon = (d: DungeonResult) => {
+    if (!selectedDungeons.find(sd => sd.id === d.id)) setSelectedDungeons(p => [...p, d]);
+    setDungeonQuery(""); setDungeonResults([]);
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    onAdd({
+      subGuideRef: name.trim(),
+      dungeonId: selectedDungeons[0]?.id ?? null,
+      dungeonIds: selectedDungeons.map(d => d.id),
+      dungeonOptionalIds: optionalDungeonIds.filter(id => selectedDungeons.some(d => d.id === id)),
+      dofusdbUrl: dofusdbUrl.trim() || null,
+      dofuspourlesnoobsUrl: noobsUrl.trim() || null,
+      tips: tips.trim() || null,
+      alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
+      questDbIds,
+      note: note.trim() || undefined,
+      activityTags,
+    });
+    setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
+    setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setQuestDbIds([]);
+    setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
+    setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
+    setExpanded(false);
+  };
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <input value={name} onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && name.trim()) handleSubmit(); }}
+          placeholder="Nom de la quête… (Entrée pour ajouter)"
+          className="flex-1 bg-background/80 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-primary/50"
+        />
+        <button type="button" onClick={() => setExpanded(v => !v)} title="Options avancées"
+          className={`p-1.5 rounded-xl border transition-all ${expanded ? "bg-primary/20 border-primary/30 text-primary" : "bg-surface border-border text-subtle-foreground hover:text-foreground"}`}
+        >
+          <Link2 className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={handleSubmit} disabled={isPending || !name.trim()}
+          className="p-1.5 bg-primary/10 hover:bg-primary/20 disabled:opacity-30 text-primary rounded-xl transition-all"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Même identité assistée qu'à l'édition : le catalogue fournit le nom et l'id DofusDB. */}
+      <RushQuestPicker
+        onPick={(pick) => {
+          const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+          setName(next.name);
+          setDofusdbUrl(next.dofusdbUrl);
+          if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
+        }}
+      />
+      {questDbIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Quête liée</span>
+          {questDbIds.map((id) => (
+            <span
+              key={id}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-caption font-bold text-primary"
+            >
+              DofusDB #{id}
+              <button
+                type="button"
+                onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                className="text-primary/70 hover:text-destructive"
+                aria-label={`Retirer la liaison avec la quête ${id}`}
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="p-3 bg-surface/60 border border-primary/10 rounded-xl space-y-2">
+              <p className="text-caption font-semibold text-primary/60 uppercase tracking-wide">Options avancées</p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <label className="text-caption font-semibold text-warning/80 uppercase tracking-wide mb-1 block flex items-center gap-1">
+                    🔒 Prérequis de cette quête ({prereqs.length})
+                  </label>
+
+                  {/* Badges / Tags de prérequis choisis */}
+                  {prereqs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {prereqs.map((p, pIdx) => (
+                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30 text-caption font-bold">
+                          <Lock className="w-2.5 h-2.5 text-warning" />
+                          <span className="max-w-[120px] truncate">{p.name}</span>
+                          <button type="button" onClick={() => removePrereq(p)} className="hover:text-destructive text-muted-foreground ml-0.5">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Autocomplete Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={prereqQuery}
+                      onChange={e => handlePrereqSearch(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && prereqQuery.trim()) {
+                          e.preventDefault();
+                          if (prereqResults[0]) addPrereq(prereqResults[0]);
+                        }
+                      }}
+                      className="w-full bg-background/80 border border-warning/20 rounded-lg px-2 py-1.5 text-xs text-warning focus:outline-none focus:border-warning/50 placeholder:text-subtle-foreground"
+                      placeholder="Rechercher une quête prérequis..."
+                    />
+                    {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-muted-foreground animate-pulse">...</span>}
+                  </div>
+
+                  {/* Dropdown de résultats */}
+                  {prereqResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-warning/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                      {prereqResults.map((res) => (
+                        <button
+                          key={res.id}
+                          type="button"
+                          onClick={() => addPrereq({ id: res.id, name: res.name })}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-warning/20 hover:text-warning flex items-center gap-2 transition-colors"
+                        >
+                          <Search className="w-3 h-3 text-warning shrink-0" />
+                          <span className="truncate">{res.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-caption font-semibold text-primary/80 uppercase tracking-wide mb-1 block flex items-center gap-1">
+                    🥚 Dofus associé
+                  </label>
+                  <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
+                    className="w-full bg-background/80 border border-primary/20 rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-primary/50"
+                  >
+                    <option value="">— Aucun Dofus associé —</option>
+                    {DOFUS_LIST.map(d => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-caption text-subtle-foreground mb-1 block">URL DofusNoobs (DPLN)</label>
+                  <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-caption text-info/80 focus:outline-none"
+                    placeholder="https://dofuspourlesnoobs.com/..."
+                  />
+                </div>
+                <div>
+                  <label className="text-caption text-subtle-foreground mb-1 block">URL DofusDB</label>
+                  <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-caption text-primary/80 focus:outline-none"
+                    placeholder="https://dofusdb.fr/fr/..."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Cité (route)</label>
+                  <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                  >
+                    <option value="">— Aucune (commune) —</option>
+                    <option value="bontarien">Bontarien</option>
+                    <option value="brakmarien">Brakmarien</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Ordre (quêtes d'Ordre)</label>
+                  <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                    disabled={!alignReq}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none disabled:opacity-40"
+                  >
+                    <option value="">— Aucun —</option>
+                    {orderCodesForCamp(alignReq).map(o => (
+                      <option key={o.code} value={o.code}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-subtle-foreground mb-1 block">Palier requis (verrou)</label>
+                  <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                  >
+                    <option value="">— Aucun —</option>
+                    {[20, 40, 60, 80, 100].map(n => (
+                      <option key={n} value={n}>Alignement ≥ {n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="rush-new-class" className="text-caption text-subtle-foreground mb-1 block">Classe (quêtes de classe)</label>
+                  <RushClassSelect
+                    id="rush-new-class"
+                    value={classReq}
+                    onChange={setClassReq}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">💡 Tips</label>
+                <TipsLinesEditor
+                  value={tips}
+                  onChange={setTips}
+                  rows={2}
+                  placeholder="Conseil pour le membre…"
+                />
+              </div>
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isInfoBlockNew"
+                    checked={isInfoBlockNew}
+                    onChange={e => {
+                      setIsInfoBlockNew(e.target.checked);
+                      setActivityTags(prev => {
+                        const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                        if (e.target.checked) {
+                          return [...filtered, { type: "info_sequence" as any, color: infoBlockColorNew }];
+                        }
+                        return filtered;
+                      });
+                    }}
+                    className="w-4 h-4 accent-primary rounded cursor-pointer"
+                  />
+          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-primary cursor-pointer select-none">
+            📌 Bloc d'info sans check ni bookmark
+          </label>
+          <span className="text-caption text-subtle-foreground ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
+                </div>
+                {isInfoBlockNew && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
+                    <div className="flex gap-1">
+                      {COLOR_PALETTE.map(c => (
+                        <button key={c.value} onClick={() => {
+                          setInfoBlockColorNew(c.value);
+                          setActivityTags(prev => {
+                            const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                            return [...filtered, { type: "info_sequence" as any, color: c.value }];
+                          });
+                        }} title={c.label}
+                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                          style={{ backgroundColor: c.value }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">⚠️ Note courte</label>
+                <input value={note} onChange={e => setNote(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
+                  placeholder="Note courte…"
+                />
+              </div>
+              {/* Donjons */}
+              <div>
+                <label className="text-caption text-subtle-foreground mb-1 block">⚔️ Donjons liés</label>
+                {selectedDungeons.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1">
+                    {selectedDungeons.map(d => (
+                      <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 border border-primary/20 rounded text-caption text-foreground font-bold">
+                        {d.name}
+                        <label
+                          className="flex items-center gap-1 text-caption font-bold text-muted-foreground cursor-pointer select-none"
+                          title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDungeonOptional(d.id)}
+                            onChange={() => toggleDungeonOptional(d.id)}
+                            className="w-3 h-3 accent-primary cursor-pointer"
+                          />
+                          Optionnel
+                        </label>
+                        <button onClick={() => removeDungeon(d.id)} className="text-muted-foreground hover:text-destructive"><X className="w-2 h-2" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input value={dungeonQuery} onChange={e => handleDungeonSearch(e.target.value)}
+                  className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground placeholder:text-subtle-foreground focus:outline-none"
+                  placeholder="Ajouter un donjon…"
+                />
+                {searching && <p className="text-caption text-subtle-foreground italic mt-0.5">Recherche…</p>}
+                {dungeonResults.length > 0 && (
+                  <div className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
+                    {dungeonResults.map(d => (
+                      <button key={d.id} onClick={() => addDungeon(d)}
+                        className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-primary/10 rounded text-left text-xs text-foreground"
+                      >
+                        {d.imageUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={d.imageUrl} alt={d.name} className="w-4 h-4 rounded object-cover" />
+                          : <Sword className="w-3 h-3 text-subtle-foreground" />}
+                        {d.name} <span className="text-subtle-foreground">Niv.{d.level}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

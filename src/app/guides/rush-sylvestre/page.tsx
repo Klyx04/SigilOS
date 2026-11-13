@@ -3,14 +3,17 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, Construction, ShieldCheck } from "lucide-react";
+import { Construction } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getPublicGuideDetail } from "@/server/actions/optimized-guide-actions";
+import { getPublicAccount } from "@/server/public-account";
+import { toPublicGuideVisitor } from "@/lib/public-guide-visitor";
 import { PublicRushGuideClient } from "./_components/PublicRushGuideClient";
+import { DaWakfuFilters } from "@/components/da/DaWakfuFilters";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
@@ -18,19 +21,20 @@ export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
 /**
  * Lecture du guide **une seule fois par requête** : l'état « En construction » est lu par les
  * métadonnées (⇒ `noindex`) **et** par la page — on ne paie pas deux fois les chapitres et leurs
- * quêtes. Source de vérité : `OptimizedGuide.isUnderConstruction`, le **même** champ que le toggle
- * « Mode Construction » de l'éditeur God (`/god/rush-sylvestre`).
+ * quêtes. Source de vérité : `OptimizedGuide.isPublicUnderConstruction`, le drapeau de la **page
+ * publique**. L'avis de l'**espace membres** est un autre champ (`isUnderConstruction`) : ouvrir le
+ * guide au public ne ferme pas le chantier interne, et l'inverse est vrai aussi.
  */
 const getRushGuide = cache(() => getPublicGuideDetail("rush-sylvestre"));
 
 export async function generateMetadata(): Promise<Metadata> {
   const res = await getRushGuide();
-  const underConstruction = !!res.success && !!res.guide?.isUnderConstruction;
+  const underConstruction = !!res.success && !!res.guide?.isPublicUnderConstruction;
 
   return {
-  title: { absolute: "Guide Rush Sylvestre Dofus Unity : Quêtes, Trajets & Overlay In-Game | SigilOS" },
+  title: { absolute: "Dofus Sylvestre : quêtes, trajets et overlay" },
   description:
-    "Guide complet étape par étape pour obtenir le Dofus Sylvestre sur Dofus Unity. Coordonnées /travel, liste des ressources, prérequis de quêtes et Overlay In-Game détachable 100% gratuit.",
+    "Les quêtes du Dofus Sylvestre dans l'ordre : coordonnées /travel copiables, ressources à prévoir et overlay en jeu gratuit.",
   alternates: {
     canonical: `${getAppBaseUrl()}/guides/rush-sylvestre`,
   },
@@ -74,14 +78,29 @@ export default async function PublicRushSylvestrePage() {
   }
 
   const guide = guideRes.guide as any;
+
   /**
-   * 🚧 Toggle God « Mode Construction » (`/god/rush-sylvestre`) : la page PUBLIQUE n'affiche plus
-   * le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue dans les
-   * jours qui suivent ! ». Même champ que la vue membres (`OptimizedGuide.isUnderConstruction`) :
-   * une seule source de vérité, aucun second drapeau à maintenir.
+   * V2a — identité du visiteur connecté, lue **une seule fois** et **jamais** pour un anonyme
+   * (aucune requête en plus sur le chemin public). Le DTO ne transporte que cinq scalaires.
    */
-  const isUnderConstruction = !!guide.isUnderConstruction;
+  const visitorAccount = session?.user ? await getPublicAccount() : null;
+  const guideVisitor = visitorAccount ? toPublicGuideVisitor(visitorAccount.profile) : null;
+  /**
+   * 🚧 Drapeau PUBLIC (`isPublicUnderConstruction`, toggle `/god/rush-sylvestre`) : la page PUBLIQUE
+   * n'affiche pas le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue
+   * dans les jours qui suivent ! ». La vue MEMBRES garde son propre champ (`isUnderConstruction`) :
+   * deux surfaces, deux états, aucune dépendance croisée.
+   */
+  const isUnderConstruction = !!guide.isPublicUnderConstruction;
   const milestones = guide.milestones as any[];
+
+  /**
+   * V2a-5 (07/11/2026) — le bandeau du guide **n'a plus d'image de fond** : demande
+   * user « j'avais demandé de virer l'image floue ». Le flou n'était pas un `filter`
+   * mais l'agrandissement d'une source basse résolution en `cover` ; le fond est
+   * désormais le dégradé peint de la DA (`.da-guide-hero`) et le **Dofus Sylvestre**
+   * est posé à côté du titre. Plus aucune prop d'image à passer.
+   */
 
   // Nonce pour inline scripts de sécurité
   const headersList = await headers();
@@ -132,6 +151,12 @@ export default async function PublicRushSylvestrePage() {
       <JsonLd id="json-ld-rush-sylvestre" nonce={nonce} data={jsonLdData} />
 
       <main className="flex-1">
+        {/* Filtres de la DA (#da-rough / #da-brush) : montés UNE fois par page —
+            sans eux, `filter: url(#da-rough)` ne résout rien et les bords de carte
+            restent droits (« si les bords ne sont pas tremblés, c'est qu'il manque »). */}
+        <DaWakfuFilters />
+
+        {isUnderConstruction ? (
         <div className="reg-shell py-10 lg:py-14">
           <nav aria-label="Fil d'Ariane" className="mb-6">
             <Link href="/guides" className="reg-link-quiet text-sm">
@@ -150,20 +175,6 @@ export default async function PublicRushSylvestrePage() {
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
                 {t.rushGuide.subtitle}
               </p>
-              {/* Les promesses de contenu (« ~370 étapes ») disparaissent tant que le guide est
-                  en construction : on n'annonce que ce qui est disponible. */}
-              {!isUnderConstruction && (
-                <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
-                  </span>
-                </p>
-              )}
             </div>
 
             <div className="h-24 w-24 shrink-0 sm:h-28 sm:w-28">
@@ -180,9 +191,9 @@ export default async function PublicRushSylvestrePage() {
 
           {/* 🚧 Guide en construction (toggle God `/god/rush-sylvestre` → « Mode Construction ») :
               le guide interactif est remplacé par l'avis d'arrivée — aucun contenu incomplet servi,
-              aucun overlay proposé, la page reste accessible et lisible. */}
+              aucun overlay proposé, la page reste accessible et lisible. Ce mode garde la DA
+              « Carnet » du site : il n'y a pas de guide à habiller. */}
           <div className="mt-10">
-            {isUnderConstruction ? (
               <div className="flex flex-col items-start gap-4 rounded-2xl border border-warning/30 bg-warning/10 p-6 sm:flex-row sm:items-center sm:gap-5">
                 <span
                   className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-warning/30 bg-warning/15"
@@ -195,10 +206,15 @@ export default async function PublicRushSylvestrePage() {
                   <p className="mt-1 text-sm text-muted-foreground">{t.rushGuide.underConstructionHint}</p>
                 </div>
               </div>
-            ) : (
-              <PublicRushGuideClient guide={guide} milestones={milestones} />
-            )}
           </div>
+        </div>
+        ) : (
+          <>
+            <PublicRushGuideClient guide={guide} milestones={milestones} isConnected={!!session?.user} visitor={guideVisitor} />
+
+            {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
+                pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}
+            <div className="reg-shell py-10 lg:py-14">
 
           {/* Questions fréquentes — masquées tant que le guide n'est pas disponible (elles
               décrivent l'overlay et le suivi de guilde, donc des fonctions pas encore ouvertes). */}
@@ -263,7 +279,9 @@ export default async function PublicRushSylvestrePage() {
             </div>
           </section>
           )}
-        </div>
+            </div>
+          </>
+        )}
       </main>
 
       <GalacticFooter isMember={userContext.isMember} />

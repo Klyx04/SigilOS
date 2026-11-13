@@ -6,8 +6,9 @@ import { SpellRangeGrid, type SpellData } from "@/components/succes/SpellRangeGr
 import { SimulationBoostPanel } from "@/components/succes/SimulationBoostPanel";
 import { getClassSpells } from "@/server/actions/dofus-spells-actions";
 import { getClassName } from "@/lib/dofusbook-utils";
-import { spellEffectDetailsFromBuild, spellZoneFromDamages, type BuildStatsForSpells } from "@/lib/dofus-spells";
+import { spellEffectDetailsFromBuild, spellZoneFromDamages, mergeSimulationEffectDetails, type BuildStatsForSpells } from "@/lib/dofus-spells";
 import { applyBoosts, targetDamageTakenFactor, type DamageBoost } from "@/lib/dofus-boosts";
+import { COMMON_SPELLS } from "@/lib/common-spells";
 
 interface SimulationTabProps {
     classId: number;
@@ -59,8 +60,11 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                     setError(res.error || "Aucun sort détecté pour cette classe.");
                     return;
                 }
-                setSpells(
-                    res.data.spells.map((sp): SpellData => {
+                    // Combine class spells + common spells for complete tactical simulation
+                    const allSpells = [...res.data.spells, ...COMMON_SPELLS];
+
+                    setSpells(
+                        allSpells.map((sp): SpellData => {
                         // Zone réelle issue des lignes de dégâts (`zoneDescr` DofusDB) :
                         // le champ `zone` de niveau est quasi toujours vide.
                         const summary = spellZoneFromDamages(sp.damages);
@@ -71,14 +75,25 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                         const kind: "sorts" | "melee" | "distance" = sp.maxRange <= 1 ? "melee" : "distance";
                         // Jet normal ET jet critique du grade (`critDamages` DofusDB) : la prévisu
                         // affiche les deux, comme l'infobulle du jeu.
-                        const effectDetails = spellEffectDetailsFromBuild(sp.damages, boostedBuild, {
-                            kind,
-                            critDamages: sp.critDamages,
-                        });
+                        const effectDetails = mergeSimulationEffectDetails(
+                            spellEffectDetailsFromBuild(sp.damages, boostedBuild, {
+                                kind,
+                                critDamages: sp.critDamages,
+                                // « Vole de la vie dans l'élément Feu… » (description officielle) :
+                                // le libellé doit dire « vol de vie », pas « dommages ».
+                                lifesteal: /vole?r?\s+de\s+la\s+vie|vol\s+de\s+vie/i.test(sp.description ?? ""),
+                            }),
+                            // Effets **non-dégâts** du sort (poussée, attirance, TP, états…) : sans
+                            // eux, aucune flèche de poussée n'était tracée (mesure du 23/10/2026).
+                            sp,
+                        );
                         return {
                             id: sp.id,
                             name: sp.name,
                             imageUrl: sp.imageUrl,
+                            // Description officielle du sort (DofusDB) : affichée à droite avec les
+                            // effets live — elle était disponible et jamais transmise.
+                            description: sp.description,
                             apCost: sp.apCost,
                             minRange: sp.minRange,
                             range: sp.maxRange,
@@ -90,6 +105,9 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                             castInDiagonal: !!sp.castInDiagonal,
                             castTestLos: sp.castTestLos !== false,
                             grade: sp.grade,
+                            // Sort **à charge** (Glas du Xelor, Torrent de l'Huppermage) : les
+                            // dégâts dépendent des charges — signalé, jamais inventé.
+                            chargeBased: /charge|torrent\s*[123]|glas/i.test(sp.description ?? ""),
                             zone: summary
                                 ? { shape: summary.shape, size: summary.size, range: sp.maxRange }
                                 : { shape: "Point", size: 0, range: sp.maxRange },
@@ -128,25 +146,38 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="border-b border-border pb-4">
-                <h3 className="text-xl font-bold text-foreground uppercase tracking-tight">Simulation tactique</h3>
-                <p className="text-caption text-muted-foreground">
-                    Grille vide 17×17 — déplacez le lanceur librement, choisissez un sort pour voir sa portée, sa zone et sa ligne de vue.
-                </p>
+        <div className="flex flex-col gap-3">
+            {/* En-tête compact — titre + description sur la même ligne en grand écran */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                <div className="min-w-0">
+                    <h3 className="text-lg font-black uppercase tracking-tight text-foreground sm:text-xl">
+                        Simulation tactique
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground sm:text-xs">
+                        Grille 17×17 — déplacez le lanceur, choisissez un sort, posez des cibles (poutchs) pour estimer les dégâts.
+                    </p>
+                </div>
             </div>
+
+            {/* Boosts / malus — responsive wrappé */}
             <SimulationBoostPanel value={boosts} onChange={setBoosts} />
-            <SpellRangeGrid
-                spells={spells}
-                bossName={casterName || getClassName(classId)}
-                bossImageUrl={casterIcon}
-                allowFreeCasterMove
-                entityScale={0.6}
-                hideAllies
-                enemyIconUrl="/assets/icons/poutch.png"
-                maxEnemies={4}
-                damageTakenMultiplier={damageTakenMultiplier}
-            />
+
+            {/* Plateau : borde propre, shadow prononcée, pas de padding excessif */}
+            <div className="w-full overflow-hidden rounded-2xl border border-border/80 bg-[#0d0d0c] shadow-2xl">
+                <SpellRangeGrid
+                    spells={spells}
+                    bossName={casterName || getClassName(classId)}
+                    bossImageUrl={casterIcon}
+                    allowFreeCasterMove
+                    entityScale={0.8}
+                    hideAllies
+                    hideMapDamageBadges
+                    defaultFullscreen
+                    enemyIconUrl="/assets/icons/poutch.png"
+                    maxEnemies={4}
+                    damageTakenMultiplier={damageTakenMultiplier}
+                />
+            </div>
         </div>
     );
 }

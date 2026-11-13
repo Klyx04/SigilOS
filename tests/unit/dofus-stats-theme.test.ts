@@ -17,6 +17,19 @@ import {
  *      peut jamais pointer vers un asset absent (jamais d'image cassée).
  */
 describe("dofus-stats-theme — résolution des thèmes", () => {
+    it("résout les % de dégâts et de résistance « contact » (trophée Arcaniste, 26/10/2026)", () => {
+        // Caractéristiques 120-125 : `dealt*` = dégâts, `received*` = résistance (mesuré).
+        expect(resolveDofusStatTheme(121)).toMatchObject({ asset: "resDistance.png" });
+        expect(resolveDofusStatTheme(124)).toMatchObject({ asset: "resMelee.png" });
+        // Aucun asset dédié pour les trois « % de dégâts » : on rattache l'asset Dommages,
+        // le libellé exact venant de la ligne (`Sorts (%)`, `Armes (%)`, `Mêlée (%)`).
+        for (const characteristic of [122, 123, 125]) {
+            expect(resolveDofusStatTheme(characteristic)?.asset).toBe("dommages.png");
+        }
+        // ⚠️ `125` reste **Vitalité** quand c'est un `effectId` (lignes héritées sans caractéristique).
+        expect(resolveDofusStatTheme(11, 125)).toMatchObject({ asset: "pv.png" });
+    });
+
     it("résout par caractéristique officielle (ids vérifiés en base)", () => {
         expect(resolveDofusStatTheme(11)).toMatchObject({ asset: "pv.png", label: "Vitalité" });
         expect(resolveDofusStatTheme(10)).toMatchObject({ asset: "terre.png", label: "Force" });
@@ -37,7 +50,7 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
         expect(resolveDofusStatTheme(null, 128)).toMatchObject({ asset: "pm.png" });
         expect(resolveDofusStatTheme(null, 117)).toMatchObject({ asset: "po.png" });
         expect(resolveDofusStatTheme(null, 182)).toMatchObject({ asset: "invocation.png" });
-        expect(resolveDofusStatTheme(null, 163)).toMatchObject({ asset: "bouclier.png" });
+        expect(resolveDofusStatTheme(null, 163)).toMatchObject({ asset: "resCritique.png" });
         expect(resolveDofusStatTheme(null, 424)).toMatchObject({ asset: "feu.png" });
         expect(resolveDofusStatTheme(null, 752)).toMatchObject({ asset: "fuite.png" });
     });
@@ -71,7 +84,7 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
 
     it("`rc` = réduction des dégâts critiques subis (jamais l'icône « coups critiques »)", () => {
         // Payload brut Dofusbook : {"id":430,"name":"rc"} ; référentiel DofusDB 87 = « Critiques (fixe) ».
-        expect(resolveDofusStatTheme(null, null, "rc")).toMatchObject({ asset: "bouclier.png", label: "Résistance Critiques" });
+        expect(resolveDofusStatTheme(null, null, "rc")).toMatchObject({ asset: "resCritique.png", label: "Résistance Critiques" });
         expect(resolveDofusStatTheme(null, null, "rc")?.asset).not.toBe("critique.png");
     });
 

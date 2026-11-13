@@ -70,4 +70,23 @@ describe("documentation — accès réservé aux membres de guildes", () => {
     it("l'éditeur dit noir sur blanc qu'aucun visiteur anonyme ne lit la doc", () => {
         expect(read(EDITOR)).toContain("Aucun visiteur anonyme ne lit la doc");
     });
+
+    it("les moteurs n'indexent pas la doc : /docs/ est exclu des robots", () => {
+        const robots = read("src/app/robots.ts");
+        expect(robots).toContain("'/docs/'");
+    });
+
+    it("la création des pages manquantes est gardée et idempotente (jamais d'écrasement)", () => {
+        const actions = read(ACTIONS);
+        const start = actions.indexOf("export async function createMissingModuleDocsAction");
+        expect(start, "action introuvable").toBeGreaterThan(-1);
+        const body = actions.slice(start, start + 3000);
+        expect(body).toContain("isSuperAdmin()");
+        expect(body).toContain('canAccessBrick("docs")');
+        // Idempotence : on ne crée que l'absent, on ne touche jamais à l'existant.
+        expect(body).toContain("findUnique");
+        expect(body).toContain("if (already) continue");
+        expect(body).not.toContain("deleteMany");
+        expect(body).not.toContain("OFFICIAL_DOCS");
+    });
 });

@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
-import { ChevronRight, PlusCircle, Hourglass } from "lucide-react";
+import { ChevronRight, PlusCircle, Hourglass, AlertTriangle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { GuildSetupCard } from "@/components/guild-setup-card";
@@ -10,6 +10,7 @@ import { NoGuildMessage } from "@/components/no-guild-message";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { getGuildsSeparated } from "@/server/actions/user-actions";
+import { redirectGuildlessUserToVisitorSpace } from "@/server/visitor-entry";
 
 export default async function GuildSelectorPage() {
     const session = await auth();
@@ -23,20 +24,8 @@ export default async function GuildSelectorPage() {
         redirect("/");
     }
 
-    const { active, pending, awaiting, rateLimited, needsReconnect } = await getGuildsSeparated();
-
-    const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
-    const platformCfg = await db.platformConfig.findUnique({
-        where: { id: "singleton" },
-        select: { autoOnboardingEnabled: true },
-    }).catch(() => null);
-    const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
-
-    // Pilotage cross-guilde (« mes serveurs ») : signaux admin par guilde
-    // (verrous staff, récupération, gel) — calculés uniquement pour les
-    // guildes dont l'utilisateur est admin Discord natif.
-    const { getPilotSignals } = await import("@/server/actions/guild-owner-actions");
-    const pilotSignals = await getPilotSignals(active.filter((g) => g.isAdmin).map((g) => g.id)).catch(() => ({}));
+    const { active, pending, awaiting, rateLimited, needsReconnect, guildLimitReached, guildLimit } =
+        await getGuildsSeparated();
 
     // Smart Redirect: if only one guild, go directly without showing the portal
     if (active.length === 1 && pending.length === 0) {
@@ -45,6 +34,32 @@ export default async function GuildSelectorPage() {
 
     // Check if empty
     const isEmpty = active.length === 0 && pending.length === 0 && awaiting.length === 0;
+
+    // 🔓 Porte visiteur (D-V13) — un compte sans aucune guilde n'a plus de cul-de-sac : il part
+    // dans son espace perso. La règle est partagée avec la landing (`src/server/visitor-entry.ts`)
+    // et ne s'ouvre jamais quand Discord n'a pas répondu : un membre ne peut pas être pris pour
+    // un visiteur (fail-closed). Aucune migration, aucun `guildId` transmis.
+    await redirectGuildlessUserToVisitorSpace({
+        hasGuild: !isEmpty,
+        guildLookupFailed: rateLimited || needsReconnect,
+    });
+
+    const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
+    const platformCfg = await db.platformConfig.findUnique({
+        where: { id: "singleton" },
+        select: { autoOnboardingEnabled: true },
+    }).catch(() => null);
+    const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
+
+    // 🔒 LG-3 — le bandeau lit `guildLimitReached` **rendu par `getGuildsSeparated`** : le
+    // portail et le tiroir « Gestion SigilOS » partagent la même mesure, calculée une seule fois
+    // côté serveur (fail-closed). Aucun écran ne recompte pour son compte.
+
+    // Pilotage cross-guilde (« mes serveurs ») : signaux admin par guilde
+    // (verrous staff, récupération, gel) — calculés uniquement pour les
+    // guildes dont l'utilisateur est admin Discord natif.
+    const { getPilotSignals } = await import("@/server/actions/guild-owner-actions");
+    const pilotSignals = await getPilotSignals(active.filter((g) => g.isAdmin).map((g) => g.id)).catch(() => ({}));
 
     return (
         <div className="registre min-h-screen flex flex-col bg-background text-foreground">
@@ -73,6 +88,22 @@ export default async function GuildSelectorPage() {
                             <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
                                 Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
+
+                            {/* 🔒 LG-3 — plafond : une ligne d'information **dans** la colonne de lecture.
+                                Mesure du 01/11/2026 : le bandeau vivait hors de `.reg-shell`, en pleine
+                                largeur et au-dessus du titre ⇒ il ne s'alignait sur rien (effet « barre
+                                système »). Il n'ajoute pas d'offre : le refus réel reste la garde G2. */}
+                            {guildLimitReached && (
+                                <div className="mt-5 flex max-w-[62ch] items-start gap-3 rounded-lg border border-warning/25 bg-warning/[0.06] px-4 py-3">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                                    <p className="text-sm leading-relaxed text-muted-foreground">
+                                        <span className="font-semibold text-foreground">
+                                            Limite de {guildLimit} guildes atteinte.
+                                        </span>{" "}
+                                        Quittez une guilde pour en déployer une autre ou en rejoindre une nouvelle.
+                                    </p>
+                                </div>
+                            )}
                         </header>
 
                         <div className={cn(
@@ -175,17 +206,30 @@ export default async function GuildSelectorPage() {
                                         </p>
 
                                         <div className="max-h-[400px] space-y-2 overflow-y-auto custom-scrollbar p-2">
-                                            {pending.map((guild) => (
-                                                <GuildSetupCard
-                                                    key={guild.id}
-                                                    guild={guild}
-                                                    clientId={clientId}
-                                                    // Un seul serveur éligible + bot déjà présent :
-                                                    // on l'active sans exiger un clic « Déployer »
-                                                    // (comme les autres bots : invité = fonctionnel).
-                                                    autoDeploy={pending.length === 1}
-                                                />
-                                            ))}
+                                            {[...pending]
+                                                .sort((a, b) => {
+                                                    if (a.isBotPresent && !b.isBotPresent) return -1;
+                                                    if (!a.isBotPresent && b.isBotPresent) return 1;
+                                                    return a.name.localeCompare(b.name);
+                                                })
+                                                .map((guild) => (
+                                                    <GuildSetupCard
+                                                        key={guild.id}
+                                                        guild={guild}
+                                                        clientId={clientId}
+                                                        // 🔒 Kill-switch God : sans ouverture autonome, la carte
+                                                        // affiche le message au lieu du bouton « Inviter le bot ».
+                                                        autoOnboardingOn={autoOnboardingOn}
+                                                        // 🔒 Plafond atteint : la carte retire l'offre
+                                                        // (sinon le bandeau dit « limite » et le bouton
+                                                        // propose encore de déployer — mesure du 01/11/2026).
+                                                        guildLimitReached={guildLimitReached}
+                                                        // Un seul serveur éligible + bot déjà présent :
+                                                        // on l'active sans exiger un clic « Déployer »
+                                                        // (comme les autres bots : invité = fonctionnel).
+                                                        autoDeploy={pending.length === 1}
+                                                    />
+                                                ))}
                                         </div>
                                     </div>
                                 </section>

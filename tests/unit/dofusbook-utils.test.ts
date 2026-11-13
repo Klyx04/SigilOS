@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { canonicalClassId, dofusbookCharacteristicRows, DOFUSBOOK_CHARACTERISTIC_CODES, dofusbookItemIconId, dofusbookItemIconUrl, DOFUSBOOK_ITEM_ICON_URL_VERSION, DOFUSBOOK_STAT_LABELS, extractDofusbookBuildId, getClassName, isDofusbookBlockResponse, isDofusbookBuildUrl, isDofusRoomBuildUrl, isUsableDofusbookRawPayload, processDofusbookRawData } from "@/lib/dofusbook-utils";
+import { readFileSync } from "node:fs";
+import { canonicalClassId, dofusbookCharacteristicRows, DOFUSBOOK_CHARACTERISTIC_CODES, dofusbookItemIconId, dofusbookItemIconUrl, DOFUSBOOK_ITEM_ICON_URL_VERSION, DOFUSBOOK_NON_STAT_CODES, DOFUSBOOK_STAT_LABELS, extractDofusbookBuildId, getClassName, isDofusbookBlockResponse, isDofusbookBuildUrl, isDofusbookNonStatCode, isDofusRoomBuildUrl, isUsableDofusbookRawPayload, processDofusbookRawData } from "@/lib/dofusbook-utils";
 
 // Matériau minimal d'un build Dofusbook (suffisant pour `processDofusbookRawData`).
 function buildRaw(overrides: Record<string, unknown> = {}) {
@@ -286,6 +287,29 @@ describe("dofusbookItemIconId — icônes d'items (bug « mauvais items » galer
 
         it("n'invente aucun libellé pour un code inconnu", () => {
             expect(DOFUSBOOK_STAT_LABELS["zzz"]).toBeUndefined();
+        });
+
+        /**
+         * 🧨 Constat du 26/10/2026 (capture user « **at** +185 » sur un Dofus Ocre) : le payload
+         * Dofusbook contient des effets **non statistiques** (`at` = attitude/émote, valeur = id ;
+         * `sp` = sort passif rendu dans « Pouvoir Passif »). Ils ne doivent **jamais** apparaître
+         * comme une ligne chiffrée — l'ancien filtre ne retirait que `sp`.
+         */
+        it("identifie les codes Dofusbook qui ne sont pas des statistiques", () => {
+            for (const code of DOFUSBOOK_NON_STAT_CODES) {
+                expect(isDofusbookNonStatCode(code)).toBe(true);
+                expect(isDofusbookNonStatCode(code.toUpperCase())).toBe(true);
+            }
+            expect(isDofusbookNonStatCode("at")).toBe(true);
+            expect(isDofusbookNonStatCode("pa")).toBe(false);
+            expect(isDofusbookNonStatCode("vi")).toBe(false);
+            expect(isDofusbookNonStatCode(undefined)).toBe(false);
+            expect(isDofusbookNonStatCode(42)).toBe(false);
+        });
+
+        it("la carte de build écarte ces codes (plus seulement « sp »)", () => {
+            const source = readFileSync("src/components/dofus/dofusbook-preview.tsx", "utf8");
+            expect(source).toContain("isDofusbookNonStatCode(fx.code)");
         });
 
         it("ancre les codes ambigus sur le référentiel officiel DofusDB", () => {

@@ -9,6 +9,7 @@ import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { persistMonsterStat } from "@/lib/dofensive-sync";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { db } from "@/lib/prisma";
+import { boundCronList } from "@/lib/cron-metrics";
 
 /**
  * 🐉 CRON quotidien : synchronisation locale des fiches et statistiques de monstres (DofusDB + Dofensive).
@@ -53,6 +54,11 @@ export async function GET(req: Request) {
         let imagesSiphoned = 0;
         let errors = 0;
         let skippedFresh = 0;
+        // 🔒 Souveraineté (31/10/2026) : un repli bestiaire local (`source: "unity"`, `drops: []`)
+        // n'est **jamais** persisté. Il écrasait la fiche locale à chaque passe — `Kanigroula`
+        // réécrite vide à 03:46 alors que DofusDB documente 25 butins — et, en la rafraîchissant,
+        // il la sortait de la file de réparation. Le local n'est plus jamais remplacé par un échec réseau.
+        let skippedUnityWrites = 0;
         // « Qui » a échoué : noms de boss réellement en erreur (bornés à l'affichage).
         const errorBosses: string[] = [];
         // Boss d'anomalie (siphon section 3) — compteurs SÉPARÉS des fiches de donjon/titans.
@@ -71,13 +77,21 @@ export async function GET(req: Request) {
         // les fiches manquantes/périmées sont re-fetchées (dry-run BDD pur,
         // même matching que l'onglet État des données). Le bouton God par
         // ligne garde son vrai force (chemin triggerBatch, inchangé).
-        const { buildBossFicheGaps } = await import("@/lib/data-health");
+        const { buildBossFicheGaps, isCompleteMonsterPayload } = await import("@/lib/data-health");
         const existingStats = await db.monsterStat.findMany({
-            select: { monsterName: true, lastSyncedAt: true },
+            // Le payload voyage avec la ligne : une fiche **fraîche mais vide** (`drops: []`,
+            // repli Unity) est un trou à réparer, pas une fiche saine (mesure du 30/10/2026).
+            select: { monsterName: true, monsterId: true, lastSyncedAt: true, stats: true },
         });
+        const existingGapRows = existingStats.map((r) => ({
+            monsterName: r.monsterName,
+            monsterId: r.monsterId,
+            lastSyncedAt: r.lastSyncedAt,
+            complete: isCompleteMonsterPayload(r.stats),
+        }));
         const gaps = buildBossFicheGaps(
             bosses.map((b) => ({ bossName: b.bossName, name: b.dungeonName, level: null })),
-            existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+            existingGapRows,
             Date.now()
         );
         const gapKeys = new Set(gaps.map((g) => `${g.bossName}::${g.dungeonName}`));
@@ -94,6 +108,11 @@ export async function GET(req: Request) {
                 const statsRes = await getMonsterStats(b.bossName, b.dungeonName, true);
                 if (statsRes.success && statsRes.data) {
                     let data = statsRes.data;
+                    // Repli Unity = échec source déguisé en succès : on n'écrit rien.
+                    if (data.source === "unity") {
+                        skippedUnityWrites++;
+                        continue;
+                    }
                     const dRes = await getBossDofensiveSpells(b.bossName, b.dungeonName, undefined, true);
                     if (dRes.success && dRes.data) {
                         data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
@@ -129,7 +148,7 @@ export async function GET(req: Request) {
             });
             const titanGaps = buildBossFicheGaps(
                 titans.map((t) => ({ bossName: t.name, name: t.mapName || t.name, level: null })),
-                existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+                existingGapRows,
                 Date.now()
             );
             const titanGapKeys = new Set(titanGaps.map((g) => g.bossName));
@@ -144,6 +163,11 @@ export async function GET(req: Request) {
                         const statsRes = await getMonsterStats(t.name, t.mapName || undefined, true);
                         if (statsRes.success && statsRes.data) {
                             let data = statsRes.data;
+                            // Même règle que les fiches de donjon : jamais de repli Unity persisté.
+                            if (data.source === "unity") {
+                                skippedUnityWrites++;
+                                continue;
+                            }
                             const dRes = await getBossDofensiveSpells(t.name, undefined, undefined, true);
                             if (dRes.success && dRes.data) {
                                 data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
@@ -268,13 +292,15 @@ export async function GET(req: Request) {
         if (!veilleDisabled) {
             try {
                 const { dofusdbFetchPage } = await import("@/lib/dofusdb-fetch");
-                const { runMonsterFichesPass, MONSTER_FICHES_SPEC } = await import("@/lib/monsters-veille-siphon");
+                const { runMonsterFichesPass, MONSTER_FICHES_SPEC, monsterFichesVeilleLimit } = await import("@/lib/monsters-veille-siphon");
                 const { getGameDataVeilleState, setGameDataVeilleState } = await import("@/server/game-data-sync-state-store");
 
                 const state = await getGameDataVeilleState(MONSTER_FICHES_SPEC.id);
                 const pass = await runMonsterFichesPass({
                     state: state ?? { cursor: null, remaining: null, lastPassAt: null },
-                    limit: 60,
+                    // Plafond réglable (`MONSTER_FICHES_VEILLE_LIMIT`, défaut 300, borné à 800) : le
+                    // plafond fixé à 60 imposait ~74 nuits pour couvrir le bestiaire (mesure 31/10/2026).
+                    limit: monsterFichesVeilleLimit(),
                     fetchPage: async (endpoint, query) => {
                         const page = await dofusdbFetchPage<any>(`${endpoint}?${query}`);
                         if (!page) throw new Error(`${endpoint}?${query} indisponible (filtre, limiteur ou réseau)`);
@@ -289,7 +315,8 @@ export async function GET(req: Request) {
                     },
                     persistFiche: async ({ id, name }) => {
                         const res = await getMonsterStats(name, undefined, true, id);
-                        return !!res?.success;
+                        // Un repli Unity compte comme un échec pour la veille (rien n'est persisté).
+                        return !!res?.success && res.data?.source !== "unity";
                     },
                 });
 
@@ -370,7 +397,99 @@ export async function GET(req: Request) {
             }
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
+        // 5 ter. BUTINS MANQUANTS (mesure du 30/10/2026 : 106 fiches beta / 146 servaient
+        //        `drops: []`). `buildBossFicheGaps` les déclare désormais `incomplète` et la
+        //        phase 5 les re-synchronise ; cette passe **répare** ce que la garde d'écriture
+        //        empêche d'écraser, une fois par nom, dans le même budget DofusDB (25 max).
+        //        Idempotente : en régime établi elle coûte 0 requête.
+        let dropsRepaired = 0;
+        let dropsSkippedUnity = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { repairMonsterDrops } = await import("@/lib/monster-drops-repair");
+                const repair = await repairMonsterDrops({
+                    db: db as any,
+                    limit: 25,
+                    fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
+                    persist: persistMonsterStat,
+                });
+                dropsRepaired = repair.repaired;
+                dropsSkippedUnity = repair.skippedUnity;
+                if (repair.repaired > 0 || repair.failed > 0 || repair.deferred) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Butins : ${repair.repaired} fiche(s) réparée(s), `
+                            + `${repair.scanned} scannée(s), ${repair.skippedUnity} sans source DofusDB, `
+                            + `${repair.failed} en échec`
+                            + (repair.deferred ? " · budget DofusDB partagé épuisé (reprise au prochain passage)" : "")
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Erreur réparation des butins:", { error: String(err) });
+            }
+        }
+
+        // 5 quater. COMBLEMENT DU CATALOGUE (mesure du 09/11/2026) — le filigrane de la veille ne
+        //          recule JAMAIS et avance même quand la fiche échoue : un monstre raté (repli
+        //          Unity, quota) est sauté définitivement (Abrakne, id 650, filigrane à 3 283).
+        //          Ce rail repart du CATALOGUE par id, ignore ce qui est déjà complet et répare le
+        //          reste, avec son **propre** curseur : aucune reprise de plusieurs semaines, aucun
+        //          bouton à cliquer. `deferred` (budget DofusDB partagé épuisé) arrête la passe.
+        let discoverCreated = 0;
+        let discoverSkippedUnity = 0;
+        let discoverCursor: string | null = null;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { discoverMonsterFiches, monsterDiscoverLimit } = await import("@/lib/monster-drops-repair");
+                const { isCompleteMonsterPayload } = await import("@/lib/data-health");
+                const { getGameDataVeilleState, setGameDataVeilleState } = await import("@/server/game-data-sync-state-store");
+                const DISCOVER_STATE = "MONSTER_DISCOVER";
+                const state = await getGameDataVeilleState(DISCOVER_STATE);
+                const afterCursor = state?.cursor ?? "";
+
+                // Noms déjà servis par une fiche complète : lus une fois, aucune requête DofusDB.
+                const known = await (db as any).monsterStat.findMany({
+                    select: { monsterName: true, stats: true },
+                });
+                const knownNames = new Set<string>(
+                    (known ?? [])
+                        .filter((row: any) => isCompleteMonsterPayload(row?.stats))
+                        .map((row: any) => String(row?.monsterName ?? "").trim().toLowerCase())
+                        .filter(Boolean)
+                );
+
+                const report = await discoverMonsterFiches({
+                    db: db as any,
+                    knownNames,
+                    afterCursor,
+                    limit: monsterDiscoverLimit(),
+                    fetchStats: (name) => getMonsterStats(name, undefined, true),
+                    persist: persistMonsterStat,
+                });
+
+                // Balayage terminé (aucune ligne examinée) ⇒ on repart du début au prochain passage.
+                const nextCursor = !report.deferred && report.lastCursor === afterCursor ? "" : report.lastCursor;
+                await setGameDataVeilleState(DISCOVER_STATE, {
+                    cursor: nextCursor,
+                    remaining: null,
+                    lastPassAt: new Date().toISOString(),
+                });
+                discoverCreated = report.created;
+                discoverSkippedUnity = report.skippedUnity;
+                discoverCursor = nextCursor || null;
+                if (report.created > 0 || report.failed > 0 || report.deferred) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Comblement : ${report.created} fiche(s) écrite(s), `
+                            + `${report.scanned} examinée(s), ${report.skippedUnity} sans source DofusDB, `
+                            + `${report.failed} en échec`
+                            + (report.deferred ? " · budget DofusDB partagé épuisé (reprise au prochain passage)" : "")
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Erreur comblement du catalogue:", { error: String(err) });
+            }
+        }
+
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés, ${skippedUnityWrites} replis Unity non écrits · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"}) · butins réparés: ${dropsRepaired} (${dropsSkippedUnity} sans source) · comblement: ${discoverCreated} (${discoverSkippedUnity} sans source)`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
@@ -387,7 +506,7 @@ export async function GET(req: Request) {
         // + « qui » a échoué : les boss réellement en erreur (bornés).
         const failedPreview = errorBosses.slice(0, 5).join(", ");
         const failedSuffix = errorBosses.length > 5 ? ` … (+${errorBosses.length - 5})` : "";
-        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "Siphon Monstres & Sorts terminé",
             message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées, ${skippedFresh} frais < 24 h ignorés).`
@@ -400,13 +519,21 @@ export async function GET(req: Request) {
                 { name: "Erreurs", value: String(errors), inline: true },
                 { name: "Fiches fraîches ignorées", value: String(skippedFresh), inline: true },
                 { name: "Succès complétés", value: String(achievementsSiphoned + specialAchievementsSiphoned), inline: true },
+                // C4 — la liste des boss en erreur était coupée à 20 en base et à 5 dans
+                // le message : elle devient un champ (20 affichés, perte dite) et le
+                // journal reçoit la liste complète (plafond partagé 200).
+                ...(errorBosses.length > 0
+                    ? [{ name: `⚠️ Boss en erreur (${errorBosses.length})`, value: boundCronList(errorBosses, 20).text, inline: false }]
+                    : []),
             ],
             metadata: {
                 synced,
                 errors,
                 totalBosses: bosses.length,
                 skippedFresh,
-                errorBosses: errorBosses.slice(0, 20),
+                imagesSiphoned,
+                errorBossesCount: errorBosses.length,
+                errorBosses: boundCronList(errorBosses).shown,
             },
         });
 
@@ -415,13 +542,15 @@ export async function GET(req: Request) {
         await recordCronExecution("sync_monster_stats", {
             success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0 && achievementSiphonErrors === 0,
             durationMs: Date.now() - startedAt,
-            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s) · ${specialAchievementsSiphoned} succès spécial(aux)`,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s) · ${specialAchievementsSiphoned} succès spécial(aux) · comblement ${discoverCreated} fiche(s)`,
             details: {
                 synced,
                 errors,
                 images: imagesSiphoned,
                 totalBosses: bosses.length,
                 skippedFresh,
+                // C4 — la liste complète (bornée à 200, perte dite) arrive au journal.
+                bossesEnErreur: boundCronList(errorBosses).text,
                 anomalySynced,
                 anomalyErrors,
                 anomalyDefaultMap,
@@ -434,6 +563,8 @@ export async function GET(req: Request) {
                 bountyUnproven,
                 /* Rail de veille (27/09/2026) : où en est le catalogue de fiches monstres. */
                 veilleFiches: veilleFiches,
+                /* Rail de comblement (09/11/2026) : fiches rattrapées hors filigrane. */
+                discover: { created: discoverCreated, skippedUnity: discoverSkippedUnity, cursor: discoverCursor },
             },
         });
 
@@ -447,6 +578,7 @@ export async function GET(req: Request) {
             bountySynced,
             bountyErrors,
             veilleFiches,
+            discoverMonsters: { created: discoverCreated, skippedUnity: discoverSkippedUnity, cursor: discoverCursor },
         });
     } catch (error: any) {
         logger.error("[Cron:SyncMonsterStats] Erreur globale:", { error: String(error) });

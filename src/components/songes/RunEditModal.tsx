@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,19 +21,24 @@ import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE } from "@/lib/songes/types";
 import { updateDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun } from "@prisma/client";
 import { toast } from "sonner";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 
 interface RunEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     guildId: string;
     run: DreamRun;
+    /** Classe actuelle du meneur (demande ACCEPTED) — évite de la réinitialiser sur le main. */
+    initialLeaderClass?: string | null;
+
+    onUpdated?: () => void;
 }
 
 /**
  * Chantier Songes — Modale « Modifier la Run » (leader ou admin).
  * Branchée dans RunCard (RunDetailHeader était orphelin / jamais rendu).
  */
-export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProps) {
+export function RunEditModal({ isOpen, onClose, guildId, run, initialLeaderClass, onUpdated }: RunEditModalProps) {
     const router = useRouter();
     const [pending, setPending] = useState(false);
     const [difficulty, setDifficulty] = useState<string>(run.difficulty);
@@ -46,6 +51,8 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
     // laissait croire à un départ programmé). Heure locale, sans décalage UTC.
     const [scheduledAt, setScheduledAt] = useState<string>(() => toLocalDateTimeInput(run.scheduledAt));
     const [currentFloor, setCurrentFloor] = useState<string>(String(run.currentFloor));
+    // Classe du meneur : part de la classe ACTUELLE de la run (jamais d'un défaut inventé).
+    const [leaderClass, setLeaderClass] = useState<string | null>(initialLeaderClass ?? null);
 
     const toggleObjective = (key: string) => {
         setObjectives(prev => (prev.includes(key) ? prev.filter(o => o !== key) : [...prev, key]));
@@ -62,11 +69,15 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
                 mentionRoleIds: [],
                 currentFloor: currentFloor ? Math.max(0, Math.min(26, parseInt(currentFloor, 10) || 0)) : undefined,
+                // Classe du meneur : envoyée seulement si elle CHANGE (sinon le serveur ne
+                // touche à rien, et une mule retirée du profil ne bloque pas l'édition).
+                ...(leaderClass && leaderClass !== initialLeaderClass ? { leaderClass } : {}),
             });
             if (res.success) {
                 toast.success("Run mise à jour !");
                 onClose();
                 router.refresh();
+                onUpdated?.();
             } else {
                 toast.error(res.error || "Erreur lors de la mise à jour");
             }
@@ -81,14 +92,14 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
         <Dialog open={isOpen} onOpenChange={(o) => { if (!o && !pending) onClose(); }}>
             <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
-                        <Pencil className="w-5 h-5 text-purple-400" />
+                    <DialogTitle className="text-xl font-semibold flex items-center gap-2 uppercase tracking-tight">
+                        <Pencil className="w-5 h-5 text-info" />
                         Modifier la Run
                     </DialogTitle>
                 </DialogHeader>
                 <div className="py-4 space-y-5">
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-muted-foreground uppercase tracking-widest">Difficulté</label>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wider">Difficulté</label>
                         <Select value={difficulty} onValueChange={setDifficulty}>
                             <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue />
@@ -107,7 +118,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Épreuve (optionnel)</label>
                         <Select value={epreuveCode} onValueChange={setEpreuveCode}>
                             <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue placeholder="Run standard" />
@@ -126,16 +137,16 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                         </Select>
                         {!epreuveCode && (
                             <div className="space-y-1.5">
-                                <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Objectifs</label>
+                                <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Objectifs</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                         <button
                                             key={key}
                                             type="button"
                                             onClick={() => toggleObjective(key)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
                                                 objectives.includes(key)
-                                                    ? "bg-purple-500/10 border-purple-500/40 text-foreground"
+                                                    ? "bg-info/15 border-info/40 text-foreground"
                                                     : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                             }`}
                                         >
@@ -149,7 +160,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">
                             Date de départ <span className="normal-case font-medium">(optionnel)</span>
                         </label>
                         {/* Même sélecteur que le reste de l'app : « Sans heure » possible,
@@ -164,7 +175,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Étage actuel (0-26)</label>
                         <Input
                             type="number"
                             min={0}
@@ -174,6 +185,15 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                             className="bg-surface border-border text-sm"
                         />
                     </div>
+
+                    <CreatorClassSelector
+                        guildId={guildId}
+                        value={leaderClass}
+                        onChange={setLeaderClass}
+                        label="Ta classe pour cette run"
+                        description="Seuls ton personnage principal et tes mules du profil SigilOS sont proposés."
+                    />
+
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                     <Button variant="ghost" onClick={onClose} disabled={pending} className={SONGES_BUTTON.ghost}>Annuler</Button>

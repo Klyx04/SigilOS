@@ -7,8 +7,9 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS } from "@/lib/feedback-types";
 import { getUserContext } from "./user-actions";
-import { notifyGod } from "./god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { sendChannelMessage } from "@/server/discord";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const feedbackSchema = z.object({
   feedbackType: z.enum(FEEDBACK_TYPES),
@@ -135,7 +136,7 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
       const targetChannel = (platformConfig as any)?.questFeedbackChannelId || (platformConfig as any)?.godNotifyChannelId;
 
       if (targetChannel) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         await sendChannelMessage(
           targetChannel,
@@ -236,6 +237,9 @@ export async function notifyMemberFeedbackAction(input: {
     }
 
     const { createNotification } = await import("./notification-actions");
+    // Si aucune guilde n'est identifiable (`issue.guildId` absent ⇒ un feedback plateforme), la
+    // variable reste `undefined` : `createNotification` est **fail-closed** et n'écrit rien. C'est
+    // assumé — sans guilde, le lien `/dashboard/{guildId}/tracker` serait de toute façon mort.
     const guildIdForNotif = discordGuildId || issue.guildId || undefined;
 
     // — Créer la notification Dashboard (scopée par guilde du membre)

@@ -4,6 +4,7 @@ import { GeoguesserRoom } from "./GeoguesserRoom";
 import { WorldMapService } from "./WorldMapService";
 import { GeoguesserGuessSchema } from "../../websocket/schemas";
 import { db } from "@/lib/prisma";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // Simple random ID generator (or reuse DB ID)
 function generateShortId() {
@@ -277,7 +278,7 @@ export class GeoguesserManager {
                 console.log(`[GeoguesserManager] 🚩 Map ${mapId} reported by ${socket.id}`);
                 
                 // [NEW] NOTIFY GOD DASHBOARD (/god?tab=notifications) — GEOGUESSER_REPORT type
-                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                const { notifyGod } = await import("@/server/god-notifications");
                 await notifyGod({
                     title: "🚩 Carte signalée (SigilGuesser)",
                     message: `Une map a été signalée comme buggée ou mal placée.`,
@@ -291,7 +292,7 @@ export class GeoguesserManager {
                     const { sendChannelMessage, buildSafeRoleMention } = await import("@/server/discord");
                     const ping = await buildSafeRoleMention((config as any).godNotifyChannelId, (config as any).godNotifyRoleId);
                     
-                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                    const appUrl = getAppBaseUrl();
                     await sendChannelMessage((config as any).godNotifyChannelId, ping, {
                         embedTitle: "🚩 Signalement Map SigilGuesser",
                         embedColor: 0xef4444,

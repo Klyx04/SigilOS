@@ -27,7 +27,21 @@ que les télécharger. **Aucun build sur le serveur.**
 cd ~/SigilOS
 ./scripts/deploy-cd.sh list beta     # versions publiées sur GHCR
 ./scripts/deploy-cd.sh beta          # déploie `latest`
-./scripts/deploy-cd.sh beta <sha>    # déploie un commit précis (rollback propre)
+./scripts/deploy-cd.sh beta <sha7>   # déploie un commit précis (rollback propre)
+```
+
+⚠️ **`<sha7>` = 7 caractères, pas 8.** La CI tague `${SHA:0:7}` ; or
+`git rev-parse --short` rend **8** caractères dans ce dépôt (git allonge le SHA
+court quand le dépôt grossit). Un SHA de 8 caractères n'existe pas côté registre
+et, avant le 23/10/2026, le script répondait alors « la CI ne l'a pas publié » —
+un faux diagnostic. Le script refuse maintenant la mauvaise longueur avant tout
+accès registre. Règle : `--short=7` toujours, `origin/dev` pour la bêta,
+`origin/main` pour la prod (les images `-prod` ne sont construites que sur `main`).
+
+```bash
+SHA=$(git rev-parse --short=7 origin/dev)   # prod : origin/main
+./scripts/deploy-cd.sh list beta "$SHA"     # ✓ publié ? (lecture seule)
+./scripts/deploy-cd.sh beta "$SHA"
 ```
 
 Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prisma migrate
@@ -42,7 +56,7 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 
 | Ce qui s'affiche | Ce que ça veut dire |
 |---|---|
-| `→ donnée locale conservée puis restaurée : <fichier>` | fichier **suivi** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
+| `→ N donnée(s) locale(s) conservée(s) puis restaurée(s) : <fichiers>` | fichier(s) **suivi(s)** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
 | `✓ Code source à jour (branche dev, <sha>)` | l'arbre du serveur est au commit de `origin/dev` (le déploiement n'en dépend pas : les images viennent de la CI) |
 | **ÉTAPE 1/5** `✓ Connecté au registre ghcr.io/…` | lecture des images privées avec `GHCR_TOKEN` (droit de **lecture** uniquement) |
 | **ÉTAPE 2/5** `app ✓ téléchargée (312 Mo)` | les **4 images** construites par la CI sont téléchargées — **aucun build** sur le serveur |
@@ -51,19 +65,33 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 | **ÉTAPE 4/5** `Base à jour — 262 migrations connues, aucune à appliquer` (la ligne `262 migrations found…` de Prisma, elle, n'est pas toujours écrite) | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé), **comptées dans le dépôt** (`find prisma/migrations -mindepth 1 -maxdepth 1 -type d \| wc -l`) et non relues du log — mesuré le 30/09/2026 : deux déploiements d'affilée au code identique, la ligne présente au premier, absente au second. Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
 | **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
 | **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
-| *(plus de ligne de doc)* | 🛑 Depuis le **12/10/2026**, le déploiement **ne synchronise plus** les fiches de `src/lib/docs-catalog.ts` : `seed:docs` **écrasait** chaque `DocPage` (title/category/content/accessLevel) et **supprimait** celles dont le slug n'était pas au catalogue ⇒ toute correction faite dans l'interface était perdue au déploiement suivant. La doc se publie **à la demande** (voir § Après le deploy) |
 | `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
-| `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
+| `ℹ️  N fichier(s) suivi(s) portés par CE serveur (galerie God / données générées) — rien à faire` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés. Répartition par dossier : `DEPLOY_VERBOSE=1` |
 | **Un passage qui affiche l'ancienne sortie** (barre douteuse, `npm notice`, ancien libellé) | `bash` lit le script **au fil de l'exécution**, et le `git pull` le réécrit **pendant** : un passage peut montrer un **mélange** des deux versions (mesuré le 30/09/2026 — inode remplacé ⇒ l'ancienne version continue · réécriture en place ⇒ la nouvelle est exécutée). Ce n'est **pas** une régression : les **images** déployées sont toujours les nouvelles, et le passage **suivant** est intégralement à jour |
 | **Une ligne de Prisma qui n'apparaît jamais** (`262 migrations found…`, `No pending migrations…`) | Prisma réécrit la **même** ligne (`\r`) et ne finit pas son flux par un `\n` : `wc -l` ne comptait que la 1ʳᵉ ligne ⇒ le verdict de la migration était **dans le log, invisible à l'écran** (mesuré sur deux passages). Corrigé : la dernière ligne s'affiche quand même (`awk 'END{print NR}'`) et les `\r` sont remis en sauts de ligne. Le **compte** des migrations, lui, est compté **dans le dépôt** — il ne dépend plus du log |
 | `✓ Proxy Caddy à jour` · `✓ / → HTTP 200` · `✓ …/api/health → HTTP 200` | contrôles post-déploiement : config du proxy, robots/sitemap, pages clés, santé |
 
+### Le rapport d'arbre tient en deux lignes (mesure du 16/10/2026)
+
+À chaque déploiement, ce rapport écrivait **~9 lignes dont 8 toujours identiques** : les
+444 fichiers « portés par ce serveur » (information, classe `SERVER_OWNED` — **rien à
+faire**) en 3 lignes, puis les 4 données curées en 4 lignes (une par fichier, avant **et**
+après le pull) pour deux noms de fichiers, et enfin un `⚠` sur une note que personne
+n'écrit. Désormais, **deux lignes** : l'information (`N fichier(s)…`) et la preuve de
+restauration (`N donnée(s) locale(s) conservée(s) puis restaurée(s) : …`).
+
+Le détail complet — chemins des fichiers portés par le serveur, répartition par dossier,
+chaque donnée curée mise de côté puis restaurée — **existe toujours** et se demande :
+
+```bash
+DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta
+```
+
+Rien n'est perdu pour le diagnostic : c'est la **verbosité par défaut** qui change, pas la
+couverture. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` (⑨).
+
 ### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)
 
-- **`npm notice New major version of npm available!`** : c'était npm publiant sa propre mise à
-  jour au milieu de l'étape 5. Tous les appels passent maintenant par `npm run --silent` +
-  `NO_UPDATE_NOTIFIER=1` (dans **les deux** scripts) ⇒ plus de bandeau
-  `> temp-sigil@0.1.0 seed:docs:prod` non plus.
 - **Barre qui semble bloquée à 91 %** (`app ✓ téléchargée█████░░]  91%%`) : deux défauts
   d'**affichage**, jamais un téléchargement incomplet. (a) le `✓` était écrit avec `\r` **sans
   effacer la fin de la ligne** ⇒ le reste de la barre (plus longue) restait visible à droite ;
@@ -109,7 +137,7 @@ Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est clas
 | Classe | Contenu (suivi) | Décision |
 |---|---|---|
 | `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
-| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** (contenu **et** mode) |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` — et la note `game-data/worldmap/.routes-2025-api` (ajoutée le 16/10/2026 : aucun code ne l'écrit, elle restait « M » à chaque passage) | **version du dépôt restaurée** (contenu **et** mode) |
 | `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
 | `SERVER_OWNED` | écrits **par le serveur** : `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
 
@@ -250,10 +278,11 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
-| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; le détail par dossier est affiché |
+| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; répartition par dossier avec `DEPLOY_VERBOSE=1` |
 | ⚠️ « Des fichiers suivis modifiés hors des classes connues » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
+| `✗ tag absent` alors que **Build & Push** est **vert** | SHA passé sur **8** caractères : `git rev-parse --short` rend 8 dans ce dépôt, la CI tague `${SHA:0:7}` (mesure du 23/10/2026) | `SHA=$(git rev-parse --short=7 origin/dev)` — le script refuse désormais toute autre longueur, avant tout accès registre |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |
 | `denied` / `unauthorized` / `403` | token GHCR expiré | rafraîchir le secret `GHCR_TOKEN` puis re-relancer **Build & Push** |
 | `manifest unknown` / `not found` | tag jamais publié (CI rouge) | attendre/relancer **Build & Push**, vérifier le nom du tag |
@@ -272,12 +301,8 @@ conteneurs (le déploiement n'est donc jamais à moitié appliqué).
 
 ## Après le deploy
 
-- ⚠️ **La doc en base n'est plus écrasée par le déploiement** (décision du 12/10/2026) : ce que
-  tu édites dans l'interface **survit** aux déploiements. Le catalogue
-  (`src/lib/docs-catalog.ts`) reste la **source de publication**, à rejouer **à la demande** —
-  et en sachant que c'est **destructif** :
-  `sudo docker compose -f docker-compose.prod.yml --env-file .env.<env> exec <app> sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'`
-  **écrase** les fiches (contenu, titre, catégorie, accès) **et supprime** celles dont le slug n'est
-  pas au catalogue.
+- ⚠️ **La doc en base n'est jamais écrasée par le déploiement** : ce que
+  tu édites dans l'interface **survit** aux déploiements — le sync/seed de docs
+  a été **supprimé**, il n'y a plus rien à rejouer.
 - Vérifier l'app : `sudo docker compose ps` (3 services `Up/healthy`), puis un
   chargement de page réel.

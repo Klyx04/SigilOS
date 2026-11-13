@@ -82,20 +82,16 @@ export function DiscordEmbedPreview({
     return (
         <div className={cn("flex flex-col gap-1 w-full max-w-[520px] font-sans text-body leading-[1.375rem]", className)}>
             {/* Channel Info Header */}
-            <div className="flex items-center gap-2 mb-2 px-1">
-                <Hash className="w-4 h-4 text-muted-foreground" />
-                <span className="text-foreground font-bold text-sm tracking-tight">{channelName}</span>
-                <span className="text-caption text-muted-foreground font-medium uppercase tracking-wider ml-1 bg-elevated/50 px-1.5 py-0.5 rounded border border-border">Aperçu Discord</span>
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+                <Hash className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="text-foreground font-bold text-sm tracking-tight">{channelName.replace(/^#+/, "")}</span>
             </div>
 
-            <div className="flex gap-4 p-4 rounded-xl bg-[#313338] border border-border shadow-2xl relative overflow-hidden group">
-                {/* User Avatar Placeholder (SigilOS Bot) */}
+            <div className="flex gap-4 p-4 rounded-xl bg-[#313338] border border-border shadow-md relative overflow-hidden group">
+                {/* Bot Avatar (SigilOS) */}
                 <div className="shrink-0 pt-0.5">
-                    <div className="w-10 h-10 rounded-full bg-info flex items-center justify-center border border-border shadow-lg relative">
-                        <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-6 h-6 object-contain" />
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-info border-2 border-[#313338] flex items-center justify-center">
-                            <Shield className="w-2 h-2 text-foreground" />
-                        </div>
+                    <div className="w-10 h-10 rounded-full bg-[#1e1f22] border border-[#383a40] flex items-center justify-center overflow-hidden">
+                        <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-7 h-7 object-contain" />
                     </div>
                 </div>
 
@@ -103,11 +99,11 @@ export function DiscordEmbedPreview({
                     {/* Message Header */}
                     <div className="flex items-center gap-2 mb-1">
                         <span className="font-bold text-foreground hover:underline cursor-pointer">SigilOS</span>
-                        <span className="bg-[#5865F2] text-foreground text-caption px-1.5 py-0.5 rounded-[3px] font-black uppercase flex items-center gap-0.5 leading-none">
+                        <span className="bg-[#5865F2] text-foreground text-[10px] px-1 py-0.5 rounded font-black uppercase flex items-center gap-0.5 leading-none">
                              BOT
                         </span>
                         <span className="text-label text-muted-foreground font-medium">
-                            {format(timestamp, "'Aujourd'hui à' HH:mm", { locale: fr })}
+                            {"Aujourd'hui à " + format(timestamp, "HH:mm")}
                         </span>
                     </div>
 
@@ -116,7 +112,7 @@ export function DiscordEmbedPreview({
                         <div className="text-[#dbdee1] mb-1.5 whitespace-pre-wrap break-words">
                             {mentionContent.split(/(<@&\d+>)/g).map((part, i) => {
                                 if (part.startsWith("<@&")) {
-                                    return <span key={i} className="text-[#c9cdfb] bg-[#3e4171] px-0.5 rounded-[3px] font-medium hover:bg-[#5865f2] hover:text-foreground cursor-pointer transition-colors">@Rôle Mentionné</span>;
+                                    return <span key={i} className="text-[#c9cdfb] bg-[#3e4171] px-1 rounded text-xs font-medium hover:bg-[#5865f2] hover:text-foreground cursor-pointer transition-colors">@Rôle Mentionné</span>;
                                 }
                                 return part;
                             })}
@@ -125,7 +121,7 @@ export function DiscordEmbedPreview({
 
                     {/* The Embed */}
                     <div 
-                        className="mt-1 flex flex-col rounded-[4px] border-l-4 bg-[#2b2d31] max-w-[432px] shadow-sm"
+                        className="mt-1 flex flex-col rounded border-l-4 bg-[#2b2d31] max-w-[432px] shadow-sm"
                         style={{ borderLeftColor: hexColor }}
                     >
                         <div className="p-3 pr-4 flex gap-3">
@@ -175,8 +171,8 @@ export function DiscordEmbedPreview({
 
                             {/* Thumbnail */}
                             {thumbnail && (
-                                <div className="shrink-0 mt-2">
-                                    <img src={thumbnail} alt="" className="w-[80px] h-[80px] rounded object-contain bg-surface/50" />
+                                <div className="shrink-0 mt-1">
+                                    <img src={thumbnail} alt="" className="w-20 h-20 rounded object-cover border border-[#232428] bg-surface/30" />
                                 </div>
                             )}
                         </div>
@@ -211,7 +207,7 @@ export function DiscordEmbedPreview({
                                         <div
                                             key={`${button.label ?? "bouton"}-${buttonIndex}`}
                                             className={cn(
-                                                "px-4 py-1.5 rounded-[3px] text-foreground text-xs font-bold flex items-center gap-2",
+                                                "px-4 py-1.5 rounded text-foreground text-xs font-bold flex items-center gap-2",
                                                 DISCORD_BUTTON_STYLE_CLASSES[button.style ?? 2] ??
                                                     DISCORD_BUTTON_STYLE_CLASSES[2],
                                                 button.disabled

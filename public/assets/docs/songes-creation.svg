@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="640" viewBox="0 0 560 640" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="Écran de création d'une run, avec les zones à remplir numérotées">
+  <rect x="0" y="0" width="560" height="640" rx="12" fill="#18181b"/>
+  <text x="28" y="40" font-size="16" font-weight="bold" fill="#ffffff">🌙 Nouvelle Run Songes</text>
+  <!-- 1. Mode -->
+  <circle cx="22" cy="76" r="11" fill="#f59e0b"/><text x="22" y="80" text-anchor="middle" font-size="12" font-weight="bold" fill="#000000">1</text>
+  <rect x="40" y="62" width="240" height="30" rx="8" fill="#0e7490"/>
+  <text x="160" y="81" text-anchor="middle" font-size="11" font-weight="bold" fill="#ffffff">⚔ RUN STANDARD</text>
+  <rect x="288" y="62" width="240" height="30" rx="8" fill="#27272a"/>
+  <text x="408" y="81" text-anchor="middle" font-size="11" font-weight="bold" fill="#a1a1aa">🏆 ÉPREUVE DE SONGE</text>
+  <!-- 2. Difficulté -->
+  <circle cx="22" cy="120" r="11" fill="#f59e0b"/><text x="22" y="124" text-anchor="middle" font-size="12" font-weight="bold" fill="#000000">2</text>
+  <text x="40" y="112" font-size="10" font-weight="bold" fill="#8b8b98">DIFFICULTÉ</text>
+  <rect x="40" y="118" width="488" height="40" rx="8" fill="#27272a"/>
+  <image href="/assets/missions/reve3.png" x="50" y="122" width="32" height="32"/>
+  <text x="90" y="143" font-size="12" font-weight="bold" fill="#ffffff">Rêve III  <tspan fill="#8b8b98">(+100 % XP/Butin)</tspan></text>
+  <text x="500" y="143" font-size="12" fill="#8b8b98">▾</text>
+  <!-- 3. Objectifs -->
+  <circle cx="22" cy="188" r="11" fill="#f59e0b"/><text x="22" y="192" text-anchor="middle" font-size="12" font-weight="bold" fill="#000000">3</text>
+  <text x="40" y="180" font-size="10" font-weight="bold" fill="#8b8b98">OBJECTIFS</text>
+  <rect x="40" y="186" width="488" height="36" rx="8" fill="#27272a" stroke="#0e7490"/>
+  <image href="/assets/dofus/icons/guild.png" x="50" y="191" width="26" height="26"/>
+  <text x="84" y="208" font-size="12" fill="#ffffff">Mission de Guilde</text>
+  <circle cx="508" cy="204" r="6" fill="#0e7490"/>
+  <rect x="40" y="226" width="488" height="36" rx="8" fill="#27272a" stroke="#0e7490"/>
+  <image href="/assets/dofus/icons/quests.png" x="50" y="231" width="26" height="26"/>
+  <text x="84" y="248" font-size="12" fill="#ffffff">Quête</text>
+  <circle cx="508" cy="244" r="6" fill="#0e7490"/>
+  <rect x="40" y="266" width="488" height="36" rx="8" fill="#1c1c20"/>
+  <image href="/assets/dofus/icons/chest.png" x="50" y="271" width="26" height="26" opacity="0.4"/>
+  <text x="84" y="288" font-size="12" fill="#71717a">Farm Légendes  <tspan font-size="10">🔒 Paradoxe ou +</tspan></text>
+  <!-- 4. Classe -->
+  <circle cx="22" cy="332" r="11" fill="#f59e0b"/><text x="22" y="336" text-anchor="middle" font-size="12" font-weight="bold" fill="#000000">4</text>
+  <text x="40" y="324" font-size="10" font-weight="bold" fill="#8b8b98">TA CLASSE POUR CETTE RUN</text>
+  <g>
+    <rect x="40" y="330" width="52" height="52" rx="10" fill="#0e749022" stroke="#0e7490" stroke-width="2"/>
+    <image href="/assets/dofus/classes/9.png" x="46" y="336" width="40" height="40"/>
+    <rect x="98" y="330" width="52" height="52" rx="10" fill="#27272a"/>
+    <image href="/assets/dofus/classes/7.png" x="104" y="336" width="40" height="40"/>
+    <rect x="156" y="330" width="52" height="52" rx="10" fill="#27272a"/>
+    <image href="/assets/dofus/classes/8.png" x="162" y="336" width="40" height="40"/>
+    <rect x="214" y="330" width="52" height="52" rx="10" fill="#27272a"/>
+    <image href="/assets/dofus/classes/12.png" x="220" y="336" width="40" height="40"/>
+    <text x="282" y="362" font-size="12" font-weight="bold" fill="#4ade80">Cra sélectionné</text>
+  </g>
+  <!-- 5. Date -->
+  <circle cx="22" cy="414" r="11" fill="#f59e0b"/><text x="22" y="418" text-anchor="middle" font-size="12" font-weight="bold" fill="#000000">5</text>
+  <rect x="40" y="394" width="488" height="44" rx="8" fill="#27272a"/>
+  <text x="56" y="412" font-size="12" font-weight="bold" fill="#ffffff">📅 Planifier la Run</text>
+  <text x="56" y="428" font-size="10" fill="#8b8b98">Laisse coupé pour « Sans date pour l'instant »</text>
+  <rect x="472" y="408" width="40" height="20" rx="10" fill="#3f3f46"/>
+  <circle cx="484" cy="418" r="8" fill="#ffffff"/>
+  <!-- Bouton -->
+  <rect x="40" y="452" width="488" height="48" rx="10" fill="#0e7490"/>
+  <text x="284" y="481" text-anchor="middle" font-size="13" font-weight="bold" fill="#ffffff">SUIVANT ›</text>
+  <text x="40" y="524" font-size="11" fill="#8b8b98">Écran 2 : publication Discord, puis</text>
+  <rect x="40" y="532" width="488" height="48" rx="10" fill="#16a34a"/>
+  <text x="284" y="561" text-anchor="middle" font-size="13" font-weight="bold" fill="#ffffff">CONFIRMER &amp; LANCER</text>
+  <text x="40" y="606" font-size="11" fill="#8b8b98">Ta run apparaît aussitôt dans le tableau et, si tu l'as demandé, sur Discord.</text>
+</svg>

@@ -6,6 +6,8 @@ import { Plus, Loader2 } from "lucide-react";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
+import { cn } from "@/lib/utils";
+import { resolveGuildSetupView } from "@/lib/guild-setup-view";
 
 type GuildProps = {
     id: string;
@@ -15,13 +17,25 @@ type GuildProps = {
     clientId?: string;
 };
 
-export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean }) {
+export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn = true, guildLimitReached = false }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean, autoOnboardingOn?: boolean, guildLimitReached?: boolean }) {
     const [loading, setLoading] = useState(false);
     const [inviteStarted, setInviteStarted] = useState(false);
     const autoDeployTried = useRef(false);
 
     // If bot is missing, we need to invite it first
     const needsInvite = guild.isBotPresent === false;
+
+    // 🔒 Une seule porte fermée suffit à retirer l'offre : ouverture autonome suspendue **ou**
+    // plafond de guildes atteint. Mesure du 01/11/2026 : le bandeau disait « limite atteinte »
+    // pendant que la carte proposait encore « Déployer » / « Inviter le bot » ⇒ clic, refus, toast.
+    // Le détail (état, badge, libellé, phrase) vit dans `resolveGuildSetupView`, testé à part.
+    const view = resolveGuildSetupView({
+        autoOnboardingOn,
+        guildLimitReached,
+        hasBot: !needsInvite,
+        loading,
+    });
+    const blocked = view.blocked;
 
     const handleSetup = async () => {
         if (needsInvite) {
@@ -77,7 +91,9 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
     // fonctionnel). `onboardGuild` est idempotente + rate-limitée côté serveur,
     // donc un double déclenchement (StrictMode) est sans effet de bord.
     useEffect(() => {
-        if (!autoDeploy || needsInvite || autoDeployTried.current) return;
+        // Une porte fermée (plafond ou kill-switch) n'appelle **pas** le serveur : le refus est
+        // certain et l'utilisateur n'a rien demandé. C'est ce qui faisait « cliquer pour rien ».
+        if (!autoDeploy || needsInvite || blocked || autoDeployTried.current) return;
         autoDeployTried.current = true;
         setLoading(true);
         onboardGuild(guild.id).then((result) => {
@@ -92,7 +108,7 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
             setLoading(false);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoDeploy, needsInvite, guild.id]);
+    }, [autoDeploy, needsInvite, blocked, guild.id]);
 
     // Auto-refresh quand le bot est autorisé dans l'autre onglet.
     // PAS de reload au retour du focus : chaque alt-tab rechargeait la page
@@ -114,9 +130,22 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
     // « Déploiement » d'un panneau `.reg-panel`, aux côtés des guildes actives
     // et des serveurs en attente. Le cadre en pointillés sur fond noir faisait
     // doublon avec le panneau qui l'accueille.
+    const isReadyToDeploy = !blocked && !needsInvite;
+
     return (
-        <div className="reg-row grid-cols-[auto_minmax(0,1fr)_auto] px-4">
-            <Avatar className="h-10 w-10 rounded-md border border-border opacity-70">
+        <div className={cn(
+            "reg-row px-4 py-3 rounded-lg transition-all",
+            // Sans 3ᵉ colonne quand l'offre est retirée : la grille n'a plus qu'un avatar et le
+            // texte. C'est ce qui empêchait la colonne du titre d'être écrasée (mesure 01/11/2026).
+            blocked ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-[auto_minmax(0,1fr)_auto]",
+            isReadyToDeploy
+                ? "bg-emerald-500/[0.05] border border-emerald-500/30 shadow-sm"
+                : "border-transparent"
+        )}>
+            <Avatar className={cn(
+                "h-10 w-10 rounded-md border",
+                isReadyToDeploy ? "border-emerald-500/50 opacity-100 shadow-sm" : "border-border opacity-70"
+            )}>
                 <AvatarImage src={guild.icon || ""} alt={guild.name} />
                 <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
                     {guild.name.substring(0, 2).toUpperCase()}
@@ -124,41 +153,53 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
             </Avatar>
 
             <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
-                <p className="reg-mono mt-1 text-xs text-muted-foreground">
-                    {needsInvite
-                        ? "Bot absent — invitation requise"
-                        : loading
-                          ? "Activation en cours…"
-                          : "Prêt pour déploiement"}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
+                    {view.showReadyBadge && (
+                        <span className="reg-tag border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                            Bot détecté · Prêt à déployer
+                        </span>
+                    )}
+                </div>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {view.subtitle}
                 </p>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3">
-                <button
-                    type="button"
-                    onClick={handleSetup}
-                    disabled={loading}
-                    className="reg-btn reg-btn-primary min-h-9 px-3.5 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer"}</span>
-                </button>
-
-                {needsInvite && inviteStarted && !loading && (
+            {/* Porte fermée ⇒ **aucune** offre : ni bouton, ni texte long dans la 3ᵉ colonne
+                (il écrasait le titre et débordait de la carte). L'explication est au bandeau. */}
+            {!blocked && (
+                <div className="flex shrink-0 items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => window.location.reload()}
-                        className="reg-link-quiet text-xs"
+                        onClick={handleSetup}
+                        disabled={loading}
+                        className={cn(
+                            "min-h-9 px-4 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                            isReadyToDeploy
+                                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+                                : "reg-btn reg-btn-primary"
+                        )}
                     >
-                        J&apos;ai invité le bot, vérifier
+                        {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        <span>{view.ctaLabel}</span>
                     </button>
-                )}
-            </div>
+
+                    {needsInvite && inviteStarted && !loading && (
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="reg-link-quiet text-xs"
+                        >
+                            J&apos;ai invité le bot, vérifier
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { sendRelance, getRelanceConfig } from "@/server/actions/relance-actions";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
 import { toast } from "sonner";
-import { Bell, Loader2, Send, Users, Search, AlertTriangle } from "lucide-react";
+import { Bell, Loader2, Send, Users, Search, AlertTriangle, Eye, Hash, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface RelanceTarget {
@@ -103,10 +103,10 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-lg bg-background border-border rounded-3xl max-h-[85dvh] overflow-y-auto">
+            <DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto rounded-lg border-border bg-background">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-foreground">
-                        <Bell className="w-5 h-5 text-warning" />
+                        <Bell className="w-4 h-4 text-warning" />
                         Relancer {isBulk ? "la sélection" : "ce membre"}
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">
@@ -119,7 +119,10 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     {isBulk && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Membres ciblés</Label>
+                                <Label className="flex items-center gap-1.5 text-caption uppercase text-muted-foreground">
+                                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Membres ciblés
+                                </Label>
                                 <button
                                     type="button"
                                     onClick={toggleAll}
@@ -137,7 +140,7 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                                     className="h-10 pl-9 bg-surface/50 border-border text-sm"
                                 />
                             </div>
-                            <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-surface/40 divide-y divide-border">
+                            <div className="max-h-44 overflow-y-auto rounded-md border border-border bg-surface/40 divide-y divide-border">
                                 {visibleTargets.length === 0 && (
                                     <div className="px-3 py-4 text-caption text-muted-foreground text-center">Aucun membre ne correspond à la recherche.</div>
                                 )}
@@ -166,10 +169,13 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label className="text-xs font-black text-foreground uppercase tracking-widest">Livraison</Label>
+                        <Label className="flex items-center gap-1.5 text-caption uppercase text-muted-foreground">
+                            <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                            Livraison
+                        </Label>
                         <div className="grid grid-cols-2 gap-2">
                             <button type="button" onClick={() => setDelivery("CHANNEL")}
-                                className={cn("p-3 rounded-xl border text-left transition-colors",
+                                className={cn("p-3 rounded-md border text-left transition-colors",
                                     delivery === "CHANNEL" ? "bg-warning/10 border-warning/40" : "bg-surface/40 border-border hover:border-border-strong")}>
                                 <span className="flex items-center gap-2 text-sm font-bold text-foreground">
                                     <Send className="w-4 h-4 text-warning" /> Canal
@@ -177,7 +183,7 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                                 <span className="text-caption text-muted-foreground mt-1 block">Message public dans un salon (@mention)</span>
                             </button>
                             <button type="button" onClick={() => setDelivery("DM")}
-                                className={cn("p-3 rounded-xl border text-left transition-colors",
+                                className={cn("p-3 rounded-md border text-left transition-colors",
                                     delivery === "DM" ? "bg-info/10 border-info/40" : "bg-surface/40 border-border hover:border-border-strong")}>
                                 <span className="flex items-center gap-2 text-sm font-bold text-foreground">
                                     <Users className="w-4 h-4 text-info" /> Message privé
@@ -188,8 +194,11 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     </div>
 
                     {delivery === "CHANNEL" && (
-                        <div className="space-y-2 rounded-xl border border-border bg-surface/40 p-3">
-                            <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Canal de diffusion configuré</Label>
+                        <div className="space-y-2 rounded-md border border-border bg-surface/40 p-3">
+                            <Label className="flex items-center gap-1.5 text-caption uppercase text-muted-foreground">
+                                <Hash className="h-3.5 w-3.5" aria-hidden="true" />
+                                Canal de diffusion configuré
+                            </Label>
                             {!configLoaded ? (
                                 <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
                                     <Loader2 className="w-3 h-3 animate-spin" /> Résolution du salon…
@@ -206,10 +215,13 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     )}
 
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Message de relance</Label>
+                        <Label className="flex items-center gap-1.5 text-caption uppercase text-muted-foreground">
+                            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                            Message de relance
+                        </Label>
                         <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
                             placeholder="Écrivez votre message de relance..."
-                            rows={4} className="bg-surface/50 border-border text-sm resize-none" />
+                            rows={4} className="resize-none border-border bg-surface/50 text-sm" />
                         <p className="text-caption text-muted-foreground">
                             {message.trim().length}/2000
                         </p>
@@ -217,8 +229,11 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
 
                     {/* #104 — Preview embed côté admin (fidèle à ce qui partira sur Discord) */}
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Aperçu de l'embed</Label>
-                        <div className="rounded-xl border border-border bg-[#2b2d31] p-3">
+                        <Label className="flex items-center gap-1.5 text-caption uppercase text-muted-foreground">
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            Aperçu de l&apos;embed
+                        </Label>
+                        <div className="rounded-md border border-border bg-[#2b2d31] p-3">
                             <div className="flex gap-3">
                                 <div className="w-1 self-stretch rounded bg-warning" />
                                 <div className="min-w-0 flex-1">
@@ -244,7 +259,7 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                         Annuler
                     </Button>
                     <Button onClick={handleSend} disabled={isPending || selectedTargets.length === 0}
-                        className="bg-warning hover:bg-warning text-warning-foreground font-bold uppercase tracking-widest text-xs h-10 px-5 rounded-xl disabled:opacity-40">
+                        className="h-10 rounded-md bg-warning px-5 text-xs font-semibold text-warning-foreground hover:bg-warning disabled:opacity-40">
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
                         Envoyer la relance
                     </Button>

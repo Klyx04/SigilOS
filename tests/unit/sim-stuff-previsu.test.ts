@@ -101,11 +101,11 @@ describe("jets du build — formule du jeu, aucune estimation", () => {
 describe("câblage — l'onglet Simulation alimente la grille (aucun cas particulier)", () => {
     it("les sorts simulés portent leurs `effectDetails` (donc l'option « Dégâts estimés »)", () => {
         expect(SIM_TAB).toMatch(
-            /import \{ spellEffectDetailsFromBuild, spellZoneFromDamages, type BuildStatsForSpells \} from "@\/lib\/dofus-spells";/
+            /import \{ spellEffectDetailsFromBuild, spellZoneFromDamages, mergeSimulationEffectDetails, type BuildStatsForSpells \} from "@\/lib\/dofus-spells";/
         );
-        expect(SIM_TAB).toMatch(
-            /const effectDetails = spellEffectDetailsFromBuild\(sp\.damages, boostedBuild, \{\s*kind,\s*critDamages: sp\.critDamages,\s*\}\);/
-        );
+        // Les effets du sort (poussée, attirance, TP, glyphe…) sont **fusionnés** avec les lignes
+        // de dégâts du build : sans cette fusion la grille ne traçait aucune poussée (23/10/2026).
+        expect(SIM_TAB).toMatch(/const effectDetails = mergeSimulationEffectDetails\(/);
         expect(SIM_TAB).toMatch(/^\s*effectDetails,$/m);
         // Le taux (%) dépend de la portée du sort, comme l'onglet Sorts.
         expect(SIM_TAB).toMatch(/const kind: "sorts" \| "melee" \| "distance" = sp\.maxRange <= 1 \? "melee" : "distance";/);
@@ -115,7 +115,7 @@ describe("câblage — l'onglet Simulation alimente la grille (aucun cas particu
 
     it("le build est mémoïsé puis partagé par les deux onglets (identité STABLE)", () => {
         expect(PREVIEW).toMatch(
-            /const buildForSpells = useMemo\(\(\) => spellsBuild\(\(data \?\? \{\}\) as DofusbookPreviewData\), \[data\]\);/
+            /const buildForSpells = useMemo\(\(\) => spellsBuild\(\(effectiveData \?\? \{\}\) as DofusbookPreviewData\), \[effectiveData\]\);/
         );
         // Les DEUX onglets consomment la même instance : recréer l'objet à chaque rendu relançait
         // le chargement des sorts en boucle (`build` est une dépendance d'effet).

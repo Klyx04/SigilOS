@@ -1,10 +1,14 @@
 /**
  * Onglets d'une fiche boss — **source unique** partagée par la fiche publique
  * (`/boss/<slug>`), les fiches internes du module Succès (donjons, avis de
- * recherche) et la fiche d'un **monstre normal** (`/bestiaire/<slug>`, onglet
- * interne « Monstres »). Une seule définition ⇒ une surface ne peut plus proposer
- * un onglet que l'autre n'a pas ; la parité est verrouillée par
- * `tests/unit/boss-fiche-tabs-parite.test.ts`.
+ * recherche) et la fiche d'un **monstre normal** (`/bestiaire/<slug>`). Une seule
+ * définition ⇒ une surface ne peut plus proposer un onglet que l'autre n'a pas ; la
+ * parité est verrouillée par `tests/unit/boss-fiche-tabs-parite.test.ts`.
+ *
+ * ⚠️ L'onglet « Monstres » (monstres normaux avec leur fiche publique) a été
+ * **supprimé le 20/10/2026** : il doublonnait « Monstres de la salle » (les
+ * monstres normaux sont un sous-ensemble des monstres de la salle). Le lien vers
+ * `/bestiaire/<slug>` est désormais porté par la carte elle-même.
  *
  * La règle est **pure** : elle ne consomme que des compteurs et des indicateurs
  * fournis par l'appelant (aucune requête, aucun accès base). Un onglet dont la
@@ -22,7 +26,6 @@ export type BossFicheTabId =
     | "grades"
     | "loot"
     | "family"
-    | "monsters"
     | "quests"
     | "achievements";
 
@@ -40,7 +43,6 @@ export const BOSS_FICHE_TAB_ICONS: Record<BossFicheTabId, string> = {
     grades: "/assets/dofus/modules/character.png",
     loot: "/assets/dofus/modules/chest.png",
     family: "/assets/dofus/modules/party.png",
-    monsters: "/assets/dofus/icons/archimonster.png",
     quests: "/assets/dofus/icons/quests.png",
     achievements: "/assets/dofus/icons/success.png",
 };
@@ -58,8 +60,6 @@ export interface BossFicheTab {
 export interface BossFicheTabCounts {
     grades: number;
     roomMonsters: number;
-    /** Monstres normaux (hors boss / avis / anomalie / titan / raid) qui ont leur fiche. */
-    monsters: number;
     quests: number;
     achievements: number;
 }
@@ -80,7 +80,6 @@ const ORDRE: BossFicheTabId[] = [
     "grades",
     "loot",
     "family",
-    "monsters",
     "quests",
     "achievements",
 ];
@@ -93,7 +92,6 @@ const LABELS: Record<"fr" | "en", Record<Exclude<BossFicheTabId, "sorts">, strin
         grades: "Rangs & Paliers",
         loot: "Butin & Drops",
         family: "Monstres de la salle",
-        monsters: "Monstres",
         quests: "Quêtes liées",
         achievements: "Succès du donjon",
     },
@@ -103,7 +101,6 @@ const LABELS: Record<"fr" | "en", Record<Exclude<BossFicheTabId, "sorts">, strin
         grades: "Ranks & Levels",
         loot: "Loot & Drops",
         family: "Room Monsters",
-        monsters: "Monsters",
         quests: "Linked Quests",
         achievements: "Dungeon Achievements",
     },
@@ -131,7 +128,7 @@ function spellsLabel(entity: BossFicheEntity, locale: "fr" | "en"): string {
  *   · `grades`       — seulement s'il y a plus d'un palier à comparer ;
  *   · `family`       — seulement s'il y a plus d'un monstre de salle ;
  *   · `quests`       — seulement si des quêtes sont liées ;
- *   · `achievements` — seulement si des succès sont connus ;
+ *   · `achievements` — seulement si des succès sont connus **et** que ce n'est pas un raid ;
  *   · `sorts` · `sim` · `loot` — toujours rendus (les vues gèrent leur état vide).
  */
 export function buildBossFicheTabs(input: BossFicheTabInput): BossFicheTab[] {
@@ -143,10 +140,11 @@ export function buildBossFicheTabs(input: BossFicheTabInput): BossFicheTab[] {
         grades: input.counts.grades > 1,
         loot: true,
         family: input.counts.roomMonsters > 1,
-        // Onglet « Monstres » : seulement s'il reste au moins un monstre normal à montrer.
-        monsters: input.counts.monsters > 0,
         quests: input.counts.quests > 0,
-        achievements: input.counts.achievements > 0,
+        // Un **raid** n'a pas de succès de donjon : le pseudo-succès « Donjon validé » ne doit
+        // jamais apparaître (mesure du 30/10/2026 : un boss de raid affichait
+        // « Succès du donjon (1) » avec ce faux succès).
+        achievements: input.entity === "raid" ? false : input.counts.achievements > 0,
     };
 
     const labelOf = (id: BossFicheTabId): string => {
@@ -154,10 +152,9 @@ export function buildBossFicheTabs(input: BossFicheTabInput): BossFicheTab[] {
         const base = LABELS[locale][id];
         // Un compteur n'a de sens que sur les onglets de collection (jamais sur les
         // onglets « outil » : simulation, stratégie, butin se lisent en une vue).
-        const counts: Record<"grades" | "family" | "monsters" | "quests" | "achievements", number> = {
+        const counts: Record<"grades" | "family" | "quests" | "achievements", number> = {
             grades: input.counts.grades,
             family: input.counts.roomMonsters,
-            monsters: input.counts.monsters,
             quests: input.counts.quests,
             achievements: input.counts.achievements,
         };

@@ -150,4 +150,21 @@ describe("scripts de déploiement — synchronisation de l'arbre de travail", ()
         // Jamais dans la classe restaurée depuis le dépôt (elle écraserait la curation).
         expect(bashArray(deployCd(), "REPO_OWNED")).not.toContain("public/game-data/hidden-map-zones.json");
     });
+
+    it("⑨ la note `.routes-2025-api` (aucun écrivain runtime) est de la classe RESTAURÉE", () => {
+        // Mesure du 16/10/2026 (sortie du déploiement bêta) : `public/game-data/worldmap/
+        // .routes-2025-api` — un fichier SUIVI depuis 2025, déposé à la main — restait « M »
+        // sur le VPS à CHAQUE passage ⇒ un `⚠` « fichiers modifiés hors des classes connues »
+        // pour un fichier que PERSONNE n'écrit, plus un stash/pop inutile. Cause classique de
+        // cette famille : la divergence de MODE seule (`100644` → `100755`).
+        // `git grep` de `src/` + `scripts/` : zéro occurrence (vérifié le 16/10/2026) ⇒ la
+        // version du dépôt fait foi (contenu ET mode), comme les médias de `REPO_OWNED`.
+        const note = "public/game-data/worldmap/.routes-2025-api";
+        for (const [name, source] of [
+            ["deploy-cd.sh", deployCd()],
+            ["deploy.sh", deploySh()],
+        ] as const) {
+            expect(bashArray(source, "REPO_OWNED"), name).toContain(note);
+        }
+    });
 });

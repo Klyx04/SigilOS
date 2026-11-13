@@ -1,3 +1,9 @@
+/**
+ * RÉFÉRENCE FIGÉE — la vérité documentaire vit en base (`DocPage`, éditée via
+ * `/god/docs`). Plus aucun sync, seed ou bouton ne rejoue ce fichier : il sert
+ * de secours (contenu récupérable) et de garde-fou de style pour les tests
+ * (`market-docs`, `songes-docs` : HTML sémantique, faits réels, aucun rôle en dur).
+ */
 export interface OfficialDoc {
     slug: string;
     title: string;
@@ -311,64 +317,65 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
         category: 'Progression & Objectifs',
         accessLevel: 'MEMBER' as any,
         content: `
-<h2>Monter une équipe de 4 et suivre la run étage par étage</h2>
-<p>Le module <strong>Songes Infinis</strong> organise les runs de la guilde : le meneur crée la run, les membres postulent avec leur classe, et la progression est suivie étage par étage jusqu'au Combat Final. Chaque run publiée est synchronisée avec Discord.</p>
+<h2>Ta première run en 5 minutes</h2>
+<p>Le module <strong>Songes Infinis</strong> sert à monter une équipe de 4 et à suivre la run étage par étage, jusqu'au Combat Final. Voilà le parcours complet :</p>
+<ol>
+    <li>Va sur la page <strong>Songes Infinis</strong> du dashboard.</li>
+    <li>Clique sur <strong>Créer une Run</strong> et règle ta run.</li>
+    <li>Recrute ton équipe : les membres <strong>postulent</strong>, tu <strong>acceptes</strong>.</li>
+    <li>Fais avancer les <strong>étages</strong> au fil de la soirée.</li>
+    <li><strong>Termine la run</strong> et distribue les points de contribution.</li>
+</ol>
 
 <div class="callout callout-info">
 <strong>Ce que le module ne fait pas</strong>
 <p>SigilOS ne distribue pas de butin : les gains se partagent en jeu, comme d'habitude.</p>
 </div>
 
+<h2>Étape 1 — Va sur la page Songes Infinis</h2>
+<p>Ouvre le dashboard de ta guilde et choisis <strong>Songes Infinis</strong> dans la barre latérale, section Progression. En haut de la page, tu trouves :</p>
+<ul>
+    <li><strong>Guide des Boss :</strong> les fiches des 144 boss, à consulter avant de partir.</li>
+    <li><strong>Créer une Run :</strong> le bouton pour lancer ta propre expédition.</li>
+    <li><strong>Le tableau des runs :</strong> une carte par run active — difficulté, étage en cours, membres inscrits, statut de recrutement. Clique sur une carte pour ouvrir sa fiche complète.</li>
+</ul>
+<p>Un bouton permet aussi de <strong>revoir la visite guidée</strong> de la page à tout moment.</p>
+
+<h2>Étape 2 — Clique sur Créer une Run</h2>
+<p>La création se fait en deux écrans. Remplis les zones numérotées, puis clique sur <strong>Suivant</strong> :</p>
+
 <figure class="my-6">
-    <img src="/assets/landing/songes-preview.png" alt="Module Songes Infinis" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
-    <figcaption class="text-xs text-muted-foreground mt-2 text-center">La fiche d'une run : composition d'équipe, étage courant et objectifs.</figcaption>
+    <img src="/assets/docs/songes-creation.svg" alt="Écran de création d'une run, zones à remplir numérotées" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">L'écran de création : 1 mode, 2 difficulté, 3 objectifs, 4 ta classe, 5 date — puis Suivant.</figcaption>
 </figure>
 
-<h2>1. Créer une run</h2>
-<p>Le bouton <strong>Créer une Run</strong> demande la permission du module : sans elle, il n'apparaît pas. Deux modes au choix :</p>
 <ul>
-    <li><strong>Run Standard :</strong> tu choisis la difficulté et un ou plusieurs objectifs.</li>
-    <li><strong>Épreuve de Songe :</strong> parcours imposé lié à un succès en jeu — FONSOCAC, REVERSED, NILEZAFF ou SINJSONJ. La difficulté est fixée par l'épreuve choisie.</li>
+    <li><strong>1 — Le mode :</strong> <strong>Run Standard</strong> pour farmer (tu choisis tout), <strong>Épreuve de Songe</strong> pour viser un succès précis — FONSOCAC, REVERSED, NILEZAFF ou SINJSONJ, avec la difficulté imposée par l'épreuve.</li>
+    <li><strong>2 — La difficulté :</strong> 10 niveaux, de Rêve I à Cauchemar III. Plus c'est haut, plus le bonus d'XP et de butin grimpe.</li>
+    <li><strong>3 — Les objectifs :</strong> coche au moins un objectif. <strong>Mission de Guilde</strong> et <strong>Quête</strong> sont ouverts dès le Rêve I ; <strong>Farm Légendes</strong> et <strong>Succès No Achat</strong> demandent Paradoxe ou Cauchemar (le cadenas te le dit).</li>
+    <li><strong>4 — Ta classe :</strong> clique l'icône de ton personnage — principal ou mule — pour que l'équipe sache avec quoi tu viens.</li>
+    <li><strong>5 — La date :</strong> laisse l'interrupteur coupé si c'est « quand on est prêts » : la run affiche <strong>Sans date pour l'instant</strong>. Si tu planifies, la run apparaît dans le calendrier et tout le monde reçoit un rappel 1 h avant.</li>
 </ul>
+<p>Deuxième écran : choisis si la run est <strong>publiée sur Discord</strong>, puis clique sur <strong>Confirmer et Lancer</strong>. Ta run apparaît aussitôt dans le tableau.</p>
 
 <div class="callout callout-tip">
 <strong>Pas de butin ni d'expérience en Épreuve</strong>
 <p>Les Épreuves ne rapportent que le succès : choisis le mode Standard pour farmer.</p>
 </div>
 
-<h3>Les 10 difficultés</h3>
+<h3>Les 10 difficultés en détail</h3>
 <ul>
     <li>🟢 <strong>Rêve I, II, III</strong> — bonus de +50, +75 et +100 %, 2 vagues par salle.</li>
     <li>🟡 <strong>Paradoxe I, II, III, IV</strong> — bonus de +120 à +190 %, 3 vagues par salle.</li>
     <li>🔴 <strong>Cauchemar I, II, III</strong> — bonus de +220 à +300 %, 4 vagues par salle.</li>
 </ul>
 
-<h3>Les objectifs</h3>
+<h2>Étape 3 — Recrute ton équipe</h2>
+<p>Les autres membres voient ta carte dans le tableau et cliquent sur <strong>Postuler</strong>. Ils choisissent leur classe dans le menu <strong>Choisir ma classe</strong> — et peuvent en changer après coup sans annuler leur candidature.</p>
 <ul>
-    <li><strong>Mission de Guilde</strong> et <strong>Quête</strong> : dès le Rêve I.</li>
-    <li><strong>Farm Légendes</strong> et <strong>Succès No Achat</strong> : Paradoxe ou Cauchemar uniquement.</li>
-</ul>
-
-<h3>Date, classe, stuff et publication</h3>
-<ul>
-    <li><strong>Ta classe</strong> pour cette run : ton personnage principal ou un mule.</li>
-    <li><strong>Ton stuff</strong> (optionnel) : joins un build de ta galerie pour montrer ta préparation.</li>
-    <li><strong>Date et heure</strong> (optionnel) : laisse vide si c'est « quand on est prêts ». Une run datée apparaît aussi dans le calendrier et reçoit un rappel 1 h avant.</li>
-    <li><strong>Publication Discord</strong> : poste l'annonce dans le salon de la guilde, avec ping d'un rôle si besoin. Aucun rôle n'est pingé par défaut.</li>
-</ul>
-
-<div class="callout callout-warning">
-<strong>Les limites anti-spam</strong>
-<p>Une seule run active par meneur : termine ou abandonne ta run avant d'en relancer une. Et 3 créations maximum toutes les 10 minutes.</p>
-</div>
-
-<h2>2. Rejoindre une run</h2>
-<ul>
-    <li><strong>Postuler</strong>, depuis le dashboard ou directement avec le bouton Postuler du message Discord.</li>
-    <li>Choisir sa classe avec le menu <strong>Choisir ma classe</strong> — tu peux en changer après coup sans annuler ta candidature.</li>
-    <li>Le <strong>meneur accepte ou refuse</strong> depuis le dashboard, et tu es notifié dans les deux cas.</li>
-    <li>Équipe complète (4 sur 4) ? Tu passes en <strong>file d'attente</strong> et tu es promu automatiquement dès qu'une place se libère.</li>
-    <li><strong>Quitter</strong> est possible à tout moment. Si c'est le meneur qui part, la run est <strong>abandonnée</strong>.</li>
+    <li>Ouvre la fiche de ta run et va dans l'onglet <strong>Candidatures</strong> : <strong>accepte</strong> ou <strong>refuse</strong> chaque postulant. Le joueur est notifié dans les deux cas.</li>
+    <li>Équipe complète (4 sur 4) ? Les retardataires passent en <strong>file d'attente</strong> et sont promus automatiquement dès qu'une place se libère.</li>
+    <li>Un membre peut <strong>Quitter</strong> à tout moment. Mais si c'est le meneur qui part, la run est <strong>abandonnée</strong>.</li>
 </ul>
 
 <div class="callout callout-info">
@@ -376,8 +383,8 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 <p>Sans réponse du meneur sous 24 h, la candidature expire automatiquement.</p>
 </div>
 
-<h2>3. Suivre la progression, étages 1 à 26</h2>
-<p>Seul le meneur fait avancer l'étage courant depuis la fiche de la run. La montée traverse 5 paliers, du plus doux au plus brutal :</p>
+<h2>Étape 4 — Fais avancer les étages</h2>
+<p>Pendant la soirée, le meneur ouvre <strong>Progression du Rêve</strong> depuis la fiche de la run et clique sur l'étage atteint. La montée traverse 5 paliers, du plus doux au plus brutal :</p>
 
 <figure class="my-6">
     <img src="/assets/docs/songes-paliers.svg" alt="Les cinq paliers des Songes, étages 1 à 26" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
@@ -391,16 +398,16 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
     <li><strong>Points de Rêve :</strong> chaque étage en rapporte, et les bonus ramassés sont notés par rareté — Communs, Rares, Épiques, Légendaires.</li>
 </ul>
 
-<h2>4. Clôturer et points de contribution</h2>
-<p>À la fin, le meneur choisit <strong>Terminer</strong> puis <strong>Confirmer et Distribuer</strong> :</p>
+<h2>Étape 5 — Termine et distribue les points</h2>
+<p>La run est finie ? Clique sur <strong>Terminer la Run</strong>, puis <strong>Confirmer et Distribuer</strong> :</p>
 <ul>
     <li>Barème : <strong>Rêve = 1 point</strong>, <strong>Paradoxe = 2 points</strong>, <strong>Cauchemar = 3 points</strong> de contribution guilde.</li>
-    <li>Le meneur coche les membres ayant <strong>réellement participé</strong> — un remplaçant peut être ajouté à la main — et ne se donne aucun point à lui-même.</li>
+    <li>Coche les membres ayant <strong>réellement participé</strong> — un remplaçant peut être ajouté à la main — et ne te donne aucun point à toi-même.</li>
     <li>La run passe en <strong>Terminée</strong> et le message Discord est supprimé.</li>
 </ul>
 
-<h2>5. Le message Discord</h2>
-<p>La run publiée affiche sa difficulté, son meneur, ses <strong>places (x sur 4)</strong>, sa date, ses objectifs, son équipe avec les icônes de classes et sa file d'attente :</p>
+<h2>Pendant ce temps, sur Discord</h2>
+<p>Si la run est publiée, le salon reçoit ce message — difficulté, meneur, <strong>places (x sur 4)</strong>, date, objectifs, équipe avec les icônes de classes et file d'attente :</p>
 
 <figure class="my-6">
     <img src="/assets/docs/songes-discord-embed.svg" alt="Exemple de message Discord d'une run Songes" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
@@ -410,24 +417,20 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 <ul>
     <li>Boutons <strong>Postuler</strong> et <strong>Quitter</strong> plus menu de classe : tout se fait sans passer par le site.</li>
     <li>En salon forum, le sujet reçoit automatiquement le <strong>tag du palier</strong>.</li>
-    <li><strong>Rappel 1 h avant</strong> pour les runs datées. Le meneur peut aussi envoyer un <strong>rappel manuel</strong> qui ne pinge que les absents du vocal.</li>
+    <li><strong>Rappel 1 h avant</strong> pour les runs datées. Le meneur peut aussi toucher la cloche <strong>Envoyer un rappel aux membres</strong> : seuls les absents du vocal sont pingés.</li>
 </ul>
 
-<h2>6. Guide des boss intégré</h2>
-<p>Le bouton <strong>Guide des Boss</strong> ouvre les fiches des <strong>144 boss</strong> (données Songes pour les Noobs, par Volcasaurus) : recherche par nom, note de difficulté, barres Focus, Esquive et Tank, onglets Informations, Mécaniques et Conseils. La <strong>version courte</strong> se lit entre deux salles, le <strong>boss aléatoire</strong> donne des idées, et le lien Dofensive apporte le détail complet.</p>
+<h2>Le Guide des Boss</h2>
+<p>Avant de partir, clique sur <strong>Guide des Boss</strong> : les fiches des <strong>144 boss</strong> (données Songes pour les Noobs, par Volcasaurus) avec recherche par nom, note de difficulté, barres Focus, Esquive et Tank, onglets Informations, Mécaniques et Conseils. La <strong>version courte</strong> se lit entre deux salles, et le <strong>boss aléatoire</strong> donne des idées.</p>
 
-<h2>7. Réglages pour les officiers</h2>
-<p>Dans Admin puis Songes :</p>
-<ol>
-    <li>Coller l'<strong>identifiant du salon Discord</strong> (mode développeur Discord, puis Copier l'identifiant sur le salon voulu).</li>
-    <li>En salon forum, créer les 10 tags de paliers (Rêve I à Cauchemar III) pour un classement automatique — SigilOS ne crée jamais de tags lui-même.</li>
-    <li>Choisir les <strong>rôles autorisés au ping</strong> : liste vide, personne ne peut être mentionné.</li>
-</ol>
-
-<div class="callout callout-tip">
-<strong>Permissions du bot</strong>
-<p>Le bot a besoin de Voir le salon et d'Envoyer des messages, sinon la publication échoue avec un avertissement (la run, elle, est bien créée).</p>
-</div>
+<h2>Si ça coince</h2>
+<ul>
+    <li><strong>Pas de bouton Créer une Run ?</strong> Il faut la permission du module : demande à un officier de la guilde.</li>
+    <li><strong>« Vous avez déjà une run active » ?</strong> Termine ou abandonne ta run en cours avant d'en relancer une — un meneur, une run.</li>
+    <li><strong>« Trop de runs créées » ?</strong> C'est l'anti-spam : 3 créations maximum toutes les 10 minutes, patiente un peu.</li>
+    <li><strong>Candidature restée sans réponse ?</strong> Elle expire au bout de 24 h, tu pourras repostuler.</li>
+    <li><strong>Un avertissement Discord à la création ?</strong> Ta run est bien créée : c'est juste la publication sur Discord qui n'est pas partie (salon non configuré ou bot sans accès). Préviens un officier.</li>
+</ul>
         `
     },
 
@@ -787,11 +790,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
             <td>Base de données ultra-complète sur tous les monstres, items, quêtes, recettes et succès.</td>
         </tr>
         <tr>
-            <td><strong>Dofensive</strong></td>
-            <td>Stratégie IA</td>
-            <td>Simulateur d'IA des monstres, portées de sorts, lignes de vue et patterns d'attaque.</td>
-        </tr>
-        <tr>
             <td><strong>Metamob</strong></td>
             <td>Quête Ocre</td>
             <td>Plateforme d'échange d'archimonstres synchronisée avec SigilOS.</td>
@@ -1102,30 +1100,42 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
         category: 'Administration & Staff',
         accessLevel: 'ADMIN' as any,
         content: `
-<h2>Audit Roster Discord vs Dashboard</h2>
-<p>Ce module technique réconcilie en direct les utilisateurs présents sur votre serveur Discord avec les profils inscrits sur votre instance SigilOS pour éliminer les comptes fantômes.</p>
+<h2>Une seule liste, deux onglets</h2>
+<p>La page réunit désormais <strong>tous les humains de votre serveur Discord</strong> — ceux qui ont un profil sur SigilOS <em>comme</em> ceux qui n'en ont pas — dans <strong>une seule liste</strong>, sous deux onglets : <strong>Membres</strong> et <strong>Blacklist</strong>. Un membre n'apparaît plus jamais deux fois.</p>
 
 <figure class="my-6">
-    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue d'audit Roster : couverture d'inscription, relances groupées et synchronisation.</figcaption>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Liste unifiée : filtres de statut, inscription au dashboard, rôle Discord, recherche et pagination numérotée.</figcaption>
 </figure>
 
-<h2>1. Indicateurs Clés de Couverture</h2>
+<h2>1. Ce que la liste montre et filtre</h2>
 <ul>
-    <li><strong>Membres Discord Détectés :</strong> Nombre total d'utilisateurs possédant le rôle de guilde sur votre serveur Discord.</li>
-    <li><strong>Profils Inscrits sur SigilOS :</strong> Nombre de membres ayant lié leur profil et accédant au Dashboard.</li>
-    <li><strong>Comptes Manquants :</strong> Utilisateurs Discord autorisés mais n'ayant pas encore finalisé leur première connexion.</li>
+    <li><strong>Indicateurs :</strong> comptes actifs (avec la jauge de places), archivés, exclus et total géré.</li>
+    <li><strong>Filtres de statut :</strong> Actifs / Archivés / Exclus / Tous, avec le compteur de chaque catégorie.</li>
+    <li><strong>Inscription :</strong> Les deux / Dashboard / Hors dashboard (membres Discord sans profil SigilOS).</li>
+    <li><strong>Rôle Discord :</strong> ne propose que les rôles réellement portés par au moins un membre.</li>
+    <li><strong>Recherche libre :</strong> pseudo, pseudo Dofus, surnom Discord, tag Ankama ou identifiant Discord. Tri par arrivée, ancienneté ou pseudo, et pagination numérotée.</li>
 </ul>
 
-<h2>2. Actions Disponibles :</h2>
+<h2>2. La modale par membre</h2>
+<p>Cliquer une personne ouvre <strong>une modale unique</strong> qui regroupe les trois volets historiques :</p>
 <ul>
-    <li><strong>Synchronisation Globale :</strong> Rapproche les comptes et archive automatiquement les fiches des membres ayant quitté le serveur Discord.</li>
-    <li><strong>Relances Groupées Discord :</strong> Envoie une mention ciblée dans le salon d'accueil pour inviter les retardataires à rejoindre le Dashboard.</li>
-    <li><strong>Gestion des membres (actifs, archivés, bannis, exclus) :</strong> Cette page porte aussi le statut du profil — l'ancien onglet « Liste Roster &amp; Membres » a été fusionné ici : archivage, désarchivage, bannissement et relances Discord, avec les compteurs de mules.</li>
-    <li><strong>Blacklist de Guilde :</strong> Conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
+    <li><strong>Profil &amp; actions :</strong> identité du registre (pseudo Dofus, tag Ankama au format Nom#0000, date d'arrivée), essai (validation et fin d'essai), vacances, relance Discord, archivage, exclusion et réintégration.</li>
+    <li><strong>Registre :</strong> recruteur, mules (une par ligne) et journal du staff (commentaires horodatés et signés).</li>
+    <li><strong>Discord :</strong> identifiant, pseudo serveur et rôles Discord connus.</li>
+</ul>
+<p>Les membres <strong>hors dashboard</strong> sont visibles et filtrables ; leur ligne ne porte ni essai, ni recruteur, ni journal (ils n'existent pas au registre).</p>
+
+<h2>3. Suppression définitive d'un profil</h2>
+<p>Une permission dédiée — <strong>« Supprimer un profil de guilde »</strong> — commande l'affichage du bouton de suppression. Elle se règle par rôle Discord dans l'écran RBAC : sans cette permission, le bouton n'apparaît pas et l'action est refusée côté serveur.</p>
+<div class="callout callout-warning"><strong>⚠️ Action irréversible</strong> : la suppression efface définitivement les données SigilOS de la personne <strong>pour cette guilde</strong> (missions, succès, progression, journal) et ne conserve <strong>aucune exclusion</strong>. S'il revient, il repart comme un nouvel arrivant. Un admin de guilde ne touche jamais au compte global ni aux autres guildes ; seul le God peut purger le compte plateforme complet.</div>
+
+<h2>4. Outils et journal de guilde</h2>
+<ul>
+    <li><strong>Synchronisation Globale :</strong> rapproche les comptes et met à jour les fiches depuis Discord.</li>
+    <li><strong>Rapport d'audit :</strong> envoie sur Discord la couverture d'inscription et les membres manquants.</li>
+    <li><strong>Blacklist de Guilde :</strong> conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
 </ul>
 
-<h2>3. Registre Recrutement (remplace le tableur)</h2>
-<p>L'onglet Registre centralise la gestion humaine : une ligne par membre, avec saisie manuelle (pseudo Dofus, date d'arrivée, tag Ankama au format Nom#0000, recruteur avec recherche, essai validé Oui / Non avec date de reconduction, commentaires multiples — 10 maximum, horodatés et signés) et valeurs automatiques (pseudo serveur rempli et mis à jour seul depuis Discord, ancienneté calculée seule, ID Discord peuplé seul). Les mules combinent le déclaré des profils et la saisie manuelle, et le classement des meilleurs recruteurs est calculé en direct. L'export CSV reprend toutes les colonnes, ID Discord inclus.</p>
 <div class="callout callout-tip"><strong>💡 Depuis Discord</strong> : la commande staff <strong>/valider-recrue</strong> (mention + pseudo Dofus + tag Ankama + recruteur + date d'arrivée) complète directement la ligne d'une recrue, par exemple dans son ticket de candidature. Elle n'apparaît jamais dans le guide des commandes des membres.</div>
         `
     },
@@ -1260,65 +1270,181 @@ Pour que le bot puisse attribuer un rôle, le rôle du Bot SigilOS dans les para
         category: 'Administration & Staff',
         accessLevel: 'ADMIN' as any,
         content: `
-<h2>À quoi sert ce module</h2>
-<p>Il remplace les bots de support externes : la configuration, le suivi et les archives restent dans SigilOS, les salons et les notifications restent dans votre Discord. Aucune donnée de guilde ne part chez un tiers.</p>
-<p><strong>Le mot clé, c'est le parcours.</strong> Un parcours est un motif d'ouverture proposé aux membres — « Candidature », « Contacter le staff », « Signaler un problème ». Chaque parcours a son bouton Discord, ses rôles, son questionnaire et son salon.</p>
+<h2>À quoi sert le module Tickets</h2>
+<p>Ce module remplace avantageusement les bots tiers externes (Dyno, Ticket Tool, Ticketmaster) : la gestion de l'équipe, les notes privées, les transcripts certifiés et les avis restent hébergés au sein de SigilOS, tandis que les salons et notifications sont directement synchronisés sur votre serveur Discord. <strong>Zéro fuite de données, 100% gratuit et souverain.</strong></p>
 
-<h2>1. Ce que voit un membre</h2>
+<div class="callout callout-tip my-4">
+    <p><strong>Architecture moderne :</strong> Le module s'articule autour de 7 briques intuitives : la <strong>Boîte de Réception</strong> (traitement en direct), les <strong>Types de Demande</strong> (parcours & formulaires), les <strong>Panneaux Discord</strong> (messages d'ouverture), les <strong>Commandes Slash</strong> (raccourcis rapides avec variables), les <strong>Archives</strong> (copies conformes), les <strong>Avis CSAT</strong> (notes 1 à 5 étoiles) et la <strong>Configuration</strong> (rôles et salons).</p>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MOCKUP 1 : PANNEAU DISCORD -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #22c55e; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">S</div>
+            <div>
+                <span style="font-weight: bold; font-size: 14px;">SigilOS</span>
+                <span style="background-color: #5865f2; font-size: 10px; font-weight: bold; padding: 1px 4px; border-radius: 4px; margin-left: 6px;">APP</span>
+                <span style="color: #949ba4; font-size: 11px; margin-left: 8px;">aujourd'hui à 14:30</span>
+            </div>
+        </div>
+
+        <div style="background-color: #2b2d31; border-left: 4px solid #5865f2; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
+            <div style="font-size: 15px; font-weight: bold; color: #ffffff; margin-bottom: 6px;">📩 Centre de Support & Recrutement</div>
+            <div style="font-size: 13px; color: #dbdee1; line-height: 1.5;">
+                Bienvenue sur le portail de la guilde !<br>
+                Pour ouvrir un dossier privé avec notre équipe, cliquez sur l'un des boutons ci-dessous.<br>
+                <em>Un salon dédié vous sera instantanément ouvert.</em>
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: #949ba4; border-top: 1px solid #3f4147; pt-2;">
+                Guilde SigilOS • Service automatique
+            </div>
+        </div>
+
+        <!-- Boutons d'action Discord -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <div style="background-color: #248046; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                🎉 Postuler dans la guilde
+            </div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                🛡️ Contacter les Modérateurs
+            </div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                ⚖️ Signaler un problème
+            </div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Aperçu réaliste d'un panneau d'accueil déployé dans un salon Discord.</figcaption>
+</figure>
+
+<h2>1. Boîte de Réception & Suivi en direct</h2>
+<p>L'inbox regroupe l'intégralité des tickets de votre serveur. Vous pouvez filtrer par statut (Ouvert, En attente, Fermé) ou rechercher par nom de membre, numéro de ticket ou mot-clé.</p>
 <ul>
-    <li><strong>Un panneau</strong> dans un salon : un message d'accueil et un bouton par parcours publié (ou un menu déroulant, au choix du panneau).</li>
-    <li><strong>Un questionnaire</strong>, facultatif : d'abord les questions à choix (Oui/Non, liste, choix multiples), puis les questions de texte.</li>
-    <li><strong>Son salon de ticket</strong> : créé dans la catégorie Discord du parcours, nommé selon le modèle du parcours (par défaut : ticket-0001), avec un message d'accueil qui rappelle sa demande et ses réponses.</li>
-    <li><strong>Les boutons de staff</strong> ne lui sont jamais montrés : il ne voit « Fermer ma demande » que si le parcours l'y autorise.</li>
+    <li><strong>Prise en charge (Claim) :</strong> Dès qu'un membre du staff clique sur « Prendre en charge », l'embed du salon Discord et le dashboard se mettent à jour instantanément pour afficher son nom. Les autres modérateurs savent immédiatement qui traite la demande.</li>
+    <li><strong>Notes internes sécurisées :</strong> Rédigez des mémos privés ou des comptes-rendus entre modérateurs. Ces notes restent <strong>strictement réservées au dashboard</strong> et ne sont jamais divulguées au membre dans son salon Discord.</li>
+    <li><strong>Rafraîchissement automatique :</strong> Le statut et la liste des tickets se mettent à jour en direct toutes les 10 secondes sans rechargement de page.</li>
 </ul>
 
-<h2>2. Brouillon ou publié</h2>
+<h2>2. Types de Demande & Questionnaires (Parcours)</h2>
+<p>Chaque guilde possède des besoins variés : recrutement, demande de craft, questions débutants ou réclamations. Les <strong>Types de Demande</strong> permettent de personnaliser l'expérience :</p>
 <ul>
-    <li><strong>Brouillon</strong> : invisible sur Discord. <strong>Publié</strong> : le bouton existe et ouvre un ticket. Republier incrémente la version (v1, v2…).</li>
-    <li>Un ticket garde toujours la <strong>version du questionnaire</strong> avec laquelle il a été rempli : renommer une question plus tard ne casse pas la relecture.</li>
-    <li><strong>Fermeture</strong> : réservée au staff, ou ouverte au demandeur si tu le décides. Un parcours qui porte déjà des tickets se désactive plutôt que de se supprimer.</li>
+    <li><strong>Questionnaire intake jusqu'à 20 questions :</strong> Découpage automatique en pages de 5 modales Discord. Vous pouvez poser des questions texte court, paragraphe, choix unique, choix multiples ou Oui/Non.</li>
+    <li><strong>Le Oui/Non comme condition bloquante :</strong> Une réponse « Non » (ex: <em>Possédez-vous un personnage niveau 200 ?</em>) peut soit avertir le candidat, soit bloquer directement l'envoi pour éviter de polluer le staff.</li>
+    <li><strong>Rôles staff dédiés :</strong> Seuls les rôles Discord assignés à ce parcours (ex: le rôle <code>@Recruteurs</code>) ont accès au salon du ticket et reçoivent les notifications.</li>
+    <li><strong>Sauvegarde de brouillon :</strong> Si le joueur ferme Discord en cours de saisie, ses réponses sont conservées 30 minutes : il peut reprendre son questionnaire d'un simple clic sans recommencer !</li>
 </ul>
 
-<h2>3. Le questionnaire : jusqu'à 20 questions</h2>
+<h2>3. Panneaux Discord & Déploiement 1-Clic</h2>
+<p>Les panneaux sont les messages d'accueil visibles par vos membres sur Discord :</p>
 <ul>
-    <li>Six types de champs : réponse courte, paragraphe, Oui/Non, choix unique, choix multiple, et information (qui n'attend aucune réponse).</li>
-    <li>Le <strong>Oui/Non est un vrai refus</strong> : la réponse « Non » est enregistrée, et tu choisis sa conséquence — continuer, avertir le demandeur, bloquer l'envoi, ou envoyer la demande en revue manuelle.</li>
-    <li>20 questions au maximum, réparties automatiquement en pages de 5 (limite imposée par Discord) : le membre enchaîne avec un bouton « Continuer », et une page déjà remplie ne lui est jamais reposée. Un brouillon reste 30 minutes : il peut fermer Discord et reprendre.</li>
-    <li>Un questionnaire doit être <strong>publié avant</strong> d'être rattaché à un parcours : c'est cette version qui est figée.</li>
+    <li>Choisissez le salon Discord de destination (ex: <code>#recrutement</code> ou <code>#accueil-tickets</code>).</li>
+    <li>Personnalisez l'embed avec vos couleurs de guilde, une miniature ou une grande bannière.</li>
+    <li>Sélectionnez les parcours à afficher sous forme de <strong>boutons interactifs</strong> ou de <strong>menu déroulant</strong>.</li>
+    <li>Cliquez sur « Déployer » : le message Discord est publié instantanément par le bot.</li>
 </ul>
 
-<h2>4. Qui voit, qui est prévenu</h2>
+<!-- ========================================================================= -->
+<!-- MOCKUP 2 : COMMANDE SLASH DANS LE TICKET -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="font-size: 12px; color: #949ba4; margin-bottom: 8px;">Salon ticket : <strong>#ticket-0042</strong></div>
+        
+        <!-- Frappe de la commande avec autocomplétion -->
+        <div style="background-color: #2b2d31; border: 1px solid #3f4147; border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+            <span style="color: #22c55e; font-weight: bold;">/</span>
+            <span style="color: #ffffff; font-weight: 600;">bienvenue</span>
+            <span style="background-color: #383a40; color: #dbdee1; padding: 2px 6px; border-radius: 4px; font-size: 11px;">membre: @CandidatDofus</span>
+        </div>
+
+        <!-- Rendu Discord de la commande -->
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #22c55e; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; shrink: 0;">S</div>
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                    <span style="font-weight: bold; font-size: 13px;">SigilOS</span>
+                    <span style="background-color: #5865f2; font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px;">APP</span>
+                </div>
+                <div style="font-size: 13px; color: #dbdee1; line-height: 1.5;">
+                    🎉 Félicitations <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@CandidatDofus</span> ! Ta candidature sur <strong>Guilde SigilOS</strong> a été validée par <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">un membre du staff</span> !
+                </div>
+
+                <div style="margin-top: 8px; background-color: #2b2d31; border-left: 4px solid #22c55e; border-radius: 6px; padding: 10px 12px; font-size: 12px;">
+                    <div style="font-weight: bold; color: #ffffff; margin-bottom: 4px;">✨ Rôles Discord mis à jour :</div>
+                    <div style="color: #dbdee1;">• Ajouté : <span style="color: #22c55e; font-weight: 600;">+ Membre</span><br>• Retiré : <span style="color: #ed4245; font-weight: 600;">- Candidat</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Exécution en direct d'une commande slash personnalisée avec modification automatique de rôles.</figcaption>
+</figure>
+
+<h2>4. Commandes Slash Personnalisées (Exclusives aux Tickets)</h2>
+<p>Vous pouvez créer jusqu'à <strong>20 commandes slash Discord sur-mesure</strong> utilisables uniquement à l'intérieur des salons tickets :</p>
 <ul>
-    <li>Voyant un ticket : les <strong>rôles staff du parcours</strong>, ceux de son <strong>équipe</strong> (réutilisable par plusieurs parcours) et les membres qui ont la permission « Support & Tickets Discord » sur le site.</li>
-    <li><strong>Rôles mentionnés à l'ouverture</strong> : coche les rôles à prévenir (« @Candidatures ») ; si le parcours n'en définit aucun, le bot reprend ceux de l'équipe. Jamais <strong>@everyone</strong>, et 25 rôles au maximum.</li>
-    <li><strong>Notes internes</strong> : écrites depuis Discord ou le site, visibles par le staff seulement — elles ne sont jamais publiées dans le salon du demandeur.</li>
+    <li><strong>Modèles prêts à l'emploi :</strong> 4 modèles disponibles en 1 clic (<em>Validation Recrue</em>, <em>Promotion / Grade</em>, <em>Résolution & Clôture</em>, <em>Relance Inactivité</em>).</li>
+    <li><strong>Dictionnaire complet des balises dynamiques :</strong>
+        <ul>
+            <li><code>{demandeur}</code> : Ping Discord du créateur du ticket (ex: <code>@Joueur</code>).</li>
+            <li><code>{cible}</code> : Ping du membre ciblé par l'option ou le demandeur.</li>
+            <li><code>{pseudo}</code> : Pseudo brut sans arobase (idéal pour les titres d'embeds).</li>
+            <li><code>{staff}</code> : Ping du modérateur ayant exécuté la commande.</li>
+            <li><code>{motif}</code> : Nom du type de demande (ex: Recrutement).</li>
+            <li><code>{numero}</code> : Numéro unique du ticket (ex: #0042).</li>
+            <li><code>{salon}</code> : Lien cliquable vers le salon Discord actuel.</li>
+            <li><code>{serveur}</code> : Nom officiel de votre guilde.</li>
+        </ul>
+    </li>
+    <li><strong>Actions automatiques sur les rôles :</strong> Attribuez (ex: <em>Membre</em>) et retirez (ex: <em>Candidat</em>) des rôles Discord en un instant.</li>
+    <li><strong>Clôture automatique :</strong> Déclenchez l'archivage et la fermeture du salon dès que la commande est validée.</li>
 </ul>
 
-<h2>5. Le déroulé d'un ticket</h2>
+<h2>5. Archives & Transcripts Certifiés</h2>
+<p>Lors de la clôture d'un ticket, le système capture l'intégralité des échanges pour assurer la conformité et l'historique :</p>
 <ul>
-    <li>Étapes : <strong>en attente</strong> → <strong>pris en charge</strong> → <strong>fermé</strong>. Le demandeur peut noter la prise en charge (avis 1 à 5) à la clôture si l'option est active.</li>
-    <li>Côté staff : prendre en charge ou relâcher, note interne, renommer le salon, fermer. Côté demandeur : écrire dans son salon, et le fermer si le parcours le permet.</li>
-    <li>Après la clôture, le salon reste en place : l'archive est la preuve, la suppression se décide à part.</li>
+    <li><strong>Document Partageable (HTML) :</strong> Génère une copie propre et élégante contenant tous les messages publics, pièces jointes et avatars des intervenants. Les notes privées du staff n'y figurent jamais.</li>
+    <li><strong>Annexe Interne Staff :</strong> Document réservé au staff regroupant l'audit log complet, les temps de réponse et les notes privées.</li>
+    <li><strong>Rétention automatique :</strong> Vos archives sont conservées 365 jours par défaut (durée configurable) et peuvent être révoquées ou purgées à tout moment.</li>
 </ul>
 
-<h2>6. Archives et rétention</h2>
+<!-- ========================================================================= -->
+<!-- MOCKUP 3 : SONDAGE CSAT -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #2b2d31; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="font-size: 14px; font-weight: bold; color: #ffffff; margin-bottom: 4px;">⭐ Votre avis compte pour notre équipe</div>
+            <div style="font-size: 12.5px; color: #dbdee1;">
+                Votre ticket <strong>#ticket-0042</strong> a été résolu. Comment évaluez-vous l'accueil et l'efficacité de notre staff ?
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 6px;">
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 1</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 2</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 3</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 4</div>
+            <div style="background-color: #f59e0b; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 5</div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Sondage de satisfaction (CSAT) avec verrou de vote unique.</figcaption>
+</figure>
+
+<h2>6. Avis & Satisfaction (CSAT)</h2>
+<p>Mesurez objectivement la qualité de réponse de votre modération :</p>
 <ul>
-    <li>Chaque clôture produit <strong>deux documents</strong> : un <strong>document partageable</strong> (sans les notes internes) et une <strong>annexe interne</strong> réservée au staff.</li>
-    <li>Le lien du document partageable expire selon la rétention configurée et peut être <strong>révoqué</strong> ; chaque accès est compté.</li>
-    <li>Rétention par type de donnée, en jours (0 = illimité) : archives 365, notes 365, journal d'actions 730 par défaut. C'est ce réglage qui est réellement appliqué, à la seconde où l'archive est créée.</li>
+    <li>Lors de la fermeture du ticket, le robot envoie automatiquement le sondage par message privé ou directement dans le salon avant suppression.</li>
+    <li><strong>Verrou de vote unique :</strong> Le membre ne peut voter qu'une seule et unique fois ; toute tentative ultérieure est neutralisée.</li>
+    <li><strong>Moyennes et statistiques :</strong> Retrouvez la moyenne globale de satisfaction (ex: 4.8 / 5) et le volume de retours dans l'onglet <em>Avis & Satisfaction</em>.</li>
 </ul>
 
-<h2>7. Prérequis côté Discord</h2>
+<h2>7. Configuration & Positionnement des Salons</h2>
 <ul>
-    <li>Le bot doit être présent, avec : voir les salons, gérer les salons, envoyer des messages, joindre des fichiers, et la permission de mentionner les rôles à prévenir.</li>
-    <li>La catégorie choisie dans le parcours doit exister et être accessible au bot — sinon le salon ne peut pas être créé.</li>
-    <li>Les rôles staff doivent être <strong>sous</strong> le rôle du bot dans la hiérarchie, sinon il ne peut ni les mentionner ni leur ouvrir le salon.</li>
-</ul>
-
-<h2>8. Limites connues aujourd'hui</h2>
-<ul>
-    <li>Pas encore actifs : les délais SLA (1ʳᵉ réponse, résolution) et l'auto-fermeture, l'approbation avant création du salon, les tickets en « fil privé », et le quota global de tickets du serveur.</li>
-    <li>L'écran « Parcours » (avec son assistant) n'est pas encore en ligne : la configuration actuelle se fait dans l'onglet « Catégories & Modals ».</li>
+    <li><strong>Position dans la catégorie Discord :</strong> Choisissez si les nouveaux salons tickets sont créés <strong>tout en haut (TOP)</strong> pour une visibilité immédiate du staff, ou <strong>en bas (BOTTOM)</strong> pour suivre l'ordre chronologique Discord classique.</li>
+    <li><strong>Salon de logs privé :</strong> Recevez une trace de chaque action importante (création, prise en charge, clôture, suppression).</li>
+    <li><strong>Plafonds anti-spam :</strong> Limitez le nombre de tickets actifs simultanés par utilisateur (1 à 5) pour préserver votre serveur.</li>
 </ul>
         `
     },

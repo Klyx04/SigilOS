@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { BossGuideLauncher } from "@/components/songes/BossGuideLauncher";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { SONGES_ACTION_GROUP } from "@/lib/songes/ui";
 
 export default async function SongesPage({
     params,
@@ -54,16 +55,22 @@ export default async function SongesPage({
                     iconColor="#d946ef"
                     backHref={`/dashboard/${guildId}`}
                     actions={
-                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                            <div data-tour="songes-guide">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Un SEUL contenant pour les outils : items alignés, filets entre eux
+                                (l'en-tête ne juxtapose plus des boutons étrangers). */}
+                            <div data-tour="songes-guide" className={SONGES_ACTION_GROUP}>
                                 <BossGuideLauncher />
+                                <ModuleTourReplayButton phase="songes" appearance="grouped" />
                             </div>
+                            {/* L'action principale est à part : elle seule porte l'accent. */}
+                            {(userContext.canCreateSonges || userContext.isAdmin) && (
+                                <span aria-hidden className="hidden sm:block w-px h-5 bg-border" />
+                            )}
                             {(userContext.canCreateSonges || userContext.isAdmin) && (
                                 <div data-tour="songes-create">
                                     <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
                                 </div>
                             )}
-                            <ModuleTourReplayButton phase="songes" />
                         </div>
                     }
                 />

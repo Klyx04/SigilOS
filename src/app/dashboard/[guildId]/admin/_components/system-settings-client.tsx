@@ -5,26 +5,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, AlertTriangle, Hash, Megaphone, ShieldAlert, Sparkles, Users, Bell, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, Save, Megaphone, Bell, AlertTriangle, Users, ShieldAlert, Sparkles, Send } from "lucide-react";
 import { toast } from "sonner";
 import { getSystemAnnouncementSettings } from "@/server/actions/system-settings-actions";
 import { saveSystemAnnouncementSettings } from "@/server/actions/announcement-actions";
+import { getLiveNotifySettings, saveLiveNotifySettings, sendLiveNotifyTest } from "@/server/actions/live-notify-actions";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
+import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { TwitchIcon, YouTubeIcon } from "@/components/icons/brand-icons";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
-
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X } from "lucide-react";
 
 interface SystemSettingsClientProps {
     guildId: string;
@@ -34,16 +24,27 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
     const [newsEnabled, setNewsEnabled] = useState<boolean>(false);
     const [lifecycleChannelId, setLifecycleChannelId] = useState<string>("");
+    const [twitchChannelId, setTwitchChannelId] = useState<string>("");
+    const [youtubeChannelId, setYoutubeChannelId] = useState<string>("");
+    const [twitchEnabled, setTwitchEnabled] = useState<boolean>(true);
+    const [livePingRoleIds, setLivePingRoleIds] = useState<string[]>([]);
+    const [youtubeEnabled, setYoutubeEnabled] = useState<boolean>(true);
+    const [guildRoles, setGuildRoles] = useState<Array<{ id: string; name: string; color: number }>>([]);
+    const [isTestingLive, setIsTestingLive] = useState(false);
     
     const [fullMissionConfig, setFullMissionConfig] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
-    // — Détection « modifications non sauvegardées »
     type SystemConfigSnapshot = {
         channelId: string;
         newsEnabled: boolean;
         lifecycleChannelId: string;
+        twitchChannelId: string;
+        youtubeChannelId: string;
+        livePingRoleIds: string[];
+        twitchEnabled: boolean;
+        youtubeEnabled: boolean;
     };
     const [initialConfig, setInitialConfig] = useState<SystemConfigSnapshot | null>(null);
 
@@ -51,28 +52,67 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         channelId,
         newsEnabled,
         lifecycleChannelId,
-    }), [channelId, newsEnabled, lifecycleChannelId]);
+        twitchChannelId,
+        youtubeChannelId,
+        livePingRoleIds,
+        twitchEnabled,
+        youtubeEnabled,
+    }), [
+        channelId,
+        newsEnabled,
+        lifecycleChannelId,
+        twitchChannelId,
+        youtubeChannelId,
+        livePingRoleIds,
+        twitchEnabled,
+        youtubeEnabled,
+    ]);
 
     const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
 
     useEffect(() => {
         async function loadConfig() {
-            const [sysRes, missionRes] = await Promise.all([
+            const [sysRes, missionRes, liveRes, rolesRes] = await Promise.all([
                 getSystemAnnouncementSettings(guildId),
-                getMissionConfig(guildId)
-
+                getMissionConfig(guildId),
+                getLiveNotifySettings(guildId),
+                getGuildRoles(guildId),
             ]);
 
-            if (sysRes.success && sysRes.data || missionRes.success && missionRes.data) {
+            const live = liveRes.success && liveRes.data
+                ? liveRes.data
+                : {
+                    twitchChannelId: null,
+                    youtubeChannelId: null,
+                    pingRoleIds: [],
+                    twitchEnabled: true,
+                    youtubeEnabled: true,
+                };
+
+            if ((sysRes.success && sysRes.data) || (missionRes.success && missionRes.data) || liveRes.success) {
                 const loaded: SystemConfigSnapshot = {
                     channelId: (sysRes.success && sysRes.data ? sysRes.data.systemNotifyChannelId : "") || "",
                     newsEnabled: missionRes.success && missionRes.data ? (missionRes.data.newsBroadcastEnabled || false) : false,
                     lifecycleChannelId: missionRes.success && missionRes.data ? (missionRes.data.lifecycleNotifyChannelId || "") : "",
+                    twitchChannelId: live.twitchChannelId || "",
+                    youtubeChannelId: live.youtubeChannelId || "",
+                    livePingRoleIds: live.pingRoleIds,
+                    twitchEnabled: live.twitchEnabled ?? true,
+                    youtubeEnabled: live.youtubeEnabled ?? true,
                 };
                 setChannelId(loaded.channelId);
                 setNewsEnabled(loaded.newsEnabled);
                 setLifecycleChannelId(loaded.lifecycleChannelId);
+                setTwitchChannelId(loaded.twitchChannelId);
+                setYoutubeChannelId(loaded.youtubeChannelId);
+                setLivePingRoleIds(loaded.livePingRoleIds);
+                setTwitchEnabled(loaded.twitchEnabled);
+                setYoutubeEnabled(loaded.youtubeEnabled);
                 setInitialConfig(loaded);
+            }
+
+            if (rolesRes.success && Array.isArray(rolesRes.data)) {
+                setGuildRoles(rolesRes.data.map((role) => ({ id: role.id, name: role.name, color: role.color })));
             }
 
             if (missionRes.success && missionRes.data) {
@@ -86,12 +126,8 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
 
     const handleSave = () => {
         startTransition(async () => {
-            // 1. Save System Channel
             const sysResult = await saveSystemAnnouncementSettings(guildId, channelId.trim() || null);
-            
-            // 2. Save Discord/Lifecycle Settings
             const discordResult = await updateMissionNotifySettings(guildId, {
-                // Keep mission settings (passed back from config)
                 channelId: fullMissionConfig?.missionChannelId,
                 roleId: fullMissionConfig?.missionNotifyRoleId,
                 validationChannelId: fullMissionConfig?.missionValidationChannelId,
@@ -100,242 +136,382 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                 kamaNotifyRoleId: fullMissionConfig?.kamaNotifyRoleId,
                 missionManagementNotifyChannelId: fullMissionConfig?.missionManagementNotifyChannelId,
                 missionManagementNotifyRoleId: fullMissionConfig?.missionManagementNotifyRoleId,
-                // New/Merged settings
                 newsBroadcastEnabled: newsEnabled,
                 lifecycleNotifyChannelId: lifecycleChannelId.trim() || null,
             });
 
-            if (sysResult.success && discordResult.success) {
+            const liveResult = await saveLiveNotifySettings(guildId, {
+                twitchChannelId: twitchChannelId.trim() || null,
+                youtubeChannelId: youtubeChannelId.trim() || null,
+                pingRoleIds: livePingRoleIds,
+                twitchEnabled,
+                youtubeEnabled,
+            });
+
+            if (sysResult.success && discordResult.success && liveResult.success) {
                 setInitialConfig(currentConfig);
-                toast.success("Tous les paramètres système ont été mis à jour !");
+                toast.success("Paramètres d'annonces mis à jour avec succès !");
             } else {
-                toast.error("Une erreur est survenue lors de la sauvegarde partielle");
+                toast.error(liveResult.error || "Une erreur est survenue lors de la sauvegarde");
             }
+        });
+    };
+
+    const handleTestLive = () => {
+        setIsTestingLive(true);
+        void sendLiveNotifyTest(guildId)
+            .then((res) => {
+                if (res.success) toast.success("Embed de test envoyé dans le salon.");
+                else toast.error(res.error || "Envoi impossible.");
+            })
+            .finally(() => setIsTestingLive(false));
+    };
+
+    const toggleLivePingRole = (roleId: string) => {
+        setLivePingRoleIds((current) => {
+            if (current.includes(roleId)) return current.filter((id) => id !== roleId);
+            if (current.length >= 5) {
+                toast.error("5 rôles maximum.");
+                return current;
+            }
+            return [...current, roleId];
         });
     };
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-info" />
+            <div className="flex items-center justify-center min-h-[360px]">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-500/60" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Configuration Panel */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* MASTER CHANNEL CONFIG */}
-                    <Card className="bg-surface/60 border-border overflow-hidden">
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter">
-                                    <span className="bg-info/20 text-info p-2 rounded-lg">
-                                        <Megaphone className="w-5 h-5" />
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Bannière visuelle Dofus */}
+            <div className="relative rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-emerald-950/20 to-surface/80 p-6 overflow-hidden">
+                <div className="flex items-start gap-4 relative z-10">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 p-2 shadow-inner">
+                        <img
+                            src="/assets/dofus/modules/bot_command.png"
+                            alt="Bot Discord"
+                            className="w-10 h-10 object-contain drop-shadow"
+                        />
+                    </div>
+                    <div className="space-y-1 max-w-2xl">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <Megaphone className="w-3 h-3" />
+                            Canaux & Diffusion Discord
+                        </div>
+                        <h3 className="text-lg font-bold text-foreground">
+                            Annonces & Mises à Jour de la Plateforme
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Centralisez les rapports de maintenance SigilOS, le relais d'actualités officielles Dofus
+                            et le suivi du cycle de vie de vos membres (départs, arrivées, sanctions).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+                {/* 1. SALON PRINCIPAL DES ANNONCES */}
+                <Card className="bg-surface/60 border-border overflow-hidden">
+                    <CardHeader className="pb-4 border-b border-border/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                    <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
+                                        <Megaphone className="w-4 h-4" />
                                     </span>
-                                    Salon Principal des Annonces
+                                    Salon Principal des Annonces Plateforme
                                 </CardTitle>
-                                {channelId ? (
-                                    <Badge className="bg-info/10 text-info border-info/20">Configuré</Badge>
-                                ) : (
-                                    <Badge variant="outline" className="text-muted-foreground border-border uppercase text-caption font-black tracking-widest">Défaut</Badge>
-                                )}
+                                <CardDescription className="text-xs text-muted-foreground">
+                                    Ce salon centralise par défaut les rapports automatiques et les alertes techniques.
+                                </CardDescription>
                             </div>
-                            <CardDescription className="text-xs font-medium text-muted-foreground">
-                                Ce salon centralisera par défaut tous les rapports plateforme et maintenances.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon Principal</Label>
-                                    <DiscordChannelPicker
-                                        guildId={guildId}
-                                        value={channelId}
-                                        onChange={setChannelId}
-                                    />
-                                </div>
+                            {channelId ? (
+                                <Badge className="bg-success/10 text-success border-success/20 self-start sm:self-auto">
+                                    Configuré
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-muted-foreground self-start sm:self-auto">
+                                    Non configuré
+                                </Badge>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                Salon Discord
+                            </label>
+                            <DiscordChannelPicker
+                                guildId={guildId}
+                                value={channelId}
+                                onChange={setChannelId}
+                            />
+                        </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {[
-                                        { title: "Rapports Quotidien", desc: "Résumé à 08h30 (Missions, Kamas)", icon: Bell },
-                                        { title: "Mises à Jour SigilOS", desc: "News techniques & maintenances", icon: AlertTriangle }
-                                    ].map((item, idx) => (
-                                        <div key={idx} className="p-3 rounded-xl bg-surface border border-border flex items-start gap-3">
-                                            <div className="p-1.5 rounded-lg bg-elevated/50 text-muted-foreground">
-                                                <item.icon className="w-3 h-3" />
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-foreground uppercase tracking-wider">{item.title}</p>
-                                                <p className="text-caption text-muted-foreground leading-tight">{item.desc}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                            <div className="p-3.5 rounded-xl bg-surface/80 border border-border flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 mt-0.5">
+                                    <Bell className="w-4 h-4" />
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* FLUX NEWS DOFUS */}
-                    <Card className="bg-surface/60 border-border overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter text-sm">
-                                <span className="bg-success/20 text-success p-1.5 rounded-lg">
-                                    <Megaphone className="w-4 h-4" />
-                                </span>
-                                Partage News Dofus
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between p-4 rounded-xl bg-surface border border-border">
-                                <div className="space-y-1">
-                                    <p className="text-caption text-muted-foreground leading-relaxed max-w-sm font-medium">
-                                        Active le bouton de partage manuel des news Ankama sur le dashboard pour les administrateurs.
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-bold text-foreground">Rapports Quotidiens</p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Synthèse matinale à 08h30 (missions validées, kamas collectés).
                                     </p>
                                 </div>
+                            </div>
+                            <div className="p-3.5 rounded-xl bg-surface/80 border border-border flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-info/10 text-info mt-0.5">
+                                    <AlertTriangle className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-bold text-foreground">Mises à Jour SigilOS</p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Notes de mise à jour, maintenances prévues et correctifs.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 2. PARTAGE DES NEWS DOFUS & 3. CYCLE DE VIE */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* News Dofus */}
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/50">
+                            <div className="space-y-1">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                    <span className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400">
+                                        <Sparkles className="w-4 h-4" />
+                                    </span>
+                                    Partage des News Ankama
+                                </CardTitle>
+                                <CardDescription className="text-xs text-muted-foreground">
+                                    Bouton de diffusion manuelle des actualités officielles Dofus.
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-3 self-end sm:self-auto">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                    {newsEnabled ? "Activé" : "Désactivé"}
+                                </span>
                                 <Switch 
                                     checked={newsEnabled}
                                     onCheckedChange={setNewsEnabled}
-                                    className="data-[state=checked]:bg-success "
+                                    className="data-[state=checked]:bg-emerald-500"
                                 />
                             </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                Permet aux administrateurs de relayer en 1 clic les devblogs, maintenances de serveurs
+                                et annonces Ankama directement sur votre serveur Discord.
+                            </p>
                         </CardContent>
                     </Card>
 
-                    {/* NOTIFICATIONS LIFECYCLE — Départs, Bans, Archivages, Suppressions */}
-                    <Card className="bg-surface/60 border-border overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-danger/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter text-sm">
-                                <span className="bg-danger/20 text-danger p-1.5 rounded-lg">
+                    {/* Cycle de Vie */}
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-border/50">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                <span className="p-1.5 rounded-lg bg-danger/15 text-danger">
                                     <Users className="w-4 h-4" />
                                 </span>
-                                🔔 Cycle de Vie des Membres
+                                Cycle de Vie des Membres
                             </CardTitle>
-                            <CardDescription className="text-caption text-muted-foreground font-medium leading-relaxed">
-                                Reçois une notification Discord riche (embed) quand un membre :
+                            <CardDescription className="text-xs text-muted-foreground">
+                                Journal des départs, bannissements, archivages et réactivations de profil.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {/* Liste des événements */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {[
-                                    { emoji: "💤", label: "Archive son profil", color: "text-info" },
-                                    { emoji: "📤", label: "Quitte le Discord", color: "text-warning" },
-                                    { emoji: "🚫", label: "Est banni", color: "text-danger" },
-                                    { emoji: "🗑️", label: "Est supprimé (admin)", color: "text-danger" },
-                                    { emoji: "🔄", label: "Est réactivé", color: "text-success" },
-                                ].map((evt, idx) => (
-                                    <div key={idx} className="flex items-center gap-1.5 text-caption text-muted-foreground font-medium">
-                                        <span>{evt.emoji}</span>
-                                        <span className={evt.color}>{evt.label}</span>
-                                    </div>
-                                ))}
-                            </div>
-
+                        <CardContent className="pt-6 space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-caption uppercase font-black text-muted-foreground ml-1">
-                                    Salon des notifications <span className="text-danger">(lifecycle)</span>
-                                </Label>
+                                <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                    Salon des Notifications
+                                </label>
                                 <DiscordChannelPicker
                                     guildId={guildId}
                                     value={lifecycleChannelId}
                                     onChange={setLifecycleChannelId}
                                 />
-                                    <div className="p-3 rounded-xl bg-danger/5 border border-danger/10 flex items-start gap-3">
-                                    <ShieldAlert className="w-3.5 h-3.5 text-danger mt-0.5 shrink-0" />
-                                    <p className="text-caption text-muted-foreground leading-relaxed">
-                                        <strong className="text-danger">Laisse vide</strong> pour désactiver. L'embed contiendra : pseudo Discord, pseudo Dofus, qui a fait l'action, le statut, l'heure, la guilde et la durée de rétention.
+                                <p className="text-caption text-muted-foreground">
+                                    Laissez vide pour désactiver le suivi automatique.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* 4. ANNONCES DE CRÉATEURS */}
+                <Card className="bg-surface/60 border-border overflow-hidden">
+                    <CardHeader className="pb-4 border-b border-border/50">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                            <span className="p-1.5 rounded-lg bg-elevated text-muted-foreground">
+                                <Bell className="h-4 w-4" />
+                            </span>
+                            Annonces de créateurs
+                        </CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground">
+                            Deux salons distincts : un pour les lives Twitch, un pour les nouvelles vidéos YouTube.
+                            Une annonce par live et par vidéo, vérifiée toutes les 5 minutes.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-5">
+                        {/* Lives Twitch */}
+                        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                                        <TwitchIcon className="h-3.5 w-3.5 text-[#9146FF]" />
+                                        Lives Twitch
+                                    </p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Un message par session de stream.
                                     </p>
                                 </div>
+                                <Switch
+                                    checked={twitchEnabled}
+                                    onCheckedChange={setTwitchEnabled}
+                                    aria-label="Activer les annonces de lives Twitch"
+                                />
                             </div>
-                        </CardContent>
-                    </Card>
-
-
-
-                    <div className="flex justify-end pt-4">
-                        <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
-                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            Enregistrer
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Preview Panel */}
-                <div className="space-y-6">
-                    <Card className="bg-surface/60 border-border overflow-hidden">
-                        <CardHeader className="bg-surface pb-3 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Rapport Plateforme</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 relative px-4">
-                            <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
-                                    <Megaphone className="w-4 h-4 text-foreground" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-info text-xs">SigilOS</span>
-                                        <span className="bg-info/20 text-info text-caption px-1 rounded">BOT</span>
-                                    </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm shadow-xl">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-sm">📋</span>
-                                            <h4 className="font-semibold text-foreground text-caption">Rapport d'Activité</h4>
-                                        </div>
-                                        <div className="space-y-1.5 mt-2">
-                                            <div className="flex justify-between text-caption">
-                                                <span className="text-muted-foreground">Missions Validées</span>
-                                                <span className="text-foreground">12</span>
-                                            </div>
-                                            <div className="flex justify-between text-caption">
-                                                <span className="text-muted-foreground">Kamas Collectés</span>
-                                                <span className="text-success">450,000</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-surface/60 border-border overflow-hidden">
-                        <CardHeader className="bg-surface pb-3 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Lifecycle</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 relative px-4">
-                            <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-danger flex items-center justify-center shrink-0">
-                                    <Trash2 className="w-4 h-4 text-foreground" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-danger text-xs">SigilOS</span>
-                                        <span className="text-caption text-muted-foreground uppercase font-black tracking-wider">LIFECYCLE</span>
-                                    </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-danger p-3 max-w-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-sm">👋</span>
-                                            <h4 className="font-semibold text-foreground text-caption">Départ Membre</h4>
-                                        </div>
-                                        <p className="text-foreground text-caption leading-relaxed mb-2">
-                                            <span className="text-info">@Wylan</span> a quitté le serveur.
+                            {twitchEnabled && (
+                                <div className="space-y-2">
+                                    <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        Salon des lives Twitch
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={twitchChannelId}
+                                        onChange={setTwitchChannelId}
+                                    />
+                                    {!twitchChannelId && (
+                                        <p className="text-caption text-warning">
+                                            Choisissez un salon : sans salon, aucune annonce Twitch n’est envoyée.
                                         </p>
-                                        <div className="w-full py-1 bg-muted text-foreground text-caption font-bold rounded flex items-center justify-center gap-1">
-                                            VOIR PROFIL <ExternalLink className="w-2.5 h-2.5" />
-                                        </div>
-                                    </div>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleTestLive}
+                                        disabled={isTestingLive || !twitchChannelId}
+                                        className="w-full h-10"
+                                    >
+                                        {isTestingLive ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                            <Send className="h-4 w-4 mr-2" />
+                                        )}
+                                        Envoyer un test Twitch
+                                    </Button>
                                 </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                    Rôles à ping (Twitch et YouTube)
+                                </label>
+                                <span className="text-caption text-muted-foreground">{livePingRoleIds.length}/5</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                            {guildRoles.length === 0 ? (
+                                <p className="text-caption text-muted-foreground">
+                                    Aucun rôle lisible pour l'instant — laisse vide pour annoncer sans ping.
+                                </p>
+                            ) : (
+                                <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-surface/60 p-2 flex flex-wrap gap-1.5">
+                                    {guildRoles.map((role) => {
+                                        const active = livePingRoleIds.includes(role.id);
+                                        return (
+                                            <button
+                                                key={role.id}
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={() => toggleLivePingRole(role.id)}
+                                                className={
+                                                    active
+                                                        ? "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-foreground/10 border-border-strong text-foreground transition-colors"
+                                                        : "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-elevated/40 border-border text-muted-foreground hover:text-foreground transition-colors"
+                                                }
+                                            >
+                                                {role.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <p className="text-caption text-muted-foreground">
+                                Vide = annonce sans ping. Aucun envoi vers @everyone.
+                            </p>
+                        </div>
+
+                        {/* Nouvelles vidéos YouTube */}
+                        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="space-y-0.5">
+                                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                                        <YouTubeIcon className="h-3.5 w-3.5 text-[#FF0000]" />
+                                        Nouvelles vidéos YouTube
+                                    </p>
+                                    <p className="text-caption text-muted-foreground">
+                                        Une annonce par vidéo, via le flux de la chaîne (aucun quota).
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={youtubeEnabled}
+                                    onCheckedChange={setYoutubeEnabled}
+                                    aria-label="Activer les annonces de nouvelles vidéos YouTube"
+                                />
+                            </div>
+                            {youtubeEnabled && (
+                                <div className="space-y-2">
+                                    <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        Salon des vidéos YouTube
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={youtubeChannelId}
+                                        onChange={setYoutubeChannelId}
+                                    />
+                                    {!youtubeChannelId && (
+                                        <p className="text-caption text-warning">
+                                            Choisissez un salon : sans salon, aucune annonce YouTube n’est envoyée.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                    </CardContent>
+                </Card>
             </div>
 
-            {/* Garde anti-navigation : avertit si des paramètres ne sont pas sauvegardés */}
+            {/* Bouton Enregistrer */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                    onClick={handleSave}
+                    disabled={isPending}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-emerald-950 font-bold min-w-[180px] h-11 shadow-lg shadow-emerald-500/20"
+                >
+                    {isPending ? (
+                        <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Enregistrement...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Enregistrer les Paramètres
+                        </>
+                    )}
+                </Button>
+            </div>
+
             <UnsavedChangesGuard
                 hasUnsavedChanges={hasUnsavedChanges}
                 message="Vous avez des modifications de paramètres système non sauvegardées. Quitter cette page les perdra définitivement."

@@ -52,7 +52,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://sigilos.fr
     restart: always
     env_file: .env.prod
@@ -60,6 +59,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - AUTH_TRUST_HOST=true
+      - PROMETHEUS_URL=http://prometheus:9090
     depends_on:
       - db-prod
       - redis
@@ -83,7 +83,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://sigilos.fr
     restart: always
     env_file: .env.prod
@@ -173,7 +172,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
     restart: always
     env_file: .env.beta
@@ -181,6 +179,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - AUTH_TRUST_HOST=true
+      - PROMETHEUS_URL=http://prometheus:9090
     depends_on:
       - db-beta
       - redis-beta
@@ -204,7 +203,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - BETA_PASSWORD=${BETA_PASSWORD:-}
         - NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr
     restart: always
     env_file: .env.beta
@@ -251,6 +249,10 @@ services:
     image: postgres:15-alpine
     container_name: sigilos-db-beta
     restart: always
+    # 🔒 Accès lecture seule de l'assistant : boucle locale SEULEMENT.
+    # Jamais `0.0.0.0`, jamais sur db-prod (verrou : tests/unit/agent-ro-grants.test.ts).
+    ports:
+      - "127.0.0.1:5432:5432"
     env_file: .env.beta
     volumes:
       - db-beta-data:/var/lib/postgresql/data
@@ -323,11 +325,29 @@ services:
     image: redis:7-alpine
     container_name: sigilos-redis
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    # 🔒 Plafond mémoire + persistance (mesure du 15/10/2026 : `maxmemory 0B`, `noeviction`,
+    # `aof_enabled 0`). Redis était le SEUL composant **sans borne** du VPS : 8,3 Mo utilisés sur
+    # 11 Gi, mais en cas de fuite de cache ou de file BullMQ emballée, c'est l'**hôte** qui meurt
+    # par OOM — pas Redis qui refuse. On préfère un mauvais message à une machine morte.
+    #   · `--maxmemory 512mb` : le plafond (4,5 % de la RAM de l'hôte, 60× l'usage mesuré) ;
+    #   · `--maxmemory-policy noeviction` : **volontaire** — Redis héberge les files BullMQ ; on
+    #     refuse une écriture plutôt que de perdre un job (les caches ont déjà leurs TTL) ;
+    #   · `--appendonly yes` : sans journal, un redémarrage perd les dernières minutes (télémétrie
+    #     cron, compteurs de rate-limit, état du planificateur des jobs répétables BullMQ).
+    # ⚠️ Le mot de passe est injecté au **parse du compose** : il n'est donc pas dans
+    # l'environnement du conteneur (le lire via `docker inspect … .Config.Cmd`).
+    command: >-
+      redis-server --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb --maxmemory-policy noeviction --appendonly yes
     volumes:
       - redis_data:/data
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 640M # marge au-dessus de `maxmemory` (tampons AOF, fragmentation)
     logging: *default-logging
 
   # ===========================================================================
@@ -337,18 +357,27 @@ services:
     image: redis:7-alpine
     container_name: sigilos-redis-beta
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD_BETA}
+    # Mêmes bornes que la prod (cf. le commentaire du service `redis` ci-dessus) : les deux
+    # environnements partagent la RAM de l'hôte, un beta non plafonné peut donc tuer la prod.
+    command: >-
+      redis-server --requirepass ${REDIS_PASSWORD_BETA}
+      --maxmemory 512mb --maxmemory-policy noeviction --appendonly yes
     volumes:
       - redis-beta-data:/data
     networks:
       - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 640M
     logging: *default-logging
 
   # ===========================================================================
   # 📊 MONITORING STACK
   # ===========================================================================
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.15.0
     container_name: sigilos-prometheus
     restart: always
     command:
@@ -366,35 +395,6 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
-    networks:
-      - prod-net
-      - beta-net
-    logging: *default-logging
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: sigilos-grafana
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-      - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
-      # 🛡️ GitHub OAUTH2
-      - GF_AUTH_GITHUB_ENABLED=true
-      - GF_AUTH_GITHUB_ALLOW_SIGN_UP=true
-      - GF_AUTH_GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GF_AUTH_GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - GF_AUTH_GITHUB_ALLOWED_USERS=Klyx04
-      - GF_AUTH_GITHUB_SCOPES=user:email,read:org
-      - GF_AUTH_GITHUB_AUTH_URL=https://github.com/login/oauth/authorize
-      - GF_AUTH_GITHUB_TOKEN_URL=https://github.com/login/oauth/access_token
-      - GF_AUTH_GITHUB_API_URL=https://api.github.com/user
-    volumes:
-      - grafana_data:/var/lib/grafana
     networks:
       - prod-net
       - beta-net
@@ -426,24 +426,13 @@ services:
     logging: *default-logging
 
   # ===========================================================================
-  # 📊 CADVISOR (Docker Container Metrics)
+  # 📊 CADVISOR — SUPPRIMÉ le 13/11/2026 (SEC-04)
   # ===========================================================================
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: sigilos-cadvisor
-    restart: always
-    # 🔒 E-INF-05 : plus de privileged (escalade). cAdvisor fonctionne sans, avec devices en ro.
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    networks:
-      - prod-net
-      - beta-net
-    logging: *default-logging
+  # cAdvisor montait `/var/run/docker.sock` (lecture seule) pour exposer les
+  # métriques conteneurs. La carte God « Conteneurs » était vide et n'était plus
+  # utilisée : le service est retiré, donc plus aucun conteneur ne monte le
+  # socket Docker. Pour le réintroduire un jour, passer par un
+  # `docker-socket-proxy` filtrant (jamais le socket brut).
 
   # ===========================================================================
   # 📊 POSTGRES EXPORTER (Database Metrics)
@@ -459,6 +448,11 @@ services:
       - db-prod
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
     logging: *default-logging
   # ===========================================================================
   # 🧠 AI SERVICE - REMOVED (Now using Gemini API)
@@ -474,7 +468,6 @@ volumes:
   redis_data:
   redis-beta-data:
   prometheus_data:
-  grafana_data:
   uploads-prod-data: # ✅ Production uploads isolated
   uploads-beta-data:
     # ✅ Beta uploads isolated

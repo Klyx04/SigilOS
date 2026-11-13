@@ -121,7 +121,6 @@ export default async function PermissionsPage({
 
             <AdminConsoleNav
                 guildId={guildId}
-                showModules={user.isDiscordAdmin}
                 showAccess={true}
                 showOnboarding={user.isAdmin}
                 showPilotage={user.isDiscordAdmin}

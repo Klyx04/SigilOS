@@ -1,7 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, MessageSquare, ChevronRight, Crown } from "lucide-react";
+import { formatPollEnd } from "@/lib/poll-format";
+import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
+import { POLL_SCHEDULED_TAG } from "@/lib/polls/ui";
+import { BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, MessageSquare, ChevronRight, Crown, CalendarClock } from "lucide-react";
 import Link from "next/link";
 const POLL_CATEGORIES = ["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"] as const;
 type PollCategory = (typeof POLL_CATEGORIES)[number];
@@ -73,6 +76,8 @@ interface PollCardProps {
         outcome: string | null;
         options: PollOption[];
         _count: { options: number };
+        /** Publié automatiquement par le module staff « Sondages programmés ». */
+        isScheduled?: boolean;
     };
     guildId: string;
     index?: number;
@@ -87,7 +92,9 @@ export function PollCard({ poll, guildId }: PollCardProps) {
     const maxVotes = Math.max(...poll.options.map(o => o._count.votes), 1);
 
     const isActive = poll.status === "ACTIVE";
-    const timeLeft = poll.expiresAt ? getTimeLeft(poll.expiresAt) : null;
+    // Règle unique de fin de vote (date + écart) — plus de compteur maison, et l'échéance
+    // reste lisible une fois le sondage clôturé.
+    const pollEnd = formatPollEnd(poll.expiresAt);
 
     // PERF : pas d'animation d'entrée JS (framer-motion) — le stagger
     // index * délai rejouait du JS main-thread sur chaque carte au scroll.
@@ -108,8 +115,20 @@ export function PollCard({ poll, guildId }: PollCardProps) {
                         <div className="flex items-center gap-2.5">
                             <span className="text-lg">{cat.emoji}</span>
                             <span className={cn("text-caption font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
+                            {poll.isScheduled && (
+                                <span className={POLL_SCHEDULED_TAG}>
+                                    <CalendarClock className="w-3 h-3" />
+                                    {SCHEDULED_POLL_TAG}
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-4">
+                            {poll.allowMultipleVotes && (
+                                <span className="inline-flex items-center gap-1.5 text-caption font-bold uppercase tracking-wider text-info">
+                                    <Users className="w-3.5 h-3.5" />
+                                    Choix multiple
+                                </span>
+                            )}
                             {poll.isAnonymous && (
                                 <TooltipProvider>
                                     <Tooltip>
@@ -207,10 +226,10 @@ export function PollCard({ poll, guildId }: PollCardProps) {
                                     <Users className="w-3.5 h-3.5 opacity-50" />
                                     {totalVotes} <span className="opacity-40 font-bold">votes</span>
                                 </span>
-                                {timeLeft && isActive && (
-                                    <span className="flex items-center gap-2 text-warning/60 border-l border-border pl-5">
+                                {pollEnd && (
+                                    <span className="flex items-center gap-2 text-muted-foreground border-l border-border pl-5">
                                         <Clock className="w-3.5 h-3.5 opacity-50" />
-                                        {timeLeft}
+                                        {pollEnd.relative}
                                     </span>
                                 )}
                             </div>
@@ -223,15 +242,3 @@ export function PollCard({ poll, guildId }: PollCardProps) {
     );
 }
 
-function getTimeLeft(expiresAt: string): string {
-    const now = new Date();
-    const end = new Date(expiresAt);
-    const diff = end.getTime() - now.getTime();
-    if (diff <= 0) return "Expiré";
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days}j restant${days > 1 ? "s" : ""}`;
-    if (hours > 0) return `${hours}h restante${hours > 1 ? "s" : ""}`;
-    const mins = Math.floor(diff / (1000 * 60));
-    return `${mins}min`;
-}

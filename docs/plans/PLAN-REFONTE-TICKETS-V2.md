@@ -13,9 +13,98 @@
 > boucler**, dans l'ordre, avec les fichiers exacts. Il remplace le brouillon de session
 > `temp/PROMPT-REPRISE-TICKETS-V2.md` (zone volatile, non versionnée).
 > Le **mode d'emploi destiné aux chefs de guilde** ne vit pas ici : il est dans le **guide
-> in-app** (`src/lib/docs-catalog.ts`, entrée `admin-tickets`), appliqué par `npm run seed:docs`.
+> in-app** (fiche `admin-tickets` en base, éditée via `/god/docs`).
 
-## 1. Où en est le chantier (mesuré le 24/09/2026)
+## 0. Session 16/10/2026 — **retours utilisateur** : 4 lots livrés (branche `fix/tickets-lot1-bugs`)
+
+> **Demande user (verbatim)** : 13 questions sur le module ticket (« il n'y a aucun endroit où on
+> définit quel rôle Discord est autorisé à ouvrir un ticket », « pk les gros bots ont des rôles
+> invités ? », « les questions à choix unique et oui/non n'affichent même pas la question »,
+> « je veux définir si oui ou non on ping un ou plusieurs rôles + un message », « on n'a pas les
+> boutons fermer/prendre en charge dans le ticket », « à quoi sert le bouton copie ? », « il y a un
+> bug dans la mention de la personne qui prend en charge », « pk à la clôture le vote satisfaction
+> ne part pas », « les boutons rouvrir/supprimer/copie devraient avoir des droits », « laisse 3-4
+> secondes avant la suppression », « on devrait pouvoir ordonner les questions »).
+>
+> **Mesure (avant tout code, dans le code)** : la mention cassée venait de `user.id` (`User.id`
+> interne, cuid) utilisé comme flocon Discord (`claimTicketAction`, `closeTicketAction`) ;
+> `closeTicketAction` **n'envoyait aucune enquête** de satisfaction ; la barre du salon était
+> construite avec `viewerIsStaff: false` et **jamais** publiée ; `ACTION_ACCESS` figeait les droits
+> des boutons ; le tunnel servait **tous les choix avant** les modales (`splitTicketForm`) ; aucune
+> liste blanche d'ouverture n'existait (seulement une blacklist) ; le libellé du sélecteur partagé
+> disait « Liste blanche / rôles autorisés » **sur l'écran de blacklist**.
+>
+> **Fait (4 lots, 4 commits, aucun fichier laissé derrière)** :
+> ① **bugs** — `getUserContext` expose `discordId` (le flocon, distinct du cuid) et les actions
+> dashboard n'écrivent/pingent plus qu'un flocon ; **une seule** enquête de satisfaction
+> (`src/server/tickets/csat.ts`) sert les **deux** chemins de clôture, avec **repli dans le salon
+> fermé** si les MP sont fermés (décision user) et mention du demandeur ; libellés du sélecteur de
+> rôles **paramétrables** (blacklist = « Rôles bloqués ») ; la question est **écrite** au moment du
+> choix (boutons `Oui — {question}` + liste numérotée) ; une réponse coupée le **dit** et le
+> plafond de champs reste au-dessus de la borne des questions (testé).
+> ② **salon** — la barre n'affiche que **Prendre en charge** et **Fermer le ticket** ; à la clôture
+> elle **révèle** Rouvrir / **Transcript** (renommé, plus « Copie ») / Supprimer ; l'embed d'accueil
+> est **mis à jour en direct** (embed patché via `metadataJson.welcomeMessageId`, « Pris en charge
+> par <@…> ») et le demandeur est mentionné en même temps que le preneur ; **nom + icône
+> personnalisables** et **RBAC par bouton** (`settingsJson.buttons`, `disabled` retire le bouton,
+> refus au clic) ; **suppression après compte à rebours de 4 s** (`after()`, droits revérifiés — un
+> ticket rouvert n'est pas supprimé).
+> ③ **ouverture** — **liste blanche par motif** (`settingsJson.categories[<motif>].allowedRoleIds`,
+> vide = tout le monde, admin Discord toujours autorisé, refus motivé au clic) ; **interrupteur**
+> « Prévenir l'équipe » ; **message personnalisé** du ping de rôles (`{membre}` `{motif}`
+> `{numero}`) et **message personnalisé du demandeur** (mention garantie).
+> ④ **questionnaire** — `buildTicketFormSteps` : plan d'étapes **ordonné** (5 textes par modale,
+> chaque groupe de choix **à sa place**) ; le tunnel parcourt ce plan (le bouton « Continuer »
+> porte l'**index d'étape**), et l'éditeur a des **flèches monter/descendre**.
+>
+> **Preuves** : `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** · suite **405 fichiers
+> passés** (dont **193 cas tickets**, 4 filets neufs : `tickets-lot1-bugs` 12, `tickets-boutons`
+> 11, `tickets-ouverture` 10, + le cas « choix APRÈS des textes ») · `git status --short` **propre**.
+> **Aucune migration** : tout tient dans `TicketGuildConfig.settingsJson` et `TicketRecord.metadataJson`.
+>
+> **Reste / à valider côté humain** : ① déployer puis vérifier en bêta le parcours complet (ouvrir,
+> prendre en charge → embed mis à jour, fermer → boutons révélés, supprimer → décompte) ; ② les
+> tickets ouverts **avant** ce lot n'ont pas de `welcomeMessageId` : leur message de modération
+> porte les boutons (repli assumé) ; ③ les anciens panneaux **v1** (catégories) doivent être migrés
+> (« Tout passer en Motifs ») pour disposer du réglage « Qui peut ouvrir » ; ④ SLA / auto-fermeture
+> restent des réglages **sans exécutant** (hors brief).
+
+## 0-bis. One-shot R2 (16/10/2026) — **fin v1, message d'ouverture unifié, boutons par motif, slug FR** — branche `feat/tickets-oneshot-r2`
+
+> **Déclencheur** : comparatif TicketTool du propriétaire (panneau, questionnaire, form
+> create, ticket avec message libre + pings + bloc Q/R + bouton Fermer) + doc TicketTool
+> lue en entier (8 pages : `messages-options`, `button-options`, `form-options`,
+> `variables`, `custom-commands`, `ticket-options`, `moderator-options`,
+> `claiming-options`). Tranché avec l'utilisateur : custom commands dédiées ⇒ **chantier Z**,
+> pas ce lot.
+>
+> **Fait (aucune migration : tout en `settingsJson` / `metadataJson`)** :
+> ① **v1 morte** — migration **auto** à l'ouverture de l'onglet (fini bouton « Tout
+> convertir » et bannières), `migrateCategoriesToMotifsAction` bascule les panneaux sur les
+> parcours **et vide leurs `categoryIds`**, tout enregistrement de panneau n'expose plus
+> que des parcours, `internalHandleTicketCreate` **refuse** une `categoryId` héritée avec un
+> message qui guide (vieux bouton Discord non redéployé) ;
+> ② **message d'ouverture en un bloc** (étapes 2 du formulaire : texte d'accueil + ping
+> d'équipe + message demandeur, variables `{membre}` `{motif}` `{numero}`, aperçu live
+> construit par les **mêmes fonctions pures** que l'envoi) ;
+> ③ **boutons par motif** (`settingsJson.categories[<motif>].buttons` : `disabled` retire,
+> `label` renomme, le reste hérite du global) appliqués aux **5 barres** (ouverture, prise
+> en charge, 2 clôtures, réouverture) via `motifButtonsOf` + `ticketButtonLayoutForMotif` ;
+> ④ le **résumé des listes ne part plus** sur Discord (l'accueil = texte du motif + notice) ;
+> ⑤ **`P2002` → FR** (`TICKET_MOTIF_DUPLICATE_MESSAGE`, jamais le nom brut de la
+> contrainte) + reprise du formulaire gagnant en cas de course ;
+> ⑥ formulaire **guidé en 5 étapes**, vocabulaire simple (« Équipe qui traite »,
+> « Résumé affiché sur les listes — ne part jamais sur Discord », liste blanche explicite).
+>
+> **Preuves** : `tsc` **0** · `lint` **0 erreur** · suite **405/406 fichiers, 4403/4407**
+> (les 4 échecs `ladder-actions` sont **pré-existants sur `dev`**, prouvés sans mes
+> changements) · filet neuf `tests/unit/tickets-oneshot-r2.test.ts` (**17 cas**).
+>
+> **Reste / ops (humain)** : la migration auto ne **redéploie pas** les panneaux (aucune
+> écriture Discord surprise) : après conversion, **redéployer chaque panneau** ; les tickets
+> ouverts avant R2 gardent leurs boutons globaux (pas de surcharge, héritage total).
+
+
 
 | Lot | État | Où |
 |---|---|---|
@@ -193,7 +282,6 @@ npm run test:run                 # suite complète (~2 360 cas)
 npx tsc --noEmit                 # types
 npm run lint                     # 0 erreur attendue
 npx prisma generate              # après tout changement de schéma
-npm run seed:docs                # après un changement de docs-catalog.ts (guide in-app)
 ```
 
 ## 7. Base locale : appliquer les tables v2 (état au 24/09/2026, suite 27 : ✅ **déjà appliqué**)

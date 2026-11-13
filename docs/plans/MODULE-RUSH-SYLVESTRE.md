@@ -4,23 +4,46 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 
 # 🏹 Module Rush Sylvestre — agrégateur
 
-> **Rôle unique.** Index du module : **où sont les fichiers**, **quels chantiers restent**, **quel ordre**.
+> **Rôle unique.** Index du module : **où sont les fichiers**, **quelles décisions sont actées**,
+> **quels pièges sont mesurés**. L'**ordre** vit dans `docs/ROADMAP.md` (§3 bis, file Rush + visiteur) :
+> ce fichier ne le duplique pas.
 > Il **ne duplique rien** : chaque chantier renvoie à son **plan durable** (règle `AGENTS.md` §4.3).
 >
 > **Sources de vérité (contenu)**
 > - Refonte rush (ergonomie, visuel, éditeur God, perf) → **chantier T** : `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md`
 > - Alignement Bonta/Brâkmar + Ordres → `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` + `docs/plans/MAPPING-RUSH-SYLVESTRE.md`
-> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/plans/FILE-EXECUTION.md`
-> - Backlog canonique + blocs de session → `docs/ROADMAP.md`
+> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md` §3 bis
+> - Backlog + ordre → `docs/ROADMAP.md` ; blocs de session → `docs/agents/journal-sessions-2026.md`
 >
-> **Dernière MAJ : 10/10/2026.**
+> **Dernière MAJ : 12/11/2026.**
+
+## 0 bis. Décisions actées (12/11/2026 — ne pas les re-débattre)
+
+| Sujet | Décision |
+|---|---|
+| Reset de progression au changement de cité/Ordre | **automatique** (lot 3) : `alignmentChangeReset` + `resetProgressOnAlignmentChange` avant l'écriture, annonce `cleared` |
+| Texte différent selon le camp | **une seule quête, deux textes** (lot 4) : colonne `routeVariants`, résolue par `resolveRushRoute` |
+| Numérotation des blocs | **une seule table** `rushChapterNumbers` (bandeaux exclus) : guide membre, guide public, overlay |
+| Navigation des guides | **une page = un bloc**, sommaire plat des blocs, mode « Tout » **supprimé** |
+| E2a-reste (découper les 3 formulaires) | **abandonné** : les verrous lisent le dossier, invisible pour l'utilisateur |
+| API Tougli | **jamais d'appel à l'exécution** (usage : veille / import ponctuel) |
+
+## 0 ter. Pièges mesurés
+
+- **PR grosse** : un correctif urgent part en PR séparée, jamais empilé.
+- **Flaky** `lot4-slash-commands-api-keys` (timeout 5 s) : fait rougir la suite une fois sur deux.
+- **Quête de classe oubliée** : visible par les 19 classes ; le contrôle « Problèmes » la signale (mot entier).
+- **Rail de droite** : progression, donjons et objets sont calculés sur le **bloc** affiché, pas le chapitre.
+- **`prisma migrate dev`** : exige un reset de la base locale (dérive `add_inter_guild`) ⇒ écrire la migration additive à la main puis `migrate deploy`.
+- **Migration** : jamais sans GO explicite ; `routeVariants` (lot 4) est jouée en local, **à jouer en bêta puis en prod**.
 
 ## 0. Gouvernance (3 niveaux)
 
 | Rôle | Fichier |
 |---|---|
-| L'ORDRE (« la prochaine chose ? ») | `docs/plans/FILE-EXECUTION.md` |
-| Le backlog canonique + blocs de session | `docs/ROADMAP.md` |
+| L'ORDRE (« la prochaine chose ? ») | `docs/ROADMAP.md` |
+| Le backlog + l'ordre | `docs/ROADMAP.md` |
+| Les blocs de session (historique) | `docs/agents/journal-sessions-2026.md` |
 | Le contenu durable par sujet | `docs/plans/*.md` (ce fichier + les plans cités) |
 
 Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
@@ -41,13 +64,18 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 `overlay-utils.ts` (agrégation) · `RushOverlayChapterBar` · `RushOverlayDungeonCard` · `RushOverlayDungeonPopover` · `RushOverlayFeedbackPanel` · `RushOverlayFooter` · `RushOverlayHeader` · `RushOverlayMemberBubbles` · `RushOverlayMembersModal` · `RushOverlayOcreModal` · `RushOverlayQuestDetailModal` · `RushOverlayQuestListItem` · `RushOverlayResourcesModal` · `RushOverlaySearch` · `RushOverlayTagSection` · `RushOverlayTutorialModal`
 
 ### 1.3 Composants rush (`src/components/dofus-quests/`)
-`RushOnboardingWizardModal.tsx` · `rush/GuestCharacterModal` · `rush/MilestoneCelebration` · `rush/NpcBadge` · `rush/QuestHelpersSection` · `rush/QuestItemResourceGrid` · `rush/RushActionMenu` · `rush/RushBlockMetaEditor` · `rush/RushChapterSidebar` (bandeau « Objets requis ») · `rush/RushCoordinateChip` · `rush/RushInfoBanner` · `rush/RushInfoSequenceBanner` · `rush/RushOverlayLiveToast` · `rush/RushPenseBeteModal` · `rush/RushProgress` · `rush/RushRichText` · `rush/RushSeparatorBanner` · `rush/RushTagBadge` · `components/rush/RushHelperBadge`
+`RushOnboardingWizardModal.tsx` · `rush/GuestCharacterModal` · `rush/MilestoneCelebration` · `rush/NpcBadge` · `rush/QuestItemResourceGrid` · `rush/RushActionMenu` · `rush/RushBlockMetaEditor` · `rush/RushChapterSidebar` (bandeau « Objets requis ») · `rush/RushCoordinateChip` · `rush/RushInfoBanner` · `rush/RushInfoSequenceBanner` · `rush/RushOverlayLiveToast` · `rush/RushPenseBeteModal` · `rush/RushProgress` · `rush/RushRichText` · `rush/RushSeparatorBanner` · `rush/RushTagBadge`
 
 ### 1.4 Composants liés
 `ResourceImage` · `OcreProgressModal` · `DofusOcreMetamob` · `AlignmentModal` · `components/ocre/*` (dashboard ocre, `not-linked-state`, `OcreTargetBits`, panneau pierres) · `components/profile/metamob-link.tsx` · `hooks/use-ocre-write-queue`
 
+> ✅ **Code mort retiré (27/10/2026)** : `dashboard/[guildId]/quetes-dofus/guide/[slug]/DofusProgressStrip.tsx`
+> n'était monté nulle part (0 import) — il est **supprimé**. Le bandeau réellement affiché est `GuildStatusPanel.tsx`
+> (modale par Dofus depuis le 26/10), et c'est **lui** que le verrou T2 garde désormais (bouton + `aria-label`,
+> titre/description de la modale, geste de filtre) — il ne gardait auparavant qu'un composant mort.
+
 ### 1.5 Libs (`src/lib`)
-`rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-helpers.ts` · `rush-resources-preheat.ts` (pur, client-safe) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
+`rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`, `getAlignmentSet`, `collectCascadeUncheck`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-choice-groups.ts` (`getChoiceGroup`, `stepCounts`, `applyChoiceExclusivity` — étape à variantes exclusives) · `rush-resources-preheat.ts` (pur, client-safe) · `rush-import.ts` (`planRushImport`, `safeRushGuideLink`, `boundQuestDbIds` via `rush-quest-identity`) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
 
 ### 1.6 Actions serveur
 `optimized-guide-actions.ts` (lecture du guide, coches de ressources, reset d'alignement) · `asset-siphon-actions.ts` (pré-chauffage) · `ocre-actions.ts` (liaison Metamob, progression) · `rush-actions.ts` · `game-data-admin-actions.ts` · `game-data-sync-actions.ts`
@@ -58,21 +86,123 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ### 1.8 Scripts
 `scripts/correlate-rush-guides.mjs` (Tougli ∪ Dofusyelle ∪ NOOBS — **rapport dry-run**) · `enrich-rush-guide-items.mjs` · `seed-rush-sylvestre-cli.mjs` · `seed-rush-sylvestre-enriched-cli.mjs` · `inspect-rush-sylvestre-guide.mjs` · `prune-rush-guide-orphans.mjs` · `dofus-asset-siphoner.ts` · `siphon-guide-images.ts`
 
-### 1.9 Tests (35 fichiers)
-`rush-guide-utils` · `rush-guide-view` · `rush-overlay-utils` · `rush-resource-checks` · `rush-public-parity` · `rush-resources-preheat` · `rush-overlay-ocre` · `rush-helpers` · `rush-dofus-meta` · `rush-rich-meta` · `rush-rich-text` · `rush-prereq-target` · `rush-god-studio-robustesse` · `rush-delete-idempotent` · `rush-block-image-rendered` · `rush-dashboard-members` · `rush-guide-ui-polish` · `rush-info-sequence-banner` · `rush-live-presence` · `rush-overlay-chapitre-bulles` · `rush-overlay-chapter-bar` · `rush-overlay-dungeons` · `rush-overlay-entraide-guild-scopee` · `rush-overlay-non-checkable-blocks` · `rush-quest-state-colors` · `rush-separator-banner` · `rush-sylvestre-construction` · `rush-tips-block-studio` · `siphon-sorts-niveau` · `siphon-stats` · `dofus-asset-siphon-url` · `bounty-siphon` · `metamob-ocre-match` · `ocre-write-queue` · `calendar-krala-metamob-ui`
+### 1.9 Tests (**49** fichiers `tests/unit/rush-*.test.ts`)
+
+Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.test.ts'`). **Ajoutés le 26/10/2026** : `rush-quest-identity` (identité de quête + borne des `questDbIds`), `rush-order-codes` (référentiel des 6 Ordres),
+`rush-import` (plan de dry-run + verrou « l'import n'efface rien »), `rush-dofus-accent` (contraste 4,5:1 des 24 accents + accessibilité du filtre), `rush-dofus-progress` (progression d'un membre **quête par quête** dans la modale par Dofus).
+
+## 1 bis. État mesuré le 02/11/2026 (soir) — la route, surface par surface
+
+> Mesuré sur la **base locale** (5433, lecture seule) + le code. À re-vérifier en bêta avant conclusion.
+
+### 1 bis.1 Ce que chaque surface applique
+
+| Surface | Cité | Ordre | Classe |
+|---|---|---|---|
+| Dashboard interne | ✅ camp du **personnage sélectionné** (`page.tsx:175-180`) | ❌ **jamais passée** à `resolveRushRoute` | ✅ `resolveDofusClassId` (mule incluse) |
+| Guide public | ✅ sélecteur local (`sigilos_rush_route_<slug>`) | ❌ | ❌ **déclarée mais non passée** (19 quêtes de classe visibles) |
+| Overlay | ❌ **aucune route** (jalons bruts, `page.tsx:116`) | ❌ | ❌ mule → `classe: null` |
+
+Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (interne/public), **30** dans l'overlay.
+
+### 1 bis.2 Données en base (guide `rush-sylvestre`, 492 séquences)
+
+| Mesure | Valeur |
+|---|---|
+| `alignReq` | **236** : 100 cité bontarienne + 15 Ordres Bonta · 106 cité brâkmarienne + 15 Ordres Brâkmar |
+| Quêtes d'Ordre | **30** = 6 × 5, paliers **20/40/60/80/100**, **0 `prereq_text`** |
+| Quêtes de classe | **19** dans **1** bloc, `classReq` = 19 ids, un `order` 0…18 chacun |
+| `alignment_set` | **67** seulement (66 bontariens + 1 mal tagué), écrits `{type, camp, level: 1}` |
+
+### 1 bis.3 Défauts mesurés (chacun est un correctif, pas une opinion)
+
+1. **Deux vocabulaires `alignment_set`** : l'import écrit `camp`, le studio écrit `name`
+   (`RushSylvestreAdminClient.tsx:2703-2710`). `getAlignmentSet` exige `name`
+   (`rush-guide-utils.ts:289`) ⇒ **null sur les 67 lignes réelles** ⇒ bandeau « Alignement » public et
+   badge par quête **jamais rendus**, `applyRushAlignmentFromSequence` **no-op**
+   (`optimized-guide-actions.ts:1746,1782`). Les tests sont verts car leurs fixtures utilisent `name`.
+2. **`level` toujours `1`** sur les lignes importées : le palier réel est `alignmentCountForCamp`.
+3. **Reset d'alignement incomplet** : `resetAlignmentQuests` (`rush-alignment.ts:76`) retire les
+   `alignment_set` + cascade ⇒ **67 racines sur 236**. Le reset doit porter sur **`alignReq` (l'ancienne cité)**.
+4. **Chaîne d'Ordre absente** : 0 prérequis sur les 30 quêtes ⇒ à 100 quêtes de cité, le rang 5 se coche
+   sans les rangs 1→4.
+5. **Compteur gonflé** : `alignmentCountForCamp` compte aussi les quêtes d'Ordre (elles portent `alignReq`).
+6. **Ordre jamais filtré** ⇒ 15 quêtes au lieu de 5 ; overlay : les **deux** cités + les **6** Ordres.
+7. **Prop morte** : `hasNoClassDeclared` n'est jamais passée (`RushTimelineClient.tsx:2556`).
+
+> **Livrés le 02/11/2026 (L1)** : défauts **1**, **2**, **3** et **5** — source `camp`/`name`,
+> palier calculé (`alignmentCountForCamp`, hors Ordres), reset par cité (`alignmentResetSeeds`),
+> compteur corrigé. **Livrés le 02/11/2026 (L2)** : défauts **4** (chaîne des rangs
+> `previousOrderRank` : le rang N exige N−1) et **6** (l'Ordre entre dans la route du dashboard
+> **et** de l'overlay autonome). **Livré le 02/11/2026 (L3)** : défaut **7** — `hasNoClassDeclared`
+> est calculé pour le personnage sélectionné (mule comprise) et affiché dans la modale d'accueil,
+> qui passe en DA « Carnet ».
+
+### 1 bis.4 Outillage God manquant (gestes attendus, sans migration)
+
+| # | Geste | Pourquoi |
+|---|---|---|
+| **G1** | Barre **« Route » du bloc** : Cité / Ordre / Palier + « Appliquer au bloc » (+ effacer), compteur de quêtes | aujourd'hui c'est **quête par quête** (236 fois) |
+| **G2** | **Classe = liste fermée** (l'`<input>` libre devient un `<select>` des 19 ids + tableau 19 lignes) | une faute de frappe ⇒ quête **invisible** (fail-closed) |
+| **G3** | **Aperçu de route** (Cité / Ordre / Classe) qui passe par `resolveRushRoute` | voir ce que verra le joueur, sans publier |
+| **G4** | **Branches à 3 étages** (cité → Ordre → classe) + manques nommés | contrôle qualité de la saisie |
+
+### 1 bis.5 Ordre des lots Rush (le détail des fichiers est dans le plan du lot)
+
+`G0` (outillage God G1→G4), `L1` (source d'alignement), `L2` (route cité→Ordre→classe sur
+interne + overlay, chaîne des rangs, changement d'Ordre) et `L3` (modale d'accueil en DA « Carnet »,
+classe manquante dite et cliquable) sont **livrés** → **`textes`** (tips par quête) : **livré le
+03/11/2026** pour les références `&n` (**74** champs corrigés, dataset + base, garde d'écriture) et
+la **corrélation Dofusyelle** (**5** conseils écrits, **18** références Ali/Ordre listées) ; **25
+conseils de plus le 04/11/2026** — les contraintes Tougli sont désormais rattachées **par
+`questDbIds`**, donc les séquences importées depuis God (Brâkmarien) sont atteignables. Reste
+**194** conseils (98 Brâkmarien sans aucune source, 42 Bontarien, 54 hors route). Le **public
+authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`
+(la modale publique, elle, attend ce compte visiteur : **migration ⇒ accord**).
+
+> **Livrés le 02/11/2026** : G0 (`feat/rush-route-tooling`), L1 (`feat/rush-alignment-l1`),
+> L2 (`feat/rush-route-l2`) et L3 (`feat/rush-onboarding-l3`). Preuves : `rush-route-tooling` **19**
+> · `rush-class-branches` **10** · `rush-alignment-source` **15** · `rush-order-chain` **17**
+> · `rush-order-reset` **8** · `rush-onboarding-carnet` **14** · Rush **60 fichiers / 742 tests ✓**.
+> **Aucune migration.** **`textes` livré le 03/11/2026** : `resolveQuestRefs` + script ciblé
+> (**74** champs, **0** `&n` restant), garde `upsertRushSequence`, siphon Dofusyelle (pas d'API)
+> et corrélation par nom (**5** conseils ; **18** références Ali/Ordre listées, non appliquées).
+> **`textes` complété le 04/11/2026** : rattachement des contraintes Tougli **par `questDbIds`**
+> (`NoteTarget.questIds`), cibles calculées **aussi** depuis la base ⇒ **25 conseils** écrits
+> (19 Brâkmarien + 6 Bontarien, 28 contraintes), **2ᵉ passage = 0 écriture**.
+> **Reste** : **194** conseils — **98 Brâkmarien** (aucune source : Tougli n'a aucun texte de quête,
+> Dofusyelle ne couvre que Bonta), **42 Bontarien**, **54 hors route** ;
+> **18** références « Ali N »/« Ordre N » à trancher pour appliquer les notes de donjon Dofusyelle.
+>
+> **L2, ce qui a changé concrètement** : l'Ordre du personnage sélectionné entre dans la route
+> (5 quêtes d'Ordre au lieu de 15) ; l'overlay autonome `/overlay/guide/...` calcule enfin sa route
+> (cité + Ordre + classe, classe de mule lue dans `altPseudos`) ; la chaîne des rangs est
+> **calculée** (`previousOrderRank`, palier immédiatement inférieur, même cité + même Ordre) et non
+> saisie — les 30 quêtes d'Ordre n'ont aucun `prereq_text` ; changer d'Ordre décoche les **5**
+> quêtes de l'ancien Ordre (`orderResetSeeds`, sans cascade) via `resetRushOrderProgress`
+> (auth + rate limit Redis + cité/Ordre relus en base).
+>
+> **L3, ce qui a changé concrètement** (PR #1228, puis #1229/#1230) : la modale d'accueil passe en
+> DA « Carnet » ; `hasNoClassDeclared` est calculé pour le personnage **sélectionné** (mule comprise)
+> et affiché avec un lien vers le profil ; **trois étapes** seulement (la page « membres » est
+> supprimée) ; **plus de bloc « Métiers requis »** (ni `getGuideMetiersRequires`, ni `metierIds`, ni
+> `updateUserProfile`) ; les boutons `Précédent / Suivant / Lancer` vivent **dans le contenu de chaque
+> étape** (un `<footer>` séparé ne se rendait pas), avec croix + Échap + clic sur le fond ; la hauteur
+> suit le contenu, plafonnée à l'écran ; le changement de personnage reprend le parcours à l'étape 2.
 
 ## 2. Chantiers du module
 
 > Format : **BESOIN → ÉTAT MESURÉ → CHANGEMENT → TESTS → DÉPENDANCES → STATUT**.
-> L'**ordre** vit dans `FILE-EXECUTION.md` ; ici, le **quoi**.
+> L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi**.
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
-- **Reste** : T-2c (id de quête dans `prereq_text`) · lot 4 habillage Dofus (O14/O15, G7, G8, G9, T2) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
-- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857).
+- **Éditeur God** : la refonte UI/UX du studio a son plan dédié — `docs/plans/REFONTE-EDITEUR-RUSH.md` (E1→E5).
+- **Reste** : **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits · **DA « Carnet de campagne » livrée le 02/11** (matières, en-tête, chapitre, cartes, fiches, bandeaux, alignement, filtre Toutes/En cours/Verrouillées, ressources à prévoir, footer et portails ; verrou `rush-da-grimoire` **23**), restent **O15** motion sobre, **G7** hero complet, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136) · **T2 consolidé** le 27/10/2026 (composant mort supprimé, verrou sur le code rendu) · **T-2c livré le 20/10/2026** (prérequis par id stable — il était encore listé en reste ici par erreur).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
 - **Lots** : U-1 inventaire / ratchet · U-2 réécrire les `img` des `*-compiled.json` · **U-3 plus de repli réseau** · U-4 recherches sur catalogue local · U-5 ops (health / crons / allowlist).
-- **Statut** : cadrage dans `FILE-EXECUTION.md` §1 (pas encore de plan dédié).
+- **Statut** : cadrage dans `docs/ROADMAP.md` §1 (pas encore de plan dédié).
 
 ### A — Une seule agrégation des ressources (toutes les surfaces)
 - **Besoin** : liste et compteurs de ressources **identiques** partout (overlay, dashboard, guide public, sidebar « Objets requis », modale, grilles de quête).
@@ -112,6 +242,12 @@ WHERE s."activityTags" @> '[{"id": 22058}]'::jsonb;
 docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < fix-rush-22058.sql
 ```
 
+- **Patchs SQL des conseils (03/11/2026)** — les trois correctifs de texte ont une option `--sql` qui imprime un patch **portable** (cible le **contenu** ou le **nom**, jamais le cuid, qui diffère entre local, bêta et prod) :
+  - `npx tsx scripts/fix-rush-guide-quest-refs.ts --sql` → références `&n` (40 `UPDATE` par contenu) ;
+  - `npx tsx scripts/correlate-dofusyelle-tips.ts --sql` → 5 conseils Dofusyelle (par nom, protégés par `tips = ''`) ;
+  - `npx tsx scripts/correlate-rush-notes.ts --sql` → contraintes Tougli.
+  L'échappement est **une seule règle** (`sqlLiteral`, `src/lib/rush-notes.ts`, testée). `--apply` et `--sql` sont exclusifs : on relit le patch avant de le jouer. Sortie redirigeable puis `psql` dans `sigilos-db-beta`, puis `sigilos-db-prod`.
+
 - **Ops (humain) — état au 10/10/2026** :
   - **Bêta : FAIT** — les 4 WebP sont en place (`items/{7807,7809,7864,10000000001}.webp`, propriété rendue à l'app par `docker exec -u root … chown nextjs:nodejs`) et la base est corrigée (`reste_22058` **1 → 0**, `avec_32079` = 2).
   - **Reste bêta** : merger le lot puis **déployer** (c'est le deploy qui active le correctif `migrate-uploads`) → **ensuite** pré-chauffer les **319** icônes (bouton God) → contrôle visuel de la modale « Ressources à prévoir ».
@@ -125,10 +261,14 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Changement** : interdire le chemin deviné pour les **objets**, purger les `items/{id}.webp` dont l'id est invalide / mismatch (script de repérage), re-pré-chauffer avec `allowGuessedPath:false`.
 - **Dépendances** : **B** · **Statut** : **à faire** · **Ops** : purge à exécuter côté serveur (volumes `assets-*-data`).
 
-### D — Couverture des ressources du guide (391 → ~609)
-- **État mesuré** : nous **391** ids uniques · **Tougli** 517 directs / **543** avec recettes · **Dofusyelle** 478 (531 lignes) · **union = 609**. 119 manquants chez nous : 53 récupérables via l'arbre de recettes Tougli, 66 restants (45 au catalogue Tougli non référencés + 21 absents).
-- **Changement** : importer l'union (base **Tougli** + compléments Dofusyelle) → `preparation.items` + tags `item` ; re-seed ; pré-chauffer les icônes nouvelles.
-- **Dépendances** : **B** · **Statut** : **à faire**.
+### D — Couverture des ressources du guide (390 → 485 livrés ; cible par quête 517)
+- **État mesuré le 04/11/2026** : **390** ids uniques dans le guide · **Tougli** 517 ids directs · **Dofusyelle** 472 ids (531 lignes) · **union 584**.
+  ⚠️ **584 n'est pas atteignable par quête** : Dofusyelle liste ses ressources **globalement** (nom + quantité, sans id ni quête) ⇒ **67** ids n'existent que là. La cible honnête, par quête, est **517** (Tougli).
+- **Livré le 04/11/2026 (`V-D1`, branche `feat/rush-ressources`)** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute les ids absents, ne réécrit ni ne supprime, nom **canonique** réutilisé) + `scripts/enrich-rush-guide-resources.ts` (appariement `questDbIds` → URL → nom, dry-run, `--apply --db`, `--sql` additif) ⇒ **81 séquences**, **252 tags**, **173 ids** dont **95 nouveaux** : **390 → 485**. Brâkmarien **1 → 151 ids**, **65** séquences avec objets. **2ᵉ passage = 0 écriture** ; dataset **inchangé** (ces séquences ne sont pas dans le seed) ; **aucune migration**.
+  **Jamais de re-seed** (il écraserait les éditions God) : le script, idempotent, fait foi — le rejouer sur la bêta (`--sql`), puis pré-chauffer les **95** icônes nouvelles.
+- **Défaut mesuré et corrigé le 04/11/2026** : la trame Tougli a poussé l'id **7696** (« Dragofesse en Cuir Violet de Bwork ») que DofusDB **ne connaît pas** (elle renvoie l'item de repli **666**) et qui est absent de `GameItem` ⇒ **garde catalogue** dans le script (un id inconnu n'est jamais écrit) + retrait ciblé (`--drop-ids 7696`, appliqué en local et sur la bêta). Sur les **485** ids du guide, **2** sont absents du catalogue : **7696** (fautif) et **10000000001** (Kamas, icône locale, whitelisté).
+- **Reste (`V-D2`, à trancher)** : **51** ids Tougli dont la quête est absente de notre base (530 quêtes Tougli vs 492 séquences) + **67** ids Dofusyelle par étape. `preparation.items` (391 noms, sans id, non lu par l'UI) n'est pas reconstruit.
+- **Dépendances** : **B** (livré) · **Statut** : **V-D1 livré**, V-D2 ouvert.
 
 ### E — Vérifications + docs
 - `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run security:audit`, puis `docs/ROADMAP.md` (bloc de session) + `docs/agents/activeContext.md` (bloc en haut).
@@ -140,22 +280,91 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   - **changement de cité = logique jeu** : **reset** de l'alignement (+ `alignmentBefore`) et **retour à la 1ʳᵉ quête** de la nouvelle cité ; quêtes communes conservées ;
   - **résolution** : `resolveRushRoute` **filtre**, puis `buildRushGuideView` / `isSequenceBlockedByPrereqs` / `aggregateRushResources` **calculent sur le set filtré** (un prérequis masqué ne bloque pas) ;
   - **God** : marquage par séquence + action de masse par bloc + vue « Branches » + « créer la jumelle » (miroir par slot).
-- **État mesuré** : nos 66 tags `alignment_set` sont **tous `bontarien`** · `alignReq` / `alignOrderReq` **null** partout · **Bonta 98/100** (`Bandanarthrie`, `Le subterfuge de la corne` manquantes) · **Brâkmar 0/102** · **6 ordres × 5 rangs**, 2 slots multi-quêtes.
+- **État mesuré** : nos 66 tags `alignment_set` sont **tous `bontarien`** · `alignReq` / `alignOrderReq` **null** partout · **100 quêtes de cité côté Bonta** (source, dont 66 portées par notre seed) · **102 côté Brâkmar** · **6 ordres × 5 rangs** · 19 variantes de classe (1 substitution à Astrub).
 - **Dépendances** : **D** (même import NOOBS / Tougli) · **Statut** : **à faire**.
 
+### F2 — Arbre d'alignement à DEUX étages (état mesuré et livré le 20/10/2026)
+
+> **Révision de la section F** : la structure réelle a été vérifiée aux sources (DPLN + API Tougli).
+> Elle est plus riche que « deux colonnes » : **cité**, puis **Ordre**.
+
+**Structure réelle (mesurée)**
+- **2 séries de quêtes de cité**, **100** côté Bontarien (100ᵉ = « L'exorciste ») et **102** côté Brâkmarien (102ᵉ = « La danse macabre »). Le miroir vaut **par position tant que les deux séries avancent ensemble** ; il ne vaut pas pour le total (6 quêtes Turquoise côté Bonta, **7** côté Brâkmar). Dofusyelle n'en liste que **99** (préfixe exact de la liste Tougli, mesuré le 21/10).
+- **3 Ordres par cité**, **5 quêtes d'Apprentissage** chacun, seuils **> 20 / 40 / 60 / 80 / 100**.
+- Les **5 quêtes ont un nom propre par Ordre** (ex. Ménalt / Silvosse / Jiva) ⇒ **30 quêtes d'Ordre** au total, pas 6 × 5.
+- Le palier 100 exige donc **les 100 quêtes de cité** (dont la 100ᵉ) : c'est un **verrou**, pas un badge.
+
+**Modèle de données (migration additive `20270114000000_rush_alignment_route`)**
+| Champ | Rôle |
+|---|---|
+| `alignReq` | cité (`bontarien` / `brakmarien`) — toute la série de 100 |
+| `alignOrderCode` | Ordre (6 valeurs) — **uniquement** les quêtes d'Ordre |
+| `alignLevelReq` | palier 20/40/60/80/100 — **verrou calculé** |
+| `classReq` | classe (12 valeurs) — quêtes de classe du début de guide |
+| `alignOrderReq` | **legacy** (seuil de niveau) — conservé pour la bascule, à supprimer ensuite |
+
+**Règles (pures, testées)**
+- `resolveRushRoute` (`src/lib/rush-route.ts`) : filtre **cité → Ordre → classe**. Le palier **ne masque rien**.
+- `alignmentCountForCamp` + verrou dans `isSequenceBlockedByPrereqs` : une quête d'Ordre au palier N exige **N quêtes de cité validées**. Le verrou est évalué **avant** les tags `prereq_text` (une quête d'Ordre n'en porte pas).
+- **La tranche n'est plus une donnée** : c'est ce compteur. Aucune saisie, aucun affichage de niveau.
+- **Changement de cité = reset** des quêtes d'alignement **+ cascade transitive** des prérequis (`cascadeResetIds`), les autres quêtes gardent leur avancement.
+
+**God**
+- `duplicateRushSequenceAsTwin` : jumelle de **cité** (1 → 1, camp opposé, même `order`).
+- `duplicateRushSequenceAsOrderTwins` : jumelle d'**Ordre** (1 → 3, les 2 autres Ordres de la même cité), **idempotente**, fail-closed sans cité/Ordre.
+- Champs de création : Cité, Ordre (dépendant de la cité), Palier, Classe.
+
+**API Tougli (mesurée, pour comprendre — aucun import de leurs données)**
+- Base `https://api.tougli.barbofus.com` ; `GET /api/guide/details/<slug>` (1,1 Mo), `GET /api/guide/list`.
+- Leur modèle : `objectives[]` typés `note | title | quest | take_quests | choice`, et `choice.payload` = branches `{ condition, objectives }` avec des **conditions en texte** (`Classe=Feca`).
+- **Non copié** : le DSL en texte (fragile). On garde des champs typés.
+
+**Reste à faire (dans cet ordre)**
+1. ~~**Vue Branches à 2 étages** dans God~~ — **livrée** le 23/10/2026 (cible **100 / 102**). Organisation de la suite,
+   blocs S0→S6 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
+2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
+3. **Route d'alignement sur les 3 surfaces** — état mesuré, défauts (7) et ordre des lots :
+   **§ 1 bis** — `G0`, `L1`, `L2` **et** `L3` sont **livrés le 02/11/2026** ; **`textes` livré le
+   03/11/2026** (références `&n` corrigées, corrélation Dofusyelle) ; reste la rédaction des **194**
+   conseils manquants.
+   La **classe publique** n'est plus
+   « à trancher » : elle viendra du **compte visiteur** (`docs/plans/PLAN-ESPACE-VISITEUR.md`, V1/V2).
+4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre — **outillée** : export JSON de la trame + import
+   **dry-run** dans God (`S4-4`). Reste l'écriture éditoriale (textes réécrits, jamais recopiés).
+5. **Dette de schéma** : drop de la colonne `alignOrderReq` quand la bascule est finie (migration ⇒ accord
+   explicite) ; **`alignmentLevel` reste** — c'est le palier du joueur, affiché par le profil et le panneau de guilde.
+6. **V-C** — purge des WebP corrompus + siphon des images « jamais devinées » (rattaché à U-3, « zéro DofusDB »).
+   **V-D** — couverture des ressources **391 → 584** (détail : `MAPPING-RUSH-SYLVESTRE.md` §4.5).
+   **V-H** — donjons « ocre à capturer » : état + ouverture de la fenêtre Ocre (détail : §H ci-dessous).
+7. **Bloc B — livré le 12/11/2026** : page publique par quête (`/guides/rush-sylvestre/q/[slug]`,
+   `publicSlug` figé à la publication, `isPublished`, 404 si non publiée, `noindex` tant que le
+   guide est en construction, sitemap conditionnel) + bouton publier/dépublier dans l'inspecteur
+   de bloc. **Blocs Combat tactique / semi-tactique livrés le 13/11/2026** : types d'information
+   non cochables, image fournie convertie en WebP, `RushCombatBanner` partagé, liens nommés
+   (favicon, 10 max) et markdown borné (gras, italique, titres, listes, couleurs sémantiques).
+
 ### G — Liaison Metamob **dans l'overlay** (fin du cul-de-sac)
-- **État mesuré** : l'overlay ocre affiche « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.
+- **État mesuré (avant V-G)** : l'overlay ocre affichait « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.
 - **Changement** : quand non lié, afficher la brique « non lié » + bouton **« Lier mon compte Metamob »** qui ouvre **le même composant que le dashboard** (`components/profile/metamob-link.tsx` + `linkOcreAccount` / `unlinkOcreAccount` / `forceRefreshOcre`) — overlay **et** guide interne.
-- **Dépendances** : — · **Statut** : **à faire**.
+- **Dépendances** : — · **Statut** : **livré (V-G)** — la modale propose le lien ; le chemin est couvert par `rush-overlay-ocre-link`.
 
 ### H — Donjons « ocre à capturer » : état + ouverture
+
 - **Existant** : tag `ocre_dungeon` (God, `isDungeonOcre`) · progression Metamob (`getOwnQuestMonsters`, `findMonsterOwnersAction`, `OcreProgressData`).
-- **Changement** : à côté du badge ocre → **« capturé ✓ / à capturer »** (tous les monstres du donjon possédés) ; chaque donjon ocre **cliquable** → fenêtre Ocre (`RushOverlayOcreModal` / `OcreProgressModal` / `DofusOcreMetamob`) ; non lié → ouvre **G**.
-- **Dépendances** : **G** · **Statut** : **à faire**.
+- **Changement** : à côté du badge ocre → **« capturé ✓ / à capturer »** ; chaque donjon ocre **cliquable** → fenêtre Ocre (`RushOverlayOcreModal` / `OcreProgressModal` / `DofusOcreMetamob`) ; non lié → ouvre **G**.
+- **Dépendances** : **G** (**livré**) · **Statut** : **livré le 10/11/2026 (V-H)**.
+- **Mesure préalable** : le schéma n'a **aucune relation `Dungeon → Monster`**. Le rapprochement se fait donc sur le **nom du boss** du donjon (repli : nom du donjon), normalisé (`src/lib/ocre-dungeons.ts`, comparaison exacte, pas `includes`). La version stricte « tous les monstres du donjon » exigera une table Donjon → Monstres alimentée par DofusDB (**migration ⇒ accord**) : lot séparé, non ouvert.
+- **Câblage** : la carte partagée `RushOverlayDungeonCard` porte l'état et le bouton ; le panneau, la popover et la fiche détail transmettent les deux props ; le **dashboard** alimente avec `capturedMonsterNames` et ouvre `OcreProgressModal`, l'**overlay** dérive les captures de `ocre.monsters` et ouvre `RushOverlayOcreModal` ; le **guide public** ne reçoit aucune action. `getDungeons` marque désormais **un** donjon par tag (`isOcreTagged`), plus toute la séquence.
+- **Preuves** : `ocre-dungeons` **19** (règle, rendu réel, câblage) · suite **647 fichiers / 6 909 tests** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+- **Mesure du 10/11 (cas Meulou)** : `Dungeon.isOcreQuest` est la source **fiable** — la quête « Culs Bottés » avait le drapeau `true` **sans** tag `ocre_dungeon`, donc V-H ne montrait rien. `getDungeons` lit désormais `isOcreQuest` puis le tag en **repli**, et les deux payloads (`getPublicGuideDetail` / `getOptimizedGuideDetail`) sélectionnent la colonne.
+- **Fiche détail** : les deux coches `Fait / À faire` y vivent **aussi**, avec la même source que le panneau (dashboard, overlay, guide public connecté). L'aperçu God reste en lecture seule.
+- **Guide public connecté (page)** : le pont voisin `PublicOcreDungeonBridge` charge `getPublicOcreProgress` **à la demande** (ouverture d'un panneau ou de la fiche), et le bouton ouvre `PublicMetamobModal` (même `OcreQuestPanel`), jamais la modale Ocre interne.
+- **Overlay public (10/11)** : `DialogContent` porte un `portalContainer` ; `PublicMetamobModal` est rendue dans le `body` de la **PiP** (même `OcreQuestPanel`), les captures du visiteur sont poussées par `publicCapturedOcreNames`, et `OverlayToastProvider` est monté dans le portail public (toasts dans la PiP, DA unique). `notifyBlockDone` toastifie un **bloc validé** / un **Dofus obtenu** dans `GuideOverlayClient`.
+- **Reste (mesuré le 10/11)** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = **V2c**, **livré le 11/11/2026** (room SSE par serveur, `showPresence` opt-in, toasts page + PiP) ; les toasts de la **page** publique restent des toasts de page, volontairement.
 
 ## 3. Ordre d'exécution
 
-→ **`docs/plans/FILE-EXECUTION.md`** (l'ordre unique). Non recopié ici.
+→ **`docs/ROADMAP.md`** (l'ordre unique). Non recopié ici.
 
 ## 4. Invariants non négociables du module
 
@@ -165,3 +374,4 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 4. **Local-first** : `resolveItemImage` sert le WebP local, le proxy est un repli (objectif **U**).
 5. **Fail-closed** : un alignement / ordre inconnu ne débloque rien ; état illisible ⇒ on refuse.
 6. **Une seule implémentation par comportement** (un composant partagé, jamais une copie par surface).
+7. **Ressources et validation** : valider une quête **coche** toutes ses ressources, l'invalider les **décoche** — règle pure `src/lib/rush-resource-checks.ts`, appliquée côté serveur et en écho optimiste sur les trois surfaces.

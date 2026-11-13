@@ -34,7 +34,6 @@ const KEY_TO_CATEGORY: Record<string, string> = {
     resources: "economie",
     gallery: "economie",
     roster: "communaute",
-    stats: "communaute",
     missions: "communaute",
     commandes: "communaute",
     reactionRoles: "communaute",
@@ -126,10 +125,6 @@ const MODULE_I18N_EN: Partial<Record<ModuleKey, { label: string; description: st
     roster: {
         label: "Roster & Directory",
         description: "Guild member directory with characters, Discord roles and Dofus character statistics.",
-    },
-    stats: {
-        label: "Guild Statistics",
-        description: "Global guild performance dashboard (activity, missions, Dreams, events).",
     },
     calendar: {
         label: "Calendar",
@@ -239,7 +234,8 @@ const GROUP_LABELS_EN: Record<string, string> = {
 export function ModulesExplorer({
     moduleGroups = MODULE_GROUPS,
     assetsMap = MODULE_DOFUS_ASSETS,
-}: ModulesExplorerProps = {}) {
+    autoOnboardingOn = true,
+}: ModulesExplorerProps & { autoOnboardingOn?: boolean } = {}) {
     const { t, locale } = useI18n();
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [search, setSearch] = useState("");
@@ -292,12 +288,16 @@ export function ModulesExplorer({
                         </p>
 
                         <div className="mt-8 flex flex-wrap items-center gap-4">
-                            <form action={loginWithDiscord}>
-                                <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
-                                    <DiscordIcon className="w-4 h-4" />
-                                    {t.modulesPage.configureGuildBtn}
-                                </button>
-                            </form>
+                            {/* 🔒 Kill-switch God OFF : on ne propose pas « configurer » (ouverture
+                                autonome) sur une page publique qui promet l'inverse du serveur. */}
+                            {autoOnboardingOn && (
+                                <form action={loginWithDiscord}>
+                                    <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
+                                        <DiscordIcon className="w-4 h-4" />
+                                        {t.modulesPage.configureGuildBtn}
+                                    </button>
+                                </form>
+                            )}
                             <Link
                                 href="/#haut"
                                 className="px-4 py-2 text-sm font-semibold text-foreground hover:text-accent border border-border hover:border-border-strong rounded-lg bg-surface/40 transition-colors"
@@ -466,12 +466,14 @@ export function ModulesExplorer({
                     </p>
 
                     <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
-                        <form action={loginWithDiscord}>
-                            <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
-                                <DiscordIcon className="w-4 h-4" />
-                                {t.modulesPage.configureGuildBtn}
-                            </button>
-                        </form>
+                        {autoOnboardingOn && (
+                            <form action={loginWithDiscord}>
+                                <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
+                                    <DiscordIcon className="w-4 h-4" />
+                                    {t.modulesPage.configureGuildBtn}
+                                </button>
+                            </form>
+                        )}
                         <Link
                             href="/legal/faq"
                             className="px-4 py-2 text-sm font-semibold text-foreground hover:text-accent border border-border rounded-lg bg-surface transition-colors"

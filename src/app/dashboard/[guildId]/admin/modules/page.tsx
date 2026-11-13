@@ -1,91 +1,17 @@
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import AccessDenied from "@/components/access-denied";
-import { getUserContext } from "@/server/actions/user-actions";
-import { logAdminAccessDenied } from "@/server/actions/audit-actions";
-import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { ModuleHelpActions } from "@/components/doc/module-help-actions";
-import { Puzzle, ShieldAlert } from "lucide-react";
-import { db } from "@/lib/prisma";
-import Link from "next/link";
-import { ModulesClient } from "./_components/modules-client";
-import { AdminConsoleNav } from "@/components/admin/admin-console-nav";
 
-type Props = {
-    params: Promise<{ guildId: string }>;
-};
-
-export default async function AdminModulesPage({ params }: Props) {
-    const session = await auth();
-    if (!session?.user) redirect("/");
-
+/**
+ * Route **historique** `/admin/modules` → **redirigée** vers la seule surface qui
+ * porte les interrupteurs de modules : `Pilotage → Modules`.
+ *
+ * Pourquoi : les toggles de modules ne sont modifiables que par le propriétaire
+ * ou un admin Discord — exactement l'audience de Pilotage. Deux écrans qui
+ * rendaient le même `ModulesClient`, c'étaient deux fois la même vérité à
+ * maintenir ; la carte « Gestion des Modules » du Centre de contrôle et l'entrée
+ * de sidebar ont donc été retirées, et cette URL reste **vivante** (signets,
+ * modales d'onboarding, fiches de doc) par redirection.
+ */
+export default async function AdminModulesPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
-
-    const user = await getUserContext(guildId);
-    if (!user.isDiscordAdmin) {
-        await logAdminAccessDenied(guildId, "/admin/modules");
-        return <AccessDenied />;
-    }
-
-    const { getGuildModuleConfig } = await import("@/server/actions/module-actions");
-    // Toggles BRUTS (propriété de la guilde) + état EFFECTIF par module (verrou
-    // plateforme ∪ guilde + message de maintenance), issus d'une seule lecture.
-    const { toggles, states: moduleStates } = await getGuildModuleConfig(guildId);
-    const guild = await db.guildConfig.findUnique({
-        where: { discordGuildId: guildId },
-        select: { rolesMapping: true }
-    });
-    // FIX (rapport beta onboarding) : le test historique lisait
-    // `rolesMapping["dashboard:login"]` — une clé qui n'existe jamais (le format
-    // réel est `{ [roleId]: ["dashboard:login", …] }`) → le bandeau ne partait
-    // jamais, même RBAC configuré. Helper unique (exclut @everyone, fail-closed).
-    const { isRbacConfigured } = await import("@/lib/onboarding-gating");
-    const rbacConfigured = isRbacConfigured(
-        (guild?.rolesMapping as Record<string, string[]>) || {},
-        guildId
-    );
-
-    return (
-        <div className="space-y-6 pb-12">
-            <div data-tour="admin-modules-header">
-                <UnifiedModuleHeader
-                    title="Modules"
-                    description="Activez ou désactivez les fonctionnalités de votre guilde"
-                    icon={Puzzle}
-                    backHref={`/dashboard/${guildId}/admin`}
-                    actions={<ModuleHelpActions docSlug="admin-modules" docTitle="Gestion des Modules" tourPhase="adminModulesMgmt" />}
-                />
-            </div>
-
-            <AdminConsoleNav
-                guildId={guildId}
-                showModules={true}
-                showAccess={user.canManageRBAC || user.isAdmin}
-                showOnboarding={user.isAdmin}
-                showPilotage={true}
-            />
-
-            {!rbacConfigured && (
-                <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
-                    <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-                    <div className="space-y-2 flex-1">
-                        <h3 className="text-warning font-black text-sm uppercase tracking-wide">Rôles Discord Requis</h3>
-                        <p className="text-warning/80 text-xs font-medium">
-                            Vous devez configurer au moins un rôle Discord pour l'accès au Dashboard avant de pouvoir activer de nouveaux modules pour vos membres.
-                        </p>
-                        <Link
-                            href={`/dashboard/${guildId}/admin/permissions`}
-                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-warning text-warning-foreground text-xs font-bold uppercase tracking-wider hover:bg-warning transition-colors"
-                        >
-                            Configurer les rôles
-                        </Link>
-                    </div>
-                </div>
-            )}
-
-            <div data-tour="admin-modules-list">
-                <ModulesClient guildId={guildId} initialModules={toggles} moduleStates={moduleStates} />
-            </div>
-        </div>
-    );
+    redirect(`/dashboard/${guildId}/admin/pilotage?tab=modules`);
 }

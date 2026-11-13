@@ -16,9 +16,17 @@ export type ActionResponse = {
     error?: string;
 };
 
-export async function onboardGuild(guildId: string): Promise<ActionResponse> {
+export async function onboardGuild(rawGuildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Entrée bornée : un snowflake Discord, jamais une chaîne libre.
+    const parsedGuildId = z
+        .string()
+        .regex(/^\d{17,20}$/, "Identifiant de serveur invalide.")
+        .safeParse(rawGuildId);
+    if (!parsedGuildId.success) return { success: false, error: "Identifiant de serveur invalide." };
+    const guildId = parsedGuildId.data;
 
     // Rate limit anti-abus : max 3 CRÉATIONS de guilde par tranche de 10 minutes.
     // Il tourne APRÈS le test d'idempotence ci-dessous : re-cliquer (ou
@@ -41,6 +49,19 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             return { success: false, error: "Ce serveur Discord a été banni de la plateforme SigilOS." };
         }
 
+        // 2. SECURITY CHECK — **avant** toute branche, y compris la réactivation.
+        // 🐛 Mesure du 06/11/2026 : la branche « guilde déjà en base mais inactive » rendait
+        // `success` **sans** vérifier que l'appelant est admin du serveur. Un identifiant de
+        // guilde supprimée suffisait donc à la réactiver. L'autorisation passe d'abord.
+        const { requireGuildAdmin } = await import("./guards");
+        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
+
+        if (!guard.isAuthorized) {
+            return { success: false, error: guard.error || "Permissions insuffisantes" };
+        }
+
+        const discordUserId = guard.discordUserId!;
+
         // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -60,16 +81,30 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                     }
                 });
 
-                // Also reactivate archived profiles
-                await db.userProfile.updateMany({
+                // 🔒 G3 — le batch de réactivation ne doit **pas** contourner la limite de guildes :
+                // un profil `ARCHIVED (GUILD_DELETED)` ne redevient ACTIVE que si son porteur a
+                // encore de la place. L'ancien `updateMany` réactivait **tout le monde** d'un coup
+                // (cas piège : une guilde supprimée puis réactivée ne doit pas rendre ACTIVE
+                //  un profil qui n'a plus de place).
+                const reactivatable = await db.userProfile.findMany({
                     where: { guildId: existing.id, archiveReason: 'GUILD_DELETED' },
-                    data: {
-                        status: 'ACTIVE',
-                        archivedAt: null,
-                        archiveReason: null,
-                        scheduledDeletion: null
-                    }
+                    select: { id: true, userId: true },
                 });
+                {
+                    const { wouldExceedGuildLimit } = await import("@/server/guild-limit");
+                    for (const candidate of reactivatable) {
+                        if (await wouldExceedGuildLimit(candidate.userId)) continue;
+                        await db.userProfile.update({
+                            where: { id: candidate.id },
+                            data: {
+                                status: 'ACTIVE',
+                                archivedAt: null,
+                                archiveReason: null,
+                                scheduledDeletion: null
+                            }
+                        });
+                    }
+                }
 
                 const { invalidateGuildCache } = await import("./user-actions");
                 await invalidateGuildCache(guildId);
@@ -87,15 +122,6 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         const limited = await checkRateLimit();
         if (limited) return limited;
 
-        // 2. SECURITY CHECK: Verify User is Admin of this Guild (allowing initial onboarding)
-        const { requireGuildAdmin } = await import("./guards");
-        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
-
-        if (!guard.isAuthorized) {
-            return { success: false, error: guard.error || "Permissions insuffisantes" };
-        }
-
-        const discordUserId = guard.discordUserId!;
         const guildInfo = await fetchGuild(guildId);
 
         // 3. ORIGINE de la guilde — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`).
@@ -136,6 +162,21 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             }
         }
 
+        // 🔒 G2 — limite de guildes : déployer une guilde en crée une de plus, on refuse **avant**
+        // la moindre écriture, y compris la ligne de whitelist (`AllowedGuild`). Placer la garde
+        // après `allowedGuild.create` laissait une guilde refusée **pré-approuvée** : un collègue
+        // moins chargé pouvait ensuite la déployer hors kill-switch (mesure du 06/11/2026).
+        // God exempté (G1 réutilise la même porte).
+        {
+            const { isGuildLimitReached } = await import("@/server/guild-limit");
+            if (await isGuildLimitReached(session.user.id)) {
+                return {
+                    success: false,
+                    error: "Impossible de déployer : vous faites déjà partie du nombre maximum de guildes. Quittez une guilde pour en déployer une nouvelle.",
+                };
+            }
+        }
+
         if (!existingAllowed) {
             await db.allowedGuild.create({
                 data: {
@@ -171,7 +212,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
 
         // 🔔 ALERTE TEMPS RÉEL TOUR DE CONTRÔLE GOD
         try {
-            const { notifyGod } = await import("./god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: isAutonomous ? "🚀 Déploiement autonome réussi" : "✨ Déploiement guilde réussi",
                 message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Origine : **${origin.label}**`,
@@ -1145,6 +1186,7 @@ export async function updateRaidKamaDonationThreshold(
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
         logger.error("Update Raid Kama Donation Threshold Error:", error);
@@ -1181,6 +1223,7 @@ export async function updateRaidKamaDonationRequired(
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
         logger.error("Update Raid Kama Donation Required Error:", error);
@@ -1516,8 +1559,8 @@ export async function getMissionConfig(guildId: string): Promise<{
 export async function updateMissionNotifySettings(
     guildId: string,
     data: {
-        channelId: string | null;
-        roleId: string | null;
+        channelId?: string | null;
+        roleId?: string | null;
         validationChannelId?: string | null;
         validationRoleId?: string | null;
         kamaNotifyChannelId?: string | null;
@@ -2146,69 +2189,5 @@ export async function updateBountyRecord(guildId: string, bountyId: string, data
     }
 }
 
-// ============================================================================
-// APPAREANCE GUILDE — #5 Couleur de guilde (teinte OKLCH 0-360°, nullable = fallback or)
-// ============================================================================
 
-export async function getGuildAppearance(guildId: string): Promise<{ success: boolean; error?: string; data?: { accentHue: number | null } }> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
-    const { requireGuildConfigAccess } = await import("./guards");
-    const guard = await requireGuildConfigAccess(guildId);
-    if (!guard.isAuthorized) return { success: false, error: guard.error };
-
-    try {
-        const config = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { accentHue: true }
-        });
-        if (!config) return { success: false, error: "Guilde introuvable" };
-        return { success: true, data: { accentHue: config.accentHue } };
-    } catch (error) {
-        logger.error("Get Guild Appearance Error:", error);
-        return { success: false, error: "Erreur serveur" };
-    }
-}
-
-export async function updateGuildAccentHue(
-    guildId: string,
-    accentHue: number | null
-): Promise<ActionResponse> {
-    const { requireGuildConfigAccess } = await import("./guards");
-    const guard = await requireGuildConfigAccess(guildId, "updateGuildAccentHue");
-    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
-
-    // #5 — validation Zod fail-closed : teinte bornée 0-360 (ou null = fallback or).
-    const hueSchema = z.union([
-        z.null(),
-        z.number().int().min(0).max(360),
-    ]);
-    const parsed = hueSchema.safeParse(accentHue);
-    if (!parsed.success) {
-        return { success: false, error: "Teinte invalide (entier 0-360, ou null pour le défaut)" };
-    }
-
-    try {
-        await db.guildConfig.update({
-            where: { discordGuildId: guildId },
-            data: { accentHue: parsed.data }
-        });
-
-        await logAction({
-            guildId,
-            action: "CONFIG_UPDATED",
-            targetType: "CONFIG",
-            targetId: "accentHue",
-            metadata: { accentHue: parsed.data, operation: "UPDATE_ACCENT_HUE" }
-        });
-
-        revalidatePath(`/dashboard/${guildId}`);
-        revalidatePath(`/dashboard/${guildId}/admin/settings`);
-        return { success: true };
-    } catch (error) {
-        logger.error("Update Guild Accent Hue Error:", error);
-        return { success: false, error: "Erreur serveur" };
-    }
-}
 

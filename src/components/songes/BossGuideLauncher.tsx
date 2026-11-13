@@ -1,23 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { BossGuide } from "@/components/songes/BossGuide";
+import { SONGES_ACTION_GROUP_ITEM } from "@/lib/songes/ui";
 
+/**
+ * Item du groupe d'actions de l'en-tête (`SONGES_ACTION_GROUP`) : même hauteur, même padding
+ * et même graisse que « Documentation » / « Tutoriel » — jamais un bouton étranger à côté.
+ */
 export function BossGuideLauncher() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
         <>
-            <Button
+            <button
+                type="button"
                 onClick={() => setIsOpen(true)}
-                variant="outline"
-                className="h-11 px-5 text-sm gap-2.5 border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 text-fuchsia-300 font-bold rounded-xl shadow-sm transition-all"
+                title="Ouvrir le guide des boss des Songes"
+                className={cn(SONGES_ACTION_GROUP_ITEM, "shrink-0")}
             >
-                <BookOpen className="w-4 h-4 text-fuchsia-400" />
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
                 Guide Boss Songes
-            </Button>
+            </button>
 
             <BossGuide isOpen={isOpen} onClose={() => setIsOpen(false)} />
         </>

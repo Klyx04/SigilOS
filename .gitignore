@@ -189,9 +189,13 @@ services/discord-bot/node_modules/
 # ─────────────────────────────────────────────────────────────────────────────
 /dist/
 /services/discord-bot/dist/
+# Copie générée de `src/lib/guild-limit.ts` (une seule source versionnée) :
+# créée par `npm run sync:shared` (hook `prebuild`/`predev`) ou par le Dockerfile du bot.
+/services/discord-bot/shared/
 /scripts/database-janitor.js
 /scripts/siphon-guide-images.js
 /scripts/succes-speciaux.js
+/scripts/backfill-dungeon-completion.js
 /scripts/seed-v3-compiled.js
 **/.wrangler/
 
@@ -252,5 +256,3 @@ src/audit-cyber
 src/audit-infra
 .lint-result.json
 
-# Dossier de travail temporaire (audits, tests, captures) - ne jamais committer
-/temp/

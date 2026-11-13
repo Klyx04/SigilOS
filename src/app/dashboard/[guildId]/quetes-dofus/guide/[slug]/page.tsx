@@ -10,6 +10,9 @@ import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
+import { resolveRushRoute } from "@/lib/rush-route";
+import { resolveDofusClassId } from "@/lib/dofus-assets";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 
 type Props = {
     params: Promise<{ guildId: string; slug: string }>;
@@ -79,7 +82,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     // non bloquant, même politique que la progression guilde ci-dessus.
     // Les DEUX lectures qui suivent sont INDÉPENDANTES : elles sont lancées ici, en PARALLÈLE
     // (elles s'ajoutaient l'une après l'autre sur le chemin critique de la page — G10 du plan).
-    const resourceChecksPromise = getRushResourceChecks(slug, guildId, altPseudo);
+    const resourceChecksPromise = getRushResourceChecks(guildId, slug, altPseudo);
     const profilePromise = user.profileId
         ? getMemberProfile(guildId, user.profileId)
         : Promise.resolve(null);
@@ -146,7 +149,12 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 // Build lists of captured monster IDs and names for dungeon detection
                 const monsters = ocreRes.data.monsters;
                 if (Array.isArray(monsters)) {
-                    ocreMonsters = monsters;
+                    // ⚠️ Le panneau consomme des `OcreMonsterLite` : `toOcrePanelData` est la SEULE
+                    // conversion qui pose `imageUrl` (image interne résolue par le serveur). Passer
+                    // les monstres bruts laissait `imageUrl` indéfini ⇒ repli `/uploads/…webp` puis
+                    // `/assets/dofus/…png` (404 mesurés le 09/11/2026) et picto générique, alors que
+                    // `getMyOcreProgress` fournissait déjà la bonne image.
+                    ocreMonsters = toOcrePanelData({ monsters }).monsters;
                     const captured = monsters.filter((m: any) => m.owned != null && m.owned > 0);
                     capturedOcreMonsterIds = captured.map((m: any) => m.id);
                     capturedMonsterNames = captured
@@ -162,8 +170,27 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     const mules = (user.altPseudos as any[] | undefined) || [];
 
+    // Route d'alignement (lot 5 / L2) : on filtre AVANT la vue, les prérequis et l'agrégation.
+    // La cité, l'**Ordre** et la **classe** viennent du personnage SÉLECTIONNÉ (mule incluse),
+    // sinon du profil principal. Sans choix renseigné, rien n'est masqué : on ne vide jamais
+    // le guide. Sans l'Ordre, les **15** quêtes d'Ordre de la cité restaient visibles au lieu
+    // des **5** de son Ordre (défaut 6 mesuré le 02/11/2026).
+    // ⚠️ `UserProfile.classe` est un **libellé** (« Féca », « sram ») : on le ramène à l'**id**
+    // (`feca`) avant la route, sinon la comparaison stricte masquerait les quêtes de classe.
+    const selectedMule = altPseudo
+        ? (userProfile.altPseudos as any[] | undefined)?.find((m) => m?.pseudo === altPseudo) ?? null
+        : null;
+    const routeCamp = selectedMule ? selectedMule.alignment ?? null : userProfile.alignment ?? null;
+    const routeOrder = selectedMule ? selectedMule.alignmentOrder ?? null : userProfile.alignmentOrder ?? null;
+    const routeClass = resolveDofusClassId(selectedMule ? selectedMule.classe : userProfile.dofusClass);
+    const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], {
+        camp: routeCamp,
+        order: routeOrder,
+        playerClass: routeClass,
+    });
+
     return (
-        <div className="flex flex-col w-full h-full overflow-hidden">
+        <div className="flex flex-col w-full h-full">
 
             <Suspense fallback={
                 <div className="flex items-center justify-center w-full h-full">
@@ -171,7 +198,15 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             }>
                 {isTimeline ? (
-                    <div className="flex-1 overflow-y-auto" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
+                    /* ⚠️ Aucun conteneur de défilement ici : le rail de droite
+                       (`RushChapterSidebar`, `position: sticky`) doit se caler sur le
+                       VRAI scrolleur de l'application, `<main data-scroll-container>`.
+                       Deux `overflow` intermédiaires (`overflow-hidden` + `overflow-y-auto`
+                       sur une colonne de hauteur automatique) créaient une boîte de
+                       défilement **qui ne défile jamais** : le `sticky` n'avait plus
+                       aucune course et le panneau partait avec la page (mesure du
+                       22/10/2026 — même règle que le guide public, qui n'a aucun wrapper). */
+                    <div className="flex-1" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
                         <div style={{ maxWidth: 1360, marginInline: "auto" }}>
                         <RushTimelineClient
                             key={character}
@@ -183,7 +218,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 imageUrl: guide.imageUrl,
                                 isUnderConstruction: guide.isUnderConstruction ?? false,
                             }}
-                            milestones={guide.milestones as any}
+                            milestones={routeMilestones as any}
                             guildProgress={allProgress}
                             initialResourceChecks={resourceChecks}
                             guildId={guildId}
@@ -211,7 +246,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                     <OptimizedGuideClient
                         key={character}
                         guide={guide}
-                        milestones={guide.milestones as any}
+                        milestones={routeMilestones as any}
                         userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}
                         guildProgress={allProgress}
                         serverUniqueGuildMembers={serverUniqueGuildMembers}

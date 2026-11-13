@@ -101,11 +101,20 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(code).not.toMatch(/<DoorOpen/);
   });
 
-  it("la popover est branchée sur ce badge (survol ET clic)", () => {
-    expect(code).toMatch(/<RushOverlayDungeonPopover dungeons=\{dungeons\} guildId=\{guildId\}>/);
+  it("la popover est branchée sur ce badge : AU CLIC, et elle RESTE ouverte", () => {
+    expect(code).toMatch(/<RushOverlayDungeonPopover\s+seq=\{seq\}/);
+    expect(code).toMatch(/states=\{dungeonActions\?\.states\}/);
+    expect(code).toMatch(/onSet=\{dungeonActions\?\.onSet\}/);
     const pop = codeOf(POPOVER);
-    expect(pop).toMatch(/onMouseEnter=\{handleMouseEnter\}/);
+    // Correction user (21/10/2026) : le survol n'ouvre plus rien — une fenêtre qui se
+    // referme au moindre mouvement ne permet pas de cocher.
     expect(pop).toMatch(/onClick=\{toggle\}/);
+    expect(pop).not.toMatch(/onMouseEnter|setTimeout\(\(\) => setIsOpen\(false\)/);
+    // Le panneau a SA croix de fermeture (il ne se ferme pas tout seul).
+    expect(pop).toMatch(/<RushQuestDungeonsPanel/);
+    expect(
+      codeOf("src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx")
+    ).toMatch(/aria-label="Fermer les donjons de cette quête"/);
     // Une animation d'entrée peut rester bloquée en fenêtre PiP : on n'en met pas.
     expect(pop).not.toMatch(/framer-motion/);
     expect(pop).toMatch(/createPortal/);

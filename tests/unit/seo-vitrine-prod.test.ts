@@ -24,7 +24,7 @@ const deployCd = () => readFileSync("scripts/deploy-cd.sh", "utf8");
  * Extrait le bloc d'un site du Caddyfile. Les accolades internes sont indentées : le premier
  * `\n}` en colonne 0 ferme donc bien le bloc du site.
  */
-function siteBlock(site: "sigilos.fr" | "beta.sigilos.fr"): string {
+function siteBlock(site: "sigilos.fr" | "beta.sigilos.fr" | "www.sigilos.fr"): string {
     const code = caddyfile();
     const start = code.indexOf(`\n${site} {`);
     expect(start, `bloc « ${site} » introuvable dans le Caddyfile`).toBeGreaterThan(-1);
@@ -126,6 +126,19 @@ describe("hreflang — pas de promesse de bilinguisme sans chemins dédiés", ()
         // traduits). Retiré le 25/09/2026 — à rétablir seulement avec de vrais chemins `/en/…`.
         expect(layout).toMatch(/canonical: getAppBaseUrl\(\)/);
         expect(layout).not.toMatch(/^\s*languages:\s*\{/m);
+    });
+});
+
+describe("www.sigilos.fr — redirection vers l'apex", () => {
+    it("le bloc existe et redirige en 301 (aucun certificat servi avant, mesuré le 20/10/2026)", () => {
+        const block = sansCommentaires(siteBlock("www.sigilos.fr"));
+        expect(block).toMatch(/redir https:\/\/sigilos\.fr\{uri\} permanent/);
+    });
+
+    it("ne sert aucun contenu sur www : uniquement la redirection", () => {
+        const block = sansCommentaires(siteBlock("www.sigilos.fr"));
+        expect(block).not.toMatch(/file_server/);
+        expect(block).not.toMatch(/reverse_proxy/);
     });
 });
 

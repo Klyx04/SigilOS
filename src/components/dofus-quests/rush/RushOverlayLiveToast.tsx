@@ -65,7 +65,7 @@ export function RushOverlayLiveToast({ events }: { events: GuideRealtimeEvent[] 
   return (
     <div
       // `pointer-events-none` : un toast ne vole jamais un clic destiné à la quête dessous.
-      className="pointer-events-none absolute bottom-3 left-3 z-[60] flex max-w-[19rem] flex-col gap-1.5"
+      className="pointer-events-none absolute bottom-3 left-3 z-[60] flex max-w-[min(16rem,calc(100vw-1.5rem))] flex-col gap-1.5"
       aria-live="polite"
       aria-label="Activité des coéquipiers"
     >

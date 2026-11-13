@@ -2,7 +2,7 @@
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
 > (Cline, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable** : 146 lignes, ~2 500 tokens — le minimum vital, tout le reste se lit à la demande.
+> négociable** : 121 lignes, ~2 700 tokens — le minimum vital, tout le reste se lit à la demande.
 > Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
@@ -24,9 +24,9 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 
 | Besoin | Source de vérité |
 |---|---|
-| **Quoi faire / statut des chantiers** | `docs/ROADMAP.md` (backlog canonique — **à lire en premier en mode plan**) |
-| **Dans quel ordre avancer** (la file d'exécution) | `docs/plans/FILE-EXECUTION.md` — **l'ordre unique**, chantiers A→Q étape par étape (pointe vers les plans, ne duplique rien) |
+| **Quoi faire / dans quel ordre** | `docs/ROADMAP.md` — **backlog et ordre uniques** (à lire en premier en mode plan) |
 | État réel entre 2 sessions | `docs/agents/activeContext.md` — **en-tête + bloc du sujet uniquement** (jamais en entier) |
+| Historique des sessions (171 blocs) | `docs/agents/journal-sessions-2026.md` — **à la demande uniquement** |
 | Coder aux conventions + sécurité | `docs/RULES.md` (§ Security · § fail-closed · § Code Organization · § Git Workflow) |
 | Politique de sécurité publique | `docs/SECURITY.md` |
 | Architecture, modules, pièges | `docs/CONTEXT.md` |
@@ -34,8 +34,9 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Ops : cron, déploiement, incidents | `docs/MAINTENANCE.md` |
 | Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
-| Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · `discord-module` · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` |
-| Amorce détaillée (sources, méthode, DoD) | `docs/agents/session-amorce.md` — **à la demande**, pas par défaut |
+| Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
+| **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
+| **Toute UI** (layout, composant, correctif d'affichage) | skill `.cline/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |
 
 **Ne lis pas par défaut** : l'historique long, les rapports d'audit (`docs/audits/`, non versionnés), les
@@ -88,17 +89,19 @@ plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout 
 ## 6. Commandes
 
 ```bash
-npm install                        # installe aussi le hook pre-commit (husky)
+npm run install:safe               # npm ci SANS exécuter le code des paquets + moteur Prisma + husky (recommandé)
+# npm install                      # alternative historique : exécute le code d'installation de TOUS les paquets
 docker compose up -d db redis      # PostgreSQL (hôte 5433) + Redis
-npx prisma generate                # après tout changement de schéma
+# ⚠️ Base locale : la faire suivre le schéma AVANT de lancer l'app — sinon « The column X does not exist »
+npx prisma migrate deploy          # joue les migrations en attente (5433) — voir docs/agents/prisma-schema-change.md
+npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (~1 700 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (6 636 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
 npm run build                      # build de prod (délégué à la CI si `next dev` tourne — dis-le)
-npm run seed:docs                  # ⚠️ écrase les fiches DocPage (et purge les slugs hors catalogue)
 ```
 
 Déploiement : `./scripts/deploy-cd.sh <env> [sha]` (voie normale) · repli `./scripts/deploy.sh <env>` ·

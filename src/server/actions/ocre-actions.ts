@@ -50,9 +50,10 @@ import {
     type QuestSettings,
 } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
-import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
+import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -225,7 +226,7 @@ export async function linkOcreAccount(
         }
 
         // Rate limit
-        const rateCheck = await rateLimit(`ocre:link:${session.user.id}`, 5, 60);
+        const rateCheck = await rateLimit(`ocre:link:${session.user.id}`, 5, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
         }
@@ -233,7 +234,7 @@ export async function linkOcreAccount(
         // Validation
         const parsed = LinkAccountSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
         const { guildId } = parsed.data;
         const apiKey = parsed.data.apiKey?.trim();
@@ -546,7 +547,7 @@ export async function getMyOcreProgress(
 
     try {
         // [RateLimit]
-        const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
+        const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60_000);
         if (!rateCheck.success) return { success: false, error: "Trop de requêtes." };
 
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
@@ -652,12 +653,63 @@ export async function getMyOcreProgress(
                     }
                 } catch { /* silent — zones are best-effort */ }
 
+                // ===========================================================================
+                // IMAGES — la table de référence locale porte l'URL de l'image de chaque cible.
+                // Mesure du 09/11/2026 (panneau « Mon Ocre », bêta) : l'`id` du panneau est un id
+                // **Metamob**, pas un id d'entité de jeu — `347` n'existe pas côté source d'images
+                // (`No record found for id '347'`) et `2508` y désigne un AUTRE monstre. Le proxy
+                // interne répondait donc un PNG transparent 1×1 (118 octets) ou la mauvaise
+                // créature. L'URL que portait la donnée était celle de Metamob, un hôte distant que
+                // `ocreMonsterImageUrl` refuse par design ⇒ vignette vide puis 404 en série.
+                // On résout donc l'image **par nom** depuis `Archimonstre` (même source que
+                // `getZoneArchmonsters`) : le proxy la sert dans l'espace d'apparence.
+                // ===========================================================================
+                const nameToImageMap = new Map<string, string>(); // archiNameFr dé-accentué → URL interne
+                // Même normalisation que `getZoneArchmonsters` (NFD sans accents) : deux graphies
+                // d'un même nom ne doivent pas priver la cible de son image.
+                const imageKey = (s: string) =>
+                    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                try {
+                    const ocreArchis = await db.archimonstre.findMany({
+                        // ⚠️ Aucun filtre `type` : la clé de rapprochement est le **nom**, et un
+                        // même nom désigne la même créature. Mesure du 09/11/2026 (bêta) : les
+                        // 4 Blops royaux restaient « sans image résolue » alors que la table les
+                        // connaît — leur `type` varie selon la source du seed (`boss` ici,
+                        // `monstre` ailleurs), et un `where` par type les rendait invisibles.
+                        where: { OR: [{ imageUrl: { not: null } }, { dofusdbId: { not: null } }] },
+                        select: { name: true, imageUrl: true, dofusdbId: true },
+                    });
+                    for (const a of ocreArchis) {
+                        const internal = internalDofusDbImageUrl(a.imageUrl)
+                            ?? normalizeDofusAssetStoredUrl("monsters", a.imageUrl, a.dofusdbId);
+                        if (internal) nameToImageMap.set(imageKey(a.name), internal);
+                    }
+                } catch { /* silent — visuels best-effort, le picto du jeu reste le repli */ }
+
                 // Mapping
                 const masterList = skeletonMonsters.length > 0 ? skeletonMonsters : userQuestData;
                 const userMap = new Map<number, QuestMonster>();
                 const skeletonIdMap = new Set(masterList.map(m => m.id));
                 const skeletonNameMap = new Map<string, QuestMonster>();
                 masterList.forEach(m => { if (m.name?.fr) skeletonNameMap.set(m.name.fr.toLowerCase().trim(), m); });
+
+                // 🔎 Diagnostic (09/11/2026) : trois cibles (Blops royaux) restaient sans image
+                // alors que `Archimonstre` semble les connaître. On NOMME les cibles sans image
+                // résolue — nom de monstre uniquement, jamais un identifiant de membre — pour
+                // trancher entre « absente de la table », « graphie divergente » et « imageUrl
+                // nulle en base ». `warn` : c'est un manque de donnée, pas une panne produit.
+                if (masterList.length > 0) {
+                    const unresolved = masterList
+                        .map((m) => m.name?.fr || "")
+                        .filter((name) => name && !nameToImageMap.has(imageKey(name)))
+                        .slice(0, 10);
+                    if (unresolved.length > 0) {
+                        logger.warn("[getMyOcreProgress] cibles sans image résolue", {
+                            total: masterList.length,
+                            unresolved,
+                        });
+                    }
+                }
 
                 userQuestData.forEach(m => {
                     let tid = m.monster_id ?? (m as any).monster?.id ?? m.id;
@@ -685,6 +737,10 @@ export async function getMyOcreProgress(
                     const szVal = nameToSubzoneMap.get(zoneKey);
                     if (zVal) norm.zone = zVal;
                     if (szVal) norm.subzone = szVal;
+                    // Image interne (proxy) résolue par NOM : elle remplace l'URL distante de
+                    // Metamob, qui ne doit jamais finir dans le DOM (cf. bloc IMAGES ci-dessus).
+                    const imgVal = nameToImageMap.get(imageKey(norm.nameFr));
+                    if (imgVal) norm.image = imgVal;
 
                     finalMonsters.push(norm);
                     cT++;
@@ -792,7 +848,7 @@ export async function findOcreExchangePartners(
         const { guildId } = parsed.data;
 
         // Rate limit
-        const rateCheck = await rateLimit(`ocre:match:${session.user.id}`, 20, 60);
+        const rateCheck = await rateLimit(`ocre:match:${session.user.id}`, 20, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de requêtes. Réessayez plus tard." };
         }
@@ -1119,7 +1175,12 @@ export async function getProfileMatchingArchis(
         };
 
     } catch (error) {
-        logger.error("[getProfileMatchingArchis] Error:", error);
+        // Même famille que `getGuildKralamoureEvents` : un compte Metamob **privé / non
+        // authentifié** (`MetamobApiError` « Accès refusé : Authentification requise. ») est une
+        // configuration UTILISATEUR, et le widget rend déjà un message propre (`success: false`).
+        // En `error`, chaque profil privé consulté créait une Issue Sentry (mesure du
+        // 18/10/2026 : `JAVASCRIPT-NEXTJS-1R`, `POST …/members/<pseudo>`).
+        logger.warn("[getProfileMatchingArchis] Metamob refusé ou indisponible", error);
         return { success: false, error: "Erreur lors du calcul des échanges" };
     }
 }
@@ -1313,7 +1374,13 @@ export async function getGuildKralamoureEvents(
 
         return { success: true, data: events };
     } catch (error) {
-        logger.error("[getGuildKralamoureEvents] Error:", error);
+        // Compte Metamob **privé** / clé API invalide / amont indisponible : c'est une
+        // configuration UTILISATEUR (ou un incident fournisseur), pas une panne du produit —
+        // le widget retombe volontairement sur une liste vide (l. suivantes). En `error`, ce
+        // cas créait une Issue Sentry **par profil privé** (mesure du 18/10/2026 :
+        // `JAVASCRIPT-NEXTJS-1P`, `POST …/quete-ocre`, « Accès refusé : Ce compte Metamob est
+        // privé. »). Donc `warn` : tracé dans `docker logs`, hors Sentry.
+        logger.warn("[getGuildKralamoureEvents] Metamob refusé ou indisponible", error);
 
         if (error instanceof MetamobApiError) {
             if (error.code === "RATE_LIMIT") {
@@ -1373,7 +1440,7 @@ export async function refreshOcreCache(
         }
 
         // Rate limit refresh
-        const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 3, 60);
+        const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 3, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de rafraîchissements. Patientez une minute." };
         }
@@ -1509,7 +1576,7 @@ export async function forceRefreshOcre(
         }
 
         // [RateLimit] Prevent abuse (1 refresh per minute)
-        const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60);
+        const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Veuillez attendre une minute avant de rafraîchir à nouveau." };
         }
@@ -1808,7 +1875,7 @@ export async function createTradeRequest(
             sendDiscordPing
         } = parsed.data;
 
-        const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
+        const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60_000);
         if (!rateCheck.success) return { success: false, error: "Veuillez patienter avant de faire une nouvelle demande." };
 
         const guildConfig = await (db.guildConfig as any).findUnique({
@@ -1909,7 +1976,7 @@ export async function createTradeRequest(
                 const monsterImageUrl = clientMonsterImage || undefined;
 
                 const { sendChannelMessage } = await import("@/server/discord");
-                const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const publicUrl = getAppBaseUrl();
                 const requesterName = getDisplayName(requesterProfile);
                 
                 const targetMention = `<@${targetDiscordAccount.providerAccountId}>`;
@@ -2203,7 +2270,7 @@ export async function updateUserMonsterQuantityAction(rawData: {
         // annonce le délai restant, pour que le client mette sa file en pause au lieu de
         // réessayer en boucle (un spam de clics ne peut pas transformer SigilOS en
         // amplificateur de requêtes vers Metamob).
-        const rateCheck = await rateLimit(`ocre:quantity:${session.user.id}`, 60, 60);
+        const rateCheck = await rateLimit(`ocre:quantity:${session.user.id}`, 60, 60_000);
         if (!rateCheck.success) {
             return {
                 success: false,
@@ -2238,10 +2305,17 @@ export async function updateUserMonsterQuantityAction(rawData: {
 
         return { success: true, data: { quantity } };
     } catch (error: any) {
-        logger.error("[updateUserMonsterQuantityAction] Error:", error);
+        // 429 Metamob : cas **PRÉVU** (l'utilisateur enchaîne les pas ±1), pas une panne. En
+        // `error`, chaque rate limit créait une Issue Sentry alors que le client met sa file en
+        // pause (`retryAfterMs`) — mesure du 09/11/2026. `warn` = tracé, hors Sentry.
+        const isMetamobRateLimit = error instanceof MetamobApiError && error.code === "RATE_LIMIT";
+        if (isMetamobRateLimit) {
+            logger.warn("[updateUserMonsterQuantityAction] Metamob rate limit", { code: error.code });
+        } else {
+            logger.error("[updateUserMonsterQuantityAction] Error:", error);
+        }
         // 429 Metamob : on demande au client de lever le pied (pause de la file) plutôt
         // que de relancer les écritures qui repartiraient en rate limit.
-        const isMetamobRateLimit = error instanceof MetamobApiError && error.code === "RATE_LIMIT";
         return {
             success: false,
             error: error?.message || "Erreur lors de la mise à jour Metamob",
@@ -2847,7 +2921,7 @@ export async function getTradeThreads(rawData: z.infer<typeof GetTradeThreadsSch
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-        const rateCheck = await rateLimit(`ocre:threads:${session.user.id}`, 20, 60);
+        const rateCheck = await rateLimit(`ocre:threads:${session.user.id}`, 20, 60_000);
         if (!rateCheck.success) return { success: false, error: "Trop de requêtes. Réessayez dans quelques secondes." };
 
         const parsed = GetTradeThreadsSchema.safeParse(rawData);

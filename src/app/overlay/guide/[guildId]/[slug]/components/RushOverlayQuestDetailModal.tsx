@@ -2,39 +2,59 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import { X, MapPin, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
-import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
-import { RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
-import { classifyTags, getDungeons, getItemTags, getSequenceCoord, isPublicOverlay, type TagClassification } from "./overlay-utils";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
+import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
+import { safeExternalUrl, safeImageUrl } from "@/lib/security";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
+import type {
+  RushDungeonMemberState,
+  RushDungeonState,
+  RushDungeonStateMap,
+} from "@/lib/rush-dungeons";
 
 interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
   seq: RushSequence;
   isDone: boolean;
-  /**
-   * Conservé pour les appelants (site public, overlay, guide interne). Le
-   * panneau ne s'en sert plus : il ne se peint qu'avec les jetons de thème, donc
-   * il suit le `.dark` / `.light` du document — et l'overlay pose `.light` sur sa
-   * racine quand le joueur bascule en thème clair.
-   */
-  isLightMode?: boolean;
   guildId?: string;
   onClose: () => void;
+  /** Coches MANUELLES de ressources (« déjà préparé »), keyées par `rushResourceKey`. */
+  checkedKeys?: Set<string>;
+  /** Coche/décoche une ressource depuis la fiche. Sans handler, la grille reste en lecture. */
+  onToggleResourceCheck?: (key: string) => void;
   /**
    * Le toggle « Masquer les étapes faites » du guide PRIME ici aussi : sur une quête **validée**,
    * le bloc « Ressources requises » disparaît (il n'y a plus rien à préparer) — même règle dans
    * les trois surfaces (guide public, guide interne, overlay).
    */
   hideProvidedResources?: boolean;
+  /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état ocre inconnu. */
+  capturedOcreNames?: readonly string[];
+  /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
+  onOpenOcre?: () => void;
+  /**
+   * V-H — les deux coches `Fait / À faire` vivent AUSSI dans la fiche détail, avec la
+   * **même** source que le panneau (base pour la guilde, `localStorage` pour l'invité).
+   * Absents ⇒ la fiche reste en lecture seule (aperçu God).
+   */
+  dungeonStates?: RushDungeonStateMap;
+  dungeonBusyKey?: string | null;
+  dungeonOthers?: RushDungeonMemberState[];
+  onSetDungeon?: (
+    sequenceId: string,
+    dungeonKey: string,
+    state: RushDungeonState | null
+  ) => void;
 }
 
 /**
@@ -60,6 +80,14 @@ export function RushOverlayQuestDetailModal({
   guildId,
   onClose,
   hideProvidedResources = false,
+  checkedKeys,
+  onToggleResourceCheck,
+  capturedOcreNames,
+  onOpenOcre,
+  dungeonStates,
+  dungeonBusyKey = null,
+  dungeonOthers = [],
+  onSetDungeon,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -75,18 +103,17 @@ export function RushOverlayQuestDetailModal({
   const resources = useMemo(() => getItemTags(seq.activityTags), [seq.activityTags]);
   const coord = useMemo(() => getSequenceCoord(seq), [seq]);
   const name = seq.subGuideName || seq.subGuideRef || milestone.title;
-  const noobsUrl = seq.dofuspourlesnoobsUrl;
-  const dbUrl = seq.dofusdbUrl;
+  // CodeQL `js/xss-through-dom` : allowlist unique du dépôt (http(s) uniquement,
+  // jamais javascript:/data:). Une URL refusée devient "" et le lien n'est pas rendu.
+  const noobsUrl = safeExternalUrl(seq.dofuspourlesnoobsUrl);
+  const dbUrl = safeExternalUrl(seq.dofusdbUrl);
   const dofusImg = resolveDofusLocalImage(milestone.title) || resolveDofusLocalImage(name);
   const noobsIcon = brandIconForUrl(noobsUrl);
   const dbIcon = brandIconForUrl(dbUrl);
   // Icône de type choisie en God (repli : rien, le titre suffit).
-  const seqIcon = resolveRushSeqIcon(seq.icon);
+  const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
-  // Guilde RÉELLE pour la section « Qui peut aider » : `null` quand la fiche est celle
-  // du guide public ou de son overlay PiP (`guildId` absent ou sentinelle `"public"`).
-  const helpersGuildId = isPublicOverlay(guildId) ? null : guildId ?? null;
 
   // Échap ferme le panneau : cette modale remplace un `Dialog` Radix, qui gérait
   // la touche pour nous.
@@ -96,6 +123,13 @@ export function RushOverlayQuestDetailModal({
   // fenêtre Document Picture-in-Picture, le `window` de l'onglet ne reçoit aucun événement —
   // Échap ne fermait donc rien dans la PiP (retour user du 08/10/2026).
   const dialogRef = useRef<HTMLDivElement>(null);
+  /**
+   * Portée de la DA : la fiche sort de l'arbre (portail maison, `document.body`).
+   * Le fournisseur du guide la rend à `RushOverlayQuestDetailModal` ; le studio
+   * God, qui monte le même composant hors de toute coque, reçoit `{}` et garde
+   * donc l'habillage produit.
+   */
+  const daScope = daScopeProps(useDaTheme());
   useEffect(() => {
     const win =
       dialogRef.current?.ownerDocument.defaultView ??
@@ -108,8 +142,9 @@ export function RushOverlayQuestDetailModal({
     return () => win.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /** Libellé de section : même famille que le texte, simplement atténué. */
-  const sectionLabel = "mb-1.5 text-[11px] font-semibold text-muted-foreground";
+  /** Libellé de section : un losange d'or + le libellé, jamais un pavé. */
+  const sectionLabel =
+    "mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground before:h-1 before:w-1 before:rotate-45 before:bg-gold/80 before:content-['']";
   /** Lien de source : action lisible, soulignée, sans pastille de couleur. */
   const sourceLink =
     "inline-flex items-center gap-1.5 text-[12px] font-semibold text-accent underline decoration-1 underline-offset-[0.28em] transition-colors hover:text-foreground";
@@ -127,26 +162,24 @@ export function RushOverlayQuestDetailModal({
         aria-modal="true"
         aria-labelledby="rush-quest-detail-title"
         ref={dialogRef}
-        className={cn(
-          "relative z-10 flex max-h-[85vh] w-full max-w-[26rem] flex-col overflow-hidden",
-          "rounded-[6px] border border-border-strong bg-elevated"
-        )}
+        {...daScope}
+        className="da-modal da-portal relative z-10 max-h-[85vh] w-full max-w-[32.5rem]"
       >
         {/* En-tête : illustration du Dofus visé, nom de la quête, chapitre */}
-        <header className="flex shrink-0 items-start gap-3 border-b border-border px-4 py-3">
+        <header className="flex shrink-0 items-start gap-3 border-b border-border-strong bg-surface/60 px-4 py-3">
           {dofusImg && (
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[4px] border border-border bg-surface">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[4px] border border-border-strong bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={dofusImg} alt="" className="h-7 w-7 object-contain" loading="lazy" />
+              <img src={dofusImg} alt="" className="h-8 w-8 object-contain" loading="lazy" />
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold/90">
               {isDone ? "Quête validée" : "Détails de la quête"}
             </p>
             <h2
               id="rush-quest-detail-title"
-              className="mt-0.5 flex items-center gap-1.5 text-[15px] font-semibold leading-snug text-foreground"
+              className="mt-0.5 flex items-center gap-1.5 font-serif text-[16px] font-semibold leading-snug text-foreground"
             >
               {seqIcon && (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -176,7 +209,7 @@ export function RushOverlayQuestDetailModal({
               <section className="py-3">
                 {/* Aucun intitulé « Position de lancement » : la puce de coordonnée dit déjà
                     ce qu'elle est, le libellé ne faisait que répéter (retour user 08/10). */}
-                <div className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
+                <div className="rush-carnet flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <RushCoordinateChip
                     coordText={`[${coord.x},${coord.y}]`}
@@ -195,7 +228,21 @@ export function RushOverlayQuestDetailModal({
 
             {dungeons.length > 0 && (
               <section className="py-3">
-                <RushOverlayDungeonCard dungeons={dungeons} guildId={guildId} />
+                <RushOverlayDungeonCard
+                  dungeons={dungeons}
+                  guildId={guildId}
+                  sequenceId={seq.id}
+                  states={dungeonStates}
+                  busyKey={dungeonBusyKey}
+                  others={dungeonOthers}
+                  onSet={
+                    onSetDungeon
+                      ? (dungeonKey, state) => onSetDungeon(seq.id, dungeonKey, state)
+                      : undefined
+                  }
+                  capturedOcreNames={capturedOcreNames}
+                  onOpenOcre={onOpenOcre}
+                />
               </section>
             )}
 
@@ -206,8 +253,8 @@ export function RushOverlayQuestDetailModal({
                 <p className={sectionLabel}>Conseils</p>
                 <div className="space-y-2">
                   {seq.tips && (
-                    <div className="rounded-[4px] border border-warning/30 bg-warning/[0.07] px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
-                      <RushTipLines text={seq.tips} />
+                    <div className="rounded-[4px] border-l-2 border-l-gold/70 bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
+              <RushTipLines text={seq.tips} constraints={seq.constraints ?? null} />
                     </div>
                   )}
                   {seq.note && (
@@ -222,7 +269,12 @@ export function RushOverlayQuestDetailModal({
             {/* Toggle du guide actif + quête déjà validée ⇒ plus rien à préparer : pas de bloc. */}
             {resources.length > 0 && !(hideProvidedResources && isDone) && (
               <section className="py-3">
-                <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
+                <QuestItemResourceGrid
+                  items={resources}
+                  showHeaderMeta={false}
+                  checkedKeys={checkedKeys}
+                  onToggleCheck={onToggleResourceCheck}
+                />
               </section>
             )}
 
@@ -230,19 +282,6 @@ export function RushOverlayQuestDetailModal({
               <section className="py-3">
                 <p className={sectionLabel}>Badges</p>
                 <RushOverlayTagSection tags={badgesTags} />
-              </section>
-            )}
-
-            {/* « Qui peut aider » est **guild-scopé** (action `getSequenceHelpers` +
-                membres de la guilde) : la règle partagée `isPublicOverlay` couvre
-                l'absence de guilde **et** la sentinelle `"public"` — que
-                `GuideOverlayClient` pose par défaut, donc pour le guide public ET son
-                overlay PiP. Sans cette garde, la fiche publique appelait une action de
-                guilde et affichait « Aucun membre ne correspond pour l'instant »
-                (mesuré le 08/10/2026). Même traitement que `RushOverlayDungeonCard`. */}
-            {helpersGuildId && (
-              <section className="py-3">
-                <QuestHelpersSection guildId={helpersGuildId} seq={seq} />
               </section>
             )}
 

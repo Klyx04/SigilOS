@@ -37,6 +37,43 @@ updates:
       prefix: "chore(deps)"
 
   # ─────────────────────────────────────────────────────────
+  # NPM Dependencies — Discord bot (services/discord-bot)
+  # Le bot est un projet Node autonome (package.json + lockfile
+  # dédiés) : sans cette entrée, ses dépendances (discord.js, pg,
+  # Prisma) ne sont jamais proposées en mise à jour.
+  # ─────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/services/discord-bot"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    target-branch: "dev"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+          - "minor"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    reviewers:
+      - "Klyx04"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore(bot-deps)"
+
+  # ─────────────────────────────────────────────────────────
   # GitHub Actions (monitor CI action versions)
   # ─────────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"

@@ -18,6 +18,7 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { deleteProofFile } from "@/lib/storage-utils";
 import { createAuditLog } from "@/server/actions/audit-actions";
 import { grantRewards } from "@/server/actions/mission-actions";
+import { missionCategoryImage } from "@/lib/mission-category-images";
 
 const kamaDb = db as unknown as PrismaClient;
 
@@ -125,7 +126,12 @@ export async function internalValidateMissionSubmission(
             `[Mission] ${submission.mission.title}`,
             `Votre preuve a été ${resultMsg}`,
             undefined,
-            discordGuildId
+            discordGuildId,
+            undefined,
+            // Même picto de catégorie que le chemin dashboard (`mission-actions.ts`) : un membre
+            // validé depuis Discord doit voir la même notification qu'un membre validé depuis le site.
+            missionCategoryImage(submission.mission.category),
+            "MISSION"
         );
 
         // 6. Audit log
@@ -314,6 +320,20 @@ export async function internalReviewAchievementSubmission(
                 where: { id: submission.profileId },
                 data: { successPoints: submission.points }
             });
+
+            // Interrupteur « Succès validés » (chantier N, lot N-4) : la préférence existait dans
+            // le profil depuis N-1 mais **rien ne l'émettait** — elle ne filtrait donc rien. Une
+            // seule ligne de flux, le détail porte les points réellement accordés.
+            {
+                const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+                await emitGuildActivity({
+                    guildId: guildConfig.id,
+                    profileId: submission.profileId,
+                    kind: "succes",
+                    entityId: submissionId,
+                    detail: `${submission.points} points`,
+                });
+            }
         }
 
         // Cleanup proof file + image hash

@@ -11,7 +11,7 @@ name: Build & Push Images
 # Prérequis :
 #  - Secrets GitHub : GHCR_PAT (Personal Access Token avec
 #    write:packages) ou utiliser GITHUB_TOKEN (défaut).
-#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
+#  - Secrets du build : NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
 #    SENTRY_AUTH_TOKEN (upload des source maps → stack traces LISIBLES dans Sentry ;
 #    sans lui le bloc `sourcemaps {}` de `next.config.ts` est inerte).
 #    (définis dans Settings > Secrets and variables > Actions).
@@ -57,11 +57,16 @@ jobs:
           fetch-depth: 1
 
       - name: Log in to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # ⚠️ `GITHUB_TOKEN` seul ne suffit plus : mesuré le 09/11/2026 (run 42707337374), le
+          # build réussit puis le push est refusé — `403 Forbidden` sur le HEAD des blobs, puis
+          # `denied: permission_denied: write_package`. Le repli sur `GHCR_PAT` (PAT avec
+          # `write:packages`, déjà prévu en tête de ce fichier) rétablit l'écriture ; il suffit de
+          # créer le secret. Sans PAT, le comportement reste celui d'avant (aucune régression).
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       # ───────────────────────────────────────────────────
       # Déterminer le suffixe (beta/prod) selon la branche
@@ -147,7 +152,6 @@ jobs:
             retry_push "sigilos-${NAME}-${SUFFIX}" \
               -f Dockerfile \
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
-              --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
               --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
               --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${SENTRY_ENV}" \
               --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \

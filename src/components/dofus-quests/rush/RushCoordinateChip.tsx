@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
 import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { copyToClipboard } from "@/lib/clipboard";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,6 +66,7 @@ export function RushCoordinateChip({
   manualZaap = null,
   onOpenMap,
 }: RushCoordinateChipProps) {
+  const toast = useOverlayToast();
   const [copied, setCopied] = useState(false);
   const [copiedZaap, setCopiedZaap] = useState(false);
   const [zaap, setZaap] = useState<ChipZaap | null>(null);

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { toggleLegendaryPet } from "@/server/actions/legendary-actions";
-import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ExternalLink } from "lucide-react";
@@ -34,112 +33,91 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
     };
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xl font-black uppercase tracking-tighter text-foreground">
+        <div className="space-y-4">
+            <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
                     <Image
                         src="/assets/icons/croquette.png"
                         alt="Croquette légendaire"
-                        width={28}
-                        height={28}
-                        className="object-contain drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+                        width={22}
+                        height={22}
+                        className="object-contain"
                     />
-                    Service Légendaire — Familier & Monture
+                    <h4 className="text-sm font-bold text-foreground">
+                        Service Légendaire — Familier & Monture
+                    </h4>
                 </div>
-                <p className="text-muted-foreground text-sm">
-                    Déclarez si vous êtes en mesure de <strong className="text-foreground">rendre un familier, montilier ou une monture légendaire</strong> pour d'autres membres de la guilde.
-                    Cela implique d'avoir complété la quête prérequis et de posséder les croquettes nécessaires.
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                    Déclarez si vous pouvez rendre un familier, montilier ou une monture légendaire pour les membres de la guilde.
                 </p>
 
-                {/* Prerequisite quest link card */}
                 <a
                     href="https://www.dofuspourlesnoobs.com/les-animaux-fantastiques.html"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 group flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-border hover:border-warning/30 hover:bg-warning/5 transition-all duration-300"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface/50 border border-border hover:bg-surface text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                    {/* Dofus pour les noobs miniature */}
-                    <div className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-border bg-elevated flex items-center justify-center">
-                        <Image
-                            src="https://www.dofuspourlesnoobs.com/favicon.ico"
-                            alt="Dofus pour les noobs"
-                            width={32}
-                            height={32}
-                            className="object-contain"
-                            unoptimized
-                        />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-caption font-black uppercase tracking-widest text-warning/80 group-hover:text-warning transition-colors">
-                            Prérequis — Les Animaux Fantastiques
-                        </p>
-                        <p className="text-caption text-muted-foreground truncate mt-0.5">
-                            dofuspourlesnoobs.com · Guide complet de la quête
-                        </p>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-warning transition-colors shrink-0" />
+                    <span>Prérequis : Quête Les Animaux Fantastiques</span>
+                    <ExternalLink className="w-3 h-3" />
                 </a>
             </div>
 
             {/* Toggle — editable */}
             {!readOnly && (
-                <Card className="p-6 bg-surface/40 border-border rounded-2xl">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 flex items-center gap-4">
-                            <div className={`relative w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 ${canOffer ? "bg-warning/15 border-warning/40 " : "bg-elevated/50 border-border"}`}>
-                                <Image
-                                    src="/assets/icons/croquette.png"
-                                    alt="Croquette"
-                                    width={36}
-                                    height={36}
-                                    className={`object-contain transition-all duration-300 ${canOffer ? "drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] scale-110" : "grayscale opacity-40"}`}
-                                />
-                            </div>
-                            <div>
-                                <h4 className="text-foreground font-bold uppercase tracking-widest text-sm">
-                                    Peut rendre un familier / monture légendaire
-                                </h4>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    {canOffer
-                                        ? "✅ Vous proposez ce service — les membres peuvent vous contacter."
-                                        : "Activez si vous avez complété la quête et pouvez offrir ce service."}
-                                </p>
-                            </div>
+                <div className="p-4 bg-surface/50 border border-border rounded-xl flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${canOffer ? "bg-warning/15 border-warning/30" : "bg-surface border-border"}`}>
+                            <Image
+                                src="/assets/icons/croquette.png"
+                                alt="Croquette"
+                                width={24}
+                                height={24}
+                                className={`object-contain ${canOffer ? "" : "grayscale opacity-40"}`}
+                            />
                         </div>
-                        <Switch
-                            checked={canOffer}
-                            onCheckedChange={handleToggle}
-                            disabled={loading}
-                            className="data-[state=checked]:bg-warning"
-                        />
+                        <div>
+                            <p className="text-xs font-semibold text-foreground">
+                                Capacité de transmutation légendaire
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {canOffer
+                                    ? "Activé — visible sur votre profil et dans l'annuaire"
+                                    : "Non actif"}
+                            </p>
+                        </div>
                     </div>
-                </Card>
+                    <Switch
+                        checked={canOffer}
+                        onCheckedChange={handleToggle}
+                        disabled={loading}
+                        className="data-[state=checked]:bg-warning"
+                    />
+                </div>
             )}
 
             {/* Read-only view */}
             {readOnly && (
-                <Card className={`p-6 rounded-2xl flex items-center gap-4 ${canOffer ? "bg-warning/10 border-warning/30" : "bg-surface/20 border-border"}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${canOffer ? "bg-warning/15 border-warning/30" : "bg-elevated/30 border-border"}`}>
+                <div className={`p-4 rounded-xl flex items-center gap-3 border ${canOffer ? "bg-surface/50 border-warning/30" : "bg-surface/20 border-border"}`}>
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 ${canOffer ? "bg-warning/15 border-warning/30" : "bg-surface border-border"}`}>
                         <Image
                             src="/assets/icons/croquette.png"
                             alt="Croquette"
-                            width={32}
-                            height={32}
-                            className={`object-contain ${canOffer ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" : "grayscale opacity-30"}`}
+                            width={22}
+                            height={22}
+                            className={`object-contain ${canOffer ? "" : "grayscale opacity-30"}`}
                         />
                     </div>
                     <div>
-                        <p className={`font-bold text-sm uppercase tracking-widest ${canOffer ? "text-warning" : "text-muted-foreground"}`}>
-                            {canOffer ? "Propose le service légendaire" : "Service non disponible"}
+                        <p className={`text-xs font-semibold ${canOffer ? "text-warning" : "text-muted-foreground"}`}>
+                            {canOffer ? "Propose le service légendaire" : "Service non proposé"}
                         </p>
-                        <p className="text-muted-foreground text-xs mt-0.5">
+                        <p className="text-xs text-muted-foreground">
                             {canOffer
-                                ? "Ce joueur peut rendre un familier, montilier ou monture légendaire."
-                                : "Ce joueur ne propose pas ce service."}
+                                ? "Peut rendre un familier ou monture légendaire."
+                                : "Ce membre ne propose pas ce service."}
                         </p>
                     </div>
-                </Card>
+                </div>
             )}
         </div>
     );

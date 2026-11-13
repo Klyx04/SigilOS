@@ -36,16 +36,25 @@ export type AuditAction =
     | "MISSION_VALIDATED"     // Admin validated a member submission
     | "MISSION_REJECTED"      // Admin rejected a member submission
     | "MISSION_PUBLISH_DISCORD" // Admin published weekly mission notification to Discord
+    | "MISSION_PUBLISHED"     // Admin finalized weekly mission publication (silent or general)
     | "BONUS_PURCHASED"       // Member purchased a guild bonus
     | "BONUS_CANCELLED"       // Member cancelled a pending bonus
     | "POLL_CREATED"          // Poll created
     | "POLL_CLOSED"           // Poll closed
     | "POLL_DELETED"          // Poll deleted
     | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
+    // Module staff « Sondages programmés » (créneaux publiés automatiquement)
+    | "SCHEDULED_POLL_CREATED"   // Créneau créé (date + heure + minute)
+    | "SCHEDULED_POLL_UPDATED"   // Créneau modifié (même minute, mêmes options)
+    | "SCHEDULED_POLL_CANCELLED" // Créneau annulé avant échéance
+    | "SCHEDULED_POLL_PUBLISHED" // Créneau publié (automatique par le cron, ou à la main)
     | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
     | "MEMBER_BANNED"             // Member was banned on Discord
+    | "MEMBER_BAN_DELETED"        // Exclusion (tombstone) supprimée définitivement (31/10/2026)
     | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
     | "MEMBER_ANKAMA_ID_UPDATE"   // Manual Ankama ID override
+    | "MEMBER_COMMENT_UPDATED"    // Journal du staff : commentaire modifié (corps avant/après)
+    | "MEMBER_COMMENT_DELETED"    // Journal du staff : commentaire supprimé (corps conservé)
     | "PROFILE_ARCHIVED"          // Profile manually or automatically archived
     | "PROFILE_REACTIVATED"       // Archived profile restored to active
     | "PLATFORM_ARRIVAL"          // User first registered on platform
@@ -72,11 +81,23 @@ export type AuditAction =
     | "GUILDATON_SETTINGS_UPDATE"
     // S8.18 — supervision du Marché (God « Marché », `isGodLog: true`)
     | "GOD_MARKET_RESYNC"        // Resynchronisation Discord d'une annonce (ou lot)
+    | "GOD_POLL_EMBED_RESYNC"    // Rattrapage des embeds de sondages (barres, %, métadonnées)
     | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
     | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
     | "GOD_MARKET_SETTINGS"     // Réglages globaux (verrou plateforme + rétention)
+    // Cycle de vie des événements du calendrier (lot R1-P0, audit du 30/10/2026)
+    | "EVENT_STANDBY"           // Mise en pause / reprise d'un événement
+    | "EVENT_CLOSED"            // Clôture par le chemin générique
+    | "EVENT_CANCELLED"         // Annulation (l'événement reste en base, statut CANCELLED)
+    | "EVENT_DELETED"           // Suppression définitive
+    | "RAID_CLOSED"             // Clôture raid (score + présents sélectionnés)
+    | "RAID_CLOSURE_UNDONE"     // Annulation de clôture raid (remboursement XP + Kamas)
+    | "RAID_PRESENCE_CORRECTED" // Correction d'un statut de présence par un officier (R1)
     // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
-    | "GOD_MODULE_LOCK";
+    | "GOD_MODULE_LOCK"
+    // Guilde effacée définitivement — écrit par la purge (cron ou God), journal **plateforme**
+    // (`guildId: null`) pour survivre à la cascade. Cf. `src/server/guild-purge-core.ts`.
+    | "GUILD_PURGED";
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -93,11 +114,13 @@ export type AuditTargetType =
     | "GUILD"
     | "CHAT"
     | "POLL"
+    | "SCHEDULED_POLL"
     | "MEMBER"
     | "SYSTEM_GOD"
     | "WHITELIST"
     | "MAINTENANCE"
     | "NEWS"
+    | "GUILD_EVENT"
     | "DATA_SYNC";
 
 export type AuditLogEntry = {
@@ -142,14 +165,17 @@ export async function reportSecurityIncident(
     if (!rl.success) return { success: false, error: "Trop de signalements. Réessayez dans une minute." };
 
     try {
-        // Try to get server context for accurate pseudo
-        let actorName = session.user.name || "Membre";
-        try {
-            const ctx = await getUserContext(guildId);
-            if (ctx.name) actorName = ctx.name;
-        } catch (e) {
-            logger.warn("[Security] Context lookup failed, using session name", e);
+        // 🛡️ AUD-06/AUD-01 (audit 13/11/2026) : le `guildId` vient du client — on exige
+        // l'appartenance effective AVANT toute écriture ou alerte (fail-closed). Sans ce
+        // contrôle, un visiteur pouvait produire une fausse alerte « HIGH » au nom d'une
+        // autre guilde, et la notification God associée.
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            return { success: false, error: "Forbidden" };
         }
+        let actorName = ctx.name || session.user.name || "Membre";
+        // Borne la description : elle vient du client et part en base + Discord.
+        const safeDescription = String(description ?? "").slice(0, 2000);
 
         // 🛡️ FORENSICS: Get real security headers
         const { headers } = await import("next/headers");
@@ -164,7 +190,7 @@ export async function reportSecurityIncident(
             targetType: "CONTENT_SAFETY",
             targetId: incidentType,
             metadata: {
-                description,
+                description: safeDescription,
                 ...metadata,
                 ip,
                 severity: "HIGH"
@@ -185,7 +211,7 @@ export async function reportSecurityIncident(
 
             await sendSecurityAlert({
                 type: incidentType,
-                description,
+                description: safeDescription,
                 severity: "HIGH",
                 guildName,
                 userName: actorName,
@@ -194,6 +220,23 @@ export async function reportSecurityIncident(
                     logId: result.data?.logId
                 }
             });
+
+            // 🔐 AUD-01 (audit 13/11/2026) : la notification du panneau God est créée
+            // ICI, côté serveur, après la garde session + appartenance ci-dessus.
+            // `webOnly` évite un doublon Discord (`sendSecurityAlert` vient de poster).
+            try {
+                const { notifyGod } = await import("@/server/god-notifications");
+                await notifyGod({
+                    title: "🚫 Alerte sécurité",
+                    message: `${String(incidentType).slice(0, 64)} — ${safeDescription}`.slice(0, 500),
+                    type: "SECURITY_ALERT",
+                    success: false,
+                    webOnly: true,
+                    metadata: { guildId, logId: result.data?.logId, severity: "HIGH" },
+                });
+            } catch (notifErr) {
+                logger.warn("[Security] God notification best-effort failed", { error: String(notifErr) });
+            }
         }
 
         return { success: true };

@@ -34,6 +34,7 @@ import {
     groupGameDataErrors,
     summarizeGameDataErrors,
 } from "@/lib/game-data-error-causes";
+import type { ConditionUnknownBucket, ItemConditionsWatchSummary } from "@/lib/item-conditions-watch";
 
 const KEY = (dataset: GameDataDataset) => `game-data:sync:${dataset}`;
 const TTL_SECONDS = 7 * 24 * 3600;
@@ -107,7 +108,11 @@ export async function reportGameDataProgress(
 }
 
 /**
- * Fin de run : succès (OK, 100 %) ou échec (ERROR + message lisible).
+ * Fin de run : succès (OK, 100 %), succès **partiel** (PARTIAL) ou échec (ERROR + message lisible).
+ *
+ * `partial` (constat du 26/10/2026) : passe exécutée jusqu'au bout, mais des ressources
+ * secondaires ont échoué sans invalider le travail (icônes de sorts, par exemple). Le run reste
+ * « ok » (100 %, aucune erreur bloquante) mais son statut cesse de mentir : `PARTIAL`.
  *
  * 🔢 **Erreurs regroupées par cause** (chantier A3, 28/09/2026) : l'appelant peut désormais passer
  * le **lot complet** (`errors`, messages bruts) au lieu d'en choisir trois. Le regroupement et la
@@ -121,6 +126,8 @@ export async function finishGameDataRun(
     dataset: GameDataDataset,
     opts: {
         ok: boolean;
+        /** Passe exécutée mais **partielle** (ressources secondaires en échec) ⇒ statut `PARTIAL`. */
+        partial?: boolean;
         message?: string;
         error?: string;
         /** Messages bruts du lot (jamais tronqués à 3 par l'appelant : le compteur vient d'ici). */
@@ -133,7 +140,7 @@ export async function finishGameDataRun(
     const groups = failures.length > 0 ? capGameDataErrorGroups(groupGameDataErrors(failures)) : null;
     await writeState({
         ...current,
-        status: opts.ok ? "OK" : "ERROR",
+        status: opts.ok ? (opts.partial ? "PARTIAL" : "OK") : "ERROR",
         percent: opts.ok ? 100 : current.percent,
         done: opts.ok && current.total ? current.total : current.done,
         message: opts.message ?? current.message,
@@ -216,6 +223,28 @@ export async function getGameDataWatchState(dataset: GameDataDataset): Promise<G
 
 export async function setGameDataWatchState(dataset: GameDataDataset, state: GameDataWatchState): Promise<void> {
     await withRedis((c) => c.set(WATCH_KEY(dataset), JSON.stringify(state)));
+}
+
+// ─── Filigrane du référentiel des panoplies (26/10/2026) ─────────────────────
+// Les panoplies ne sont pas un `GameDataDataset` (pas de worker : le cœur vit dans
+// `src/lib/item-sets-siphon.ts` et tourne dans le cron `data-watch`). Elles ont donc leur
+// propre filigrane, **sans TTL** comme celui de la veille ciblée : un filigrane perdu provoque
+// une relecture complète (correct, seulement plus lourd).
+
+const ITEM_SETS_WATERMARK_KEY = "game-data:watch:item-sets";
+
+/** Dernier `updatedAt` distant traité pour les panoplies (`null` = jamais de passe ciblée). */
+export async function getItemSetsWatermark(): Promise<string | null> {
+    const raw = await withRedis((c) => c.get(ITEM_SETS_WATERMARK_KEY));
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    return trimmed === "" || !Number.isFinite(Date.parse(trimmed)) ? null : trimmed;
+}
+
+/** Pose le filigrane des panoplies (fail-open : Redis indisponible ⇒ ignoré). */
+export async function setItemSetsWatermark(value: string): Promise<void> {
+    if (!Number.isFinite(Date.parse(value))) return;
+    await withRedis((c) => c.set(ITEM_SETS_WATERMARK_KEY, value));
 }
 
 // ─── Filigrane des veilles delta (« rail » du 27/09/2026) ─────────────────────
@@ -333,3 +362,52 @@ export async function setBountyOrphansSnapshot(
     };
     await withRedis((c) => c.set(BOUNTY_ORPHANS_KEY, JSON.stringify(payload), "EX", TTL_SECONDS));
 }
+
+// ─── Veille des conditions d'équipement (26/10/2026) ─────────────────────────
+// Instantané agrégé des conditions **non évaluables** (par élément + opérateur) et des types
+// d'objet hors `VARIANT_SLOTS`. Écrit par `src/server/item-conditions-watch.ts`, lu par le cron
+// `data-watch` (alerte God) et repassable à la demande. Fail-open comme le reste du store.
+
+const ITEM_CONDITIONS_WATCH_KEY = "game-data:watch:item-conditions";
+
+function hydrateUnknownBuckets(raw: unknown): ConditionUnknownBucket[] {
+    if (!Array.isArray(raw)) return [];
+    const buckets: ConditionUnknownBucket[] = [];
+    for (const entry of raw.slice(0, 100)) {
+        if (!entry || typeof entry !== "object") continue;
+        const element = String((entry as { element?: unknown }).element ?? "").trim().slice(0, 60);
+        const operator = String((entry as { operator?: unknown }).operator ?? "").trim().slice(0, 8);
+        const count = Number((entry as { count?: unknown }).count);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        buckets.push({ element, operator, count: Math.floor(count) });
+    }
+    return buckets;
+}
+
+/** Dernier instantané de veille des conditions (`null` si jamais calculé / Redis indisponible). */
+export async function getItemConditionsWatchState(): Promise<ItemConditionsWatchSummary | null> {
+    const raw = await withRedis((c) => c.get(ITEM_CONDITIONS_WATCH_KEY));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<ItemConditionsWatchSummary>;
+        const num = (value: unknown) => (Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0);
+        return {
+            items: num(parsed.items),
+            atoms: num(parsed.atoms),
+            unknownAtoms: num(parsed.unknownAtoms),
+            unknown: hydrateUnknownBuckets(parsed.unknown),
+            unknownTypes: Array.isArray(parsed.unknownTypes)
+                ? parsed.unknownTypes.filter((t): t is string => typeof t === "string").slice(0, 100)
+                : [],
+            computedAt: typeof parsed.computedAt === "string" ? parsed.computedAt : "",
+        };
+    } catch {
+        return null;
+    }
+}
+
+/** Écrit l'instantané de veille (fail-open : Redis indisponible ⇒ ignoré). */
+export async function setItemConditionsWatchState(state: ItemConditionsWatchSummary): Promise<void> {
+    await withRedis((c) => c.set(ITEM_CONDITIONS_WATCH_KEY, JSON.stringify(state)));
+}
+

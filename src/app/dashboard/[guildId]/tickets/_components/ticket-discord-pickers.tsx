@@ -89,17 +89,23 @@ export function useDiscordRoles(guildId: string): { roles: Role[]; failed: boole
     return { roles, failed, loading };
 }
 
-/** Sélecteur de rôles Discord (liste blanche staff / rôles à notifier). */
+/** Sélecteur de rôles Discord (liste blanche staff / rôles à notifier / rôles bloqués). */
 export function TicketRolesPicker({
     guildId,
     value,
     onChange,
     description,
+    title,
+    triggerPlaceholder,
+    emptyTitle,
 }: {
     guildId: string;
     value: string[];
     onChange: (roleIds: string[]) => void;
     description?: string;
+    title?: string;
+    triggerPlaceholder?: string;
+    emptyTitle?: string;
 }) {
     const { roles, failed, loading } = useDiscordRoles(guildId);
 
@@ -125,6 +131,9 @@ export function TicketRolesPicker({
             onChange={onChange}
             roles={roles}
             description={description ?? "Ces rôles voient et traitent les tickets de ce parcours."}
+            title={title}
+            triggerPlaceholder={triggerPlaceholder}
+            emptyTitle={emptyTitle}
         />
     );
 }

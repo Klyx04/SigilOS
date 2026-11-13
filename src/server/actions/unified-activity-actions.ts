@@ -3,6 +3,8 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
+import { resolveGuildActivityKind, shouldNotifyGuildActivity } from "@/lib/guild-activity";
+import { isNotificationImageKind, sanitizeNotificationImageUrl } from "@/lib/notification-categories";
 
 export type ActivityType = 
     | "SERVICE" 
@@ -10,7 +12,18 @@ export type ActivityType =
     | "VAULT" 
     | "MISSION_VALIDATED" 
     | "OCRE_TRADE" 
-    | "DONATION_VALIDATED";
+    | "DONATION_VALIDATED"
+    // ── Activité de guilde (chantier N, lot N-2) : modules écrits par `logServiceActivity` ──
+    | "MISSIONS"
+    | "DONJONS"
+    | "SONGES"
+    | "OCRE"
+    | "EVENTS"
+    | "SUCCES"
+    | "DOFUS"
+    | "PALIERS"
+    | "LADDER"
+    | "OBJECTIFS";
 
 export interface UnifiedLog {
     id: string;
@@ -23,6 +36,33 @@ export interface UnifiedLog {
     };
     summary: string;
     metadata?: any;
+    /** Asset de l'objet annoncé (illustration de donjon, de Dofus…) — `null` pour la plupart des lignes. */
+    imageUrl?: string | null;
+    /** Ce que l'asset représente (`NotificationImageKind`). */
+    imageKind?: string | null;
+}
+
+/**
+ * Relit l'asset qu'`emitGuildActivity` range dans `metadata` — une ligne de flux porte déjà tout
+ * ce dont la bulle a besoin, donc **aucune migration** n'est nécessaire pour l'afficher.
+ *
+ * Fail-closed : `metadata` absent, `null` ou illisible ⇒ aucun asset (la bulle retombe sur le
+ * texte seul). Le chemin est revalidé ici — une valeur écrite en base il y a six mois n'est pas
+ * une garantie d'aujourd'hui.
+ */
+function readActivityAsset(metadata: unknown): { imageUrl: string | null; imageKind: string | null } {
+    if (typeof metadata !== "string" || metadata.length === 0) {
+        return { imageUrl: null, imageKind: null };
+    }
+    try {
+        const parsed = JSON.parse(metadata) as { imageUrl?: unknown; imageKind?: unknown };
+        return {
+            imageUrl: sanitizeNotificationImageUrl(parsed.imageUrl),
+            imageKind: isNotificationImageKind(parsed.imageKind) ? parsed.imageKind : null,
+        };
+    } catch {
+        return { imageUrl: null, imageKind: null };
+    }
 }
 
 import { redis } from "@/lib/redis";
@@ -56,6 +96,8 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
                 module: true,
                 summary: true,
                 createdAt: true,
+                // Asset de l'objet annoncé : rangé ici par `emitGuildActivity` (aucune migration).
+                metadata: true,
                 actor: {
                     select: {
                         pseudoDofus: true,
@@ -147,7 +189,8 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
                     discordNickname: log.actor.discordNickname,
                     image: log.actor.user.image
                 },
-                summary: log.summary
+                summary: log.summary,
+                ...readActivityAsset(log.metadata)
             });
         });
 
@@ -206,4 +249,34 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
         logger.error("[getUnifiedGuildActivity] Error:", error);
         return [];
     }
+}
+
+/**
+ * Chantier **N**, lot **N-3** — les lignes du flux **visibles pour ce membre**, filtrées par **ses**
+ * préférences d'annonce (`UserProfile.notificationPrefs`, règle pure `shouldNotifyGuildActivity`).
+ *
+ * Pourquoi ici et pas côté navigateur : un filtre client laisserait passer la donnée. Ici, une
+ * activité coupée **ne sort jamais de la base** vers ce membre (fail-closed, `AGENTS.md` §5).
+ *
+ * Les lignes hors activité de guilde (service, prêt, coffre, dons) ne sont **pas** concernées par
+ * ces préférences et traversent toujours : ces modules ont leurs propres réglages.
+ */
+export async function getGuildActivityToasts(guildId: string, limit = 6): Promise<UnifiedLog[]> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return [];
+
+    const prefs = user.profileId
+        ? (
+              await db.userProfile
+                  .findUnique({ where: { id: user.profileId }, select: { notificationPrefs: true } })
+                  .catch(() => null)
+          )?.notificationPrefs
+        : null;
+
+    const lines = await getUnifiedGuildActivity(guildId, limit);
+    return lines.filter((line) => {
+        const kind = resolveGuildActivityKind(line.type);
+        if (!kind) return true;
+        return shouldNotifyGuildActivity({ kind, prefs });
+    });
 }

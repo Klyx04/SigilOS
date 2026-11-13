@@ -17,7 +17,7 @@ import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
 import { fetchGuildBans, fetchAllGuildMembers, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } from "@/server/discord";
-import { sendLifecycleNotification } from "./lifecycle-actions";
+import { sendLifecycleNotification, closeOrphanContentForGuild } from "./lifecycle-actions";
 import { isGuildUnavailableError } from "@/lib/discord-guild-errors";
 
 interface SyncResult {
@@ -31,6 +31,8 @@ interface SyncResult {
         totalDiscordMembers: number;
         totalActiveProfiles: number;
         skipped: number;
+        /** Contenu fantôme fermé par la passe `closeOrphanContentForGuild` (lot B, 30/10/2026). */
+        orphans?: { profiles: number; dj: number; runs: number; events: number; market: number };
     };
 }
 
@@ -587,6 +589,14 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
             totalActiveProfiles: profiles.filter(p => p.status === "ACTIVE").length,
             skipped: 0
         };
+
+        // Filet « contenu fantôme » (lot B, 30/10/2026) : un profil non actif — y compris
+        // celui que le BOT a archivé (il n'a pas accès à `src/`) — voit son contenu publié
+        // fermé ici. Idempotent et borné : la passe ne relit que ce qui est encore ouvert.
+        const orphans = await closeOrphanContentForGuild(discordGuildId, { limit: 25 });
+        if (orphans.profiles > 0) {
+            result.details.orphans = orphans;
+        }
 
     } catch (error) {
         result.success = false;

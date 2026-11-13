@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
     Plus,
     Sparkles,
-    Clock,
-    Users,
     Lock,
     Trash2,
     GripVertical,
@@ -17,7 +15,6 @@ import {
     ChevronRight,
     AlertTriangle,
     X,
-    Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +35,19 @@ import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import {
+    POLL_DESCRIPTION_MAX_LENGTH,
+    POLL_DESCRIPTION_MIN_LENGTH,
+    POLL_OPTION_MIN_COUNT,
+    POLL_TITLE_MAX_LENGTH,
+    pollTitleLengthError,
+} from "@/lib/polls/limits";
+import { PollCategoryTiles } from "./poll-category-tiles";
+import { PollVoteSettings } from "./poll-vote-settings";
+import { EmojiPicker } from "@/components/editor/emoji-picker";
+// Le plafond de durée d'un vote (30 jours) appartient aux règles du module
+// Sondages : on le tient d'ici plutôt que de recopier « 720 » une 2ᵉ fois.
+import { MAX_DURATION_HOURS } from "@/lib/polls/scheduling";
 
 interface PollCreatorProps {
     guildId: string;
@@ -58,18 +68,11 @@ interface PollCreatorProps {
     onSuccess?: () => void;
 }
 
-const CATEGORIES = [
-    { value: "SUGGESTION", label: "💡 Suggestion", color: "text-info" },
-    { value: "AMELIORATION", label: "🔧 Amélioration", color: "text-success" },
-    { value: "EVENT", label: "🎉 Événement", color: "text-warning" },
-    { value: "MISSION", label: "🎯 Mission", color: "text-danger" },
-    { value: "AUTRE", label: "📋 Autres", color: "text-violet-400" },
-];
-
 const DEFAULT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
-// Plafond de durée d'un sondage : 30 jours max. Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
-const MAX_EXPIRY_HOURS = 720;
+// Plafond de durée d'un sondage : 30 jours max (règle partagée `MAX_DURATION_HOURS`).
+// Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
+const MAX_EXPIRY_HOURS = MAX_DURATION_HOURS;
 
 export function PollCreator({
     guildId,
@@ -83,6 +86,8 @@ export function PollCreator({
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
+    /** Zone de description : sert à insérer un emoji **au curseur**. */
+    const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
     // Steps (modèle DJ/songes : formulaire → configuration Discord)
     const [step, setStep] = useState(1);
@@ -100,7 +105,6 @@ export function PollCreator({
         { label: "", emoji: "2️⃣" },
     ]);
     const [allowMultipleVotes, setAllowMultipleVotes] = useState(false);
-    const [isAnonymous, setIsAnonymous] = useState(false);
     const [hasExpiry, setHasExpiry] = useState(false);
     const [expiryHours, setExpiryHours] = useState(24);
 
@@ -124,7 +128,6 @@ export function PollCreator({
             setCategory(editPoll.category);
             setOptions(editPoll.options.map((o: any) => ({ label: o.label, emoji: o.emoji || "" })));
             setAllowMultipleVotes(editPoll.allowMultipleVotes);
-            setIsAnonymous(editPoll.isAnonymous);
             setHasExpiry(!!editPoll.expiresAt);
             if (editPoll.expiresAt) {
                 const hours = Math.round((new Date(editPoll.expiresAt).getTime() - new Date(editPoll.createdAt).getTime()) / (1000 * 60 * 60));
@@ -226,7 +229,6 @@ export function PollCreator({
         setCategory("SUGGESTION");
         setOptions([{ label: "", emoji: "1️⃣" }, { label: "", emoji: "2️⃣" }]);
         setAllowMultipleVotes(false);
-        setIsAnonymous(false);
         setHasExpiry(false);
         setExpiryHours(24);
         setPublishToDiscord(!!discordSetup?.channelId);
@@ -255,6 +257,27 @@ export function PollCreator({
 
 
 
+    /**
+     * Insertion d'un emoji **à la position du curseur** : un emoji expliqué dans
+     * une description part dans l'embed, il doit atterrir là où l'auteur regarde
+     * (jamais collé à la fin, ce qui obligerait à recouper le texte à la main).
+     */
+    const insertEmoji = (emoji: string) => {
+        const el = descriptionRef.current;
+        if (!el) {
+            setDescription((prev) => prev + emoji);
+            return;
+        }
+        const start = el.selectionStart ?? description.length;
+        const end = el.selectionEnd ?? start;
+        setDescription(description.slice(0, start) + emoji + description.slice(end));
+        requestAnimationFrame(() => {
+            el.focus();
+            const caret = start + emoji.length;
+            el.setSelectionRange(caret, caret);
+        });
+    };
+
     const executeSubmit = () => {
         const expiresAt = hasExpiry
             ? new Date(Date.now() + Math.min(expiryHours, MAX_EXPIRY_HOURS) * 60 * 60 * 1000).toISOString()
@@ -274,7 +297,6 @@ export function PollCreator({
                     emoji: o.emoji || undefined,
                 })),
                 allowMultipleVotes,
-                isAnonymous,
                 expiresAt,
                 publishToDiscord: finalPublishToDiscord,
                 discordChannelId: discordSetup?.channelId || undefined,
@@ -300,10 +322,10 @@ export function PollCreator({
     };
 
     const isValid =
-        title.trim().length >= 3 &&
-        title.trim().length <= 80 &&
-        description.trim().length >= 5 &&
-        options.filter(o => o.label.trim()).length >= 2;
+        !pollTitleLengthError(title) &&
+        description.trim().length >= POLL_DESCRIPTION_MIN_LENGTH &&
+        description.trim().length <= POLL_DESCRIPTION_MAX_LENGTH &&
+        options.filter(o => o.label.trim()).length >= POLL_OPTION_MIN_COUNT;
 
     return (
         <>
@@ -313,10 +335,14 @@ export function PollCreator({
                         <Button
                             disabled={microStatus?.holder && !microStatus?.isMicroHolder}
                             className={cn(
-                                "gap-2 transition-all font-bold uppercase tracking-wider text-caption h-11 px-6 rounded-xl",
+                                // MÊME hauteur / padding / graisse que « Documentation » et
+                                // « Tutoriel » du même en-tête : trois boutons de tailles
+                                // différentes, c'est le défaut le plus visible. L'accent
+                                // (`info`) reste réservé à cette action.
+                                "gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold transition-colors",
                                 microStatus?.holder && !microStatus?.isMicroHolder
-                                    ? "bg-elevated text-muted-foreground border border-border cursor-not-allowed"
-                                    : "bg-info hover:bg-info text-info-foreground shadow-lg shadow-cyan-900/20"
+                                    ? "bg-surface/40 text-muted-foreground border border-border cursor-not-allowed"
+                                    : "bg-info hover:bg-info/90 text-info-foreground border border-info"
                             )}
                         >
                             {microStatus?.holder && !microStatus?.isMicroHolder ? (
@@ -326,7 +352,7 @@ export function PollCreator({
                                 </>
                             ) : (
                                 <>
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3.5 h-3.5" />
                                     Nouveau sondage
                                 </>
                             )}
@@ -426,47 +452,27 @@ export function PollCreator({
                                                 </label>
                                                 <span className={cn(
                                                     "text-caption font-bold",
-                                                    title.length > 70 ? "text-warning" : "text-muted-foreground/60"
+                                                    title.length > POLL_TITLE_MAX_LENGTH - 10 ? "text-warning" : "text-muted-foreground/60"
                                                 )}>
-                                                    {title.length}/80
+                                                    {title.length}/{POLL_TITLE_MAX_LENGTH}
                                                 </span>
                                             </div>
                                             <Input
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="Ex: Quelle refonte pour les grades ?"
-                                                maxLength={80}
+                                                maxLength={POLL_TITLE_MAX_LENGTH}
                                                 className="h-14 bg-surface/60 border-border text-foreground placeholder:text-muted-foreground text-lg font-bold rounded-xl focus:ring-info/20 focus:border-info/30 transition-all shadow-inner focus:outline-none"
                                             />
                                         </div>
                                         <div className="space-y-3">
                                             <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Thématique</label>
-                                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                                {CATEGORIES.map((c) => {
-                                                    const isSelected = category === c.value;
-                                                    return (
-                                                        <button
-                                                            key={c.value}
-                                                            type="button"
-                                                            onClick={() => setCategory(c.value)}
-                                                            className={cn(
-                                                                "relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
-                                                                isSelected
-                                                                    ? "bg-surface border-border-strong shadow-lg"
-                                                                    : "bg-surface border-border hover:bg-surface opacity-60"
-                                                            )}
-                                                        >
-                                                            <span className="text-xl mb-1">{c.label.split(" ")[0]}</span>
-                                                            <span className={cn(
-                                                                "text-caption font-bold uppercase tracking-tight text-center break-words min-w-0",
-                                                                isSelected ? c.color : "text-muted-foreground"
-                                                            )}>
-                                                                {c.label.split(" ").slice(1).join(" ")}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                            {/* Tuiles partagées avec la modale staff : une seule liste de
+                                                catégories, 3 colonnes sur petit écran (aucun libellé qui déborde). */}
+                                            <PollCategoryTiles
+                                                value={category}
+                                                onChange={(next) => setCategory(next)}
+                                            />
                                         </div>
                                     </div>
 
@@ -490,18 +496,22 @@ export function PollCreator({
                                                     ? "text-warning"
                                                     : "text-muted-foreground/60"
                                             )}>
-                                                {description.length}/500 {description.trim().length > 0 && description.trim().length < 5 && "(min. 5 car.)"}
+                                                {description.length}/{POLL_DESCRIPTION_MAX_LENGTH} {description.trim().length > 0 && description.trim().length < POLL_DESCRIPTION_MIN_LENGTH && `(min. ${POLL_DESCRIPTION_MIN_LENGTH} car.)`}
                                             </span>
+                                            {/* Emoji : inséré À LA POSITION DU CURSEUR (grand choix,
+                                                composant partagé avec le profil et la doc). */}
+                                            <EmojiPicker onSelect={insertEmoji} />
                                         </div>
                                         <textarea
+                                            ref={descriptionRef}
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
-                                            rows={3}
-                                            placeholder="Contextualisez votre question, expliquez les choix et les enjeux... (sera affiché sur Discord et dans le dashboard)"
-                                            maxLength={500}
+                                            rows={5}
+                                            placeholder="Contextualisez votre question, expliquez les choix et les enjeux... (retours à la ligne respectés dans l'embed Discord et le dashboard)"
+                                            maxLength={POLL_DESCRIPTION_MAX_LENGTH}
                                             className={cn(
                                                 "w-full bg-surface/60 hover:bg-surface/80 border rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none placeholder:text-muted-foreground",
-                                                description.trim().length > 0 && description.trim().length < 5
+                                                description.trim().length > 0 && description.trim().length < POLL_DESCRIPTION_MIN_LENGTH
                                                     ? "border-warning/50 focus:border-warning focus:ring-2 focus:ring-warning/10"
                                                     : "border-border focus:border-info/50 focus:ring-2 focus:ring-info/10"
                                             )}
@@ -582,105 +592,19 @@ export function PollCreator({
                                         </div>
                                     </div>
 
-                                    {/* Settings Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-info/10">
-                                                        <Users className="w-4 h-4 text-info" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Votes multiples</p>
-                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Plusieurs choix possibles</p>
-                                                    </div>
-                                                </div>
-                                                <Switch checked={allowMultipleVotes} onCheckedChange={setAllowMultipleVotes} className="scale-90" />
-                                            </div>
-
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-warning/10">
-                                                        <Clock className="w-4 h-4 text-warning" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Expiration</p>
-                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Fin automatique</p>
-                                                    </div>
-                                                </div>
-                                                <Switch checked={hasExpiry} onCheckedChange={setHasExpiry} className="scale-90" />
-                                            </div>
-
-                                            <AnimatePresence mode="wait">
-                                                {hasExpiry && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="grid grid-cols-4 gap-2 p-1 rounded-xl bg-surface/80 border border-border mt-3">
-                                                            {[
-                                                                { value: 24, label: "24h", emoji: "⏳" },
-                                                                { value: 48, label: "48h", emoji: "⌛" },
-                                                                { value: 168, label: "7j", emoji: "📅" },
-                                                                { value: 720, label: "30j", emoji: "📆" }
-                                                            ].map((opt) => (
-                                                                <button
-                                                                    key={opt.value}
-                                                                    type="button"
-                                                                    onClick={() => setExpiryHours(opt.value)}
-                                                                    className={cn(
-                                                                        "relative py-3 rounded-lg text-caption font-bold uppercase tracking-widest transition-all",
-                                                                        expiryHours === opt.value
-                                                                            ? "text-info"
-                                                                            : "text-muted-foreground hover:text-muted-foreground hover:bg-surface"
-                                                                    )}
-                                                                >
-                                                                    {expiryHours === opt.value && (
-                                                                        <motion.div
-                                                                            layoutId="expiry-bg"
-                                                                            className="absolute inset-0 bg-info/10 border border-info/20 rounded-lg"
-                                                                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                                                        />
-                                                                    )}
-                                                                    <span className="relative z-10 flex flex-col items-center gap-1">
-                                                                        <span className="text-sm opacity-80">{opt.emoji}</span>
-                                                                        <span>{opt.label}</span>
-                                                                    </span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                            {!hasExpiry && (
-                                                <p className="text-caption text-muted-foreground mt-2">
-                                                    Sans date : le sondage sera fermé automatiquement après 30 jours.
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-info/10">
-                                                    <Info className="w-4 h-4 text-info" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-caption font-bold text-foreground uppercase tracking-tight">Lien externe (Optionnel)</p>
-                                                    <p className="text-caption text-muted-foreground font-medium tracking-tight">URL associée au sondage</p>
-                                                </div>
-                                            </div>
-                                            <Input
-                                                type="url"
-                                                placeholder="https://..."
-                                                value={externalUrl}
-                                                onChange={(e) => setExternalUrl(e.target.value)}
-                                                className="bg-background/40 border-border focus:border-info/30 text-foreground rounded-xl text-xs h-10 focus:outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
+                                    {/* Réglages du vote : composant PARTAGÉ avec la modale staff
+                                        (mêmes durées proposées d'un clic, même carte « Lien externe »).
+                                        L'anonymat n'est pas passé : cette modale ne le propose pas. */}
+                                    <PollVoteSettings
+                                        allowMultipleVotes={allowMultipleVotes}
+                                        onAllowMultipleVotesChange={setAllowMultipleVotes}
+                                        hasExpiry={hasExpiry}
+                                        onHasExpiryChange={setHasExpiry}
+                                        expiryHours={expiryHours}
+                                        onExpiryHoursChange={setExpiryHours}
+                                        externalUrl={externalUrl}
+                                        onExternalUrlChange={setExternalUrl}
+                                    />
 
                                     {/* Footer - Details Step */}
                                     <div className="pt-8 border-t border-border mt-4">

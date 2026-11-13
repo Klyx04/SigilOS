@@ -204,7 +204,7 @@ worker.on("completed", async (job) => {
     
     // Notify God Dashboard for manual/critical syncs
     if (job.name === "manual-metamob-sync") {
-        const { notifyGod } = await import("../server/actions/god-notif-actions");
+        const { notifyGod } = await import("../server/god-notifications");
         await notifyGod({
             title: "Sync Metamob (Dofusbook) Réussie",
             message: `La synchronisation manuelle pour l'utilisateur ${job.data.userId} s'est terminée avec succès.`,
@@ -218,7 +218,7 @@ worker.on("completed", async (job) => {
 worker.on("failed", async (job, err) => {
     logger.error(`[Worker] ❌ Job ${job?.id} a échoué: ${err.message}`);
     
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: "Sync Metamob (Dofusbook) ÉCHOUÉE",
         message: `Le job ${job?.id} a échoué : ${err.message}`,
@@ -272,6 +272,46 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur purge notifications:", { error: String(err) });
         }
 
+        // FUNC-02b: purge des notifications **non lues** de plus de 90 jours.
+        //
+        // Pourquoi une seconde passe (mesure du 15/10/2026 sur la bêta) : la purge ci-dessus ne
+        // visait que `read: true` — or **66 lignes sur 11 722** étaient lues. Le filet ne couvrait
+        // donc que 0,56 % de la table, et 11 656 annonces que personne n'ouvrirait jamais
+        // s'accumulaient sans borne. Une annonce non ouverte au bout de trois mois est morte : on
+        // la supprime au lieu de la garder par principe (les deux fan-outs qui les produisaient
+        // sont supprimés au même lot — la table ne se remplira plus de la même façon).
+        //
+        // ⚠️ **Par lots** (500) et par un **nombre de passes borné** : un `deleteMany` global sur
+        // des dizaines de milliers de lignes tient un verrou long, gonfle le WAL et bloque les
+        // lectures de la cloche. Le reliquat est repris à la passe du lendemain — la purge est
+        // idempotente (on ne supprime que ce qui est antérieur au seuil).
+        try {
+            const BATCH_SIZE = 500;
+            const MAX_PASSES = 40; // 40 × 500 = 20 000 lignes/jour au maximum
+            const unreadCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            let purgedUnread = 0;
+
+            for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+                const stale = await db.notification.findMany({
+                    where: { read: false, createdAt: { lt: unreadCutoff } },
+                    select: { id: true },
+                    take: BATCH_SIZE,
+                });
+                if (stale.length === 0) break;
+
+                const removed = await db.notification.deleteMany({
+                    where: { id: { in: stale.map((n) => n.id) } },
+                });
+                purgedUnread += removed.count ?? 0;
+
+                if (stale.length < BATCH_SIZE) break;
+            }
+
+            logger.info(`[Cleanup] 🗑️ ${purgedUnread} notifications non lues supprimées (> 90j).`);
+        } catch (err) {
+            logger.error("[Cleanup] Erreur purge notifications non lues:", { error: String(err) });
+        }
+
         // FUNC-03: Expire stale OcreTradeRequests (PENDING > 7 days → CANCELED)
         try {
             const expiredTrades = await db.ocreTradeRequest.updateMany({
@@ -313,17 +353,25 @@ const cleanupWorker = new Worker(
                         select: { id: true },
                     });
 
-                    // Notify user directly via DB
-                    await db.notification.create({
-                        data: {
-                            userId: req.userId,
-                            guildId: guild?.id || null,
-                            type: "SYSTEM_INFO",
-                            title: "Candidature expirée",
-                            message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
-                            link: `/dashboard/${req.run.guildId}/songes`,
-                        },
-                    });
+                    // 🛡️ Fail-closed (15/10/2026) : sans guilde interne résolue, on n'écrit **rien**
+                    // (une ligne sans guilde s'affichait dans **toutes** les guildes du destinataire).
+                    if (!guild?.id) {
+                        logger.warn("[Cleanup] annonce non écrite : guilde non résolue", {
+                            discordGuildId: req.run.guildId,
+                        });
+                    } else {
+                        // Notify user directly via DB
+                        await db.notification.create({
+                            data: {
+                                userId: req.userId,
+                                guildId: guild.id,
+                                type: "SYSTEM_INFO",
+                                title: "Candidature expirée",
+                                message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
+                                link: `/dashboard/${req.run.guildId}/songes`,
+                            },
+                        });
+                    }
                 }
                 logger.info(`[Cleanup] ⏳ ${expiredRequests.length} candidatures Songes expirées auto-rejetées.`);
             }
@@ -331,35 +379,18 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur expiration candidatures Songes:", { error: String(err) });
         }
 
-        // SONGES: Auto-abandon inactive runs (> 3 days without ANY member/floor/join activity)
-        try {
-            const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-            // On exclut les runs qui ont eu une candidature ou un floor actif récemment
-            const inactiveRuns = await db.dreamRun.findMany({
-                where: {
-                    status: { in: ["RECRUITING", "IN_PROGRESS"] },
-                    updatedAt: { lt: threeDaysAgo },
-                    // Exclure les runs qui ont eu une récente joinRequest ou floor
-                    joinRequests: { none: { createdAt: { gt: threeDaysAgo } } },
-                    floors: { none: { completedAt: { gt: threeDaysAgo } } },
-                },
-                select: { id: true, guildId: true },
-            });
-
-            for (const run of inactiveRuns) {
-                await db.dreamRun.update({
-                    where: { id: run.id },
-                    data: { status: "ABANDONED", completedAt: new Date() },
-                });
-            }
-
-            if (inactiveRuns.length > 0) {
-                logger.info(`[Cleanup] 🌙 ${inactiveRuns.length} runs Songes inactives abandonnées (> 3j sans activité).`);
-            }
-        } catch (err) {
-            logger.error("[Cleanup] Erreur abandon runs Songes:", { error: String(err) });
-        }
+        // ⚠️ AUCUN abandon de run Songes ici (itération debug du 05/11/2026).
+        //
+        // Ce job passait en `ABANDONED` toute run RECRUITING/IN_PROGRESS sans activité
+        // depuis 3 jours : ni rappel, ni notification, ni suppression du post Discord.
+        // D'où des runs qui disparaissaient du site (la page ne liste que RECRUITING /
+        // IN_PROGRESS / COMPLETED) en laissant un sujet de forum vivant avec ses boutons.
+        //
+        // Le calendrier produit est J+7 / J+15 / J+20 / J+21, porté par le cron
+        // `cleanup-inactive-posts` (`processInactivePostsRemindersAndAutoClose`, règle
+        // pure `src/lib/songes/run-status.ts`), qui clôture par `abandonDreamRun` et
+        // purge l'embed. Ne pas réintroduire de clôture ici : elle court-circuiterait
+        // les trois rappels et laisserait le post Discord orphelin.
 
         logger.info(`[Cleanup] ✅ Nettoyage quotidien terminé.`);
     },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
-import { join, normalize, extname } from "path";
+import { join, normalize, extname, sep } from "path";
 import { logger } from "@/lib/logger";
 
 // =============================================================================
@@ -23,6 +23,10 @@ import { logger } from "@/lib/logger";
 // =============================================================================
 
 const UPLOAD_ROOT = join(process.cwd(), "public", "uploads");
+// AUD-02 (audit 13/11/2026) : `startsWith(UPLOAD_ROOT)` seul est vulnérable au
+// contournement de préfixe (`public/uploads_backup` commence par `public/uploads`).
+// On exige la racine exacte ou la racine suivie du séparateur.
+const UPLOAD_ROOT_WITH_SEP = UPLOAD_ROOT.endsWith(sep) ? UPLOAD_ROOT : UPLOAD_ROOT + sep;
 
 // Allowed MIME types for uploaded files
 const MIME_TYPES: Record<string, string> = {
@@ -44,9 +48,10 @@ export async function GET(
     // Reconstruct the relative path from URL segments
     const relativePath = segments.join("/");
 
-    // 🛡️ Security: Prevent directory traversal attacks
+    // 🛡️ Security: Prevent directory traversal attacks (et le contournement de
+    // préfixe, cf. AUD-02).
     const resolvedPath = normalize(join(UPLOAD_ROOT, relativePath));
-    if (!resolvedPath.startsWith(UPLOAD_ROOT)) {
+    if (resolvedPath !== UPLOAD_ROOT && !resolvedPath.startsWith(UPLOAD_ROOT_WITH_SEP)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

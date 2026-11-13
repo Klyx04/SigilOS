@@ -77,17 +77,26 @@ export default async function DashboardLayout({
     const maintenanceOn = configRes.success && configRes.data ? (configRes.data as any).maintenanceMode === true : false;
     if (maintenanceOn) redirect("/maintenance");
 
-    // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
-    const accentHue = await db.guildConfig
-        .findUnique({ where: { discordGuildId: guildId }, select: { accentHue: true } })
-        .then(g => g?.accentHue ?? null)
-        .catch(() => null);
-
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") || "";
 
     // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
     if (!user.isAuthenticated) {
+        // ── PLATFORM BAN (God) : cause **distincte** de la bêta fermée, donc message distinct.
+        // Le contrôle est fait avant tout le reste dans `getUserContext` et à la connexion
+        // (`src/auth.ts`) : aucune action de guilde ne peut le lever.
+        if ((user as any).isPlatformBanned) {
+            return (
+                <AccessDenied
+                    guildId={guildId}
+                    title="Compte suspendu"
+                    message="Ce compte est suspendu de la plateforme SigilOS : l'accès au tableau de bord est fermé, quelle que soit la guilde. Si vous pensez qu'il s'agit d'une erreur, contactez le support SigilOS."
+                    banReason={(user as any).platformBanReason ?? null}
+                    variant="ban"
+                    action={<SignOutButton />}
+                />
+            );
+        }
         return (
             <AccessDenied
                 guildId={guildId}
@@ -99,13 +108,30 @@ export default async function DashboardLayout({
         );
     }
 
-    // ── SERVER DELETED: specific message + signout button ──
+    // ── LIMITE DE GUILDES (LG-1/LG-2/LG-3, `docs/ROADMAP.md`) ──
+    // Le serveur a refusé de créer le profil (garde G1) : on **dit** pourquoi, au lieu de laisser
+    // l'écran générique « Bêta Fermée » qui ferait croire à un problème de whitelist.
+    if ((user as any).guildLimitReached) {
+        return (
+            <AccessDenied
+                guildId={guildId}
+                title="Limite de guildes atteinte"
+                message="Vous faites déjà partie du nombre maximum de guildes sur SigilOS. Quittez une guilde existante depuis le portail, puis revenez sur ce tableau de bord."
+                variant="lock"
+            />
+        );
+    }
+
+    // ── SERVER DELETED: l'état de la **guilde** prime sur celui du profil ──
+    // 🐛 Le texte promettait une déconnexion immédiate : faux. La session est au niveau **compte** ;
+    // perdre une guilde ne déconnecte personne (seule la purge du compte à J+30 le fait).
     if ((user as any).isServerDeleted) {
         return (
             <AccessDenied
                 title="Serveur Supprimé"
-                message={`Le serveur Discord "${user.guildName}" a été supprimé. SigilOS n'est plus accessible pour ce serveur. Vous allez être déconnecté.`}
+                message={`Le serveur Discord "${user.guildName}" a été supprimé ou retiré de SigilOS. Vos autres serveurs ne sont pas concernés. Le propriétaire peut demander une restauration au support pendant 30 jours. Si vous n'avez aucune autre guilde sur SigilOS, votre compte sera supprimé à la même échéance.`}
                 variant="lock"
+                countdownDate={(user as any).scheduledDeletion}
                 action={<SignOutButton />}
             />
         );
@@ -127,10 +153,44 @@ export default async function DashboardLayout({
 
     // ── BANNED ──
     if ((user as any).isBanned) {
+        // Option A (décision du 25/10/2026) : dire POURQUOI (motif du tombstone) et QUI peut
+        // réintégrer — des **noms de rôles**, jamais des personnes. Best-effort : sans RBAC
+        // configuré ou sans Discord, l'écran reste exactement celui d'avant (aucune erreur
+        // ajoutée au refus, aucun ralentissement en cas de panne).
+        let contactRoles: string[] = [];
+        try {
+            const { rolesGrantingMemberManagement } = await import("@/lib/permissions");
+            const banGuild = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { rolesMapping: true },
+            });
+            const reintegratorRoleIds = rolesGrantingMemberManagement(
+                (banGuild?.rolesMapping as Record<string, string[]> | null) ?? null
+            );
+            if (reintegratorRoleIds.length > 0) {
+                const { fetchGuildRoles } = await import("@/server/discord");
+                const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false }).catch(
+                    () => [] as { id: string; name: string }[]
+                );
+                const nameById = new Map(guildRoles.map((role) => [role.id, role.name]));
+                contactRoles = [
+                    ...new Set(
+                        reintegratorRoleIds
+                            .map((roleId) => nameById.get(roleId))
+                            .filter((name): name is string => typeof name === "string" && name.length > 0)
+                    ),
+                ].slice(0, 4);
+            }
+        } catch {
+            contactRoles = [];
+        }
+
         return (
             <AccessDenied
-                title="Accès Banni"
+                title="Membre exclu"
                 message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
+                banReason={(user as any).banReason ?? null}
+                contactRoles={contactRoles}
                 variant="ban"
                 action={<SignOutButton variant="ghost" />}
                 countdownDate={(user as any).scheduledDeletion}
@@ -219,6 +279,7 @@ export default async function DashboardLayout({
     // (anti-boucle : `x-pathname` vide = pas de redirect, le wizard couvre) ;
     // sans accès au module profil, rien à configurer ici.
     if (
+        user.isOnboardingComplete &&
         user.hasPseudoIssue &&
         !user.isSuperAdmin &&
         user.canViewProfile &&
@@ -291,9 +352,10 @@ export default async function DashboardLayout({
                 {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
                     (pas de div empilé, ne casse pas le flex h-screen) :
                     --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
-                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection. */}
+                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection.
+                    La teinte n'est plus choisissable par la guilde (onglet « Apparence »
+                    retiré le 14/10/2026) : c'est la teinte par défaut du design system. */}
                 <GuildAccentStyle
-                    hue={accentHue}
                     className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout"
                 >
 

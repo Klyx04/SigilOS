@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo } from "react";
-import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
+import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, isDofusbookNonStatCode, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
 import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
-import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X } from "lucide-react";
+import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
@@ -17,6 +17,16 @@ import { toast } from "sonner";
 import { DofusSpellsTab } from "@/components/dofus/dofus-spells-tab";
 import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-tab";
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
+import { getRuneForStat } from "@/lib/dofus-runes";
+import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
+import { applyVariantsToBuild, describeSavedVariants, explainVariantRefusal, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant, type VariantItemSets, type VariantRefusal } from "@/lib/dofus-variant-utils";
+import { clearLocalVariant, readLocalVariant, writeLocalVariant } from "@/lib/dofus-variant-storage";
+import { effectiveSlotIds } from "@/lib/dofus-variant-rules";
+import { renderDofusbookConstraints } from "@/lib/dofus-criteria";
+import { getVariantItemSets, saveBuildVariant } from "@/server/actions/gallery-actions";
+import { resolveItemPassive } from "@/lib/dofus-passives";
+import { computePods, formatPods } from "@/lib/dofus-pods";
+import { capActionPoints, capMovementPoints, capRange, capSummons, MAX_AP, MAX_MP, MAX_RANGE, MAX_SUMMONS } from "@/lib/dofus-caps";
 
 /** Icônes des onglets : vrais assets du jeu (aucune illustration IA). */
 const BUILD_TABS = [
@@ -45,6 +55,33 @@ interface DofusbookPreviewProps {
     initialData?: DofusbookPreviewData;
     /** Guilde courante : permet d'**enregistrer** les données récupérées par le navigateur. */
     guildId?: string;
+    /**
+     * **Variante proposée par le joueur** (assainie côté serveur). Le stuff Dofusbook d'origine
+     * reste la référence : la variante s'affiche par-dessus (`applyVariantsToBuild`), et le JSON
+     * du build n'est jamais réécrit.
+     */
+    savedVariants?: Record<string, DofusbookItem>;
+    /**
+     * **Panoplies du build** (paliers complets + `objet → panoplie`), résolues côté serveur.
+     *
+     * Indispensables : le payload Dofusbook ne porte que le palier **actif** d'une panoplie,
+     * donc sans elles une variante qui change une pièce ne peut pas être recalculée. Absent
+     * ou incomplet ⇒ la variante n'est **pas** calculée et l'UI l'affiche (fail-closed),
+     * jamais un total faux.
+     */
+    itemSets?: VariantItemSets | null;
+    /** Id du build (dans `dofusBookLinks`) — requis pour enregistrer la variante. */
+    variantBuildId?: string;
+    /** Vrai pour l'auteur du build : affiche « Enregistrer la variante ». */
+    canPersistVariant?: boolean;
+    /**
+     * Affichage **contrôlé** de la variante (`base` = stuff Dofusbook, `variant` = variante).
+     * Utile aux surfaces qui portent leur propre bouton (galerie) : le badge interne est alors
+     * masqué pour éviter un doublon.
+     */
+    variantView?: "base" | "variant";
+    /** Appelé quand le membre bascule (mode contrôlé). */
+    onVariantViewChange?: (next: "base" | "variant") => void;
 }
 
 const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
@@ -133,12 +170,15 @@ const SLOT_LABELS: Record<string, string> = {
  * ni l'id Ankama, qui produisaient des icônes d'autres items (voir `dofusbookItemIconId`).
  */
 function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: number; className?: string }) {
+    // Priorité à l'asset **local** porté par l'objet (variantes du catalogue) : Dofusbook n'expose
+    // pas d'`iconId` pour ces objets, et l'id Ankama tombait sur l'icône d'un autre item.
+    const localIcon = typeof item.iconUrl === "string" && item.iconUrl.startsWith("/") ? item.iconUrl : null;
     const iconId = dofusbookItemIconId(item);
-    if (!iconId) return null;
+    if (!localIcon && !iconId) return null;
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-            src={dofusbookItemIconUrl(iconId)}
+            src={localIcon ?? dofusbookItemIconUrl(iconId as number)}
             alt={item.name}
             width={size}
             height={size}
@@ -149,6 +189,38 @@ function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: 
 }
 
 export type SelectedBuildItem = { item: DofusbookItem; slotLabel: string };
+
+/**
+ * Pastilles de **forgemagie** sur un slot (exo PA/PM/PO, over Do Feu…) — vrais assets de runes,
+ * comme Dofusbook. `smithmagic` porte déjà le **delta** par code (`computedSmithmagic`) : une
+ * PA exo sur un anneau affiche donc l'icône de la rune Ga Pa sur l'anneau, à l'œil.
+ */
+function FmBadges({ stats, className }: { stats?: Record<string, number> | null; className?: string }) {
+    const entries = Object.entries(stats ?? {})
+        .filter(([, value]) => Number(value) !== 0)
+        .slice(0, 3);
+    if (entries.length === 0) return null;
+
+    return (
+        <span className={cn("absolute z-20 inline-flex items-center gap-0.5", className)}>
+            {entries.map(([code, value]) => {
+                const rune = getRuneForStat(statLabelMapping[code] ?? code, Number(value));
+                return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        key={code}
+                        src={rune.assetUrl}
+                        alt=""
+                        aria-hidden="true"
+                        title={`${rune.runeName} ${value > 0 ? "+" : ""}${value}`}
+                        className="w-3.5 h-3.5 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+                        loading="lazy"
+                    />
+                );
+            })}
+        </span>
+    );
+}
 
 /** Modale interne d'item : infos + effets du build + forgemagie, assets du jeu, aucun lien externe. */
 function ItemDetailModal({
@@ -196,43 +268,117 @@ function ItemDetailModal({
                     </button>
                 </div>
 
-                {item.effects && item.effects.length > 0 ? (
-                    <div className="flex flex-col gap-1 border-t border-border pt-3">
-                        {item.effects.map((fx) => {
-                            const theme = resolveDofusStatTheme(null, null, fx.code, null);
-                            const label = statLabelMapping[fx.code] || fx.code;
-                            const range = fx.min !== fx.max ? `${fx.min}–${fx.max}` : `${fx.value}`;
-                            return (
-                                <div key={fx.code} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
-                                    <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground min-w-0">
-                                        {theme && (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={dofusStatAssetUrl(theme.asset)} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
-                                        )}
-                                        <span className="truncate">{label}</span>
-                                    </span>
-                                    <span className="font-bold tabular-nums text-caption text-foreground whitespace-nowrap ml-2">
-                                        {fx.value > 0 && fx.min === fx.max ? `+${range}` : range}
-                                    </span>
+                {(() => {
+                    const passive = resolveItemPassive(item);
+                    const hasSp = (item.effects || []).some((fx) => fx.code === "sp");
+                    /**
+                     * 🧨 Constat du 26/10/2026 (capture user « **at** +185 » sur un Dofus Ocre) : le
+                     * payload Dofusbook contient aussi des effets **non statistiques**. Le rendu
+                     * imprimait le code brut faute de libellé — la ligne « at » est une **attitude**
+                     * (émote) dont la valeur est un id, jamais un montant. Elle sort de la liste, comme
+                     * `sp` (rendu dans « Pouvoir Passif »).
+                     */
+                    const regularEffects = (item.effects || []).filter(
+                        (fx) => !isDofusbookNonStatCode(fx.code),
+                    );
+                    const hasPassive = !!passive || hasSp;
+                    // Conditions réelles fournies par Dofusbook (`constraints`) — jamais inventées.
+                    const restriction = renderDofusbookConstraints(item.constraints);
+
+                    return (
+                        <div className="flex flex-col gap-2.5 border-t border-border pt-3">
+                            {/* Pouvoir Passif — texte OFFICIEL (catalogue DofusDB), jamais inventé. */}
+                            {hasPassive && (
+                                <div className="flex flex-col gap-1.5 p-3 rounded-[6px] bg-warning/10 border border-warning/25">
+                                    <div className="flex items-center gap-1.5 text-xs font-black text-warning uppercase tracking-wide">
+                                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                                        <span>Pouvoir Passif</span>
+                                    </div>
+                                    {passive ? (
+                                        <p className="text-caption font-medium text-foreground leading-relaxed whitespace-pre-line">
+                                            {passive.text}
+                                        </p>
+                                    ) : (
+                                        <p className="text-caption font-medium text-muted-foreground leading-relaxed">
+                                            Effet passif officiel non disponible pour cet objet.
+                                        </p>
+                                    )}
                                 </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <p className="text-caption text-muted-foreground border-t border-border pt-3">
-                        Caractéristiques détaillées non exposées par ce build.
-                    </p>
-                )}
+                            )}
+
+                            {/* Effets & Caractéristiques numériques standard */}
+                            {regularEffects.length > 0 ? (
+                                <div className="flex flex-col gap-1">
+                                    {regularEffects.map((fx, index) => {
+                                        const theme = resolveDofusStatTheme(null, null, fx.code, null);
+                                        const label = statLabelMapping[fx.code] || fx.code;
+                                        const range = fx.min !== fx.max ? `${fx.min}–${fx.max}` : `${fx.value}`;
+                                        return (
+                                            <div key={`${fx.code}-${index}`} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
+                                                <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground min-w-0">
+                                                    {theme && (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img src={dofusStatAssetUrl(theme.asset)} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                                    )}
+                                                    <span className="truncate">{label}</span>
+                                                </span>
+                                                <span
+                                                    className={cn(
+                                                        "font-bold tabular-nums text-caption whitespace-nowrap ml-2",
+                                                        // Malus en rouge, bonus en vert — comme Dofusbook.
+                                                        fx.value < 0 || fx.max < 0
+                                                            ? "text-danger"
+                                                            : fx.value > 0 || fx.max > 0
+                                                                ? "text-success"
+                                                                : "text-foreground",
+                                                    )}
+                                                >
+                                                    {fx.value > 0 && fx.min === fx.max ? `+${range}` : range}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : !hasPassive ? (
+                                <p className="text-caption text-muted-foreground">
+                                    Caractéristiques détaillées non exposées par ce build.
+                                </p>
+                            ) : null}
+
+                            {/* Conditions d'équipement (iso Dofusbook : « PA < 12 ou PM < 6 ») */}
+                            {restriction && (
+                                <div className="flex items-start gap-1.5 rounded-[4px] border border-warning/30 bg-warning/5 px-2 py-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+                                    <p className="text-[11px] leading-snug text-foreground">
+                                        <span className="font-semibold text-warning">Condition</span> : {restriction}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {fmLines && fmLines.length > 0 && (
                     <div className="flex flex-col gap-1.5 border-t border-border pt-3">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Forgemagie sur cet objet</p>
                         <div className="flex flex-wrap gap-1.5">
-                            {fmLines.map((fm, i) => (
-                                <span key={i} className="px-2 py-0.5 bg-elevated border border-border rounded-[4px] text-[11px] font-bold tabular-nums text-foreground">
-                                    {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
-                                </span>
-                            ))}
+                            {fmLines.map((fm, i) => {
+                                const rune = getRuneForStat(fm.stat, fm.value);
+                                return (
+                                    <span
+                                        key={i}
+                                        className={cn(
+                                            "inline-flex items-center gap-1.5 px-2 py-0.5 border rounded-[4px] text-[11px] font-bold tabular-nums",
+                                            rune.isExo ? "bg-warning/15 border-warning/30 text-warning" : "bg-elevated border-border text-foreground"
+                                        )}
+                                        title={rune.runeName}
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={rune.assetUrl} alt="" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                        <span>{fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}</span>
+                                    </span>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -242,7 +388,20 @@ function ItemDetailModal({
 }
 
 /** Grille d'équipement détaillée pour l'onglet « Équipement » (clic = modale interne). */
-function EquipmentGrid({ items, onSelect }: { items?: Record<string, DofusbookItem | null>; onSelect: (sel: SelectedBuildItem) => void }) {
+function EquipmentGrid({
+    items,
+    variants = {},
+    smithmagic,
+    onSelect,
+    onOpenVariant,
+}: {
+    items?: Record<string, DofusbookItem | null>;
+    variants?: Record<string, DofusbookItem>;
+    /** Exo/over par slot (`smithmagic` du build) → pastilles de runes sur les icônes. */
+    smithmagic?: Record<string, Record<string, number>> | null;
+    onSelect: (sel: SelectedBuildItem) => void;
+    onOpenVariant?: (slot: string) => void;
+}) {
     if (!items || Object.keys(items).length === 0) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-12 bg-surface rounded-[4px] border border-border text-center gap-5">
@@ -262,63 +421,145 @@ function EquipmentGrid({ items, onSelect }: { items?: Record<string, DofusbookIt
     const entries = Object.entries(items).filter(([, it]) => !!it) as [string, DofusbookItem][];
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-            {entries.map(([slot, item]) => (
-                <button
-                    key={slot}
-                    type="button"
-                    onClick={() => onSelect({ item, slotLabel: SLOT_LABELS[slot] || slot })}
-                    className="flex items-center gap-3 bg-surface p-3 rounded-[4px] border border-border hover:border-border-strong hover:bg-elevated transition-colors group text-left cursor-pointer"
-                >
-                    <div className="w-12 h-12 bg-elevated border border-border rounded-[4px] flex items-center justify-center overflow-hidden shrink-0">
-                        <ItemIcon item={item} size={44} />
+            {entries.map(([slot, item]) => {
+                const isVariant = !!variants[slot];
+                return (
+                    <div key={slot} className="relative group/eq flex items-center">
+                        <button
+                            type="button"
+                            onClick={() => onSelect({ item, slotLabel: SLOT_LABELS[slot] || slot })}
+                            className={cn(
+                                "flex-1 flex items-center gap-3 bg-surface p-3 rounded-[4px] border transition-colors group text-left cursor-pointer",
+                                isVariant
+                                    ? "border-warning/60 bg-warning/5"
+                                    : "border-border hover:border-border-strong hover:bg-elevated"
+                            )}
+                        >
+                            <div className="w-12 h-12 bg-elevated border border-border rounded-[4px] flex items-center justify-center overflow-hidden shrink-0 relative">
+                                <ItemIcon item={item} size={44} />
+                                {isVariant && (
+                                    <span className="absolute top-0.5 left-0.5 px-1 py-0.2 rounded bg-warning text-[8px] font-black text-black">
+                                        VAR
+                                    </span>
+                                )}
+                                <FmBadges stats={smithmagic?.[slot]} className="-top-1 -right-1" />
+                            </div>
+                            <div className="min-w-0 flex-1 pr-14">
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                                    {SLOT_LABELS[slot] || slot} {isVariant && "• Variante active"}
+                                </p>
+                                <p className="text-label font-bold text-foreground truncate">{item.name}</p>
+                            </div>
+                        </button>
+                        {onOpenVariant && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenVariant(slot);
+                                }}
+                                title={`Changer la variante (${SLOT_LABELS[slot] || slot})`}
+                                className={cn(
+                                    "absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded border text-caption font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer",
+                                    isVariant
+                                        ? "bg-warning text-black border-warning font-black"
+                                        : "bg-surface border-border hover:bg-elevated text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <span>⇄</span>
+                                <span className="text-[10px] hidden sm:inline">Variante</span>
+                            </button>
+                        )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{SLOT_LABELS[slot] || slot}</p>
-                        <p className="text-label font-bold text-foreground truncate">{item.name}</p>
-                    </div>
-                </button>
-            ))}
+                );
+            })}
         </div>
     );
 }
 
-/** Slot d'équipement : clic = modale interne (plus aucun lien DofusDB). */
-function GearSlotItem({ slot, item, label, onSelect }: { slot: string; item: DofusbookItem | null | undefined; label: string; onSelect?: (sel: SelectedBuildItem) => void }) {
+/** Slot d'équipement : clic = modale interne (plus aucun lien DofusDB) + bouton switch variante. */
+function GearSlotItem({
+    slot,
+    item,
+    label,
+    isVariant,
+    onSelect,
+    onOpenVariant,
+}: {
+    slot: string;
+    item: DofusbookItem | null | undefined;
+    label: string;
+    isVariant?: boolean;
+    onSelect?: (sel: SelectedBuildItem) => void;
+    onOpenVariant?: (slot: string) => void;
+}) {
     return (
-        <Tooltip>
-            <TooltipTrigger asChild>
+        <div className="relative group/slot-container">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        disabled={!item}
+                        onClick={() => item && onSelect?.({ item, slotLabel: label })}
+                        aria-label={item ? `${label} : ${item.name}` : `${label} vide`}
+                        className={cn(
+                            "w-12 h-12 sm:w-14 sm:h-14 rounded-[4px] flex items-center justify-center p-1.5 relative transition-colors group/slot",
+                            isVariant
+                                ? "bg-warning/10 border-2 border-warning shadow-[0_0_12px_rgba(245,158,11,0.25)] hover:bg-warning/15 cursor-pointer"
+                                : item
+                                  ? "bg-surface border border-border hover:border-border-strong hover:bg-elevated cursor-pointer"
+                                  : "bg-surface/30 border border-border/30 opacity-30 cursor-default"
+                        )}
+                    >
+                        {item ? (
+                            <ItemIcon item={item} size={48} />
+                        ) : (
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter opacity-50">
+                                {slot}
+                            </span>
+                        )}
+                        {isVariant && (
+                            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 rounded bg-warning text-[8px] font-black text-black uppercase shadow-xs">
+                                VAR
+                            </span>
+                        )}
+                    </button>
+                </TooltipTrigger>
+                {item && (
+                    <TooltipContent className="bg-background border border-border text-foreground p-2 rounded-[4px] max-w-[220px] text-center" side="top">
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground">
+                            {label} {isVariant && "• Variante active"}
+                        </p>
+                        <p className="font-bold text-body-sm text-foreground">{item.name}</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+
+            {/* Bouton switch / variante (style Duffus) */}
+            {onOpenVariant && (
                 <button
                     type="button"
-                    disabled={!item}
-                    onClick={() => item && onSelect?.({ item, slotLabel: label })}
-                    aria-label={item ? `${label} : ${item.name}` : `${label} vide`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenVariant(slot);
+                    }}
+                    title={`Changer de variante pour ${label}`}
+                    aria-label={`Changer de variante pour ${label}`}
                     className={cn(
-                        "w-12 h-12 sm:w-14 sm:h-14 rounded-[4px] flex items-center justify-center p-1.5 relative transition-colors group/slot",
-                        item
-                            ? "bg-surface border border-border hover:border-border-strong hover:bg-elevated cursor-pointer"
-                            : "bg-surface/30 border border-border/30 opacity-30 cursor-default"
+                        "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all z-20 shadow-md cursor-pointer",
+                        isVariant
+                            ? "bg-warning text-black hover:scale-110 ring-1 ring-background"
+                            : "bg-surface border border-border text-muted-foreground hover:bg-elevated hover:text-foreground hover:scale-110 opacity-70 group-hover/slot-container:opacity-100"
                     )}
                 >
-                    {item ? (
-                        <ItemIcon item={item} size={48} />
-                    ) : (
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter opacity-50">
-                            {slot}
-                        </span>
-                    )}
+                    ⇄
                 </button>
-            </TooltipTrigger>
-            {item && (
-                <TooltipContent className="bg-background border border-border text-foreground p-2 rounded-[4px] max-w-[220px] text-center" side="top">
-                    <p className="text-[10px] font-bold uppercase text-muted-foreground">{label}</p>
-                    <p className="font-bold text-body-sm text-foreground">{item.name}</p>
-                </TooltipContent>
             )}
-        </Tooltip>
+        </div>
     );
 }
 
-export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, itemSets = null, variantBuildId, canPersistVariant = false, variantView, onVariantViewChange }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
@@ -326,13 +567,175 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     // Item sélectionné pour la modale interne (aucun appel réseau : données du build).
     const [selected, setSelected] = useState<SelectedBuildItem | null>(null);
 
+    // Système de variantes d'équipement interactives (0 synchro Dofusbook destructive)
+    const [variants, setVariants] = useState<Record<string, DofusbookItem>>(
+        () => normalizeSavedVariants(savedVariants),
+    );
+    const [variantModalSlot, setVariantModalSlot] = useState<string | null>(null);
     /**
-     * Stats du build pour les sorts & la simulation — **instance stable** (`useMemo`) partagée par
-     * les deux onglets. ⚠️ Sans ce mémo, `spellsBuild(data)` fabriquait un NOUVEL objet à chaque
-     * rendu : `build` étant une **dépendance d'effet** de l'onglet Simulation, le chargement des
-     * sorts repartait en boucle (et la prévisu de dégâts ne se stabilisait jamais).
+     * Affichage : `false` = stuff Dofusbook d'origine, `true` = variante proposée par le joueur.
+     * Le basculement ne modifie **rien** côté Dofusbook : seule la donnée affichée change.
      */
-    const buildForSpells = useMemo(() => spellsBuild((data ?? {}) as DofusbookPreviewData), [data]);
+    const [showVariant, setShowVariant] = useState(false);
+    const [savingVariant, setSavingVariant] = useState(false);
+    /** État de publication affiché : rien / en cours / publié / brouillon local. */
+    const [variantStatus, setVariantStatus] = useState<"idle" | "saving" | "saved" | "local">("idle");
+    /** Dernière version **publiée** (ou reçue du serveur) — évite de rejouer une écriture inutile. */
+    const persistedVariantRef = useRef<SavedVariant>(normalizeSavedVariants(savedVariants));
+    /** Build dont la variante a été restaurée : un refetch de la page ne doit pas écraser une édition. */
+    const restoredVariantBuildRef = useRef<string | null>(null);
+    /** Vrai dès que le membre touche un slot : une **restauration** ne doit jamais publier d'office. */
+    const variantEditedRef = useRef(false);
+
+    // 1. Restauration — le serveur d'abord, sinon le **brouillon local**. Ne s'applique qu'au
+    //    changement de build : avant le 23/10/2026 cet effet dépendait de l'identité du prop, donc
+    //    un simple rafraîchissement de la galerie effaçait la variante en cours d'édition.
+    useEffect(() => {
+        if (!variantBuildId || restoredVariantBuildRef.current === variantBuildId) return;
+        restoredVariantBuildRef.current = variantBuildId;
+
+        const fromServer = normalizeSavedVariants(savedVariants);
+        persistedVariantRef.current = fromServer;
+        if (hasSavedVariant(fromServer)) {
+            setVariants(fromServer);
+            setShowVariant(true);
+            setVariantStatus("saved");
+            return;
+        }
+        // 🔒 Lecture seule (stuff d'un autre membre) : **aucun** brouillon local n'est relu. Sinon
+        // l'édition d'un visiteur se superposerait à la variante affichée de l'auteur.
+        const draft = canPersistVariant ? readLocalVariant(variantBuildId) : {};
+        if (hasSavedVariant(draft)) {
+            setVariants(draft);
+            setShowVariant(true);
+            setVariantStatus("local");
+        }
+    }, [variantBuildId, savedVariants, canPersistVariant]);
+
+    // 2. Le serveur a changé (republication) et aucune édition n'est en cours : on s'aligne.
+    useEffect(() => {
+        if (!variantBuildId || restoredVariantBuildRef.current !== variantBuildId) return;
+        const fromServer = normalizeSavedVariants(savedVariants);
+        if (sameSavedVariant(fromServer, persistedVariantRef.current)) return;
+        if (!sameSavedVariant(variants, persistedVariantRef.current)) return; // édition en cours
+        persistedVariantRef.current = fromServer;
+        setVariants(fromServer);
+    }, [savedVariants, variantBuildId, variants]);
+
+    // 3. Persistance : **auto-enregistrement** (auteur) après 800 ms d'inactivité, et brouillon
+    //    local systématique tant que la variante n'est pas publiée. Rien ne se perd en quittant
+    //    la modale, l'écran ou en rechargeant la page.
+    useEffect(() => {
+        if (!variantBuildId || restoredVariantBuildRef.current !== variantBuildId) return;
+        // 🔒 Un visiteur ne modifie **rien** : ni brouillon local, ni publication. Le stuff d'un
+        // autre membre reste en lecture seule (la bascule d'affichage, elle, reste disponible).
+        if (!canPersistVariant) return;
+        const unchanged = sameSavedVariant(variants, persistedVariantRef.current);
+        if (unchanged) return;
+
+        writeLocalVariant(variantBuildId, variants);
+
+        // Une simple **restauration** (brouillon local retrouvé) ne publie rien : il faut une
+        // édition explicite du membre.
+        if (!variantEditedRef.current) {
+            setVariantStatus("local");
+            return;
+        }
+
+        const canPublish = !!guildId;
+        const timer = setTimeout(async () => {
+            if (!canPublish) {
+                setVariantStatus("local");
+                return;
+            }
+            const snapshot = variants;
+            setSavingVariant(true);
+            setVariantStatus("saving");
+            try {
+                const res = await saveBuildVariant(guildId!, variantBuildId, snapshot);
+                if (res.success) {
+                    persistedVariantRef.current = normalizeSavedVariants(snapshot);
+                    clearLocalVariant(variantBuildId);
+                    setVariantStatus("saved");
+                } else {
+                    setVariantStatus("local");
+                }
+            } catch {
+                setVariantStatus("local");
+            } finally {
+                setSavingVariant(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [variants, variantBuildId, canPersistVariant, guildId]);
+
+    const hasVariant = Object.keys(variants).length > 0;
+
+    /** Affichage piloté par la surface (galerie) ou par l'état interne (profil, fiche). */
+    const controlledVariantView = variantView !== undefined;
+    const variantShown = controlledVariantView ? variantView === "variant" : showVariant;
+    /**
+     * Ouvre l'éditeur de variante d'un slot — **réservé à l'auteur**. `undefined` ⇒ le bouton
+     * n'est pas rendu (un visiteur ne peut pas éditer le stuff d'un autre membre).
+     */
+    const openVariantSlot = canPersistVariant ? setVariantModalSlot : undefined;
+    const setVariantView = (next: boolean) => {
+        if (controlledVariantView) onVariantViewChange?.(next ? "variant" : "base");
+        else setShowVariant(next);
+    };
+
+    /**
+     * Contexte de panoplies **rattrapé côté serveur** quand la page a été rendue avant la
+     * synchronisation (cas réel du 26/10/2026) : la variante redevient calculable sans
+     * rechargement, au lieu d'afficher un refus transitoire.
+     */
+    const [resolvedItemSets, setResolvedItemSets] = useState<VariantItemSets | null>(itemSets ?? null);
+    useEffect(() => {
+        setResolvedItemSets(itemSets ?? null);
+    }, [itemSets]);
+
+    const contextRequestedRef = useRef(false);
+    useEffect(() => {
+        if (itemSets || resolvedItemSets || contextRequestedRef.current) return;
+        if (!guildId || !hasVariant || !data?.items) return;
+        const ids = [...new Set(
+            Object.values(variants)
+                .map((item) => Number(item?.official || item?.id || 0))
+                .filter((id) => Number.isInteger(id) && id > 0),
+        )].slice(0, 64);
+        if (ids.length === 0) return;
+
+        contextRequestedRef.current = true;
+        let cancelled = false;
+        getVariantItemSets(guildId, ids)
+            .then((response) => {
+                if (!cancelled && response.success && response.data) setResolvedItemSets(response.data);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [itemSets, resolvedItemSets, guildId, hasVariant, data?.items, variants]);
+
+    /** Build effectif avec les variantes appliquées (données Dofusbook d'origine préservées). */
+    const variantResult = useMemo(() => {
+        if (!data || !hasVariant) return { data, refusal: null as VariantRefusal | null };
+        // `resolvedItemSets` = panoplies du build : sans elles, un changement de pièce ne peut pas
+        // recalculer les bonus ⇒ refus **motivé** (jamais un total faux, jamais un badge muet).
+        const computed = applyVariantsToBuild(data, variants, resolvedItemSets);
+        return {
+            data: computed ?? data,
+            refusal: computed === null ? explainVariantRefusal(data, variants, resolvedItemSets) : null,
+        };
+    }, [data, variants, hasVariant, resolvedItemSets]);
+
+    const effectiveData = variantShown ? variantResult.data : data;
+
+    /**
+     * Stats du build pour les sorts & la simulation — recalculées instantanément avec les variantes.
+     */
+    const buildForSpells = useMemo(() => spellsBuild((effectiveData ?? {}) as DofusbookPreviewData), [effectiveData]);
 
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
@@ -356,11 +759,19 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             // 1) Bake « navigateur » : Dofusbook (Cloudflare) refuse les clients serveur
             //    → seul un vrai navigateur passe. Il appelle le worker CF via une URL
             //    signée, puis les données sont enregistrées côté serveur (profil propriétaire).
-            const baked = await bakeDofusbookFromBrowser(url, guildId);
+            const baked = await bakeDofusbookFromBrowser(url, guildId, { force });
             if (baked.ok) {
                 setData(baked.data);
                 if (force && !silent) {
-                    toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                    // `changed === false` = le relais a rendu un payload **identique**. Ce n'est
+                    // PAS la preuve que rien n'a bougé sur Dofusbook : mesuré le 26/10/2026, un
+                    // relais obsolète ignore `force=1` et sert son cache 24 h (même payload, aucun
+                    // en-tête `X-Cache`). On le dit, avec l'action — sans annoncer une fausse MAJ.
+                    if (baked.changed === false) {
+                        toast.warning("Rien de neuf reçu du relais Dofusbook — s'il sert encore son cache, réessaie plus tard (ou fais redéployer le relais).");
+                    } else {
+                        toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                    }
                 }
                 return;
             }
@@ -414,7 +825,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
      * Dofusbook). Vide pour une préview au format antérieur (sans `characteristics`) :
      * aucun tableau plutôt que des zéros inventés — « Actualiser » régénère le détail.
      */
-    const characteristicRows = useMemo(() => dofusbookCharacteristicRows(data), [data]);
+    const characteristicRows = useMemo(() => dofusbookCharacteristicRows(effectiveData), [effectiveData]);
 
     const hasData = !!data;
 
@@ -458,8 +869,154 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         );
     }
 
+    /**
+     * Publie la variante dans la galerie (champ `variants` du build, JSON).
+     * ⚠️ Le stuff Dofusbook (`url`, `previewData`) n'est **jamais** réécrit : la synchro reste intacte.
+     */
+    const persistVariant = async () => {
+        if (!guildId || !variantBuildId || savingVariant) return;
+        setSavingVariant(true);
+        setVariantStatus("saving");
+        try {
+            const res = await saveBuildVariant(guildId, variantBuildId, variants);
+            if (res.success) {
+                persistedVariantRef.current = normalizeSavedVariants(variants);
+                clearLocalVariant(variantBuildId);
+                setVariantStatus("saved");
+                toast.success("Variante enregistrée — visible par la guilde dans la galerie.");
+            } else {
+                writeLocalVariant(variantBuildId, variants);
+                setVariantStatus("local");
+                toast.error(res.error || "Impossible d'enregistrer la variante.");
+            }
+        } catch {
+            writeLocalVariant(variantBuildId, variants);
+            setVariantStatus("local");
+            toast.error("Erreur réseau : la variante n'a pas été enregistrée.");
+        } finally {
+            setSavingVariant(false);
+        }
+    };
+
+    // Stats affichées sur la miniature : celles du stuff d'origine, ou celles de la variante quand
+    // la bascule est active (les calculs sont déjà faits par `applyVariantsToBuild`).
+    // ⚠️ `variantShown` (et non `showVariant`) : en galerie l'affichage est piloté par la carte,
+    // sinon les stats resteraient celles de la variante alors que la bascule est sur « Stuff ».
+    const cardStats = (variantShown && effectiveData ? effectiveData.stats : null) ?? data?.stats ?? null;
+
+    /**
+     * Objets **affichés** dans la miniature : ceux de la variante quand la bascule est active.
+     * Avant, la grille lisait `data.items` en dur ⇒ cliquer « Variante » ne changeait que les
+     * stats, jamais les icônes (constat user du 25/10/2026).
+     */
+    const cardItems = variantShown && effectiveData ? effectiveData.items : data?.items;
+
+    /** Récapitulatif des objets remplacés, affiché sous la grille quand la variante est active. */
+    const variantDescriptions = describeSavedVariants(variants, data?.items);
+
+    /**
+     * 🔒 **Plafonds du jeu** (12 PA / 6 PM — Dofus Wiki § Action Point / Movement Point) :
+     * au-delà, le bonus d'**équipement** n'est pas compté. On affiche donc la valeur plafonnée
+     * et on **dit** ce qui est ignoré (constat user du 26/10/2026 : « 13 PA, c'est impossible »).
+     */
+    const paCapped = capActionPoints(effectiveData?.stats?.pa ?? data?.stats?.pa);
+    const pmCapped = capMovementPoints(effectiveData?.stats?.pm ?? data?.stats?.pm);
+    /**
+     * Portée et invocations sont plafonnées **aussi** (Dofus Wiki, même page) :
+     * « You can only have a maximum of **6 Range** » et « a maximum of **6 Summons** » — au-delà,
+     * le bonus d'équipement n'est pas compté. Même traitement : on affiche la valeur plafonnée
+     * et on dit le point ignoré.
+     */
+    const poCapped = capRange(effectiveData?.stats?.po ?? data?.stats?.po);
+    const invoCapped = capSummons(effectiveData?.stats?.invo ?? data?.stats?.invo);
+    const paHint = paCapped.ignored > 0 ? `+${paCapped.ignored} ignoré (plafond ${MAX_AP})` : undefined;
+    const pmHint = pmCapped.ignored > 0 ? `+${pmCapped.ignored} ignoré (plafond ${MAX_MP})` : undefined;
+    const poHint = poCapped.ignored > 0 ? `+${poCapped.ignored} ignoré (plafond ${MAX_RANGE})` : undefined;
+    const invoHint = invoCapped.ignored > 0 ? `+${invoCapped.ignored} ignoré (plafond ${MAX_SUMMONS})` : undefined;
+
+    /** La variante affichée diffère-t-elle de la version publiée (bouton « Publier » utile) ? */
+    const variantDirty = hasVariant && !sameSavedVariant(variants, persistedVariantRef.current);
+
+    /**
+     * Contexte d'évaluation des **conditions d'objet** d'une variante (valeurs du build effectif).
+     * `activeSets` = panoplies déjà actives (≥ 2 pièces) — la règle `pk` (Dofus 3.7) se base
+     * dessus. Le candidat retire ensuite son propre apport PA/PM (cf. `ItemVariantModal`).
+     */
+    const conditionContext = {
+        // ⚠️ Valeurs **plafonnées** (12 PA / 6 PM) : une condition « PA < 12 » se juge sur le
+        // total réel du personnage, pas sur un cumul au-delà du plafond du jeu.
+        pa: paCapped.value,
+        pm: pmCapped.value,
+        vit: Number(effectiveData?.stats?.vit ?? data?.stats?.vit ?? 0),
+        sa: Number(effectiveData?.elements?.sa ?? data?.elements?.sa ?? 0),
+        fo: Number(effectiveData?.elements?.fo ?? data?.elements?.fo ?? 0),
+        in: Number(effectiveData?.elements?.in ?? data?.elements?.in ?? 0),
+        ch: Number(effectiveData?.elements?.ch ?? data?.elements?.ch ?? 0),
+        ag: Number(effectiveData?.elements?.ag ?? data?.elements?.ag ?? 0),
+        activeSets: Array.isArray(effectiveData?.cloths) ? effectiveData.cloths.length : 0,
+        level: Number(data?.level ?? 200),
+    };
+
+    /** État lisible de la variante : plus de couple ambigu « Enregistré / Enregistrer ». */
+    const variantStatusLabel = savingVariant || variantStatus === "saving"
+        ? "Publication en cours…"
+        : variantStatus === "saved" && !variantDirty
+            ? "Publiée dans la galerie"
+            : "Brouillon local — non publié";
+    const variantStatusTone = savingVariant || variantStatus === "saving"
+        ? "border-warning/30 bg-warning/10 text-warning"
+        : variantStatus === "saved" && !variantDirty
+            ? "border-success/30 bg-success/10 text-success"
+            : "border-border bg-background text-muted-foreground";
+
+    /** Retire tous les objets variés et revient au stuff Dofusbook d'origine. */
+    const resetVariant = () => {
+        variantEditedRef.current = true;
+        setVariants({});
+        setVariantView(false);
+    };
+
     const cardContent = (
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface border border-border rounded-[4px] p-5 sm:p-6 transition-colors hover:border-border-strong cursor-pointer", className)}>
+
+            {/* Bascule Stuff ⇄ Variante (miniature) — n'apparaît que si une variante existe.
+                Masquée quand la surface pilote elle-même l'affichage (galerie : bouton dans le voile).
+                `stopPropagation` : le bouton ne doit PAS ouvrir la fiche (DialogTrigger). */}
+            {hasVariant && !controlledVariantView && (
+                <button
+                    type="button"
+                    aria-pressed={variantShown}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setVariantView(!variantShown);
+                    }}
+                    title={variantShown ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante dans cette miniature"}
+                    aria-label={variantShown ? "Afficher le stuff d'origine" : "Afficher la variante proposée"}
+                    className={cn(
+                        "absolute top-2 right-2 z-30 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
+                        variantShown
+                            ? "border-warning/50 bg-warning/20 text-warning"
+                            : "border-border bg-background/80 text-muted-foreground hover:text-foreground",
+                    )}
+                >
+                    <span aria-hidden="true" className={cn("w-1.5 h-1.5 rounded-full", variantShown ? "bg-warning" : "bg-muted-foreground/50")} />
+                    Variante ({Object.keys(variants).length})
+                </button>
+            )}
+
+            {/* Refus explicite (fail-closed) : la **cause** est dite — sans les paliers de
+                panoplie, le total de la variante ne peut pas être recalculé. */}
+            {variantShown && variantResult.refusal && (
+                <span
+                    role="status"
+                    className="absolute top-2 left-2 z-30 inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"
+                    title={variantResult.refusal.details}
+                >
+                    <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
+                    {variantResult.refusal.message}
+                </span>
+            )}
 
             <div className="flex flex-col gap-4 relative z-10 h-full">
                 {/* Header */}
@@ -515,7 +1072,13 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
                                     { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
                                 ].map((slot) => {
-                                    const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                    const source = cardItems ?? data.items;
+                                    const originalSource = data.items;
+                                    const item = slot.s === 'fa' ? (source?.['fa'] || source?.['mo']) : source?.[slot.s];
+                                    const originalItem = slot.s === 'fa'
+                                        ? (originalSource?.['fa'] || originalSource?.['mo'])
+                                        : originalSource?.[slot.s];
+                                    const isVariantSlot = variantShown && !!variants[slot.s];
                                     const iconId = dofusbookItemIconId(item);
                                     return (
                                         <Tooltip key={slot.s}>
@@ -523,7 +1086,8 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 <div
                                                     className={cn(
                                                         "w-[33px] h-[33px] rounded-[4px] flex items-center justify-center p-1 relative group/mini-slot",
-                                                        item ? "bg-elevated border border-border" : "bg-surface border border-border opacity-40"
+                                                        item ? "bg-elevated border border-border" : "bg-surface border border-border opacity-40",
+                                                        isVariantSlot && "border-warning/70 bg-warning/10 ring-1 ring-warning/30"
                                                     )}
                                                     style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
                                                 >
@@ -531,18 +1095,32 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img
                                                             src={dofusbookItemIconUrl(iconId)}
-                                                            alt={item.name}
+                                                            alt={isVariantSlot ? `Variante — ${item.name}` : item.name}
                                                             width={30}
                                                             height={30}
                                                             className="object-contain"
                                                             loading="lazy"
                                                         />
                                                     )}
+                                                    {isVariantSlot && (
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-warning"
+                                                        />
+                                                    )}
+                                                    {/* Exo/over du slot : pastille de rune (comme Dofusbook). */}
+                                                    <FmBadges stats={data.smithmagic?.[slot.s]} className="-top-1 -left-1" />
                                                 </div>
                                             </TooltipTrigger>
                                             {item && (
-                                                <TooltipContent className="bg-background border-border text-foreground p-2 rounded-xl text-caption font-bold shadow-2xl max-w-[200px]">
-                                                    {item.name}
+                                                <TooltipContent className="bg-background border-border text-foreground p-2 rounded-lg text-caption shadow-lg max-w-[220px]">
+                                                    {isVariantSlot && (
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-warning">Variante</p>
+                                                    )}
+                                                    <p className="font-bold">{item.name}</p>
+                                                    {isVariantSlot && originalItem && originalItem.name !== item.name && (
+                                                        <p className="text-muted-foreground">au lieu de {originalItem.name}</p>
+                                                    )}
                                                 </TooltipContent>
                                             )}
                                         </Tooltip>
@@ -562,27 +1140,55 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     <div className="flex items-center justify-center gap-2.5 py-1 px-3 bg-surface border border-border rounded-[4px] text-caption font-bold tabular-nums">
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pa ?? 0}
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {paCapped.value}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pm ?? 0}
+                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {pmCapped.value}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.po ?? 0}
+                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {poCapped.value}
                         </span>
-                        {(data.stats?.cc ?? 0) > 0 && (
+                        {(cardStats?.cc ?? 0) > 0 && (
                             <>
                                 <span className="text-muted-foreground/30">•</span>
                                 <span className="flex items-center gap-1 text-foreground">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.cc}%
+                                    <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.cc ?? 0}%
                                 </span>
                             </>
                         )}
+                    </div>
+                )}
+
+                {/* Récapitulatif de la variante — visible **sans ouvrir la fiche** : un clic sur
+                    « Variante » remplace les icônes ci-dessus et liste ici les objets échangés. */}
+                {variantShown && variantDescriptions.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-[4px] border border-warning/30 bg-warning/5 px-2 py-1.5">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-warning shrink-0">
+                            Variante
+                        </span>
+                        <div className="flex items-center gap-1 min-w-0">
+                            {variantDescriptions.slice(0, 6).map((entry) => (
+                                <span
+                                    key={entry.slot}
+                                    role="img"
+                                    aria-label={`${entry.slotLabel} : ${entry.name}${entry.originalName ? ` (au lieu de ${entry.originalName})` : ""}`}
+                                    title={`${entry.slotLabel} : ${entry.name}${entry.originalName ? ` — au lieu de ${entry.originalName}` : ""}`}
+                                    className="w-6 h-6 rounded-[3px] bg-background border border-warning/40 flex items-center justify-center overflow-hidden shrink-0"
+                                >
+                                    <ItemIcon item={variants[entry.slot]} size={22} />
+                                </span>
+                            ))}
+                            {variantDescriptions.length > 6 && (
+                                <span className="text-caption font-semibold text-muted-foreground tabular-nums">
+                                    +{variantDescriptions.length - 6}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -617,7 +1223,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                 <TooltipProvider>
                     <div className="relative p-5 sm:p-6 lg:p-8 flex flex-col gap-6">
                         {/* Navigation des Onglets : Build / Sorts / Équipement */}
-                        <div className="relative z-10 w-full flex items-center justify-between gap-3 bg-surface p-1.5 rounded-[4px] border border-border">
+                        <div className="relative z-10 w-full flex flex-wrap items-center justify-between gap-3 bg-surface p-2 rounded-lg border border-border">
                             <div className="flex items-center gap-1.5 flex-1 max-w-2xl">
                                 {BUILD_TABS.map((tab) => (
                                     <button
@@ -637,7 +1243,101 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                {hasVariant && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <div className="inline-flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Affichage
+                                            </span>
+                                            {/* Bascule Stuff ⇄ Variante (modale) — même état que la miniature. */}
+                                            <div className="flex items-center rounded-lg border border-border bg-background p-0.5" role="group" aria-label="Stuff d'origine ou variante proposée">
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={!variantShown}
+                                                    onClick={() => setVariantView(false)}
+                                                    className={cn(
+                                                        "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                                                        !variantShown ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground",
+                                                    )}
+                                                >
+                                                    Stuff
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={variantShown}
+                                                    onClick={() => setVariantView(true)}
+                                                    className={cn(
+                                                        "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                                                        variantShown ? "bg-warning/20 text-warning" : "text-muted-foreground hover:text-foreground",
+                                                    )}
+                                                >
+                                                    Variante ({Object.keys(variants).length})
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Variante **non calculable** : la cause exacte est affichée
+                                            (panoplies non chargées / non reconnues / incohérentes). */}
+                                        {variantShown && variantResult.refusal && (
+                                            <span
+                                                role="status"
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] font-semibold text-warning"
+                                                title={variantResult.refusal.details}
+                                            >
+                                                <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+                                                {variantResult.refusal.message}
+                                            </span>
+                                        )}
+
+                                        {/* Un seul état lisible (plus de couple « Enregistré / Enregistrer »). */}
+                                        <span
+                                            role="status"
+                                            className={cn(
+                                                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold",
+                                                variantStatusTone,
+                                            )}
+                                            title={
+                                                variantStatusLabel === "Publiée dans la galerie"
+                                                    ? "Variante publiée : visible par la guilde (le stuff Dofusbook reste inchangé)"
+                                                    : variantStatusLabel === "Publication en cours…"
+                                                        ? "Enregistrement de la variante en cours…"
+                                                        : "Conservée sur cet appareil, pas encore visible par la guilde"
+                                            }
+                                        >
+                                            <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-current" />
+                                            {variantStatusLabel}
+                                        </span>
+                                        {/* Publication : uniquement quand la variante diffère de la version publiée. */}
+                                        {canPersistVariant && variantBuildId && guildId && variantDirty && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={persistVariant}
+                                                disabled={savingVariant}
+                                                className="h-8 gap-1.5 rounded-lg border-warning/40 bg-warning/10 text-caption font-semibold text-warning hover:bg-warning/20 hover:text-warning"
+                                                title="Publier cette variante dans la galerie (le stuff Dofusbook reste inchangé)"
+                                            >
+                                                <Check className="w-3.5 h-3.5" />
+                                                {savingVariant ? "Publication…" : "Publier la variante"}
+                                            </Button>
+                                        )}
+                                        {canPersistVariant && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={resetVariant}
+                                                className="h-8 gap-1.5 rounded-lg text-caption font-semibold text-muted-foreground hover:text-foreground"
+                                                title="Retirer les objets variés et revenir au stuff Dofusbook d'origine"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                Réinitialiser
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
                                 <Button 
                                     variant="outline" 
                                     size="sm" 
@@ -647,7 +1347,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         fetchBuild(true);
                                     }}
                                     disabled={loading}
-                                    className="bg-surface/80 border-border hover:bg-elevated text-muted-foreground hover:text-foreground rounded-xl h-9 px-3 text-caption font-bold"
+                                    className="bg-surface/80 border-border hover:bg-elevated text-muted-foreground hover:text-foreground rounded-lg h-9 px-3 text-caption font-semibold"
                                 >
                                     <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", loading && "animate-spin")} />
                                     Actualiser
@@ -666,12 +1366,12 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {/* 1. Éléments Primaires (vraies icônes Dofus : set officiel `assets/dofus/stats/*`) */}
                                         <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-3 gap-2">
                                             {([
-                                                { label: "Vitalité", val: data.stats?.vit ?? 0, img: "/assets/dofus/stats/pv.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
-                                                { label: "Sagesse", val: data.elements?.sa ?? 0, img: "/assets/dofus/stats/sagesse.png", text: "text-foreground", bg: "bg-surface", border: "border-border" },
-                                                { label: "Force", val: data.elements?.fo ?? 0, img: "/assets/module-succes/terre.png", text: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
-                                                { label: "Intelligence", val: data.elements?.in ?? 0, img: "/assets/module-succes/Intelligence.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
-                                                { label: "Chance", val: data.elements?.ch ?? 0, img: "/assets/module-succes/eau.png", text: "text-info", bg: "bg-info/10", border: "border-info/20" },
-                                                { label: "Agilité", val: data.elements?.ag ?? 0, img: "/assets/module-succes/Agility.png", text: "text-success", bg: "bg-success/10", border: "border-success/20" },
+                                                { label: "Vitalité", val: effectiveData?.stats?.vit ?? data.stats?.vit ?? 0, img: "/assets/dofus/stats/pv.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
+                                                { label: "Sagesse", val: effectiveData?.elements?.sa ?? data.elements?.sa ?? 0, img: "/assets/dofus/stats/sagesse.png", text: "text-foreground", bg: "bg-surface", border: "border-border" },
+                                                { label: "Force", val: effectiveData?.elements?.fo ?? data.elements?.fo ?? 0, img: "/assets/module-succes/terre.png", text: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+                                                { label: "Intelligence", val: effectiveData?.elements?.in ?? data.elements?.in ?? 0, img: "/assets/module-succes/Intelligence.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
+                                                { label: "Chance", val: effectiveData?.elements?.ch ?? data.elements?.ch ?? 0, img: "/assets/module-succes/eau.png", text: "text-info", bg: "bg-info/10", border: "border-info/20" },
+                                                { label: "Agilité", val: effectiveData?.elements?.ag ?? data.elements?.ag ?? 0, img: "/assets/module-succes/Agility.png", text: "text-success", bg: "bg-success/10", border: "border-success/20" },
                                             ] as { label: string; val: number; img: string; text: string; bg: string; border: string }[]).map((el) => (
                                                 <div key={el.label} className={cn("flex flex-col p-2.5 rounded-[4px] border", el.bg, el.border)}>
                                                     <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase">
@@ -731,26 +1431,46 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-caption">
                                                 {([
-                                                    { label: "Points d'Action (PA)", val: data.stats?.pa ?? 0, img: "/assets/dofus/stats/pa.png", color: "text-info" },
-                                                    { label: "Points de Mouvement", val: data.stats?.pm ?? 0, img: "/assets/dofus/stats/pm.png", color: "text-success" },
-                                                    { label: "Portée (PO)", val: data.stats?.po ?? 0, img: "/assets/dofus/stats/po.png", color: "text-success" },
-                                                    { label: "% Coup Critique", val: `${data.stats?.cc ?? 0}%`, img: "/assets/dofus/stats/critique.png", color: "text-danger" },
-                                                    { label: "Invocations", val: data.stats?.invo ?? 0, img: "/assets/dofus/stats/invocation.png", color: "text-warning" },
-                                                    { label: "Soins", val: data.stats?.so ?? 0, img: "/assets/dofus/stats/soin.png", color: "text-danger" },
-                                                    { label: "Initiative", val: data.stats?.ini ?? 0, img: "/assets/dofus/stats/initiative.png", color: "text-foreground" },
-                                                    { label: "Prospection", val: data.stats?.pp ?? 0, img: "/assets/dofus/stats/pp.png", color: "text-info" },
-                                                    { label: "Fuite", val: data.stats?.fuite ?? 0, img: "/assets/dofus/stats/fuite.png", color: "text-info" },
-                                                    { label: "Tacle", val: data.stats?.tacle ?? 0, img: "/assets/dofus/stats/tacle.png", color: "text-success" },
-                                                    { label: "Retrait PA / PM", val: `${data.stats?.retpa ?? 0} / ${data.stats?.retpm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-warning" },
-                                                    { label: "Do Critique", val: data.damages?.critique ?? 0, img: "/assets/dofus/stats/dmgCritique.png", color: "text-danger" },
-                                                ] as { label: string; val: number | string; img: string; color: string }[]).map((s) => (
+                                                    { label: "Points d'Action (PA)", val: paCapped.value, hint: paHint, img: "/assets/dofus/stats/pa.png", color: "text-info" },
+                                                    { label: "Points de Mouvement", val: pmCapped.value, hint: pmHint, img: "/assets/dofus/stats/pm.png", color: "text-success" },
+                                                    { label: "Portée (PO)", val: poCapped.value, hint: poHint, img: "/assets/dofus/stats/po.png", color: "text-success" },
+                                                    { label: "% Coup Critique", val: `${effectiveData?.stats?.cc ?? data.stats?.cc ?? 0}%`, img: "/assets/dofus/stats/critique.png", color: "text-danger" },
+                                                    { label: "Invocations", val: invoCapped.value, hint: invoHint, img: "/assets/dofus/stats/invocation.png", color: "text-warning" },
+                                                    { label: "Soins", val: effectiveData?.stats?.so ?? data.stats?.so ?? 0, img: "/assets/dofus/stats/soin.png", color: "text-danger" },
+                                                    { label: "Initiative", val: effectiveData?.stats?.ini ?? data.stats?.ini ?? 0, img: "/assets/dofus/stats/initiative.png", color: "text-foreground" },
+                                                    { label: "Prospection", val: effectiveData?.stats?.pp ?? data.stats?.pp ?? 0, img: "/assets/dofus/stats/pp.png", color: "text-info" },
+                                                    // Capacité (`1000 + 5 × Force` + pods d'équipement, cf. `src/lib/dofus-pods.ts`).
+                                                    // Force inconnue ⇒ « — » : jamais un total par défaut.
+                                                    {
+                                                        label: "Pods",
+                                                        val: formatPods(computePods({
+                                                            force: effectiveData?.elements?.fo ?? data.elements?.fo,
+                                                            itemPods: effectiveData?.stats?.pod ?? data.stats?.pod,
+                                                        })),
+                                                        img: "/assets/dofus/stats/pod.png",
+                                                        color: "text-warning",
+                                                    },
+                                                    { label: "Fuite", val: effectiveData?.stats?.fuite ?? data.stats?.fuite ?? 0, img: "/assets/dofus/stats/fuite.png", color: "text-info" },
+                                                    { label: "Tacle", val: effectiveData?.stats?.tacle ?? data.stats?.tacle ?? 0, img: "/assets/dofus/stats/tacle.png", color: "text-success" },
+                                                    { label: "Retrait PA / PM", val: `${effectiveData?.stats?.retpa ?? data.stats?.retpa ?? 0} / ${effectiveData?.stats?.retpm ?? data.stats?.retpm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-warning" },
+                                                    { label: "Esquive PA / PM", val: `${effectiveData?.stats?.epa ?? data.stats?.epa ?? 0} / ${effectiveData?.stats?.epm ?? data.stats?.epm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-info" },
+                                                    { label: "Do Critique", val: effectiveData?.damages?.critique ?? data.damages?.critique ?? 0, img: "/assets/dofus/stats/dmgCritique.png", color: "text-danger" },
+                                                ] as { label: string; val: number | string; hint?: string; img: string; color: string }[]).map((s) => (
                                                     <div key={s.label} className="flex items-center justify-between py-1 border-b border-border/40 hover:border-border transition-colors">
                                                         <span className="text-muted-foreground truncate inline-flex items-center gap-1.5 min-w-0">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img src={s.img} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
                                                             <span className="truncate">{s.label}</span>
                                                         </span>
-                                                        <span className={cn("font-bold tabular-nums whitespace-nowrap ml-2", s.color)}>{s.val}</span>
+                                                        <span className={cn("font-bold tabular-nums whitespace-nowrap ml-2", s.color)}>
+                                                            {s.val}
+                                                            {/* Plafond du jeu : le bonus excédentaire est **dit**, pas masqué. */}
+                                                            {s.hint && (
+                                                                <span className="ml-1 text-[10px] font-semibold text-warning" title={s.hint}>
+                                                                    ({s.hint})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -764,12 +1484,12 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption">
                                                 {([
-                                                    { label: "Do Terre", val: data.damages?.terre ?? 0, img: "/assets/dofus/stats/terre.png", color: "text-warning" },
-                                                    { label: "Do Feu", val: data.damages?.feu ?? 0, img: "/assets/dofus/stats/feu.png", color: "text-danger" },
-                                                    { label: "Do Eau", val: data.damages?.eau ?? 0, img: "/assets/dofus/stats/eau.png", color: "text-info" },
-                                                    { label: "Do Air", val: data.damages?.air ?? 0, img: "/assets/dofus/stats/air.png", color: "text-success" },
-                                                    { label: "Do Neutre", val: data.damages?.neutre ?? 0, img: "/assets/dofus/stats/neutre.png", color: "text-foreground" },
-                                                    { label: "Do Généraux", val: data.damages?.general ?? 0, color: "text-foreground" },
+                                                    { label: "Do Terre", val: effectiveData?.damages?.terre ?? data.damages?.terre ?? 0, img: "/assets/dofus/stats/terre.png", color: "text-warning" },
+                                                    { label: "Do Feu", val: effectiveData?.damages?.feu ?? data.damages?.feu ?? 0, img: "/assets/dofus/stats/feu.png", color: "text-danger" },
+                                                    { label: "Do Eau", val: effectiveData?.damages?.eau ?? data.damages?.eau ?? 0, img: "/assets/dofus/stats/eau.png", color: "text-info" },
+                                                    { label: "Do Air", val: effectiveData?.damages?.air ?? data.damages?.air ?? 0, img: "/assets/dofus/stats/air.png", color: "text-success" },
+                                                    { label: "Do Neutre", val: effectiveData?.damages?.neutre ?? data.damages?.neutre ?? 0, img: "/assets/dofus/stats/neutre.png", color: "text-foreground" },
+                                                    { label: "Do Généraux", val: effectiveData?.damages?.general ?? data.damages?.general ?? 0, color: "text-foreground" },
                                                 ] as { label: string; val: number; img?: string; color: string }[]).map((d) => (
                                                     <div key={d.label} className="flex items-center justify-between py-0.5 border-b border-border/40">
                                                         <span className="text-muted-foreground font-medium inline-flex items-center gap-1.5 min-w-0">
@@ -786,10 +1506,10 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
                                                 {[
-                                                    { label: "% Do Sorts", val: data.damages?.sorts ?? 0, img: "/assets/dofus/stats/dmgSort.png" },
-                                                    { label: "% Do Mêlée", val: data.damages?.melee ?? 0, img: "/assets/dofus/stats/dmgMelee.png" },
-                                                    { label: "% Do Dist.", val: data.damages?.distance ?? 0, img: "/assets/dofus/stats/dmgDistance.png" },
-                                                    { label: "% Do Armes", val: data.damages?.armes ?? 0, img: "/assets/dofus/stats/dmgArme.png" },
+                                                    { label: "% Do Sorts", val: effectiveData?.damages?.sorts ?? data.damages?.sorts ?? 0, img: "/assets/dofus/stats/dmgSort.png" },
+                                                    { label: "% Do Mêlée", val: effectiveData?.damages?.melee ?? data.damages?.melee ?? 0, img: "/assets/dofus/stats/dmgMelee.png" },
+                                                    { label: "% Do Dist.", val: effectiveData?.damages?.distance ?? data.damages?.distance ?? 0, img: "/assets/dofus/stats/dmgDistance.png" },
+                                                    { label: "% Do Armes", val: effectiveData?.damages?.armes ?? data.damages?.armes ?? 0, img: "/assets/dofus/stats/dmgArme.png" },
                                                 ].map((p) => (
                                                     <div key={p.label} className="flex flex-col items-center bg-surface px-2 py-1.5 rounded-xl border border-border">
                                                         <span className="text-[10px] text-muted-foreground font-bold uppercase inline-flex items-center gap-1">
@@ -806,11 +1526,11 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {/* 4. Résistances élémentaires (icônes bouclier du set officiel) */}
                                         <div className="bg-surface p-3.5 rounded-2xl border border-border flex items-center justify-between gap-1.5">
                                             {[
-                                                { label: "Neutre", val: data.resists?.neutre ?? 0, img: "/assets/dofus/stats/resNeutre.png", color: "text-foreground", bg: "bg-surface" },
-                                                { label: "Terre", val: data.resists?.terre ?? 0, img: "/assets/dofus/stats/resTerre.png", color: "text-warning", bg: "bg-warning/10" },
-                                                { label: "Feu", val: data.resists?.feu ?? 0, img: "/assets/dofus/stats/resFeu.png", color: "text-danger", bg: "bg-danger/10" },
-                                                { label: "Eau", val: data.resists?.eau ?? 0, img: "/assets/dofus/stats/resEau.png", color: "text-info", bg: "bg-info/10" },
-                                                { label: "Air", val: data.resists?.air ?? 0, img: "/assets/dofus/stats/resAir.png", color: "text-success", bg: "bg-success/10" },
+                                                { label: "Neutre", val: effectiveData?.resists?.neutre ?? data.resists?.neutre ?? 0, img: "/assets/dofus/stats/resNeutre.png", color: "text-foreground", bg: "bg-surface" },
+                                                { label: "Terre", val: effectiveData?.resists?.terre ?? data.resists?.terre ?? 0, img: "/assets/dofus/stats/resTerre.png", color: "text-warning", bg: "bg-warning/10" },
+                                                { label: "Feu", val: effectiveData?.resists?.feu ?? data.resists?.feu ?? 0, img: "/assets/dofus/stats/resFeu.png", color: "text-danger", bg: "bg-danger/10" },
+                                                { label: "Eau", val: effectiveData?.resists?.eau ?? data.resists?.eau ?? 0, img: "/assets/dofus/stats/resEau.png", color: "text-info", bg: "bg-info/10" },
+                                                { label: "Air", val: effectiveData?.resists?.air ?? data.resists?.air ?? 0, img: "/assets/dofus/stats/resAir.png", color: "text-success", bg: "bg-success/10" },
                                             ].map((r) => (
                                                 <div key={r.label} className={cn("flex-1 flex flex-col items-center py-1.5 px-1 rounded-xl border border-border/60", r.bg)}>
                                                     <span className="text-[10px] text-muted-foreground font-bold uppercase inline-flex items-center gap-1">
@@ -820,6 +1540,28 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     </span>
                                                     <span className={cn("font-bold text-caption tabular-nums mt-0.5", r.color)}>
                                                         {r.val}%
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* 5. Résistances secondaires & renvoi (mêmes assets bouclier, mesurées 25/10/2026) */}
+                                        <div className="bg-surface px-3.5 py-2 rounded-xl border border-border flex items-center justify-between gap-1.5">
+                                            {[
+                                                { label: "Ré Crit.", val: effectiveData?.resists?.critique ?? data.resists?.critique ?? 0, suffix: "", img: "/assets/dofus/stats/resCritique.png", color: "text-danger" },
+                                                { label: "Ré Pouss.", val: effectiveData?.resists?.poussee ?? data.resists?.poussee ?? 0, suffix: "", img: "/assets/dofus/stats/resPoussee.png", color: "text-warning" },
+                                                { label: "Mêlée", val: effectiveData?.resists?.melee ?? data.resists?.melee ?? 0, suffix: "%", img: "/assets/dofus/stats/resMelee.png", color: "text-danger" },
+                                                { label: "Dist.", val: effectiveData?.resists?.distance ?? data.resists?.distance ?? 0, suffix: "%", img: "/assets/dofus/stats/resDistance.png", color: "text-info" },
+                                                { label: "Renvoi", val: effectiveData?.resists?.renvoi ?? data.resists?.renvoi ?? 0, suffix: "", img: "/assets/dofus/stats/renvoi.png", color: "text-info" },
+                                            ].map((r) => (
+                                                <div key={r.label} className="flex-1 flex flex-col items-center">
+                                                    <span className="text-[10px] text-muted-foreground font-semibold uppercase inline-flex items-center gap-1">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={r.img} alt="" aria-hidden="true" className="w-3 h-3 object-contain" loading="lazy" />
+                                                        {r.label}
+                                                    </span>
+                                                    <span className={cn("font-bold text-caption tabular-nums", r.color)}>
+                                                        {r.val}{r.suffix}
                                                     </span>
                                                 </div>
                                             ))}
@@ -870,25 +1612,95 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             <div className="w-full h-full flex justify-between items-center relative z-10 px-2">
                                                 {/* Colonne Gauche (4 slots) */}
                                                 <div className="flex flex-col gap-2.5">
-                                                    <GearSlotItem slot="ch" item={data.items?.['ch']} label="Coiffe" onSelect={setSelected} />
-                                                    <GearSlotItem slot="ca" item={data.items?.['ca']} label="Cape" onSelect={setSelected} />
-                                                    <GearSlotItem slot="ce" item={data.items?.['ce']} label="Ceinture" onSelect={setSelected} />
-                                                    <GearSlotItem slot="bo" item={data.items?.['bo']} label="Bottes" onSelect={setSelected} />
+                                                    <GearSlotItem
+                                                        slot="ch"
+                                                        item={effectiveData?.items?.['ch']}
+                                                        label="Coiffe"
+                                                        isVariant={!!variants['ch']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="ca"
+                                                        item={effectiveData?.items?.['ca']}
+                                                        label="Cape"
+                                                        isVariant={!!variants['ca']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="ce"
+                                                        item={effectiveData?.items?.['ce']}
+                                                        label="Ceinture"
+                                                        isVariant={!!variants['ce']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="bo"
+                                                        item={effectiveData?.items?.['bo']}
+                                                        label="Bottes"
+                                                        isVariant={!!variants['bo']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
                                                 </div>
 
                                                 {/* Colonne Droite (4 slots) */}
                                                 <div className="flex flex-col gap-2.5">
-                                                    <GearSlotItem slot="am" item={data.items?.['am']} label="Amulette" onSelect={setSelected} />
-                                                    <GearSlotItem slot="a1" item={data.items?.['a1']} label="Anneau 1" onSelect={setSelected} />
-                                                    <GearSlotItem slot="a2" item={data.items?.['a2']} label="Anneau 2" onSelect={setSelected} />
-                                                    <GearSlotItem slot="br" item={data.items?.['br']} label="Bouclier" onSelect={setSelected} />
+                                                    <GearSlotItem
+                                                        slot="am"
+                                                        item={effectiveData?.items?.['am']}
+                                                        label="Amulette"
+                                                        isVariant={!!variants['am']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="a1"
+                                                        item={effectiveData?.items?.['a1']}
+                                                        label="Anneau 1"
+                                                        isVariant={!!variants['a1']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="a2"
+                                                        item={effectiveData?.items?.['a2']}
+                                                        label="Anneau 2"
+                                                        isVariant={!!variants['a2']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
+                                                    <GearSlotItem
+                                                        slot="br"
+                                                        item={effectiveData?.items?.['br']}
+                                                        label="Bouclier"
+                                                        isVariant={!!variants['br']}
+                                                        onSelect={setSelected}
+                                                        onOpenVariant={openVariantSlot}
+                                                    />
                                                 </div>
                                             </div>
 
                                             {/* Slots Arme & Familier (Au centre, sous le personnage) */}
                                             <div className="absolute bottom-1 flex items-center gap-3 z-10">
-                                                <GearSlotItem slot="ar" item={data.items?.['ar']} label="Arme" onSelect={setSelected} />
-                                                <GearSlotItem slot="fa" item={data.items?.['fa'] || data.items?.['mo']} label="Familier / Monture" onSelect={setSelected} />
+                                                <GearSlotItem
+                                                    slot="ar"
+                                                    item={effectiveData?.items?.['ar']}
+                                                    label="Arme"
+                                                    isVariant={!!variants['ar']}
+                                                    onSelect={setSelected}
+                                                    onOpenVariant={openVariantSlot}
+                                                />
+                                                <GearSlotItem
+                                                    slot="fa"
+                                                    item={effectiveData?.items?.['fa'] || effectiveData?.items?.['mo']}
+                                                    label="Familier / Monture"
+                                                    isVariant={!!variants['fa'] || !!variants['mo']}
+                                                    onSelect={setSelected}
+                                                    onOpenVariant={openVariantSlot}
+                                                />
                                             </div>
                                         </div>
 
@@ -897,27 +1709,27 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-elevated rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/pv.png" alt="Vitalité" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-foreground tabular-nums">{data.stats?.vit ?? 0}</span>
+                                                <span className="font-bold text-body-sm text-foreground tabular-nums">{effectiveData?.stats?.vit ?? data.stats?.vit ?? 0}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-info/10 border border-info/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-info tabular-nums">{data.stats?.pa ?? 0} PA</span>
+                                                <span className="font-bold text-body-sm text-info tabular-nums">{paCapped.value} PA</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-success tabular-nums">{data.stats?.pm ?? 0} PM</span>
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{pmCapped.value} PM</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/po.png" alt="PO" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-success tabular-nums">{data.stats?.po ?? 0} PO</span>
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{poCapped.value} PO</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-danger/10 border border-danger/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-danger tabular-nums">{data.stats?.cc ?? 0}%</span>
+                                                <span className="font-bold text-body-sm text-danger tabular-nums">{effectiveData?.stats?.cc ?? data.stats?.cc ?? 0}%</span>
                                             </div>
                                         </div>
 
@@ -927,9 +1739,11 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 <GearSlotItem
                                                     key={slot}
                                                     slot={slot}
-                                                    item={data.items?.[slot]}
+                                                    item={effectiveData?.items?.[slot]}
                                                     label={`Dofus / Trophée ${idx + 1}`}
+                                                    isVariant={!!variants[slot]}
                                                     onSelect={setSelected}
+                                                    onOpenVariant={openVariantSlot}
                                                 />
                                             ))}
                                         </div>
@@ -1013,56 +1827,101 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             )}
                                         </div>
 
-                                        {/* 2. Carte Forgemagie (Exo / Over, clic = modale interne) */}
-                                        <div className="bg-surface p-5 rounded-[4px] border border-border flex flex-col gap-3">
-                                            <h4 className="text-caption font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-1.5 border-b border-border pb-2">
-                                                <Sparkles className="w-3.5 h-3.5 text-warning" /> Forgemagie (Exo / Over)
-                                            </h4>
-
+                                        {/* 2. Carte Forgemagie (Exo / Over, compacte avec vraies runes) */}
+                                        <div className="bg-surface p-4 sm:p-5 rounded-[4px] border border-border flex flex-col gap-3">
                                             {(() => {
                                                 const fmEntries = parseDofusbookSmithmagic(data.smithmagic, data.items);
-                                                if (fmEntries.length === 0) {
-                                                    return (
-                                                        <p className="text-caption text-muted-foreground py-2 text-center">
-                                                            Aucune forgemagie (Exo/Over) détectée.
-                                                        </p>
-                                                    );
-                                                }
+                                                const exoCount = fmEntries.filter((fm) => getRuneForStat(fm.stat, fm.value).isExo).length;
+                                                const overCount = fmEntries.length - exoCount;
 
                                                 return (
-                                                    <div className="flex flex-col gap-2">
-                                                        {fmEntries.map((fm, idx) => {
-                                                            const isExo = ["PA", "PM", "PO"].includes(fm.stat);
-                                                            const target = data.items ? Object.values(data.items).find((it) => it?.name === fm.itemName) ?? null : null;
-                                                            return (
-                                                                <button
-                                                                    key={idx}
-                                                                    type="button"
-                                                                    disabled={!target}
-                                                                    onClick={() => target && setSelected({ item: target, slotLabel: fm.slotKey })}
-                                                                    className={cn(
-                                                                        "flex items-center gap-2.5 p-2 rounded-[4px] border transition-colors text-left",
-                                                                        target ? "cursor-pointer hover:border-border-strong" : "cursor-default",
-                                                                        isExo ? "bg-warning/10 border-warning/30" : "bg-surface border-border"
+                                                    <>
+                                                        <div className="flex items-center justify-between border-b border-border pb-2">
+                                                            <h4 className="text-caption font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <Sparkles className="w-3.5 h-3.5 text-warning" /> Forgemagie (Exo / Over)
+                                                            </h4>
+                                                            {fmEntries.length > 0 && (
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase">
+                                                                    {exoCount > 0 && (
+                                                                        <span className="px-1.5 py-0.5 rounded bg-warning/20 text-warning border border-warning/30">
+                                                                            {exoCount} Exo{exoCount > 1 ? "s" : ""}
+                                                                        </span>
                                                                     )}
-                                                                >
-                                                                    {fm.itemImage && (
-                                                                        <div className="w-7 h-7 rounded-[4px] bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
-                                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                            <img src={fm.itemImage} alt={fm.itemName} width={24} height={24} className="object-contain" loading="lazy" />
-                                                                        </div>
+                                                                    {overCount > 0 && (
+                                                                        <span className="px-1.5 py-0.5 rounded bg-success/15 text-success border border-success/30">
+                                                                            {overCount} Over{overCount > 1 ? "s" : ""}
+                                                                        </span>
                                                                     )}
-                                                                    <span className="min-w-0 flex-1">
-                                                                        <span className="text-caption font-bold text-foreground truncate block">{fm.itemName}</span>
-                                                                        <span className="text-[10px] text-muted-foreground uppercase block">{fm.slotKey}</span>
-                                                                    </span>
-                                                                    <span className={cn("px-2 py-0.5 text-caption rounded-[4px] font-bold tabular-nums shrink-0", isExo ? "text-warning bg-warning/20" : "text-success bg-success/15")}>
-                                                                        {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
-                                                                    </span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {fmEntries.length === 0 ? (
+                                                            <p className="text-caption text-muted-foreground py-2 text-center italic">
+                                                                Aucune forgemagie (Exo/Over) détectée.
+                                                            </p>
+                                                        ) : (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                                                                {fmEntries.map((fm, idx) => {
+                                                                    const rune = getRuneForStat(fm.stat, fm.value);
+                                                                    const target = data.items ? Object.values(data.items).find((it) => it?.name === fm.itemName) ?? null : null;
+
+                                                                    return (
+                                                                        <button
+                                                                            key={idx}
+                                                                            type="button"
+                                                                            disabled={!target}
+                                                                            onClick={() => target && setSelected({ item: target, slotLabel: fm.slotKey })}
+                                                                            className={cn(
+                                                                                "flex items-center gap-2 p-2 rounded-[4px] border transition-colors text-left group",
+                                                                                target ? "cursor-pointer hover:border-border-strong hover:bg-elevated" : "cursor-default",
+                                                                                rune.isExo
+                                                                                    ? "bg-warning/10 border-warning/30 hover:border-warning/50"
+                                                                                    : "bg-surface border-border hover:border-success/40"
+                                                                            )}
+                                                                        >
+                                                                            {/* Vraie Rune du jeu */}
+                                                                            <div
+                                                                                className="w-8 h-8 rounded-[4px] bg-background border border-border flex items-center justify-center overflow-hidden shrink-0 shadow-2xs"
+                                                                                title={rune.runeName}
+                                                                            >
+                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                <img
+                                                                                    src={rune.assetUrl}
+                                                                                    alt={rune.runeName}
+                                                                                    width={26}
+                                                                                    height={26}
+                                                                                    className="object-contain p-0.5"
+                                                                                    loading="lazy"
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* Stat & Équipement */}
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <div className="flex items-center justify-between gap-1">
+                                                                                    <span className={cn(
+                                                                                        "text-[12px] font-black tabular-nums tracking-tight truncate",
+                                                                                        rune.isExo ? "text-warning" : "text-success"
+                                                                                    )}>
+                                                                                        {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                                    {fm.itemImage && (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img src={fm.itemImage} alt="" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                                                                    )}
+                                                                                    <span className="text-[10px] text-muted-foreground truncate block font-medium" title={fm.itemName}>
+                                                                                        {fm.itemName}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 );
                                             })()}
                                         </div>
@@ -1070,13 +1929,15 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {/* 3. Boutons d'Action */}
                                         <div className="flex flex-col gap-2 pt-1">
                                             <Button
+                                                variant="outline"
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(url);
                                                     toast.success("Lien copié !");
                                                 }}
-                                                className="w-full h-11 rounded-xl text-label font-bold gap-2 flex items-center justify-center shadow-md cursor-pointer"
+                                                aria-label="Copier le lien du build"
+                                                className="w-full h-11 rounded-lg bg-surface/80 border-border text-label font-semibold text-foreground hover:bg-elevated"
                                             >
-                                                <Copy className="w-4 h-4" /> Copier le lien du build
+                                                <Copy className="w-4 h-4 text-muted-foreground" /> Copier le lien du build
                                             </Button>
                                             <a
                                                 href={url}
@@ -1125,7 +1986,15 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             </p>
                                         </div>
                                     </div>
-                                    <EquipmentGrid items={data?.items} onSelect={setSelected} />
+                                    <EquipmentGrid
+                                        items={effectiveData?.items}
+                                        variants={variants}
+                                        smithmagic={data?.smithmagic}
+                                        onSelect={setSelected}
+                                        // 🔒 Seul l'auteur peut changer une variante : la fiche d'un
+                                        // autre membre s'ouvre en lecture seule (galerie, profil visité).
+                                        onOpenVariant={canPersistVariant ? setVariantModalSlot : undefined}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -1144,6 +2013,37 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                             />
                         );
                     })()}
+
+                    {/* Modale de sélection de variante interactive (style Duffus) —
+                        réservée à l'auteur du build : aucune édition sur le stuff d'un autre membre. */}
+                    {canPersistVariant && (
+                        <ItemVariantModal
+                            slot={variantModalSlot}
+                            currentVariant={variantModalSlot ? variants[variantModalSlot] : null}
+                            originalItem={variantModalSlot ? data?.items?.[variantModalSlot] : null}
+                            buildLevel={data?.level || 200}
+                            unavailableIds={effectiveSlotIds(effectiveData?.items, variants)
+                                .filter((entry) => entry.slot !== variantModalSlot)
+                                .map((entry) => entry.id)}
+                            conditionContext={conditionContext}
+                            hasShield={!!effectiveData?.items?.br}
+                            onSelect={(s, it) => {
+                                variantEditedRef.current = true;
+                                setVariants((prev) => ({ ...prev, [s]: it }));
+                                toast.success(`Variante appliquée : ${it.name} — Caractéristiques & dégâts recalculés en direct !`);
+                            }}
+                            onRemoveVariant={(s) => {
+                                variantEditedRef.current = true;
+                                setVariants((prev) => {
+                                    const next = { ...prev };
+                                    delete next[s];
+                                    return next;
+                                });
+                                toast.info("Variante retirée : objet d'origine restauré.");
+                            }}
+                            onClose={() => setVariantModalSlot(null)}
+                        />
+                    )}
                 </TooltipProvider>
             </DialogContent>
         </Dialog>

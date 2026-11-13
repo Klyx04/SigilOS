@@ -96,12 +96,17 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
     const [mounted, setMounted] = useState(false);
     const [tutorialOpen, setTutorialOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
-    // Tick 1s → décomptes en heures/minutes/secondes temps réel.
+    // Tick 1s → décomptes en h/m/s temps réel.
+    // ⚡ Mesure du 25/10/2026 : ce timer tournait sur **toutes** les pages God, même quand le
+    // bandeau n'était pas rendu (super-admin complet, ou aucun accès expirable) ⇒ un re-render
+    // par seconde dans le shell pour rien. On ne tick que s'il y a un décompte à afficher.
     const [, setTick] = useState(0);
+    const hasExpiryCountdown = !isFullAdmin && myGrants.some((grant) => !!grant.expiresAt);
     useEffect(() => {
+        if (!hasExpiryCountdown) return;
         const t = setInterval(() => setTick(v => v + 1), 1000);
         return () => clearInterval(t);
-    }, []);
+    }, [hasExpiryCountdown]);
 
     /** Formate un temps restant en h/m/s. */
     const formatHMS = (expiresAt: string | null): string | null => {

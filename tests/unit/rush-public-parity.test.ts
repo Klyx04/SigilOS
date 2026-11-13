@@ -47,7 +47,14 @@ describe("Prérequis — le public refuse EXACTEMENT ce que l'interne refuse", (
   });
 
   it("la quête verrouillée se dit : carte danger, case inerte, prérequis nommés", () => {
-    expect(PUB).toMatch(/border-danger\/30 bg-danger\/\[0\.05\]/);
+    // E2 (05/11/2026) : l'état n'est plus une classe Tailwind posée à la main, c'est
+    // un ATTRIBUT peint par la DA (`da-row[data-state="locked"]` : filet pointillé,
+    // carte à 78 %) — même information, une seule source de vérité visuelle.
+    expect(PUB).toMatch(/data-state=\{daState\}/);
+    expect(PUB).toMatch(/className="da-row"/);
+    expect(codeOf("src/app/da-wakfu.css")).toMatch(
+      /\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.78/
+    );
     expect(PUB).toMatch(/disabled=\{stepLocked\}/);
     expect(PUB).toMatch(/getPrereqRefs\(seq, milestones\)/);
     expect(PUB).toMatch(/À terminer avant :/);
@@ -118,17 +125,27 @@ describe("Rail de droite — une seule zone de défilement (jamais de brique éc
     expect(SIDE).toMatch(/flex shrink-0 flex-col gap-2\.5 bg-elevated/); // donjons + métiers
   });
 
-  it("les DEUX surfaces le bornent au SCROLLPORT (fin atteignable, défilement interne)", () => {
+  it("les DEUX surfaces le bornent par la COLONNE de la grille (une seule règle)", () => {
     // ⚠️ Mesure Playwright du 08/10/2026 : dans le guide interne le défilement se fait
-    // dans `<main overflow-y-auto>` (le TopNav `h-14` = 3,5 rem est HORS du scrollport,
-    // le footer est dedans) ⇒ `100dvh − 6rem` faisait déborder le rail de 40 px sous la
-    // ligne (bas coupé, fin « Objets requis » inatteignable). Corrigé : `top-4` (1 rem
-    // sous le topnav) + `100dvh − 5,5 rem`.
-    expect(DASH).toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\] overflow-y-auto custom-scrollbar/);
-    // Le guide public défile par la FENÊTRE : `100dvh − 6rem` y est juste (mesuré).
-    expect(PUB).toMatch(
-      /xl:sticky xl:top-20 xl:max-h-\[calc\(100dvh-6rem\)\] xl:overflow-y-auto custom-scrollbar/
-    );
+    // dans `<main data-scroll-container>` (le TopNav `h-14` = 3,5 rem est HORS du
+    // scrollport, le footer est dedans) ; le guide public, lui, défile par la FENÊTRE.
+    // Chaque surface bornait donc le rail pour son compte, avec deux valeurs
+    // (`100dvh − 5,5 rem` ici, `100dvh − 6rem` là-bas).
+    // E2 puis E3 (05/11/2026) : la borne est portée par la COLONNE de la grille
+    // (`.da-guide-aside`), la même pour les deux guides — le rail reste le MÊME
+    // composant partagé, et plus aucun `sticky` local ne peut la contredire
+    // (deux sticky imbriqués se contredisaient : 1 rem contre 5 rem).
+    expect(DASH).toMatch(/<RushChapterSidebar/);
+    expect(PUB).toMatch(/<RushChapterSidebar/);
+    expect(DASH).not.toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\]/);
+    const css = readFileSync("src/app/da-wakfu.css", "utf8");
+    const asideRules = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)]
+      .map((m) => m[1])
+      .join(";");
+    expect(asideRules).toMatch(/position:\s*sticky/);
+    expect(asideRules).toMatch(/top:\s*5rem/);
+    expect(asideRules).toMatch(/max-height:\s*calc\(100dvh - 6rem\)/);
+    expect(asideRules).toMatch(/overflow-y:\s*auto/);
   });
 });
 
@@ -162,7 +179,11 @@ describe("« À faire maintenant » — supprimé avec tout l'en-tête redondant
     expect(PUB).toMatch(/function ResetProgressButton\(/);
     expect(PUB).toMatch(/onReset=\{handleResetProgress\}/);
     // Une barre de progression lisible dans le panneau (le seul endroit).
-    expect(PUB).toMatch(/Progression locale[\s\S]{0,400}role="progressbar"/);
+    expect(PUB).toMatch(/Progression locale[\s\S]{0,600}role="progressbar"/);
+    // Le doublon `reg-progress` a disparu : mesuré le 05/11/2026, le panneau
+    // peignait DEUX barres pour la même donnée (160 px dans la rangée d'actions
+    // + une pleine largeur plus bas). Il n'en reste qu'une.
+    expect(PUB).not.toMatch(/className="reg-progress"/);
   });
 });
 
@@ -190,14 +211,118 @@ describe("Ressources — plus aucun nom tronqué dans les listes", () => {
   });
 });
 
-describe("Panneau public — les quatre actions sont alignées", () => {
-  it("une seule grille responsive porte les quatre boutons", () => {
-    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4/);
+describe("Panneau public — la MÊME anatomie que le guide interne", () => {
+  it("la barre du haut ne porte QUE les outils de contenu (V2a-5)", () => {
+    // Demande user du 07/11 : « le bandeau avec les trois alignements bonta brak neutre
+    // doit disparaître, le conseil aussi ». Les deux ont quitté la barre : « Ma cité »
+    // est descendue dans « Options » (le choix pilote toujours la route), le conseil
+    // n'est plus rendu du tout.
+    expect(PUB).not.toMatch(/<PublicRouteChoice/);
+    expect(PUB).not.toMatch(/xl:grid-cols-4/);
+    for (const label of ["Ressources", "Pense-bête", "Masquer les étapes faites"]) {
+      expect(PUB, label).toContain(label);
+    }
+    // « Ma cité » : trois cités dans le sous-menu radio de « Options ».
+    expect(PUB).toContain("Options du guide");
+    expect(PUB).toMatch(/<DropdownMenuRadioGroup/);
+    for (const camp of ["Bontarien", "Neutre", "Brâkmarien"]) {
+      expect(PUB, camp).toContain(camp);
+    }
   });
 
-  it("chaque bouton prend toute sa cellule (largeurs régulières, aucun débordement)", () => {
-    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(3);
-    expect(PUB.match(/reg-btn reg-btn-primary w-full/g)?.length).toBe(1);
+  it("le conseil « Conseillé dès le Niv. 200 » n'est plus affiché sur AUCUNE surface", () => {
+    expect(PUB).not.toMatch(/Conseillé dès le/);
+    expect(DASH).not.toMatch(/Conseillé dès le/);
+  });
+
+  it("le bandeau du titre porte le Dofus, le titre complet et la porte visiteur (V2a-5)", () => {
+    // Demande user : « virer l'image floue », « renommer en Aventure Rush Sylvestre »,
+    // « l'icône du dofus sylvestre à côté », « mon espace visiteur dans le gros bandeau ».
+    expect(PUB).not.toMatch(/da-guide-hero-art/);
+    expect(PUB).toContain('src="/module-dofus/Dofus_Sylvestre.png"');
+    expect(PUB).toMatch(/Aventure Rush Sylvestre/);
+    expect(PUB).toMatch(/da-guide-hero-cta[\s\S]{0,200}Mon espace visiteur/);
+  });
+
+  it("les CINQ tuiles de l'interne, dans l'ordre, chacune avec sa VRAIE source (V2a-3)", () => {
+    // Anatomie du guide interne : Personnage actif · Alignement · Metamob · Rush Live ·
+    // Ouvrir Overlay. L'ordre compte — c'est lui qui rend le panneau lisible d'un coup.
+    //
+    // 08/11/2026 — l'ancre de « Metamob » est le **libellé rendu** (`>Metamob</p>`), pas le mot
+    // seul : la tuile a reçu un état et un composant voisin, et `indexOf("Metamob")` tombait
+    // désormais sur l'import, donc avant « Alignement ». L'ancre est plus précise qu'avant, pas
+    // plus permissive : elle ne peut matcher que la tuile.
+    const order: Array<[string, RegExp]> = [
+      ["Personnage actif", /Personnage actif/],
+      ["Alignement", /Alignement/],
+      ["Metamob", />Metamob<\/p>/],
+      ["Rush Live", /Rush Live/],
+      ["Ouvrir Overlay", /Ouvrir Overlay/],
+    ];
+    const positions = order.map(([, pattern]) => PUB.search(pattern));
+    order.forEach(([title], i) => {
+      expect(positions[i], `${title} absent du panneau`).toBeGreaterThan(-1);
+      if (i > 0) {
+        expect(positions[i], `${title} n'est pas rendu après ${order[i - 1][0]}`).toBeGreaterThan(
+          positions[i - 1]
+        );
+      }
+    });
+  });
+
+  it("Metamob n'affiche que le lien DÉCLARÉ : ni clé, ni appel réseau", () => {
+    // La tuile est nouvelle en V2a-3 : elle existe parce que `PublicProfileView` porte
+    // déjà `metamobPseudo` + `metamobVerified` (la clé, elle, est réduite à un booléen).
+    expect(PUB).not.toMatch(/Lier Metamob/); // le geste de liaison reste dans l'espace visiteur
+    expect(PUB).toMatch(/metamobState\(visitor\)/); // règle pure, aucun calcul local
+    expect(PUB).toContain('"/assets/icons/ocre.png"');
+    expect(PUB).not.toMatch(/metamobApiKey/i);
+  });
+
+  it("Rush Live dit son état RÉEL — un compte mesuré, ou « présence indisponible »", () => {
+    // V2c (11/11/2026) : la room par serveur existe. La tuile lit le flux SSE
+    // (`usePublicRushLive`) et n'annonce un nombre que lorsque le serveur a répondu `live`.
+    // Aucune copie locale de l'ancienne présence de guilde (`liveMembers`), aucun compteur
+    // fabriqué : `unavailable` et `connecting` ne passent jamais par un chiffre.
+    expect(PUB).toMatch(/usePublicRushLive\(/);
+    expect(PUB).toMatch(/rushLive\.status === "live"/);
+    expect(PUB).toMatch(/présence indisponible/);
+    expect(PUB).toMatch(/personne en ligne/);
+    expect(PUB).not.toMatch(/liveMembers/);
+    expect(PUB).not.toMatch(/connectionStatus/);
+    // Le nombre vient de `members.length`, jamais d'un « 0 » écrit en dur.
+    expect(PUB).not.toMatch(/"0 en ligne"|>0 en ligne</);
+  });
+
+  it("l'anonyme ne voit NI Metamob NI Rush Live — les deux tuiles sont gardées (V2a-5)", () => {
+    // Demande user : « le mode non connecté n'aura juste pas le rush live ni metamob ».
+    // Chaque tuile est introduite par `{visitor ? (` : sans compte, il n'y a pas de
+    // source, donc pas de tuile — et surtout pas une tuile vide à la place.
+    // Depuis V2c, la tuile Rush Live est un BOUTON (elle ouvre la modale des présents) :
+    // le garde précède ce bouton, pas un `<div>` mort.
+
+    expect(PUB).toMatch(/\{visitor \? \(\s*<Link\s+href="\/espace-visiteur\/general"/);
+    expect(PUB).toMatch(/\{visitor \? \(\s*<button[\s\S]{0,600}modules\/guild\.png/);
+  });
+
+  it("la recherche et « Options » vivent ENTRE les tuiles et la progression (V2a-3)", () => {
+    // Anatomie du guide interne, dans cet ordre : le haut (contexte + outils), les tuiles,
+    // la rangée recherche/réglages, puis la barre de progression.
+    const tiles = PUB.indexOf("Personnage actif");
+    const search = PUB.indexOf("Rechercher dans le guide");
+    const options = PUB.indexOf("Options du guide");
+    const progress = PUB.indexOf('"Progression locale"}');
+    expect(tiles, "tuiles absentes").toBeGreaterThan(-1);
+    expect(search, "recherche absente").toBeGreaterThan(tiles);
+    expect(options, "Options absent").toBeGreaterThan(search);
+    expect(progress, "progression absente").toBeGreaterThan(options);
+    // UN seul champ de recherche : le doublon de la colonne du détail a disparu.
+    expect(PUB.match(/placeholder=\{t\.rushGuide\.searchPlaceholder\}/g)?.length).toBe(1);
+  });
+
+  it("l'overlay est une action mise en avant, pas un 4e bouton de grille", () => {
+    expect(PUB).toMatch(/bg-success px-3 py-1\.5 text-xs font-medium text-success-foreground/);
+    expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
   });
 });
 
@@ -237,9 +362,11 @@ describe("Ressources — le toggle du guide les masque partout (un seul état)",
     const modal = codeOf(RESOURCES_MODAL);
     expect(modal).toMatch(/const effectiveMode = hideProvidedResources \? "restantes" : mode;/);
     expect(modal).toMatch(/!hideProvidedResources &&\s*\(\[\["restantes", "Restantes"\], \["toutes", "Toutes"\]\]/);
-    // Grille d'objets : les fournis sortent, et son filtre local disparaît.
+    // Grille d'objets : les fournis ET les cochés manuellement sortent, et son filtre
+    // local disparaît (une coche manuelle compte comme « préparée », règle du 02/11).
     const grid = codeOf(QUEST_ITEM_GRID);
-    expect(grid).toMatch(/if \(hideProvided\) return parsedItems\.filter\(\(it\) => !it\.isDone\)/);
+    expect(grid).toMatch(/if \(hideProvided\) return parsedItems\.filter\(\(it\) => !it\.isPrepared\)/);
+    expect(grid).toMatch(/isPrepared: item\.isProvided \|\| item\.isChecked/);
     expect(grid).toMatch(/showHeaderMeta && !hideProvided &&/);
   });
 
@@ -270,6 +397,179 @@ describe("Guide interne — le masquage des étapes faites n'est plus enterré d
     expect(DASH).toMatch(/Pense-bête[\s\S]{0,1200}aria-pressed=\{hideDone\}/);
     expect(DASH).toMatch(/aria-label=\{hideDone \? "Afficher les étapes terminées" : "Masquer les étapes terminées"\}/);
     expect(DASH).toMatch(/\{hideDone \? <Eye className="w-3\.5 h-3\.5" \/> : <EyeOff className="w-3\.5 h-3\.5" \/>\}/);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Donjons — UNE fenêtre, UNE règle, un verrou dans les ÉCRITURES.
+// 🎯 Demande user (21/10/2026) : « pour une quête qui comporte au moins 1 donjon,
+// pouvoir cocher tel donjon est fait ; tant que ce donjon n'est pas fait, la quête ne
+// peut pas être validée ». Le dashboard et le guide public doivent s'aligner sur
+// l'overlay — sans copie, et sans serveur côté public.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Donjons cochables — même coquille, même règle, verrou dans les écritures", () => {
+  const PANEL = "src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx";
+  const CARD = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx";
+  const STORAGE = "src/lib/rush-dungeon-storage.ts";
+  const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
+  const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+  const OVERLAY_HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
+  const ACTIONS_CODE = codeOf(ACTIONS);
+
+  it("les surfaces ouvrent le MÊME panneau depuis la pastille de la quête", () => {
+    expect(existsSync(PANEL)).toBe(true);
+    expect(existsSync(CARD)).toBe(true);
+
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      expect(code, `${name} n'importe pas le panneau partagé`).toMatch(
+        /import \{ RushQuestDungeonsPanel \} from "@\/components\/dofus-quests\/rush\/RushQuestDungeonsPanel"/
+      );
+      expect(code, `${name} ne le rend pas`).toMatch(/<RushQuestDungeonsPanel/);
+      // La pastille porte le compteur, avec le même libellé partout.
+      expect(code, `${name} n'a pas la pastille donjon`).toMatch(/Donjon ×\{/);
+      // Aucune seconde liste : les coches vivent dans la carte donjon, une seule fois.
+      expect(code, `${name} duplique les coches`).not.toMatch(/comme fait dans cette quête/);
+    }
+
+    // Overlay : pastille → popover → panneau (une seule coquille).
+    expect(codeOf(OVERLAY)).toMatch(/dungeonActions=\{dungeonActions\}/);
+    expect(
+      codeOf("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonPopover.tsx")
+    ).toMatch(/<RushQuestDungeonsPanel/);
+    expect(codeOf(CARD)).toMatch(/comme fait dans cette quête/);
+  });
+
+  it("aucun onglet ni fenêtre globale : la coche est DANS la quête", () => {
+    // L'overlay n'a plus de bouton donjon dans sa barre d'actions.
+    expect(codeOf(OVERLAY_HEADER)).not.toMatch(/onOpenDungeons/);
+    // Ni le dashboard ni le public n'ont de bouton / modale « Donjons du guide ».
+    expect(DASH).not.toMatch(/dungeonsModalOpen|RushDungeonsModalShell/);
+    expect(PUB).not.toMatch(/setShowDungeons|RushDungeonsModalShell/);
+    // L'ancienne liste globale a disparu (aucun code mort).
+    expect(existsSync("src/components/dofus-quests/rush/RushDungeonList.tsx")).toBe(false);
+    expect(existsSync("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toBe(false);
+    // La barre d'actions du public porte QUATRE actions (3 outils + l'overlay), désormais
+    // réparties entre la barre du haut, la rangée de tuiles et — V2a-3 — le menu
+    // « Options » (la densité a quitté la barre pour les réglages, comme dans l'interne).
+    expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setShowResources\(true\)\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setPenseBeteOpen\(true\)\}/);
+    expect(PUB).toMatch(/onSelect=\{\(\) => setHideDone\(\(v\) => !v\)\}/);
+  });
+
+  it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {
+    expect(PUB).not.toMatch(/@\/server\//);
+    expect(PUB).toMatch(/readDungeonStates\(storagePrefix\)/);
+    expect(PUB).toMatch(
+      /writeDungeonState\(storagePrefix, dungeonOccurrenceKey\(sequenceId, dungeonKey\), state\)/
+    );
+    expect(PUB).toMatch(/clearDungeonStates\(storagePrefix\)/);
+    // Un visiteur (ou son personnage déclaré) = un emplacement de progression.
+    expect(PUB).toMatch(/const storagePrefix = guestProgressPrefix\(guide\.slug, character\)/);
+  });
+
+  it("la coche est PAR OCCURRENCE des deux côtés (jamais mutualisée par donjon)", () => {
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      // Le verrou ne voit QUE les donjons faits de la quête concernée.
+      expect(code, `${name} ne lit pas les donjons faits de la quête`).toMatch(
+        /doneDungeonKeysForSequence/
+      );
+    }
+    // Le public construit lui-même la clé de stockage (`sequenceId::dungeonKey`) ;
+    // le dashboard la reçoit déjà formée par le hook partagé.
+    expect(PUB).toMatch(/dungeonOccurrenceKey\(sequenceId, dungeonKey\)/);
+    expect(codeOf("src/hooks/use-rush-dungeon-states.ts")).toMatch(/dungeonOccurrenceKey/);
+  });
+
+  it("le verrou est appliqué dans les TROIS chemins d'écriture du public", () => {
+    // étape · chapitre entier · lot de quêtes
+    expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId\)\)/);
+    expect(PUB).toMatch(
+      /if \(completeAll && !current\.has\(s\.id\) && isSeqBlockedByDungeon\(s\.id\)\) return;/
+    );
+    expect(PUB).toMatch(/!isSeqBlockedByDungeon\(id\)/);
+  });
+
+  it("le public nomme le donjon manquant et ouvre le panneau de CETTE quête", () => {
+    expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
+    expect(PUB).toContain('"À terminer avant :"');
+    expect(PUB).toContain('"Donjon requis à faire :"');
+    // Le refus n'est pas muet : il mène au panneau de la quête concernée.
+    expect(PUB).toMatch(/onClick=\{\(\) => setOpenDungeonPanel\(seq\.id\)\}/);
+    expect(PUB).toMatch(/openDungeonPanel === seq\.id/);
+  });
+
+  it("le verrou est SERVEUR pour la guilde — y compris « valider tout le bloc »", () => {
+    // Quête par quête (`setRushSequenceProgress`)…
+    expect(ACTIONS_CODE).toMatch(/findSequenceBlockedByMissingDungeon/);
+    expect(ACTIONS_CODE).toMatch(/blockedSequenceId: blocked\.id/);
+    // …ET le chemin du bloc entier (`toggleMilestoneProgress`), qui écrivait sans verrou :
+    // définition + 2 appels (quête, bloc).
+    const calls = ACTIONS_CODE.match(/findSequenceBlockedByMissingDungeon\(/g)?.length ?? 0;
+    expect(calls).toBeGreaterThanOrEqual(3);
+  });
+
+  it("le dashboard bloque AVANT l'aller-retour et charge l'état au montage", () => {
+    expect(DASH).toMatch(
+      /useRushDungeonStates\(\{guildId,slug:guide\.slug,altPseudo:effectiveAltPseudo\}\)/
+    );
+    expect(DASH).toMatch(/if\(sequenceDungeonProgress\(seqObj as any,doneKeys\)\.blocked\)/);
+    // Un refus serveur ne doit pas laisser un bloc marqué « terminé ».
+    expect(DASH).not.toMatch(/allChecked\?n\.delete\(ms\.id\):n\.add\(ms\.id\)/);
+    expect(DASH).toMatch(/wasMilestoneCompleted\?n\.add\(ms\.id\):n\.delete\(ms\.id\)/);
+  });
+
+  it("le reset du public efface aussi les coches de donjons", () => {
+    expect(codeOf(STORAGE)).toMatch(/removeItem\(dungeonStatesStorageKey\(progressPrefix\)\)/);
+    expect(codeOf("src/lib/guest-progress.ts")).toMatch(/"dungeons"/);
+  });
+});
+
+/**
+ * Position d'une quête — **le même résolveur** des deux côtés.
+ *
+ * Mesure du 22/10/2026 : l'interne lisait la position avec une regex locale sur
+ * `pos_tags` seulement, alors que le public passe par `getSequenceCoord` (qui lit aussi
+ * le titre, les tips et la note). Résultat : une quête dont la position est écrite dans
+ * son nom (`La font de glaces [-60, -57]`) affichait son chip côté public et **rien** côté
+ * interne. Une seule règle, deux surfaces.
+ */
+describe("Parité — la position d'une quête (une seule règle)", () => {
+  it("le guide interne résout la position par `getSequenceCoord`", () => {
+    expect(DASH).toContain("getSequenceCoord(seq)");
+  });
+
+  it("le guide interne ne re-parse plus `pos_tags` à la main", () => {
+    expect(DASH).not.toMatch(/posStr\.match\(/);
+  });
+
+  it("le guide public et l'overlay utilisent la même règle", () => {
+    expect(codeOf("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx")).toMatch(
+      /getSequenceCoord\(seq\)/
+    );
+  });
+});
+
+
+describe("Route d'alignement — le guide public filtre les TROIS étages, comme l'interne", () => {
+  it("la cité, l'Ordre et la classe sont passés à resolveRushRoute", () => {
+    expect(PUB).toMatch(/resolveRushRoute\(rawMilestones, \{/);
+    expect(PUB).toContain("camp: routeCamp ?? visitor?.alignment ?? null");
+    expect(PUB).toContain("order: routeOrder ?? visitor?.alignmentOrder ?? null");
+    expect(PUB).toContain("playerClass: character?.classId ?? visitor?.classe ?? null");
+  });
+
+  it("le useMemo dépend des trois choix (changer d'Ordre ou de personnage refiltre)", () => {
+    for (const dep of ["routeOrder", "visitor?.alignmentOrder", "character?.classId", "visitor?.classe"]) {
+      expect(PUB).toContain(dep);
+    }
+  });
+
+  it("l'interne garde les trois étages (aucune régression de parité)", () => {
+    const dash = codeOf("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx");
+    expect(dash).toMatch(/order: routeOrder/);
+    expect(dash).toMatch(/playerClass: routeClass/);
   });
 });
 

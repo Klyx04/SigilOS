@@ -42,9 +42,16 @@ DISCORD_WEBHOOK_URL="${DISCORD_ADMIN_WEBHOOK:-}"
 
 send_alert() {
     local message=$1
-    if [ ! -z "$DISCORD_WEBHOOK_URL" ]; then
-        curl -X POST -H "Content-Type: application/json" -d "{\"content\": \"🚨 **[SigilOS Infra]** $message\"}" "$DISCORD_WEBHOOK_URL"
+    if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+        # ⚠️ Mesure du 04/11/2026 : `DISCORD_ADMIN_WEBHOOK` était présent dans `.env` et
+        # `.env.prod` mais **absent de `.env.beta`** — or le cron charge `.env.beta` par défaut
+        # (`TARGET_BASE` vide en cron). Résultat : les 5 alertes infra (disque >85 %, Redis >60 %,
+        # Redis sans plafond, maintenance échouée, reboot-required) étaient **silencieuses**.
+        # On ne peut pas deviner que le canal manque : on le dit dans le log.
+        echo "⚠️  DISCORD_ADMIN_WEBHOOK absent de $ENV_FILE : alerte NON envoyée → $message"
+        return
     fi
+    curl -X POST -H "Content-Type: application/json" -d "{\"content\": \"🚨 **[SigilOS Infra]** $message\"}" "$DISCORD_WEBHOOK_URL"
 }
 
 send_god_notif() {
@@ -125,6 +132,48 @@ DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
 if [ "$DISK_USAGE" -gt 85 ]; then
     echo "⚠️ Alerte : Disque saturé à $DISK_USAGE%"
     send_alert "Attention ! L'espace disque du VPS est saturé à **$DISK_USAGE%**. Un nettoyage manuel ou un agrandissement du disque est recommandé."
+fi
+
+# 4b. Contrôle de la mémoire Redis — le seul conteneur plafonné depuis le 15/10/2026.
+# Pourquoi : avant le plafond (`--maxmemory 512mb`, `docker-compose.prod.yml`), Redis pouvait
+# grossir jusqu'à tuer l'hôte. **Politique `noeviction`** : au-delà de 100 % du plafond, Redis
+# **refuse les écritures** — donc les files BullMQ s'arrêtent. On veut le savoir à 60 %, pas le
+# découvrir en production.
+# ⚠️ Le mot de passe est injecté au **parse du compose** : il n'est pas dans l'environnement du
+# conteneur, on le relit dans sa ligne de commande — **jamais affiché** (transmis par REDISCLI_AUTH).
+REDIS_CONTAINER="sigilos-redis-beta"
+if [ "$ENV_FILE" = ".env.prod" ]; then
+    REDIS_CONTAINER="sigilos-redis"
+fi
+if docker ps --format '{{.Names}}' | grep -qx "$REDIS_CONTAINER"; then
+    REDIS_PASS="$(docker inspect "$REDIS_CONTAINER" --format '{{range .Config.Cmd}}{{.}} {{end}}' 2>/dev/null | sed -n 's/.*--requirepass \([^ ]*\).*/\1/p')"
+    if [ -n "$REDIS_PASS" ]; then
+        REDIS_INFO="$(docker exec -e REDISCLI_AUTH="$REDIS_PASS" "$REDIS_CONTAINER" redis-cli INFO memory 2>/dev/null || true)"
+        REDIS_USED=$(printf '%s\n' "$REDIS_INFO" | awk -F: '/^used_memory:/{print $2+0}')
+        REDIS_MAX=$(printf '%s\n' "$REDIS_INFO" | awk -F: '/^maxmemory:/{print $2+0}')
+        if [ -n "$REDIS_USED" ] && [ -n "$REDIS_MAX" ] && [ "$REDIS_MAX" -gt 0 ]; then
+            REDIS_PCT=$(( REDIS_USED * 100 / REDIS_MAX ))
+            echo "🧠 Redis ($REDIS_CONTAINER) : $((REDIS_USED / 1048576)) Mo / $((REDIS_MAX / 1048576)) Mo (${REDIS_PCT}%)"
+            if [ "$REDIS_PCT" -gt 60 ]; then
+                send_alert "Redis ($REDIS_CONTAINER) est à **${REDIS_PCT}%** de son plafond mémoire ($((REDIS_USED / 1048576)) Mo sur $((REDIS_MAX / 1048576)) Mo). Politique \`noeviction\` : à 100 %, les écritures sont **refusées** et les files BullMQ s'arrêtent — vérifier la taille des files (jobs en attente) avant qu'elles ne grossissent."
+            fi
+        elif [ "$REDIS_MAX" = "0" ]; then
+            send_alert "Redis ($REDIS_CONTAINER) n'a **aucun plafond mémoire** (\`maxmemory 0\`). Le correctif attendu est dans \`docker-compose.prod.yml\` : \`--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes\`."
+        fi
+    else
+        echo "⚠️  Redis ($REDIS_CONTAINER) : mot de passe illisible, contrôle mémoire sauté."
+    fi
+fi
+
+# 4c. Redémarrage requis — `unattended-upgrades` installe les noyaux `-security` mais ne
+# redémarre JAMAIS (`Automatic-Reboot "false"`, scripts/setup_security_updates.sh). Sans cette
+# alerte, une CVE noyau est « corrigée » sur le disque et reste **active en mémoire** jusqu'au
+# prochain reboot, parfois des mois (mesure du 04/11/2026 : CVE-2026-98432, 9.8, le noyau
+# corrigé n'était pas encore publié — mais le jour où il l'est, il faut le savoir).
+if [ -f /var/run/reboot-required ]; then
+    REBOOT_PKGS="$(tr '\n' ' ' < /var/run/reboot-required.pkgs 2>/dev/null || true)"
+    echo "🔁 Redémarrage requis : $(cat /var/run/reboot-required)"
+    send_alert "**Redémarrage requis** : un noyau ou une bibliothèque critique a été mis à jour, mais la machine tourne encore sur l'ancienne version en mémoire. Paquets : ${REBOOT_PKGS:-inconnus}. Planifier un reboot (prod + bêta ~1-2 min) puis **prouver** avec \`uname -r\`."
 fi
 
 # 5. Nettoyage de la base de données (Janitor)
@@ -212,6 +261,22 @@ else
     echo "⚠️  Posts inactifs ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6d. Purge réelle des guildes supprimées arrivées à échéance (J+30, chantier guildes-cycle-de-vie)
+# Ne concerne que les guildes DÉSACTIVÉES (deletedAt non nul) dont scheduledDeletion est atteinte.
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    GUILD_PURGE_RESPONSE=$(curl -s -o /tmp/guild-purge-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/guild-purge")
+    if [ "$GUILD_PURGE_RESPONSE" -eq 200 ]; then
+        echo "✅ Purge des guildes échues terminée"
+    else
+        echo "⚠️  Purge des guildes : HTTP $GUILD_PURGE_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Purge des guildes ignorée : CRON_SECRET ou APP_URL manquant"
+fi
+
+
 # 6c2. Purge auto des demandes de service inactives (sans réponse du passeur)
 # Règle : rappels au demandeur J+7 (sera supprimée dans 14 j) et J+14 (dans 7 j), clôture CANCELLED à J+21
 if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
@@ -240,6 +305,26 @@ if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
     fi
 else
     echo "⚠️  Sondages ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
+# 6d2. Sondages PROGRAMMÉS (module staff) — filet de rattrapage quotidien.
+# La voie normale est une ligne de crontab dédiée **chaque minute** (à poser une
+# fois sur le VPS, voir docs/MAINTENANCE.md § Crontab) :
+#   * * * * * curl -s -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
+# Cet appel-ci ne sert qu'à rattraper des créneaux si la ligne minute a été
+# oubliée : la publication est idempotente (revendication atomique en base),
+# donc un double déclenchement ne publie jamais deux fois le même sondage.
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    SCHEDULED_POLLS_RESPONSE=$(curl -s -o /tmp/scheduled-polls-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/publish-scheduled-polls")
+    if [ "$SCHEDULED_POLLS_RESPONSE" -eq 200 ]; then
+        echo "✅ Sondages programmés : créneaux échus traités"
+    else
+        echo "⚠️  Sondages programmés : HTTP $SCHEDULED_POLLS_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Sondages programmés ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
 # 7. Nettoyage cache proxy-image (images Ganymède / Imgur / DofusDB)

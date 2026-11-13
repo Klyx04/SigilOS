@@ -201,7 +201,7 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
 ## 6. Décisions VERROUILLÉES le 10/10/2026 (ne pas re-débattre)
 
 > Arbitrages tranchés avec le propriétaire. Le détail d'exécution vit dans
-> `docs/plans/MODULE-RUSH-SYLVESTRE.md` (§ F) ; l'ordre, dans `docs/plans/FILE-EXECUTION.md`.
+> `docs/plans/MODULE-RUSH-SYLVESTRE.md` (§ F) ; l'ordre, dans `docs/ROADMAP.md`.
 
 1. **Un seul guide** `rush-sylvestre`, branché par **données** : `alignReq` (cité), `alignOrderReq` (ordre),
    `alignLevelReq` (seuil). **Jamais deux guides** (un « bontarien » et un « brâkmarien »).
@@ -215,3 +215,73 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
    (les deux camps sont **miroir par slot** — la source le donne déjà).
 6. **Le bord visible** : sélecteur de cité/ordre **commun** au guide interne, au guide public et à l'overlay
    (une seule implémentation, jamais une copie par surface).
+
+## 7. Révision du 20/10/2026 (mesurée aux sources — remplace les points 1 et 4 ci-dessus)
+
+1. **Deux étages, pas un** : la route filtre **la cité**, puis l'**Ordre** (`alignOrderCode`), puis la
+   **classe** (`classReq`). Les 5 quêtes d'Apprentissage ont un **nom propre par Ordre** ⇒ **30 quêtes
+   d'Ordre** (2 cités × 3 Ordres × 5), et non 6 × 5.
+2. **Le palier est un verrou calculé** (`alignLevelReq` = 20/40/60/80/100), pas un badge : il exige
+   **N quêtes de cité validées** (`alignmentCountForCamp`). La 100ᵉ quête de cité (« L'exorciste » /
+   « La danse macabre ») conditionne donc les quêtes d'Ordre au palier 100.
+3. **`alignOrderReq` était un seuil de niveau**, pas un Ordre (nom trompeur) : remplacé par
+   `alignLevelReq`, conservé en legacy le temps de la bascule.
+4. **La « tranche » disparaît** : plus de saisie ni d'affichage ; le compteur de quêtes de cité la remplace.
+5. Détail d'exécution et reste à faire : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **F2**.
+
+## 8. Schéma de la route (02/11/2026) — le seul dessin à retenir
+
+> Une **route unique**, branchée **par données**. Le God n'écrit pas « 50 routes » : il écrit **une**
+> série de cité, **6 × 5** quêtes d'Ordre et **19** variantes de classe. C'est `resolveRushRoute` qui
+> choisit, **avant** la vue, les prérequis et l'agrégation des ressources (invariant n°1 du module).
+
+```text
+                       ┌──────────────────────────────┐
+                       │ TRONC COMMUN                 │  quêtes communes, donjons,
+                       │ (aucun alignReq)             │  succès, préparations
+                       └───────────────┬──────────────┘
+              ┌────────────────────────┴────────────────────────┐
+              │ alignReq = bontarien                            │ alignReq = brakmarien
+              ▼                                                 ▼
+   ┌───────────────────────┐                        ┌───────────────────────┐
+   │ 100 quêtes de cité    │                        │ 102 quêtes de cité    │
+   │ paliers 20/40/60/80/100                        │ paliers 20/40/60/80/100
+   └───────────┬───────────┘                        └───────────┬───────────┘
+               │ alignOrderCode                                 │
+   ┌───────────┴─────────┬────────────────┐      ┌──────────────┴────────┬───────────────┐
+   ▼                     ▼                ▼      ▼                       ▼               ▼
+ Cœur Vaillant     Œil Attentif    Esprit      Cœur Saignant        Œil Putride    Esprit
+ (5 quêtes)        (5)             Salvateur   (5)                  (5)            Malsain (5)
+                                   (5)
+        └── rang N : alignLevelReq 20/40/60/80/100  **et** rang N−1 validé (chaîne)
+
+   Bloc « Quêtes de classe » : 19 variantes (classReq = feca … forgelance)
+   → une seule visible : la quête d'Astrub de SA classe
+
+   Entrée  { camp, order, playerClass }  →  resolveRushRoute()  →  filtré AVANT tout calcul
+```
+
+### 8.1 Où vit le choix, par surface
+
+| Surface | Cité | Ordre | Classe | Source |
+|---|---|---|---|---|
+| Dashboard interne | ✅ | ✅ | ✅ | `UserProfile` du **personnage sélectionné** (mule incluse) |
+| Overlay | ✅ | ✅ | ✅ | profil + `searchParams.character` (classe de mule lue dans `altPseudos`) |
+| Guide public | ✅ | ❌ | ❌ | `localStorage` — **remplacé par le compte visiteur** (`PLAN-ESPACE-VISITEUR.md`) |
+
+> **Live le 02/11/2026 (lot `L2`)** : le dashboard passe `order` à `resolveRushRoute` (5 quêtes
+> d'Ordre au lieu de 15) et l'overlay autonome calcule sa route (cité + Ordre + classe) avant de
+> recevoir ses jalons filtrés. La **chaîne des rangs** (§ 8.2) est **calculée** par
+> `previousOrderRank` — même cité, même Ordre, palier immédiatement inférieur — et non saisie : les
+> 30 quêtes d'Ordre ne portent aucun `prereq_text`.
+
+### 8.2 Ce que fait un changement (règle de jeu)
+
+| Geste | Effet | Portée |
+|---|---|---|
+| **Changement de cité** | reset de la branche de l'**ancienne cité** + cascade des dépendants | quêtes communes, donjons et succès **conservés** |
+| **Changement d'Ordre** | décochage des **5 quêtes de l'ancien Ordre** ; le nouvel Ordre repart de son rang 1 | la progression de **cité** n'est **pas** touchée |
+| **Palier atteint** | ne débloque rien à lui seul : le rang N exige `alignLevelReq ≥ 20 × N` **et** le rang N−1 | verrou calculé, jamais saisi |
+
+⚠️ Le reset d'alignement actuel porte sur le **tag** `alignment_set` (67 séquences) : il est **partiel**.
+Il doit porter sur **`alignReq`** — défaut mesuré et lot `L1` (`MODULE-RUSH-SYLVESTRE.md` § 1 bis).

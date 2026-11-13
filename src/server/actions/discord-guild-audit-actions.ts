@@ -189,7 +189,7 @@ function checkChannelPerms(
             title: `${opts.label} — permissions insuffisantes dans #${channel.name ?? channelId}`,
             impact: opts.impact,
             remedy: `Dans les paramètres Discord de #${channel.name ?? channelId}, autorisez le bot : ${permNames(missing).join(", ")}. ${opts.remedy}`,
-            technicalDetail: `Permissions manquantes : ${permNames(missing).join(", ")} dans #${channel.name} (ID ${channelId}).`,
+            technicalDetail: `Permissions manquantes : ${permNames(missing).join(", ")} dans #${channel.name ?? channelId} (ID ${channelId}).`,
             settingsHref: opts.settingsHref,
         };
     }
@@ -231,8 +231,8 @@ function checkRoleHierarchy(
             status: "blocked",
             title: `${label} — rôle du bot trop bas dans la hiérarchie`,
             impact,
-            remedy: `Dans les paramètres Discord de votre serveur (Rôles), placez le rôle du bot au-dessus du rôle « ${role.name} ». Le bot (position ${ctx.botHighestPosition}) doit être plus haut que la cible (position ${role.position}).`,
-            technicalDetail: `Bot position ${ctx.botHighestPosition}, rôle cible « ${role.name} » position ${role.position}.`,
+            remedy: `Dans les paramètres Discord de votre serveur (Rôles), placez le rôle du bot au-dessus du rôle « ${role.name ?? role.id} ». Le bot (position ${ctx.botHighestPosition}) doit être plus haut que la cible (position ${role.position}).`,
+            technicalDetail: `Bot position ${ctx.botHighestPosition}, rôle cible « ${role.name ?? role.id} » position ${role.position}.`,
             settingsHref,
         };
     }

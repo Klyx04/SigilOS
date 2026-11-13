@@ -1,25 +1,50 @@
 /**
- * Pseudo-succès « Donjon validé » — **retiré le 11/10/2026** (demande user : « supprime le succès
- * "Donjon validé" il sert à rien, et plus de rendu de ce succès dans les fiches boss »).
+ * Pseudo-succès « Donjon validé ».
  *
- * ⚠️ Ce module ne **crée** plus rien. Il ne conserve que l'identité du pseudo-succès, utilisée par
- *  - la **mémoire anti-résurrection** (`game-data-ignores`, qui doit toujours reconnaître le slug),
- *  - l'outil d'exploitation `scripts/succes-speciaux.ts retirer-donjon-valide` (purge des lignes).
+ * **Historique** : retiré le 11/10/2026 (« supprime le succès Donjon validé, il sert à rien »),
+ * puis **réintroduit de façon ciblée le 25/10/2026** : les doubles boss (« Comte et Klime »,
+ * « Comte et Nileza », « Comte et Sylargh », « Comte et Missiz Frizz ») n'ont **aucun** succès
+ * propre — DofusDB ne les liste pas — donc aucune coche n'était possible. Demande user :
+ * « je peux pas cocher juste le fait d'avoir fait Comte + X ? ».
  *
- * Le drapeau `Dungeon.isNoAchievement` reste : il dit honnêtement « ce donjon n'a pas de succès »
- * (un tel donjon n'affiche simplement **aucun** succès — plus de ligne générique).
+ * **Règle** : ce pseudo-succès n'est rendu que s'il est le **seul** du donjon. Un donjon qui a
+ * de vrais succès ne le voit **jamais** (le retrait du 11/10 reste donc vrai partout ailleurs).
+ *
+ * ⚠️ Ce module est **pur** (importable par un composant client) : les écritures vivent dans
+ * `src/server/dungeon-completion.ts`.
  */
 
-/** Slug du challenge système matérialisant « le donjon est validé » (retiré : purge seulement). */
+/** Slug du challenge système matérialisant « le donjon est validé ». */
 export const NO_ACHIEVEMENT_CHALLENGE_SLUG = "donjon-valide";
 
-/** Libellé affiché du pseudo-succès (utilisé par l'outil de purge). */
+/** Libellé affiché du pseudo-succès. */
 export const NO_ACHIEVEMENT_CHALLENGE_NAME = "Donjon validé";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Plus AUCUNE création/rattachement ici (11/10/2026) : `ensureNoAchievementChallengeId()` et
-// `attachNoAchievementToDungeon()` ont été supprimés avec le pseudo-succès. Ce qui le recréait
-// (siphon d'anomalie, enregistrement God d'un donjon sans succès) ne le fait plus — la seule
-// opération restante est sa **purge** (`scripts/succes-speciaux.ts retirer-donjon-valide`).
-// ─────────────────────────────────────────────────────────────────────────────
+/** Explication affichée sous le succès (honnête : il n'y a rien d'autre à valider). */
+export const NO_ACHIEVEMENT_CHALLENGE_DESCRIPTION =
+    "Coche ce succès quand tu as terminé le donjon : aucun autre succès n'est connu pour lui.";
 
+type AchievementLike = {
+    challenge?: { slug?: string | null } | null;
+    slug?: string | null;
+};
+
+function achievementSlug(achievement: AchievementLike): string | null {
+    return achievement.challenge?.slug ?? achievement.slug ?? null;
+}
+
+/** Le donjon n'a-t-il **que** le pseudo-succès (ou aucune ligne) ? */
+export function hasOnlyCompletionAchievement(achievements: readonly AchievementLike[]): boolean {
+    return achievements.every((achievement) => achievementSlug(achievement) === NO_ACHIEVEMENT_CHALLENGE_SLUG);
+}
+
+/**
+ * Succès à **rendre** : « Donjon validé » est écarté dès que le donjon a de vrais succès,
+ * et conservé quand c'est la seule ligne (la coche « je l'ai fait »).
+ */
+export function visibleDungeonAchievements<T extends AchievementLike>(achievements: readonly T[]): T[] {
+    const real = achievements.filter(
+        (achievement) => achievementSlug(achievement) !== NO_ACHIEVEMENT_CHALLENGE_SLUG
+    );
+    return real.length > 0 ? real : [...achievements];
+}

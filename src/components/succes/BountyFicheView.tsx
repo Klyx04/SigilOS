@@ -60,7 +60,7 @@ export function BountyFicheView({
     fallbackImageUrl = null,
     /** Texte de l'état vide (aucune fiche sélectionnée / indisponible). */
     emptyTitle = "Aucun avis à afficher",
-    emptyHint = "Lancez le siphon (God → Données de jeu) pour peupler les avis de recherche.",
+    emptyHint = "Aucune fiche disponible pour le moment.",
     showOverlayAction = true,
 }: {
     fiche: BountyFichePayload | null;
@@ -94,7 +94,7 @@ export function BountyFicheView({
     // fiche donjon interne (`@/lib/boss-fiche-tabs`).
     const tabs = buildBossFicheTabs({
         entity: "bounty",
-        counts: { grades: grades.length, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+        counts: { grades: grades.length, roomMonsters: 0, quests: 0, achievements: 0 },
         hasMechanics: !!(fiche as any)?.meta?.mechanics,
     });
 
@@ -226,8 +226,7 @@ export function BountyFicheView({
                 <div className="space-y-2">
                     {spells.length === 0 ? (
                         <p className="py-6 text-center text-xs text-muted-foreground">
-                            Aucun sort : ni DofusDB ni Dofensive n&apos;en référencent pour cet avis (certains
-                            avis, comme « Ronce », n&apos;en lancent aucun).
+                            Aucun sort référencé pour cet avis (certains, comme « Ronce », n&apos;en lancent aucun).
                         </p>
                     ) : (
                         spells.map((s: any) => (

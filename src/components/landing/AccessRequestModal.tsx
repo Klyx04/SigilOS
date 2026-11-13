@@ -46,10 +46,15 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, cli
                 <DialogHeader className="text-left space-y-2">
                     <p className="reg-eyebrow">Créer l&apos;espace de ta guilde</p>
                     <DialogTitle className="text-lg font-bold tracking-tight md:text-xl">
-                        Deux façons de commencer
+                        {autoOnboardingOn ? "Deux façons de commencer" : "Accompagné par l'équipe"}
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                        En autonomie si tu administres ton Discord, ou accompagné pas à pas.
+                        {/* ⚠️ Mesure du 01/11/2026 : avec le kill-switch God OFF, le bloc « En autonomie »
+                            disparaissait mais cette phrase continuait de l'annoncer — la modale promettait
+                            deux chemins pour n'en montrer qu'un. */}
+                        {autoOnboardingOn
+                            ? "En autonomie si tu administres ton Discord, ou accompagné pas à pas."
+                            : "L'ouverture autonome est momentanément suspendue : l'équipe ouvre ton espace avec toi."}
                     </DialogDescription>
                 </DialogHeader>
 

@@ -24,24 +24,24 @@ import { describe, it, expect } from "vitest";
 import { dofusStatAssetUrl, resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
 
 describe("Mêlée / Distance (%) — l'icône officielle existe enfin", () => {
-    it("`effectId` 2803 (Mêlée %) → bouclier (le référentiel dit `tx_resMelee`)", () => {
+    it("`effectId` 2803 (Mêlée %) → icône de résistance Mêlée dédiée", () => {
         expect(resolveDofusStatTheme(null, 2803)).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resMelee.png",
             label: "Résistance Mêlée",
         });
     });
 
-    it("`effectId` 2804 / 2807 (Distance %) → bouclier", () => {
-        expect(resolveDofusStatTheme(null, 2804)).toMatchObject({ asset: "bouclier.png" });
+    it("`effectId` 2804 / 2807 (Distance %) → icône de résistance Distance dédiée", () => {
+        expect(resolveDofusStatTheme(null, 2804)).toMatchObject({ asset: "resDistance.png" });
         expect(resolveDofusStatTheme(null, 2807)).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resDistance.png",
             label: "Résistance Distance",
         });
     });
 
     it("caractéristique 124 (Mêlée %) → Mêlée, PAS Sagesse (collision d'ids)", () => {
-        expect(resolveDofusStatTheme(124)).toMatchObject({ asset: "bouclier.png" });
-        expect(resolveDofusStatTheme(121)).toMatchObject({ asset: "bouclier.png" });
+        expect(resolveDofusStatTheme(124)).toMatchObject({ asset: "resMelee.png" });
+        expect(resolveDofusStatTheme(121)).toMatchObject({ asset: "resDistance.png" });
     });
 
     it("`effectId` 124 reste **Sagesse** (l'autre espace d'ids, intact)", () => {
@@ -53,16 +53,16 @@ describe("Mêlée / Distance (%) — l'icône officielle existe enfin", () => {
 
     it("filet par libellé : « Mêlée (%) » / « Distance (%) » (caractéristique absente)", () => {
         expect(resolveDofusStatTheme(null, null, null, "Mêlée (%)")).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resMelee.png",
         });
         expect(resolveDofusStatTheme(null, null, null, "Distance (%)")).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resDistance.png",
         });
     });
 
     it("l'asset référencé existe bien (aucune icône cassée)", () => {
         const theme = resolveDofusStatTheme(null, 2803);
-        expect(theme && dofusStatAssetUrl(theme.asset)).toBe("/assets/dofus/stats/bouclier.png");
+        expect(theme && dofusStatAssetUrl(theme.asset)).toBe("/assets/dofus/stats/resMelee.png");
     });
 });
 
@@ -89,15 +89,15 @@ describe("Ids mal cartographiés (audit du référentiel)", () => {
 describe("Séries Poussée / Critiques (mesurées au référentiel)", () => {
     it("`414` Poussée → dégâts, `416`/`417` Poussée (fixe) → résistance", () => {
         expect(resolveDofusStatTheme(null, 414)).toMatchObject({ asset: "dommages.png" });
-        expect(resolveDofusStatTheme(null, 416)).toMatchObject({ asset: "bouclier.png" });
-        expect(resolveDofusStatTheme(null, 417)).toMatchObject({ asset: "bouclier.png" });
+        expect(resolveDofusStatTheme(null, 416)).toMatchObject({ asset: "resPoussee.png" });
+        expect(resolveDofusStatTheme(null, 417)).toMatchObject({ asset: "resPoussee.png" });
     });
 
     it("`418`/`419` Critiques → dégâts critiques, `420`/`421` (fixe) → résistance critique", () => {
         expect(resolveDofusStatTheme(null, 418)).toMatchObject({ asset: "dommages.png" });
         expect(resolveDofusStatTheme(null, 419)).toMatchObject({ asset: "dommages.png" });
-        expect(resolveDofusStatTheme(null, 420)).toMatchObject({ asset: "bouclier.png" });
-        expect(resolveDofusStatTheme(null, 421)).toMatchObject({ asset: "bouclier.png" });
+        expect(resolveDofusStatTheme(null, 420)).toMatchObject({ asset: "resCritique.png" });
+        expect(resolveDofusStatTheme(null, 421)).toMatchObject({ asset: "resCritique.png" });
     });
 
     it("libellés : « Poussée » → dégâts, « Poussée (fixe) » / « Critiques (fixe) » → résistance", () => {
@@ -105,10 +105,10 @@ describe("Séries Poussée / Critiques (mesurées au référentiel)", () => {
             asset: "dommages.png",
         });
         expect(resolveDofusStatTheme(null, null, null, "Poussée (fixe)")).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resPoussee.png",
         });
         expect(resolveDofusStatTheme(null, null, null, "Critiques (fixe)")).toMatchObject({
-            asset: "bouclier.png",
+            asset: "resCritique.png",
         });
         // Le coup critique (%) n'est pas une « critiques (fixe) » : il garde son icône.
         expect(resolveDofusStatTheme(null, 115)).toMatchObject({ asset: "critique.png" });

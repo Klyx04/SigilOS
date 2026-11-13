@@ -12,6 +12,53 @@ export type GuardResult = {
 };
 
 /**
+ * Requiert le **propriétaire Discord** de la guilde — pas un simple administrateur.
+ *
+ * Le propriétaire d'un serveur Discord est la seule autorité qui peut engager son serveur : un
+ * membre avec le bit Administrateur ne doit pas pouvoir le retirer du produit. La propriété est lue
+ * **en direct** sur Discord (`owner_id`), jamais depuis `GuildConfig.ownerId` — cette colonne peut
+ * porter un UUID interne après une succession (`maybeSuccessionOnLeave`).
+ *
+ * Aucun bypass : God a ses propres actions (`softDeleteGuild`, `hardDeleteGuild`), il n'a pas besoin
+ * de passer par la porte du propriétaire. **Fail-closed** : Discord injoignable ⇒ refus.
+ */
+export async function requireGuildOwner(
+    guildId: string,
+    context: string = "Action propriétaire",
+): Promise<GuardResult> {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { isAuthorized: false, error: "Unauthorized" };
+    }
+
+    const account = await db.account.findFirst({
+        where: { userId: session.user.id, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    if (!account) {
+        return { isAuthorized: false, error: "No Discord account linked" };
+    }
+
+    const discordUserId = account.providerAccountId;
+
+    try {
+        const { fetchGuild } = await import("@/server/discord");
+        const guildInfo = await fetchGuild(guildId);
+        if (guildInfo?.owner_id && guildInfo.owner_id === discordUserId) {
+            return { isAuthorized: true, discordUserId };
+        }
+        logger.warn("[guard] requireGuildOwner refusé — pas propriétaire", { context });
+        return { isAuthorized: false, error: "Réservé au propriétaire du serveur Discord." };
+    } catch (error) {
+        logger.error("[guard] requireGuildOwner — Discord injoignable (refus par défaut)", {
+            context,
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return { isAuthorized: false, error: "Impossible de vérifier la propriété du serveur." };
+    }
+}
+
+/**
  * Require the current user to be a Discord Administrator of the guild.
  * Checks: Owner OR Discord permission bit 0x8 (ADMINISTRATOR).
  * 

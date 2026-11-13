@@ -104,8 +104,8 @@ function libToServerEdges(): string[] {
  */
 const DOCUMENTED_LIB_TO_SERVER_EDGES = [
     "src/lib/anomaly-boss-siphon.ts → @/server/game/dungeon-slug",
-    "src/lib/discord-veille.ts → @/server/actions/god-notif-actions",
-    "src/lib/dofusdb-limiter.ts → @/server/actions/god-notif-actions",
+    "src/lib/discord-veille.ts → @/server/god-notifications",
+    "src/lib/dofusdb-limiter.ts → @/server/god-notifications",
 ];
 
 describe("A1 — graphe d'imports du worker (jsdom interdit)", () => {

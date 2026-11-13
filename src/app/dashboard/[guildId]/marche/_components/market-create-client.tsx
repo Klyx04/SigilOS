@@ -623,7 +623,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
     }
 
     /** Étape ciblée par un chemin d'anomalie (bannière étape 4/5 + saut direct). */
-    function issueStep(path: (string | number)[]): 1 | 2 | 3 {
+    function issueStep(path: readonly PropertyKey[]): 1 | 2 | 3 {
         const head = path[0];
         if (head === "type") return 1;
         if (
@@ -2011,7 +2011,7 @@ function ForgeBlock({
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                            Runes siphonnées
+                            Runes
                         </span>
                         <span className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
                             {SMITHMAGIC_PALIERS.map((value) => (

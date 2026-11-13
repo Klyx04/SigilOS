@@ -34,7 +34,6 @@ RUN npx prisma generate
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-ARG BETA_PASSWORD
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 # DSN public Sentry figé dans le bundle client au build (non secret : visible
@@ -82,6 +81,10 @@ RUN npm run build:siphon
 # Build succès script (siphon des succès « spéciaux » — outil d'exploitation :
 # `node scripts/succes-speciaux.js siphon [--apply]`, dry-run par défaut)
 RUN npm run build:succes
+
+# Build du rattrapage « Donjon validé » (doubles boss sans succès — dry-run par défaut :
+# `node scripts/backfill-dungeon-completion.js [--apply]`)
+RUN npm run build:backfill-dungeon-completion
 
 # Build worker script
 RUN npm run build:worker
@@ -157,7 +160,6 @@ COPY --from=prisma-cli --chown=nextjs:nodejs /prisma-cli /opt/prisma-cli
 # Copy bundled seeds
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-docs.js ./prisma/
 
 # Copy bundled worker
 COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js

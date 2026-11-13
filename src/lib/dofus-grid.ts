@@ -577,4 +577,85 @@ export function splitHoles(
     return { voidCells, pits };
 }
 
+/**
+ * Calcule la destination finale d'un ennemi **poussé** depuis `target` dans la direction
+ * `caster → target`, sur `pushDistance` cases. La poussée suit le **même repère** que la portée
+ * (losange Dofus sur map réelle, orthogonal sur grille libre) et s'arrête au premier obstacle,
+ * trou ou bord de grille — comme dans le jeu.
+ *
+ * Retourne également `actualCases` : le nombre de cases réellement parcourues (≤ pushDistance),
+ * utilisé pour calculer les dégâts de choc si le sort en inflige.
+ *
+ * Règle Dofus 2 (poussée) : la direction est l'axe CASTER→CIBLE dans le repère de déplacement.
+ * Sur map réelle brick, on travaille dans le repère losange (u, v) — un pas = une case de
+ * déplacement — puis on reprojette en (col, row). Sur grille libre, les axes sont directement (x, y).
+ */
+export function computePushDestination(opts: {
+    caster: DofusPos;
+    target: DofusPos;
+    pushDistance: number;
+    cols: number;
+    rows: number;
+    isRealMap: boolean;
+    /** Renvoie vrai si la case (x, y) est un obstacle / trou (non marchable). */
+    isBlocked: (x: number, y: number) => boolean;
+}): { dest: DofusPos; actualCases: number; path: DofusPos[] } {
+    const { caster, target, pushDistance, cols, rows, isRealMap, isBlocked } = opts;
+
+    if (pushDistance <= 0) return { dest: target, actualCases: 0, path: [] };
+
+    let du: number, dv: number;
+
+    if (isRealMap) {
+        // Repère losange : direction caster→cible en (u, v)
+        const lc = toLos(caster.x, caster.y);
+        const lt = toLos(target.x, target.y);
+        du = Math.sign(lt.x - lc.x);
+        dv = Math.sign(lt.y - lc.y);
+        // Direction pure : axe dominant si diagonale (en jeu, poussée = déplacement orthogonal losange)
+        if (du !== 0 && dv !== 0) {
+            const ddu = Math.abs(lt.x - lc.x);
+            const ddv = Math.abs(lt.y - lc.y);
+            if (ddu >= ddv) dv = 0; else du = 0;
+        }
+        if (du === 0 && dv === 0) return { dest: target, actualCases: 0, path: [] };
+
+        // Marche dans le repère losange
+        let { x: lu, y: lv } = toLos(target.x, target.y);
+        const path: DofusPos[] = [];
+        for (let i = 0; i < pushDistance; i++) {
+            const nu = lu + du;
+            const nv = lv + dv;
+            const next = losToXY(nu, nv);
+            if (next.x < 0 || next.x >= cols || next.y < 0 || next.y >= rows) break;
+            if (isBlocked(next.x, next.y)) break;
+            lu = nu; lv = nv;
+            path.push(next);
+        }
+        const dest = path.length > 0 ? path[path.length - 1] : target;
+        return { dest, actualCases: path.length, path };
+    } else {
+        // Grille libre orthogonale (17×17)
+        du = Math.sign(target.x - caster.x);
+        dv = Math.sign(target.y - caster.y);
+        if (du !== 0 && dv !== 0) {
+            if (Math.abs(target.x - caster.x) >= Math.abs(target.y - caster.y)) dv = 0; else du = 0;
+        }
+        if (du === 0 && dv === 0) return { dest: target, actualCases: 0, path: [] };
+
+        let cx = target.x;
+        let cy = target.y;
+        const path: DofusPos[] = [];
+        for (let i = 0; i < pushDistance; i++) {
+            const nx = cx + du;
+            const ny = cy + dv;
+            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) break;
+            if (isBlocked(nx, ny)) break;
+            cx = nx; cy = ny;
+            path.push({ x: cx, y: cy });
+        }
+        const dest = path.length > 0 ? path[path.length - 1] : target;
+        return { dest, actualCases: path.length, path };
+    }
+}
 

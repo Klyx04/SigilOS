@@ -27,6 +27,7 @@ import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-action
 import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { purgeGuildById } from "@/server/guild-purge-core";
 
 /**
  * Purge tous les caches d'une guilde (contexte membres Redis, config mémoire,
@@ -106,7 +107,7 @@ export async function softDeleteGuild(
         await purgeGuildCachesByInternalId(guildId);
 
         // NOTIFY GOD (Platform Alert)
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: reason === 'BOT_REMOVED' ? "🤖 BOT EXPULSÉ" : "🏰 GUILDE DÉSAVOUÉE",
             message: `La guilde "${guildId}" a été marquée pour suppression (Raison: ${reason}).\n👤 Par: **${adminName}**`,
@@ -170,7 +171,7 @@ export async function reactivateGuild(guildId: string) {
 
         // 🔔 NOTIFY GOD
         const guildName = guild?.name || guildId;
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "🏰 Guilde Réactivée",
             message: `La guilde **"${guildName}"** a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
@@ -198,47 +199,30 @@ export async function hardDeleteGuild(guildId: string) {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
 
-        // 1. Get Discord Guild ID before deleting config
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { id: guildId },
-            select: { discordGuildId: true }
+        // Une seule implémentation de la purge (`src/server/guild-purge-core.ts`), partagée avec le
+        // cron `guild-purge` : config + cascades, whitelist, caches, sortie du bot.
+        // `force` : God supprime sans attendre l'échéance (décision assumée, action God explicite).
+        // L'acteur est **passé** et non deviné : la preuve de suppression doit dire qui a effacé.
+        const purge = await purgeGuildById(guildId, {
+            force: true,
+            actor: {
+                userId: session?.user?.id ?? "SYSTEM",
+                name: adminName,
+                source: "GOD",
+            },
         });
-
-        // 2. Cascade delete configured in schema handles related data
-        await db.guildConfig.delete({
-            where: { id: guildId }
-        });
-
-        // 3. Remove from persistence whitelist (AllowedGuild)
-        // This prevents the "Ghost Guild" from reappearing in the GOD Dashboard
-        if (guildConfig?.discordGuildId) {
-            await db.allowedGuild.deleteMany({
-                where: { discordGuildId: guildConfig.discordGuildId }
-            });
-        // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
-        // restent dans le dashboard jusqu'à expiration des caches.
-        await purgeGuildCaches(guildConfig.discordGuildId);
-
-        // 4. Expulser le bot du serveur Discord (best-effort, comme le ban) :
-        // sans ça, le portail re-provisionne silencieusement la guilde au
-        // retour de l'owner (le bot étant toujours sur le serveur) et le hard
-        // delete semble n'avoir rien fait. Un échec n'annule jamais le delete.
-        try {
-            const { leaveGuild } = await import("@/server/discord");
-            await leaveGuild(guildConfig.discordGuildId);
-        } catch (botErr) {
-            logger.warn(`[GOD] hardDeleteGuild: bot leave failed for ${guildConfig.discordGuildId}`, { botErr });
-        }
+        if (!purge.purged) {
+            return { success: false, error: "Guilde introuvable" };
         }
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "🗑️ Guilde Supprimée Définitivement",
-            message: `La guilde "${guildConfig?.discordGuildId || guildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
+            message: `La guilde "${purge.discordGuildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: false,
-            metadata: { guildId, discordGuildId: guildConfig?.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
+            metadata: { guildId, discordGuildId: purge.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
         });
 
         revalidatePath('/god');
@@ -277,7 +261,7 @@ export async function softDeleteProfile(
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Archivé (Soft Delete)",
             message: `Le profil "${profileId}" a été marqué pour suppression (Raison: ${reason}, Grace: ${graceDays}j).\n👤 Par: **${adminName}**`,
@@ -316,7 +300,7 @@ export async function reactivateProfile(profileId: string) {
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Réactivé",
             message: `Le profil "${profileId}" a été réactivé sur la plateforme.\n👤 Par: **${adminName}**`,
@@ -365,7 +349,7 @@ export async function hardDeleteProfile(profileId: string) {
         });
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👤 Profil Supprimé Définitivement",
             message: `Le profil "${profileId}" a été supprimé définitivement (guilde: ${profile.guildId || "inconnue"}).\n👤 Par: **${adminName}**`,
@@ -547,9 +531,37 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         }
 
+        // 🔒 USER : couper l'accès **tout de suite**. Sans purge des sessions, le JWT (8 h max)
+        // restait valide : le membre banni demeurait « connecté » à l'écran, sur un message
+        // trompeur, alors que ses lectures échouaient déjà en fail-closed (mesure du 25/10/2026).
+        // Même pattern que la branche GUILD ci-dessus et que `liftGuildMemberBan`.
+        if (type === 'USER') {
+            const account = await db.account
+                .findFirst({
+                    where: { provider: 'discord', providerAccountId: discordId },
+                    select: {
+                        userId: true,
+                        user: { select: { profiles: { select: { guildId: true } } } },
+                    },
+                })
+                .catch(() => null);
+
+            if (account?.userId) {
+                await db.session.deleteMany({ where: { userId: account.userId } });
+                try {
+                    const { invalidateUserContextCache } = await import("./user-actions");
+                    for (const profile of account.user.profiles) {
+                        await invalidateUserContextCache(account.userId, profile.guildId).catch(() => {});
+                    }
+                } catch (cacheErr) {
+                    logger.warn(`[Ban] Failed to invalidate user context cache for ${discordId}:`, cacheErr);
+                }
+            }
+        }
+
         // 🔔 NOTIFY GOD
         const adminName = session?.user?.name || "Super Admin";
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: type === 'GUILD' ? "🚫 Guilde Bannie & Bot Expulsé" : "🚫 Utilisateur Banni",
             message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
@@ -580,7 +592,7 @@ export async function unbanEntity(banId: string) {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "✅ Ban Levé",
             message: `Le ban \`${banId}\` a été levé de la plateforme.\n👤 Par: **${adminName}**`,
@@ -675,6 +687,95 @@ export async function getGuildMembersForGod(guildId: string) {
 }
 
 /**
+ * 🔒 GOD — retire **DÉFINITIVEMENT** un membre d'une guilde (chantier B, lot B-3).
+ *
+ * Différences avec l'action guilde `purgeMemberFromGuild` :
+ * - le God peut, en plus, **purger le compte plateforme** (`deleteAccount: true`) — c'est-à-dire
+ *   retirer l'utilisateur de **toutes** ses guildes (compte `User` + OAuth + sessions) ;
+ * - **aucune trace dans le journal de la guilde** (règle « le God voit tout, mais n'écrit pas dans
+ *   le journal de la guilde » — cf. AMORCE-REFONTE-GOD-GUILDES A4) : la trace est côté God/log.
+ * - gardée par `isSuperAdmin()` (fail-closed).
+ */
+export async function godPurgeMemberFromGuild(
+    guildId: string,
+    profileId: string,
+    options?: { deleteAccount?: boolean }
+): Promise<{ success: boolean; error?: string; accountDeleted?: boolean }> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Super Admin requis" };
+    if (!profileId || typeof profileId !== "string") {
+        return { success: false, error: "Profil invalide" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true, discordGuildId: true, ownerId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = await db.userProfile.findFirst({
+            where: { id: profileId, guildId: guild.id },
+            select: {
+                id: true,
+                userId: true,
+                guildId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: {
+                    select: {
+                        name: true,
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } },
+                    },
+                },
+            },
+        });
+        if (!target) return { success: false, error: "Profil introuvable dans cette guilde" };
+
+        const targetDiscordId = target.user.accounts[0]?.providerAccountId;
+        if (guild.ownerId && targetDiscordId && guild.ownerId === targetDiscordId) {
+            return {
+                success: false,
+                error: "Le propriétaire du serveur Discord ne peut pas être supprimé depuis SigilOS.",
+            };
+        }
+
+        const wantAccount = !!options?.deleteAccount;
+        const label = target.pseudoDofus || target.discordNickname || target.user.name || "Un membre";
+
+        // Profil de la guilde (cascade sur les données guilde).
+        await db.userProfile.delete({ where: { id: profileId } });
+
+        // Purge du compte plateforme : seulement si demandée ET s'il ne reste aucun autre profil.
+        let accountDeleted = false;
+        if (wantAccount) {
+            const remaining = await db.userProfile.count({ where: { userId: target.userId } });
+            if (remaining === 0) {
+                await db.user.delete({ where: { id: target.userId } });
+                accountDeleted = true;
+            }
+        }
+
+        // Révocation immédiate : sessions + caches.
+        await db.session.deleteMany({ where: { userId: target.userId } });
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(target.userId, target.guildId, guild.discordGuildId).catch(() => {});
+
+        // Trace côté God uniquement (jamais dans le journal de la guilde).
+        logger.info("[GOD] godPurgeMemberFromGuild", {
+            guild: guild.discordGuildId,
+            scope: accountDeleted ? "ACCOUNT" : "GUILD_ONLY",
+        });
+
+        revalidatePath(`/god/guilds/${guild.id}`);
+        return { success: true, accountDeleted };
+    } catch (e) {
+        logger.error("[GOD] godPurgeMemberFromGuild error:", e);
+        return { success: false, error: "Erreur base de données" };
+    }
+}
+
+/**
  * Transfer full ownership of a guild to another user (Super-admin only)
  * #230 — Durcissement : validation du destinataire (membre ACTIF de la guilde),
  * garde contre le no-op (déjà propriétaire) et résolution robuste de la guilde.
@@ -730,7 +831,7 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
         } catch { /* suivi non bloquant */ }
 
         // 🔔 NOTIFY GOD
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "👑 Propriété Transférée",
             message: `La propriété de la guilde "${guild.name || guildId}" a été transférée.\n👤 Par: **${adminName}**`,
@@ -772,7 +873,7 @@ export async function updateGuildMaxMembers(guildId: string, maxMembers: number)
             data: { maxMembers }
         });
 
-        const { notifyGod } = await import('./god-notif-actions');
+        const { notifyGod } = await import("@/server/god-notifications");
         await notifyGod({
             title: "📈 Capacité de Guilde Modifiée",
             message: `La guilde **"${guild.name}"** a une nouvelle capacité max de **${maxMembers}** membres (précédemment : ${guild.maxMembers}).\n👤 Par : **${adminName}**`,

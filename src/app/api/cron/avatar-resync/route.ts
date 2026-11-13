@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncAllGuildAvatars } from "@/server/actions/avatar-sync";
+import { syncAllGuildAvatars } from "@/server/avatar-sync";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 

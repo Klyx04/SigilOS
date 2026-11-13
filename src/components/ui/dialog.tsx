@@ -49,19 +49,33 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  overlayClassName,
   children,
   showCloseButton = true,
   draggable = false,
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   draggable?: boolean
+  /**
+   * Conteneur du portail. `null`/absent = `document.body` du document principal
+   * (comportement historique). L'overlay PiP passe le `body` de **sa** fenêtre :
+   * sans ça, une modale ouverte depuis la PiP s'affiche dans la page hôte.
+   */
+  portalContainer?: HTMLElement | null
+  /**
+   * Classes du voile seul. Les modales de la DA s'en servent pour retirer le
+   * `backdrop-blur-sm` (leur feuille impose `filter: none`) ; les autres
+   * appelants ne passent rien et ne voient aucun changement.
+   */
+  overlayClassName?: string
 }) {
   const dragControls = useDragControls()
 
   return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+    <DialogPortal data-slot="dialog-portal" container={portalContainer}>
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         asChild

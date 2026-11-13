@@ -41,6 +41,7 @@ import { EventZoneManager } from "@/components/admin/EventZoneManager";
 
 import { OverviewTabs } from "./components/overview-tabs";
 import { GodLoadingSkeleton } from "./ui";
+import { SystemHealthDashboard } from "./components/system-health-dashboard";
 import { BlacklistSection } from "./components/blacklist-section";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
@@ -48,9 +49,10 @@ import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
-import { CronStatusPanel } from "./components/cron-status-panel";
+import { CronStatusTabs } from "./components/cron-status-tabs";
 import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
+import { toGodLiveStats } from "@/lib/god-live-stats";
 
 
 export default async function SuperAdminPage(props: {
@@ -264,9 +266,9 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "infrastructure" && (
                         <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
+                            <div className="space-y-4 pb-12 border-b border-border">
+                                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">Système & Infrastructure</h1>
+                                <p className="text-sm text-muted-foreground max-w-3xl">Santé des services, métriques Prometheus et configuration globale.</p>
                             </div>
 
                             {(resolvedSearchParams as any).sub === "STORAGE" ? (
@@ -275,12 +277,13 @@ export default async function SuperAdminPage(props: {
                                 </div>
                             ) : (
                                 <>
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                    <SystemHealthDashboard />
+                                    <Suspense fallback={<div className="animate-pulse bg-surface h-64 rounded-xl" />}>
                                         <PlatformConfigServer />
                                     </Suspense>
 
-                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
-                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
+                                    <div className="rounded-xl border border-border bg-surface p-5">
+                                        <Suspense fallback={<div className="animate-pulse bg-surface h-32 rounded-xl" />}>
                                             <OcrStatsServer />
                                         </Suspense>
                                     </div>
@@ -322,10 +325,11 @@ export default async function SuperAdminPage(props: {
                             <div className="space-y-3 pb-8 border-b border-border">
                                 <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Tâches CRON</h1>
                                 <p className="text-muted-foreground text-sm md:text-base font-medium">
-                                    Statut des scripts automatisés du VPS — dernière exécution, succès/échec, logs en direct.
+                                    Statut des scripts automatisés du VPS — dernière exécution, succès/échec,
+                                    logs en direct et journal des 10 dernières exécutions par tâche.
                                 </p>
                             </div>
-                            <CronStatusPanel />
+                            <CronStatusTabs />
                         </div>
                     )}
 
@@ -333,14 +337,6 @@ export default async function SuperAdminPage(props: {
                         <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
                             <PlatformModulesServer />
                         </Suspense>
-                    )}
-
-                    {tab === "api-keys" && (
-                        <div className="space-y-8">
-                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
-                                <GodApiKeysServer />
-                            </Suspense>
-                        </div>
                     )}
 
                     {tab === "slash-commands" && (
@@ -405,24 +401,9 @@ export default async function SuperAdminPage(props: {
 async function LiveStatsServer() {
     try {
         const stats = await getPlatformStats();
-        return (
-            <LiveStats
-                initialStats={{
-                    guilds: stats.allowedGuilds,
-                    guildsTrend: stats.guildsTrend,
-                    activeGuilds: stats.activeGuilds,
-                    users: stats.totalUsers,
-                    usersTrend: stats.usersTrend,
-                    profiles: stats.totalProfiles,
-                    activeProfiles: stats.activeProfiles,
-                    missions: stats.totalMissions,
-                    missionsTrend: stats.missionsTrend,
-                    weeklyActiveUsers: stats.weeklyActiveUsers,
-                    retentionRate: stats.retentionRate,
-                    density: stats.density
-                }}
-            />
-        );
+        // Même règle de forme que le flux SSE (`toGodLiveStats`) : le client remplace
+        // son état par chaque trame, les deux chemins doivent porter les mêmes champs.
+        return <LiveStats initialStats={toGodLiveStats(stats)} />;
     } catch { return <div>Error stats</div> }
 }
 
@@ -612,17 +593,6 @@ async function TelemetryServer() {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
-    }
-}
-
-async function GodApiKeysServer() {
-    try {
-        const { getPlatformApiKeysOverviewAction } = await import("@/server/actions/api-key-actions");
-        const { GodApiKeysPanel } = await import("./components/god-api-keys-panel");
-        const res = await getPlatformApiKeysOverviewAction();
-        return <GodApiKeysPanel initialKeys={res.success ? res.data || [] : []} />;
-    } catch {
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur chargement clés API</div>;
     }
 }
 

@@ -10,9 +10,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getClass, getAlignment, ORDERS, getAlignmentLevelSteps } from "@/lib/dofus-assets";
+import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { formatDofusLevel } from "@/lib/dofus-level";
 import AlignmentModal from "./AlignmentModal";
 import OcreProgressModal, { type OcreMonsterLite } from "./OcreProgressModal";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { QuestFeedbackButton } from "./QuestFeedbackButton";
 import { DofusPageOptions } from "./DofusPageOptions";
 
@@ -85,7 +87,7 @@ function CharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: {
                         <div className="gch-opt-icon mule">{mule.classe ? (() => { const d = getClass(mule.classe); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain" /> : null; })() : <Users className="w-3 h-3 text-blue-400" />}</div>
                         <div className="flex flex-col text-left">
                             <span className="text-xs font-bold">{mule.pseudo}</span>
-                            <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
+                            <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{formatDofusLevel(mule.level)} {mule.classe ? "• " + mule.classe : ""}</span>
                         </div>
                     </DropdownMenuItem>
                 ))}
@@ -133,7 +135,11 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
                             archis: ocreRes.data.stats.archis,
                         });
                         if (Array.isArray(ocreRes.data.monsters)) {
-                            setOcreMonsters(ocreRes.data.monsters as unknown as OcreMonsterLite[]);
+                            // ⚠️ MÊME conversion que le guide : `toOcrePanelData` est la seule à poser
+                            // `imageUrl` (image interne résolue serveur). Passer les monstres bruts
+                            // laissait la vignette sur les replis 404 (mesure du 09/11/2026, bandeau
+                            // des guides « par Dofus »).
+                            setOcreMonsters(toOcrePanelData({ monsters: ocreRes.data.monsters }).monsters);
                         }
                     }
                 }
@@ -144,7 +150,7 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
         return () => { cancelled = true; };
     }, [guildId]);
 
-    // Alignement / ordre / tranche du personnage RÉSOLU (mule sélectionnée OU perso principal).
+    // Alignement / ordre du personnage RÉSOLU (mule sélectionnée OU perso principal).
     const resolvedCharInfo = useMemo(() => {
         const mule = profile?.altPseudos?.find((m: BannerAltPseudo) => m.pseudo === selectedCharacter);
         return {
@@ -157,22 +163,18 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
     const alignInfo = useMemo(() => {
         const { alignment, alignmentOrder, alignmentLevel } = resolvedCharInfo;
         if (!alignment || alignment === "neutre") {
-            return { kind: "none" as const, icon: "/ordres/neutre.png", label: !alignment ? "Non défini" : "Neutre", tranche: 0, trancheTitle: "" };
+            return { kind: "none" as const, icon: "/ordres/neutre.png", label: !alignment ? "Non défini" : "Neutre" };
         }
         const ad = getAlignment(alignment);
         const ords = (ORDERS as unknown as Record<string, any[]>)[alignment.toLowerCase()] || [];
         const od = alignmentOrder ? ords.find((o: any) => o.id === alignmentOrder) : null;
         const isBonta = alignment.toLowerCase().startsWith("bonta");
-        const steps = od ? getAlignmentLevelSteps(od) : [];
-        const step = steps.find((s) => s.level === alignmentLevel);
         if (od) {
             return {
                 kind: "order" as const,
                 icon: od.icon,
                 label: od.name,
                 valueClass: isBonta ? "bonta" : "brak",
-                tranche: alignmentLevel ?? 0,
-                trancheTitle: step?.title || "",
             };
         }
         return {
@@ -180,8 +182,6 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
             icon: ad?.icon || "/ordres/neutre.png",
             label: ad?.name || alignment,
             valueClass: isBonta ? "bonta" : "brak",
-            tranche: 0,
-            trancheTitle: "",
         };
     }, [resolvedCharInfo]);
 
@@ -221,12 +221,6 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
                     <div className="text-left min-w-0 flex-1">
                         <p className="guide-hero-card-label">{alignInfo.kind === "order" ? "Ordre" : "Alignement"}</p>
                         <p className={`guide-hero-card-value ${alignInfo.kind === "order" ? alignInfo.valueClass : "dim"}`}>{alignInfo.label}</p>
-                        {alignInfo.kind === "order" && alignInfo.tranche > 0 && (
-                            <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                <span className="guide-hero-tranche">Tranche {alignInfo.tranche}</span>
-                                {alignInfo.trancheTitle && <span className="guide-hero-tranche-title">{alignInfo.trancheTitle}</span>}
-                            </div>
-                        )}
                     </div>
                 </div>
                 {/* Métamob / Ocre — cliquable : ouvre la modale archis & boss */}

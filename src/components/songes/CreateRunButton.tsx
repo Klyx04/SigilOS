@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, User } from "lucide-react";
-import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
-import NextImage from "next/image";
+import { AnimatePresence } from "framer-motion";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 import {
     Dialog,
     DialogContent,
@@ -91,10 +90,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
-    // Leader class selection
+    // Classe du meneur : le roster (main + mules) est chargé par le sélecteur partagé,
+    // qui pré-sélectionne le personnage principal. Aucun défaut inventé côté écran.
     const [leaderClass, setLeaderClass] = useState<string | null>(null);
-    const [userMules, setUserMules] = useState<{ pseudo: string; classe: string }[]>([]);
-    const [userMainClass, setUserMainClass] = useState<string | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -138,20 +136,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     if (res.success && res.data && userCtx.profileId) {
                         setStuffs(res.data.builds.filter(s => s.author.id === userCtx.profileId));
                     }
-                    // Populate user characters for class selection
-                    if (userCtx && userCtx.profileId) {
-                        const mainCls = (userCtx as any).classe || null;
-                        setUserMainClass(mainCls);
-                        const alts = ((userCtx as any).altPseudos as any[] || []).map((a: any) => ({
-                            pseudo: typeof a === 'string' ? a : a.pseudo,
-                            classe: typeof a === 'string' ? 'cra' : (a.classe || 'cra'),
-                        }));
-                        setUserMules(alts);
-                        // Pre-select main class if no selection yet
-                        if (!leaderClass && mainCls) {
-                            setLeaderClass(mainCls);
-                        }
-                    }
+                    // Roster du profil : c'est le sélecteur partagé qui le lit (main + mules).
+                    // L'ancien repli `'cra'` pour une mule sans classe inventait une classe
+                    // que le membre ne possède pas — il est supprimé.
                 });
             }
         }
@@ -283,16 +270,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="h-11 px-5 text-sm bg-info hover:bg-info/90 text-info-foreground gap-2 font-bold rounded-xl shadow-sm transition-all">
-                    <Plus className="w-4 h-4" />
+                <Button className="h-9 px-4 text-xs bg-info hover:bg-info/90 text-info-foreground gap-2 font-semibold rounded-lg transition-colors">
+                    <Plus className="w-3.5 h-3.5" />
                     Créer une Run
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60 premium-scrollbar">
+            <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[90vh] overflow-y-auto premium-scrollbar">
                 <DialogHeader>
-                    <DialogTitle className="text-xl flex items-center gap-2 text-foreground">
-                        🌙 Nouvelle Run Songes
+                    <DialogTitle className="text-xl font-semibold flex items-center gap-2 text-foreground">
+                        <Moon className="w-5 h-5 text-info" />
+                        Nouvelle Run Songes
                     </DialogTitle>
                 </DialogHeader>
 
@@ -309,7 +297,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                 <AnimatePresence mode="wait">
                     {step === 1 && (
-                        <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-4 pt-2">
+                        <div key="step1" className="space-y-4 pt-2">
                             <Tabs value={mode} onValueChange={(v) => { setMode(v as "standard" | "epreuve"); setError(null); }}>
                     <TabsList className="w-full bg-surface border border-border p-1 rounded-lg mb-4">
                         <TabsTrigger
@@ -332,7 +320,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     <TabsContent value="standard" className="space-y-4 mt-0">
                         {/* Difficulty */}
                         <div className="space-y-2">
-                            <Label className="text-foreground/60 text-xs uppercase tracking-widest font-bold">Difficulté</Label>
+                            <Label className="text-foreground/60 text-xs uppercase tracking-wider font-bold">Difficulté</Label>
                             <Select value={difficulty} onValueChange={(v) => {
                                 setDifficulty(v as DifficultyKey);
                                 const isNewParadoxe = v.startsWith("PARADOXE") || v.startsWith("CAUCHEMAR");
@@ -359,7 +347,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                         {/* Objectives */}
                         <div className="space-y-2">
-                            <Label className="text-foreground/60 text-xs uppercase tracking-widest font-bold">Objectifs (Choix multiple)</Label>
+                            <Label className="text-foreground/60 text-xs uppercase tracking-wider font-bold">Objectifs (Choix multiple)</Label>
                             <div className="grid grid-cols-1 gap-1.5">
                                 {availableObjectives.map(([key, value]) => {
                                     const isSelected = objectives.includes(key as ObjectiveKey);
@@ -370,14 +358,14 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             className={cn(
                                                 "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                                                 isSelected
-                                                    ? "bg-elevated border-border-strong text-foreground shadow-sm"
+                                                    ? "bg-elevated border-border-strong text-foreground "
                                                     : "bg-surface/40 border-border text-muted-foreground hover:bg-elevated hover:text-foreground"
                                             )}
                                         >
                                             <SongesPicto asset={value.asset} size={22} title={value.label} />
                                             <div className="text-sm font-medium">{value.label}</div>
                                             {isSelected && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-info " />
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-info" />
                                             )}
                                         </div>
                                     );
@@ -400,7 +388,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         key={epreuve.code}
                                         onClick={() => setSelectedEpreuve(isSelected ? null : epreuve.code)}
                                         className={cn(
-                                            "relative flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group",
+                                            "relative flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 group",
                                             isSelected
                                                 ? "border-warning/50 bg-warning/15 "
                                                 : "border-border bg-surface/40 hover:border-border-strong hover:bg-elevated"
@@ -417,7 +405,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                                         {/* Icône */}
                                         <div className={cn(
-                                            "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all",
                                             isSelected ? "bg-warning/20 border border-warning/30" : "bg-surface border border-border"
                                         )}>
                                             <SongesPicto asset={epreuve.asset} size={24} title={epreuve.label} />
@@ -447,7 +435,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                                         {/* Selected indicator */}
                                         {isSelected && (
-                                            <div className="w-2 h-2 rounded-full bg-warning  shrink-0 mt-1" />
+                                            <div className="w-2 h-2 rounded-full bg-warning shrink-0 mt-1" />
                                         )}
                                     </div>
                                 );
@@ -475,7 +463,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </div>
 
                         {isScheduled && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-1.5">
+                            <div className="duration-200 space-y-1.5">
                                 <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Date & heure</Label>
                                 {/* Même sélecteur que partout (DJ, édition de run) : heure locale,
                                     « Sans heure » possible, et un placeholder honnête. */}
@@ -498,119 +486,26 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </p>
                     )}
 
-                    {/* CLASS SELECTION (Lead) */}
-                    <div className="space-y-3 pt-2 border-t border-border">
-                        <Label className="text-sm font-bold text-foreground flex items-center gap-2">
-                            ⚔️ Ta Classe pour cette Run
-                        </Label>
-
-                        {/* Mes Personnages (main + mules) */}
-                        {(userMainClass || userMules.length > 0) && (
-                            <div className="space-y-1.5">
-                                <p className="text-caption text-foreground/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                                    <User className="w-3 h-3" /> Mes Personnages
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {/* Main character */}
-                                    {userMainClass && (() => {
-                                        const cls = getClass(userMainClass);
-                                        if (!cls) return null;
-                                        const isSelected = leaderClass === cls.id;
-                                        return (
-                                            <button
-                                                key="main"
-                                                type="button"
-                                                onClick={() => setLeaderClass(cls.id)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
-                                                    isSelected
-                                                        ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
-                                                )}
-                                            >
-                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
-                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
-                                                </div>
-                                                <span>{cls.name}</span>
-                                                <span className="text-caption text-foreground/25 uppercase">Main</span>
-                                                {isSelected && <Check className="w-3 h-3 text-info" />}
-                                            </button>
-                                        );
-                                    })()}
-                                    {/* Mules */}
-                                    {userMules.map((mule, i) => {
-                                        const cls = getClass(mule.classe);
-                                        if (!cls) return null;
-                                        const isSelected = leaderClass === cls.id;
-                                        return (
-                                            <button
-                                                key={i}
-                                                type="button"
-                                                onClick={() => setLeaderClass(cls.id)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
-                                                    isSelected
-                                                        ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
-                                                )}
-                                            >
-                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
-                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
-                                                </div>
-                                                <span>{mule.pseudo}</span>
-                                                {isSelected && <Check className="w-3 h-3 text-info" />}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Toutes les classes */}
-                        <div className="space-y-1.5">
-                            <p className="text-caption text-foreground/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
-                            <div className="flex flex-wrap gap-1.5 bg-surface/40 rounded-xl p-2 border border-border">
-                                {DOFUS_CLASSES.map((cls) => {
-                                    const isSelected = leaderClass === cls.id;
-                                    return (
-                                        <button
-                                            key={cls.id}
-                                            type="button"
-                                            title={cls.name}
-                                            onClick={() => setLeaderClass(cls.id)}
-                                            className={cn(
-                                                "w-9 h-9 rounded-lg flex items-center justify-center transition-all border shrink-0",
-                                                isSelected
-                                                    ? "border-border-strong scale-110 z-10"
-                                                    : "border-border bg-black/20 opacity-50 hover:opacity-100 hover:bg-surface"
-                                            )}
-                                            style={{
-                                                backgroundColor: isSelected ? `${cls.color}20` : undefined,
-                                                boxShadow: isSelected ? `0 0 12px ${cls.color}40, inset 0 0 0 1px ${cls.color}50` : 'none'
-                                            }}
-                                        >
-                                            <NextImage src={cls.icon} alt={cls.name} width={22} height={22} className="object-contain" unoptimized />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {leaderClass && (() => {
-                                const cls = getClass(leaderClass);
-                                return cls ? (
-                                    <p className="text-caption text-center font-bold" style={{ color: cls.color }}>
-                                        {cls.name} sélectionné(e)
-                                    </p>
-                                ) : null;
-                            })()}
-                        </div>
+                    {/* CLASS SELECTION (Lead) — un seul endroit pour la règle « main + mules » */}
+                    <div className="pt-2 border-t border-border">
+                        <CreatorClassSelector
+                            guildId={guildId}
+                            value={leaderClass}
+                            onChange={setLeaderClass}
+                            label="Ta classe pour cette run"
+                            description="Seuls ton personnage principal et tes mules du profil SigilOS sont proposés : une classe que tu ne possèdes pas ne peut pas être choisie."
+                        />
                     </div>
+
+                    {/* Les classes non possédées ne sont plus proposées ici : le roster du
+                        profil (et sa validation serveur) est la seule source. */}
 
                     {/* Submit Step 1 */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                         <Button
                             variant="ghost"
                             onClick={() => setOpen(false)}
-                            className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
+                            className="h-12 px-8 rounded-lg text-caption font-semibold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider border border-border hover:bg-surface order-2 sm:order-1"
                         >
                             Annuler
                         </Button>
@@ -628,7 +523,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 setStep(2);
                             }}
                             className={cn(
-                                "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
+                                "flex-1 h-12 px-10 rounded-lg font-semibold text-caption tracking-wider transition-colors relative group overflow-hidden order-1 sm:order-2",
                                 mode === "epreuve"
                                     ? "bg-warning hover:bg-warning text-warning-foreground"
                                     : "bg-info hover:bg-info text-info-foreground"
@@ -641,30 +536,30 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             </div>
                         </Button>
                     </div>
-                </motion.div>
+                </div>
                 )}
 
                 {step === 2 && (
-                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                <div key="step2" className="space-y-6">
                     <div className="text-center space-y-3 mb-8 pt-4">
-                        <div className="w-16 h-16 rounded-3xl bg-info/10 border border-info/20 flex items-center justify-center mx-auto ">
+                        <div className="w-16 h-16 rounded-lg bg-info/10 border border-info/20 flex items-center justify-center mx-auto">
                             <Hash className="w-8 h-8 text-info" />
                         </div>
-                        <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Configuration Discord</h3>
+                        <h3 className="text-xl font-semibold uppercase tracking-tight text-foreground">Configuration Discord</h3>
                         <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">Notifier la guilde de votre run Songes ?</p>
                     </div>
 
-                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-info/10 border-info/30' : 'bg-surface/50 border-border'}`}>
+                    <div className={`p-6 rounded-lg border transition-all duration-300 ${publishToDiscord ? 'bg-info/10 border-info/30' : 'bg-surface/50 border-border'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-info' : 'text-foreground'}`}>Synchro Automatique</span>
+                                <span className={`text-sm font-semibold uppercase tracking-wider ${publishToDiscord ? 'text-info' : 'text-foreground'}`}>Synchro Automatique</span>
                                 {publishToDiscord ? (
-                                    <div className="flex items-center gap-1 mt-1 animate-in fade-in">
+                                    <div className="flex items-center gap-1 mt-1">
                                         <Hash className="w-3 h-3 text-info/70" />
-                                        <span className="text-caption text-info/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                        <span className="text-caption text-info/70 font-bold uppercase tracking-wider">Sera posté dans #{targetChannelName}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-wider mt-1">Désactivé</span>
                                 )}
                             </div>
                             <Switch
@@ -676,7 +571,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </div>
 
                         {!isDiscordConfigured && (
-                            <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center gap-3">
+                            <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-center gap-3">
                                 <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
                                 <p className="text-caption text-warning/70 font-bold uppercase tracking-wider">
                                     Discord non configuré pour ce module. Contactez un admin.
@@ -685,21 +580,21 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         )}
 
                         {publishToDiscord && discordRoles.length > 0 && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-info/20 space-y-3">
-                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                            <div className="mt-8 pt-6 border-t border-info/20 space-y-3">
+                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-warning/8 border border-warning/20">
                                     <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
                                     <p className="text-caption text-warning/80 font-medium leading-relaxed">
                                         <span className="font-bold text-warning">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un rôle pour que ta run ait de la visibilité.
                                     </p>
                                 </div>
-                                <span className="text-caption font-black text-info/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                <span className="text-caption font-semibold text-info/70 uppercase tracking-wider ml-1">Mentionner un rôle (Ping)</span>
                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={roleOpen}
-                                            className="h-14 bg-background/50 border-border text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-background px-4"
+                                            className="h-14 bg-background/50 border-border text-sm font-bold rounded-lg justify-between group/role w-full hover:bg-background px-4"
                                         >
                                             <div className="flex items-center gap-3 truncate">
                                                 {mentionRoleIds.length > 0 ? (
@@ -719,7 +614,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                     }}
                                                                 >
                                                                     <div 
-                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 " 
+                                                                        className="w-1.5 h-1.5 rounded-full shrink-0" 
                                                                         style={{ backgroundColor: roleColor }} 
                                                                     />
                                                                     <span className="text-caption font-bold uppercase truncate max-w-[80px]">{role.name}</span>
@@ -749,7 +644,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border shadow-2xl rounded-2xl overflow-hidden z-[200]" align="center" sideOffset={8}>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border rounded-lg overflow-hidden z-[200]" align="center" sideOffset={8}>
                                         <Command className="bg-transparent text-foreground">
                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">
@@ -759,9 +654,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                         onSelect={() => {
                                                             setMentionRoleIds([]);
                                                         }}
-                                                        className="text-muted-foreground italic focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                        className="text-muted-foreground italic focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-lg flex items-center justify-between group"
                                                     >
-                                                        <span className="font-bold uppercase tracking-widest">Aucun ping</span>
+                                                        <span className="font-bold uppercase tracking-wider">Aucun ping</span>
                                                         {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-muted-foreground" />}
                                                     </CommandItem>
                                                     {discordRoles.map((role) => (
@@ -774,11 +669,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                         : [...prev, role.id]
                                                                 );
                                                             }}
-                                                            className="text-foreground focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
+                                                            className="text-foreground focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-lg flex items-center justify-between group mt-1"
                                                         >
-                                                            <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
+                                                            <div className="flex items-center gap-3 flex-1 truncate font-semibold tracking-tight uppercase">
                                                                 <div 
-                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 " 
+                                                                    className="w-2.5 h-2.5 rounded-full shrink-0" 
                                                                     style={{ 
                                                                         backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
                                                                         color: role.color === "#000000" ? "#9ca3af" : role.color
@@ -795,7 +690,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                     </PopoverContent>
                                 </Popover>
                                 <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
-                            </motion.div>
+                            </div>
                         )}
                     </div>
 
@@ -804,13 +699,13 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             <Button
                                 variant="ghost"
                                 onClick={() => setStep(1)}
-                                className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
+                                className="h-12 px-8 rounded-lg text-caption font-semibold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider border border-border hover:bg-surface order-2 sm:order-1"
                             >
                                 Retour
                             </Button>
                             <Button
                                 className={cn(
-                                    "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
+                                    "flex-1 h-12 px-10 rounded-lg font-semibold text-caption tracking-wider transition-colors relative group overflow-hidden order-1 sm:order-2",
                                     mode === "epreuve" 
                                         ? "bg-warning hover:bg-warning text-warning-foreground" 
                                         : "bg-success hover:bg-success text-success-foreground"
@@ -821,7 +716,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                                 <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                     {isPending ? (
-                                        <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-border border-t-foreground rounded-full animate-spin" />
                                     ) : (
                                         <Check className="w-4 h-4" />
                                     )}
@@ -830,7 +725,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             </Button>
                         </div>
                     </div>
-                </motion.div>
+                </div>
                 )}
                 </AnimatePresence>
             </DialogContent>

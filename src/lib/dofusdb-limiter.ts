@@ -120,7 +120,7 @@ export async function recordRateLimitHit(host: string): Promise<void> {
             const count = await redis.incr(`dofusdb:429:${host}:${day}`);
             await redis.expire(`dofusdb:429:${host}:${day}`, 2 * 24 * 3600);
             if (count === ALERT_THRESHOLD) {
-                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                const { notifyGod } = await import("@/server/god-notifications");
                 await notifyGod({
                     title: "⚠️ DofusDB nous rate-limite",
                     message: `${count} réponses 429 aujourd'hui pour ${host} : ralentir les siphons manuels, les crons restent espacés.`,

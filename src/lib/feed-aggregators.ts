@@ -75,10 +75,17 @@ async function fetchViaTimeout(url: string, timeoutMs: number): Promise<string |
 
 async function fetchViaCurl(url: string, timeoutMs: number): Promise<string | null> {
     try {
-        const { exec } = await import("child_process");
+        // AUD-07 (audit 13/11/2026) : `execFile` (argv, sans shell) — une URL ne
+        // peut plus être interprétée par le shell, même si elle devient dynamique.
+        const { execFile } = await import("child_process");
         const { promisify } = await import("util");
-        const execAsync = promisify(exec);
-        const { stdout } = await execAsync(`curl -L "${url}" -A "Mozilla/5.0" --max-time ${Math.ceil(timeoutMs / 1000)} --compressed`);
+        const execFileAsync = promisify(execFile);
+        const { stdout } = await execFileAsync("curl", [
+            "-L", url,
+            "-A", "Mozilla/5.0",
+            "--max-time", String(Math.ceil(timeoutMs / 1000)),
+            "--compressed",
+        ]);
         if (stdout && stdout.length > 500) return stdout;
     } catch {
         // fallthrough

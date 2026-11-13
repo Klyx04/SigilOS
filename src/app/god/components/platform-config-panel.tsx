@@ -61,6 +61,8 @@ interface PlatformConfigPanelProps {
         rbacUsersMappingEnabled: boolean;
         forceDarkMode: boolean;
         autoOnboardingEnabled: boolean;
+        /** LG-3 — plafond de guildes par utilisateur (1..10). */
+        maxGuildsPerUser: number;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -91,7 +93,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
         rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true,
         forceDarkMode: config?.forceDarkMode ?? false,
-        autoOnboardingEnabled: config?.autoOnboardingEnabled ?? true
+        autoOnboardingEnabled: config?.autoOnboardingEnabled ?? true,
+        maxGuildsPerUser: config?.maxGuildsPerUser ?? 2
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -461,6 +464,30 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         })}
                     </div>
 
+                    {/* LG-3 — plafond de guildes par utilisateur (`docs/ROADMAP.md`).
+                        Borné 1..10 côté serveur (Zod) et à la lecture (`resolveGuildLimit`) : jamais 0,
+                        qui refuserait même la première guilde et verrouillerait la plateforme. */}
+                    <div className="space-y-2.5">
+                        <div className="space-y-1">
+                            <span className="text-xs font-bold text-white uppercase block">Guildes maximum par utilisateur</span>
+                            <p className="text-caption text-zinc-500 leading-normal">
+                                Appliqué à l&apos;arrivée (premier accès, déploiement, réactivation). Entier de 1 à 10.
+                                Valeur par défaut : 2.
+                            </p>
+                        </div>
+                        <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={(formData as any).maxGuildsPerUser ?? 2}
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, maxGuildsPerUser: Number(event.target.value) }))
+                            }
+                            className="w-28 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2 text-sm font-bold text-white outline-none focus:border-indigo-500/40"
+                        />
+                    </div>
+
                     {/* Chantier #68 — Choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus */}
                     <div className="space-y-2.5">
                         <div className="space-y-1">
@@ -618,6 +645,60 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
                             <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
                             <span className="text-zinc-600 text-caption block">Statut CANCELLED + suppression de l'embed</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* CARTE 5: RATTRAPAGE DES EMBEDS DE SONDAGES (barres de %) */}
+                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
+                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList className="w-4 h-4 text-sky-400" />
+                                Rattrapage des embeds de sondages
+                            </h4>
+                            <p className="text-zinc-500 text-xs font-medium">
+                                Un embed n'est réécrit que sur un nouveau vote : un sondage lancé avant la refonte reste figé (pas de barres de %, pas de métadonnées à jour) alors que les votes sont déjà en base. Ce balayage relit l'état réel et <strong>modifie le message existant</strong> — même message, même salon, aucun ping, aucun doublon.
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    const { godRefreshPollEmbeds } = await import("@/server/actions/god-system-actions");
+                                    const res = await godRefreshPollEmbeds();
+                                    if (res.success) {
+                                        toast.success(
+                                            `Rattrapage terminé : ${res.refreshed} embed(s) réécrit(s), ${res.unresolved} non résolu(s), ${res.failed} en échec.`
+                                        );
+                                    } else {
+                                        toast.error(res.error || "Erreur lors du rattrapage");
+                                    }
+                                });
+                            }}
+                            className="bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 text-xs font-bold shrink-0"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
+                            Lancer le rattrapage maintenant
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
+                            <p className="text-white font-black text-sm">Sondages en cours</p>
+                            <span className="text-zinc-600 text-caption block">Salon + message connus, 200 par balayage</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Effet</span>
+                            <p className="text-sky-400 font-black text-sm">Barres & % réels</p>
+                            <span className="text-zinc-600 text-caption block">Réécriture du message, jamais un nouveau</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cas non résolus</span>
+                            <p className="text-amber-400 font-black text-sm">Comptés à part</p>
+                            <span className="text-zinc-600 text-caption block">Identifiant de file perdu (bêta) : republication requise</span>
                         </div>
                     </div>
                 </div>

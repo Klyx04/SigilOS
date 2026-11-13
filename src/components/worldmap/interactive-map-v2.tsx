@@ -10,6 +10,7 @@ import {
     Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, FileText
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { MemberAvatar } from '@/components/shared/member-avatar';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
@@ -1626,7 +1627,7 @@ export default function InteractiveMapV2({
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center overflow-hidden">
                                                             {p.userAvatar ? (
-                                                                <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
+                                                                <MemberAvatar src={p.userAvatar} name={p.userName} />
                                                             ) : (
                                                                 <div className={`w-full h-full flex items-center justify-center text-caption font-black italic ${i === 0 && p.score > 0 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                                     {i === 0 && p.score > 0 ? (
@@ -2706,13 +2707,11 @@ export default function InteractiveMapV2({
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative shrink-0">
                                                                 <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden">
-                                                                    {p.userAvatar ? (
-                                                                        <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        <div className="w-full h-full bg-elevated flex items-center justify-center text-foreground/10 font-black text-caption uppercase">
-                                                                            {p.userName?.charAt(0)}
-                                                                        </div>
-                                                                    )}
+                                                                    <MemberAvatar
+                                                                        src={p.userAvatar}
+                                                                        name={p.userName}
+                                                                        fallbackClassName="bg-elevated text-foreground/10 font-black text-caption uppercase"
+                                                                    />
                                                                 </div>
                                                                 <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-warning text-warning-foreground shadow-warning/30' : i === 1 ? 'bg-surface text-warning-foreground' : i === 2 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                                     {i + 1}
@@ -2797,11 +2796,11 @@ export default function InteractiveMapV2({
                                                 {i + 1}
                                             </div>
                                             <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center overflow-hidden">
-                                                {p.userAvatar ? (
-                                                    <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-muted-foreground font-bold text-xs">?</span>
-                                                )}
+                                                <MemberAvatar
+                                                    src={p.userAvatar}
+                                                    name={p.userName}
+                                                    fallbackClassName="text-muted-foreground font-bold text-xs"
+                                                />
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="text-foreground font-black text-xs uppercase italic">{p.userName}</span>
@@ -3459,11 +3458,11 @@ export default function InteractiveMapV2({
                                                     title={`${s.userName} regarde la partie`}
                                                 >
                                                     <div className="w-10 h-10 rounded-2xl border-2 border-background bg-surface flex items-center justify-center overflow-hidden  hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
-                                                        {s.userAvatar ? (
-                                                            <img src={s.userAvatar} alt="" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="text-muted-foreground font-black text-caption uppercase italic">{s.userName?.[0] || 'S'}</span>
-                                                        )}
+                                                        <MemberAvatar
+                                                            src={s.userAvatar}
+                                                            name={s.userName}
+                                                            fallbackClassName="text-muted-foreground font-black text-caption uppercase italic"
+                                                        />
                                                         <div className="absolute inset-0 bg-success/10" />
                                                     </div>
                                                 </div>
@@ -3484,11 +3483,11 @@ export default function InteractiveMapV2({
                                             className="p-6 rounded-[2.5rem] bg-surface border border-border flex items-center gap-5 hover:bg-surface hover:border-success/30 transition-all group"
                                         >
                                             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center border border-success/20 group- transition-transform overflow-hidden">
-                                                {p.userAvatar ? (
-                                                    <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-success font-black text-lg italic">{p.userName?.[0]?.toUpperCase() || 'J'}</span>
-                                                )}
+                                                <MemberAvatar
+                                                    src={p.userAvatar}
+                                                    name={p.userName}
+                                                    fallbackClassName="text-success font-black text-lg italic"
+                                                />
                                             </div>
                                             <div className="flex flex-col">
                                                 <div className="flex items-center gap-2">

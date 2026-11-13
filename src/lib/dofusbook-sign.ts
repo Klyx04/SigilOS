@@ -49,10 +49,13 @@ export function verifyDofusbookClientToken(
 }
 
 /** URL signée à appeler **depuis le navigateur** (null si non configuré). */
-export function buildDofusbookClientFetchUrl(buildId: string): string | null {
+export function buildDofusbookClientFetchUrl(buildId: string, options: { force?: boolean } = {}): string | null {
     const base = process.env.DOFUSBOOK_CF_WORKER_URL;
     if (!base) return null;
     const signed = signDofusbookClientToken(buildId);
     if (!signed) return null;
-    return `${base.replace(/\/+$/, "")}/s/${buildId}?e=${signed.exp}&t=${signed.token}`;
+    // `force=1` = « Actualiser » : le worker contourne son cache edge (24 h) et remet à jour
+    // l'entrée. Sans ce drapeau, un build modifié sur Dofusbook restait figé jusqu'à 24 h.
+    const force = options.force ? "&force=1" : "";
+    return `${base.replace(/\/+$/, "")}/s/${buildId}?e=${signed.exp}&t=${signed.token}${force}`;
 }

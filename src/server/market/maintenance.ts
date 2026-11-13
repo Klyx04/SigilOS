@@ -69,16 +69,11 @@ export async function claimMarketDailyMaintenance(now: Date = new Date()): Promi
     }
 }
 
-/**
- * Un `404` Discord à l'édition signifie que **le message n'existe plus**
- * (supprimé à la main, post forum fermé, salon recréé) : le §13.6 impose alors
- * de le **recréer** — réécrire un embed fantôme échouerait indéfiniment.
- * Pur (aucune I/O) → testable unitairement.
- */
-export function isDiscordMessageGoneError(message: string | null | undefined): boolean {
-    if (!message) return false;
-    return /Discord Update Error:\s*404\b/.test(message) || /Unknown Message/i.test(message);
-}
+// Le classifieur « message disparu » vit avec les autres règles d'erreurs Discord
+// (`src/lib/discord-api-errors.ts`) : il lit le **statut** de l'erreur, pas son texte.
+// Le dupliquer ici avait laissé passer un `404` (Sentry `JAVASCRIPT-NEXTJS-23`).
+import { isDiscordMessageGoneError } from "@/lib/discord-api-errors";
+export { isDiscordMessageGoneError };
 
 export type MarketDiscordReconcileOutcome = {
     /** Lignes divergentes lues dans cette passe (borné par le lot). */

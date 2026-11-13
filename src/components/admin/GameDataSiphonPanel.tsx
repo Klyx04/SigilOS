@@ -38,10 +38,19 @@ import { toast } from 'sonner';
  */
 function BossThumb({ item }: { item: SiphonInventoryItem }) {
     const [failed, setFailed] = useState(false);
-    const proxySrc = item.id
+    /**
+     * 🧨 Correction du 26/10/2026 — **jamais de proxy sans id numérique**.
+     *
+     * `item.id` retombait sur le cuid Prisma du donjon : le proxy recevait
+     * `/api/assets-dofus/monsters/cmth…`, ne pouvait rien résoudre et renvoyait son placeholder
+     * (un pixel vert, cf. `placeholderResponse`). On n'affiche donc l'image que si l'on sait
+     * *quel* monstre demander, sinon l'icône neutre.
+     */
+    const hasNumericId = typeof item.id === "number" && Number.isInteger(item.id) && item.id > 0;
+    const proxySrc = hasNumericId
         ? `/api/assets-dofus/monsters/${encodeURIComponent(String(item.id))}${item.remoteImageUrl ? `?url=${encodeURIComponent(item.remoteImageUrl)}` : ""}`
         : null;
-    const src = item.localImageUrl || (!failed ? proxySrc : null);
+    const src = item.localImageUrl || (!failed && hasNumericId ? proxySrc : null);
     if (!src) {
         return <Swords className="w-4 h-4 text-muted-foreground" />;
     }
@@ -125,10 +134,36 @@ export function GameDataSiphonPanel() {
      * via le lanceur partagé `runInlineGameDataDataset` (une seule implémentation).
      */
     const handleSiphonAllMissing = async () => {
-        const missingTargets = inventory.filter((i) => !i.hasLocalImage || !i.hasDbStat);
+        /**
+         * ⚠️ Seules les lignes portant un **id DofusDB** sont siphonnables (l'ancien repli sur le
+         * cuid Prisma du donjon produisait des URL mortes). On dit combien on écarte, plutôt que
+         * d'envoyer des cibles impossibles.
+         */
+        const candidates = inventory.filter((i) => !i.hasLocalImage || !i.hasDbStat);
+        const missingTargets = candidates
+            .filter((i) => typeof i.id === "number")
+            .map((i) => ({
+                id: i.id as number,
+                name: i.resolvedMonsterName || i.name,
+                dungeonName: i.dungeonName,
+                remoteUrl: i.remoteImageUrl || undefined,
+            }));
+        const skipped = candidates.length - missingTargets.length;
+
         if (missingTargets.length === 0) {
-            setLogs((prev) => ['ℹ️ Tous les éléments affichés sont déjà 100% autonomes et en cache local.', ...prev]);
+            setLogs((prev) => [
+                skipped > 0
+                    ? `ℹ️ Rien à siphonner : ${skipped} élément(s) affiché(s) sans id DofusDB (donjon sans correspondance).`
+                    : 'ℹ️ Tous les éléments affichés sont déjà 100% autonomes et en cache local.',
+                ...prev,
+            ]);
             return;
+        }
+        if (skipped > 0) {
+            setLogs((prev) => [
+                `⚠️ ${skipped} élément(s) écarté(s) : aucun id DofusDB (rien à demander au catalogue).`,
+                ...prev,
+            ]);
         }
 
         setIsSiphoning(true);
@@ -220,6 +255,13 @@ export function GameDataSiphonPanel() {
     };
 
     const handleSingleSiphon = async (item: SiphonInventoryItem) => {
+        // 🔒 Un id non résolu n'est pas une cible : on le dit, on n'invente pas d'URL.
+        if (typeof item.id !== "number") {
+            toast.error(
+                `« ${item.name} » n'a pas d'id DofusDB (donjon sans correspondance) — rien à siphonner. Renseigne le monstre du donjon d'abord.`,
+            );
+            return;
+        }
         setLogs((prev) => [`⏳ Siphon de ${item.name} (${item.dungeonName || 'Donjon'})...`, ...prev]);
         try {
             const res = await triggerBatchAssetSiphonAction(
@@ -480,7 +522,11 @@ export function GameDataSiphonPanel() {
                                                         {item.name}
                                                         {isComplete && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 inline" />}
                                                     </div>
-                                                    <div className="text-caption text-muted-foreground">ID: #{item.id}</div>
+                                                    <div className="text-caption text-muted-foreground">
+                                                        {typeof item.id === "number"
+                                                            ? `ID: #${item.id}`
+                                                            : "ID DofusDB non résolu"}
+                                                    </div>
                                                     {item.resolvedMonsterName && item.resolvedMonsterName !== item.name && (
                                                         <div className="text-caption text-muted-foreground/70" title="Double boss : le siphon cible le vrai monstre, pas le libellé du donjon">
                                                             Monstre siphonné : {item.resolvedMonsterName}
@@ -501,8 +547,12 @@ export function GameDataSiphonPanel() {
                                                     ✓ En BDD locale
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="bg-amber-500/10 border-amber-500/20 text-amber-400 font-bold">
-                                                    ⚠️ À synchroniser
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-amber-500/10 border-amber-500/20 text-amber-400 font-bold"
+                                                    title="Fiche de statistiques absente ou périmée (> 24 h). Elle est écrite par le cron « sync-monster-stats » — le siphon d'images ne la met pas à jour."
+                                                >
+                                                    ⚠️ Stats à synchroniser
                                                 </Badge>
                                             )}
                                         </td>
@@ -537,9 +587,14 @@ export function GameDataSiphonPanel() {
                                                 variant="secondary"
                                                 size="sm"
                                                 className="rounded-lg text-xs font-bold"
-                                                title="Force le resync (ignore la fraîcheur 24h)"
+                                                disabled={typeof item.id !== "number"}
+                                                title={
+                                                    typeof item.id === "number"
+                                                        ? "Re-siphonne l'IMAGE WebP de ce monstre (ignore la fraîcheur 24 h). Les statistiques, elles, viennent du cron « sync-monster-stats »."
+                                                        : "Aucun id DofusDB : il n'y a pas d'image à demander."
+                                                }
                                             >
-                                                Forcer resync
+                                                Resync image
                                             </Button>
                                         </td>
                                     </tr>

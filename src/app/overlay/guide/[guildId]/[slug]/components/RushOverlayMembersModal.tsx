@@ -15,13 +15,11 @@ interface RushOverlayMembersModalProps {
    * annonçait en ligne des gens qui ne l'étaient pas »).
    */
   liveMembers?: OverlayMember[];
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   onClose: () => void;
 }
 
 /**
- * Modale liste de membres (présence / « je suis ici » / « qui peut aider »).
+ * Modale liste de membres (présence / « je suis ici »).
  * Même grammaire que les autres modales du rush : rayon 6 px, filets, jetons de
  * thème — l'overlay pose `.light` sur sa racine en thème clair.
  */

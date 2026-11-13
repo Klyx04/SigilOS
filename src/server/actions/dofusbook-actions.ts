@@ -32,7 +32,7 @@ async function trackDofusbookFailure(kind: string, detail: string): Promise<void
         dofusbookLastAlertAt = now;
         dofusbookFailureCount = 0;
         try {
-            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            const { notifyGod } = await import("@/server/god-notifications");
             await notifyGod({
                 title: "⚠️ API Dofusbook en difficulté",
                 message: `L'API Dofusbook semble avoir changé ou bloquer les imports (${DOFUSBOOK_FAILURE_THRESHOLD}+ échecs : ${kind} — ${detail}). Les nouveaux stuffs importés peuvent être cassés. Vérifier le schéma de réponse ou le WAF Cloudflare.`,
@@ -106,7 +106,7 @@ export async function getDofusbookId(url: string): Promise<string | null> {
  * la requête part de l'edge Cloudflare via le navigateur du membre, le worker reste le
  * seul émetteur vers Dofusbook et **l'IP du VPS n'est jamais exposée**.
  */
-export async function getDofusbookClientFetchUrl(buildUrl: string): Promise<{
+export async function getDofusbookClientFetchUrl(buildUrl: string, options: { force?: boolean } = {}): Promise<{
     success: boolean;
     url?: string;
     id?: string;
@@ -122,7 +122,7 @@ export async function getDofusbookClientFetchUrl(buildUrl: string): Promise<{
     const id = await getDofusbookId(buildUrl);
     if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
 
-    const url = buildDofusbookClientFetchUrl(id);
+    const url = buildDofusbookClientFetchUrl(id, { force: options.force });
     if (!url) return { success: false, error: "Proxy Dofusbook non configuré (DOFUSBOOK_CF_WORKER_URL)." };
 
     return { success: true, url, id };

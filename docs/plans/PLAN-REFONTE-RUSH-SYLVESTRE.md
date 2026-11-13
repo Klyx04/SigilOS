@@ -2,6 +2,10 @@
 
 > **Document de référence exhaustif** pour la refonte ergonomique, visuelle et technique du module Rush Sylvestre dans SigilOS.
 > Établi après confrontation directe avec la base de code, les retours d'expérience en jeu et les 5 captures d'écran de l'overlay et du guide interne.
+>
+> **État au 12/11/2026** : **T-1 → T-4 livrés** (T-4 partiel : G7/G8/G9/O15 ouverts, rang 55) ;
+> **T-5 (overlay avancé) et T-6 (perf/architecture) sont encore À FAIRE** — ordre unique :
+> `docs/ROADMAP.md` §3 bis.
 
 > **État du Lot 1 (mesuré le 08/10/2026 — livré)** : le Lot 1 a été exécuté. **Trois points du §5.1
 > étaient faux au moment de coder** ; ils ont été corrigés, jamais appliqués à l'aveugle :
@@ -28,9 +32,36 @@
 > | **1 — correctifs ergonomiques** | ✅ **PR #851** | O1, O2, O4, O8, G1, T4 · **partiels** : O5 (masquage « Chapitre 1/1 »), O6 (Échap PiP), G2 (puces seulement) | O3 **écarté par la mesure** : `scroll-padding-top`/`scroll-mt` étaient des no-ops (le seul défilement ciblé utilise `block: "center"` et aucun élément de l'overlay n'est `sticky`) |
 > | **2 — temps réel** | ✅ **PR #853** + **T-2b** (#856) | fil d'activité à avatar Discord, `RushOverlayLiveToast`, **présence honnête** (§3.5/§3.6), O12 partiel, O6 (Échap PiP de la modale membres) · **T-2b** : **G3/G4** (prérequis résolus au **nom exact** — `resolvePrereqTarget` ; surbrillance 1,2 s) et **G10** (page serveur à **deux lectures parallèles**) | l'**id** dans le tag `prereq_text` (God + backfill) → **T-2c** |
 > | **3 — robustesse éditeur GOD** | ✅ **PR #857** | **E4** suppression d'un bloc par `Dialog` Radix (plus de `confirm()` — et le `Dialog` n'était **pas** « déjà importé ») · **E6** conteneur de défilement **déclaré** par le layout (`data-god-scroll-container`, helper unique pour les **2 sites**) · **E3** `order` **ouvert dans la transaction** de création (plus de second appel `reorderRushMilestones` ; `order` est un `Int`, d'où le shift) · **E1** conseils « une ligne = une puce » (`TipsLinesEditor` + aperçu `RushTipLines`, « Ajouter position » sur une **nouvelle** ligne) et aide de syntaxe **sourcée sur le rendu** (`RUSH_RICH_TEXT_SYNTAX` : le `/w` manquait) · **E5** aperçu live = les composants du **membre** (`RushOverlayQuestListItem` + `RushOverlayQuestDetailModal`, thème reposé sur le seul cadre d'aperçu) | 4 `prompt()` natifs (lien, position) — **hors périmètre E4** · **E2** (`achievements?: string[]`) reste à part (**migration Prisma** ⇒ accord explicite) |
-> | **4 — habillage Dofus** | ⬜ à faire | *rien* (le lot 1 a **retiré** du slop, il n'a rien ajouté) | **O14** accents par Dofus, **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (arbitrer — `MilestoneCelebration` existe), **T2** accessibilité |
+> | **4 — habillage Dofus** | 🟡 **partiel** le 26/10/2026 (PR #1136) | **O14** contraste des **24** accents (`src/lib/rush-dofus-accent.ts`, 4,5:1 sur fond clair **et** sombre, teinte conservée) · **T2** : chaque bouton du **bandeau réel** (`GuildStatusPanel`) porte un `aria-label` explicite, la modale annonce un titre + une description, et le verrou **vise ce bandeau** depuis le 27/10/2026 (le composant mort `DofusProgressStrip`, jamais monté, a été supprimé) | **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (arbitrer — `MilestoneCelebration` existe) · l'application générale des accents par Dofus reste à poser écran par écran |
 > | **5 — overlay avancé** | ⬜ à faire | O12 partiel (toast de validation) | **O9** carte « Maintenant », **O10** 3 densités (container queries), **O11** jauges/anneaux, **O13** mini-carte, O12 (coéquipier sur la même quête, prérequis débloqué) |
 > | **6 — perf & architecture** | ⬜ à faire | *rien* | **G6** contextes `SequenceRow` → Zustand (profiler avant/après), `useOptimistic` handler par handler |
+>
+> ### DA « Carnet de campagne » — livrée le 02/11/2026 (lot 4)
+>
+> **Concept.** Un carnet d'expédition : cadre sombre, métal patiné, touches végétales,
+> surface intérieure en ardoise nocturne. Pas une landing page, pas un dashboard SaaS.
+>
+> **Matières (jetons, aucune couleur dans les composants).** `.rush-overlay` porte sa
+> palette : fond vert anthracite, panneaux forêt, ivoire chaud, bronze (`--border-strong`),
+> ambre (`--accent` / `--sigil-gold`), jade (`--success`), terre cuite (`--danger`). `.light`
+> décline la version parchemin. `.rush-carnet` = filet + biseau interne ; `.rush-carnet-frame`
+> = double filet + quatre rivets de bronze.
+>
+> **Livré.** En-tête serif + filet d'or, jauge 2 px à losange, boutons tokenisés ; barre de
+> chapitre tokenisée (fin de `font-black` / `animate-pulse` / `shadow-2xl`) ; carte verrouillée
+> à filet terre cuite (plus de cadre rouge), **un seul cadenas**, prérequis nommé
+> « Terminer : … », repère masqué ; bandeaux CONSEIL/ATTENTION sans dégradé ni emoji, registre
+> sémantique ; fiche de quête (titre serif, losanges d'or, conseils en filet) ; modale
+> d'alignement sans hauteur forcée (fin du vide) ; filtre segmenté « Toutes / En cours /
+> Verrouillées » (règle pure, ordre des quêtes conservé) ; **Ressources à prévoir** passée
+> au carnet (panneau, bascule Restantes/Toutes à l'or, lignes et quantités tokenisées).
+>
+> **T-4a livré le 12/11/2026** : G8 (dépli `grid-template-rows`, `inert`, `motion-reduce`),
+> O15 (rotation infinie et éclats coupés si `useReducedMotion`), G9 tokenisée (`--da-amber`,
+> `bg-background`, plus de `zinc`/`blur`). **Reste** : G7 (emblème / feuillage), composition
+> G9 (arbitrage aux captures), application des accents Dofus écran par écran.
+>
+> **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (23 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 651 tests.
 >
 > **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
 >
@@ -45,7 +76,7 @@
 >
 > ⚠️ **E2** (`achievements?: string[]`) **n'est pas un « lot 3 » ordinaire** : il demande une **migration Prisma** ⇒ arrêt et accord explicite avant de coder.
 > 🧭 **Hors de ce plan** : le **chantier « données »** (branches Tougli Bonta/Brâkmar, prérequis structurés, registre auditable) vit dans la note de recherche `temp/…Dofusdb…` et doit être cadré comme un chantier séparé.
-> 🚫 **Chantier U — « zéro dépendance DofusDB »** (règle du propriétaire, mesurée le 08/10/2026) : cadré dans `docs/plans/FILE-EXECUTION.md` §1 — **5 points de contact** (repli image, recherches, proxy image, health check, crons) + **~1 626 URL DofusDB** dans les 28 `*-compiled.json`, lots **U-1 → U-5**.
+> 🚫 **Chantier U — « zéro dépendance DofusDB »** (règle du propriétaire, mesurée le 08/10/2026) : cadré dans `docs/ROADMAP.md` — chantier `dofusdb-zero` (U), **rang 31** — **5 points de contact** (repli image, recherches, proxy image, health check, crons) + **~1 626 URL DofusDB** dans les 28 `*-compiled.json`, lots **U-1 → U-5**.
 > 🗺️ **O13 (mini-carte) — arbitrage du propriétaire (08/10/2026)** : **jamais au survol** dans l'overlay (lourd dans une fenêtre PiP, et il n'existe pas au doigt ni au clavier). La miniature se pose **dans la modale d'info de la quête, sous sa position**, et elle est **statique** : l'image HD de la bonne case (`/game-data/hd_maps/<id>.webp` — **déjà servie en local**, zéro requête externe) + le pion + le **zaap le plus proche calculé dans le BON monde**. Pas de Leaflet dans l'overlay. Le monde est celui **écrit en God** (`pos_tags.worldId`, sélecteur de l'éditeur) ; à défaut il est **deviné** (`resolveMapWorldId`) et l'UI le dit (« deviné ») ; l'éditeur God peut **l'imposer à la main** — précédent éprouvé : le zaap manuel `pos_tags.zaapX/zaapY` est prioritaire sur le calcul auto. Position inconnue ⇒ **aucune carte** (jamais de pion faux) : le couple **(0,0) n'est pas un lieu** (`src/lib/worldmap-tiles.ts` — 1 784 maps du monde 1 y sont, dont 191 entrées de donjons).
 > 🎨 **O14 (couleurs par Dofus) — consigne du propriétaire (08/10/2026)** : **respecter les couleurs et l'ambiance de chaque Dofus**. Mesure faite (24 visuels, `sharp`) : **la moitié des valeurs écrites à la main sont fausses** — Pourpre déclaré violet `#a855f7` quand son visuel lit rouge/or (`#f7880b`), Argenté déclaré gris `#a1a1aa` quand il lit **or à 81 %**, Du Cauchemar violet `#7c3aed` vs rouge 46 % + bleu 37 %, Ivoire « blanc » vs ivoire crème ⇒ **une seule table** de couleurs **canoniques** (aujourd'hui enfermée dans `RushSylvestreAdminClient.tsx`), **corrigée par la mesure**, **contrastée en clair ET en sombre** (Ébène et Ivoire ne peuvent pas servir d'accent brut). ⚠️ Ces visuels sont des **icônes d'objet orfévrées** : leur moyenne lit « or », elle ne remplace pas la couleur canonique.
 > ⚡ **Lot 6 (perf) — leviers retenus (08/10/2026)** : **mesurer d'abord** (profil chiffré avant/après), puis : **compilateur React** (mesuré : **non activé** dans `next.config.ts` — seul `serverActions.bodySizeLimit` y figure) · `useOptimistic` (coche instantanée) · abonnements **fins** par ligne · **ne dessiner que le visible** (virtualisation + `content-visibility`) · `useDeferredValue` sur la recherche · sortie de `framer-motion` du chemin critique.

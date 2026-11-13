@@ -1,28 +1,53 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import { CheckCircle2, Users } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
   toggleMilestoneProgress,
   setRushSequenceProgress,
+  setRushResourceChecks,
   setRushBookmark,
   applyRushAlignmentFromSequence,
   resetGuideProgress,
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
-import { collectCascadeUncheck } from "@/lib/rush-helpers";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
+import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
+import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
+import { readDungeonStates, writeDungeonState } from "@/lib/rush-dungeon-storage";
+import {
+  dungeonOccurrenceKey,
+  doneDungeonKeysForSequence,
+  missingRequiredDungeons,
+  type RushDungeonMemberState,
+  type RushDungeonState,
+  type RushDungeonStateMap,
+  type RushMissingDungeon,
+} from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
+import { RushOverlayActions } from "./components/RushOverlayActions";
+import { DaThemeProvider } from "@/components/da/da-theme";
+import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import { useDaRail } from "@/components/da/use-da-rail";
+import { OverlayToaster } from "@/components/rush/overlay-toast";
+import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
+import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
+import { RushOverlayFeedbackPanel } from "./components/RushOverlayFeedbackPanel";
+import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { isRushCombatBlock } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
@@ -32,6 +57,8 @@ import { RushOverlayLiveToast } from "@/components/dofus-quests/rush/RushOverlay
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { type OverlayBubbleMember } from "./components/RushOverlayMemberBubbles";
 import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
+import { RushOverlayAlignmentModal } from "./components/RushOverlayAlignmentModal";
+import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignmentPanel";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
@@ -43,6 +70,16 @@ import { dofusMetaIndex, type RushDofusMeta } from "@/lib/rush-dofus-meta";
 // #a855f7, `ebene` #6366f1 vs #52525b, `sylvestre` #39bc95 vs #d4a017).
 const DOFUS_DEFS: Record<string, RushDofusMeta> = dofusMetaIndex();
 
+/** Libellé court d'un membre : « Bontarien · Cœur Vaillant · T42 ». */
+function alignmentSummary(camp: string, orderId?: string | null): string {
+  const campLabel = ALIGNMENTS.find((a) => a.id === camp)?.name ?? camp;
+  if (!orderId) return campLabel;
+  const orders = (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || [];
+  const order = orders.find((o) => o.id === orderId);
+  const orderLabel = order ? String(order.name) : orderId;
+  return `${campLabel} · ${orderLabel}`;
+}
+
 type Props = {
   guildId?: string;
   guide: { id: string; name: string; slug: string; description?: string; imageUrl?: string };
@@ -53,6 +90,19 @@ type Props = {
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
+  /**
+   * Un **compte** est-il connecté sur cette surface ? Distinct de `isGuest`, que le
+   * guide public code en dur à `true` : un membre connecté y lit le même overlay.
+   * Sert au seul panneau de retour — sans quoi il n'aurait que le Discord alors qu'il
+   * peut envoyer (`submitQuestFeedbackAction` exige une session).
+   */
+  feedbackSignedIn?: boolean;
+  /**
+   * Metamob de la surface publique connectée (demande du 08/11/2026). `undefined` = la surface
+   * ne gère pas Metamob (overlay de guilde) ; une valeur ⇒ le bouton est rendu, iso interne.
+   */
+  metamobPseudo?: string | null;
+  metamobVerified?: boolean;
   /**
    * Préfixe des trois clés de progression invité. La page publique le calcule en
    * fonction du PERSONNAGE déclaré (classe + pseudo + serveur) ; l'overlay ne
@@ -71,7 +121,41 @@ type Props = {
    * public n'a ni guilde ni compte, donc aucun bouton. `null`/absent ⇒ masqué.
    */
   ocre?: OcrePanelData | null;
+  /**
+   * V-G : « non lié » est un état à part entière — l'entrée reste visible et le panneau
+   * propose la liaison (sans quoi l'overlay est un cul-de-sac pour un compte non lié).
+   */
+  ocreState?: "ready" | "not-linked" | "error";
+  /**
+   * V-H — captures Ocre du visiteur **public connecté**, chargées par le pont de la page
+   * (`PublicOcreDungeonBridge`). L'overlay ne fait aucun appel réseau : il reçoit la liste,
+   * et `ocre` reste réservé à l'overlay interne.
+   */
+  publicCapturedOcreNames?: readonly string[];
+  /** Coches de ressources du membre (serveur, par personnage) — lu par la page. */
+  initialResourceChecks?: string[];
+  /**
+   * Cité et Ordre du personnage COURANT, résolus côté serveur (route `L2`).
+   *
+   * Repli de la modale d'alignement : `alignmentMembers` déduplique par `profileId` et
+   * `buildGuildProgressRows` ne renseigne que le pseudo **principal**, donc pour une mule
+   * (`?character=…`) `isSelf` échoue et la modale repartait vide — l'utilisateur pouvait
+   * écraser son choix. Le serveur, lui, sait toujours quel personnage est sélectionné.
+   */
+  selfAlignment?: string | null;
+  selfOrder?: string | null;
 };
+
+/**
+ * `useLayoutEffect` côté navigateur, `useEffect` au rendu serveur.
+ *
+ * F10 — le thème de l'overlay vit dans `localStorage`, que le serveur ne connaît pas.
+ * Le lire dans un `useEffect` laissait peindre un premier cadre sombre avant de basculer
+ * en clair : c'est le clignotement du mode clair. Un *layout effect* s'exécute après le
+ * commit DOM mais **avant** la peinture — le thème est posé avant le premier pixel.
+ */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export default function GuideOverlayClient({
   guildId = "public",
@@ -81,11 +165,21 @@ export default function GuideOverlayClient({
   altPseudo = null,
   character,
   isGuest = false,
+  feedbackSignedIn = false,
+  metamobPseudo,
+  metamobVerified = false,
   guestStoragePrefix,
   pinned = true,
   ocre = null,
+  ocreState = "ready",
+  publicCapturedOcreNames,
+  initialResourceChecks,
+  selfAlignment = null,
+  selfOrder = null,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
+  // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
+  const toast = useOverlayToast();
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
   const overlayCharacter = useMemo(
     () =>
@@ -125,35 +219,55 @@ export default function GuideOverlayClient({
   }, []);
 
   // ─── Thème Clair / Sombre ─────────────────────────────────────────────────
-  const [isLightMode, setIsLightMode] = useState<boolean>(false);
-  useEffect(() => {
+  // Source UNIQUE du thème de la DA : l'état local, posé sur la racine en
+  // `data-theme` (+ `.light` pour la passerelle des jetons sémantiques). Les
+  // composants ne le reçoivent plus en prop : ceux qui sortent de l'arbre
+  // (portails) lisent le contexte `DaThemeProvider`.
+  const [lightMode, setLightMode] = useState<boolean>(false);
+  // F10 : avant peinture, pas après (voir `useIsomorphicLayoutEffect`).
+  useIsomorphicLayoutEffect(() => {
     try {
       const saved = localStorage.getItem("sigil_overlay_theme");
-      if (saved === "light") setIsLightMode(true);
+      if (saved === "light") setLightMode(true);
     } catch {}
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setIsLightMode((prev) => {
+    setLightMode((prev) => {
       const next = !prev;
       try {
         localStorage.setItem("sigil_overlay_theme", next ? "light" : "dark");
       } catch {}
-      toast(next ? "☀️ Mode Clair activé" : "🌙 Mode Sombre activé", { duration: 1200 });
+      toast.info(next ? "☀️ Mode Clair activé" : "🌙 Mode Sombre activé", { duration: 1200 });
       return next;
     });
   }, []);
 
   const [showResources, setShowResources] = useState<boolean>(false);
   const [showOcre, setShowOcre] = useState<boolean>(false);
+  // Alignement (vue guilde + mon choix) : panneau maison, jamais un Dialog Radix en PiP.
+  const [showAlignment, setShowAlignment] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  // F11 : le panneau de retour est monté ICI (fin de racine), plus dans l'en-tête.
+  const [feedbackOpen, setFeedbackOpen] = useState<boolean>(false);
+  /** Liaison Metamob de la surface publique connectée (demande du 08/11/2026). */
+  const [metamobOpen, setMetamobOpen] = useState<boolean>(false);
 
   // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
   // On observe le conteneur racine avec un ResizeObserver.
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Liste des quêtes : cible du bouton « Reprendre » (on ne cherche JAMAIS dans
+  // toute la fenêtre — le nœud du dock porte lui aussi un `data-state`).
+  const listRef = useRef<HTMLElement | null>(null);
+  // Fil de sève : la longueur du fil est mesurée par la règle PARTAGÉE
+  // (`useDaRail`, `src/components/da/use-da-rail.ts`) — le guide plein écran
+  // applique exactement la même, ce n'est pas une copie.
   const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
+  // Palier de densité de l'en-tête : `wide` dès 820 px de haut (hero 276 px + pips
+  // de stade), `tight` en fenêtre de jeu, `normal` entre les deux.
+  const [overlayDensity, setOverlayDensity] = useState<"wide" | "normal" | "tight">("normal");
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -161,6 +275,7 @@ export default function GuideOverlayClient({
       const w = entry?.contentRect?.width ?? el.clientWidth;
       const h = entry?.contentRect?.height ?? el.clientHeight;
       setOverlaySmall(w < 580 || h < 640);
+      setOverlayDensity(h >= 900 ? "wide" : w < 580 || h < 640 ? "tight" : "normal");
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -188,10 +303,15 @@ export default function GuideOverlayClient({
     () =>
       guideLive.presence.map((m) => {
         const where = milestones.find((x) => x.id === m.milestoneId);
+        // Alignement (cité · Ordre · tranche) lu côté serveur, puis la position.
+        const parts = [
+          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder) : "",
+          where?.title ? `sur « ${where.title} »` : "",
+        ].filter(Boolean);
         return {
           name: m.userName,
           avatar: m.userAvatar,
-          subtitle: where?.title ? `sur « ${where.title} »` : undefined,
+          subtitle: parts.length ? parts.join(" · ") : undefined,
         };
       }),
     [guideLive.presence, milestones]
@@ -201,6 +321,7 @@ export default function GuideOverlayClient({
   // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
   // PAR PERSONNAGE), sinon on retombe sur l'emplacement historique sans personnage.
   const storagePrefix = guestStoragePrefix || `sigil_guest_${guide.slug}_`;
+
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
     if (isGuest && typeof window !== "undefined") {
@@ -256,6 +377,80 @@ export default function GuideOverlayClient({
     return m;
   });
 
+  // ── Donjons : coche par OCCURRENCE, depuis la pastille de la quête ─────────────
+  // Interne : états de la guilde (Server Actions, chargés à la 1ʳᵉ ouverture du panneau).
+  // Invité : `localStorage` de l'emplacement courant — aucune donnée de guilde, aucun serveur.
+  const guildDungeons = useRushDungeonStates({
+    guildId,
+    slug: guide.slug,
+    altPseudo: effectiveAltPseudo,
+    // **Eager** : le verrou de quête a besoin des donjons cochés dès l'ouverture, sinon
+    // une quête dont un donjon requis manque reste « cochable » jusqu'à ce qu'on ouvre
+    // un panneau donjon (mesure du 22/10/2026 : clic → refus serveur → toast d'erreur).
+    lazy: false,
+  });
+  const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
+    isGuest ? readDungeonStates(storagePrefix) : {}
+  );
+  const dungeonActions = useMemo(() => {
+    if (isGuest) {
+      return {
+        states: guestDungeonStates,
+        busyKey: null as string | null,
+        others: [] as RushDungeonMemberState[],
+        onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+          setGuestDungeonStates(
+            writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+          );
+          // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ──────────
+          // Aucun serveur côté invité : on retire la quête des étapes cochées ici.
+          if (state === "done") return;
+          const next = deselectSequenceFromProgress({
+            completedStepsByMs,
+            completedIds,
+            milestones,
+            sequenceId,
+          });
+          if (!next.changed) return;
+          setCompletedStepsByMs(next.completedStepsByMs);
+          setCompletedIds(next.completedIds);
+          try {
+            const stepsObj: Record<string, string[]> = {};
+            next.completedStepsByMs.forEach((set, k) => {
+              stepsObj[k] = Array.from(set);
+            });
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+            localStorage.setItem(
+              `${storagePrefix}completed_ms`,
+              JSON.stringify(Array.from(next.completedIds))
+            );
+          } catch {}
+          toast.info("Donjon décoché : la quête a été dévalidée.");
+        },
+        ensureLoaded: () => setGuestDungeonStates(readDungeonStates(storagePrefix)),
+      };
+    }
+    return {
+      states: guildDungeons.states,
+      busyKey: guildDungeons.busyKey,
+      others: guildDungeons.others,
+      onSet: guildDungeons.setState,
+      ensureLoaded: guildDungeons.ensureLoaded,
+    };
+  }, [
+    isGuest,
+    guestDungeonStates,
+    storagePrefix,
+    completedStepsByMs,
+    completedIds,
+    milestones,
+    guildDungeons.states,
+    guildDungeons.busyKey,
+    guildDungeons.others,
+    guildDungeons.setState,
+    guildDungeons.ensureLoaded,
+  ]);
+
   // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
   // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay.
   useGuideProgressSync(
@@ -269,13 +464,57 @@ export default function GuideOverlayClient({
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
+  // Filtre d'affichage de la liste : Toutes / En cours / Verrouillées.
+  // Il ne change ni l'ordre, ni les compteurs de progression — seulement les lignes visibles.
+  const [questFilter, setQuestFilter] = useState<RushQuestFilter>("all");
+  // Coches de ressources « déjà préparé », par personnage : serveur pour un membre,
+  // `localStorage` pour un invité (même clé que le guide public).
+  const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
+    if (initialResourceChecks) return new Set(initialResourceChecks);
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(`${storagePrefix}resources`);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set();
+  });
+
+  const persistGuestResourceChecks = useCallback(
+    (next: Set<string>) => {
+      if (typeof window === "undefined") return;
+      try {
+        localStorage.setItem(`${storagePrefix}resources`, JSON.stringify([...next]));
+      } catch {}
+    },
+    [storagePrefix]
+  );
+
+  const handleToggleResourceCheck = useCallback(
+    async (key: string) => {
+      const previous = resourceChecks;
+      const next = new Set(previous);
+      next.has(key) ? next.delete(key) : next.add(key);
+      setResourceChecks(next);
+      if (isGuest) {
+        persistGuestResourceChecks(next);
+        return;
+      }
+      try {
+        await setRushResourceChecks(guildId, guide.slug, [...next], effectiveAltPseudo);
+      } catch {
+        setResourceChecks(previous);
+        toast.error("Impossible d'enregistrer la préparation");
+      }
+    },
+    [resourceChecks, isGuest, persistGuestResourceChecks, guildId, guide.slug, effectiveAltPseudo, toast]
+  );
   // Modale de détail d'une quête (remplace l'ancien accordéon).
   const [detailSeq, setDetailSeq] = useState<{ ms: RushMilestone; seq: RushSequence } | null>(null);
 
   const toggleHideCompleted = useCallback(() => {
     setHideCompleted((prev) => {
       const next = !prev;
-      toast(next ? "👁️ Quêtes faites masquées" : "👁️ Toutes les quêtes affichées", { duration: 1200 });
+      toast.info(next ? "👁️ Quêtes faites masquées" : "👁️ Toutes les quêtes affichées", { duration: 1200 });
       return next;
     });
   }, []);
@@ -368,19 +607,78 @@ export default function GuideOverlayClient({
   // Réservé à l'overlay INTERNE d'un membre dont le compte Metamob est lié : le guide
   // public (`isGuest`) et l'overlay sans guilde n'ont ni compte ni progression Ocre,
   // donc aucun bouton n'est rendu — et aucun calcul n'est fait.
-  const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public";
+  // L'entrée Ocre ne dépend plus des DONNÉES : un membre non lié doit pouvoir ouvrir le
+  // panneau et lier son compte. Le mode invité et le guide public restent exclus.
+  const ocreEnabled = !isGuest && !!guildId && guildId !== "public";
+  // V-H — captures Metamob du membre, dérivées du payload Ocre déjà chargé (aucun
+  // appel réseau supplémentaire). Liste vide ⇒ `unknown` : jamais un faux « à capturer ».
+  // Surface publique : la liste vient du pont `PublicOcreDungeonBridge` (page).
+  const capturedOcreNames = useMemo(() => {
+    if (ocreEnabled) {
+      return (ocre?.monsters ?? []).filter((m) => m.owned > 0).map((m) => m.nameFr);
+    }
+    return [...(publicCapturedOcreNames ?? [])];
+  }, [ocre, ocreEnabled, publicCapturedOcreNames]);
+  // Interne : panneau Ocre de guilde. Public connecté : la modale publique, portée
+  // dans la PiP (`portalContainer`) — la même vue `OcreQuestPanel`, au même endroit.
+  const openOcre = ocreEnabled
+    ? () => setShowOcre(true)
+    : isGuest && feedbackSignedIn
+      ? () => setMetamobOpen(true)
+      : undefined;
   const ocreSummary = useMemo(() => {
     if (!ocreEnabled || !ocre) return null;
     const plan = buildOcrePlan(ocre);
     return { missing: plan.progress.missing, percent: plan.progress.percent };
   }, [ocre, ocreEnabled]);
 
-  // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
-  const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
+  // Ressources du BLOC affiché : même agrégation, périmètre = le chapitre courant.
+  // C'est ce que le bouton « Ressources n/N » compte et ouvre — le guide entier
+  // (482 objets) ne disait rien de l'étape en cours (retour user 05/11/2026).
+  const chapterResources = useMemo(
+    () => (currentMs ? aggregateRushResources([currentMs]) : []),
+    [currentMs]
+  );
+
+  // Compteur du bouton « Ressources » : les ressources du bloc déjà cochées.
+  const resourcesChecked = useMemo(
+    () => chapterResources.filter((r) => resourceChecks.has(r.key)).length,
+    [chapterResources, resourceChecks]
+  );
+
+  // « Reprendre » : la prochaine quête à faire du chapitre affiché. On interroge la
+  // LISTE, jamais la fenêtre entière (le nœud du dock porte lui aussi un `data-state`).
+  // `next` depuis E1e ; `todo` sinon (liste entièrement verrouillée).
+  const scrollToNextQuest = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const target = list.querySelector<HTMLElement>('[data-state="next"], [data-state="todo"]');
+    target?.scrollIntoView({ block: "center" });
+  }, []);
+
+  // Alignement de la guilde : `allProgress` porte déjà camp / Ordre / tranche
+  // (`GuideProgressRow`), et la présence live dit qui est connecté — zéro requête.
+  const alignmentMembers = useMemo<AlignmentMember[]>(() => {
+    const online = new Set(guideLive.presence.map((p) => p.profileId));
+    const byProfile = new Map<string, AlignmentMember>();
+    for (const row of allProgress) {
+      if (!row?.profileId || byProfile.has(row.profileId)) continue;
+      byProfile.set(row.profileId, {
+        profileId: row.profileId,
+        userName: row.userName || "Voyageur",
+        userAvatar: row.userAvatar,
+        alignment: row.alignment ?? null,
+        alignmentOrder: row.alignmentOrder ?? null,
+        alignmentLevel: row.alignmentLevel ?? 0,
+        isOnline: online.has(row.profileId),
+        isSelf: !!character?.pseudo && row.userName === character.pseudo,
+      });
+    }
+    return [...byProfile.values()];
+  }, [allProgress, guideLive.presence, character?.pseudo]);
 
   const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
-  const currentMsDoneCount = currentMsSeqs.filter((s) => currentMsDoneSeqs.has(s.id)).length;
 
   // Image de Dofus associée au guide ou au milestone
   const dofusImage = useMemo(() => {
@@ -458,10 +756,11 @@ export default function GuideOverlayClient({
     return all;
   }, [milestones, completedIds, completedStepsByMs]);
   // Mode « restantes » : on exclut les ressources des quêtes déjà cochées
-  // (décrément en direct selon l'avancement).
+  // (décrément en direct selon l'avancement). Périmètre = le bloc affiché, comme
+  // le bouton « Ressources n/N » (une seule vérité pour le compteur et la liste).
   const remainingResources = useMemo(
-    () => aggregateRushResources(milestones, gateAllCompleted),
-    [milestones, gateAllCompleted]
+    () => (currentMs ? aggregateRushResources([currentMs], gateAllCompleted) : []),
+    [currentMs, gateAllCompleted]
   );
 
 
@@ -476,11 +775,26 @@ export default function GuideOverlayClient({
   }, [currentMs, milestones]);
 
   const getSeqGate = useCallback(
-    (seqId: string): { locked: boolean; prereqs: RushPrereqRef[] } => {
-      const refs = prereqBySeq.get(seqId) || [];
-      return { locked: refs.some((r) => !gateAllCompleted.has(r.seqId)), prereqs: refs };
+    (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[] } => {
+      const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
+      // Même règle que le serveur (`setRushSequenceProgress`) : un donjon **requis** non
+      // coché verrouille la quête. Sans ce test, le bouton restait cliquable et le clic
+      // partait au serveur — qui refuse — d'où une « erreur de synchronisation » au lieu
+      // d'une explication (mesure du 22/10/2026).
+      const missingDungeons = missingRequiredDungeons(
+        seq,
+        doneDungeonKeysForSequence(dungeonActions.states, seq.id)
+      );
+      return {
+        locked: refs.some((r) => !gateAllCompleted.has(r.seqId)) || missingDungeons.length > 0,
+        // Seuls les prérequis ENCORE manquants : la carte affiche « Terminer : X » et
+        // X devait être la quête précédente même une fois validée (mesure du 05/11/2026).
+        // Le verrou, lui, reste calculé sur `refs` entier.
+        prereqs: refs.filter((r) => !gateAllCompleted.has(r.seqId)),
+        missingDungeons,
+      };
     },
-    [prereqBySeq, gateAllCompleted]
+    [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
   );
 
   const handleGoToPrereq = useCallback(
@@ -518,10 +832,33 @@ export default function GuideOverlayClient({
 
 
   // ─── Mutations Optimistes ──────────────────────────────────────────────────
+  /**
+   * V-H — retour de **bloc** (pas de quête) : un toast dans l'overlay, à la même
+   * place et avec la même DA que les autres. Un bloc `DOFUS` annonce l'obtention.
+   */
+  const notifyBlockDone = useCallback(
+    (ms: RushMilestone) => {
+      toast.success(
+        ms.type === "DOFUS" ? `🍀 Dofus obtenu : ${ms.title}` : `Bloc validé : ${ms.title}`,
+        { duration: 2500 }
+      );
+    },
+    [toast]
+  );
+
   const handleToggleMs = useCallback(
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
       const was = completedIds.has(ms.id);
+      // Ressources : valider le chapitre coche toutes ses ressources ; l'invalider les
+      // décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
+      const resourceBefore = resourceChecks;
+      const nextResourceChecks = (ms.sequences || []).reduce(
+        (acc, s) => applyQuestResourceChecks(acc, (s as any).activityTags, !was),
+        resourceChecks
+      );
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedIds((prev) => {
         const n = new Set(prev);
         was ? n.delete(ms.id) : n.add(ms.id);
@@ -560,13 +897,21 @@ export default function GuideOverlayClient({
             }
           } catch {}
         }
-        if (!was) goToNextMs();
+        if (!was) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
         return;
       }
       setLoadingIds((prev) => new Set([...prev, ms.id]));
+      let refusal: string | null = null;
       try {
         const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo);
-        if (!(res as any)?.success) throw new Error("Échec mutation");
+        if (!(res as any)?.success) {
+          // Refus serveur (ex. donjon requis non fait) : on affiche SA raison, pas « Erreur ».
+          refusal = (res as any)?.error || null;
+          throw new Error("Échec mutation");
+        }
         // Chapitre validé d'un coup → son repère est retiré (soit validé, soit repère).
         if (!was && bookmarksByMs.get(ms.id)) {
           setBookmarksByMs((prev) => {
@@ -577,15 +922,19 @@ export default function GuideOverlayClient({
           await setRushBookmark(guildId, ms.id, null, effectiveAltPseudo).catch(() => {});
         }
         // Chapitre complété d'un coup → passer automatiquement au suivant.
-        if (!was) goToNextMs();
+        if (!was) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevSteps);
         setCompletedIds((prev) => {
           const n = new Set(prev);
           was ? n.add(ms.id) : n.delete(ms.id);
           return n;
         });
-        toast.error("Erreur de synchronisation");
+        toast.error(refusal ?? "Erreur de synchronisation");
       } finally {
         setLoadingIds((prev) => {
           const n = new Set(prev);
@@ -594,16 +943,28 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
   );
 
   const handleToggleSeq = useCallback(
     async (ms: RushMilestone, seqId: string) => {
       const cur = new Set(completedStepsByMs.get(ms.id) || []);
       const was = cur.has(seqId);
-      if (!was && getSeqGate(seqId).locked) {
-        toast.warning("Terminez d'abord les prérequis de cette quête.");
-        return;
+      if (!was) {
+        const seqObj = ms.sequences.find((s) => s.id === seqId);
+        const gate = seqObj
+          ? getSeqGate(seqObj)
+          : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
+        if (gate.locked) {
+          // On dit **ce qui manque** dans la fenêtre de l'overlay (jamais une erreur de
+          // synchronisation : le clic ne doit même pas partir au serveur).
+          toast.warning(
+            gate.missingDungeons.length > 0
+              ? `Donjons requis à cocher d'abord : ${gate.missingDungeons.map((d) => d.name).join(", ")}.`
+              : "Terminez d'abord les prérequis de cette quête."
+          );
+          return;
+        }
       }
       was ? cur.delete(seqId) : cur.add(seqId);
       const contentSeqs = ms.sequences.filter((s) => !isInfoSequence(s));
@@ -624,6 +985,21 @@ export default function GuideOverlayClient({
           cascadeMsIds.get(owner.id)!.add(cid);
         }
       }
+      // Ressources : valider coche les ressources de la quête ; invalider les décoche
+      // (cascade comprise). Le serveur applique la même règle ; ici, l'écho optimiste.
+      const resourceBefore = resourceChecks;
+      const seqResource = ms.sequences.find((s) => s.id === seqId);
+      let nextResourceChecks = applyQuestResourceChecks(
+        resourceChecks,
+        (seqResource as any)?.activityTags,
+        !was
+      );
+      for (const cid of cascadeSeqIds) {
+        const cs = milestones.flatMap((m) => m.sequences).find((s) => s.id === cid);
+        if (cs) nextResourceChecks = applyQuestResourceChecks(nextResourceChecks, (cs as any).activityTags, false);
+      }
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
         n.set(ms.id, cur);
@@ -685,7 +1061,10 @@ export default function GuideOverlayClient({
           } catch {}
         }
         // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre suivant.
-        if (!was && allChecked) goToNextMs();
+        if (!was && allChecked) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
         return;
       }
       try {
@@ -727,8 +1106,12 @@ export default function GuideOverlayClient({
         // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre
         // suivant, exactement comme la case « tout le chapitre » : avant, l'utilisateur
         // restait bloqué sur un chapitre vide à 100 %.
-        if (!was && allChecked) goToNextMs();
+        if (!was && allChecked) {
+          notifyBlockDone(ms);
+          goToNextMs();
+        }
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevMap);
         setCompletedIds((prev) => {
           const n = new Set(prev);
@@ -738,7 +1121,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -748,6 +1131,7 @@ export default function GuideOverlayClient({
       setCompletedIds(new Set());
       setCompletedStepsByMs(new Map());
       setBookmarksByMs(new Map());
+      setResourceChecks(new Set());
       setDetailSeq(null);
       setCurrentMsIndex(0);
       if (typeof window !== "undefined") {
@@ -755,6 +1139,7 @@ export default function GuideOverlayClient({
           localStorage.removeItem(`${storagePrefix}completed_ms`);
           localStorage.removeItem(`${storagePrefix}steps`);
           localStorage.removeItem(`${storagePrefix}bookmarks`);
+          localStorage.removeItem(`${storagePrefix}resources`);
         } catch {}
       }
       toast.success("Guide réinitialisé.");
@@ -766,6 +1151,7 @@ export default function GuideOverlayClient({
         setCompletedIds(new Set());
         setCompletedStepsByMs(new Map());
         setBookmarksByMs(new Map());
+        setResourceChecks(new Set());
         setDetailSeq(null);
         // Force le recalcul de la progression globale (header) à 0.
         setCurrentMsIndex(0);
@@ -782,12 +1168,11 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone, seqId: string) => {
       const isAlready = bookmarksByMs.get(ms.id) === seqId;
       // Une quête validée ne peut pas porter de repère : soit validée, soit repère.
-      if (!isAlready && (completedStepsByMs.get(ms.id)?.has(seqId) || getSeqGate(seqId).locked)) {
-        toast.info(
-          completedStepsByMs.get(ms.id)?.has(seqId)
-            ? "Cette quête est déjà validée."
-            : "Terminez d'abord les prérequis de cette quête."
-        );
+      // ⚠️ 11/11/2026 — le repère « j'en suis là » ne dépend PAS du verrou de validation :
+      // un donjon requis non coché (ou un prérequis) empêche de **valider** la quête, pas
+      // de dire où l'on en est. Le repère reste donc possible sur une carte verrouillée.
+      if (!isAlready && completedStepsByMs.get(ms.id)?.has(seqId)) {
+        toast.info("Cette quête est déjà validée.");
         return;
       }
       const prevMap = new Map(bookmarksByMs);
@@ -837,8 +1222,45 @@ export default function GuideOverlayClient({
     if (hideCompleted) {
       seqs = seqs.filter((s) => !currentMsDoneSeqs.has(s.id));
     }
+    if (questFilter !== "all") {
+      // Les encarts info ne sont pas des quêtes : ils sortent des filtres « En cours »
+      // et « Verrouillées ». L'ordre de `seqs` n'est jamais modifié (on filtre).
+      seqs = seqs.filter((s) => {
+        if (isInfoSequence(s)) return false;
+        return matchesRushQuestFilter(
+          { isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked },
+          questFilter
+        );
+      });
+    }
     return seqs;
-  }, [currentMs, search, hideCompleted, currentMsDoneSeqs]);
+  }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
+
+  // Quête « à faire maintenant » de la liste AFFICHÉE : une seule règle partagée
+  // par le nœud accentué, « Reprendre » et l'arrêt du fil de sève.
+  const nextSeqId = useMemo(
+    () =>
+      nextQuestId(
+        visibleSequences
+          .filter((s) => !isInfoSequence(s))
+          .map((s) => ({
+            id: s.id,
+            isDone: currentMsDoneSeqs.has(s.id),
+            isLocked: getSeqGate(s).locked,
+          }))
+      ),
+    [visibleSequences, currentMsDoneSeqs, getSeqGate]
+  );
+
+  // ─── Fil de sève ────────────────────────────────────────────────────────────
+  // Règle partagée : `useDaRail` mesure `--da-grow` (offsetTop + 26 de la première
+  // quête ni validée ni verrouillée ; tout validé ⇒ clientHeight − 48).
+  const railRef = useDaRail([
+    visibleSequences,
+    currentMs?.id,
+    overlaySmall,
+    overlayDensity,
+  ]);
 
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
@@ -868,10 +1290,37 @@ export default function GuideOverlayClient({
     ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
-  // Le chapitre courant est-il validé ? (lu par la barre de chapitre via `completedIds`)
-  const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
-  const currentMsTotal = currentMsSeqs.length;
-  const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
+  // ─── Thème de bloc de la DA « Gouache Wakfu » ─────────────────────────────
+  // La règle vit dans `src/lib/rush-da-theme.ts` : le guide plein écran applique
+  // la MÊME (parité public ↔ interne), donc plus de copie locale.
+  const daTheme = useMemo(
+    () => resolveRushDaTheme(milestones, currentMs?.id),
+    [milestones, currentMs]
+  );
+  const daBlock = daTheme.block;
+
+  // Thème exposé aux portails (popover de donjon, prérequis) : la MÊME vérité que
+  // `data-theme`, une seule fois — plus aucun composant ne reçoit le thème en prop.
+  const daThemeValue = useMemo(
+    () => ({
+      theme: lightMode ? ("light" as const) : ("dark" as const),
+      block: daBlock,
+      accent: daTheme.accent,
+    }),
+    [lightMode, daBlock, daTheme.accent]
+  );
+
+  // Compteurs des filtres — même source que la liste filtrée, même règle pure
+  // (`countRushQuests`) : les encarts info ne sont pas des quêtes et ne comptent pas.
+  const daCounts: RushQuestCounts = useMemo(
+    () =>
+      countRushQuests(
+        currentMsSeqs
+          .filter((s) => !isInfoSequence(s))
+          .map((s) => ({ isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked }))
+      ),
+    [currentMsSeqs, currentMsDoneSeqs, getSeqGate]
+  );
 
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
@@ -912,9 +1361,25 @@ export default function GuideOverlayClient({
           imageUrl={ms.imageUrl}
           accentColor={ms.accentColor}
           className="my-3"
+          collapsible
+          bodyText={infoText}
         >
           <RushRichText text={infoText} normalizeMeta />
         </RushInfoBanner>
+      );
+    }
+    if (isRushCombatBlock(ms.type)) {
+      return (
+        <RushCombatBanner
+          key={ms.id}
+          type={ms.type}
+          title={ms.title}
+          bodyText={ms.tips || ms.description || ms.title || ""}
+          imageUrl={ms.imageUrl}
+          links={ms.links}
+          surface="pip"
+          className="my-3"
+        />
       );
     }
     const dofus = getMsDofus(ms);
@@ -922,19 +1387,19 @@ export default function GuideOverlayClient({
       <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
         {dofus ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain" />
         ) : ms.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain" />
         ) : null}
-        <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "#a3e635" }}>
+        <span className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "var(--color-gold)" }}>
           ✦ Dofus obtenu ✦
         </span>
-        <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+        <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
           {ms.title}
         </h3>
         {(ms.description || ms.tips) && (
-          <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
             <RushRichText text={ms.description || ms.tips} />
           </p>
         )}
@@ -954,14 +1419,28 @@ export default function GuideOverlayClient({
     // peignent qu'avec `--surface`, `--border`, `--accent`… et suivent donc le
     // thème sans variante claire codée en dur. Sans cette classe, `<html>` porte
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
+    // Le fournisseur expose la MÊME vérité aux portails, sans prop-drilling.
+    <DaThemeProvider value={daThemeValue}>
     <div
       ref={rootRef}
-      className={`relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
-        isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
-      }`}
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      data-da="wakfu"
+      data-theme={lightMode ? "light" : "dark"}
+      data-block={daBlock}
+      /* F7 (chantier 4) — la PiP flotte AU-DESSUS du jeu : `data-quality="low"` coupe le grain
+         et les bords « rough » (règle `[data-quality="low"]` de `da-wakfu.css`, déjà écrite
+         mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa
+         signature, la petite fenêtre reste nette. */
+      data-quality="low"
+      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${lightMode ? "light" : ""} bg-background text-foreground`}
+      style={{
+        fontFamily: "var(--da-font-text)",
+        ...(daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : null),
+      }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
+
+      {/* DA « Grimoire Sylvestre » : un seul filet de reliure, jamais d'ombre ni de halo. */}
+      <span aria-hidden="true" className="rush-carnet-frame pointer-events-none absolute inset-0 border border-border-strong/60" />
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}
@@ -975,19 +1454,24 @@ export default function GuideOverlayClient({
             totalSteps={totalSteps}
             completedSteps={completedSteps}
             overallPct={overallPct}
-            isLightMode={isLightMode}
             isNarrow={overlaySmall}
+            density={overlayDensity}
             onToggleTheme={toggleTheme}
-            onOpenResources={() => setShowResources(true)}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
             onOpenTutorial={() => setShowTutorial(true)}
-            bugContext={overlayBugContext}
+            onOpenFeedback={() => setFeedbackOpen(true)}
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
+            block={daBlock}
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
+            onOpenMetamob={
+              isGuest && feedbackSignedIn ? () => setMetamobOpen(true) : undefined
+            }
+            metamobVerified={metamobVerified}
+            onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -995,7 +1479,6 @@ export default function GuideOverlayClient({
             value={search}
             onChange={setSearch}
             onClear={() => setSearch("")}
-            isLightMode={isLightMode}
             ref={searchRef}
           />
 
@@ -1009,15 +1492,34 @@ export default function GuideOverlayClient({
             onSelectChapter={selectChapter}
             completedMsIds={completedIds}
             doneByMs={completedStepsByMs}
-            isLightMode={isLightMode}
             onToggleChapter={handleToggleMs}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
-            dofus={
-              currentMsDofus
-                ? { imageUrl: currentMsDofus.imageUrl, label: currentMsDofus.label, done: dofusDone }
-                : null
-            }
           />
+
+          {/* ══ RANGÉE D'ACTIONS ══
+              Reprendre (saut à la prochaine quête à faire) + Ressources (la modale,
+              qui n'a plus d'icône dans l'en-tête : un seul point d'entrée). */}
+          <RushOverlayActions
+            onResume={scrollToNextQuest}
+            onOpenResources={() => setShowResources(true)}
+            checked={resourcesChecked}
+            total={chapterResources.length}
+          />
+
+          {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} />
+
+          {/* F9 — le bandeau du bloc courant (image + titre + écriteau « N/M ») est
+              retiré : le dock juste au-dessus porte déjà le titre du chapitre et son
+              avancement, et la jauge du haut porte le total. La **description** reste :
+              c'est la seule à dire ce que le chapitre regroupe. */}
+          {currentMs?.description ? (
+            <div className="px-3 pt-3">
+              <div className="da-blockdesc">
+                <RushRichText text={currentMs.description} />
+              </div>
+            </div>
+          ) : null}
 
 
 
@@ -1046,27 +1548,17 @@ export default function GuideOverlayClient({
                 Sur ce chapitre
               </span>
               <span className="flex items-center -space-x-1.5">
-                {chapterMembers.slice(0, 6).map((m, i) =>
-                  m.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={m.avatar}
-                      alt={m.name}
-                      loading="lazy"
-                      title={m.name}
-                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 object-cover"
-                    />
-                  ) : (
-                    <span
-                      key={i}
-                      title={m.name}
-                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 bg-[#39bc95]/20 text-[#39bc95] flex items-center justify-center text-[8px] font-bold uppercase"
-                    >
-                      {m.name.charAt(0) || "?"}
-                    </span>
-                  )
-                )}
+                {chapterMembers.slice(0, 6).map((m, i) => (
+                  <MemberAvatar
+                    key={i}
+                    src={m.avatar}
+                    name={m.name}
+                    alt={m.name}
+                    title={m.name}
+                    className="w-5 h-5 rounded-full border border-[#39bc95]/40"
+                    fallbackClassName="bg-[#39bc95]/20 text-[#39bc95] text-[8px] font-bold uppercase"
+                  />
+                ))}
               </span>
               {chapterMembers.length > 6 && (
                 <span className="text-[9px] text-[#6e7784]">+{chapterMembers.length - 6}</span>
@@ -1075,7 +1567,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar">
+          <main ref={listRef} className="flex-1 min-h-0 px-3 pt-3 pb-2 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
@@ -1091,11 +1583,11 @@ export default function GuideOverlayClient({
                 globalResults.map(({ ms, seq }, i) => {
                   const showMsHeader = i === 0 || globalResults[i - 1].ms.id !== ms.id;
                   const isSeqDone = (completedStepsByMs.get(ms.id) || new Set<string>()).has(seq.id);
-                  const gate = getSeqGate(seq.id);
+                  const gate = getSeqGate(seq);
                   return (
                     <React.Fragment key={seq.id}>
                       {showMsHeader && (
-                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#d5a94e]">
+                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-gold">
                           <span className="w-1 h-1 rounded-full bg-[#d5a94e]" />
                           {ms.title || "Jalon"}
                         </div>
@@ -1103,65 +1595,86 @@ export default function GuideOverlayClient({
                       <RushOverlayQuestListItem
                         seq={seq}
                         guildId={guildId}
+                        dungeonActions={dungeonActions}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
-                        isLightMode={isLightMode}
                         isLocked={gate.locked}
                         prereqs={gate.prereqs}
+                        missingDungeons={gate.missingDungeons}
                         onGoToPrereq={handleGoToPrereq}
                         onToggle={() => handleToggleSeq(ms, seq.id)}
                         onBookmark={() => handleBookmark(ms, seq.id)}
                         onOpenDetail={() => setDetailSeq({ ms, seq })}
                         bookmarkers={bookmarkersBySeq.get(seq.id) || []}
                         onOpenBookmarkers={() => openSeqMembers(seq)}
+                        capturedOcreNames={capturedOcreNames}
+                        onOpenOcre={openOcre}
                       />
                     </React.Fragment>
                   );
                 })
               )
             ) : visibleSequences.length === 0 ? (
-              <div className="py-12 text-center text-[#929aa5] text-xs">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
-                <p className="font-bold font-serif text-sm text-[#f2f0e9]">
-                  {search.trim() ? "Aucune quête ne correspond" : "Toutes les quêtes sont terminées !"}
+              <div className="py-12 text-center text-xs text-muted-foreground">
+                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-success opacity-40" />
+                <p className="font-serif text-sm font-semibold text-foreground">
+                  {search.trim()
+                    ? "Aucune quête ne correspond"
+                    : questFilter === "active"
+                      ? "Aucune quête à faire ici"
+                      : questFilter === "locked"
+                        ? "Aucune quête verrouillée ici"
+                        : "Toutes les quêtes sont terminées !"}
                 </p>
-                <p className="text-[11px] text-[#6e7784] mt-0.5">
-                  {search.trim() ? "Essayez un autre mot-clé." : "Passez au chapitre suivant avec le bouton Suivant."}
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {search.trim()
+                    ? "Essayez un autre mot-clé."
+                    : questFilter !== "all"
+                      ? "Changez de filtre pour voir les autres quêtes."
+                      : "Passez au chapitre suivant avec le bouton Suivant."}
                 </p>
               </div>
             ) : currentMs ? (
-              visibleSequences.map((seq) => {
+              <div className="da-rail" ref={railRef}>
+                <div>
+                  {visibleSequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
                   // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
                   // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (
-                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} />
+                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} collapsible />
                   );
                 }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);
-                const gate = getSeqGate(seq.id);
+                const gate = getSeqGate(seq);
                 const isBookmarked = bookmarkSeqId === seq.id;
                 return (
                   <React.Fragment key={seq.id}>
                     <RushOverlayQuestListItem
                       seq={seq}
                       guildId={guildId}
+                      dungeonActions={dungeonActions}
                       isDone={isSeqDone}
+                      isNext={nextSeqId === seq.id}
                       isBookmarked={isBookmarked}
-                      isLightMode={isLightMode}
                       isLocked={gate.locked}
                       prereqs={gate.prereqs}
+                      missingDungeons={gate.missingDungeons}
                       onGoToPrereq={handleGoToPrereq}
                       onToggle={() => handleToggleSeq(currentMs, seq.id)}
                       onBookmark={() => handleBookmark(currentMs, seq.id)}
                       onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
                       bookmarkers={bookmarkersBySeq.get(seq.id) || []}
                       onOpenBookmarkers={() => openSeqMembers(seq)}
+                      capturedOcreNames={capturedOcreNames}
+                      onOpenOcre={openOcre}
                     />
                   </React.Fragment>
                 );
-              })
+                  })}
+                </div>
+              </div>
             ) : null}
 
             {/* Bannières de fin de guide : rattachées au dernier chapitre (même règle) */}
@@ -1174,7 +1687,6 @@ export default function GuideOverlayClient({
             onNext={goToNextMs}
             canPrev={currentMsIndex > 0}
             canNext={currentMsIndex < milestones.length - 1}
-            isLightMode={isLightMode}
             label={chapterPos.index > 0 ? `${chapterPos.index} / ${chapterPos.total}` : ""}
           />
 
@@ -1182,10 +1694,11 @@ export default function GuideOverlayClient({
       {showResources && (
         <RushOverlayResourcesModal
           resources={remainingResources}
-          allResources={allResources}
-          isLightMode={isLightMode}
-          totalCount={allResources.length}
+          allResources={chapterResources}
+          totalCount={chapterResources.length}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleCheck={handleToggleResourceCheck}
           onClose={() => setShowResources(false)}
         />
       )}
@@ -1201,7 +1714,6 @@ export default function GuideOverlayClient({
           title={membersModal.title}
           members={membersModal.members}
           liveMembers={liveMembers}
-          isLightMode={isLightMode}
           onClose={() => setMembersModal(null)}
         />
       )}
@@ -1212,28 +1724,84 @@ export default function GuideOverlayClient({
           milestone={detailSeq.ms}
           seq={detailSeq.seq}
           isDone={(completedStepsByMs.get(detailSeq.ms.id) || new Set<string>()).has(detailSeq.seq.id)}
-          isLightMode={isLightMode}
           guildId={guildId}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleResourceCheck={handleToggleResourceCheck}
+          capturedOcreNames={capturedOcreNames}
+          onOpenOcre={openOcre}
+          dungeonStates={dungeonActions?.states}
+          dungeonBusyKey={dungeonActions?.busyKey}
+          dungeonOthers={dungeonActions?.others}
+          onSetDungeon={dungeonActions?.onSet}
           onClose={() => setDetailSeq(null)}
         />
       )}
 
       {/* ══ MODALE TUTORIEL ══ */}
       {showTutorial && (
-        <RushOverlayTutorialModal isLightMode={isLightMode} onClose={() => setShowTutorial(false)} />
+        <RushOverlayTutorialModal onClose={() => setShowTutorial(false)} />
       )}
 
       {/* ══ PANNEAU QUÊTE OCRE (Metamob · overlay interne) ══ */}
-      {showOcre && ocreEnabled && ocre && (
+      {showOcre && ocreEnabled && (
         <RushOverlayOcreModal
           guildId={guildId}
-          isLightMode={isLightMode}
           initial={ocre}
+          state={ocreState}
           onClose={() => setShowOcre(false)}
         />
       )}
+
+      {/* ══ MODALE ALIGNEMENT (vue guilde + mon choix) ══ */}
+      {showAlignment && (
+        <RushOverlayAlignmentModal
+          guildId={guildId}
+          members={alignmentMembers}
+          selfAlignment={alignmentMembers.find((m) => m.isSelf)?.alignment ?? selfAlignment}
+          selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? selfOrder}
+          mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
+          onClose={() => setShowAlignment(false)}
+        />
+      )}
+      {/* ══ PANNEAU « SIGNALER UN BUG » (F11) ══
+          Monté ICI, en fin de racine : dans l'en-tête il était enfermé par `.da-hero`
+          (`position: relative; overflow: hidden`) et passait sous le contenu, quel que
+          soit son `z-index`. Ici il est le dernier enfant de la racine `data-theme` —
+          donc au-dessus, dans le bon document (PiP comprise), avec les bons jetons. */}
+      {feedbackOpen && (
+        <RushOverlayFeedbackPanel
+          guildId={guildId}
+          sourcePage={`guide:overlay:${guide.slug}`}
+          targetSlug={guide.slug}
+          context={overlayBugContext}
+          onlyDiscord={isGuest && !feedbackSignedIn}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      )}
+      {/* Metamob de la surface publique connectée — monté au MÊME endroit que le panneau de
+          retour, pour la même raison : dernier enfant de la racine `data-theme`, donc dans le
+          bon document (PiP comprise) et avec les jetons de la DA. */}
+      <PublicMetamobModal
+        open={metamobOpen}
+        onClose={() => setMetamobOpen(false)}
+        metamobPseudo={metamobPseudo ?? null}
+        verified={metamobVerified}
+        portalContainer={rootRef.current?.ownerDocument.body ?? null}
+      />
     </div>
+      {/* Toaster de l'overlay : monté SOUS la portée `data-da` pour hériter des
+          jetons (Sonner le positionne en `fixed`, mais ses variables viennent de
+          l'arbre : hors de cette portée, il retombait sur un noir en dur). */}
+      <div
+        data-da="wakfu"
+        data-theme={lightMode ? "light" : "dark"}
+        data-block={daBlock}
+        className="contents"
+      >
+        <OverlayToaster />
+      </div>
+    </DaThemeProvider>
   );
 }
 

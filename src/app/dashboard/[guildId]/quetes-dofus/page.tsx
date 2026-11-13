@@ -102,7 +102,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
             <div className="relative z-10 max-w-7xl mx-auto space-y-8">
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6" data-tour="quetes-header">
                     <UnifiedModuleHeader
-                        title="Quêtes Dofus"
+                        title="Objectif Dofus"
                         description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
                         imageSrc="/assets/dofus/game-icons/dofus.png"
                         backHref={`/dashboard/${guildId}`}

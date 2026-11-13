@@ -30,8 +30,13 @@ export type GuestProgressSnapshot = {
   bookmarksByMs: Map<string, string>;
 };
 
-/** Les trois clés d'un emplacement de progression. */
-const PROGRESS_SUFFIXES = ["completed_ms", "steps", "bookmarks"] as const;
+/**
+ * Les clés d'un emplacement de progression. `dungeons` porte les coches de donjons
+ * (forme propre : `Record<"sequenceId::dungeonKey", "done" | "todo">`, lue et écrite par
+ * `src/lib/rush-dungeon-storage.ts`) — il est listé ici pour que l'adoption d'une
+ * progression anonyme et la détection « emplacement déjà utilisé » le couvrent aussi.
+ */
+const PROGRESS_SUFFIXES = ["completed_ms", "steps", "bookmarks", "dungeons"] as const;
 
 /** Au moins un champ renseigné ? (sinon c'est « pas de personnage ») */
 export function hasGuestCharacter(c: GuestCharacter | null | undefined): c is GuestCharacter {
@@ -71,6 +76,19 @@ export function guestProgressPrefix(slug: string, character?: GuestCharacter | n
 /** Clé de stockage du personnage lui-même (un seul personnage « actif »). */
 export function guestCharacterStorageKey(slug: string): string {
   return `sigil_guest_${slug}_character`;
+}
+
+/**
+ * Clés de la **route d'alignement locale** (camp + Ordre). Exportées pour que l'export /
+ * import (F2) lise exactement les mêmes clés que le guide — une clé recopiée à la main
+ * finirait par diverger.
+ */
+export function guestRouteStorageKey(slug: string): string {
+  return `sigilos_rush_route_${slug}`;
+}
+
+export function guestRouteOrderStorageKey(slug: string): string {
+  return `sigilos_rush_route_order_${slug}`;
 }
 
 export function readGuestCharacter(slug: string): GuestCharacter | null {

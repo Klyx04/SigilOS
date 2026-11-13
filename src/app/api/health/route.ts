@@ -20,8 +20,6 @@ interface HealthStatus {
     checks?: {
         discordBot: ExternalCheck;
         metamob: ExternalCheck;
-        dofusdb: ExternalCheck;
-        dofensive: ExternalCheck;
     };
     /**
      * Configuration d'authentification **présente** (fail-closed) : une app dont
@@ -162,22 +160,18 @@ export async function GET() {
     // NOTE (OWASP, page publique) : volontairement AUCUNE donnée interne ici
     // (pas de tâches auto, pas de versions, pas de messages d'erreur) —
     // uniquement des états + latences, déjà visibles par ailleurs.
-    const [discordBot, metamob, dofusdb, dofensive] = await Promise.all([
+    // Souveraineté : seuls nos services + Metamob (partenaire Ocre) sont sondés.
+    // DofusDB et Dofensive ne sont PLUS consultés à l'exécution (retirés le 16/10/2026).
+    const [discordBot, metamob] = await Promise.all([
         checkDiscordBot(),
         checkHttp("https://www.metamob.fr/api/v1/quest-types"),
-        checkHttp("https://api.dofusdb.fr"),
-        checkHttp("https://dofensive.com/api/dofus2/bestiary"),
     ]);
-    health.checks = { discordBot, metamob, dofusdb, dofensive };
+    health.checks = { discordBot, metamob };
 
     // Un service externe HS ne rend pas la plateforme "en panne" (elle reste
     // utilisable en mode dégradé), mais il doit se voir.
     if (health.status === "healthy") {
-        const anyDown =
-            discordBot.status === "down" ||
-            metamob.status === "down" ||
-            dofusdb.status === "down" ||
-            dofensive.status === "down";
+        const anyDown = discordBot.status === "down" || metamob.status === "down";
         if (anyDown) health.status = "degraded";
     }
 

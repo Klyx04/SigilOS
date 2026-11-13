@@ -61,6 +61,7 @@ export default async function DocPage({ params }: Props) {
         breadcrumbs={breadcrumbs}
         guildId={ctx.guildId}
         slug={doc.slug}
+        accessLevel={doc.accessLevel}
     />;
 }
 

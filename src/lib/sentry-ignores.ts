@@ -23,14 +23,34 @@ export const COMMON_IGNORE_ERRORS: (string | RegExp)[] = [
     // Réseau coupé (mobile, onglet en veille) : cas utilisateur, pas un bug produit.
     "NetworkError",
     "Failed to fetch",
+    // ⚠️ Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-2E`, 2 événements en 7 min) : `TypeError:
+    // network error` est le message exact d'un `fetch` coupé au niveau réseau. Les deux
+    // événements tombent **pendant la recréation de `db-beta`** (déploiement bêta) sur
+    // `/dashboard/:guildId/donjons-et-quetes` : la requête a été coupée, pas mal construite.
+    // Regex **ancrée** : on ne fait pas taire un message qui contiendrait ces mots.
+    /^network error$/i,
+    // ⚠️ Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-21`) : `Error: aborted` sur `POST /monitoring`
+    // — c'est le **tunnel Sentry** lui-même : le navigateur annule la requête en quittant la
+    // page. Rien de notre code ne produit cette annulation, et le tunnel n'est pas une route
+    // métier (même famille que « The destination stream closed early », cf. filtre serveur).
+    // ⚠️ Complément du 02/11/2026 : la **même** erreur apparaît sur `POST /dashboard/<id>` sous
+    // la forme `ECONNRESET` (`abortIncoming` de Node, aucune frame applicative) — un Server
+    // Action coupé par un client qui ferme l'onglet. C'est bien la valeur `aborted` qui est
+    // comparée, donc ce filtre la couvre ; l'issue 21 est antérieure au filtre.
+    /^aborted$/i,
     // Particularité connue de ResizeObserver, bruit standard du web.
     "ResizeObserver loop",
     // 🐛 Mesure du 11/10/2026 — **65 événements en 24 h** dans la config navigateur,
     // puis **1 870 + 369** en 3 h une fois mesuré côté serveur : `UnrecognizedActionError:
     // Server Action "…" was not found on the server`. Ce n'est pas un bug de notre code
     // mais le **décalage de build** d'un onglet resté ouvert pendant un déploiement (les
-    // ids d'actions changent à chaque build). Next recharge la page tout seul ⇒ l'erreur
-    // est **transitoire et auto-réparée**.
+    // ids d'actions changent à chaque build). ⚠️ **Correction du 17/10/2026** : la phrase
+    // « Next recharge la page tout seul » était **fausse** (vérifié dans `next@16.4.0` —
+    // seul un `popstate` hérité recharge, voir `app-router.js`) : l'erreur remontait
+    // jusqu'à la frontière d'erreur du module (« Section Indisponible ») et « Réessayer »
+    // rejouait le **même** bundle périmé. La reprise vit désormais dans
+    // `src/lib/stale-deployment.ts` (rechargement d'onglet, gardé contre les boucles) ;
+    // le filtre reste — ce n'est toujours pas un défaut du produit.
     /UnrecognizedActionError/,
 ];
 

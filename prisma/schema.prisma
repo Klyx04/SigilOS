@@ -53,18 +53,31 @@ model User {
   scheduledDeletion    DateTime?
   lastSeenChangelogId  String?
   lastFeedViewedAt     DateTime?          @default(now())
+  /**
+   * Dernière **activité authentifiée** connue (D-A, décision du 02/11/2026).
+   *
+   * Les sessions sont en JWT (`src/auth.ts`) : sans ce champ, la rétention des comptes ne
+   * mesurait que l'**âge du compte** (`createdAt`) et pouvait effacer quelqu'un qui s'était
+   * connecté la veille. Écrit au plus une fois par heure (throttle Redis) par
+   * `touchLastSeen` (`src/server/last-seen.ts`) et lu par `purgeOrphanAccountsCore`.
+   * `null` = jamais mesuré (compte d'avant la colonne) : traité comme inactif, jamais comme actif.
+   */
+  lastSeenAt           DateTime?
   accounts             Account[]
   dreamJoinRequests    DreamJoinRequest[]
   dreamRuns            DreamRun[]         @relation("RunLeader")
   dreamRunMembers      DreamRunMember[]
   dreamWaitlists       DreamWaitlist[]
   eventParticipations  EventParticipant[]
+  raidPresences        RaidPresence[]
 
   guildEvents          GuildEvent[]
   notifications        Notification[]
   administeredRelances Relance[]          @relation("RelanceAdmin")
   sessions             Session[]
   profiles             UserProfile[]
+  /// Espace visiteur (rang 57) — un seul `User` porte les deux vies (D-V2).
+  publicProfile        PublicProfile?
 }
 
 model AllowedGuild {
@@ -148,6 +161,9 @@ model PlatformConfig {
   statusFrequency        Int      @default(15)
   statusMention          String   @default("none")
   nsfwFilterEnabled      Boolean  @default(true)
+  /// Nombre maximum de guildes par utilisateur (`docs/plans/PLAN-LIMITE-GUILDES.md`).
+  /// Borné **1..10** à la lecture (`resolveGuildLimit`) : un 0 verrouillerait la plateforme.
+  maxGuildsPerUser       Int      @default(2)
   geoguesserBlacklist    Int[]    @default([])
   godNotifyChannelId     String?
   godNotifyRoleId        String?
@@ -234,6 +250,10 @@ model GodNotification {
   type      GodNotifyType
   success   Boolean       @default(true)
   metadata  Json?
+  /// Projection humaine de l'alerte (libellés + valeurs prêts à afficher), **source
+  /// unique** partagée par l'embed Discord et la console God (cf.
+  /// `src/lib/god-notification-details.ts`). `null` ⇒ repli sur `metadata`.
+  details   Json?
   isRead    Boolean       @default(false)
   createdAt DateTime      @default(now())
 }
@@ -354,6 +374,8 @@ model GuildConfig {
   presentationFoundedDate          DateTime?
   presentationFounder              String?
   presentationHistory              String?
+  // Règlement intérieur (édition admin, lecture interne seule — jamais public).
+  presentationInternalRules        String?
   presentationMinLevel             Int?
   presentationMinSuccesses         Int?
   presentationMemberCount          Int?
@@ -376,15 +398,32 @@ model GuildConfig {
   missionDiscordMessageId          String?
   pollsNotifyChannelId             String?
   pollsNotifyRoleId                String?
+  // Module « Sondages programmés » (staff) : salon par défaut de l'embed publié
+  // automatiquement, whitelist de ping dédiée (fail-closed, pattern polls) et
+  // durée de vote par défaut proposée dans le formulaire (bornée 1–720 h).
+  scheduledPollsChannelId          String?
+  scheduledPollsPingRoleIds        String[]                @default([])
+  scheduledPollsDurationH          Int?
   ocreNotifyChannelId              String?
   djNotifyChannelId                String?
   // Chantier — points de contribution personnalisables (DJ / quêtes / Songes), config JSON admin
   pointsConfig                     Json?
   servicesNotifyChannelId          String?
+  // Module Services (25/10/2026) — deux flux distincts :
+  //  · annonces : salon **forum** (un sujet par service, filtrable par tag) ;
+  //  · demandes : salon forum **ou** texte (un message/sujet par demande client).
+  // `servicesNotifyChannelId` reste lu en **repli** pour les demandes (legacy) et sera
+  // retiré dans un lot ultérieur — aucune config n'est perdue au passage.
+  servicesListingsChannelId        String?
+  servicesRequestsChannelId        String?
+  /** mapping `ServiceCategory → id de tag forum` (tags existants, jamais créés par nous). */
+  servicesForumTags                Json?
   loansNotifyChannelId             String?
   vaultNotifyChannelId             String?
   systemNotifyChannelId            String?
   lifecycleNotifyChannelId         String?
+  /** Salon qui reçoit l'embed « fin d'essai » d'un membre (25/10/2026). */
+  trialEndNotifyChannelId          String?
   firstAdminViewAt                 DateTime?
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?
@@ -450,6 +489,7 @@ model GuildConfig {
   reactionRoleGroups               ReactionRoleGroup[]
   reactionRoleIconPacks            ReactionRoleIconPack[]
   polls                            Poll[]
+  scheduledPolls                   ScheduledPoll[]
   relances                         Relance[]
   resourceCategories               ResourceCategory[]
   serviceActivityLogs              ServiceActivityLog[]
@@ -458,6 +498,10 @@ model GuildConfig {
   serviceRequests                  ServiceRequest[]
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
+  memberRegistryEntries            MemberRegistryEntry[]
+  /// Lot 7 — activité Discord de **tous** les membres (y compris sans profil dashboard).
+  discordMemberActivities          DiscordMemberActivity[]
+  seniorityRoleAnnouncements       SeniorityRoleAnnouncement[]
   vaultEntries                     VaultEntry[]
   allowedPingRoleIds               String[]                @default([])
   calendarPingRoleIds              String[]                @default([])
@@ -466,7 +510,25 @@ model GuildConfig {
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
   missionPingRoleIds               String[]                @default([])
+  /** Salon des annonces de **live Twitch** — `null` = aucune annonce Twitch pour cette guilde. */
+  liveNotifyChannelId              String?
+  /**
+   * Interrupteur des annonces de **live Twitch**. Le salon reste requis pour envoyer :
+   * interrupteur actif + salon vide ⇒ rien n'est posté (fail-closed).
+   */
+  notifyTwitchLives                Boolean                 @default(true)
+  /** Rôles à ping sur une annonce de live **ou** de vidéo. Vide = **sans ping** (jamais `@everyone`). */
+  livePingRoleIds                  String[]                @default([])
+  /** Salon des annonces de **nouvelle vidéo YouTube**, distinct du salon Twitch. */
+  youtubeNotifyChannelId           String?
+  /** Annoncer les **nouvelles vidéos YouTube** (flux RSS, 0 quota). */
+  notifyYouTubeUploads             Boolean                 @default(true)
   raidAllowedSignUpRoleIds         String[]                @default([])
+  /// Rôles Discord comptés comme « en guilde **en jeu** » (module Membres → onglet Mules).
+  /// Décision user du 25/10/2026 : une personne portant **plusieurs** de ces rôles n'est
+  /// comptée qu'**une seule fois** ; les mules déclarées taguées `inGameGuild` s'ajoutent
+  /// à ce total. Liste vide = aucun rôle compté (jamais de repli permissif).
+  inGameGuildRoleIds               String[]                @default([])
   raidHubConfig                    Json?
   notifications                    Notification[]
   memberBans                       GuildMemberBan[]
@@ -495,7 +557,23 @@ model GuildConfig {
   arrivingRoleId                   String?
   trialRoleId                      String?
   confirmedRoleId                  String?
+  /// V2 du cycle de vie (09/11/2026) : quand c'est vrai, la validation d'un essai demande une
+  /// confirmation explicite (cases à cocher) avant d'appliquer les rôles sur Discord.
+  /// Défaut `false` = comportement d'un seul clic, comme avant.
+  trialConfirmRoleChange           Boolean                 @default(false)
   recruitmentWelcomeTemplate       String?
+  // ── Chantier Y — « Rôles automatiques par ancienneté » (lot Y-1 : données + règles pures) ──
+  // Paliers `seuil en jours → rôles Discord`, salon de l'annonce et message
+  // personnalisable. OFF par défaut : aucune guilde ne reçoit de rôles à son insu.
+  // Relus par `mergeSeniorityRolesConfig` (`src/lib/seniority-roles.ts`) : le JSON
+  // stocké n'est jamais cru sur parole, les valeurs douteuses retombent sur les défauts.
+  seniorityRolesEnabled            Boolean                 @default(false)
+  seniorityRolesChannelId          String?
+  seniorityRolesTiers              Json                    @default("[]")
+  seniorityRolesAnnouncement       Json?
+  /// Instant d'activation du module (lot Y-2) : il sépare un franchissement de palier
+  /// « à venir » (à fêter) d'un rattrapage (marqué sans être posté).
+  seniorityRolesActivatedAt        DateTime?
   // ── Module « Marché » (chantier 2026-09-10) — réglages par guilde (§9.1) ──
   // Toutes les valeurs sont lues côté serveur, jamais depuis un paramètre client.
   marketNotifyChannelId            String?  // salon de publication (texte / annonces / forum)
@@ -571,7 +649,6 @@ model GuildModules {
   profile          Boolean     @default(true)
   roster           Boolean     @default(true)
   services         Boolean     @default(true)
-  stats            Boolean     @default(true)
   polls            Boolean     @default(true)
   admin            Boolean     @default(true)
   quests           Boolean     @default(false)
@@ -588,6 +665,12 @@ model GuildModules {
   commandes       Boolean     @default(true)
   /** Module « Marché » — OFF par défaut pour les nouvelles guildes (D15). */
   marche          Boolean     @default(false)
+  /**
+   * Module « Sondages programmés » (staff) — OFF par défaut : un sondage
+   * publié automatiquement dans un salon Discord n'est jamais un défaut
+   * implicite, l'admin l'active explicitement.
+   */
+  scheduledPolls   Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   /**
    * Modules verrouillés par le staff (noms de ModuleKey). Un module verrouillé
@@ -799,6 +882,8 @@ model UserProfile {
   playerGuideProgress        PlayerGuideProgress[]
   /** Coches manuelles de ressources du Rush (par personnage) — cf. PlayerGuideResourceCheck. */
   rushResourceChecks         PlayerGuideResourceCheck[]
+  /** États manuels des donjons du Rush (« fait » / « à faire ») — cf. PlayerGuideDungeonState. */
+  rushDungeonStates          PlayerGuideDungeonState[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
@@ -814,20 +899,230 @@ model UserProfile {
   @@index([userId])
 }
 
+/// Espace visiteur (rang 57) — profil public d'un compte Discord **sans guilde gérée**.
+///
+/// Décisions D-V1/D-V2 (`docs/plans/PLAN-ESPACE-VISITEUR.md`) : tables dédiées, un seul
+/// `User` porte les deux vies. Isolation **structurelle** : aucune FK vers `GuildConfig`,
+/// donc aucune requête de visiteur ne peut porter un `guildId`.
+///
+/// `dofusServerId` est **obligatoire** (décision du 06/11/2026) : c'est la clé du ladder
+/// Ankama (worker `DOFUS_LADDER_WORKER_URL`, `server_id` + pseudo) et le filtre de
+/// l'annuaire. Sans serveur, aucune synchronisation n'est possible.
+///
+/// `showOnDirectory` et `showPresence` sont **deux** consentements distincts, tous deux
+/// fermés par défaut : figurer dans l'annuaire n'autorise pas à afficher « en ligne ».
+model PublicProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  /// Serveur Dofus Unity (`DOFUS_UNITY_SERVERS`, `src/lib/presentation-constants.ts`).
+  dofusServerId        Int
+  pseudoDofus          String?
+  classe               String?
+  /// Nom de guilde **déclaré** (aucune vérification Discord) — règle pure
+  /// `src/lib/public-profile-rules.ts` : 40 max, lettres non accentuées, espace, ' et -.
+  declaredGuildName    String?
+  /// Mules déclarées — même forme que `UserProfile.altPseudos`
+  /// (`{ pseudo, classe?, level? }[]`), bornées par `src/lib/public-profile-input.ts`.
+  altPseudos           Json?
+  introduction         String?
+  objectifs            String?
+  preferredActivities  Json?
+  /// ⚠️ Réservé : **non écrit** en V1c. La source des métiers est `PublicProfession`
+  /// (table normalisée) — ce champ n'est là que pour la compatibilité du schéma V1a.
+  metiers              Json?
+  metamobPseudo        String?
+  /// Chiffrée par l'extension Prisma (`src/lib/prisma.ts`), jamais renvoyée au client.
+  metamobApiKey        String?
+  metamobVerified      Boolean  @default(false)
+  alignment            String?
+  alignmentOrder       String?
+  alignmentLevel       Int      @default(0)
+  /// Ladder Ankama — mêmes métriques que `UserProfile`, alimentées par le worker.
+  dofusLevel           Int?
+  totalXp              BigInt?  @default(0)
+  successPoints        Int?     @default(0)
+  lastLadderSync       DateTime?
+  /// Consentement **annuaire** (D-V4) — fermé par défaut : on publie des volontaires.
+  showOnDirectory      Boolean  @default(false)
+  /// Consentement **présence temps réel** (D9) — distinct : figurer dans l'annuaire
+  /// n'autorise pas à afficher « en ligne maintenant ».
+  showPresence         Boolean  @default(false)
+  /// Consentement **progression de rush** (D-V21) — distinct : publier ses blocs,
+  /// sa quête en cours et ses donjons cochés n'est pas « figurer dans l'annuaire ».
+  showRushProgress     Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rushProgress         PublicRushProgress[]
+  professions          PublicProfession[]
+  achievements         PublicDungeonAchievement[]
+
+  @@index([dofusServerId, showOnDirectory])
+  @@index([dofusServerId, showRushProgress])
+  @@index([lastLadderSync])
+}
+
+/// Progression de rush d'un visiteur — une ligne par (profil, guide, personnage).
+///
+/// `characterSlot` suit la **même convention que les trois tables internes**
+/// (`PlayerGuideProgress`, `PlayerGuideResourceCheck`, `PlayerGuideDungeonState`) : `"PRINCIPAL"`
+/// pour le personnage principal, le pseudo pour une mule. Pourquoi une **chaîne** et non un
+/// entier : la clé de progression invitée (`guestCharacterSlot`) est déjà un texte
+/// (`pseudo-serveur`) ; un entier aurait obligé à inventer un index, qui se décale dès que la
+/// liste des mules change — la progression aurait sauté d'un personnage à l'autre.
+///
+/// Les colonnes `Json` reprennent la forme du stockage local existant
+/// (`src/lib/guest-progress.ts`) : l'adoption à la première connexion ne réécrit rien.
+model PublicRushProgress {
+  id                  String        @id @default(cuid())
+  publicProfileId     String
+  /// Slug du guide (aujourd'hui `rush-sylvestre`).
+  guideId             String
+  characterSlot       String        @default("PRINCIPAL")
+  characterName       String?
+  classe              String?
+  completedMilestones Json?
+  completedSteps      Json?
+  bookmarks           Json?
+  dungeonChecks       Json?
+  currentStep         String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  profile             PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, guideId, characterSlot])
+  @@index([publicProfileId])
+  @@index([guideId, updatedAt])
+}
+
+/// Métier déclaré d'un visiteur — table **normalisée** : l'annuaire filtre par métier,
+/// et un `Json` ne s'indexe pas à des milliers de profils.
+///
+/// `metierId` est le **slug** de `DOFUS_JOBS` (`forgeron`, `boulanger`), pas un entier :
+/// les seuls ids numériques du dépôt sont dérivés de l'ordre des tableaux
+/// (`dofusdude-client.ts`, `catIdx * 100 + i + 1`) et changeraient avec cet ordre —
+/// une colonne numérique pointait donc vers le mauvais métier au premier réordonnancement.
+model PublicProfession {
+  id              String        @id @default(cuid())
+  publicProfileId String
+  metierId        String
+  level           Int           @default(0)
+  profile         PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, metierId])
+  @@index([metierId, level])
+}
+
+/// Succès de donjon cochés par un visiteur.
+///
+/// Table dédiée : `UserDungeonAchievement` pointe `UserProfile`, qui est cloisonné par
+/// guilde (D-V1) — un visiteur n'en a pas.
+model PublicDungeonAchievement {
+  id                   String             @id @default(cuid())
+  publicProfileId      String
+  dungeonAchievementId String
+  completedAt          DateTime           @default(now())
+  profile              PublicProfile      @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+  dungeonAchievement   DungeonAchievement @relation(fields: [dungeonAchievementId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, dungeonAchievementId])
+  @@index([publicProfileId])
+  @@index([dungeonAchievementId])
+}
+
 /// Registre Membres & Recrutement — commentaires du staff : plusieurs par
 /// membre (10 max), horodatés et signés par leur auteur.
+///
+/// Le commentaire vise **soit** un profil dashboard (`profileId`), **soit** un membre
+/// Discord hors dashboard (`discordId`) — jamais les deux, jamais aucun (xor garanti
+/// par Zod côté action, cf. `registryCommentSchema`).
 model MemberRegistryComment {
   id           String      @id @default(cuid())
   guildId      String
-  profileId    String
+  profileId    String?
+  /// Membre Discord hors dashboard (chantier B-2 : les lignes sans profil sont éditables).
+  discordId    String?
   /// Auteur (compte staff) ; null seulement pour la reprise de l'ancienne note unique.
   authorUserId String?
   authorName   String
   body         String
   createdAt    DateTime    @default(now())
-  profile      UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile      UserProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+  @@index([discordId, createdAt])
+  @@index([guildId])
+}
+
+/// Registre Membres & Recrutement — ligne d'un membre **Discord sans profil dashboard**.
+///
+/// Miroir guilde-scopé de ce que `UserProfile` porte pour les inscrits (identité du
+/// registre, essai, recruteur, mules) : c'est l'étagère qui rend les « hors dashboard »
+/// **éditables** sans leur fabriquer un compte plateforme (décision voie ① du chantier B).
+model MemberRegistryEntry {
+  id             String      @id @default(cuid())
+  guildId        String
+  discordId      String
+  pseudoDofus    String?
+  ankamaId       String?
+  guildJoinedAt  DateTime?
+  recruitedById  String?
+  trialValidated Boolean     @default(false)
+  trialEndsAt    DateTime?
+  altPseudos     Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  guild          GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId])
+  @@index([guildId])
+  @@index([discordId])
+}
+
+/// Lot 7 — activité Discord **de tous les membres** d'une guilde, **même sans profil**
+/// (`UserProfile` ne couvre que les inscrits : c'était l'angle mort du vocal).
+///
+/// Écrit par le **bot** à chaque message / passage en vocal / arrivée / départ ;
+/// `leftDiscordAt` n'est jamais effacé avant la purge (365 jours, cf.
+/// `src/lib/discord-member-activity.ts`). Aucun token, aucun contenu de
+/// message : des **compteurs** et des **horodatages**, rien d'autre.
+model DiscordMemberActivity {
+  id                String      @id @default(cuid())
+  guildId           String
+  discordId         String
+  /// Dernier nom affiché connu (surnom Discord prioritaire) — jamais une source de vérité.
+  displayName       String?
+  firstSeenAt       DateTime    @default(now())
+  lastSeenAt        DateTime    @default(now())
+  lastMessageAt     DateTime?
+  lastVoiceAt       DateTime?
+  messagesTotal     Int         @default(0)
+  voiceSecondsTotal Int         @default(0)
+  /// Départ du serveur Discord : point de départ de la purge (365 jours).
+  leftDiscordAt     DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  guild             GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId])
+  @@index([guildId, leftDiscordAt])
+  @@index([guildId, lastSeenAt])
+}
+
+/// Chantier Y (lot Y-2) — palier d'ancienneté **déjà fêté** pour un membre : une ligne par
+/// couple (membre, seuil), jamais deux. Le RÔLE n'a pas besoin d'être tracé (le diff compare
+/// aux rôles réellement portés sur Discord) : cette table ne sert qu'à l'annonce.
+model SeniorityRoleAnnouncement {
+  id          String      @id @default(cuid())
+  guildId     String
+  discordId   String
+  /// Seuil du palier, en jours — et **non** l'index du palier : ajouter ou réordonner un
+  /// palier ne rejoue donc aucune ancienne annonce.
+  tierDays    Int
+  announcedAt DateTime    @default(now())
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId, tierDays])
   @@index([guildId])
 }
 
@@ -1172,6 +1467,8 @@ model DungeonAchievement {
   challenge    Challenge                @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   dungeon      Dungeon                  @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
   achievedBy   UserDungeonAchievement[]
+  /// Coches des **visiteurs** (espace visiteur, rang 57) — table dédiée, D-V1.
+  publicAchievedBy PublicDungeonAchievement[]
   userProgress UserDungeonProgress[]
 
   @@unique([dungeonId, challengeId])
@@ -1203,6 +1500,12 @@ model Notification {
   link      String?
   createdAt DateTime             @default(now())
   category  NotificationCategory @default(SYSTEM)
+  /// Asset de l'objet annoncé (illustration de donjon, de Dofus, icône d'objet…) —
+  /// `null` = repli sur le picto de la catégorie. Chemin servi par l'app
+  /// (`/api/assets-dofus/...`, auto-siphonné, ou un asset local du jeu).
+  imageUrl  String?
+  /// Ce que l'image **représente** (`NOTIFICATION_IMAGE_KINDS`, `src/lib/notification-categories.ts`).
+  imageKind String?
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild     GuildConfig?         @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
@@ -1231,6 +1534,10 @@ model DreamRun {
   discordMessageId    String?
   updatedAt           DateTime           @default(now()) @updatedAt
   lastReminderAt      DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le leader ou un admin : suspend le
+  /// rappel H-1, les relances d'inactivité et la clôture automatique. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = run active.
+  standBy             Json?
   epreuveCode         String?
   scheduledAt         DateTime?
   mentionRoleId       String?
@@ -1357,12 +1664,17 @@ model GuildEvent {
   metadata         Json?
   notifyBefore     Int?               @default(60)
   lastRemindedAt   DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le créateur ou un admin : suspend le
+  /// rappel H-24/H-1, le rappel de clôture et la clôture d'office. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = événement actif.
+  standBy          Json?
   proofUrl         String?
   validatedAt      DateTime?
   validatedBy      String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   participants     EventParticipant[]
+  raidPresences    RaidPresence[]
   creator          User               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   guild            GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
@@ -1411,6 +1723,40 @@ model RaidLiveSession {
   updatedAt       DateTime @updatedAt
 
   @@index([guildId, status])
+}
+
+/// Statut de présence d'un inscrit à la clôture d'un raid (R1 « no-show », 31/10/2026).
+enum RaidPresenceStatus {
+  PRESENT
+  PREVENU
+  EXCUSE
+  NO_SHOW
+}
+
+/// Registre de présence d'un raid (R1 « no-show » — PLAN-RAID L2).
+///
+/// Une ligne par **inscrit** au moment de la clôture (présent, prévenu, excusé, no-show),
+/// écrite dans `completeRaidEvent` et **supprimée** par `undoCompleteRaidEvent` : annuler la
+/// clôture doit ramener l'état d'avant, registre compris.
+/// Donnée **personnelle** : lisible par le staff seul (`canManageRaid` / admin), jamais par un
+/// membre ni dans un embed public. Règle unique : `src/lib/raid-presence.ts`.
+/// Rétention : 90 jours (`RAID_PRESENCE_RETENTION_DAYS`) — index `(guildId, createdAt)` pour le
+/// compteur glissant et la purge.
+model RaidPresence {
+  id         String             @id @default(cuid())
+  guildId    String // = GuildConfig.id (JAMAIS le discordGuildId)
+  eventId    String // GuildEvent.id du raid clôturé
+  userId     String // User.id de l'inscrit
+  status     RaidPresenceStatus @default(PRESENT)
+  /// Auteur du statut : la clôture (`completeRaidEvent`) ou la **correction** d'un officier.
+  recordedBy String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  event      GuildEvent         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([guildId, createdAt])
 }
 
 model ImageHash {
@@ -1687,6 +2033,10 @@ model Poll {
   updatedAt          DateTime     @updatedAt
   outcome            String?
   externalUrl        String?
+  // Marqueur « Sondage programmé » : le sondage a été publié automatiquement
+  // par le module staff (cron publish-scheduled-polls) et non à la main.
+  // Tag affiché sur la carte, la fiche et l'embed Discord.
+  isScheduled        Boolean      @default(false)
   creator            UserProfile  @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   guild              GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
   options            PollOption[]
@@ -1720,6 +2070,96 @@ model PollVote {
   @@index([voterId])
 }
 
+/**
+ * Créneau de sondage programmé (module staff `scheduledPolls`).
+ *
+ * Un créneau n'est **pas** un sondage : c'est une consigne « publier ce
+ * sondage-là, dans ce salon-là, à cet instant-là ». À l'échéance, le cron
+ * `publish-scheduled-polls` crée un `Poll` normal (mêmes options, mêmes
+ * boutons Discord `poll:vote:`, même fiche dashboard) marqué
+ * `Poll.isScheduled = true`, puis passe le créneau à `PUBLISHED` avec
+ * `createdPollId` pour la traçabilité.
+ *
+ * Règles portées par le modèle :
+ * - `@@unique([guildId, scheduledAt])` ⇒ **jamais deux créneaux à la même
+ *   minute** dans une même guilde ;
+ * - `@@index([status, scheduledAt])` ⇒ la lecture du cron (créneaux échus) est
+ *   indexée, quel que soit le volume de guildes ;
+ * - `status` + `claimedAt` portent la **revendication atomique** (garde d'état
+ *   dans le `WHERE`) : deux exécutions simultanées ne publient jamais deux fois.
+ */
+model ScheduledPoll {
+  id                String              @id @default(cuid())
+  guildId           String
+  createdById       String
+  creatorName       String
+  title             String
+  description       String?
+  category          PollCategory
+  allowMultipleVotes Boolean            @default(false)
+  isAnonymous       Boolean             @default(false)
+  externalUrl       String?
+  scheduledAt       DateTime
+  /** Durée du vote une fois publié (heures, bornée 1–720). Null = durée par défaut des paramètres. */
+  durationHours     Int?
+  /**
+   * Répétition (optionnelle) : tous les `repeatEvery` `repeatUnit`, jusqu'à
+   * `repeatUntil` (inclus) ou sans fin si `repeatUntil` est nul.
+   *
+   * Un seul créneau existe à la fois : à la publication, le moteur crée
+   * l'occurrence suivante (même minute du jour, options recopiées) tant que
+   * `repeatUntil` n'est pas dépassée. Le plafond de 3 créneaux en attente reste
+   * respecté par construction (le créneau publié libère sa place).
+   */
+  repeatEvery      Int?
+  repeatUnit       ScheduledRepeatUnit?
+  repeatUntil      DateTime?
+  discordChannelId  String?
+  mentionEveryone   Boolean             @default(false)
+  /** CSV de rôles (pattern `Poll.mentionRoleId`), tous whitelistés à l'écriture. */
+  mentionRoleId     String?
+  status            ScheduledPollStatus @default(SCHEDULED)
+  claimedAt         DateTime?
+  publishedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledById     String?
+  /** Dernière raison d'échec ou de blocage (module coupé, salon invalide…). */
+  lastError         String?
+  /** Sondage réellement créé à l'échéance (jamais deviné : lu en base). */
+  createdPollId     String?
+  /**
+   * **Série de répétition** : identifiant partagé par toutes les occurrences d'une
+   * même série (la première occurrence porte le sien, les suivantes le recopient).
+   *
+   * C'est ce qui permet au moteur, au moment de publier l'occurrence N+1, de
+   * retrouver l'occurrence N **par donnée explicite** — et donc de la clore et de
+   * publier son résultat avant que la nouvelle n'apparaisse. Jamais un
+   * rapprochement par titre ou par créateur : se tromper de cible veut dire
+   * clôturer un autre sondage. Nul pour un créneau unique (aucune répétition).
+   */
+  seriesId          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  guild             GuildConfig         @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  options           ScheduledPollOption[]
+
+  @@unique([guildId, scheduledAt])
+  @@index([guildId, status])
+  @@index([status, scheduledAt])
+  @@index([guildId, seriesId])
+}
+
+model ScheduledPollOption {
+  id              String        @id @default(cuid())
+  scheduledPollId String
+  label           String
+  order           Int           @default(0)
+  emoji           String?
+  scheduledPoll   ScheduledPoll @relation(fields: [scheduledPollId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledPollId])
+}
+
 model DjSearchPost {
   id                   String                @id @default(cuid())
   guildId              String
@@ -1740,6 +2180,10 @@ model DjSearchPost {
   closedAt             DateTime?
   expiresAt            DateTime
   lastReminderAt       DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le créateur ou un admin : suspend le
+  /// rappel H-1, les relances d'inactivité et la clôture automatique. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = post actif.
+  standBy              Json?
   isDiscordPublished   Boolean               @default(false)
   questId              Int?
   requiredClasses      String[]
@@ -1787,7 +2231,12 @@ model DjSearchParticipant {
   post        DjSearchPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
   profile     UserProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@unique([postId, profileId])
+  // Multi-donjons (#26) — l'unicité est **par donjon** : un joueur peut rejoindre
+  // plusieurs donjons d'une même session (la carte Discord et la modale du site
+  // l'exposent donjon par donjon). Postgres traitant les `NULL` comme distincts,
+  // la base ne garantit plus « un seul donjon » pour les posts simples : c'est la
+  // garde applicative qui la porte (`internalJoinDjPost` / `joinDjPost`).
+  @@unique([postId, profileId, dungeonIndex])
   @@index([postId, status])
   @@index([profileId])
 }
@@ -2015,6 +2464,11 @@ model GameItem {
   priceNpc      Int?      // `price` DofusDB → prix PNJ de référence
   itemSetId     Int?      // panoplie (-1 = aucune)
   itemSetName   String?   // « Panoplie du Katcheur »
+  // ── Légalité des variantes (25/10/2026) — ADDITIF, siphonné de DofusDB ────────────────
+  criterions    String?   // DSL DofusDB des conditions d'équipement (« CP<12|CM<6 », « pk<2 »)
+  /** Arbre de conditions **structuré** (DofusDude) : `{relation, children:[{operator,int_value,element}]}`. */
+  conditions    Json?
+  twoHanded     Boolean   @default(false) // arme à deux mains (interdit le bouclier)
   isLegendary   Boolean   @default(false)   // familiers / objets légendaires
   isSaleable    Boolean   @default(true)
   superTypeId   Int?      // famille (Arme, Consommable, Ressource…)
@@ -2031,6 +2485,26 @@ model GameItem {
   @@index([level])
   @@index([itemSetId])      // filtre « panoplie » (éditeur FM)
   @@index([superTypeId])    // filtre « famille » (éditeur FM)
+}
+
+/// 🧩 Référentiel DofusDB `/item-sets` — siphonné (lot « stuff & variantes », 26/10/2026).
+///
+/// Pourquoi : le payload Dofusbook ne porte que le **palier actif** d'une panoplie, donc une
+/// variante qui change une pièce ne peut pas être recalculée sans les **paliers complets**.
+///
+/// `tiers` = `[{ count, effects:[{ code, value, effectId }] }]` — `code` **normalisé**
+/// (`fo`, `ini`, `ta`…) par `normalizeStatCode()`, `count` = nombre de pièces exigées.
+/// Sélection du palier : `activeTierCount()` (`src/lib/dofus-set-bonuses.ts`), jamais ici.
+model GameItemSet {
+  id        Int      @id                 // = id DofusDB de la panoplie
+  name      String
+  itemCount Int      @default(0)         // nombre total de pièces de la panoplie
+  itemsIds  Int[]                        // ids Ankama des pièces
+  tiers     Json                         // paliers complets normalisés (voir ci-dessus)
+  dataHash  String?                      // hash du payload : réécriture seulement si changement
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
 }
 
 /// 📚 Référentiel DofusDB `/effects` — siphonné (S2.5bis).
@@ -2741,6 +3215,7 @@ model OptimizedGuide {
   imageUrl            String?
   isActive            Boolean              @default(false)
   isUnderConstruction Boolean              @default(false) // God toggle: affiche "En construction" côté membres
+  isPublicUnderConstruction Boolean        @default(true)  // God toggle: page publique + sitemap (true = avis « En construction », non indexable)
   displayMode         String               @default("TREE") // "TREE" | "TIMELINE" — mode d'affichage membre
   // Config UI/UX GOD (édition membre) — pense-bête + options de la modale de lancement.
   // Optionnel : si vide, l'app retombe sur les valeurs par défaut (voir rush-sylvestre-pense-bete.ts).
@@ -2750,6 +3225,7 @@ model OptimizedGuide {
   steps               OptimizedGuideStep[]
   milestones          GuideMilestone[]
   resourceChecks      PlayerGuideResourceCheck[]
+  dungeonStates       PlayerGuideDungeonState[]
 }
 
 model OptimizedGuideStep {
@@ -2786,6 +3262,9 @@ model GuideMilestone {
   prerequisiteIds String[]             @default([]) // IDs de milestones requis avant celui-ci
   order           Int                  @default(0)  // Ordre global pour le tri
   tips            String?              // Conseils / astuces au niveau du bloc
+  /// Liens externes nommés (vidéos YouTube, guides écrits) des blocs Combat / Conseils.
+  /// Forme validée par `rush-block-links` : `[{ label, url }]`, 10 max, URL http(s).
+  links           Json?
   dofusId         String?              // Association optionnelle avec un DofusItem (pour le % global)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -2822,12 +3301,25 @@ model GuideSequence {
   dofuspourlesnoobsUrl String?
   tips                 String?  // Conseils spécifiques à cette quête
   
-  // Alignement optionnel lié à cette quête (ex: "bontarien", "brakmarien") + niveau d'ordre
-  alignReq             String?  // "bontarien" | "brakmarien"
-  alignOrderReq        Int?     // Niveau requis (1 à 100)
+  // Route d'alignement — DEUX étages : la cité, puis l'Ordre (seules les quêtes d'Ordre
+  // portent un code d'Ordre). Le palier est un VERROU calculé (compteur de quêtes de cité),
+  // jamais une valeur saisie.
+  alignReq             String?  // "bontarien" | "brakmarien" — toute la série de 100 quêtes
+  alignOrderCode       String?  // "coeur_vaillant" | "oeil_attentif" | "esprit_salvateur" | "coeur_saignant" | "oeil_putride" | "esprit_malsain"
+  alignLevelReq        Int?     // Palier requis : 20 | 40 | 60 | 80 | 100
+  alignOrderReq        Int?     // LEGACY : seuil de niveau (remplacé par alignLevelReq, conservé pour la bascule)
+  classReq             String?  // Classe requise (feca | osa | enu | ...) — quêtes de classe
+  /// **Variantes de texte par camp** (lot 4, 12/11/2026) : `{ bontarien?: { name?, tips? },
+  /// brakmarien?: { name?, tips? } }`. Vide ⇒ le texte de base (`subGuideName` / `tips`)
+  /// s'affiche pour tout le monde. Une seule quête à maintenir, la bonne variante sort
+  /// selon la cité du personnage.
+  routeVariants        Json?
 
   // Donjons requis (Plusieurs IDs stockés dans un tableau JSON ou de chaînes)
   dungeonIds   String[] @default([]) // Liste d'IDs de Dungeon pour supporter plusieurs donjons à la fois
+  /// Donjons **optionnels** parmi `dungeonIds` : affichés dans la quête, mais ils ne
+  /// bloquent pas sa validation (voir `src/lib/rush-dungeons.ts`).
+  dungeonOptionalIds String[] @default([])
 
   // Lien historique vers un donjon principal
   dungeonId    String?
@@ -2844,9 +3336,19 @@ model GuideSequence {
   icon              String?  // Icône optionnelle du bloc (serie-de-quete | icone-succes) — null = défaut
   metamobMonsterId  Int?                       // ID du monstre Metamob lié (Ocre / Quête Éternelle Moisson)
   activityTags      Json     @default("[]")   // Tags d'activité : [{ type: string, name?: string, level?: number }]
+  /// **Conditions structurées** (horaire, joueurs, métiers, sorts, notes) — des infos,
+  /// jamais des règles de blocage. Forme validée par `rushQuestConstraintsSchema`.
+  constraints       Json?
+
+  // Page publique par quête (bloc B) — le slug est FIGÉ à la publication : jamais recalculé
+  // depuis le nom, sinon chaque renommage casserait une URL déjà indexée.
+  publicSlug  String?  @unique
+  isPublished Boolean  @default(false)
 
   createdAt   DateTime      @default(now())
   milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  /// États manuels des donjons **de cette quête** (« fait » / « à faire »).
+  dungeonStates PlayerGuideDungeonState[]
 
   @@index([milestoneId])
   @@index([milestoneId, order])
@@ -2899,6 +3401,46 @@ model PlayerGuideResourceCheck {
   @@index([profileId])
 }
 
+/// État MANUEL d'un donjon du guide (Rush Sylvestre) : « fait » ou « à faire ».
+///
+/// Le donjon est une entité **globale du guide** : le même donjon apparaît dans
+/// plusieurs quêtes (ex. « Cour du Bouftou Royal »). La clé est donc `dungeonKey`
+/// (`id` > `slug` > nom normalisé — voir `src/lib/rush-dungeons.ts`), **jamais** la
+/// séquence : cocher le donjon le coche partout, et la liste de ses emplacements se
+/// déduit du guide (`buildDungeonIndex`).
+///
+/// Une quête dont un donjon **requis** n'est pas `DONE` ne peut pas être validée
+/// (verrou serveur dans `setRushSequenceProgress`).
+model PlayerGuideDungeonState {
+  id            String            @id @default(cuid())
+  profileId     String
+  guideId       String
+  /// La **quête** concernée : la coche est par OCCURRENCE, pas globale au donjon.
+  /// Le même donjon demandé par deux quêtes se coche deux fois.
+  sequenceId    String
+  characterSlot String            @default("PRINCIPAL") // "PRINCIPAL" = main, pseudo = mule
+  /// Clé STABLE du donjon (voir `dungeonKeyOf` dans `src/lib/rush-dungeons.ts`).
+  dungeonKey    String
+  state         GuideDungeonState
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  profile       UserProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guide         OptimizedGuide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  sequence      GuideSequence     @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, guideId, sequenceId, dungeonKey, characterSlot])
+  @@index([guideId, sequenceId])
+  @@index([guideId, state])
+  @@index([profileId])
+}
+
+/// Deux états seulement. L'absence de ligne = « pas encore décidé ».
+enum GuideDungeonState {
+  DONE
+  TODO
+}
+
 enum GuideMilestoneType {
   DOFUS           // Obtention d'un Dofus
   DOFUS_OBTAINED  // Bloc visuel premium "Dofus Obtenu" (grande icône, message personnalisable, non cochable)
@@ -2910,6 +3452,8 @@ enum GuideMilestoneType {
   SUCCES          // Succès spécifique
   INFO            // Bloc d'information / tips autonome
   SEPARATEUR      // Titre simple de section / séparateur visuel
+  COMBAT_TACTIQUE       // Bloc d'information : combat tactique (mécanique, non cochable)
+  COMBAT_SEMI_TACTIQUE  // Bloc d'information : combat semi-tactique (non cochable)
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)
@@ -3167,6 +3711,30 @@ enum PollStatus {
   ACTIVE
   CLOSED
   CANCELLED
+}
+
+/**
+ * Cycle de vie d'un créneau de sondage programmé (module staff).
+ * `PUBLISHING` est l'état de **revendication atomique** : un créneau ne peut
+ * passer de `SCHEDULED` à `PUBLISHING` qu'une seule fois (garde d'état dans le
+ * `WHERE`), ce qui rend le déclencheur (cron) sans état et rejouable.
+ */
+enum ScheduledPollStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  CANCELLED
+  FAILED
+}
+
+/**
+ * Unité de répétition d'un créneau (`ScheduledPoll.repeatEvery`) :
+ * tous les N jours / semaines / mois, avec une fin facultative.
+ */
+enum ScheduledRepeatUnit {
+  DAYS
+  WEEKS
+  MONTHS
 }
 
 enum DjSearchMode {

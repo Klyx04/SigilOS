@@ -128,7 +128,7 @@ function makeGuildConfig(overrides: Record<string, any> = {}) {
         modules: {
             missions: true, songes: true, ocre: true, ladder: true,
             calendar: true, services: true, donjons: true, docs: true,
-            profile: true, roster: true, stats: true, presentation: true,
+            profile: true, roster: true, presentation: true,
             polls: true, logs: true, quests: true, worldmap: true,
             resources: true, ladderSync: false, manualLadderSync: false, minigames: true,
             succes: true,
@@ -574,7 +574,6 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         expect(ctx.canManageMissions).toBe(true);
         expect(ctx.canValidateMissions).toBe(true);
-        expect(ctx.canViewStats).toBe(true); // Stats Guilde a le même RBAC que la page guilde (DASHBOARD_LOGIN)
     });
 
     it("accorde toutes les perms à un user avec SYSTEM_GOD dans le rolesMapping", async () => {
@@ -594,7 +593,6 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         expect(ctx.isAdmin).toBe(true);
         expect(ctx.canManageMembers).toBe(true);
-        expect(ctx.canViewStats).toBe(true);
         expect(ctx.canManageMissions).toBe(true);
         expect(ctx.canViewSettings).toBe(true);
         expect(ctx.canViewAuditLogs).toBe(true);
@@ -636,7 +634,6 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.canViewDashboard).toBe(true);
-        expect(ctx.canViewStats).toBe(true);
     });
 
     it("ignore totalement usersMapping quand le kill-switch God #72 est OFF", async () => {
@@ -677,8 +674,6 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         const ctx = await getUserContext("111111111111111111");
 
-        // Stats Guilde reste accessible via DASHBOARD_LOGIN (canViewStats)
-        expect(ctx.canViewStats).toBe(true);
         // Mais l'accès Audit Logs N'EST PLUS octroyé par la permission legacy
         expect(ctx.canViewAuditLogs).toBe(false);
     });

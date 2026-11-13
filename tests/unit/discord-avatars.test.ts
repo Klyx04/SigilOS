@@ -3,12 +3,15 @@ import {
     buildDiscordAvatarUrl,
     buildGuildAvatarUrl,
     normalizeDiscordAvatarUrl,
+    resolveDiscordAvatarUrl,
     discordAvatarErrorFallback,
     isDiscordAvatarUrl,
     isDiscordAvatarHostname,
     extractUserIdFromAvatarUrl,
     getDefaultDiscordAvatar,
     getDefaultDiscordAvatarByIndex,
+    nextDiscordAvatarFallback,
+    type DiscordAvatarStage,
 } from "@/lib/discord-avatars";
 
 describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () => {
@@ -73,6 +76,30 @@ describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () 
             expect(buildDiscordAvatarUrl("", "h")).toBeNull();
             expect(buildDiscordAvatarUrl("123", null)).toBeNull();
             expect(buildGuildAvatarUrl("guild", "", "h")).toBeNull();
+        });
+    });
+
+    describe("resolveDiscordAvatarUrl — avatar réel ou défaut officiel", () => {
+        it("privilégie le vrai hash (webp borné à la taille demandée)", () => {
+            expect(resolveDiscordAvatarUrl("4194304", "hash", 128)).toBe(
+                "https://cdn.discordapp.com/avatars/4194304/hash.webp?size=128",
+            );
+        });
+
+        it("sans hash ⇒ avatar Discord par défaut déterministe, jamais null", () => {
+            // (4194304 >> 22) % 6 = 1
+            expect(resolveDiscordAvatarUrl("4194304", null)).toBe("https://cdn.discordapp.com/embed/avatars/1.png");
+            expect(resolveDiscordAvatarUrl("4194304", undefined)).toBe(
+                "https://cdn.discordapp.com/embed/avatars/1.png",
+            );
+            expect(resolveDiscordAvatarUrl("4194304", "")).toBe("https://cdn.discordapp.com/embed/avatars/1.png");
+        });
+
+        it("fail-closed sans identifiant exploitable ⇒ null (initiales)", () => {
+            expect(resolveDiscordAvatarUrl(null, "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl(undefined, "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl("", "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl("pas-un-snowflake", null)).toBeNull();
         });
     });
 
@@ -173,6 +200,56 @@ describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () 
             expect(getDefaultDiscordAvatar(undefined)).toBeNull();
             expect(getDefaultDiscordAvatar("")).toBeNull();
             expect(getDefaultDiscordAvatar("not-a-number")).toBeNull();
+        });
+    });
+
+    // #23/#134 — la cascade de secours, mesurée le 16/10/2026 : un membre qui change
+    // d'avatar sur Discord garde l'ancien hash dans `User.image`, ce hash répond 404
+    // (`cdn.discordapp.com/avatars/…/*.png` → 404) et l'écran restait avec une image
+    // brisée. Ces tests verrouillent l'ordre exact des étages, dans un seul endroit.
+    describe("nextDiscordAvatarFallback — cascade de secours", () => {
+        const CDN =
+            "https://cdn.discordapp.com/avatars/4194304/d94302816bcf373dd8b79057e1ea7e3d.webp?size=256";
+
+        it("étage 0 → 1 : échec du CDN → miroir media.discordapp.net", () => {
+            const next = nextDiscordAvatarFallback(CDN, 0);
+            expect(next.stage).toBe(1);
+            expect(next.src).toBe(
+                "https://media.discordapp.net/avatars/4194304/d94302816bcf373dd8b79057e1ea7e3d.webp?width=256&height=256"
+            );
+        });
+
+        it("étage 1 → 2 : hash périmé → avatar Discord par défaut officiel (jamais 404)", () => {
+            const mirror = nextDiscordAvatarFallback(CDN, 0).src as string;
+            const next = nextDiscordAvatarFallback(mirror, 1);
+            expect(next.stage).toBe(2);
+            // Index déterministe : (4194304 >> 22) % 6 = 1
+            expect(next.src).toBe("https://cdn.discordapp.com/embed/avatars/1.png");
+        });
+
+        it("étage 2 : l'avatar par défaut a échoué → null (l'appelant affiche les initiales)", () => {
+            expect(nextDiscordAvatarFallback("https://cdn.discordapp.com/embed/avatars/1.png", 2)).toEqual({
+                src: null,
+                stage: 2,
+            });
+        });
+
+        it("fail-closed : URL non-Discord, source absente ou vide → null", () => {
+            expect(nextDiscordAvatarFallback("https://example.com/avatar.png", 0)).toEqual({ src: null, stage: 2 });
+            expect(nextDiscordAvatarFallback(null, 0)).toEqual({ src: null, stage: 2 });
+            expect(nextDiscordAvatarFallback(undefined, 0)).toEqual({ src: null, stage: 2 });
+            expect(nextDiscordAvatarFallback("", 0)).toEqual({ src: null, stage: 2 });
+        });
+
+        it("ne boucle jamais : trois échecs consécutifs terminent sur null", () => {
+            let state: { src: string | null; stage: DiscordAvatarStage } = {
+                src: normalizeDiscordAvatarUrl(CDN),
+                stage: 0,
+            };
+            state = nextDiscordAvatarFallback(state.src, state.stage);
+            state = nextDiscordAvatarFallback(state.src, state.stage);
+            state = nextDiscordAvatarFallback(state.src, state.stage);
+            expect(state).toEqual({ src: null, stage: 2 });
         });
     });
 

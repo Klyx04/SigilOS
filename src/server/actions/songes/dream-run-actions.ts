@@ -10,12 +10,19 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, canToggleStandBy, isStandByActive } from "@/lib/group-standby";
 import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveSongesContributionPoints } from "@/lib/points-config";
 import { syncSongesMirror } from "@/server/agenda-mirror-sync";
+import { emitGuildActivity } from "@/server/guild-activity-emit";
+import { getAppBaseUrl } from "@/lib/utils";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { isRunOpen, runJoinRefusal } from "@/lib/songes/run-status";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -152,8 +159,16 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
 
     const validated = CreateRunSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0].message };
+        return { success: false, error: validated.error.issues[0].message };
     }
+
+    // Classe du meneur : validée contre SON roster (main + mules), fail-closed. Le menu
+    // affichait toutes les classes ; une classe non possédée n'est plus acceptée.
+    const ownedLeaderClass = resolveOwnedClass(
+        validated.data.leaderClass,
+        await loadClassProfileByUserId(ctx.userId, guildId)
+    );
+    if (!ownedLeaderClass.success) return { success: false, error: ownedLeaderClass.error };
 
     // RATE LIMIT: 3 créations par 10 minutes
     // 🛠️ Dev bypass : RATE_LIMIT_BYPASS_DISCORD_IDS (IDs Discord séparés par virgule)
@@ -211,12 +226,12 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
     });
 
     // Create an ACCEPTED join request for the leader to store their class choice
-    if (validated.data.leaderClass) {
+    if (ownedLeaderClass.classe) {
         await db.dreamJoinRequest.create({
             data: {
                 runId: run.id,
                 userId: ctx.userId,
-                classe: validated.data.leaderClass,
+                classe: ownedLeaderClass.classe,
                 status: "ACCEPTED",
                 message: "Meneur de la run",
                 linkedStuffId: validated.data.linkedStuffId ?? null,
@@ -263,6 +278,8 @@ const UpdateRunSchema = z.object({
     scheduledAt: z.date().optional().nullable(),
     mentionRoleIds: z.array(z.string()).default([]),
     currentFloor: z.number().min(0).max(26).optional(),
+    /** Classe du meneur — `undefined` = ne pas toucher (une run affiche toujours une classe). */
+    leaderClass: z.string().max(30).optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -293,7 +310,7 @@ export async function updateDreamRun(
 
     const validated = UpdateRunSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0].message };
+        return { success: false, error: validated.error.issues[0].message };
     }
 
     // RATE LIMIT : 10 éditions par 10 minutes (anti-spam)
@@ -317,6 +334,22 @@ export async function updateDreamRun(
             return { success: false, error: "Impossible de modifier une run terminée ou abandonnée" };
         }
 
+        // Classe du meneur : validée contre le roster du MENEUR (même quand un admin édite).
+        // `undefined` = champ non touché ; la run affiche toujours une classe, donc un
+        // choix vide est refusé plutôt que d'inventer une valeur.
+        let leaderClassValue: string | undefined;
+        if (validated.data.leaderClass !== undefined) {
+            const owned = resolveOwnedClass(
+                validated.data.leaderClass,
+                await loadClassProfileByUserId(run.leaderId, ctx.guildId)
+            );
+            if (!owned.success) return { success: false, error: owned.error };
+            if (!owned.classe) {
+                return { success: false, error: "Choisis une classe : la run affiche toujours celle du meneur." };
+            }
+            leaderClassValue = owned.classe;
+        }
+
         await db.dreamRun.update({
             where: { id: runId },
             data: {
@@ -329,6 +362,32 @@ export async function updateDreamRun(
                 ...(validated.data.currentFloor !== undefined && { currentFloor: validated.data.currentFloor }),
             },
         });
+
+        // Classe du meneur : stockée dans SA demande ACCEPTED — la source que lit l'embed
+        // (le meneur n'est pas un candidat, il n'a pas de ligne « participant » dédiée).
+        if (leaderClassValue !== undefined) {
+            const leaderRequest = await db.dreamJoinRequest.findFirst({
+                where: { runId, userId: run.leaderId, status: "ACCEPTED" },
+                orderBy: { createdAt: "desc" },
+                select: { id: true },
+            });
+            if (leaderRequest) {
+                await db.dreamJoinRequest.update({
+                    where: { id: leaderRequest.id },
+                    data: { classe: leaderClassValue },
+                });
+            } else if (leaderClassValue) {
+                await db.dreamJoinRequest.create({
+                    data: {
+                        runId,
+                        userId: run.leaderId,
+                        classe: leaderClassValue,
+                        status: "ACCEPTED",
+                        message: "Meneur de la run",
+                    },
+                });
+            }
+        }
 
         // Rafraîchir l'embed Discord si la run était publiée (best-effort, non bloquant)
         try {
@@ -345,6 +404,187 @@ export async function updateDreamRun(
     } catch (error) {
         logger.error("[updateDreamRun] error:", error);
         return { success: false, error: "Erreur lors de la modification de la run" };
+    }
+}
+
+/**
+ * **Reprise de lead** d'une run Songes (lot B, 30/10/2026) — le leader ou un administrateur
+ * désigne un **membre de la run** à sa place.
+ *
+ * Pourquoi : `updateDreamRun`, `closeDreamRun`, `reopenDreamRun` et `kickMember` étaient
+ * **leader-only sans dérogation**. Un leader parti ou banni laissait une run ni clôturable
+ * ni réparable. Même patron que `transferRaidLead`.
+ *
+ * Le nouveau lead garde **sa** place dans l'équipe (le leader occupe le slot 1) : rien n'est
+ * supprimé, seul `leaderId` change — le nombre de joueurs reste juste.
+ */
+export async function transferRunLead(
+    guildId: string,
+    runId: string,
+    targetUserId: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`transfer_dream_run:${ctx.userId}:${guildId}`, 5, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop de transferts. Veuillez patienter." };
+
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, status: true },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        if (!canToggleStandBy({ isCreator: run.leaderId === ctx.userId, isAdmin: Boolean(ctx.isAdmin) })) {
+            return { success: false, error: "Seul le leader de la run ou un administrateur peut transférer le lead." };
+        }
+        if (!["RECRUITING", "IN_PROGRESS"].includes(run.status)) {
+            return { success: false, error: "Cette run est terminée : plus de lead à transférer." };
+        }
+        if (targetUserId === run.leaderId) {
+            return { success: false, error: "Cette personne est déjà le leader de la run." };
+        }
+
+        // La cible doit être **dans l'équipe** : on ne confie pas la run à un tiers.
+        const member = await db.dreamRunMember.findFirst({
+            where: { runId, userId: targetUserId },
+            select: { id: true },
+        });
+        if (!member) return { success: false, error: "La cible doit être membre de la run." };
+
+        await db.dreamRun.update({
+            where: { id: runId, guildId: ctx.guildId },
+            data: { leaderId: targetUserId },
+        });
+
+        const { createAuditLog } = await import("@/server/actions/audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.userId,
+            actorName: ctx.name || "Membre",
+            action: "SONGES_LEAD_TRANSFERRED" as never,
+            targetType: "DREAM_RUN" as never,
+            targetId: runId,
+            metadata: {
+                fromLeaderId: run.leaderId,
+                toLeaderId: targetUserId,
+                byAdmin: Boolean(ctx.isAdmin),
+            },
+        });
+
+        const { createNotification } = await import("@/server/actions/notification-actions");
+        await createNotification(
+            targetUserId,
+            "SYSTEM_INFO",
+            "Tu es désormais leader d'une run Songes",
+            `${ctx.name || "Le leader"} t'a transféré le lead de la run.`,
+            `/dashboard/${guildId}/songes`,
+            guildId
+        ).catch(() => { });
+
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[transferRunLead] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        await syncSongesMirror(guildId, runId);
+        return { success: true };
+    } catch (error) {
+        logger.error("[transferRunLead] error:", error);
+        return { success: false, error: "Erreur lors du transfert de lead" };
+    }
+}
+
+/**
+ * **Stand-by** d'une run Songes (30/10/2026) — pause posée par le **leader** ou un
+ * **administrateur**.
+ *
+ * Contrat (`@/lib/group-standby`) : suspend le rappel H-1, les relances d'inactivité et la
+ * clôture J+21 ; les candidatures restent ouvertes ; `paused` est idempotent.
+ */
+export async function setDreamRunStandBy(
+    guildId: string,
+    runId: string,
+    paused: boolean,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`standby_dream_run:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop de changements. Veuillez patienter." };
+
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, status: true, standBy: true },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        if (!canToggleStandBy({ isCreator: run.leaderId === ctx.userId, isAdmin: Boolean(ctx.isAdmin) })) {
+            return { success: false, error: "Seul le leader de la run ou un administrateur peut la mettre en stand-by." };
+        }
+        if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
+            return { success: false, error: "Impossible de mettre en stand-by une run terminée ou abandonnée" };
+        }
+        if (isStandByActive(run.standBy) === paused) return { success: true };
+
+        if (paused) {
+            // `DreamRun.guildId` porte le **snowflake** Discord, alors que `UserProfile.guildId`
+            // porte l'id interne : deux résolutions distinctes, jamais la même valeur.
+            const guildConfig = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { id: true },
+            });
+            const leaderProfile = guildConfig
+                ? await db.userProfile.findFirst({
+                      where: { userId: run.leaderId, guildId: guildConfig.id },
+                      select: { pseudoDofus: true, discordNickname: true },
+                  })
+                : null;
+            const state = buildStandBy({
+                at: new Date(),
+                userId: ctx.userId,
+                name: leaderProfile?.pseudoDofus || leaderProfile?.discordNickname || "un membre",
+            });
+            if (!state) return { success: false, error: "Impossible d'identifier l'auteur de la pause." };
+            await db.dreamRun.update({ where: { id: runId, guildId: ctx.guildId }, data: { standBy: state as never } });
+        } else {
+            await db.dreamRun.update({ where: { id: runId, guildId: ctx.guildId }, data: { standBy: Prisma.DbNull } });
+        }
+
+        const { createAuditLog } = await import("@/server/actions/audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.userId,
+            actorName: ctx.name || "Membre",
+            action: "SONGES_RUN_STANDBY" as never,
+            targetType: "DREAM_RUN" as never,
+            targetId: runId,
+            metadata: {
+                paused,
+                byAdmin: Boolean(ctx.isAdmin),
+                reason: (reason ?? "").slice(0, 300) || (paused ? "Mise en stand-by" : "Reprise"),
+            },
+        });
+
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[setDreamRunStandBy] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        await syncSongesMirror(guildId, runId);
+        return { success: true };
+    } catch (error) {
+        logger.error("[setDreamRunStandBy] error:", error);
+        return { success: false, error: "Erreur lors du changement de stand-by" };
     }
 }
 
@@ -424,6 +664,13 @@ export async function getDreamRunById(guildId: string, runId: string) {
                 },
                 floors: {
                     orderBy: { floorNumber: "asc" },
+                },
+                joinRequests: {
+                    where: { status: { in: ["PENDING", "ACCEPTED"] } },
+                    select: { id: true, userId: true, message: true, classe: true, status: true },
+                },
+                _count: {
+                    select: { floors: true, bonuses: true },
                 },
                 bonuses: {
                     orderBy: { acquiredAt: "asc" },
@@ -546,16 +793,17 @@ export async function leaveDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    // If leader leaves, abandon the run
+    // If leader leaves, abandon the run — par la fonction UNIQUE, qui purge aussi le
+    // post Discord et recopie le miroir agenda. Sans elle, le sujet de forum restait
+    // vivant avec ses boutons alors que la run avait disparu du site.
     if (run.leaderId === ctx.userId) {
-        await db.dreamRun.update({
-            where: { id: runId },
-            data: { status: "ABANDONED", completedAt: new Date() },
-        });
+        const { abandonDreamRun } = await import("@/server/songes-service");
+        const abandoned = await abandonDreamRun(guildId, runId);
+        if (!abandoned) {
+            return { success: false, error: "La run n'a pas pu être clôturée. Réessaie." };
+        }
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-        // Miroir agenda (R1) : run abandonnée par le leader → CANCELLED.
-        await syncSongesMirror(guildId, runId);
         return { success: true, runAbandoned: true };
     }
 
@@ -678,6 +926,18 @@ export async function completeDreamRun(guildId: string, runId: string, success: 
             completedAt: new Date(),
         },
     });
+
+    // Chantier N (lot N-2a) : **seule** une run terminée s'annonce (un échec n'est pas une histoire
+    // à raconter). L'acteur est le leader — la run porte un `userId`, l'émetteur le résout en profil.
+    if (success) {
+        await emitGuildActivity({
+            guildId: ctx.guildId,
+            userId: run.leaderId,
+            kind: "songes",
+            entityId: runId,
+            detail: run.epreuveCode ?? null,
+        });
+    }
 
     // Remove Discord embed as the run is over
     const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
@@ -865,9 +1125,10 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
         return { success: false, error: "Run non trouvée" };
     }
 
-    // Allow candidature for RECRUITING or IN_PROGRESS runs
-    if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
-        return { success: false, error: "Cette run n'accepte plus de candidatures" };
+    // Allow candidature for RECRUITING or IN_PROGRESS runs — refus par cause sinon
+    // (archivée / terminée / échouée), même règle que le service Discord.
+    if (!isRunOpen(run.status)) {
+        return { success: false, error: runJoinRefusal(run.status) };
     }
 
     // Check if already member
@@ -1497,8 +1758,10 @@ export async function closeDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    if (run.leaderId !== ctx.userId) {
-        return { success: false, error: "Seul le leader peut clôturer la run" };
+    // Dérogation administrateur (lot B, 30/10/2026) : sans elle, une run dont le leader est
+    // parti / banni restait **inclôturable** par quiconque.
+    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+        return { success: false, error: "Seul le leader ou un administrateur peut clôturer la run" };
     }
 
     if (run.status !== "IN_PROGRESS") {
@@ -1539,8 +1802,9 @@ export async function reopenDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    if (run.leaderId !== ctx.userId) {
-        return { success: false, error: "Seul le leader peut réouvrir la run" };
+    // Dérogation administrateur (lot B, 30/10/2026) — même raison que la clôture.
+    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+        return { success: false, error: "Seul le leader ou un administrateur peut réouvrir la run" };
     }
 
     if (run.status !== "COMPLETED" && run.status !== "FAILED") {
@@ -1760,11 +2024,19 @@ export async function getSongesGuildMembersForClose(
 }
 
 /**
- * Close a Songes run and award contribution points to validated participants.
- * - Only available for non-épreuve runs (caller must check epreuveCode === null)
- * - Leader (creator) does NOT receive points
- * - Members are identified by their internal profile ID
- * @param validatedProfileIds - profileIds of participants to reward
+ * Clôture une run Songes et distribue les points de contribution aux présents validés.
+ *
+ * - **Les runs « épreuve » distribuent AUSSI** : l'écran de clôture annonce le barème de la
+ *   difficulté (réglé par la guilde dans `admin/points`) et « Confirmer & distribuer » ⇒ refuser
+ *   ici était une **impasse**. Mesure du 13/10/2026 : une run PARADOXE II (épreuve) affichait
+ *   « +2 points » puis renvoyait « Les runs épreuve ne distribuent pas de points de contribution »
+ *   — la garde venait d'un passage sécurité générique (`4881fb1b`, 04/04/2026) et **aucun appelant
+ *   ne la respectait** (le docblock l'imputait au client, qui ne l'a jamais vérifiée).
+ * - Le **leader** (créateur) ne reçoit pas de points.
+ * - Les membres sont identifiés par leur **profileId** interne ; l'écriture reste **bornée à la
+ *   guilde** (`guildId: guildConfig.id`) et **journalisée** (`SONGES_RUN_CLOSED_WITH_CONTRIBUTIONS`,
+ *   avec la difficulté **et** le code d'épreuve éventuel).
+ * @param validatedProfileIds - profileIds des participants à récompenser (validés par le leader)
  */
 export async function closeRunWithContributions(
     guildId: string,
@@ -1787,10 +2059,8 @@ export async function closeRunWithContributions(
         return { success: false, error: "Seul le leader peut valider la clôture avec distribution" };
     }
 
-    // Security: skip point distribution for épreuves
-    if (run.epreuveCode) {
-        return { success: false, error: "Les runs épreuve ne distribuent pas de points de contribution" };
-    }
+    // Les runs « épreuve » distribuent le barème de leur difficulté, exactement comme les autres :
+    // l'écran de clôture l'annonce, le leader est exclu, l'écriture est bornée à la guilde.
 
     // Get internal guildConfig to resolve profile IDs + config points personnalisée (admin)
     const guildConfig = await db.guildConfig.findUnique({
@@ -1857,6 +2127,7 @@ export async function closeRunWithContributions(
                 targetId: runId,
                 metadata: {
                     difficulty: run.difficulty,
+                    epreuveCode: run.epreuveCode,
                     pointsAwarded: pts,
                     rewardedCount: toReward.length,
                 } as any,

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Clock, Loader2, CheckSquare, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Search, X } from "lucide-react";
+import { Clock, Loader2, CheckSquare, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, Heart, Tv, Search, X } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -21,6 +21,11 @@ import {
     type ActivityView
 } from "@/server/actions/ladder-actions";
 import { formatSeniority } from "@/lib/ladder-utils";
+import {
+    describePresenceFilter,
+    presenceFilterLabels,
+    type DiscordPresenceFilter,
+} from "@/lib/ladder-presence";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +42,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord" | "raids">(
         vitrineMode ? "discord" : "activity"
     );
-    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
+    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "reactions" | "stream" | "replies">("messages");
+    // Profil de présence (onglet Discord) : qui vit sur le serveur, jamais un blâme.
+    const [presenceFilter, setPresenceFilter] = useState<DiscordPresenceFilter>("all");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [raidFilter, setRaidFilter] = useState<"all" | "jardin" | "gigalodon">("all");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
@@ -70,7 +77,10 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     // Reset page when switching tabs or timeframes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab, activityView, discordMetric, raidFilter]);
+    }, [activeTab, activityView, discordMetric, raidFilter, presenceFilter]);
+
+    // Libellés du filtre adaptés à la période (« En vocal ce mois-ci », …).
+    const presenceLabels = presenceFilterLabels(activityView);
 
     useEffect(() => {
         async function loadLadder() {
@@ -97,7 +107,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     result = await getGuildatonsLadder(guildId, activityView, currentPage, 25, debouncedSearch);
                     break;
                 case "discord":
-                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage, 25, debouncedSearch);
+                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage, 25, debouncedSearch, presenceFilter);
                     break;
                 case "raids":
                     result = await getRaidLadder(guildId, raidFilter, currentPage, 25, debouncedSearch);
@@ -118,7 +128,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter, debouncedSearch]);
+    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter, debouncedSearch, presenceFilter]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -173,13 +183,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                 {hours > 0 && <span>{hours}<span className="text-caption text-muted-foreground font-medium ml-0.5">H</span></span>}
                                 <span>{mins}<span className="text-caption text-muted-foreground font-medium ml-0.5">m</span></span>
                             </div>
-                        </div>
-                    );
-                } else if (discordMetric === "characters") {
-                    return (
-                        <div className="flex items-center gap-2 font-black text-success">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>{entry.value.toLocaleString()} caractères</span>
                         </div>
                     );
                 } else if (discordMetric === "reactions") {
@@ -310,9 +313,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                         ? "Volume de discussion sur Discord."
                                         : discordMetric === "voice"
                                             ? "Temps passé en vocal."
-                                            : discordMetric === "characters"
-                                                ? "Volume de caractères écrits."
-                                                : discordMetric === "reactions"
+                                            : discordMetric === "reactions"
                                                     ? "Réactions reçues sur Discord."
                                                     : discordMetric === "stream"
                                                         ? "Temps passé en stream."
@@ -334,9 +335,22 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             <SelectItem value="voice">Vocal</SelectItem>
                                             <SelectItem value="messages">Messages</SelectItem>
                                             <SelectItem value="stream">Streams</SelectItem>
-                                            <SelectItem value="characters">Caractères</SelectItem>
                                             <SelectItem value="reactions">Réactions</SelectItem>
                                             <SelectItem value="replies">Réponses</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                {activeTab === "discord" && (
+                                    <Select value={presenceFilter} onValueChange={(v) => setPresenceFilter(v as DiscordPresenceFilter)}>
+                                        <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl" aria-label="Filtrer par présence">
+                                            <SelectValue placeholder="Présence" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(Object.keys(presenceLabels) as DiscordPresenceFilter[]).map((f) => (
+                                                <SelectItem key={f} value={f} title={describePresenceFilter(f, activityView)}>
+                                                    {presenceLabels[f]}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 )}
@@ -454,7 +468,11 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 ) : ladder.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                         <p className="text-xs font-medium italic">
-                            {search.trim() ? "Aucun membre ne correspond à cette recherche." : "Aucune donnée disponible pour ce classement."}
+                            {search.trim()
+                                ? "Aucun membre ne correspond à cette recherche."
+                                : activeTab === "discord" && presenceFilter !== "all"
+                                    ? `Personne dans « ${presenceLabels[presenceFilter]} » pour l'instant.`
+                                    : "Aucune donnée disponible pour ce classement."}
                         </p>
                     </div>
                 ) : (

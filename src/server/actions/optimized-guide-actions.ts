@@ -12,14 +12,27 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
+import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
+import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
+import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
+import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
+import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
+import { alignmentCountForCamp, alignmentTagCamp } from "@/lib/rush-guide-utils";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
-import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
-import { normalizeMetiers } from "@/lib/metiers";
-import { rushResourceKey } from "@/lib/rush-guide-utils";
-import type { RushSequence } from "@/types/rush-guide-types";
+import { resourceKeysForTags } from "@/lib/rush-resource-checks";
+import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
+import { boundQuestDbIds } from "@/lib/rush-quest-identity";
+import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
+import { nextSequenceOrder } from "@/lib/rush-move";
+import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
+import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
+import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
+import { rushSplitMetaOf } from "@/server/rush-split-data";
+import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -79,6 +92,21 @@ async function requireRushAccess() {
   const ok = await canAccessBrick("game-data-rush");
   if (!ok) throw new Error("Accès non autorisé à ce module");
   return true;
+}
+
+/**
+ * Guard des **écritures de masse** du Rush : accès brique + rate limit Redis.
+ *
+ * Même patron que `requireGuideWriteAccess` : une action qui touche 100 quêtes d'un
+ * coup ne peut pas être déclenchée en boucle par un client. Fail-closed (Redis en
+ * échec ⇒ refus), jamais une variable en mémoire.
+ */
+async function requireRushWriteAccess(scope: string, limit = 12, windowMs = 60_000) {
+  await requireRushAccess();
+  const session = await auth();
+  const uid = session?.user?.id || "anon";
+  const { success } = await rateLimit(`rush-admin-${scope}:${uid}`, limit, windowMs);
+  if (!success) throw new Error("Trop de requêtes, veuillez patienter.");
 }
 
 /**
@@ -186,14 +214,20 @@ export async function getPublicGuideDetail(slug: string) {
   if (allDungeonIds.size > 0) {
     const dungeons = await db.dungeon.findMany({
       where: { id: { in: Array.from(allDungeonIds) } },
-      select: { id: true, name: true, bossName: true, imageUrl: true, level: true },
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true, isOcreQuest: true },
     });
     const dungeonMap = new Map(dungeons.map((d) => [d.id, d]));
     for (const ms of guide.milestones) {
       for (const seq of ms.sequences) {
         const ids = (seq as any).dungeonIds as string[] | undefined;
+        // Un donjon peut être OPTIONNEL (`dungeonOptionalIds`) : la surface doit le
+        // savoir, sinon elle verrouille une quête avec un donjon facultatif.
+        const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
         if (ids && ids.length > 0) {
-          (seq as any).dungeons = ids.map((id) => dungeonMap.get(id)).filter(Boolean);
+          (seq as any).dungeons = ids
+            .map((id) => dungeonMap.get(id))
+            .filter(Boolean)
+            .map((d) => ({ ...d, isOptional: optionalIds.has(d!.id) }));
         }
       }
     }
@@ -246,14 +280,19 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
   if (allDungeonIds.size > 0) {
     const dungeons = await db.dungeon.findMany({
       where: { id: { in: Array.from(allDungeonIds) } },
-      select: { id: true, name: true, bossName: true, imageUrl: true, level: true }
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true, isOcreQuest: true }
     });
     const dungeonMap = new Map(dungeons.map(d => [d.id, d]));
     for (const ms of guide.milestones) {
       for (const seq of ms.sequences) {
         const ids = (seq as any).dungeonIds as string[] | undefined;
+        // Idem côté dashboard : le drapeau « optionnel » voyage avec le donjon.
+        const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
         if (ids && ids.length > 0) {
-          (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+          (seq as any).dungeons = ids
+            .map(id => dungeonMap.get(id))
+            .filter(Boolean)
+            .map(d => ({ ...d, isOptional: optionalIds.has(d!.id) }));
         }
       }
     }
@@ -550,11 +589,46 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     select: {
       title: true,
       sequences: {
-        select: { id: true }
+        select: { id: true, activityTags: true }
       },
-      guide: { select: { slug: true } }
+      guide: { select: { id: true, slug: true } }
     }
   });
+
+  // ── Verrou de DONJONS (S0-5bis) ─────────────────────────────────────────────
+  // Cocher un BLOC entier ne doit pas contourner le verrou d'une quête : même règle
+  // que `setRushSequenceProgress` (source unique `rush-dungeons`), même fail-closed.
+  // Décocher reste toujours possible ; un donjon optionnel ne bloque jamais.
+  if (isCompleted) {
+    const before = await db.playerGuideProgress.findUnique({
+      where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+      select: { isCompleted: true },
+    });
+    if (!before?.isCompleted && milestoneWithSequences?.guide?.id) {
+      const stateRows = await db.playerGuideDungeonState.findMany({
+        where: { profileId, guideId: milestoneWithSequences.guide.id, characterSlot },
+        select: { sequenceId: true, dungeonKey: true, state: true },
+      });
+      const dungeonStates: Record<string, "done" | "todo"> = {};
+      for (const row of stateRows) {
+        dungeonStates[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+          row.state === "DONE" ? "done" : "todo";
+      }
+      const blocked = await findSequenceBlockedByMissingDungeon(
+        milestoneWithSequences.guide.id,
+        (milestoneWithSequences.sequences ?? []).map((seq) => seq.id),
+        dungeonStates
+      );
+      if (blocked) {
+        return {
+          success: false as const,
+          error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+          blockedSequenceId: blocked.id,
+          missingDungeons: blocked.missing,
+        };
+      }
+    }
+  }
 
   const completedSteps = isCompleted ? (milestoneWithSequences?.sequences.map((seq) => seq.id) ?? []) : [];
 
@@ -576,6 +650,35 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
       completedSteps,
     }
   });
+
+  // ── Ressources : valider/dévalider un BLOC coche/décoche toutes ses ressources ──
+  // Même règle que `setRushSequenceProgress` : valider override les coches,
+  // invalider les remet à zéro. Échec non bloquant : la progression prime.
+  try {
+    const resourceKeys = new Set<string>();
+    for (const seq of milestoneWithSequences?.sequences ?? []) {
+      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    }
+    if (resourceKeys.size > 0) {
+      if (isCompleted) {
+        await db.playerGuideResourceCheck.createMany({
+          data: [...resourceKeys].map((resourceKey) => ({
+            profileId,
+            guideId: milestoneWithSequences!.guide.id,
+            characterSlot,
+            resourceKey,
+          })),
+          skipDuplicates: true,
+        });
+      } else {
+        await db.playerGuideResourceCheck.deleteMany({
+          where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+        });
+      }
+    }
+  } catch (e) {
+    logger.error("[toggleMilestoneProgress] coches de ressources échouées (non bloquant)", { error: e });
+  }
 
   // Temps réel (Phase E) : broadcast « jalon complété » — fail-closed, non bloquant.
   if (isCompleted && milestoneWithSequences?.guide?.slug) {
@@ -622,8 +725,25 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
-    select: { guide: { select: { slug: true } } }
+    select: { guide: { select: { slug: true } }, sequences: { select: { activityTags: true } } }
   });
+
+  // Réinitialiser un bloc décoche aussi les ressources de ses quêtes (même règle
+  // qu'une invalidation de quête).
+  try {
+    const resourceKeys = new Set<string>();
+    for (const seq of milestone?.sequences ?? []) {
+      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    }
+    if (resourceKeys.size > 0) {
+      await db.playerGuideResourceCheck.deleteMany({
+        where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+      });
+    }
+  } catch (e) {
+    logger.error("[resetMilestoneProgress] reset des coches de ressources échoué (non bloquant)", { error: e });
+  }
+
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
     await invalidateGuideProgressCache(guildId, milestone.guide.slug);
@@ -658,6 +778,10 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
       where: { profileId, characterSlot, milestoneId: { in: milestoneIds } }
     });
   }
+  // Une remise à zéro du guide efface aussi les coches de ressources du personnage.
+  await db.playerGuideResourceCheck.deleteMany({
+    where: { profileId, guideId, characterSlot }
+  });
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({
@@ -693,7 +817,7 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
     where: { guideId },
     select: {
       id: true,
-      sequences: { select: { id: true } }
+      sequences: { select: { id: true, activityTags: true } }
     }
   });
 
@@ -720,6 +844,25 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
       })
     )
   );
+
+  // « Tout valider » coche aussi toutes les ressources du guide (même règle qu'une
+  // quête validée : la préparation est acquise).
+  try {
+    const resourceKeys = new Set<string>();
+    for (const m of milestones) {
+      for (const seq of m.sequences) {
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+      }
+    }
+    if (resourceKeys.size > 0) {
+      await db.playerGuideResourceCheck.createMany({
+        data: [...resourceKeys].map((resourceKey) => ({ profileId, guideId, characterSlot, resourceKey })),
+        skipDuplicates: true,
+      });
+    }
+  } catch (e) {
+    logger.error("[completeGuideProgress] coches de ressources échouées (non bloquant)", { error: e });
+  }
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({
@@ -934,6 +1077,70 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
 }
 
 /**
+ * Verrou de DONJONS (S0-4) — première séquence **nouvellement cochée** dont un donjon
+ * **requis** n'est pas marqué « fait » par ce personnage.
+ *
+ * Les donjons sont une entité globale du guide (`dungeonKey` = id > slug > nom), la coche
+ * vit dans `PlayerGuideDungeonState`. Un donjon **optionnel** (`dungeonOptionalIds`),
+ * même non coché, ne bloque jamais.
+ */
+async function findSequenceBlockedByMissingDungeon(
+  guideId: string,
+  sequenceIds: string[],
+  states: RushDungeonStateMap
+): Promise<{ id: string; name: string; missing: string[] } | null> {
+  if (!guideId || sequenceIds.length === 0) return null;
+
+  const rows = await db.guideSequence.findMany({
+    where: { id: { in: sequenceIds.slice(0, 500) }, milestone: { guideId } },
+    select: {
+      id: true,
+      subGuideName: true,
+      dungeonId: true,
+      dungeonIds: true,
+      dungeonOptionalIds: true,
+      dungeon: { select: { id: true, name: true, slug: true, bossName: true } },
+    },
+  });
+  if (rows.length === 0) return null;
+
+  const allIds = new Set<string>();
+  for (const row of rows) {
+    if (row.dungeonId) allIds.add(row.dungeonId);
+    for (const id of row.dungeonIds ?? []) allIds.add(id);
+  }
+  if (allIds.size === 0) return null;
+
+  const dungeons = await db.dungeon.findMany({
+    where: { id: { in: [...allIds] } },
+    select: { id: true, name: true, slug: true, bossName: true },
+  });
+  const byId = new Map(dungeons.map((d) => [d.id, d]));
+
+  for (const row of rows) {
+    const optional = new Set(row.dungeonOptionalIds ?? []);
+    const refs: Array<{ id: string; name: string; slug: string; bossName: string; isOptional: boolean }> = [];
+    for (const id of row.dungeonIds ?? []) {
+      const dungeon = byId.get(id);
+      if (dungeon) refs.push({ ...dungeon, isOptional: optional.has(id) });
+    }
+    if (row.dungeon && !refs.some((r) => r.id === row.dungeon?.id)) {
+      refs.unshift({ ...row.dungeon, isOptional: optional.has(row.dungeon.id) });
+    }
+
+    const progress = sequenceDungeonProgress(
+      { dungeons: refs } as unknown as RushSequence,
+      doneDungeonKeysForSequence(states, row.id)
+    );
+    if (progress.blocked) {
+      return { id: row.id, name: row.subGuideName, missing: progress.missingRequired };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Action Rush dédiée : valide des séquences par leur ID (pas par step-keys Ganymède).
  * Le module Rush stocke les séquences par `seq.id` ; `updateStepProgress` (partagé avec
  * Duffus) filtre en `GPx-N` et casserait la persistance. Ici on écrit les seq-ids bruts
@@ -955,7 +1162,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     select: {
       title: true,
       type: true,
-      guide: { select: { slug: true } },
+      guide: { select: { id: true, slug: true } },
       sequences: { select: { id: true, activityTags: true } },
     },
   });
@@ -967,13 +1174,12 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
 
-  const contentIds = (milestone.sequences || []).filter((s) => !isInfoSeq(s)).map((s) => s.id);
+  const contentSeqs = (milestone.sequences || []).filter((s) => !isInfoSeq(s));
+  const contentIds = contentSeqs.map((s) => s.id);
   const contentSet = new Set(contentIds);
-  const incoming = Array.isArray(seqIds)
+  const requested = Array.isArray(seqIds)
     ? [...new Set(seqIds.filter((id): id is string => typeof id === "string" && contentSet.has(id)))].slice(0, 500)
     : [];
-  const checkedSet = new Set(incoming);
-  const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
 
   // État AVANT écriture : les séquences cochées qui ne le sont plus = INVALIDÉES.
   // (Une quête invalidée fait repartir à zéro les coches manuelles de ses ressources.)
@@ -984,13 +1190,82 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const previouslyChecked = Array.isArray(before?.completedSteps)
     ? (before!.completedSteps as string[])
     : [];
+  const newlyChecked = requested.filter((id) => !previouslyChecked.includes(id));
+
+  // ── Variantes EXCLUSIVES (étape à choix) ────────────────────────────────────
+  // Cocher une variante retire ses sœurs de l'étape ; la première du lot gagne. Une étape
+  // à choix compte pour **une** étape : `stepCounts` porte la règle (aucune copie ici).
+  const incoming = applyChoiceExclusivity(contentSeqs, requested, newlyChecked);
+  const checkedSet = new Set(incoming);
+  // Seules les quêtes RÉELLEMENT validées (après exclusivité des variantes) cochent
+  // leurs ressources — une variante écartée ne doit pas préparer ses objets.
+  const newlyValidated = incoming.filter((id) => !previouslyChecked.includes(id));
+  const counts = stepCounts(contentSeqs, checkedSet);
+  const isCompleted = counts.total > 0 && counts.done === counts.total;
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
+
+  // ── Verrou de DONJONS (S0-4) ────────────────────────────────────────────────
+  // Une quête **nouvellement** cochée dont un donjon **requis** n'est pas marqué
+  // « fait » est refusée : le client ne fait pas foi, la règle est ici. Un donjon
+  // optionnel ne bloque jamais, et décocher reste toujours possible.
+  if (newlyChecked.length > 0) {
+    const stateRows = await db.playerGuideDungeonState.findMany({
+      where: { profileId, guideId: milestone.guide.id, characterSlot },
+      select: { sequenceId: true, dungeonKey: true, state: true },
+    });
+    const dungeonStates: Record<string, "done" | "todo"> = {};
+    for (const row of stateRows) {
+      dungeonStates[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+        row.state === "DONE" ? "done" : "todo";
+    }
+    const blocked = await findSequenceBlockedByMissingDungeon(
+      milestone.guide.id,
+      newlyChecked,
+      dungeonStates
+    );
+    if (blocked) {
+      return {
+        success: false as const,
+        error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+        blockedSequenceId: blocked.id,
+        missingDungeons: blocked.missing,
+      };
+    }
+  }
 
   const progress = await db.playerGuideProgress.upsert({
     where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
     update: { completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
     create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
   });
+
+  // ── Ressources : une quête VALIDÉE coche toutes ses ressources ──────────────
+  // « Une fois la quête validée, ça override et valide tout. » Une ressource
+  // partagée par plusieurs quêtes reste cochée dès qu'une de ses quêtes est validée.
+  // Échec non bloquant : la validation de l'étape prime.
+  try {
+    if (newlyValidated.length > 0) {
+      const resourceKeys = new Set<string>();
+      for (const seq of milestone.sequences || []) {
+        if (!newlyValidated.includes(seq.id)) continue;
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+      }
+      if (resourceKeys.size > 0) {
+        await db.playerGuideResourceCheck.createMany({
+          data: [...resourceKeys].map((resourceKey) => ({
+            profileId,
+            guideId: milestone.guide.id,
+            characterSlot,
+            resourceKey,
+          })),
+          skipDuplicates: true,
+        });
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide?.slug ?? ""}`);
+      }
+    }
+  } catch (e) {
+    logger.error("[setRushSequenceProgress] coche des ressources échouée (non bloquant)", { error: e });
+  }
 
   // ── Ressources : une quête INVALIDÉE remet à zéro ses coches manuelles ───────
   // « Si la quête est invalidée, la coche manuelle repart à zéro » : les ressources
@@ -1001,9 +1276,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
       const resourceKeys = new Set<string>();
       for (const seq of milestone.sequences || []) {
         if (!unvalidatedSeqIds.includes(seq.id)) continue;
-        for (const tag of (seq as any).activityTags || []) {
-          if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
-        }
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
       }
       if (resourceKeys.size > 0) {
         await db.playerGuideResourceCheck.deleteMany({
@@ -1192,6 +1465,258 @@ export async function setRushResourceChecks(
   return { success: true as const, keys: wanted };
 }
 
+/** Entrée bornée : état manuel d'un donjon **dans une quête** (`null` = effacer). */
+const rushDungeonStateSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  dungeonKey: z.string().min(1).max(120),
+  state: z.enum(["DONE", "TODO"]).nullable(),
+});
+
+/**
+ * États MANUELS des donjons du Rush — **lecture** (moi + les autres membres de la guilde).
+ *
+ * Le donjon est une entité **globale au guide** : la clé est `dungeonKey`, jamais la
+ * séquence. `others` sert à voir **qui** a marqué « à faire » (entraide), et ne sort
+ * jamais du périmètre de la guilde.
+ */
+export async function getRushDungeonStates(guildId: string, slug: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", mine: {}, others: [] };
+
+  const [mineRows, otherRows] = await Promise.all([
+    db.playerGuideDungeonState.findMany({
+      where: { profileId, guideId: guide.id, characterSlot },
+      select: { sequenceId: true, dungeonKey: true, state: true },
+      take: 2000,
+    }),
+    db.playerGuideDungeonState.findMany({
+      where: {
+        guideId: guide.id,
+        profileId: { not: profileId },
+        profile: { guild: { discordGuildId: guildId } },
+      },
+      select: {
+        sequenceId: true,
+        dungeonKey: true,
+        state: true,
+        profileId: true,
+        profile: { select: { pseudoDofus: true, user: { select: { name: true } } } },
+      },
+      take: 3000,
+    }),
+  ]);
+
+  // La clé est **par occurrence** : `sequenceId::dungeonKey`.
+  const mine: Record<string, "done" | "todo"> = {};
+  for (const row of mineRows) {
+    mine[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+      row.state === "DONE" ? "done" : "todo";
+  }
+
+  const others = otherRows.map((row) => ({
+    sequenceId: row.sequenceId,
+    dungeonKey: row.dungeonKey,
+    state: row.state === "DONE" ? ("done" as const) : ("todo" as const),
+    profileId: row.profileId,
+    userName: row.profile?.user?.name ?? "Membre",
+    pseudoDofus: row.profile?.pseudoDofus ?? null,
+  }));
+
+  return { success: true as const, mine, others };
+}
+
+/**
+ * **S0-7 — décocher un donjon DÉVALIDE la quête.**
+ *
+ * Un donjon qui n'est plus « fait » (passé à « à faire », ou retiré) doit sortir la quête
+ * des étapes cochées du bloc : sinon une quête reste validée alors qu'une de ses
+ * conditions ne l'est plus (mesuré le 21/10 : 1 quête validée avec 3 donjons faits sur 4).
+ *
+ * Même effet de bord que `setRushSequenceProgress` sur une étape invalidée : les coches
+ * manuelles de ressources de la quête repartent à zéro.
+ *
+ * 🛡️ Garde d'état : on n'écrit que si la ligne de progression n'a pas bougé depuis la
+ * lecture (`updatedAt` dans le WHERE) — une écriture concurrente gagne, on ne l'écrase pas.
+ * Idempotent : une quête déjà décochée n'est pas réécrite (`null`).
+ */
+async function invalidateSequenceProgress(params: {
+  profileId: string;
+  characterSlot: string;
+  guideId: string;
+  sequenceId: string;
+}): Promise<{ milestoneId: string } | null> {
+  const { profileId, characterSlot, guideId, sequenceId } = params;
+
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: sequenceId, milestone: { guideId } },
+    select: {
+      milestoneId: true,
+      activityTags: true,
+      milestone: { select: { sequences: { select: { id: true, activityTags: true } } } },
+    },
+  });
+  if (!sequence) return null;
+
+  const isInfo = (s: { activityTags?: unknown }) =>
+    Array.isArray(s.activityTags) &&
+    (s.activityTags as Array<{ type?: string }>).some((t) => t?.type === "info_sequence");
+  const contentIds = (sequence.milestone?.sequences ?? [])
+    .filter((s) => !isInfo(s))
+    .map((s) => s.id);
+
+  const before = await db.playerGuideProgress.findUnique({
+    where: {
+      profileId_milestoneId_characterSlot: {
+        profileId,
+        milestoneId: sequence.milestoneId,
+        characterSlot,
+      },
+    },
+    select: { id: true, completedSteps: true, updatedAt: true },
+  });
+  const checked = Array.isArray(before?.completedSteps) ? (before!.completedSteps as string[]) : [];
+  if (!before || !checked.includes(sequenceId)) return null;
+
+  const next = checked.filter((id) => id !== sequenceId);
+  const isCompleted = contentIds.length > 0 && contentIds.every((id) => next.includes(id));
+
+  const updated = await db.playerGuideProgress.updateMany({
+    where: { id: before.id, updatedAt: before.updatedAt },
+    data: { completedSteps: next, isCompleted, completedAt: isCompleted ? undefined : null },
+  });
+  if (updated.count === 0) return null; // écriture concurrente : on ne force pas
+
+  // Ressources : la quête n'est plus préparée (même règle que la dévalidation d'étape).
+  const resourceKeys = new Set(resourceKeysForTags(sequence.activityTags as any));
+  if (resourceKeys.size > 0) {
+    await db.playerGuideResourceCheck.deleteMany({
+      where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+    });
+  }
+
+  return { milestoneId: sequence.milestoneId };
+}
+
+/**
+ * États MANUELS des donjons du Rush — **écriture** d'UNE clé.
+ *
+ * `state` vaut `DONE`, `TODO`, ou `null` (retire la ligne). Idempotent : deux clics
+ * simultanés convergent. Une clé de donjon n'est pas validée contre le guide (coût
+ * d'un parcours complet) : c'est une donnée **personnelle**, bornée, sans effet si le
+ * donjon n'existe pas dans le guide.
+ */
+export async function setRushDungeonState(
+  guildId: string,
+  slug: string,
+  sequenceId: string,
+  dungeonKey: string,
+  state: "DONE" | "TODO" | null,
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 120 changements d'état de donjon/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-dungeon-state:${ctx.profileId}`, 120, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
+
+  const parsed = rushDungeonStateSchema.safeParse({ sequenceId, dungeonKey, state });
+  if (!parsed.success) return { success: false as const, error: "Données invalides" };
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable" };
+
+  // 🛡️ Isolation : la quête doit appartenir à CE guide (jamais une clé arbitraire).
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: parsed.data.sequenceId, milestone: { guideId: guide.id } },
+    select: { id: true },
+  });
+  if (!sequence) return { success: false as const, error: "Quête introuvable dans ce guide" };
+
+  // État AVANT écriture : seule une coche encore « faite » peut déclencher S0-7.
+  const previous = await db.playerGuideDungeonState.findUnique({
+    where: {
+      profileId_guideId_sequenceId_dungeonKey_characterSlot: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+      },
+    },
+    select: { state: true },
+  });
+
+  if (parsed.data.state === null) {
+    await db.playerGuideDungeonState.deleteMany({
+      where: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+      },
+    });
+  } else {
+    await db.playerGuideDungeonState.upsert({
+      where: {
+        profileId_guideId_sequenceId_dungeonKey_characterSlot: {
+          profileId,
+          guideId: guide.id,
+          sequenceId: parsed.data.sequenceId,
+          characterSlot,
+          dungeonKey: parsed.data.dungeonKey,
+        },
+      },
+      update: { state: parsed.data.state },
+      create: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+        state: parsed.data.state,
+      },
+    });
+  }
+
+  // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ───────────────
+  // (passage à « à faire » ou retrait de la coche). Le client ne fait pas foi : la
+  // quête sort des étapes cochées ici, et ses ressources repartent à zéro.
+  let invalidatedSequenceId: string | null = null;
+  if (previous?.state === "DONE" && parsed.data.state !== "DONE") {
+    const invalidated = await invalidateSequenceProgress({
+      profileId,
+      characterSlot,
+      guideId: guide.id,
+      sequenceId: parsed.data.sequenceId,
+    });
+    if (invalidated) invalidatedSequenceId = parsed.data.sequenceId;
+  }
+
+  try {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
+  } catch { /* revalidation best-effort */ }
+
+  return {
+    success: true as const,
+    sequenceId: parsed.data.sequenceId,
+    dungeonKey: parsed.data.dungeonKey,
+    state: parsed.data.state,
+    /** Quête dévalidée par cette décoche (S0-7), sinon `null`. */
+    invalidatedSequenceId,
+  };
+}
+
 /**
  * ── S4 « quête d'alignement » — applique / restaure l'alignement du perso ──
  * Quand un membre COCHE une quête marquée `alignment_set`, son alignement de
@@ -1206,13 +1731,18 @@ export async function setRushResourceChecks(
  * quête d'alignement ne reste cochée (on retombe alors sur la base).
  * Position = milestone.order * 10000 + seq.order (ordre de progression guide).
  */
-async function findLastCheckedAlignmentQuest(
+/**
+ * État d'alignement d'un personnage pour un guide : les jalons utiles aux règles et les
+ * ids de quêtes validées. Un jalon `isCompleted` vaut **toutes** ses quêtes ; sinon
+ * `completedSteps` fait foi (même lecture que le guide, aucune seconde vérité).
+ */
+async function loadAlignmentProgress(
   profileId: string,
   characterSlot: string,
-  guideSlug: string | undefined,
-  excludeSequenceId: string
-): Promise<{ camp: string; level: number } | null> {
-  if (!guideSlug) return null;
+  guideSlug: string | undefined
+): Promise<{ milestones: RushMilestone[]; completed: Set<string> }> {
+  if (!guideSlug) return { milestones: [], completed: new Set() };
+
   const rows = await db.playerGuideProgress.findMany({
     where: { profileId, characterSlot, milestone: { guide: { slug: guideSlug } } },
     select: {
@@ -1220,37 +1750,72 @@ async function findLastCheckedAlignmentQuest(
       completedSteps: true,
       milestone: {
         select: {
+          id: true,
+          type: true,
+          chapter: true,
+          chapterLabel: true,
+          title: true,
           order: true,
-          sequences: { select: { id: true, order: true, activityTags: true } },
+          isOptional: true,
+          sequences: {
+            select: { id: true, order: true, alignReq: true, alignOrderCode: true, activityTags: true },
+          },
         },
       },
     },
   });
 
-  const candidates: { pos: number; camp: string; level: number }[] = [];
+  const milestones = rows.map((row) => row.milestone) as unknown as RushMilestone[];
+  const completed = new Set<string>();
   for (const row of rows) {
-    const checked = new Set<string>(
-      row.isCompleted
-        ? row.milestone.sequences.map((s) => s.id)
-        : (Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : [])
-    );
-    for (const seq of row.milestone.sequences) {
-      if (seq.id === excludeSequenceId) continue;
-      if (!checked.has(seq.id)) continue;
-      const tag = ((Array.isArray(seq.activityTags) ? seq.activityTags : []) as any[]).find(
-        (t: any) => t.type === "alignment_set"
-      );
-      if (!tag?.name) continue;
-      candidates.push({
-        pos: row.milestone.order * 10000 + seq.order,
-        camp: String(tag.name),
-        level: typeof tag.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
-      });
+    if (row.isCompleted) {
+      for (const seq of row.milestone.sequences) completed.add(seq.id);
+    } else if (Array.isArray(row.completedSteps)) {
+      for (const id of row.completedSteps as string[]) completed.add(id);
     }
   }
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => b.pos - a.pos);
-  return { camp: candidates[0].camp, level: candidates[0].level };
+  return { milestones, completed };
+}
+
+/**
+ * Palier RÉEL d'un camp : nombre de quêtes **de cité** validées (`alignmentCountForCamp`
+ * exclut les quêtes d'Ordre). Le `level` du tag importé valait toujours 1 : il n'est plus
+ * la vérité (défaut mesuré le 02/11/2026).
+ */
+async function alignmentLevelFor(
+  profileId: string,
+  characterSlot: string,
+  guideSlug: string | undefined,
+  camp: string | null
+): Promise<number> {
+  const { milestones, completed } = await loadAlignmentProgress(profileId, characterSlot, guideSlug);
+  return alignmentCountForCamp(milestones, completed, camp);
+}
+
+/**
+ * Dernière quête d'alignement validée (hors quête en cours de décochage), dans l'ordre du
+ * guide. Sert à restaurer le camp quand on décoche la dernière quête d'un camp.
+ */
+async function findLastCheckedAlignmentQuest(
+  profileId: string,
+  characterSlot: string,
+  guideSlug: string | undefined,
+  excludeSequenceId: string
+): Promise<{ camp: string } | null> {
+  if (!guideSlug) return null;
+  const { milestones, completed } = await loadAlignmentProgress(profileId, characterSlot, guideSlug);
+
+  let best: { pos: number; camp: string } | null = null;
+  for (const ms of milestones) {
+    for (const seq of ms.sequences) {
+      if (seq.id === excludeSequenceId || !completed.has(seq.id)) continue;
+      const camp = alignmentTagCamp(seq.activityTags?.find((t) => t.type === "alignment_set"));
+      if (!camp) continue;
+      const pos = (ms.order ?? 0) * 10000 + (seq.order ?? 0);
+      if (!best || pos > best.pos) best = { pos, camp };
+    }
+  }
+  return best ? { camp: best.camp } : null;
 }
 
 export async function applyRushAlignmentFromSequence(
@@ -1275,13 +1840,15 @@ export async function applyRushAlignmentFromSequence(
   const alignmentTag = ((Array.isArray(sequence.activityTags) ? sequence.activityTags : []) as any[]).find(
     (t: any) => t.type === "alignment_set"
   );
-  // Pas une quête d'alignement → no-op (aucun effet).
-  if (!alignmentTag?.name) return { success: true, noop: true };
+  // Deux vocabulaires : `camp` (canonique) puis `name` (legacy). Pas de camp → no-op.
+  const rawCamp = alignmentTagCamp(alignmentTag as any);
+  if (!rawCamp) return { success: true, noop: true };
 
-  const camp = String(alignmentTag.name);
-  const level = typeof alignmentTag.level === "number" ? Math.max(0, Math.min(100, alignmentTag.level)) : 0;
+  const camp = normalizeAlignmentCamp(rawCamp) ?? rawCamp;
+  const guideSlug = sequence.milestone?.guide?.slug;
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  let appliedLevel = 0;
   const isMule = characterSlot !== "PRINCIPAL";
 
   const profile = await db.userProfile.findUnique({
@@ -1313,24 +1880,25 @@ export async function applyRushAlignmentFromSequence(
           };
         }
         mule.alignment = camp;
-        mule.alignmentLevel = level;
-        mule.alignmentOrder = null;
+        appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, camp);
+        mule.alignmentLevel = appliedLevel;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
           characterSlot,
-          sequence.milestone?.guide?.slug,
+          guideSlug,
           sequenceId
         );
         if (last) {
-          mule.alignment = last.camp;
-          mule.alignmentLevel = last.level;
-          mule.alignmentOrder = null;
+          mule.alignment = normalizeAlignmentCamp(last.camp) ?? last.camp;
+          appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, mule.alignment);
+          mule.alignmentLevel = appliedLevel;
         } else {
           const base = mule.alignmentBefore as any;
           mule.alignment = base?.alignment ?? "neutre";
           mule.alignmentOrder = base?.alignmentOrder ?? null;
           mule.alignmentLevel = base?.alignmentLevel ?? 0;
+          appliedLevel = mule.alignmentLevel;
           delete mule.alignmentBefore;
         }
       }
@@ -1347,24 +1915,25 @@ export async function applyRushAlignmentFromSequence(
           };
         }
         data.alignment = camp;
-        data.alignmentLevel = level;
-        data.alignmentOrder = null;
+        appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, camp);
+        data.alignmentLevel = appliedLevel;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
           characterSlot,
-          sequence.milestone?.guide?.slug,
+          guideSlug,
           sequenceId
         );
         if (last) {
-          data.alignment = last.camp;
-          data.alignmentLevel = last.level;
-          data.alignmentOrder = null;
+          data.alignment = normalizeAlignmentCamp(last.camp) ?? last.camp;
+          appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, data.alignment);
+          data.alignmentLevel = appliedLevel;
         } else {
           const base = profile.alignmentBefore as any;
           data.alignment = base?.alignment ?? "neutre";
           data.alignmentOrder = base?.alignmentOrder ?? null;
           data.alignmentLevel = base?.alignmentLevel ?? 0;
+          appliedLevel = data.alignmentLevel;
           data.alignmentBefore = null;
         }
       }
@@ -1383,7 +1952,7 @@ export async function applyRushAlignmentFromSequence(
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${sequence.milestone.guide.slug}`);
   }
 
-  return { success: true, applied: isChecked, camp, level };
+  return { success: true, applied: isChecked, camp, level: appliedLevel };
 }
 
 /**
@@ -1447,121 +2016,11 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
   return { success: true };
 }
 
-// ===========================================================================
-// S4 « qui peut aider » — badges membre (INFORMATIF : aucune invitation)
-// ===========================================================================
-
-const getSequenceHelpersSchema = z.object({
-  guildId: z.string().min(1),
-  sequenceId: z.string().min(1),
-});
-
-/**
- * ── S4 « qui peut aider » — retourne les membres capables d'aider une séquence ──
- * Résout en BULK les profils ACTIFS de la guilde (métiers + alignment) et leur
- * progression donjons (`UserDungeonProgress`), puis délègue à `findSequenceHelpers`
- * (helper pur, déjÀ testé). Garde guilde + Zod + rate-limit (fail-closed).
- */
-export async function getSequenceHelpers(guildId: string, sequenceId: string) {
-  const parsed = getSequenceHelpersSchema.safeParse({ guildId, sequenceId });
-  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
-
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
-
-  const { success: rateOk } = await rateLimit(`guide-helpers:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
-
-  const sequence = await db.guideSequence.findUnique({
-    where: { id: sequenceId },
-    select: {
-      id: true,
-      subGuideRef: true,
-      subGuideName: true,
-      dungeonId: true,
-      dungeonIds: true,
-      alignReq: true,
-      alignOrderReq: true,
-      activityTags: true,
-      dungeon: { select: { id: true, name: true, bossName: true, imageUrl: true } },
-    },
-  });
-  if (!sequence) return { success: false, error: "Séquence introuvable" };
-
-  const [profiles, progress] = await Promise.all([
-    db.userProfile.findMany({
-      where: { guild: { discordGuildId: guildId }, status: "ACTIVE" },
-      select: {
-        id: true,
-        pseudoDofus: true,
-        discordNickname: true,
-        classe: true,
-        dofusLevel: true,
-        alignment: true,
-        alignmentOrder: true,
-        alignmentLevel: true,
-        metiers: true,
-        user: { select: { name: true, image: true } },
-      },
-    }),
-    db.userDungeonProgress.findMany({
-      where: { profile: { guild: { discordGuildId: guildId }, status: "ACTIVE" } },
-      select: { profileId: true, dungeonId: true },
-    }),
-  ]);
-
-  const dungeonIdsByProfile = new Map<string, Set<string>>();
-  for (const p of progress) {
-    if (!dungeonIdsByProfile.has(p.profileId)) dungeonIdsByProfile.set(p.profileId, new Set());
-    dungeonIdsByProfile.get(p.profileId)!.add(p.dungeonId);
-  }
-
-  const resolveMetiers = (metiers: unknown): RushHelperMetier[] =>
-    normalizeMetiers(metiers).map((m) => ({ name: m.name, level: m.level }));
-
-  const members: RushHelperProfile[] = profiles.map((p) => ({
-    profileId: p.id,
-    name: p.pseudoDofus || p.discordNickname || p.user?.name || "Membre",
-    avatar: p.user?.image || undefined,
-    classe: p.classe ?? null,
-    dofusLevel: p.dofusLevel ?? null,
-    alignment: p.alignment ?? null,
-    alignmentOrder: p.alignmentOrder ?? null,
-    alignmentLevel: p.alignmentLevel ?? null,
-    metiers: resolveMetiers(p.metiers),
-    completedDungeonIds: Array.from(dungeonIdsByProfile.get(p.id) || []),
-  }));
-
-  // Résolution des `dungeonIds` en objets { id, name } (le helper pur a besoin du nom).
-  const dungeonIdList = (sequence.dungeonIds || []).filter((id): id is string => typeof id === "string");
-  let dungeons: RushSequence["dungeons"] = [];
-  if (dungeonIdList.length > 0) {
-    const rows = await db.dungeon.findMany({
-      where: { id: { in: dungeonIdList } },
-      select: { id: true, name: true, bossName: true, imageUrl: true },
-    });
-    dungeons = rows;
-  }
-
-  const seqForHelpers: RushSequence = {
-    id: sequence.id,
-    subGuideRef: sequence.subGuideRef,
-    subGuideName: sequence.subGuideName,
-    isOptional: false,
-    order: 0,
-    dungeonId: sequence.dungeonId ?? null,
-    dungeonIds: dungeonIdList,
-    dungeon: sequence.dungeon ?? undefined,
-    dungeons: dungeons.length > 0 ? dungeons : undefined,
-    alignReq: sequence.alignReq ?? null,
-    alignOrderReq: sequence.alignOrderReq ?? null,
-    activityTags: Array.isArray(sequence.activityTags) ? (sequence.activityTags as any[]) : [],
-  };
-
-  const helpers = findSequenceHelpers(seqForHelpers, members);
-  return { success: true, ...helpers };
-}
+// S4 « qui peut aider » retiré le 22/10/2026 (demande user : feature incomprise et
+// jugée inutile). Le badge n'existait que côté interne, affichait « 0 peut aider »
+// quand personne ne correspondait, et coûtait **un appel serveur par quête** au
+// chargement du guide. Le suivi entre membres reviendra comme un onglet dédié
+// (tracé dans `docs/ROADMAP.md`), pas comme une pastille par quête.
 
 // ===========================================================================
 // GOD-SIDE ADMIN ACTIONS
@@ -2723,8 +3182,14 @@ export async function getOrCreateRushSylvestreGuide() {
       for (const ms of guide.milestones) {
         for (const seq of ms.sequences) {
           const ids = (seq as any).dungeonIds as string[] | undefined;
+          // Un donjon peut être OPTIONNEL (sous-ensemble de `dungeonIds`) : la surface a
+          // besoin du drapeau pour ne pas verrouiller la quête avec un donjon facultatif.
+          const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
           if (ids && ids.length > 0) {
-            (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+            (seq as any).dungeons = ids
+              .map(id => dungeonMap.get(id))
+              .filter(Boolean)
+              .map(d => ({ ...d, isOptional: optionalIds.has(d!.id) }));
           }
         }
       }
@@ -2771,8 +3236,17 @@ function enrBuildUpdate(seq: any, q: any) {
   if (q.dofuspourlesnoobsUrl && !seq.dofuspourlesnoobsUrl) data.dofuspourlesnoobsUrl = q.dofuspourlesnoobsUrl;
   if (q.questDbIds && Array.isArray(q.questDbIds) && q.questDbIds.length && (!Array.isArray(seq.questDbIds) || !seq.questDbIds.length)) data.questDbIds = q.questDbIds;
   if (q.mapPositions && Array.isArray(q.mapPositions) && q.mapPositions.length && (!Array.isArray(seq.mapPositions) || !seq.mapPositions.length)) data.mapPositions = q.mapPositions;
-  if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
-  if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
+  // Cité : on n'écrit qu'un CAMP reconnu, jamais un rang.
+  //
+  // Le payload enrichi porte un **rang** dans `alignReq` (1…99 : la position de la quête
+  // dans la série) et le camp dans `alignment.camp` — mesuré le 27/10/2026 : **104**
+  // entrées numériques. Écrire ce rang dans `alignReq` **masquait** la quête pour tout le
+  // monde : la route est fail-closed sur une cité inconnue (`isSequenceOnRoute`). Le champ
+  // legacy `alignOrderReq` (seuil de niveau) n'est plus écrit du tout (S5-1).
+  if (seq.alignReq == null) {
+    const camp = normalizeAlignmentCamp(q.alignment?.camp);
+    if (camp) data.alignReq = camp;
+  }
   if (q.dungeonIds && Array.isArray(q.dungeonIds) && q.dungeonIds.length && (!Array.isArray(seq.dungeonIds) || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
   // Positions GPS : mapPositions (structuré x,y) -> tag « pos_tags » (lu par GOD/Dashboard/Overlay).
   // L'UI ne consomme que activityTags[pos_tags], jamais mapPositions directement.
@@ -2868,7 +3342,6 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         dofuspourlesnoobsUrl?: string | null;
         dofusdbUrl?: string | null;
         alignReq?: string | null;
-        alignOrderReq?: number | null;
         dungeonNames?: string[];
         dungeonDbIds?: number[];
         mapPositions?: any;
@@ -3102,8 +3575,9 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         subGuideName: seqName,
         dofuspourlesnoobsUrl: s.dofuspourlesnoobsUrl || null,
         dofusdbUrl: s.dofusdbUrl || null,
-        alignReq: s.alignReq || null,
-        alignOrderReq: s.alignOrderReq || null,
+        // Camp normalisé : un rang (`alignReq: 50`) devient `null` — on n'invente jamais
+        // une cité, et on ne masque jamais la quête (fail-closed de la route).
+        alignReq: normalizeAlignmentCamp(s.alignReq) ?? null,
         dungeonId: resolvedDungeonIds[0] ?? null,
         dungeonIds: resolvedDungeonIds,
         mapPositions: s.mapPositions || undefined,
@@ -3158,6 +3632,8 @@ export async function updateRushSylvestreSettings(data: {
   description?: string;
   isActive?: boolean;
   isUnderConstruction?: boolean;
+  /** « En construction » de la PAGE PUBLIQUE (distinct de l'avis membres). */
+  isPublicUnderConstruction?: boolean;
 }) {
   await requireRushAccess();
 
@@ -3175,7 +3651,7 @@ export async function updateRushSylvestreSettings(data: {
 
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  // La page **publique** `/guides/rush-sylvestre` lit le même `isUnderConstruction` (ISR 1 h) :
+  // La page **publique** `/guides/rush-sylvestre` lit `isPublicUnderConstruction` (ISR 1 h) :
   // sans cette invalidation, le toggle God mettrait jusqu'à une heure à s'y voir.
   revalidatePath("/guides/rush-sylvestre");
   return { success: true, guide };
@@ -3222,6 +3698,8 @@ export async function upsertRushMilestone(data: {
   order?: number;
   type?: any; // GuideMilestoneType enum
   tips?: string;
+  /** Liens externes nommés des blocs Combat / Conseils (bornés par `rush-block-links`). */
+  links?: unknown;
   dofusId?: string | null;
 }) {
   await requireRushAccess();
@@ -3257,6 +3735,8 @@ export async function upsertRushMilestone(data: {
         order: data.order ?? 0,
         type: data.type ?? undefined,
         tips: data.tips,
+        // Un update qui n'envoie pas `links` ne doit pas effacer les liens existants.
+        ...(data.links !== undefined ? { links: normalizeRushBlockLinks(data.links) } : {}),
         dofusId,
       },
       include: {
@@ -3301,6 +3781,7 @@ export async function upsertRushMilestone(data: {
           isOptional: data.isOptional ?? false,
           order: targetOrder,
           tips: data.tips,
+          links: normalizeRushBlockLinks(data.links),
           dofusId,
         },
         include: {
@@ -3422,11 +3903,24 @@ export async function upsertRushSequence(data: {
   subGuideRef: string;
   dungeonId?: string | null;
   dungeonIds?: string[];
+  /** Sous-ensemble de `dungeonIds` : ces donjons ne bloquent pas la validation. */
+  dungeonOptionalIds?: string[];
+  /**
+   * Ids **DofusDB** des quêtes que cette séquence incarne (`GameQuest.dofusDbId`).
+   * Absent ⇒ la colonne n'est pas touchée ; fourni ⇒ borné ici (voir `boundQuestDbIds`).
+   */
+  questDbIds?: number[];
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
-  alignOrderReq?: number | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
+  /** Lot 4 — variantes de texte par camp (`null` efface, absent ne touche pas). */
+  routeVariants?: unknown;
+  /** Conditions structurées (`null` efface, absent ne touche pas) — Zod borné plus bas. */
+  constraints?: unknown;
   note?: string;
   order?: number;
   isSuccess?: boolean;
@@ -3435,6 +3929,68 @@ export async function upsertRushSequence(data: {
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
 }) {
   await requireRushAccess();
+
+  /**
+   * Conditions structurées — Zod borné, `null` efface, absent ne touche pas. Une forme
+   * invalide est refusée avant l'écriture : jamais de JSON arbitraire dans la fiche.
+   */
+  const constraints =
+    data.constraints === undefined
+      ? undefined
+      : data.constraints === null
+        ? null
+        : parseRushQuestConstraints(data.constraints);
+  if (data.constraints !== undefined && data.constraints !== null && constraints === null) {
+    throw new Error("Conditions de quête invalides (horaire, joueurs, métiers, sorts, notes).");
+  }
+
+  /**
+   * Garde des références de quête — mesure du 03/11/2026 : 37 séquences affichaient « &1 » au
+   * lieu du nom (la source porte la correspondance, cf. `resolveQuestRefs`). Une référence
+   * saisie ou importée est refusée **avant** l'écriture : le joueur ne doit jamais lire un
+   * placeholder, et le studio doit dire pourquoi.
+   */
+  for (const [field, value] of [
+    ["tips", data.tips],
+    ["note", data.note],
+    ["conditions", constraints ? JSON.stringify(constraints) : undefined],
+  ] as const) {
+    if (hasUnresolvedQuestRef(value)) {
+      throw new Error(
+        `Le champ « ${field} » contient une référence de quête non résolue (&n) : remplacez-la par le nom de la quête.`,
+      );
+    }
+  }
+
+  /**
+   * Bornage du drapeau « optionnel » — fait **ici**, jamais dans l'éditeur : un id qui
+   * ne fait pas partie des donjons de la séquence est une donnée morte (et un moyen de
+   * gonfler la colonne depuis le client). La règle pure `boundOptionalDungeonIds` borne
+   * l'intersection, en nombre comme en longueur ; le studio consomme la même règle.
+   */
+  const dungeonOptionalIds =
+    data.dungeonOptionalIds === undefined
+      ? undefined
+      : boundOptionalDungeonIds({
+          dungeonIds: data.dungeonIds,
+          dungeonId: data.dungeonId,
+          optionalIds: data.dungeonOptionalIds,
+        });
+
+  /**
+   * Lot 4 — variantes de texte par camp : Zod borné (2 camps × 2 champs). `null` **efface**
+   * la colonne ; une forme invalide est **refusée** avant l'écriture (le studio dit
+   * pourquoi), jamais écrite « au cas où ».
+   */
+  const routeVariants =
+    data.routeVariants === undefined
+      ? undefined
+      : data.routeVariants === null
+        ? null
+        : parseRouteVariants(data.routeVariants);
+  if (data.routeVariants !== undefined && data.routeVariants !== null && routeVariants === null) {
+    throw new Error("Variantes de texte invalides (2 camps, nom ≤ 200, conseils ≤ 4000).");
+  }
 
   let seq;
   // Champs communs (sans dungeonId — géré différemment selon create/update)
@@ -3445,7 +4001,11 @@ export async function upsertRushSequence(data: {
     dofuspourlesnoobsUrl: data.dofuspourlesnoobsUrl,
     tips: data.tips,
     alignReq: data.alignReq,
-    alignOrderReq: data.alignOrderReq,
+    alignOrderCode: data.alignOrderCode ?? null,
+    alignLevelReq: data.alignLevelReq ?? null,
+    classReq: data.classReq ?? null,
+    ...(routeVariants !== undefined ? { routeVariants: routeVariants as never } : {}),
+    ...(constraints !== undefined ? { constraints: constraints as never } : {}),
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,
@@ -3453,10 +4013,17 @@ export async function upsertRushSequence(data: {
     metamobMonsterId: data.metamobMonsterId ?? null,
     activityTags: data.activityTags ?? [],
     dungeonIds: data.dungeonIds ?? undefined,
+    // Absent ⇒ la colonne n'est pas touchée (on ne « dé-optionnalise » pas par oubli).
+    ...(dungeonOptionalIds !== undefined ? { dungeonOptionalIds } : {}),
+    // Idem pour la liaison de quête : fournie, elle est **bornée côté serveur**
+    // (ids DofusDB > 0, dédoublonnés, 10 au plus) — le client n'est jamais cru.
+    ...(data.questDbIds !== undefined ? { questDbIds: boundQuestDbIds(data.questDbIds) } : {}),
   };
 
   if (data.id) {
-    // UPDATE : Prisma v7 exige l'API relation pour les FK (connect/disconnect)
+    // UPDATE : Prisma v7 exige l'API relation pour les FK (connect/disconnect).
+    // Le BLOC ne change pas ici : un déplacement passe par `moveRushSequence`
+    // (action dédiée qui n'écrit que `milestoneId` + `order`, jamais les autres champs).
     seq = await db.guideSequence.update({
       where: { id: data.id },
       data: {
@@ -3495,6 +4062,670 @@ export async function upsertRushSequence(data: {
 }
 
 /**
+ * Schéma **borné** du déplacement d'une quête : deux ids, rien d'autre.
+ * Le bloc cible ne vient jamais du client tel quel : il est relu dans le guide
+ * avant l'écriture (isolation + fail-closed).
+ */
+const MoveRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  targetMilestoneId: z.string().min(1).max(64),
+});
+
+/**
+ * (God) Déplace **une quête** vers un autre bloc du guide Rush.
+ *
+ * Correctif mesuré le 05/11/2026 : le studio réutilisait `upsertRushSequence` avec
+ * des champs partiels pour « déplacer » une quête. Cette action ne modifiait pas
+ * `milestoneId` et remettait `alignOrderCode`, `alignLevelReq`, `classReq`,
+ * `isSuccess`, `icon` et `metamobMonsterId` à null/false (perte de route).
+ * Ici, l'écriture est **exclusivement** `milestoneId` + `order` : la route, les
+ * tips, les tags et les donjons restent attachés à la quête.
+ *
+ * Fail-closed :
+ *  · la quête et le bloc cible doivent appartenir au guide `rush-sylvestre` ;
+ *  · un séparateur ne porte pas de quêtes ;
+ *  · le bloc cible est relu dans la même transaction que l'écriture ;
+ *  · un déplacement vers le bloc courant est un no-op explicite (`moved: false`).
+ */
+export async function moveRushSequence(sequenceId: string, targetMilestoneId: string) {
+  const parsed = MoveRushSequenceSchema.safeParse({ sequenceId, targetMilestoneId });
+  if (!parsed.success) {
+    throw new Error("Déplacement invalide");
+  }
+
+  // Une réorganisation peut déplacer plusieurs quêtes d'affilée : la limite est plus
+  // large que les écritures de masse, mais reste bornée (jamais une boucle client).
+  await requireRushWriteAccess("rush-move-sequence", 60, 60_000);
+
+  const result = await db.$transaction(async (tx) => {
+    const source = await tx.guideSequence.findUnique({
+      where: { id: parsed.data.sequenceId },
+      select: {
+        id: true,
+        milestoneId: true,
+        milestone: {
+          select: {
+            guideId: true,
+            guide: { select: { slug: true } },
+          },
+        },
+      },
+    });
+
+    if (!source || source.milestone.guide.slug !== "rush-sylvestre") {
+      throw new Error("Quête introuvable dans le guide Rush");
+    }
+
+    const target = await tx.guideMilestone.findFirst({
+      where: { id: parsed.data.targetMilestoneId, guideId: source.milestone.guideId },
+      select: { id: true, type: true },
+    });
+
+    if (!target) {
+      throw new Error("Bloc cible introuvable dans ce guide");
+    }
+    if (target.type === "SEPARATEUR") {
+      throw new Error("Un séparateur ne porte pas de quêtes.");
+    }
+    if (target.type === "INFO") {
+      throw new Error("Un bloc Conseil / Tips ne porte pas de quêtes.");
+    }
+    if (target.id === source.milestoneId) {
+      return { moved: false, sequence: source };
+    }
+
+    const orders = await tx.guideSequence.findMany({
+      where: { milestoneId: target.id },
+      select: { order: true },
+    });
+
+    const updated = await tx.guideSequence.update({
+      where: { id: source.id },
+      data: {
+        milestoneId: target.id,
+        order: nextSequenceOrder(orders.map((sequence) => sequence.order)),
+      },
+    });
+
+    return { moved: true, sequence: updated };
+  });
+
+  if (result.moved) {
+    await logGodWrite({
+      action: "GOD_RUSH_UPDATE",
+      targetType: "DATA_SYNC",
+      targetId: parsed.data.sequenceId,
+      metadata: { op: "move-rush-sequence", toMilestoneId: parsed.data.targetMilestoneId },
+    });
+
+    revalidatePath("/god/rush-sylvestre");
+    revalidatePath("/dashboard");
+    revalidatePath("/guides/rush-sylvestre");
+  }
+
+  return { success: true, moved: result.moved, sequence: result.sequence };
+}
+
+/**
+ * Schéma borné du split : un seul id de séquence.
+ */
+const SplitRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+});
+
+/**
+ * (God) Éclate **une séquence multi-quêtes** en N séquences de 1 quête.
+ *
+ * Mesure du 05/11/2026 : sur la bêta, chaque palier d'alignement (20/22 quêtes), chaque
+ * Ordre (5) et le bloc des 19 classes sont **une seule `GuideSequence`** qui porte N
+ * `questDbIds`. La route ne sait pas filtrer une quête à l'intérieur d'une séquence, et
+ * « Déplacer vers » déplace le bloc entier. Le split crée N séquences à la **même
+ * position**, avec la route du bloc, les tags/donjons **par quête** du dataset enrichi,
+ * la classe des 19 quêtes via `RUSH_CLASS_QUESTS`, et la progression reportée (une étape
+ * cochée = ses N quêtes cochées).
+ *
+ * Fail-closed : bloc `rush-sylvestre`, au moins 2 quêtes, et un bloc d'alignement sans
+ * cité est refusé (sinon les quêtes deviendraient communes aux deux camps).
+ */
+export async function splitRushSequence(sequenceId: string) {
+  const parsed = SplitRushSequenceSchema.safeParse({ sequenceId });
+  if (!parsed.success) {
+    throw new Error("Scission invalide");
+  }
+  await requireRushWriteAccess("rush-split-sequence", 60, 60_000);
+
+  const block = await db.guideSequence.findUnique({
+    where: { id: parsed.data.sequenceId },
+    select: {
+      id: true,
+      milestoneId: true,
+      order: true,
+      subGuideName: true,
+      subGuideRef: true,
+      questDbIds: true,
+      alignReq: true,
+      alignOrderCode: true,
+      alignLevelReq: true,
+      classReq: true,
+      tips: true,
+      note: true,
+      constraints: true,
+      isSuccess: true,
+      icon: true,
+      metamobMonsterId: true,
+      activityTags: true,
+      dungeonIds: true,
+      dungeonOptionalIds: true,
+      dofusdbUrl: true,
+      dofuspourlesnoobsUrl: true,
+      milestone: { select: { guideId: true, guide: { select: { slug: true } } } },
+    },
+  });
+
+  if (!block || block.milestone.guide.slug !== "rush-sylvestre") {
+    throw new Error("Quête introuvable dans le guide Rush");
+  }
+  if (!Array.isArray(block.questDbIds) || block.questDbIds.length <= 1) {
+    throw new Error("Cette étape ne contient qu'une seule quête.");
+  }
+
+  const gameQuests = await db.gameQuest.findMany({
+    where: { dofusDbId: { in: block.questDbIds } },
+    select: { dofusDbId: true, name: true },
+  });
+  const gameNames = new Map(gameQuests.map((quest) => [quest.dofusDbId as number, quest.name]));
+
+  const drafts = buildRushSplitPlan(
+    block as unknown as RushSplitBlock,
+    (qid) => rushSplitMetaOf(qid, gameNames.get(qid) ?? null),
+  );
+  if (drafts.length <= 1) {
+    throw new Error("Aucune quête à scinder.");
+  }
+
+  const isAlignment =
+    !!(block.alignOrderCode ?? "").trim() || /alignement/i.test(block.subGuideName);
+  if (isAlignment && !drafts[0].alignReq) {
+    throw new Error("Renseigne la cité du bloc (Route du bloc) avant de le scinder.");
+  }
+
+  // Les `dungeonIds` du dataset enrichi sont des cuids **de l'environnement local** : on ne
+  // les écrit que s'ils existent dans la table `Dungeon` de CETTE base. Sinon on les écarte
+  // (jamais une FK morte dans un tableau String[]) et on remonte le nombre ignoré.
+  const candidateDungeonIds = Array.from(new Set(drafts.flatMap((draft) => draft.dungeonIds)));
+  const knownDungeons = candidateDungeonIds.length > 0
+    ? new Set((await db.dungeon.findMany({
+        where: { id: { in: candidateDungeonIds } },
+        select: { id: true },
+      })).map((dungeon) => dungeon.id))
+    : new Set<string>();
+  let droppedDungeons = 0;
+  for (const draft of drafts) {
+    const kept = draft.dungeonIds.filter((id) => knownDungeons.has(id));
+    droppedDungeons += draft.dungeonIds.length - kept.length;
+    draft.dungeonIds = kept;
+  }
+
+  const createdIds = await db.$transaction(async (tx) => {
+    // Ouvre N-1 créneaux à partir de la position du bloc (les autres blocs ne bougent pas
+    // de chapitre, seuls les ordres suivants du MÊME milestone sont décalés).
+    await tx.guideSequence.updateMany({
+      where: {
+        milestoneId: block.milestoneId,
+        id: { not: block.id },
+        order: { gte: block.order },
+      },
+      data: { order: { increment: drafts.length - 1 } },
+    });
+
+    const ids: string[] = [];
+    for (const draft of drafts) {
+      const created = await tx.guideSequence.create({
+        data: {
+          milestoneId: block.milestoneId,
+          subGuideRef: draft.subGuideRef,
+          subGuideName: draft.subGuideName,
+          order: draft.order,
+          isPartial: false,
+          dungeonId: null,
+          questDbIds: draft.questDbIds,
+          alignReq: draft.alignReq,
+          alignOrderCode: draft.alignOrderCode,
+          alignLevelReq: draft.alignLevelReq,
+          classReq: draft.classReq,
+          tips: draft.tips,
+          note: draft.note,
+          isSuccess: draft.isSuccess,
+          icon: draft.icon,
+          metamobMonsterId: draft.metamobMonsterId,
+          activityTags: draft.activityTags as any,
+          dungeonIds: draft.dungeonIds,
+          dungeonOptionalIds: draft.dungeonOptionalIds,
+          mapPositions: draft.mapPositions as any,
+          dofusdbUrl: draft.dofusdbUrl,
+          dofuspourlesnoobsUrl: draft.dofuspourlesnoobsUrl,
+        },
+        select: { id: true },
+      });
+      ids.push(created.id);
+    }
+
+    // Progression : une étape cochée = ses N quêtes cochées (règle conservatrice).
+    const progressRows = await tx.playerGuideProgress.findMany({
+      where: { milestoneId: block.milestoneId },
+      select: { id: true, completedSteps: true, currentStep: true },
+    });
+    for (const row of progressRows) {
+      const steps = Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : null;
+      if (!steps || !steps.includes(block.id)) continue;
+      const next = steps.flatMap((step) => (step === block.id ? ids : [step]));
+      await tx.playerGuideProgress.update({
+        where: { id: row.id },
+        data: {
+          completedSteps: next,
+          ...(row.currentStep === block.id ? { currentStep: ids[0] } : {}),
+        },
+      });
+    }
+
+    await tx.guideSequence.delete({ where: { id: block.id } });
+    return ids;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: block.id,
+    metadata: { op: "split-rush-sequence", created: createdIds.length },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+
+  return { success: true, created: createdIds.length, ids: createdIds, droppedDungeons };
+}
+
+// ---------------------------------------------------------------------------
+// G1 — route appliquée à un BLOC entier (02/11/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Schéma **borné** de la route d'un bloc. Tout ce qui n'est pas explicitement autorisé
+ * est refusé : une faute de frappe sur la classe masquerait toutes ses quêtes (la route
+ * est fail-closed), et un Ordre d'une autre cité serait invisible pour les deux camps.
+ */
+const RushBlockRouteSchema = z.object({
+  milestoneId: z.string().min(1).max(64),
+  alignReq: z.enum(["bontarien", "brakmarien"]).nullable(),
+  alignOrderCode: z.string().max(64).nullable(),
+  alignLevelReq: z
+    .union([z.literal(20), z.literal(40), z.literal(60), z.literal(80), z.literal(100)])
+    .nullable(),
+  classReq: z.string().max(64).nullable(),
+});
+
+/**
+ * Normalise et valide une route de quête. **Une seule** règle pour la route d'un bloc
+ * (G1) et la route d'une sélection (E3c) : un Ordre inconnu, un Ordre d'une autre
+ * cité ou une classe hors des 19 ids sont refusés avant toute écriture.
+ */
+function normalizeRushRouteInput(input: {
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const rawOrder = input.alignOrderCode?.trim() || null;
+  const order = rawOrder ? normalizeOrderCode(rawOrder) : null;
+  if (rawOrder && !order) throw new Error("Ordre inconnu");
+  if (order && !input.alignReq) throw new Error("Un Ordre exige une cité");
+  if (order && input.alignReq && !orderCodesForCamp(input.alignReq).some((o) => o.code === order)) {
+    throw new Error("Cet Ordre n'appartient pas à la cité choisie");
+  }
+
+  const rawClass = input.classReq?.trim().toLowerCase() || null;
+  if (rawClass && !DOFUS_CLASSES.some((c) => c.id === rawClass)) {
+    throw new Error("Classe inconnue");
+  }
+
+  return {
+    alignReq: input.alignReq,
+    alignOrderCode: order,
+    alignLevelReq: input.alignLevelReq,
+    classReq: rawClass,
+  };
+}
+
+/**
+ * (God) Applique une route à **toutes les quêtes d'un bloc** — le geste qui remplace
+ * 236 éditions quête par quête.
+ *
+ * Règles fail-closed :
+ *  · un `alignOrderCode` inconnu, ou d'une autre cité que `alignReq`, est **refusé** ;
+ *  · une `classReq` hors des 19 ids est **refusée** (jamais écrite « au cas où ») ;
+ *  · le bloc doit appartenir au guide `rush-sylvestre` — vérifié **avant** l'écriture,
+ *    dans la requête, jamais depuis le client ;
+ *  · les champs vides **effacent** la valeur du bloc (geste explicite du studio).
+ */
+export async function updateRushBlockRoute(data: {
+  milestoneId: string;
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const parsed = RushBlockRouteSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error("Route de bloc invalide");
+  }
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-block-route");
+
+  const route = normalizeRushRouteInput(input);
+
+  // Isolation : le bloc doit être celui du guide Rush, sinon on n'écrit rien.
+  const milestone = await db.guideMilestone.findFirst({
+    where: { id: input.milestoneId, guide: { slug: "rush-sylvestre" } },
+    select: { id: true },
+  });
+  if (!milestone) throw new Error("Bloc introuvable");
+
+  const { count } = await db.guideSequence.updateMany({
+    where: { milestoneId: milestone.id },
+    data: route,
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestone.id,
+    metadata: {
+      op: "route-rush-block",
+      count,
+      camp: route.alignReq,
+      order: route.alignOrderCode,
+      level: route.alignLevelReq,
+      classReq: route.classReq,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, count };
+}
+// ---------------------------------------------------------------------------
+// E3c — actions de masse sur une SÉLECTION de quêtes (12/11/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Une sélection est **bornée** : 1 à 200 ids, sans doublon. Le plafond est une garde
+ * de charge (200 écritures au plus dans une transaction), jamais une confiance dans
+ * le client : le studio ne sélectionne que les quêtes d'un bloc.
+ */
+const RushSequenceSelectionSchema = z
+  .array(z.string().min(1).max(64))
+  .min(1)
+  .max(200)
+  .refine((ids) => new Set(ids).size === ids.length, "Sélection avec doublons");
+
+const BulkRushRouteSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+  alignReq: z.enum(["bontarien", "brakmarien"]).nullable(),
+  alignOrderCode: z.string().max(64).nullable(),
+  alignLevelReq: z
+    .union([z.literal(20), z.literal(40), z.literal(60), z.literal(80), z.literal(100)])
+    .nullable(),
+  classReq: z.string().max(64).nullable(),
+});
+
+const BulkMoveRushSequencesSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+  targetMilestoneId: z.string().min(1).max(64),
+});
+
+const BulkDeleteRushSequencesSchema = z.object({
+  sequenceIds: RushSequenceSelectionSchema,
+});
+
+/**
+ * (God) Applique une route à une **sélection** de quêtes.
+ *
+ * Même règle que la route d'un bloc (`normalizeRushRouteInput`), mais la portée est
+ * une liste d'ids. Fail-closed : **toutes** les ids doivent appartenir au guide
+ * `rush-sylvestre` ; si une seule manque, la transaction est annulée.
+ */
+export async function bulkUpdateRushSequencesRoute(data: {
+  sequenceIds: string[];
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const parsed = BulkRushRouteSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Route de sélection invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-route", 6, 60_000);
+  const route = normalizeRushRouteInput(input);
+
+  const count = await db.$transaction(async (tx) => {
+    const found = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true },
+    });
+    if (found.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+    const res = await tx.guideSequence.updateMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      data: route,
+    });
+    if (res.count !== input.sequenceIds.length) {
+      throw new Error("La sélection a changé pendant l'écriture — rien n'a été appliqué");
+    }
+    return res.count;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.sequenceIds[0],
+    metadata: {
+      op: "bulk-route-rush-sequences",
+      count,
+      sample: input.sequenceIds.slice(0, 10),
+      camp: route.alignReq,
+      order: route.alignOrderCode,
+      level: route.alignLevelReq,
+      classReq: route.classReq,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, count };
+}
+/**
+ * (God) Déplace une **sélection** vers un autre bloc. Seuls `milestoneId` et `order`
+ * changent : route, tips, tags et donjons restent attachés à chaque quête.
+ */
+export async function bulkMoveRushSequences(data: {
+  sequenceIds: string[];
+  targetMilestoneId: string;
+}) {
+  const parsed = BulkMoveRushSequencesSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Déplacement de sélection invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-move", 6, 60_000);
+
+  const moved = await db.$transaction(async (tx) => {
+    const target = await tx.guideMilestone.findFirst({
+      where: { id: input.targetMilestoneId, guide: { slug: "rush-sylvestre" } },
+      select: { id: true, type: true },
+    });
+    if (!target) throw new Error("Bloc cible introuvable dans ce guide");
+    if (target.type === "SEPARATEUR") throw new Error("Un séparateur ne porte pas de quêtes.");
+    if (target.type === "INFO") throw new Error("Un bloc Conseil / Tips ne porte pas de quêtes.");
+
+    const sources = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true, milestoneId: true, order: true },
+    });
+    if (sources.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+
+    const toMove = sources.filter((source) => source.milestoneId !== target.id);
+    if (toMove.length === 0) return 0;
+
+    const orders = await tx.guideSequence.findMany({
+      where: { milestoneId: target.id },
+      select: { order: true },
+    });
+    let order = nextSequenceOrder(orders.map((row) => row.order));
+
+    for (const source of toMove) {
+      const res = await tx.guideSequence.updateMany({
+        where: { id: source.id, milestoneId: source.milestoneId },
+        data: { milestoneId: target.id, order: order++ },
+      });
+      if (res.count !== 1) {
+        throw new Error("La sélection a changé pendant le déplacement — rien n'a été déplacé");
+      }
+    }
+    return toMove.length;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.targetMilestoneId,
+    metadata: {
+      op: "bulk-move-rush-sequences",
+      count: moved,
+      sample: input.sequenceIds.slice(0, 10),
+      toMilestoneId: input.targetMilestoneId,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, moved };
+}
+
+/**
+ * (God) Supprime une **sélection** de quêtes. Même garde que la route : toutes les
+ * ids doivent appartenir au guide Rush, sinon la transaction est annulée.
+ */
+export async function bulkDeleteRushSequences(data: { sequenceIds: string[] }) {
+  const parsed = BulkDeleteRushSequencesSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Sélection de suppression invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-bulk-delete", 4, 60_000);
+
+  const count = await db.$transaction(async (tx) => {
+    const found = await tx.guideSequence.findMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+      select: { id: true },
+    });
+    if (found.length !== input.sequenceIds.length) {
+      throw new Error("Une ou plusieurs quêtes n'appartiennent pas au guide Rush");
+    }
+    const res = await tx.guideSequence.deleteMany({
+      where: { id: { in: input.sequenceIds }, milestone: { guide: { slug: "rush-sylvestre" } } },
+    });
+    if (res.count !== input.sequenceIds.length) {
+      throw new Error("La sélection a changé pendant la suppression — rien n'a été supprimé");
+    }
+    return res.count;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: input.sequenceIds[0],
+    metadata: {
+      op: "bulk-delete-rush-sequences",
+      count,
+      sample: input.sequenceIds.slice(0, 10),
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+  return { success: true, count };
+}
+
+
+
+
+
+// ---------------------------------------------------------------------------
+// Bloc B — page publique d'une quête (12/11/2026)
+// ---------------------------------------------------------------------------
+
+const PublishRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  publish: z.boolean(),
+});
+
+/**
+ * (God) Publie ou dépublie **une quête** sur le guide public.
+ *
+ * 🔒 Le slug est **figé à la première publication** : on ne le recalcule jamais
+ * depuis le nom, sinon un renommage casserait une URL déjà indexée. Une
+ * dépubliaison **conserve** le slug (la page repasse en 404, l'URL reste réservée).
+ *
+ * Fail-closed : la quête doit appartenir au guide `rush-sylvestre`, l'action est
+ * rate-limitée et journalisée. Une collision de slug est suffixée `-2`, `-3`…
+ */
+export async function publishRushSequence(data: { sequenceId: string; publish: boolean }) {
+  const parsed = PublishRushSequenceSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Publication invalide");
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-publish", 12, 60_000);
+
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: input.sequenceId, milestone: { guide: { slug: "rush-sylvestre" } } },
+    select: { id: true, subGuideName: true, publicSlug: true },
+  });
+  if (!sequence) throw new Error("Quête introuvable dans le guide Rush");
+
+  let slug = sequence.publicSlug;
+  if (input.publish && !slug) {
+    const rows = await db.guideSequence.findMany({
+      where: { publicSlug: { not: null } },
+      select: { publicSlug: true },
+    });
+    const taken = new Set(rows.map((row) => row.publicSlug as string));
+    slug = uniqueRushPublicSlug(slugifyRushQuestName(sequence.subGuideName), taken);
+  }
+
+  await db.guideSequence.update({
+    where: { id: sequence.id },
+    data: { publicSlug: slug, isPublished: input.publish },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequence.id,
+    metadata: {
+      op: input.publish ? "publish-rush-sequence" : "unpublish-rush-sequence",
+      slug,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/guides/rush-sylvestre");
+  if (slug) revalidatePath(`/guides/rush-sylvestre/q/${slug}`);
+  return { success: true, slug, isPublished: input.publish };
+}
+
+/**
  * (God) Supprime une séquence Rush — **IDEMPOTENT**.
  * Même correctif que `deleteRushMilestone` : `delete()` jetait P2025 sur une ligne déjà
  * supprimée (cascade d'un bloc supprimé juste avant, double clic). Périmètre inchangé
@@ -3515,4 +4746,331 @@ export async function deleteRushSequence(sequenceId: string) {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, alreadyDeleted: false };
+}
+
+// ---------------------------------------------------------------------------
+// S4-4 — Import consolidé du guide (dry-run par défaut, jamais destructif)
+// ---------------------------------------------------------------------------
+
+/**
+ * Schéma **borné** du payload d'import (l'`export-god.json` de l'outil local, ou
+ * un JSON écrit à la main). Toute valeur hors bornes est refusée : l'import écrit
+ * des centaines de lignes, il ne peut pas dépendre de la bonne foi du client.
+ */
+const RushImportSequenceSchema = z.object({
+  subGuideName: z.string().trim().min(1).max(200),
+  questDbIds: z.array(z.number().int().positive()).max(10).optional(),
+  alignReq: z.string().trim().max(32).nullish(),
+  alignOrderCode: z.string().trim().max(48).nullish(),
+  alignLevelReq: z.number().int().min(1).max(200).nullish(),
+  classReq: z.string().trim().max(32).nullish(),
+  // Étape à variantes exclusives : la valeur est bornée ici, le tag est construit par la
+  // règle pure `choiceGroupTag` (une seule source pour la convention).
+  choiceGroup: z.string().trim().max(48).nullish(),
+  // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
+  dofusdbUrl: z.string().trim().max(500).nullish(),
+  dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
+  dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  takeEarly: z.boolean().optional(),
+  isOptional: z.boolean().optional(),
+  tips: z.string().max(4000).nullish(),
+  note: z.string().max(4000).nullish(),
+});
+
+const RushImportBlockSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  order: z.number().int().min(0).max(1000).optional(),
+  sequences: z.array(RushImportSequenceSchema).max(80),
+});
+
+const RushImportPayloadSchema = z.object({
+  blocks: z.array(RushImportBlockSchema).min(1).max(80),
+});
+
+/**
+ * (God) Importe un guide au format consolidé — **dry-run par défaut**.
+ *
+ * - `apply = false` : renvoie le **plan** (ce qui serait créé, ce qui existe déjà,
+ *   ce qui est douteux) sans la moindre écriture ;
+ * - `apply = true` : **ajoute** les blocs et les quêtes manquants. Aucune
+ *   suppression, aucune réécriture : un bloc ou une quête déjà présents (même
+ *   titre / même nom, à la casse et aux accents près) sont laissés **tels quels**.
+ *
+ * Un second passage sur le même fichier est donc un no-op (`isRushImportNoop`).
+ */
+export async function importRushGuide(raw: unknown, apply = false) {
+  await requireRushAccess();
+
+  const parsed = RushImportPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: "Payload invalide",
+      issues: parsed.error.issues.slice(0, 8).map((issue) => `${issue.path.join(".") || "(racine)"} : ${issue.message}`),
+    };
+  }
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
+
+  const knownDungeonIds = new Set((await db.dungeon.findMany({ select: { id: true } })).map((d) => d.id));
+  const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
+
+  const plan = planRushImport(
+    parsed.data,
+    {
+      milestones: guide.milestones.map((m) => ({
+        id: m.id,
+        title: m.title,
+        sequences: m.sequences.map((s) => ({ id: s.id, subGuideName: s.subGuideName })),
+      })),
+    },
+    { knownDungeonIds, knownClassIds }
+  );
+
+  if (!apply) return { success: true as const, data: { dryRun: true as const, plan } };
+
+  const session = await auth();
+  const { success: rateOk } = await rateLimit(`guide-import-rush:${session?.user?.id ?? "anon"}`, 3, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop d'imports d'affilée, veuillez patienter." };
+
+  if (isRushImportNoop(plan)) {
+    return { success: true as const, data: { dryRun: false as const, applied: { blocks: 0, sequences: 0 }, plan } };
+  }
+
+  const tail = guide.milestones[guide.milestones.length - 1] ?? null;
+  let nextOrder = guide.milestones.reduce((max, m) => Math.max(max, m.order), -1) + 1;
+  const chapter = tail && tail.chapter > 0 ? tail.chapter : 1;
+  const chapterLabel = tail?.chapterLabel ?? "Import";
+
+  let createdBlocks = 0;
+  let createdSequences = 0;
+  // Deux blocs du fichier peuvent porter le même titre : on consomme chaque bloc du
+  // payload **une seule fois** (sinon les quêtes du second seraient perdues).
+  const payloadQueue = [...parsed.data.blocks];
+
+  for (const blockPlan of plan.blocks) {
+    const newNames = new Set(blockPlan.sequences.filter((s) => s.status === "new").map((s) => importKey(s.name)));
+    if (newNames.size === 0) continue;
+
+    const queueIndex = payloadQueue.findIndex((b) => importKey(b.title) === importKey(blockPlan.title));
+    if (queueIndex < 0) continue;
+    const payloadBlock = payloadQueue.splice(queueIndex, 1)[0];
+
+    let milestoneId = blockPlan.existingMilestoneId;
+    if (!milestoneId) {
+      const created = await db.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: "QUETE_SERIE",
+          chapter,
+          chapterLabel,
+          title: blockPlan.title,
+          accentColor: "#10b981",
+          order: nextOrder,
+          isOptional: false,
+        },
+        select: { id: true },
+      });
+      milestoneId = created.id;
+      nextOrder += 1;
+      createdBlocks += 1;
+    }
+
+    const existing = guide.milestones.find((m) => m.id === milestoneId);
+    let sequenceOrder = (existing?.sequences ?? []).reduce((max, s) => Math.max(max, s.order), -1) + 1;
+    const seen = new Set<string>();
+    const rows = [];
+
+    for (const sequence of payloadBlock.sequences) {
+      const key = importKey(sequence.subGuideName);
+      if (!newNames.has(key) || seen.has(key)) continue;
+      seen.add(key);
+
+      rows.push({
+        milestoneId,
+        order: sequenceOrder,
+        subGuideRef: sequence.subGuideName.trim(),
+        subGuideName: sequence.subGuideName.trim(),
+        isPartial: false,
+        isOptional: sequence.isOptional ?? false,
+        alignReq: normalizeAlignmentCamp(sequence.alignReq) ?? null,
+        // Code **canonique** seulement : une valeur inconnue n'est pas écrite.
+        alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
+        alignLevelReq: sequence.alignLevelReq ?? null,
+        classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        // Variante exclusive : le tag `choice_group` (même convention que le studio).
+        activityTags: choiceGroupTag(sequence.choiceGroup) ?? [],
+        // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.
+        dofusdbUrl: safeRushGuideLink("dofusdb", sequence.dofusdbUrl),
+        dofuspourlesnoobsUrl: safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl),
+        questDbIds: boundQuestDbIds(sequence.questDbIds),
+        dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
+        dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
+          (id) => knownDungeonIds.has(id) && (sequence.dungeonIds ?? []).includes(id)
+        ),
+        tips: sequence.tips ?? null,
+        note: sequence.note ?? null,
+      });
+      sequenceOrder += 1;
+    }
+
+    if (!rows.length) continue;
+    await db.guideSequence.createMany({ data: rows });
+    createdSequences += rows.length;
+  }
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guide.id,
+    metadata: {
+      op: "import-rush-guide",
+      blocks: createdBlocks,
+      sequences: createdSequences,
+      plannedNew: plan.totals.sequencesNew,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return {
+    success: true as const,
+    data: { dryRun: false as const, applied: { blocks: createdBlocks, sequences: createdSequences }, plan },
+  };
+}
+
+/**
+ * **Lot 4 — God : route d'alignement.** Crée la **jumelle** d'une séquence : même jalon,
+ * même `order`, camp OPPOSÉ. C'est ce qui rend la saisie rapide : les deux branches se
+ * lisent ensuite en deux colonnes parallèles (slot miroir), sans dupliquer le guide.
+ *
+ * Fail-closed : une séquence sans `alignReq` exploitable est refusée (on ne devine pas
+ * un camp). Le code d'Ordre (`alignOrderCode`) et son palier (`alignLevelReq`) sont
+ * recopiés : la jumelle est une quête d'Ordre **du camp opposé**. Le seuil legacy
+ * `alignOrderReq` n'est plus recopié (retiré le 27/10/2026, S5-1).
+ */
+export async function duplicateRushSequenceAsTwin(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  if (camp !== "bontarien" && camp !== "brakmarien") {
+    return {
+      success: false as const,
+      error: "Cette séquence n'a pas de camp : renseigne d'abord Bontarien ou Brâkmarien",
+    };
+  }
+  const twinCamp = camp === "bontarien" ? "brakmarien" : "bontarien";
+
+  const twin = await db.guideSequence.create({
+    data: {
+      milestoneId: source.milestoneId,
+      order: source.order,
+      subGuideRef: `${source.subGuideRef} [${twinCamp}]`,
+      subGuideName: `${source.subGuideName} [${twinCamp}]`,
+      stepFrom: source.stepFrom,
+      stepTo: source.stepTo,
+      isPartial: source.isPartial,
+      isOptional: source.isOptional,
+      note: source.note,
+      isResume: source.isResume,
+      dofusdbUrl: source.dofusdbUrl,
+      dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+      tips: source.tips,
+      alignReq: twinCamp,
+      // Le PALIER se recopie (il est symétrique entre les deux camps) ; le code d'Ordre,
+      // lui, appartient au camp d'origine : c'est la jumelle d'Ordre qui l'attribue
+      // (`duplicateRushSequenceOrderTwin`). L'ancien seuil `alignOrderReq` n'existe plus.
+      alignLevelReq: source.alignLevelReq,
+      isSuccess: source.isSuccess,
+      icon: source.icon,
+      metamobMonsterId: source.metamobMonsterId,
+      activityTags: (source.activityTags ?? []) as never,
+      dungeonId: source.dungeonId,
+      dungeonIds: source.dungeonIds ?? [],
+    },
+    select: { id: true },
+  });
+
+  return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
+}
+
+
+/**
+ * **Lot 4 bis — jumelle d'ORDRE.** Crée les **2 autres Ordres** de la même cité, au
+ * même jalon et au même `order`. Les 5 quêtes d'apprentissage ont un nom propre par
+ * Ordre : sans cette action, il faudrait les saisir 3 fois.
+ *
+ * Idempotent : une branche d'Ordre déjà présente est laissée telle quelle.
+ * Fail-closed : sans cité ou sans Ordre sur la source, on refuse.
+ */
+export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  const campaignOrders = orderCodesForCamp(camp);
+  if (!campaignOrders.length) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
+
+  // ⚠️ `alignOrderCode` a reçu deux vocabulaires : l'id court de `ORDERS` (`vaillant`,
+  // écrit par l'ancien studio et par cette action) et le code canonique
+  // (`coeur_vaillant`, attendu par la règle de route). On **normalise** avant de comparer,
+  // sinon une jumelle déjà présente serait recréée en double.
+  const sourceCode = normalizeOrderCode(source.alignOrderCode);
+  if (!sourceCode) {
+    return { success: false as const, error: "Cette séquence n'a pas d'Ordre : renseigne-le d'abord" };
+  }
+
+  const existing = await db.guideSequence.findMany({
+    where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: { not: null } },
+    select: { alignOrderCode: true },
+  });
+  const existingCodes = new Set(
+    existing.map((s) => normalizeOrderCode(s.alignOrderCode) ?? (s.alignOrderCode ?? "").trim())
+  );
+
+  let created = 0;
+  for (const other of campaignOrders) {
+    if (other.code === sourceCode) continue;
+    if (existingCodes.has(other.code)) continue;
+
+    await db.guideSequence.create({
+      data: {
+        milestoneId: source.milestoneId,
+        order: source.order,
+        subGuideRef: `${source.subGuideRef} [${other.label}]`,
+        subGuideName: `${source.subGuideName} [${other.label}]`,
+        stepFrom: source.stepFrom,
+        stepTo: source.stepTo,
+        isPartial: source.isPartial,
+        isOptional: source.isOptional,
+        note: source.note,
+        isResume: source.isResume,
+        dofusdbUrl: source.dofusdbUrl,
+        dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+        tips: source.tips,
+        alignReq: source.alignReq,
+        alignOrderCode: other.code,
+        alignLevelReq: source.alignLevelReq,
+        classReq: source.classReq,
+        isSuccess: source.isSuccess,
+        icon: source.icon,
+        metamobMonsterId: source.metamobMonsterId,
+        activityTags: (source.activityTags ?? []) as never,
+        dungeonId: source.dungeonId,
+        dungeonIds: source.dungeonIds ?? [],
+      },
+      select: { id: true },
+    });
+    existingCodes.add(other.code);
+    created += 1;
+  }
+
+  return { success: true as const, data: { created } };
 }

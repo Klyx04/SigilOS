@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { getAppBaseUrl } from "@/lib/utils";
 
 /**
  * Chantier #71 (résiduel) — rappel automatique des prêts non clos.
@@ -73,7 +74,7 @@ export async function sendLoanReminders(): Promise<{ total: number; reminded: nu
 
             const isOverdue = loan.dueDate && loan.dueDate.getTime() < now.getTime();
             const dueLabel = loan.dueDate ? new Date(loan.dueDate).toLocaleDateString("fr-FR") : "proche";
-            const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr"}/dashboard/${loan.guild.discordGuildId}/services?tab=prets`;
+            const dashboardUrl = `${getAppBaseUrl()}/dashboard/${loan.guild.discordGuildId}/services?tab=prets`;
 
             await sendChannelMessage(
                 channelId,

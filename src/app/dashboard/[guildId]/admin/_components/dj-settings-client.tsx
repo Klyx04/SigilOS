@@ -11,7 +11,7 @@ import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-gu
 import { getDungeonFinderConfig, updateDjSettings } from "@/server/actions/dungeon-finder-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
-import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/shared/DiscordChannelPicker";
 
 interface DjSettingsClientProps {
     guildId: string;
@@ -148,6 +148,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                                             guildId={guildId}
                                             value={channelId}
                                             onChange={setChannelId}
+                                            allowedTypes={DISCORD_FORUM_CHANNEL_TYPES}
                                         />
                                     </div>
                                     <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info">

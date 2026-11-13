@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { MemberSelector } from "./member-selector";
+import { AdvancedEditor } from "@/components/editor/advanced-editor";
+import {
+    PRESENTATION_INTERNAL_RULES_MAX_LENGTH,
+    PRESENTATION_INTERNAL_RULES_TEMPLATE,
+    hubTabAfterSave,
+} from "@/lib/presentation-rules";
 
 type Props = {
     guildId: string;
@@ -98,11 +105,13 @@ const sanitizeHistoryText = (text: string): string => {
     return text.replace(/https?:\/\/[^\s]+/gi, "[lien supprimé]");
 };
 
-// ── Rédaction en étapes : un cap à la fois, pas cinq onglets interchangeables ──
+// ── Rédaction en étapes : un cap à la fois. Le règlement est interne
+// (invisible du public) et s'édite en WYSIWYG pour les non-initiés. ──
 const STEPS = [
     { id: "roots", label: "Fondations", hint: "Serveur, fondation, porte Discord" },
     { id: "staff", label: "État-major", hint: "Meneur, co-leaders, bras droits" },
     { id: "tale", label: "Récit", hint: "Manifeste et chasses de la guilde" },
+    { id: "rules", label: "Règlement", hint: "Interne, invisible du public" },
     { id: "images", label: "Étendards", hint: "Bannière et photo de guilde" },
     { id: "recruit", label: "Recrutement", hint: "Statut, seuils, pré-requis" },
 ] as const;
@@ -170,14 +179,23 @@ function StepHeading({ eyebrow, title, desc, asset }: { eyebrow: string; title: 
 }
 
 export function PresentationForm({ guildId }: Props) {
+    const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [isLoading, setIsLoading] = useState(true);
     const [members, setMembers] = useState<DiscordMemberOption[]>([]);
     const [stepIndex, setStepIndex] = useState(0);
+    // Destination posée par un enregistrement réussi : l'effet ci-dessous navigue une fois le
+    // render passé (sinon la garde anti-oubli voit encore le formulaire « sale » et bloque).
+    const [returnTo, setReturnTo] = useState<string | null>(null);
+    // Règlement **tel qu'il est en base** au chargement : sert à savoir s'il vient d'être écrit.
+    const rulesInDbRef = useRef<string | null>(null);
 
     // Form state
     const [enabled, setEnabled] = useState(false);
     const [history, setHistory] = useState("");
+    // Règlement intérieur (HTML TipTap) — interne seul, pré-rempli d'office.
+    const [internalRules, setInternalRules] = useState("");
+    const [rulesEditorKey, setRulesEditorKey] = useState(0);
     const [activities, setActivities] = useState<string[]>([]);
     const [founder, setFounder] = useState("");
     const [coLeaders, setCoLeaders] = useState<string[]>([]); // Max 3
@@ -205,7 +223,7 @@ export function PresentationForm({ guildId }: Props) {
     const [initialSnapshot, setInitialSnapshot] = useState<any>(null);
 
     const currentState = () => ({
-        enabled, history, activities, founder, coLeaders, brasDroits, discord, recruiting,
+        enabled, history, internalRules, activities, founder, coLeaders, brasDroits, discord, recruiting,
         recruitmentRequirements, server, bannerType, bannerUrl, photoUrl, foundedDate,
         discordRequired, minLevel, minSuccesses, memberCount,
     });
@@ -223,6 +241,12 @@ export function PresentationForm({ guildId }: Props) {
                 const d = dataResult.data;
                 setEnabled(d.enabled);
                 setHistory(d.history || "");
+                // Pré-rempli d'office : un règlement vide s'ouvre sur le modèle
+                // (l'admin l'adapte puis enregistre — rien n'est écrasé en base avant).
+                const loadedRules = d.internalRules || PRESENTATION_INTERNAL_RULES_TEMPLATE;
+                // La valeur **en base** (avant pré-remplissage du modèle) → sert au retour d'enregistrement.
+                rulesInDbRef.current = d.internalRules ?? null;
+                setInternalRules(loadedRules);
                 setActivities(d.activities || []);
                 setFounder(d.founder || "");
                 // Initialize brasDroits from team data
@@ -245,7 +269,7 @@ export function PresentationForm({ guildId }: Props) {
 
                 // #228 — Snapshot de référence pour la garde anti-navigation.
                 setInitialSnapshot({
-                    enabled: d.enabled, history: d.history || "", activities: d.activities || [],
+                    enabled: d.enabled, history: d.history || "", internalRules: loadedRules, activities: d.activities || [],
                     founder: d.founder || "", coLeaders: d.coLeaders || [], brasDroits: d.team || [],
                     discord: d.discord || "", recruiting: d.recruiting, recruitmentRequirements: d.recruitmentRequirements || "",
                     server: d.server || "", bannerType: d.bannerType || "discord", bannerUrl: d.bannerUrl,
@@ -264,6 +288,15 @@ export function PresentationForm({ guildId }: Props) {
 
         loadData();
     }, [guildId]);
+
+    // Enregistrement réussi → on **quitte l'éditeur pour la vue des membres** (le règlement y a
+    // son onglet dédié). La navigation passe par un état + effet : au moment du `setReturnTo`,
+    // le snapshot vient d'être remis à zéro, donc le render suivant voit un formulaire propre et
+    // la garde anti-oubli laisse passer.
+    useEffect(() => {
+        if (!returnTo) return;
+        router.push(returnTo);
+    }, [returnTo, router]);
 
     // Handle form submission
     const handleSubmit = () => {
@@ -309,6 +342,7 @@ export function PresentationForm({ guildId }: Props) {
             const data: PresentationUpdateData = {
                 enabled,
                 history: sanitizeHistoryText(history) || null,
+                internalRules: internalRules.trim() ? internalRules.slice(0, PRESENTATION_INTERNAL_RULES_MAX_LENGTH) : null,
                 activities,
                 founder: founder || null,
                 coLeaders: coLeaders.filter(cl => cl.trim().length > 0), // Filter out empty strings
@@ -330,9 +364,18 @@ export function PresentationForm({ guildId }: Props) {
             const result = await updateGuildPresentation(guildId, data);
 
             if (result.success) {
-                toast.success("Présentation mise à jour");
+                // Le règlement a-t-il bougé ? Si oui, la vue des membres s'ouvre dessus.
+                const tab = hubTabAfterSave(rulesInDbRef.current, data.internalRules);
+                rulesInDbRef.current = data.internalRules ?? null;
+                toast.success(
+                    tab === "reglement"
+                        ? "Règlement enregistré — voici la vue des membres"
+                        : "Présentation mise à jour — voici la vue des membres"
+                );
                 // La sauvegarde devient la nouvelle référence → plus rien de « sale ».
                 setInitialSnapshot(currentState());
+                // L'éditeur rend la main : retour au hub, seule vue où le contenu se lit vraiment.
+                setReturnTo(`/dashboard/${guildId}/guild-hub?tab=${tab}`);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -536,7 +579,7 @@ export function PresentationForm({ guildId }: Props) {
 
             {/* Étapes : où on est, ce qui reste. */}
             <nav aria-label="Étapes de rédaction">
-                <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                     {STEPS.map((s, i) => {
                         const active = i === stepIndex;
                         const done = i < stepIndex;
@@ -580,7 +623,7 @@ export function PresentationForm({ guildId }: Props) {
                 {step === "roots" && (
                     <div className="space-y-8">
                         <StepHeading
-                            eyebrow="Étape 1 sur 5 · Fondations"
+                            eyebrow="Étape 1 sur 6 · Fondations"
                             title="D'où parle la guilde"
                             desc="Le serveur et la date ancrent la page dans le monde ; le lien Discord est la porte d'entrée des recrues."
                             asset="/assets/dofus/icons/zaap.png"
@@ -691,7 +734,7 @@ export function PresentationForm({ guildId }: Props) {
                 {step === "staff" && (
                     <div className="space-y-8">
                         <StepHeading
-                            eyebrow="Étape 2 sur 5 · État-major"
+                            eyebrow="Étape 2 sur 6 · État-major"
                             title="Qui tient la barre"
                             desc="Un meneur nommé rassure ; le reste de l'équipage se complète au fil des nominations."
                             asset={GUILD_BLASON_ASSET}
@@ -828,7 +871,7 @@ export function PresentationForm({ guildId }: Props) {
                 {step === "tale" && (
                     <div className="space-y-8">
                         <StepHeading
-                            eyebrow="Étape 3 sur 5 · Récit"
+                            eyebrow="Étape 3 sur 6 · Récit"
                             title="Ce que la guilde raconte"
                             desc="Trois phrases d'origine valent mieux qu'une page vide. Les liens sont retirés à l'enregistrement."
                             asset={MANIFESTO_ASSET}
@@ -894,10 +937,52 @@ export function PresentationForm({ guildId }: Props) {
                     </div>
                 )}
 
+                {step === "rules" && (
+                    <div className="space-y-6">
+                        <StepHeading
+                            eyebrow="Étape 4 sur 6 · Règlement"
+                            title="Les règles de la maison"
+                            desc="Écrivez comme dans un traitement de texte : le style suit tout seul. Cette page ne sort jamais de la guilde."
+                            asset={GUILD_BLASON_ASSET}
+                        />
+                        <p className="inline-flex items-center gap-2 text-sm">
+                            <span className="reg-tag">Interne</span>
+                            <span className="text-muted-foreground">Invisible de l&apos;annuaire public et des visiteurs.</span>
+                        </p>
+                        <AdvancedEditor
+                            key={`reglement-${rulesEditorKey}`}
+                            initialContent={internalRules}
+                            onChange={setInternalRules}
+                            enableImages={false}
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="reg-mono text-xs text-muted-foreground">
+                                {internalRules.length}/{PRESENTATION_INTERNAL_RULES_MAX_LENGTH}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setInternalRules(PRESENTATION_INTERNAL_RULES_TEMPLATE);
+                                    setRulesEditorKey((k) => k + 1);
+                                }}
+                                className="reg-btn reg-btn-secondary"
+                            >
+                                Réinsérer le modèle
+                            </button>
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            Sélectionnez du texte pour le mettre en forme · tapez « / » pour les commandes ·
+                            collez du Markdown, il est converti tout seul · le sourire dans la barre
+                            d&apos;outils insère des emoji. Les images du texte sont désactivées : utilisez
+                            l&apos;étendard ou la photo de l&apos;étape suivante (seuls visuels contrôlés).
+                        </p>
+                    </div>
+                )}
+
                 {step === "images" && (
                     <div className="space-y-8">
                         <StepHeading
-                            eyebrow="Étape 4 sur 5 · Étendards"
+                            eyebrow="Étape 5 sur 6 · Étendards"
                             title="À quoi ressemble la guilde"
                             desc="Un étendard net fait la moitié de l'accueil. Les deux visuels sont facultatifs."
                             asset="/assets/dofus/modules/bannerBlason.png"
@@ -1011,7 +1096,7 @@ export function PresentationForm({ guildId }: Props) {
                 {step === "recruit" && (
                     <div className="space-y-8">
                         <StepHeading
-                            eyebrow="Étape 5 sur 5 · Recrutement"
+                            eyebrow="Étape 6 sur 6 · Recrutement"
                             title="Qui peut frapper à la porte"
                             desc="Des seuils lisibles évitent les candidatures perdues. Tout est facultatif."
                             asset="/assets/dofus/modules/quest.png"
@@ -1178,15 +1263,15 @@ export function PresentationForm({ guildId }: Props) {
                                 ) : (
                                     <Check className="h-4 w-4" aria-hidden="true" />
                                 )}
-                                Enregistrer la page
+                                Enregistrer et voir la page
                             </button>
                         )}
                     </div>
                 </div>
                 <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                    L&apos;enregistrement s&apos;applique à toutes les étapes d&apos;un coup — la garde
-                    anti-oubli surveille la sortie.
+                    L&apos;enregistrement applique les six étapes d&apos;un coup, puis vous ramène à la
+                    vue des membres — le règlement s&apos;y lit dans son onglet dédié.
                 </p>
             </div>
 

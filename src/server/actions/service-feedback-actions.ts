@@ -4,12 +4,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { createNotification } from "./notification-actions";
-import { sendChannelMessage } from "@/server/discord";
+import { sanitizeMentions } from "@/server/discord";
+import { patchServiceMessage, postServiceMessage } from "@/server/discord-services";
+import { resolveServiceRequestsChannelId } from "@/lib/service-discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ServiceCategory, NotificationType, NotificationCategory } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { sanitizeName } from "@/lib/security";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const submitFeedbackSchema = z.object({
     providerProfileId: z.string().min(1, "Prestataire requis"),
@@ -77,9 +80,13 @@ export async function submitServiceFeedback(
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, servicesNotifyChannelId: true },
+            select: { id: true, servicesRequestsChannelId: true, servicesNotifyChannelId: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        const requestsChannelId = resolveServiceRequestsChannelId({
+            servicesRequestsChannelId: guildConfig.servicesRequestsChannelId,
+            legacyNotifyChannelId: guildConfig.servicesNotifyChannelId,
+        });
 
         // Si lié à une demande de service, vérifier son statut
         let linkedRequest: { id: string; discordMessageId: string | null; status: string } | null = null;
@@ -144,18 +151,17 @@ export async function submitServiceFeedback(
         // 2. Publication d'un embed Discord dans le salon de service de la guilde
         const stars = "⭐".repeat(rating);
         const providerName = providerProfile.pseudoDofus || providerProfile.discordNickname || providerProfile.user?.name || "Prestataire";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
-        if (guildConfig.servicesNotifyChannelId) {
+        if (requestsChannelId) {
             // Si la demande avait un message Discord, on met à jour le message existant pour clore le cycle
             if (linkedRequest?.discordMessageId) {
                 try {
-                    const { patchChannelMessage } = await import("@/server/discord");
-                    await patchChannelMessage(
-                        guildConfig.servicesNotifyChannelId,
+                    await patchServiceMessage(
+                        requestsChannelId,
                         linkedRequest.discordMessageId,
                         {
-                            content: `⭐ **Avis client enregistré** — **${clientName}** a attribué ${stars} (${rating}/5) à **${providerName}** !`,
+                            content: `⭐ **Avis client enregistré** — **${sanitizeMentions(clientName)}** a attribué ${stars} (${rating}/5) à **${sanitizeMentions(providerName)}** !`,
                             components: [], // Supprime le bouton pour empêcher les doublons
                         }
                     );
@@ -164,22 +170,27 @@ export async function submitServiceFeedback(
                 }
             }
 
-            // Publication globale de l'avis dans le salon de service
-            await sendChannelMessage(
-                guildConfig.servicesNotifyChannelId,
-                `⭐ **Nouvel avis client** pour **${providerName}** !`,
-                {
-                    embedTitle: `⭐ Avis Client — ${stars} (${rating}/5)`,
-                    embedDescription: `**${clientName}** a laissé un avis sur la prestation de **${providerName}** :`,
+            // Publication globale de l'avis dans le salon de service (texte **ou** forum :
+            // un forum n'accepte que des fils, la couche `discord-services` s'en charge).
+            const reviewBody = {
+                content: `⭐ **Nouvel avis client** pour **${sanitizeMentions(providerName)}** !`,
+                embeds: [{
+                    title: `⭐ Avis Client — ${stars} (${rating}/5)`,
+                    description: `**${sanitizeMentions(clientName)}** a laissé un avis sur la prestation de **${sanitizeMentions(providerName)}** :`,
                     fields: [
-                        { name: "🛠️ Service", value: serviceTitle, inline: true },
+                        { name: "🛠️ Service", value: sanitizeMentions(serviceTitle), inline: true },
                         { name: "⭐ Note", value: `${stars} **${rating}/5**`, inline: true },
-                        ...(comment ? [{ name: "💬 Commentaire", value: `"${comment}"`, inline: false }] : []),
+                        ...(comment ? [{ name: "💬 Commentaire", value: `"${sanitizeMentions(comment)}"`, inline: false }] : []),
                     ],
-                    embedColor: 0xf59e0b,
-                    embedFooter: "SigilOS • Livre d'or des Services",
-                    embedUrl: `${appUrl}/dashboard/${guildId}/services?tab=feedbacks`,
-                }
+                    color: 0xf59e0b,
+                    footer: { text: "SigilOS • Livre d'or des Services" },
+                    url: `${appUrl}/dashboard/${guildId}/services?tab=feedbacks`,
+                }],
+            };
+            await postServiceMessage(
+                requestsChannelId,
+                reviewBody,
+                `⭐ Avis — ${providerName}`
             ).catch((err) => logger.warn("[submitServiceFeedback] Discord broadcast failed", { error: err }));
         }
 

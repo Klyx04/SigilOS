@@ -41,9 +41,14 @@ import { Worker, Queue, Job } from "bullmq";
 import { defaultQueueOptions } from "../lib/queue/metamob-queue";
 import { db } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { toTotalDofusLevel } from "../lib/dofus-level";
+import { normalizeLadderLevel } from "../server/ladder-snapshot";
 import {
     buildLadderWorkerMessage,
     buildLadderWorkerFields,
+    ladderFailureDetailRows,
+    summarizeLadderFailuresByGuild,
+    type LadderFailureProfile,
     type LadderWorkerSummary,
 } from "../lib/ladder-sync-alert";
 
@@ -230,8 +235,17 @@ async function processLadderSync(job: Job) {
         select: {
             id: true,
             pseudoDofus: true,
+            // C3 — contexte « pseudo disparu du ladder » : dernier état connu, alias
+            // déclarés (un renommage y figure souvent) et pseudo Discord (qui prévenir).
+            classe: true,
+            dofusLevel: true,
+            successPoints: true,
+            totalXp: true,
+            altPseudos: true,
+            lastLadderUpdate: true,
+            discordNickname: true,
             guild: {
-                select: { dofusServerId: true },
+                select: { id: true, name: true, dofusServerId: true },
             },
         },
     });
@@ -245,6 +259,23 @@ async function processLadderSync(job: Job) {
     const shuffled = shuffle([...profiles]);
     logger.info(`[LadderSync] ${shuffled.length} profils à synchroniser (ordre aléatoire).`);
 
+    /** C3 — fige le contexte d'un profil **avant** son échec (guilde, état connu, alias). */
+    const describeFailure = (profile: (typeof shuffled)[number]): LadderFailureProfile => ({
+        guildId: profile.guild.id,
+        guildName: profile.guild.name,
+        serverId: profile.guild.dofusServerId ?? null,
+        pseudo: profile.pseudoDofus!,
+        altPseudos: Array.isArray(profile.altPseudos)
+            ? (profile.altPseudos as unknown[]).filter((value): value is string => typeof value === "string")
+            : [],
+        classe: profile.classe ?? null,
+        dofusLevel: profile.dofusLevel ?? null,
+        successPoints: profile.successPoints ?? null,
+        totalXp: profile.totalXp ? profile.totalXp.toString() : null,
+        lastLadderUpdate: profile.lastLadderUpdate ? profile.lastLadderUpdate.toISOString() : null,
+        discordNickname: profile.discordNickname ?? null,
+    });
+
     let synced = 0;
     let notFound = 0;
     let errored = 0;
@@ -254,6 +285,9 @@ async function processLadderSync(job: Job) {
     // « Qui » a échoué (jamais affiché brut dans un embed : borné par la règle pure).
     const notFoundPseudos: string[] = [];
     const erroredPseudos: string[] = [];
+    // C3 — même information, mais **par guilde et avec le contexte** du profil.
+    const notFoundFailures: LadderFailureProfile[] = [];
+    const erroredFailures: LadderFailureProfile[] = [];
 
     // ── 3. STRICTLY SEQUENTIAL — one profile at a time ───────────────────────
     for (let i = 0; i < shuffled.length; i++) {
@@ -295,9 +329,6 @@ async function processLadderSync(job: Job) {
 
             if (succesData?.found && typeof succesData.points === "number") {
                 updateData.successPoints = succesData.points;
-                if (typeof succesData.level === "number") {
-                    updateData.dofusLevel = succesData.level;
-                }
             }
 
             if (generalData?.found) {
@@ -306,20 +337,30 @@ async function processLadderSync(job: Job) {
                     const cleanXp = generalData.totalXp.replace(/\D/g, "").slice(0, 15);
                     if (cleanXp) updateData.totalXp = BigInt(cleanXp);
                 }
-                if (generalData.level && !updateData.dofusLevel) {
-                    updateData.dofusLevel = Math.min(Math.max(Number(generalData.level), 1), 300);
-                }
                 if (generalData.classe) {
                     // SECURITY FIX (F-26): bound class name length (Dofus classes are short)
                     updateData.classe = String(generalData.classe).slice(0, 50);
                 }
             }
 
+            // Niveau **total** (200 + Oméga) : le ladder renvoie le niveau Oméga (128),
+            // l'XP totale déjà stockée tranche. La fiche générale fait foi sur le niveau.
+            const ladderLevel = normalizeLadderLevel(
+                (generalData?.found ? generalData.level : undefined) ??
+                    (succesData?.found ? succesData.level : undefined)
+            );
+            const totalLevel = toTotalDofusLevel(
+                ladderLevel,
+                updateData.totalXp as bigint | undefined
+            );
+            if (totalLevel !== null) updateData.dofusLevel = totalLevel;
+
             // If neither ladder found this character, still stamp the sync time
             // so we don't re-try them within 22h
             if (!succesData?.found && !generalData?.found) {
                 notFound++;
                 notFoundPseudos.push(pseudo);
+                notFoundFailures.push(describeFailure(profile));
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: { lastLadderUpdate: new Date() },
@@ -335,6 +376,7 @@ async function processLadderSync(job: Job) {
         } catch (err: any) {
             errored++;
             erroredPseudos.push(pseudo);
+            erroredFailures.push(describeFailure(profile));
             if (err.message?.startsWith("RATE_LIMIT:")) {
                 consecutiveRateLimits++;
                 logger.warn(`[LadderSync] Rate-limit consécutif ${consecutiveRateLimits}/${MAX_CONSECUTIVE_ERRORS} pour ${pseudo}`);
@@ -359,7 +401,7 @@ async function processLadderSync(job: Job) {
     logger.info(
         `[LadderSync] ✅ Terminé. Synced: ${synced} | NotFound: ${notFound} | Errors: ${errored} | Cooldowns: ${cooldowns} | Total: ${shuffled.length}`
     );
-    return { synced, notFound, errored, total: shuffled.length, cooldowns, aborted, notFoundPseudos, erroredPseudos };
+    return { synced, notFound, errored, total: shuffled.length, cooldowns, aborted, notFoundPseudos, erroredPseudos, notFoundFailures, erroredFailures };
 }
 
 // ─── Worker Instance ──────────────────────────────────────────────────────────
@@ -376,10 +418,15 @@ const ladderSyncWorker = new Worker(
 ladderSyncWorker.on("completed", async (job) => {
     logger.info(`[LadderSync] ✅ Job ${job.id} terminé.`);
     const summary = (job.returnvalue ?? {}) as LadderWorkerSummary;
+    // C3 — répartition **par guilde** + contexte par profil (alias, dernier sync, niveau).
+    const breakdown = summarizeLadderFailuresByGuild(
+        summary.notFoundFailures ?? [],
+        summary.erroredFailures ?? [],
+    );
     // Message humain + champs d'embed FR : l'embed Discord ne montre plus les clés
     // techniques (`synced`/`notFound`/`errored`) mais la répartition lisible, et
     // nomme les pseudos concernés (bornés par la règle pure).
-    const message = buildLadderWorkerMessage(summary);
+    const message = buildLadderWorkerMessage(summary, breakdown);
 
     // Cache ladder périmé par le run : sans ça, le module affiche encore les
     // 0 pendant 5-10 min après un force (faux « ça n'a rien fait »).
@@ -397,21 +444,38 @@ ladderSyncWorker.on("completed", async (job) => {
         await recordCronExecution("ladder_sync", {
             success: !summary.aborted,
             summary: message,
-            details: { jobId: job.id, ...summary },
+            // Une ligne par profil en échec ⇒ le tableau « qui, par guilde » du
+            // journal God (les lignes sont bornées et la perte est dite).
+            details: {
+                jobId: job.id,
+                total: summary.total ?? 0,
+                synced: summary.synced ?? 0,
+                notFound: summary.notFound ?? 0,
+                errored: summary.errored ?? 0,
+                cooldowns: summary.cooldowns ?? 0,
+                ...ladderFailureDetailRows(breakdown),
+            },
         });
     } catch (e) {
         logger.warn("[LadderSync] Télémétrie impossible:", e);
     }
 
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: summary.aborted ? "Ladder Background Sync Interrompue" : "Ladder Background Sync Réussie",
         message,
         type: "WORKER_SYNC",
         success: !summary.aborted,
         // Champs FR explicites ⇒ plus de dump brut des clés de `metadata`.
-        fields: buildLadderWorkerFields(summary),
-        metadata: { jobId: job.id, timestamp: new Date().toISOString(), ...summary }
+        fields: buildLadderWorkerFields(summary, breakdown),
+        metadata: {
+            jobId: job.id,
+            timestamp: new Date().toISOString(),
+            total: summary.total ?? 0,
+            synced: summary.synced ?? 0,
+            notFound: summary.notFound ?? 0,
+            errored: summary.errored ?? 0,
+        }
     });
 });
 
@@ -428,7 +492,7 @@ ladderSyncWorker.on("failed", async (job, err) => {
         logger.warn("[LadderSync] Télémétrie impossible:", e);
     }
 
-    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    const { notifyGod } = await import("../server/god-notifications");
     await notifyGod({
         title: "Ladder Background Sync ÉCHOUÉE",
         message: `Le job de synchronisation ladder ${job?.id} a échoué : ${err.message}`,

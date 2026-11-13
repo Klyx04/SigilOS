@@ -37,7 +37,7 @@ export function SupportOrb() {
     if (isPublicRoute(pathname)) return null;
 
     return (
-        <div className="support-orb fixed bottom-4 right-4 z-[100]">
+        <div className="support-orb fixed bottom-4 right-4 z-40">
             <a
                 href={SUPPORT_URL}
                 target="_blank"

@@ -49,7 +49,7 @@ d'un **artefact de travail archivé** : le retrouver dans l'archive ci-dessus (r
 - `README.md` — la règle de la zone (ce qu'on peut y mettre, nommage, procédure de purge).
 - `chantier-actif.md` — demandes **ouvertes** de la session en cours (lu au démarrage ; la consigne vit
   désormais dans `AGENTS.md`, les demandes ouvertes dans `docs/ROADMAP.md`).
-- `debug.md` — retours en cours de session (cité par `docs/agents/session-amorce.md`).
+- `debug.md` — retours en cours de session (cité par l'ancienne amorce (archivée)).
 - `refonte_landing/` — **kit de mesure** de la refonte des pages publiques (~40 sondes `probe-*`,
   `audit-*`, `shot-*` + index `OUTILS.md`). Sa propre règle dit : « ne pas les supprimer : un fixe = une
   mesure ». **Statut en attente de décision** : soit il rejoint `scripts/` (versionné, comme les 4 outils

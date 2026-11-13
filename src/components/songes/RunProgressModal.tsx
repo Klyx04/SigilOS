@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState } from "react";
 import Image from "next/image";
@@ -58,24 +58,18 @@ export function RunProgressModal({
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-2xl bg-background border-border text-foreground overflow-hidden p-0">
-                {/* Background Decor */}
-                <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-                    <div className="absolute top-0 left-1/4 w-64 h-64 bg-info/20 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-info/20 blur-[100px] rounded-full" />
-                </div>
-
                 <div className="relative z-10 p-6">
                     <DialogHeader className="mb-6">
-                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">
-                            <Sparkles className="w-6 h-6 text-info" />
+                        <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-info" />
                             Progression du Rêve
                         </DialogTitle>
-                        <DialogDescription className="text-foreground/50 font-medium">
+                        <DialogDescription className="text-muted-foreground">
                             Sélectionnez l'étage actuel de la run pour mettre à jour la progression.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                         {PALIERS.map((palier, idx) => {
                             const isCurrentPalier = palier.etages.includes(currentFloor as never);
                             const lastFloor = palier.etages[palier.etages.length - 1];
@@ -87,7 +81,7 @@ export function RunProgressModal({
                                         <div 
                                             className={cn(
                                                 "relative w-10 h-10 rounded-lg border-2 flex items-center justify-center overflow-hidden transition-all",
-                                                isCurrentPalier ? "scale-110  border-current" : "opacity-40 border-border"
+                                                isCurrentPalier ? " border-current" : "opacity-40 border-border"
                                             )}
                                             style={{ 
                                                 color: palier.couleur,
@@ -107,17 +101,17 @@ export function RunProgressModal({
                                                     className="object-contain p-1"
                                                 />
                                             </div>
-                                            <span className="relative z-10 text-caption font-black drop-shadow-md">
+                                            <span className="relative z-10 text-caption font-semibold">
                                                 {["I", "II", "III", "IV", "V"][idx]}
                                             </span>
                                         </div>
                                         <h3 className={cn(
-                                            "text-xs font-black uppercase tracking-[0.2em] transition-opacity",
+                                            "text-xs font-semibold uppercase tracking-wider transition-opacity",
                                             isCurrentPalier ? "opacity-100" : "opacity-40"
                                         )} style={{ color: palier.couleur }}>
                                             {palier.nom}
                                         </h3>
-                                        {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500 opacity-50" />}
+                                        {isCompleted && <CheckCircle2 className="w-4 h-4 text-success opacity-50" />}
                                     </div>
 
                                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
@@ -131,15 +125,15 @@ export function RunProgressModal({
                                                     disabled={isUpdating}
                                                     onClick={() => handleFloorClick(floor)}
                                                     className={cn(
-                                                        "relative h-12 flex flex-col items-center justify-center rounded-xl border transition-all  active:scale-95 disabled:opacity-50 disabled:hover:scale-100",
-                                                        isActive 
-                                                            ? "bg-background text-foreground border-border  z-10" 
+                                                        "relative h-12 flex flex-col items-center justify-center rounded-md border transition-colors disabled:opacity-50",
+                                                        isActive
+                                                            ? "bg-info/15 border-info/40 text-info"
                                                             : isDone
-                                                                ? "bg-surface border-border text-foreground/30"
-                                                                : "bg-black/40 border-border text-foreground/60 hover:border-border-strong hover:bg-surface"
+                                                                ? "bg-surface border-border text-muted-foreground"
+                                                                : "bg-elevated/60 border-border text-foreground/70 hover:border-border-strong hover:bg-surface"
                                                     )}
                                                 >
-                                                    <span className="text-sm font-black">{floor}</span>
+                                                    <span className="text-sm font-semibold">{floor}</span>
                                                     {isDone && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-success/40" />}
                                                 </button>
                                             );
@@ -161,7 +155,7 @@ export function RunProgressModal({
                                 disabled={isUpdating}
                                 onClick={() => handleFloorClick(26)}
                                 className={cn(
-                                    "w-full h-16 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50",
+                                    "w-full h-16 rounded-lg border-2 flex items-center justify-center gap-4 transition-all disabled:opacity-50",
                                     currentFloor === 26
                                         ? "bg-warning text-warning-foreground border-warning "
                                         : "bg-warning/10 border-warning/20 text-warning hover:bg-warning/20"
@@ -177,21 +171,21 @@ export function RunProgressModal({
                                         />
                                     </div>
                                     <div className="flex flex-col items-start">
-                                        <span className="text-lg font-black uppercase tracking-[0.2em]">Combat Final</span>
-                                        <span className="text-caption font-bold opacity-60 uppercase tracking-widest">Étage 26+</span>
+                                        <span className="text-lg font-semibold uppercase tracking-wider">Combat Final</span>
+                                        <span className="text-caption font-bold opacity-60 uppercase tracking-wider">Étage 26+</span>
                                     </div>
                                 </div>
-                                {currentFloor === 26 && <CheckCircle2 className="w-6 h-6 animate-in zoom-in" />}
+                                {currentFloor === 26 && <CheckCircle2 className="w-6 h-6" />}
                             </button>
                         </div>
                     </div>
 
                     {/* Loader Overlay */}
                     {isUpdating && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in">
+                        <div className="absolute inset-0 bg-background/80 z-50 flex items-center justify-center">
                             <div className="flex flex-col items-center gap-3">
                                 <Loader2 className="w-10 h-10 text-info animate-spin" />
-                                <span className="text-xs font-black uppercase tracking-widest text-info/80">Modification...</span>
+                                <span className="text-xs font-semibold uppercase tracking-wider text-info/80">Modification...</span>
                             </div>
                         </div>
                     )}

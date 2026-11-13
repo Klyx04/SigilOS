@@ -5,6 +5,9 @@
 # Usage :
 #   ./scripts/deploy-cd.sh list beta|prod        → versions dispo sur GHCR
 #   ./scripts/deploy-cd.sh beta|prod [sha]       → déploie la version (défaut : latest)
+#   DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta → idem + le DÉTAIL du rapport d'arbre
+#                                                  (444 fichiers portés par le serveur,
+#                                                  chaque donnée curée mise de côté…)
 #   ./scripts/deploy-cd.sh --help                → aide
 #
 # En clair : ce script met à jour l'app depuis des images déjà construites sur
@@ -144,6 +147,11 @@ EXEMPLES
   ./scripts/deploy-cd.sh beta                  # déploie latest en bêta
   ./scripts/deploy-cd.sh prod 3f2a9c1          # déploie le SHA 3f2a9c1 en prod
 
+SHA7 (⚠️ sept caractères, pas huit)
+  SHA=$(git rev-parse --short=7 origin/dev)    # prod : origin/main
+  `git rev-parse --short` rend 8 caractères dans ce dépôt (git allonge le SHA
+  court quand le dépôt grossit) ; la CI, elle, publie les 7 premiers.
+
 PRÉREQUIS (à définir une fois)
   export GHCR_TOKEN=...                # token GHCR (read:packages)
   export GHCR_TOKEN_EXPIRY=AAAA-MM-JJ  # pour l'avertissement d'expiration
@@ -177,6 +185,26 @@ show_token_expiry() {
 }
 
 # -----------------------------------------------------------------------------
+# Garde : un tag GHCR fait SEPT caractères
+# -----------------------------------------------------------------------------
+# 📏 Mesure du 23/10/2026 : `list beta 689667a0` répondait « tag absent : la CI ne
+# l'a pas publié » alors que le build du commit était vert — la CI avait publié
+# `689667a` (`SHA_SHORT=${SHA:0:7}`). `git rev-parse --short` rend ici 8 caractères
+# (git allonge le SHA court quand le dépôt grossit) ⇒ l'opérateur cherchait une
+# panne GitHub inexistante. Le refus a lieu AVANT le token et le registre.
+require_sha7() {
+    local sha="$1"
+    [[ -z "$sha" || "$sha" == "latest" ]] && return 0
+    [[ "$sha" =~ ^[0-9a-f]{7}$ ]] && return 0
+    err "SHA « ${sha} » : ${#sha} caractère(s) — un tag GHCR en fait 7."
+    dim '  La CI publie les 7 premiers caractères (SHA_SHORT=${SHA:0:7}) : un SHA de'
+    dim "  8 caractères n'existe pas côté registre, même si le build est vert."
+    dim "  Corrige  : SHA=\$(git rev-parse --short=7 origin/dev)   # prod : origin/main"
+    dim "  Vérifie  : ./scripts/deploy-cd.sh list <beta|prod> \"\$SHA\""
+    fail "Rien n'a été touché (ni token, ni image, ni conteneur)."
+}
+
+# -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
 GHCR_USER="${GHCR_USER:-klyx04}"
@@ -198,6 +226,52 @@ PRISMA_TIMEOUT="${PRISMA_TIMEOUT:-900}"
 
 cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
+# Digest d'un tag GHCR — deux lecteurs, et la VRAIE raison d'un échec
+# -----------------------------------------------------------------------------
+# 🐛 Mesure du 20/10/2026 : `list beta` affichait « introuvable (build GHCR ?) »
+# pour les 4 images alors que les tags existaient. Cause : `/root/.docker/config.json`
+# portait un token **régénéré** (donc mort) ; `imagetools inspect` répondait 403,
+# l'erreur était jetée par `2>/dev/null`, et le message accusait le build.
+# `docker manifest inspect` lit le même tag, avec la même authentification, mais
+# sans passer par un builder. Ici : buildx d'abord, repli manifest, puis une raison
+# NOMMÉE — « tag absent » n'a pas le même remède que « token périmé ».
+#
+# Contrat : renvoie 0 et pose `GHCR_DIGEST` ; en échec renvoie 1 et pose
+# `GHCR_DIGEST_REASON` (courte, affichable) + `GHCR_DIGEST_ERROR` (1re ligne du
+# registre, pour le diagnostic). ⚠️ Ne JAMAIS appeler via `$(image_digest …)` :
+# une substitution de commande s'exécute dans un sous-shell et perdrait ces variables.
+image_digest() {
+    local img="$1" out="" d=""
+    GHCR_DIGEST=""; GHCR_DIGEST_REASON=""; GHCR_DIGEST_ERROR=""
+
+    if out="$(sudo docker buildx imagetools inspect "$img" 2>&1)"; then
+        d="$(grep -oE 'sha256:[a-f0-9]{12}' <<<"$out" | head -1)"
+        if [[ -n "$d" ]]; then GHCR_DIGEST="$d"; return 0; fi
+    fi
+    if out="$(sudo docker manifest inspect "$img" 2>&1)"; then
+        d="$(grep -oE 'sha256:[a-f0-9]{12}' <<<"$out" | head -1)"
+        if [[ -n "$d" ]]; then GHCR_DIGEST="$d"; return 0; fi
+    fi
+
+    GHCR_DIGEST_ERROR="$(printf '%s\n' "$out" | awk 'NF' | head -1)"
+    case "$GHCR_DIGEST_ERROR" in
+        *"manifest unknown"*|*"not found"*|*404*)
+            GHCR_DIGEST_REASON="tag absent" ;;
+        *unauthorized*|*denied*|*403*|*forbidden*|*authoriz*)
+            GHCR_DIGEST_REASON="accès refusé (token GHCR périmé ?)" ;;
+        *"not a docker command"*|*buildx*)
+            GHCR_DIGEST_REASON="buildx indisponible" ;;
+        *sudo*|*password*)
+            GHCR_DIGEST_REASON="sudo refusé (mot de passe ?)" ;;
+        *)
+            GHCR_DIGEST_REASON="registre injoignable" ;;
+    esac
+    return 1
+}
+
+
+
+# -----------------------------------------------------------------------------
 # Commande : list — versions disponibles sur GHCR
 # -----------------------------------------------------------------------------
 list_handler() {
@@ -207,18 +281,22 @@ list_handler() {
         err "Usage : ./scripts/deploy-cd.sh list {beta|prod} [sha7]"
         exit 1
     fi
+    # Longueur du SHA d'abord : sans token, on peut donc le mesurer (et le message
+    # ne peut plus accuser la CI d'un tag qu'elle a publié).
+    require_sha7 "$sha"
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     banner "Versions disponibles — $target ($GHCR_REG)"
     horiz
     printf "${C_BOLD}  %-32s %s${C_RESET}\n" "Image" "latest (digest)"
     for NAME in app worker ws discord-bot; do
         local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
-        local DIGEST
-        DIGEST="$(sudo docker buildx imagetools inspect "${IMG}:latest" 2>/dev/null | grep -oE 'sha256:[a-f0-9]{12}' | head -1 || true)"
-        if [[ -z "$DIGEST" ]]; then
-            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "introuvable (build GHCR ?)"
+        if image_digest "${IMG}:latest"; then
+            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$GHCR_DIGEST"
         else
-            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$DIGEST"
+            printf "  %-32s ${C_YELLOW}%s${C_RESET}\n" "sigilos-${NAME}-${target}" "${GHCR_DIGEST_REASON}"
+            if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                dim "      ${GHCR_DIGEST_ERROR}"
+            fi
         fi
     done
     horiz
@@ -231,16 +309,20 @@ list_handler() {
         local MISSING=0
         for NAME in app worker ws discord-bot; do
             local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
-            if sudo docker buildx imagetools inspect "${IMG}:${sha}" >/dev/null 2>&1; then
+            if image_digest "${IMG}:${sha}"; then
                 printf "  %-32s ${C_GREEN}✓ publié${C_RESET}\n" "sigilos-${NAME}-${target}"
             else
-                printf "  %-32s ${C_RED}✗ absent${C_RESET}\n" "sigilos-${NAME}-${target}"
+                printf "  %-32s ${C_RED}✗ %s${C_RESET}\n" "sigilos-${NAME}-${target}" "${GHCR_DIGEST_REASON}"
+                if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                    dim "      ${GHCR_DIGEST_ERROR}"
+                fi
                 MISSING=1
             fi
         done
         horiz
         if [[ "$MISSING" == "1" ]]; then
             err "Tag $sha incomplet : la CI ne l'a pas publié (onglet Actions → Build & Push)."
+            dim "  Rappel : la CI tague 7 caractères — git rev-parse --short=7 origin/dev"
         else
             ok "Tag $sha publié sur les 4 images — déployable et rollback-able."
         fi
@@ -248,6 +330,7 @@ list_handler() {
 
     dim "Déployer une version précise : ./scripts/deploy-cd.sh ${target} <sha7>"
     dim "Vérifier un tag sans déployer  : ./scripts/deploy-cd.sh list ${target} <sha7>"
+    dim "Détail du rapport d'arbre      : DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh ${target}"
     exit 0
 }
 
@@ -312,6 +395,14 @@ git_fetch() {
         "public/songes"
         "public/module-dofus"
         "public/banners"
+        # 🗺️ Mesure du 16/10/2026 : `public/game-data/worldmap/.routes-2025-api` (note
+        # déposée le 25/07/2025) restait listée « modifiée » sur le VPS à CHAQUE
+        # déploiement ⇒ un `⚠` sur un fichier que personne n'écrit, plus un stash/pop.
+        # Aucun écrivain au runtime : `git grep` ne la trouve **ni dans `src/`, ni dans
+        # `scripts/`** (vérifié le 16/10/2026) — c'est donc la version du DÉPÔT qui fait
+        # foi, comme les médias ci-dessus. Si le contenu local différait vraiment, il est
+        # sauvegardé dans un patch `/tmp/sigilos-ecrase-*.patch` avant restauration.
+        "public/game-data/worldmap/.routes-2025-api"
     )
     # À l'inverse `ignored-monsters.json` et `ignored-bounties.json` sont CURÉS à la main (God) :
     # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
@@ -432,7 +523,7 @@ git_fetch() {
     # Données curées : copie hors de l'arbre, version du dépôt remise pour que le pull
     # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
 
-    local PRESERVE_DIR=""
+    local PRESERVE_DIR="" PRESERVED_LOCAL=()
     for f in "${PRESERVED[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
@@ -440,7 +531,13 @@ git_fetch() {
         git diff --quiet HEAD -- "$f" 2>/dev/null && continue
         [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
         cp "$f" "$PRESERVE_DIR/$(basename "$f")"
-        dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        PRESERVED_LOCAL+=("$(basename "$f")")
+        # Le détail par fichier ne sert qu'au diagnostic : il faisait 4 lignes à chaque
+        # déploiement (2 avant le pull, 2 après) pour la même information (mesure du
+        # 16/10/2026) ⇒ résumé en une ligne plus bas, détail sous `DEPLOY_VERBOSE=1`.
+        if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+            dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        fi
         # Version du dépôt remise (contenu + mode) : sans le mode, le rapport ci-dessous la
         # compterait comme « modifiée » et le pull la stasherait pour rien.
         git checkout -- "$f" 2>/dev/null || warn "  → $f : mise en conformité impossible (git checkout en échec)"
@@ -469,9 +566,16 @@ git_fetch() {
     done <<< "$DIRTY"
 
     if [[ -n "$SERVER_DIRTY" ]]; then
-        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur — laissés tels quels, rien à faire :"
-        dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
-        dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+        # UNE ligne : c'est de l'INFORMATION (classes `SERVER_OWNED` : rien à faire) et
+        # elle revenait identique à chaque déploiement — 4 lignes dont 3 de détail
+        # (mesure du 16/10/2026). Le détail par dossier et l'explication de la classe
+        # se demandent : `DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta`.
+        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur (galerie God / données générées) — rien à faire."
+        if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+            printf '%s\n' "$SERVER_DIRTY" | grep . | sed 's/^/     /'
+            dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
+            dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+        fi
     fi
     if [[ -n "$OTHER_DIRTY" ]]; then
         warn "Des fichiers suivis modifiés hors des classes connues — ils seront stashed puis réappliqués (--autostash)."
@@ -500,9 +604,17 @@ git_fetch() {
         for f in "${PRESERVED[@]}"; do
             [[ -f "$PRESERVE_DIR/$(basename "$f")" ]] || continue
             cp "$PRESERVE_DIR/$(basename "$f")" "$f"
-            dim "  → donnée locale restaurée : $f"
+            if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+                dim "  → donnée locale restaurée : $f"
+            fi
         done
         rm -rf "$PRESERVE_DIR"
+        # UNE ligne pour la même information (avant : une par fichier, avant ET après le
+        # pull). La preuve que la curation est revenue reste visible ; le détail des
+        # chemins complets se demande avec `DEPLOY_VERBOSE=1`.
+        local PRESERVED_LIST
+        PRESERVED_LIST="$(printf '%s, ' "${PRESERVED_LOCAL[@]}")"
+        dim "  → ${#PRESERVED_LOCAL[@]} donnée(s) locale(s) conservée(s) puis restaurée(s) : ${PRESERVED_LIST%, }"
     fi
 }
 
@@ -542,15 +654,7 @@ run_conditional_seed() {
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
 
-    # 🛑 La documentation n'est PLUS synchronisée ici (décision user du 12/10/2026) :
-    # `seed:docs` **écrase** chaque fiche `DocPage` par la version du catalogue
-    # (`prisma/seed-docs.ts` : `update` de title/category/content/accessLevel) **et supprime**
-    # toute fiche dont le slug n'est pas dans `OFFICIAL_DOCS`. À chaque déploiement, les
-    # corrections écrites dans l'interface étaient donc perdues (« j'ai beau éditer la doc,
-    # tu écrases tout »). La doc se publie désormais **à la demande**, en connaissance de cause :
-    #   → publication manuelle : voir `docs/agents/deploy-vps.md` § « Après le deploy ».
-    #   (la commande y est écrite avec ses protections npm `--silent` + `NO_UPDATE_NOTIFIER`,
-    #    exigées par le verrou ④ de `tests/unit/deploy-sortie-visible.test.ts`).
+    # La documentation vit en base (`DocPage`, éditée via /god/docs) : aucun seed de docs ici.
 }
 
 # -----------------------------------------------------------------------------
@@ -653,6 +757,38 @@ health_check() {
 # 04/09/2026 (`handle /robots.txt` absent → la prod a servi un robots.txt/HTML pendant
 # 20 jours, constaté le 24/09). On compare donc les empreintes, on valide la config AVANT
 # de toucher au proxy, et on ne recrée que si nécessaire.
+# Garde-fou IMAGE Caddy — le conteneur sert-il la version attendue par le Dockerfile ?
+# -----------------------------------------------------------------------------
+# `caddy_config_check` (ci-dessous) ne surveille que le **Caddyfile** (bind-mount d'un fichier).
+# Il ne dit RIEN de l'**image** : `docker compose up -d` ne rebuild jamais, donc un
+# `Dockerfile.caddy` modifié peut rester sans effet indéfiniment.
+# Mesure du 04/11/2026 : le proxy exposé à Internet servait encore un binaire de janvier 2025
+# (`go1.23.8`, compilé depuis `master`) alors que ce même Dockerfile annonçait `caddy:2.9.1` —
+# personne ne rebuildait, et rien ne le signalait. On compare donc la version du
+# `FROM caddy:X.Y.Z` à ce que répond `caddy version` **dans le conteneur en service**.
+caddy_image_check() {
+    local CONTAINER="sigilos-gateway" WANT HAVE
+
+    [[ -f Dockerfile.caddy ]] || return 0
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+        return 0
+    fi
+
+    WANT="$(grep -m1 -oE 'FROM caddy:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile.caddy | cut -d: -f2)"
+    [[ -n "$WANT" ]] || { dim "   Version Caddy illisible dans Dockerfile.caddy — contrôle ignoré."; return 0; }
+
+    HAVE="$(sudo docker exec "$CONTAINER" caddy version 2>/dev/null | awk '{print $1}' | sed 's/^v//')"
+    if [[ "$HAVE" == "$WANT" ]]; then
+        ok "Image Caddy à jour (v$HAVE = Dockerfile)."
+        return 0
+    fi
+
+    warn "Image Caddy EN RETARD : Dockerfile attend v$WANT, le conteneur sert v${HAVE:-?}."
+    dim "   Rebuild en fenêtre (le proxy tombe ~2 s) :"
+    dim "     sudo docker compose -f docker-compose.prod.yml build --no-cache caddy"
+    dim "     sudo docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps caddy"
+}
+
 caddy_config_check() {
     local ENV_FILE_C="$1"
     local CONTAINER="sigilos-gateway" HOST_SUM CONT_SUM
@@ -755,10 +891,18 @@ seo_check() {
 deploy() {
     local TARGET="$1"
     local SHA="${2:-latest}"
+    # Longueur du SHA AVANT tout : le refus ne dépend ni du token ni du registre.
+    require_sha7 "$SHA"
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     local ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
-    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+    # --short=7 : la même longueur que les tags publiés par la CI, pour que le SHA
+    # affiché soit déployable tel quel (rollback / re-deploy pinné).
+    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short=7 HEAD 2>/dev/null || echo '?')"
+    # prod se sert sur le domaine apex : `prod.sigilos.fr` n'existe pas (NXDOMAIN) et une
+    # sonde sur un hôte inexistant rendait les contrôles post-déploiement menteurs (000 sur
+    # `/`, `robots.txt` et `sitemap.xml`) alors que le site répondait 200 (mesure du 22/10/2026).
     local URL="https://${TARGET}.sigilos.fr"
+    [[ "$TARGET" == "prod" ]] && URL="https://sigilos.fr"
     local MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
 
     # ── Pré-vol ──────────────────────────────────────────────────────────────
@@ -788,10 +932,13 @@ deploy() {
         local MISSING_TAG=0
         for NAME in app worker ws discord-bot; do
             local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
-            if sudo docker buildx imagetools inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+            if image_digest "${IMG}:${SHA}"; then
                 ok "${NAME} : tag ${SHA} publié"
             else
-                err "${NAME} : tag ${SHA} absent (${IMG})"
+                err "${NAME} : tag ${SHA} — ${GHCR_DIGEST_REASON} (${IMG})"
+                if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                    dim "   ${GHCR_DIGEST_ERROR}"
+                fi
                 MISSING_TAG=1
             fi
         done
@@ -947,6 +1094,7 @@ deploy() {
     # 2) ce qui est RÉELLEMENT servi aux robots (robots.txt / sitemap.xml) ;
     # 3) l'application elle-même.
     caddy_config_check "$ENV_FILE"
+    caddy_image_check
     seo_check "$URL"
     health_check "$URL"
 }

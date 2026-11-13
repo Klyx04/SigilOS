@@ -12,7 +12,7 @@ import path from "node:path";
  * Sécurisé : super-admin uniquement.
  */
 
-const LOG_DIR = "/home/sigiladmin/SigilOS/logs";
+const LOG_DIR = process.env.CRON_LOG_DIR || "/app/logs";
 
 function readLastLines(filePath: string, n = 30): string[] {
   try {

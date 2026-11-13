@@ -1,8 +1,8 @@
 export const guide = {
     slug: "gerer-discord-guilde-dofus",
-    title: "Gérer le Discord de sa guilde Dofus : architecture, permissions, sécurité et sorties",
+    title: "Discord de guilde Dofus : rôles et sécurité",
     description:
-        "Le guide de terrain pour bâtir un Discord de guilde Dofus performant : arborescence épurée, permissions fail-closed, parade anti-phishing, gestion des raids 3.6 et intégration native avec SigilOS.",
+        "Bâtir un Discord de guilde Dofus : salons, rôles, permissions, anti-phishing, raids 3.6 et intégration SigilOS.",
     publishedAt: "2026-08-23",
     updatedAt: "2026-10-02",
     draft: false,

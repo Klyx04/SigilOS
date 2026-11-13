@@ -39,7 +39,6 @@ export type TourPhase =
     | "ressources"
     | "docs"
     | "minijeu"
-    | "stats"
     | "presentation"
     | "guide"
     | "succes"
@@ -54,9 +53,10 @@ export type TourPhase =
 export const MODULE_TOUR_PHASES = [
     "missions", "ladder", "songes", "ocre",
     "services", "donjons", "calendar", "sondages", "annuaire",
-    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
+    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "presentation",
     "guide", "succes",
     "marche",
+    "tickets",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -128,13 +128,13 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "bottom"
     },
     {
-        target: '[data-tour="profile-tab-overview"]',
+        target: '[data-tour="profile-tab-synthese"]',
         title: "Ton profil en général",
         description: "Retrouve ta présentation, ta classe et tes informations visibles par la guilde.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-metiers"]',
+        target: '[data-tour="profile-tab-personnages"]',
         title: "Tes métiers",
         description: "Indique tes métiers actifs pour que la guilde sache à qui s'adresser pour des crafts.",
         placement: "right"
@@ -147,26 +147,19 @@ const PROFILE_STEPS: TourStep[] = [
         module: "availability"
     },
     {
-        target: '[data-tour="profile-tab-combat"]',
+        target: '[data-tour="profile-tab-equipement"]',
         title: "Tes builds",
         description: "Ajoute tes liens Dofusbook ou DofusCreator pour partager tes équipements et ta progression.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-dofus"]',
+        target: '[data-tour="profile-tab-dofusdex"]',
         title: "Quêtes Dofus",
         description: "Suis ta progression sur les quêtes des Dofus directement depuis ton profil.",
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-activity"]',
-        title: "Présence & Feed",
-        description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
-        placement: "right",
-        module: "missions"
-    },
-    {
-        target: '[data-tour="profile-tab-settings"]',
+        target: '[data-tour="profile-tab-reglages"]',
         title: "Tes préférences",
         description: "Personnalise la réception de tes notifications et la visibilité de ton activité.",
         placement: "right"
@@ -186,7 +179,7 @@ const DASHBOARD_STEPS: TourStep[] = [
         // L'étape « Missions de guilde » a été retirée (redondante avec la vue globale).
         target: '[data-tour="sidebar-root"]',
         title: "Tous vos modules",
-        description: "Missions, Ladder, Quêtes Dofus, Songes, Services, Calendrier, Sondages… Tous les modules de votre guilde sont accessibles depuis cette barre latérale. Parcourez-la pour tout découvrir.",
+        description: "Missions, Ladder, Objectif Dofus, Songes, Services, Calendrier, Sondages… Tous les modules de votre guilde sont accessibles depuis cette barre latérale. Parcourez-la pour tout découvrir.",
         placement: "right"
     }
 ];
@@ -450,15 +443,8 @@ const ADMIN_MEMBERS_STEPS: TourStep[] = [
     },
     {
         target: '[data-tour="admin-members-table"]',
-        title: "Tableau des membres",
-        description: "Consultez les membres, leurs rôles, métiers et activités. Filtres et recherche inclus.",
-        placement: "top",
-        requiresPerm: "canManageMembers"
-    },
-    {
-        target: '[data-tour="admin-members-tools"]',
-        title: "Outils d'administration",
-        description: "Synchronisation des pseudos, archivage et relances d'inactivité.",
+        title: "Liste des membres",
+        description: "Une seule liste : tous les humains Discord, dashboard ou non. Filtres, rôle Discord et pagination. Cliquez un membre pour tout consulter et éditer dans une modale.",
         placement: "top",
         requiresPerm: "canManageMembers"
     }
@@ -515,13 +501,6 @@ const ADMIN_OVERVIEW_STEPS: TourStep[] = [
         description: "Le cœur de la sécurité : mappe les rôles Discord de ton serveur aux permissions SigilOS. Chaque rôle contrôle l'accès à tel ou tel module. Accessible aux admins Discord et aux détenteurs de la permission « Gestion des Accès » (system:rbac).",
         placement: "right",
         requiresPerm: "canManageRBAC"
-    },
-    {
-        target: '[data-tour="admin-overview-card-modules"]',
-        title: "Gestion des Modules",
-        description: "Active ou désactive les modules (Missions, Songes, Ocre, Services, Calendrier…). Par défaut, tout est désactivé : compose l'expérience de ta guilde sans surcharge.",
-        placement: "right",
-        requiresPerm: "isDiscordAdmin"
     },
     {
         target: '[data-tour="admin-overview-card-presentation"]',
@@ -977,7 +956,7 @@ const ANNUAIRE_STEPS: TourStep[] = [
 const QUETESDOFUS_STEPS: TourStep[] = [
     {
         target: '[data-tour="quetes-header"]',
-        title: "Quêtes Dofus",
+        title: "Objectif Dofus",
         description: "Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde.",
         placement: "bottom",
         module: "quests",
@@ -1006,7 +985,7 @@ const QUETESDOFUS_STEPS: TourStep[] = [
     {
         target: '[data-tour="sidebar-quetes"]',
         title: "Accès rapide",
-        description: "Retrouvez le module Quêtes Dofus dans la barre latérale.",
+        description: "Retrouvez le module Objectif Dofus dans la barre latérale.",
         placement: "right",
         module: "quests",
     },
@@ -1027,7 +1006,7 @@ const GUIDE_STEPS: TourStep[] = [
     {
         target: '[data-tour="guide-hud-exit"]',
         title: "Quitter le guide",
-        description: "Ce bouton rouge te ramène au module Quêtes Dofus. Ta progression est conservée et tu reprends où tu en étais.",
+        description: "Ce bouton rouge te ramène au module Objectif Dofus. Ta progression est conservée et tu reprends où tu en étais.",
         placement: "bottom",
     },
     {
@@ -1183,44 +1162,6 @@ const MINIJEU_STEPS: TourStep[] = [
     },
 ];
 
-const STATS_STEPS: TourStep[] = [
-    {
-        target: '[data-tour="stats-header"]',
-        title: "Statistiques Guilde",
-        description: "Suivez l'activité de votre guilde et de ses membres.",
-        placement: "bottom",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-overview"]',
-        title: "Indicateurs clés",
-        description: "Les KPI principaux de la guilde : effectifs, activité et progression.",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-charts"]',
-        title: "Graphiques",
-        description: "L'évolution de l'activité selon les modules activés (missions, songes, services…).",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="stats-board"]',
-        title: "Vue d'ensemble",
-        description: "L'ensemble des statistiques de la guilde sur une seule page.",
-        placement: "top",
-        module: "stats",
-    },
-    {
-        target: '[data-tour="sidebar-la-guilde"]',
-        title: "Où le retrouver",
-        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
-        placement: "right",
-        module: "stats",
-    },
-];
-
 const PRESENTATION_STEPS: TourStep[] = [
     {
         target: '[data-tour="presentation-header"]',
@@ -1298,7 +1239,7 @@ const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-tracker-detail"]',
         title: "Le détail d'un donjon",
-        description: "Tous les succès du donjon, avec leurs points et les guides partenaires (DPNL, Dofensive). Coche un succès pour le valider, ou utilise le bouton global « Tout cocher ».",
+        description: "Tous les succès du donjon, avec leurs points et les guides partenaires (DPLN). Coche un succès pour le valider, ou utilise le bouton global « Tout cocher ».",
         placement: "left",
         module: "succes",
     },
@@ -1440,6 +1381,57 @@ const MARCHE_STEPS: TourStep[] = [
     },
 ];
 
+const TICKETS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="tickets-header"]',
+        title: "Bot Tickets & Support Discord",
+        description: "Bienvenue dans le centre de support de votre guilde. Vous pouvez gérer vos tickets, créer des formulaires d'accueil et automatiser vos salons Discord sans aucun bot externe.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-inbox-tab"]',
+        title: "1. Boîte de Réception",
+        description: "Suivez tous les tickets ouverts en temps réel, prenez-les en charge en un clic, rédigez des notes privées réservées au staff et échangez directement avec les membres.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-motifs-tab"]',
+        title: "2. Types de Demande (Parcours)",
+        description: "Configurez vos motifs (Recrutement, Aide, Signalement...), associez-y un questionnaire interactif jusqu'à 20 questions et désignez les rôles staff assignés.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-panels-tab"]',
+        title: "3. Panneaux Discord",
+        description: "Déployez un message d'accueil soigné dans le salon Discord de votre choix avec des boutons cliquables pour ouvrir les tickets instantanément.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-commands-tab"]',
+        title: "4. Commandes Slash Discord",
+        description: "Créez jusqu'à 20 commandes slash personnalisées (/bienvenue, /gardien, /resoudre...) avec remplacement automatique de variables ({cible}, {staff}) et gestion des rôles.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-transcripts-tab"]',
+        title: "5. Archives & Transcripts",
+        description: "Consultez les copies conformes de chaque ticket clôturé avec historique complet, messages capturés et documents HTML sécurisés.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-analytics-tab"]',
+        title: "6. Avis & Satisfaction (CSAT)",
+        description: "Mesurez la satisfaction des membres grâce aux sondages automatiques de 1 à 5 étoiles envoyés lors de la clôture du ticket.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-settings-tab"]',
+        title: "7. Configuration & Permissions",
+        description: "Définissez la catégorie Discord où créer les salons, leur positionnement (haut ou bas), le salon de logs privé et vos plafonds de tickets.",
+        placement: "bottom",
+    },
+];
+
 export const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -1484,10 +1476,6 @@ export function TourProvider({
             }
         }
         if (step.requiresPerm && user && user[step.requiresPerm] === false) return false;
-        // Si le mode vitrine des missions est activé (missionVitrineMode), masquer Présence & Feed
-        if (step.target === '[data-tour="profile-tab-activity"]' && (user?.missionVitrineMode || (modules && !modules.missions))) {
-            return false;
-        }
         return true;
     });
 
@@ -1519,10 +1507,10 @@ export function TourProvider({
     const galerieSteps = applyFilters(GALERIE_STEPS);
     const ressourcesSteps = applyFilters(RESSOURCES_STEPS);
     const minijeuSteps = applyFilters(MINIJEU_STEPS);
-    const statsSteps = applyFilters(STATS_STEPS);
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
     const succesSteps = applyFilters(SUCCES_STEPS);
     const marcheSteps = applyFilters(MARCHE_STEPS);
+    const ticketsSteps = applyFilters(TICKETS_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -1554,10 +1542,10 @@ export function TourProvider({
             case "galerie": return galerieSteps;
             case "ressources": return ressourcesSteps;
             case "minijeu": return minijeuSteps;
-            case "stats": return statsSteps;
             case "presentation": return presentationSteps;
             case "succes": return succesSteps;
             case "marche": return marcheSteps;
+            case "tickets": return ticketsSteps;
             default: return [];
         }
     };
@@ -1639,12 +1627,12 @@ export function TourProvider({
         const storedPhase = localStorage.getItem(`sigilos-tour-phase-${guildId}`) as TourPhase;
         const storedStep = parseInt(localStorage.getItem(`sigilos-tour-step-${guildId}`) || "1", 10);
 
-        if (tourParam === "1" || (storedPhase === "profile" && pathname.includes("/profile"))) {
+        if (!isAdmin && (tourParam === "1" || (storedPhase === "profile" && pathname.includes("/profile")))) {
             setTourPhase("profile");
             setCurrentStep(tourParam === "1" ? 1 : storedStep);
             setIsActive(true);
             localStorage.setItem(`sigilos-tour-phase-${guildId}`, "profile");
-        } else if (tourParam === "2" || (storedPhase === "dashboard" && pathname === `/dashboard/${guildId}`)) {
+        } else if (!isAdmin && (tourParam === "2" || (storedPhase === "dashboard" && pathname === `/dashboard/${guildId}`))) {
             setTourPhase("dashboard");
             setCurrentStep(tourParam === "2" ? 1 : storedStep);
             setIsActive(true);
@@ -1751,9 +1739,6 @@ export function TourProvider({
                 break;
             case "minijeu":
                 router.push(`/dashboard/${guildId}/mini-jeux`);
-                break;
-            case "stats":
-                router.push(`/dashboard/${guildId}/stats`);
                 break;
             case "presentation":
                 router.push(`/dashboard/${guildId}/presentation`);

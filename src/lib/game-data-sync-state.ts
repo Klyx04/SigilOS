@@ -55,7 +55,16 @@ export const GAME_DATA_DATASET_LABEL: Record<GameDataDataset, string> = {
     ANOMALY_BOSSES: "Boss d'anomalie",
 };
 
-export type GameDataRunStatus = "IDLE" | "RUNNING" | "OK" | "ERROR";
+/**
+ * Statut d'un run.
+ *
+ * `PARTIAL` (constat du 26/10/2026) : la passe a **fait son travail** mais une partie des
+ * ressources secondaires a échoué (ex. grimoires de classes : 19/19 sorts, **214 icônes en
+ * échec**). L'ancien verdict ne regardait que `errors` ⇒ le Tableau affichait « ✓ OK » à côté
+ * d'un message qui disait « 214 en échec ». Un statut qui contredit son propre message ne sert
+ * à rien : `PARTIAL` est **visible** (ambre) et garde `lastError` vide (aucune erreur bloquante).
+ */
+export type GameDataRunStatus = "IDLE" | "RUNNING" | "OK" | "PARTIAL" | "ERROR";
 
 /**
  * Datasets exécutables **en arrière-plan** (file BullMQ + worker).

@@ -1,0 +1,28 @@
+-- ============================================================================
+-- 20270125000300_drop_guild_modules_stats
+--
+-- POURQUOI
+--   La page « Stats Guilde » a été supprimée (Phase 1, PR #1248) puis la clé `stats` a été
+--   retirée du registre de modules, du Zod et du RBAC (Phase 2a, PR #1249). Plus aucun code
+--   ne lit ni n'écrit `GuildModules.stats` : la colonne ne survivait que par « compatibilité ».
+--   Phase 2b coupe le câble.
+--
+-- CONTENU
+--   Une seule instruction : suppression de la colonne `stats` (Boolean NOT NULL DEFAULT true)
+--   de la table `GuildModules`. Aucune autre colonne, aucune donnée déplacée, aucune écriture.
+--   `IF EXISTS` rend la migration rejouable telle quelle (le DROP, lui, reste destructif).
+--
+-- IRRÉVERSIBLE
+--   Les valeurs de `stats` sont perdues (mesure locale avant drop : 6 lignes, 1 à `false`).
+--   Prisma n'a pas de migration descendante, et le retour à l'image précédente ne fonctionne
+--   PAS : son client Prisma sélectionne encore `stats` et échouerait sur
+--   « column GuildModules.stats does not exist ». Procédure d'urgence (remet le service
+--   debout, ne restaure AUCUNE valeur d'origine) :
+--     ALTER TABLE "GuildModules" ADD COLUMN IF NOT EXISTS "stats" BOOLEAN NOT NULL DEFAULT true;
+--
+-- ÉCRITE À LA MAIN
+--   Ce dépôt n'utilise pas `migrate dev` (base locale en drift) : voir
+--   docs/agents/prisma-schema-change.md §0 et §2 bis (migration destructive).
+-- ============================================================================
+
+ALTER TABLE "GuildModules" DROP COLUMN IF EXISTS "stats";

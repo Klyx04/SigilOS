@@ -256,14 +256,14 @@ describe("fiche publique et onglet interne — même source, même rendu", () =>
         // butins et l'onglet de simulation interne/public ».
         const tabs = buildBossFicheTabs({
             entity: "monster",
-            counts: { grades: 5, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+            counts: { grades: 5, roomMonsters: 0, quests: 0, achievements: 0 },
             hasMechanics: true,
         });
         expect(tabs.map((t) => t.id)).toEqual(["sorts", "sim", "strategy", "grades", "loot"]);
         expect(tabs.find((t) => t.id === "sorts")?.label).toBe("Sorts du monstre");
         expect(buildBossFicheTabs({
             entity: "monster",
-            counts: { grades: 1, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+            counts: { grades: 1, roomMonsters: 0, quests: 0, achievements: 0 },
             hasMechanics: false,
             locale: "en",
         }).find((t) => t.id === "sorts")?.label).toBe("Monster Spells");

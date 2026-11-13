@@ -60,7 +60,9 @@ describe("slash commands — périmètre", () => {
     });
 
     it("valider-recrue n'a plus qu'UNE option : la modale porte le reste", () => {
-        const sync = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
+        // La définition Discord a déménagé dans la **source unique** (`src/lib/discord/
+        // command-payloads.ts`, dérivée du catalogue) : l'invariant ne bouge pas.
+        const sync = readFileSync("src/lib/discord/command-payloads.ts", "utf8");
         // Définition Discord : la seule option restante est la recrue visée.
         expect(sync).toContain('"membre"');
         for (const moved of ['"pseudo-dofus"', '"tag-ankama"', '"recruteur"', '"arrivee"', '"ajouter-role"', '"retirer-role"']) {
@@ -77,7 +79,9 @@ describe("slash commands — périmètre", () => {
         expect(route).toContain("type: 9, // MODAL");
 
         expect(route).toContain('commandName === "valider-recrue"');
-        expect(route).toContain("PERMISSION_IDS.STAFF_MEMBER_MGMT");
+        // La permission « Ressources Humaines » reste vérifiée — désormais **à la
+        // soumission** et sans appel Discord (`PERMISSIONS`, gate local).
+        expect(route).toContain("PERMISSIONS.STAFF_MEMBER_MGMT");
         expect(route).toContain("addGuildMemberRole");
         expect(route).toContain("removeGuildMemberRole");
         expect(route).toContain("trialValidated");
@@ -96,7 +100,7 @@ describe("slash commands — périmètre", () => {
     it("les étiquettes de cycle de vie ont disparu du nouveau code", () => {
         for (const file of [
             "src/lib/member-registry.ts",
-            "src/components/admin/members/member-registry-table.tsx",
+            "src/components/admin/members/member-detail-dialog.tsx",
             "src/server/actions/member-lifecycle-actions.ts",
         ]) {
             const content = readFileSync(file, "utf8");
@@ -119,10 +123,36 @@ describe("slash commands — périmètre", () => {
         expect(route).not.toContain('{ name: "Niveau"');
     });
 
+    it("souveraineté (16/10/2026) : la commande /status n'existe plus côté Discord", () => {
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).not.toContain('commandName === "status"');
+        expect(route).not.toContain("SigilOS Status");
+    });
+
     it("/metiers pointe vers l'annuaire des membres (/members) et non annuaire-hub", () => {
         const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
         expect(route).toContain('url: `${appBaseUrl}/dashboard/${guild_id}/members`');
         expect(route).not.toContain("annuaire-hub");
+    });
+});
+
+describe("garde anti-SSRF — synchronisation des commandes (CodeQL)", () => {
+    const code = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
+
+    it("refuse un identifiant de guilde non numérique AVANT de construire l'URL", () => {
+        expect(code).toContain("/^\\d{17,20}$/");
+        const guard = code.indexOf("test(discordGuildId)");
+        const url = code.indexOf("const url = new URL(");
+        expect(guard).toBeGreaterThan(-1);
+        expect(url).toBeGreaterThan(guard);
+    });
+
+    it("construit l'URL sur une base CONSTANTE et vérifie l'hôte", () => {
+        expect(code).toContain("const apiBase = new URL(`${DISCORD_API_BASE}/`)");
+        expect(code).toContain("url.hostname !== apiBase.hostname");
+        expect(code).toContain("await fetch(url, {");
+        // Plus de template string passée telle quelle à `fetch`.
+        expect(code).not.toMatch(/await fetch\(`\$\{DISCORD_API_BASE\}/);
     });
 });
 

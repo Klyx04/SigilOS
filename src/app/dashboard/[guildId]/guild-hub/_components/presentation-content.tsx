@@ -231,6 +231,10 @@ export default function PresentationContent({
                         </section>
                     )}
 
+                    {/* Le règlement intérieur a sa **propre destination** dans le hub
+                        (`?tab=reglement`, `_components/reglement-content.tsx`) : une seule source,
+                        jamais deux rendus du même texte. */}
+
                     {guild.photoUrl && (
                         <section aria-labelledby="galerie-titre">
                             <h3 id="galerie-titre" className="reg-eyebrow">Salle des bannières</h3>

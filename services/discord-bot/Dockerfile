@@ -10,6 +10,10 @@ RUN npm install
 # 2. Setup Prisma
 COPY prisma/ ./prisma/
 COPY prisma.config.js ./
+# Règle de plafond de guildes : **une seule source versionnée** (`src/lib/guild-limit.ts`).
+# L'image du bot ne contient pas `src/` ; on la copie ici pour que `npm run build` la trouve en place
+# (le script `sync:shared` du paquet ne recopie que si la source est présente).
+COPY src/lib/guild-limit.ts ./shared/guild-limit.ts
 # Pin `prisma` au projet (^7.9.1) : sans cela, `npx prisma` tire `prisma@latest`
 # (actuellement une RC cassée 8.0.0-rc.10 qui n'a pas la commande `generate`)
 # → build KO. Le CLI est aligné sur la version du projet.

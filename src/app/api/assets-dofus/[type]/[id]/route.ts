@@ -5,6 +5,8 @@ import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
 import { assertSafeUrl } from '@/lib/image-downloader';
+import { isRemoteSpriteFetchEnabled } from '@/lib/dofus-monster-assets';
+import { logger } from '@/lib/logger';
 
 // 🛡️ Garde-fou mémoire : limite Sharp pour éviter tout crash V8 OOM lors de rafales
 if (typeof (sharp as any)?.cache === 'function') {
@@ -28,15 +30,22 @@ const ALLOWED_IMAGE_HOSTS = new Set(['api.dofusdb.fr']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
- * Fallback PNG neutre (1×1 transparent) — **jamais** de 404 rouge, ni de SVG (Discord ne sait
- * pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed « tente de se
- * générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage ne doit pas
- * être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la source est
- * revenue.
+ * Fallback PNG **réellement transparent** (1×1, alpha = 0) — **jamais** de 404 rouge, ni de SVG
+ * (Discord ne sait pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed
+ * « tente de se générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage
+ * ne doit pas être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la
+ * source est revenue.
+ *
+ * 🧨 Constat du 26/10/2026 (captures God « Gelée Royale »/« Tynril » et modale variante « sorts
+ * communs » : des **carrés verts** partout) : le PNG précédent était censé être « neutre » mais
+ * son unique pixel valait **RGBA(0, 254, 0, 127)** — un vert vif à 50 % d'opacité, étiré par la
+ * vignette en aplat vert. Un placeholder doit être **invisible** ; c'est au composant de décider
+ * d'un repli visible (icône), jamais au proxy. Le base64 ci-dessous est un 1×1 **transparent**
+ * (vérifié octet par octet par `tests/unit/assets-dofus-route.test.ts`).
  */
 function placeholderResponse(): NextResponse {
     const placeholderPng = Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAALSURBVBhXY2AAAgAABQABqtXIUQAAAABJRU5ErkJggg==",
         "base64"
     );
     return new NextResponse(placeholderPng, {
@@ -142,10 +151,23 @@ export async function GET(
         if (spriteNamespace) {
             const spriteUrl = getAllowedRemoteUrl(req.nextUrl.searchParams.get('url'));
             if (!spriteUrl) return placeholderResponse();
+            // 🧊 Mode hybride (rang 61, lot S2) : par défaut le proxy **ne sort plus** pour un
+            // sprite. Le fichier siphonné a déjà été servi à l'étape 1 ; s'il manque, on rend le
+            // picto au lieu d'appeler l'amont — c'est ce qui rend la souveraineté réelle.
+            // `ASSETS_REMOTE_FETCH=true` rallume le téléchargement à la volée, sans redéployer.
+            if (!isRemoteSpriteFetchEnabled()) {
+                logger.warn('[assets-dofus] sprite absent du cache, réseau coupé', {
+                    type: assetType,
+                    id: safeId,
+                });
+                return placeholderResponse();
+            }
             try {
                 await assertSafeUrl(spriteUrl);
+                // SSRF : aucune redirection suivie — une 3xx sortirait de l'allowlist.
                 const spriteRes = await fetch(spriteUrl, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    redirect: 'error',
                     signal: AbortSignal.timeout(6_000),
                 });
                 if (spriteRes.ok) {
@@ -163,8 +185,16 @@ export async function GET(
                         });
                     }
                 }
-            } catch {
+            } catch (error) {
                 // Source injoignable → placeholder : jamais l'image d'un AUTRE monstre.
+                // 🔎 On LOGGUE la cause : un `catch` muet a déjà caché une panne totale de
+                // téléchargement (mesure du 09/11/2026 : TOUS les sprites renvoyaient le
+                // placeholder 1×1 alors que l'amont répondait 200, 20 Ko).
+                logger.warn('[assets-dofus] téléchargement du sprite impossible', {
+                    type: assetType,
+                    id: safeId,
+                    error: String(error),
+                });
             }
             return placeholderResponse();
         }
@@ -301,6 +331,7 @@ export async function GET(
                                 await assertSafeUrl(imgUrl);
                                 const imgRes = await fetch(imgUrl, {
                                     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                    redirect: 'error',
                                     signal: AbortSignal.timeout(6_000),
                                 });
                                 if (imgRes.ok) {
@@ -328,6 +359,7 @@ export async function GET(
                     await assertSafeUrl(safeUrlParam);
                     const declared = await fetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        redirect: 'error',
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -418,6 +450,7 @@ export async function GET(
                     await assertSafeUrl(safeUrlParam);
                     const declared = await fetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        redirect: 'error',
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -569,6 +602,7 @@ export async function GET(
                         Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                     },
+                    redirect: 'error',
                     signal: AbortSignal.timeout(8_000),
                 });
 

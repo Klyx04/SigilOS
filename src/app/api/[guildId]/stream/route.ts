@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
 import { emitGuildActivity } from "@/server/actions/activity-actions";
 import { getDisplayName } from "@/lib/display-name";
+import { createSseChannel } from "@/lib/sse";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,26 +61,19 @@ export async function GET(
 
     // Start SSE stream
     let since = new Date();
-    let closed = false;
 
     // Max stream lifetime: 3 minutes. After this the client's EventSource
     // auto-reconnects, keeping connections fresh and avoiding pool exhaustion.
     const MAX_STREAM_LIFETIME_MS = 3 * 60 * 1000;
 
-    const closeStream = (controller: ReadableStreamDefaultController, poll: ReturnType<typeof setInterval>, maxLifetime: ReturnType<typeof setTimeout>) => {
-        if (closed) return;
-        closed = true;
-        clearInterval(poll);
-        clearTimeout(maxLifetime);
-        try { controller.close(); } catch { }
-    };
-
-    const stream = new ReadableStream({
+    const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
-            const encode = (data: string) => new TextEncoder().encode(data);
+            // Canal partagé : `abort`, erreur de sondage et fin de vie ferment **une
+            // seule fois** (jamais de second `close()` sur un contrôleur détruit).
+            const channel = createSseChannel(controller);
 
             // Send initial ping
-            controller.enqueue(encode(": ping\n\n"));
+            channel.send(": ping\n\n");
 
             let isPolling = false;
             // ⚠️ Sentry signale une « N+1 Query » sur cette route (08/10/2026) : c'est un
@@ -90,7 +84,7 @@ export async function GET(
             // **aucune** requête par événement. Ne pas la « corriger » en boucle plus
             // large : ça ne réduirait pas le nombre d'appels, ça augmenterait la latence.
             const poll = setInterval(async () => {
-                if (closed || isPolling) return;
+                if (!channel.open || isPolling) return;
                 isPolling = true;
 
                 try {
@@ -100,7 +94,7 @@ export async function GET(
                         take: 20,
                     });
 
-                    if (closed) return;
+                    if (!channel.open) return;
 
                     if (events.length > 0) {
                         since = events[events.length - 1].createdAt;
@@ -113,27 +107,29 @@ export async function GET(
                                 meta: evt.meta,
                                 createdAt: evt.createdAt,
                             });
-                            controller.enqueue(encode(`data: ${payload}\n\n`));
+                            if (!channel.send(`data: ${payload}\n\n`)) return;
                         }
                     } else {
                         // Keep-alive ping
-                        controller.enqueue(encode(": ping\n\n"));
+                        channel.send(": ping\n\n");
                     }
                 } catch {
-                    closeStream(controller, poll, maxLifetime);
+                    channel.close();
                 } finally {
                     isPolling = false;
                 }
             }, 8000); // Poll DB every 8s
 
             // Auto-close after max lifetime — client EventSource reconnects automatically
-            const maxLifetime = setTimeout(() => {
-                closeStream(controller, poll, maxLifetime);
-            }, MAX_STREAM_LIFETIME_MS);
+            const maxLifetime = setTimeout(() => channel.close(), MAX_STREAM_LIFETIME_MS);
 
-            req.signal.addEventListener("abort", () => {
-                closeStream(controller, poll, maxLifetime);
+            // Un seul nettoyage, joué à la fermeture quel qu'en soit le signal.
+            channel.onClose(() => {
+                clearInterval(poll);
+                clearTimeout(maxLifetime);
             });
+
+            req.signal.addEventListener("abort", () => channel.close());
         },
     });
 

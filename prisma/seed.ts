@@ -6,6 +6,7 @@ import * as path from 'path';
 import 'dotenv/config';
 import { legendaryItems } from './seed-data/legendary-items';
 import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
+import { resolveUniqueDungeonSlug } from '@/server/game/dungeon-slug';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -285,6 +286,12 @@ async function seed() {
             create: {
                 name: dungeon.name,
                 bossName: dungeon.bossName,
+                /* Slug public `/boss/<slug>` — colonne REQUISE et UNIQUE depuis la migration
+                   `20260919130000_add_dungeon_slug` : sans lui, Prisma rejette l'upsert AVANT
+                   de savoir si la ligne existe (« Argument `slug` is missing »). Même règle
+                   que le God, le siphon, les seeds de déploiement et le backfill SQL.
+                   Posé à la CRÉATION seulement : un slug publié ne bouge jamais. */
+                slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: prisma }),
                 level: dungeon.level,
                 dpnlUrl: dungeon.dpnlUrl,
                 imageUrl: dungeon.imageUrl,

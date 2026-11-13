@@ -4,7 +4,7 @@ description: Démo publique — une guilde de démonstration en lecture seule, e
 
 # 🎮 Démo publique — rendre SigilOS essayable sans compte
 
-> **Chantier `S`** de la file d'exécution (`docs/plans/FILE-EXECUTION.md`).
+> **Chantier `demo-publique` (S)** de `docs/ROADMAP.md` — **rang 26**.
 > Plan durable : BESOIN → ÉTAT MESURÉ → DÉCISIONS → LOTS → GARDES → ACCEPTATION → VIGILANCE.
 > **Toutes les mesures de ce fichier sont horodatées et reproductibles** (lecture seule) : rien n'est supposé.
 > ⚠️ Aucune donnée personnelle, aucune capture d'écran, aucun serveur Discord : le dépôt est **public** (`AGENTS.md` §1 et §5.11).

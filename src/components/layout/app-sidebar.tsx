@@ -187,7 +187,7 @@ export function AppSidebar({
     // #66bis/#72 : reflète l'ensemble des cartes du Centre Admin — inclut les RBAC
     // déléguables (points, validation, relances). Sans cela, un membre autorisé
     // accédait à sa page admin en URL directe sans voir le « Centre Admin ».
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || false;
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || user.canSchedulePolls || false;
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
@@ -199,7 +199,7 @@ export function AppSidebar({
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, imgSrc: "/assets/nav/quests.png", color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, imgSrc: "/assets/nav/trophy.png", color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
         { name: "Succès/Fiches BOSS", href: `/dashboard/${guildId}/succes`, icon: Award, imgSrc: "/assets/nav/achievement.png", color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
-        { name: "Les guides", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Objectif Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
         { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/nav/archimonster.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
@@ -209,7 +209,7 @@ export function AppSidebar({
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, imgSrc: "/assets/nav/infinite.png", color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, imgSrc: "/assets/nav/panoplie.png", color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
-        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
+        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/dofus/modules/auctionHouseEquipments.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
         { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
@@ -240,6 +240,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/logs`,
             `/dashboard/${guildId}/reaction-roles`,
             `/dashboard/${guildId}/tickets`,
+            `/dashboard/${guildId}/admin/sondages-programmes`,
             `/dashboard/${guildId}/admin/commandes`,
         ]
     };
@@ -262,19 +263,17 @@ export function AppSidebar({
             icon: Sparkles, 
             imgSrc: "/assets/nav/guild.png",
             color: "emerald",
-            visible: (user.canViewWelcome || user.canViewPresentation || user.canViewStats),
+            visible: (user.canViewWelcome || user.canViewPresentation),
             aliases: [
                 `/dashboard/${guildId}/welcome`,
                 `/dashboard/${guildId}/presentation`,
-                `/dashboard/${guildId}/stats`,
             ]
         },
 
         // ADMIN SUB-ROUTES (Searchable & Pinnable)
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
         { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
-        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.isDiscordAdmin },
-        { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
+        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.isAdmin || user.canManageRBAC || user.canViewSettings || user.canManageTickets || user.canManageMembers || user.canManageMissions },
         { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation && modules.presentation },
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },
@@ -284,7 +283,7 @@ export function AppSidebar({
         { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },
         { name: "Logs d'Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "rose", visible: user.canViewAuditLogs && modules.logs },
         { name: "Documentation", href: "/docs", icon: BookOpen, color: "teal", visible: true },
-        { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
+        { name: "Mises à jour", href: `/dashboard/${guildId}/changelog`, icon: History, color: "indigo", visible: true },
         { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];
 
@@ -609,7 +608,7 @@ export function AppSidebar({
                                     className="space-y-1 px-1 overflow-hidden"
                                 >
                                     {/* La guilde - Hub Link */}
-                                    {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
+                                    {(user.canViewWelcome || user.canViewPresentation) &&
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
                                             <NavItem 
@@ -624,13 +623,11 @@ export function AppSidebar({
                                                     aliases: [
                                                         `/dashboard/${guildId}/welcome`,
                                                         `/dashboard/${guildId}/presentation`,
-                                                        `/dashboard/${guildId}/stats`,
                                                     ]
                                                 }} 
                                                 isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
                                                     `/dashboard/${guildId}/welcome`,
                                                     `/dashboard/${guildId}/presentation`,
-                                                    `/dashboard/${guildId}/stats`,
                                                 ])} 
                                                 isPinned={false}
                                                 onPin={handleTogglePin}
@@ -898,7 +895,7 @@ export function AppSidebar({
                                 <BookOpen className="w-4 h-4" />
                                 <span className="text-caption font-medium">Docs</span>
                             </Link>
-                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
+                            <Link href={`/dashboard/${guildId}/changelog`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
                                 <History className="w-4 h-4" />
                                 <span className="text-caption font-medium">Maj</span>
                             </Link>

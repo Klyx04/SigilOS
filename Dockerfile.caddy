@@ -1,11 +1,26 @@
 # Custom Caddy with rate-limit module (F-14)
 # The official caddy:alpine image does NOT include the ratelimit plugin.
 # Build: docker build -f Dockerfile.caddy -t sigilos-caddy:latest .
-FROM caddy:2.9.1-builder-alpine AS builder
+FROM caddy:2.11.7-builder-alpine AS builder
 
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit@latest
+# ⚠️ Version PINNÉE (verrouillée par tests/unit/caddy-image-pin.test.ts).
+# Mesure du 04/11/2026 : `caddy build-info` dans le conteneur répondait `go1.23.8`
+# et `mod caddy (devel)` — le tag restait en 2.9.1 et `xcaddy build` sans version
+# compilait `master`. Le proxy exposé à Internet tournait donc sur un binaire de
+# janvier 2025, sans aucun correctif Go/Caddy depuis.
+# 2.11.7 et NON 2.11.8 : la release 2.11.8 (GitHub, 04/11/2026 01:16Z) n'a pas encore
+# d'images sur Docker Hub — vérifié à l'API le 04/11/2026 (`count = 0` pour 2.11.8,
+# 2.11.8-alpine et 2.11.8-builder-alpine) et build réellement en échec
+# (`not found`). 2.11.7-alpine / 2.11.7-builder-alpine poussés le 30/10/2026.
+# Au prochain rebuild, vérifier la disponibilité AVANT de bumper :
+#   curl -s 'https://hub.docker.com/v2/repositories/library/caddy/tags/?name=<ver>-alpine' | grep -o '"count":[0-9]*'
+# Le module ratelimit est le SEUL laissé à `@latest` : son unique tag (v0.1.0) est
+# plus ancien que `master`, le pinner serait une régression. S'il devient
+# incompatible avec l'API de Caddy, `xcaddy build` échoue ici et `caddy validate`
+# bloque la bascule — le proxy en service n'est jamais remplacé à l'aveugle.
+RUN xcaddy build v2.11.7 --with github.com/mholt/caddy-ratelimit@latest
 
-FROM caddy:2.9.1-alpine
+FROM caddy:2.11.7-alpine
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 

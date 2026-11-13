@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getMemberProfileBySlug } from "@/server/actions/profile-actions";
+import { attachItemSetsToBuilds } from "@/server/build-item-sets";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
@@ -37,6 +38,11 @@ export default async function MemberProfilePage({
     }
 
     const profile = profileResult.data;
+    /**
+     * 🔗 Bonus de panoplie des variantes : résolus **côté serveur** (cf. `attachItemSetsToBuilds`).
+     * Sans ce contexte, la variante n'est pas calculée et l'UI le dit explicitement.
+     */
+    const dofusBookLinks = await attachItemSetsToBuilds((profile.dofusBookLinks as any[]) || []);
 
     const stats = {
         xp: profile.xp || 0,
@@ -68,8 +74,8 @@ export default async function MemberProfilePage({
     return (
         <div className="p-6 space-y-6">
             {isOnVacation && (
-                <div className="flex items-center gap-3 p-4 bg-info/10 border border-info/30 rounded-lg text-info">
-                    <Palmtree className="h-5 w-5 text-info flex-shrink-0" />
+                <div className="flex items-center gap-3 p-4 bg-warning/10 border border-warning/30 rounded-xl text-warning">
+                    <Palmtree className="h-5 w-5 text-warning flex-shrink-0" />
                     <span>
                         🏖️ <strong>{displayName}</strong> est absent
                         {vacationStart && ` du ${format(vacationStart, "d MMMM yyyy", { locale: fr })}`}
@@ -139,7 +145,7 @@ export default async function MemberProfilePage({
                     metamobPseudo: profile.metamobPseudo,
                     metamobVerified: profile.metamobVerified,
                     metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
-                    dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                    dofusBookLinks,
                     introduction: profile.introduction,
                     objectifs: profile.objectifs,
                     preferredActivities: (profile.preferredActivities as string[]) || [],

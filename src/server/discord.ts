@@ -1,6 +1,6 @@
 import { getAppBaseUrl } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { DiscordApiError, getDiscordApiCode, getDiscordApiStatus, isPermanentDiscordWriteFailure } from "@/lib/discord-api-errors";
+import { DiscordApiError, describeDiscordFailure, discordFailureLevel, getDiscordApiCode, getDiscordApiStatus, isPermanentDiscordWriteFailure } from "@/lib/discord-api-errors";
 import {
     isDiscordChannelBlocked,
     isDiscordChannelBlockedError,
@@ -136,26 +136,54 @@ export async function fetchWithRetry(path: string, options: RequestInit): Promis
             if (res.status === 429) {
                 const retryAfter = res.headers.get("Retry-After");
                 const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : RETRY_DELAY * Math.pow(2, i);
-                console.warn(`[Discord API] Rate limited. Retrying after ${waitTime}ms...`);
+                logger.warn(`[Discord API] Rate limited. Retrying after ${waitTime}ms...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
                 continue;
             }
 
             // 5xx Server Error: Standard backoff
             if (res.status >= 500) {
-                console.warn(`[Discord API] Server error ${res.status}. Retrying (${i + 1}/${MAX_RETRIES})...`);
+                logger.warn(`[Discord API] Server error ${res.status}. Retrying (${i + 1}/${MAX_RETRIES})...`);
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, i)));
                 continue;
             }
 
         } catch (error) {
             lastError = error as Error;
-            console.warn(`[Discord API] Network error: ${error}. Retrying (${i + 1}/${MAX_RETRIES})...`);
+            logger.warn(`[Discord API] Network error: ${error}. Retrying (${i + 1}/${MAX_RETRIES})...`);
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, i)));
         }
     }
 
     throw lastError || new Error(`Failed to fetch ${url} after ${MAX_RETRIES} retries`);
+}
+
+/**
+ * Journalise un échec d'appel Discord au **bon niveau** (mesure du 18/10/2026).
+ *
+ * Pourquoi pas `logger.error` partout : `captureConsoleIntegration({ levels: ["error"] })`
+ * transforme chaque `console.error` en **Issue Sentry**. Un 403 « permissions manquantes »,
+ * un 404 « salon supprimé » ou un 429 ne sont pas des défauts du produit — les laisser en
+ * `error` noie les vrais bugs. La classification vit dans `discordFailureLevel` (pure,
+ * testée) : 401 et erreurs inconnues restent en `error`, le reste passe en `warn` avec le
+ * statut et le code Discord en contexte (jamais le corps brut de la réponse — F-15).
+ */
+function logDiscordFailure(
+    message: string,
+    error: unknown,
+    context: Record<string, unknown> = {},
+): void {
+    const failure = { ...context, ...describeDiscordFailure(error) };
+    if (discordFailureLevel(error) === "error") {
+        logger.error(message, { ...failure, error });
+        return;
+    }
+    logger.warn(message, failure);
+}
+
+/** Message d'un échec sans exposer un objet `Error` entier (ni le corps brut Discord). */
+function errorText(error: unknown): string {
+    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
 
 // #223 — Alias lisible de la primitive Discord centralisée (SSRF guard + v10 + UA + retry 429/5xx).
@@ -365,7 +393,7 @@ export async function leaveGuild(guildId: string): Promise<{ success: boolean; e
         const err = await res.json().catch(() => ({}));
         return { success: false, error: (err as { message?: string }).message || `Discord API returned ${res.status}` };
     } catch (error: any) {
-        logger.error("[Discord] leaveGuild échoué:", { error: error.message });
+        logDiscordFailure("[Discord] leaveGuild échoué", error);
         return { success: false, error: error.message };
     }
 }
@@ -475,6 +503,72 @@ export async function fetchAllGuildMembers(guildId: string): Promise<Set<string>
     }
 
     return memberIds;
+}
+
+/**
+ * Membres d'une guilde **avec leurs rôles et leur date d'arrivée** — la source de vérité du
+ * module « Rôles par ancienneté » (demande user du 18/10/2026 : les membres **hors
+ * dashboard** reçoivent aussi leur rôle et leur carte).
+ *
+ * Pourquoi une variante de `listGuildMembers` / `fetchAllGuildMembers` :
+ *  · `listGuildMembers` ne pagine pas (`?limit=1000` sec : une guilde de 1 400 membres serait
+ *    tronquée **sans le dire**) ;
+ *  · `fetchAllGuildMembers` pagine mais ne rend que des ids — or le diff des paliers a besoin
+ *    des `roles` **réellement portés** et de `joined_at` (la seule date d'arrivée fiable pour
+ *    un membre qui n'a jamais créé de profil).
+ *
+ * ⚠️ Pas de cache : la passe compare l'état Discord **frais** (un cache de 10 min ferait
+ * recalculer un diff déjà appliqué). Le plafond protège le cron d'une guilde géante.
+ * 403 ⇒ intent « Server Members » absent du portail Discord : le message le dit.
+ */
+export interface DiscordGuildMemberDetailed {
+    user: {
+        id: string;
+        username: string;
+        global_name?: string | null;
+        bot?: boolean;
+        avatar?: string | null;
+    };
+    nick?: string | null;
+    avatar?: string | null;
+    roles: string[];
+    joined_at?: string;
+}
+
+export async function fetchAllGuildMembersDetailed(
+    guildId: string,
+    maxMembers = 5_000,
+): Promise<{ members: DiscordGuildMemberDetailed[]; truncated: boolean }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const members: DiscordGuildMemberDetailed[] = [];
+    let after = "0";
+
+    while (members.length < maxMembers) {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`, {
+            headers: { Authorization: `Bot ${token}` },
+        });
+
+        if (!res.ok) {
+            if (res.status === 403) {
+                throw new Error(
+                    "Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.",
+                );
+            }
+            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
+        }
+
+        const page = (await res.json()) as DiscordGuildMemberDetailed[];
+        members.push(...page);
+
+        // Dernière page (Discord rend moins de 1000) : on s'arrête là.
+        if (page.length < 1000) return { members, truncated: false };
+        after = page[page.length - 1].user.id;
+    }
+
+    // On a atteint le plafond : on le dit, l'appelant le journalise et le comptabilise.
+    return { members: members.slice(0, maxMembers), truncated: true };
 }
 
 export async function fetchGuildBans(guildId: string) {
@@ -631,6 +725,8 @@ export async function fetchChannel(channelId: string) {
         guild_id?: string | null;
         name: string | null;
         type: number;
+        /** Salon parent : `parent_id` d'un **fil** (post de forum) = son salon forum. */
+        parent_id?: string | null;
         flags?: number;
         application_id?: string | null;
         // #223 — tags de forum (utilisés pour le post DJ / services) : lire via la couche centrale,
@@ -639,12 +735,22 @@ export async function fetchChannel(channelId: string) {
     };
 }
 
+export type DiscordGuildChannelRaw = {
+    id: string;
+    name: string | null;
+    type: number;
+    position: number;
+    flags?: number;
+    parent_id?: string | null;
+    permission_overwrites?: Array<{ id: string; type: number; allow: string; deny: string }>;
+};
+
 /**
  * Fetch all channels for a guild (text, voice, categories, etc.)
  */
-export async function fetchGuildChannels(guildId: string): Promise<{ id: string; name: string | null; type: number; position: number; flags?: number }[]> {
+export async function fetchGuildChannels(guildId: string): Promise<DiscordGuildChannelRaw[]> {
     const cacheKey = `guild_channels:${guildId}`;
-    const cached = getCached<{ id: string; name: string | null; type: number; position: number; flags?: number }[]>(cacheKey);
+    const cached = getCached<DiscordGuildChannelRaw[]>(cacheKey);
     if (cached) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -657,7 +763,7 @@ export async function fetchGuildChannels(guildId: string): Promise<{ id: string;
 
     if (!res.ok) throw new Error(`Failed to fetch guild channels: ${res.statusText}`);
 
-    const channels = (await res.json()) as { id: string; name: string | null; type: number; position: number; flags?: number }[];
+    const channels = (await res.json()) as DiscordGuildChannelRaw[];
     // #223 — obfuscation des salons (16/11/2026) : un salon sans VIEW_CHANNEL est soit omis
     // par l'API HTTP, soit renvoyé obfusqué (`name: "___hidden___"` + flag 1<<17). On nullifie
     // le nom pour ne JAMAIS exposer `___hidden___` à l'UI/base, et on le journalise.
@@ -680,18 +786,18 @@ export async function validateChannelBelongsToGuild(channelId: string, guildId: 
     try {
         const channel = await fetchChannel(channelId);
         if (!channel) {
-            console.warn(`[Discord Security] Channel ${channelId} not found`);
+            logger.warn(`[Discord Security] Channel ${channelId} not found`);
             return false;
         }
 
         if (channel.guild_id !== guildId) {
-            console.error(`[Discord Security] BLOCKED: Channel ${channelId} belongs to guild ${channel.guild_id}, not ${guildId}`);
+            logger.error(`[Discord Security] BLOCKED: Channel ${channelId} belongs to guild ${channel.guild_id}, not ${guildId}`);
             return false;
         }
 
         return true;
     } catch (error) {
-        console.error("[Discord Security] Channel validation failed:", error);
+        logger.warn("[Discord Security] Channel validation failed:", error);
         return false;
     }
 }
@@ -751,7 +857,6 @@ export async function postChannelMessage(channelId: string, body: Record<string,
 
     if (!res.ok) {
         const errBody = await res.text();
-        console.error(`[Discord] Status ${res.status}: ${errBody}`);
 
         // F-15: ne PAS exposer le corps brut de Discord au client (fuite de détails internes).
         // Le STATUT et le `code` numérique sont en revanche portés par l'erreur :
@@ -796,15 +901,53 @@ export async function createForumThread(
         });
 
         if (!res.ok) {
-            const error = await res.text();
-            console.error(`[Discord] Forum thread failed: ${res.status} ${error}`);
+            await res.text(); // corps jamais journalisé (F-15)
+            logger.warn(`[Discord] Forum thread failed: ${res.status}`);
             return null;
         }
 
         return (await res.json()) as { id: string; message?: { id?: string } };
     } catch (error) {
-        console.error("[Discord] Error creating forum thread:", error);
+        logger.warn("[Discord] Error creating forum thread:", error);
         return null;
+    }
+}
+
+/**
+ * PATCH /channels/{id} — **renomme un salon** (jamais d'exception : `false` = à retenter).
+ *
+ * Utilisé pour aligner le nom d'un salon de ticket sur le pseudo Discord du demandeur.
+ * `reason` part dans l'audit Discord (`X-Audit-Log-Reason`, borné et encodé).
+ */
+export async function renameChannel(channelId: string, name: string, reason?: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const trimmed = name.trim().slice(0, 100);
+    if (!trimmed) return false;
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "Content-Type": "application/json",
+        };
+        if (reason) headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
+
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({ name: trimmed }),
+        });
+
+        if (!res.ok) {
+            await res.text(); // corps jamais journalisé (F-15)
+            logger.warn(`[Discord] renameChannel failed: ${res.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error renaming channel:", error);
+        return false;
     }
 }
 
@@ -831,12 +974,12 @@ export async function patchChannelMessage(
 
         if (!res.ok) {
             const errBody = await res.text();
-            console.error(`[Discord] patchChannelMessage failed ${res.status}: ${errBody}`);
+            logger.warn(`[Discord] patchChannelMessage failed: ${res.status}`);
             return false;
         }
         return true;
     } catch (error) {
-        console.error("[Discord] Error patching message:", error);
+        logger.warn("[Discord] Error patching message:", error);
         return false;
     }
 }
@@ -868,7 +1011,7 @@ export async function updateForumThreadTags(threadId: string, tagIds: string[]):
 
         if (!res.ok) {
             const errBody = await res.text();
-            logger.warn(`[Discord] updateForumThreadTags failed ${res.status}`, { error: errBody.slice(0, 300) });
+            logger.warn(`[Discord] updateForumThreadTags failed ${res.status}`, { body: "masqué (F-15)", length: errBody.length });
             return false;
         }
         return true;
@@ -907,7 +1050,7 @@ export async function updateForumThreadName(threadId: string, name: string): Pro
 
         if (!res.ok) {
             const errBody = await res.text();
-            logger.warn(`[Discord] updateForumThreadName failed ${res.status}`, { error: errBody.slice(0, 300) });
+            logger.warn(`[Discord] updateForumThreadName failed ${res.status}`, { body: "masqué (F-15)", length: errBody.length });
             return false;
         }
         return true;
@@ -974,7 +1117,7 @@ export async function sendChannelMessage(
     const sanitizedContent = sanitizeMentions(content);
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
-        console.error("[Discord] Missing DISCORD_BOT_TOKEN");
+        logger.error("[Discord] Missing DISCORD_BOT_TOKEN");
         return null;
     }
 
@@ -1133,7 +1276,7 @@ export async function sendChannelMessage(
                 source: "sendChannelMessage",
             });
         }
-        console.error("[Discord] Error sending message:", error);
+        logDiscordFailure("[Discord] Envoi du message impossible", error, { channelId });
         throw error;
     }
 }
@@ -1161,7 +1304,7 @@ export async function sendDirectMessage(
         });
 
         if (!dmRes.ok) {
-            console.error(`[Discord] Failed to create DM channel: ${dmRes.status}`);
+            logger.warn(`[Discord] Failed to create DM channel: ${dmRes.status}`);
             return null;
         }
 
@@ -1170,7 +1313,7 @@ export async function sendDirectMessage(
         // 2. Send message to that channel
         return sendChannelMessage(dmChannel.id, content, options);
     } catch (error) {
-        console.error("[Discord] Error sending DM:", error);
+        logger.warn("[Discord] Error sending DM:", error);
         return null;
     }
 }
@@ -1256,7 +1399,7 @@ export async function updateChannelMessage(
 
         if (!res.ok) {
             const errBody = await res.text();
-            console.error(`[Discord] Update failed ${res.status}: ${errBody}`);
+            logger.warn(`[Discord] Update failed: ${res.status}`);
 
             // Même contrat que `postChannelMessage` : le STATUT et le `code` numérique
             // sont portés par l'erreur (jamais le corps brut — F-15). Sans eux, un refus
@@ -1286,7 +1429,7 @@ export async function updateChannelMessage(
                 source: "updateChannelMessage",
             });
         }
-        console.error("[Discord] Error updating message:", error);
+        logger.warn("[Discord] Error updating message:", error);
         throw error;
     }
 }
@@ -1296,10 +1439,19 @@ export async function updateChannelMessage(
  * Utilisé pour donner un retour visible (succès / erreur) sur les boutons Discord,
  * notamment `ticket:close`. Le message est éphemère (visible uniquement par le cliqueur).
  */
+export type InteractionEditPayload =
+    | string
+    | {
+          content?: string;
+          embeds?: Record<string, unknown>[];
+          components?: Record<string, unknown>[];
+          flags?: number;
+      };
+
 export async function editInteractionMessage(
     applicationId: string,
     interactionToken: string,
-    content: string
+    payload: InteractionEditPayload
 ): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
@@ -1309,13 +1461,15 @@ export async function editInteractionMessage(
     // "/" → "%2F"), appliqué sur chaque segment dans l'URL ci-dessous. Fail-closed si un
     // caractère hors-whitelist est présent.
     const cleanAppId = applicationId.replace(/[^\d]/g, "").slice(0, 21);
-    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 200);
+    // Les tokens d'interaction dépassent 200 caractères (250-300 en pratique) : la borne
+    // à 200 rejetait tout token valide SANS appeler Discord (mesuré le 29/10/2026).
+    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 1024);
 
     if (cleanAppId !== applicationId || cleanToken !== interactionToken) {
         logger.warn("[Discord] editInteractionMessage: caractère non autorisé (applicationId/interactionToken)");
         return false;
     }
-    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,200}$/.test(cleanToken)) {
+    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,1024}$/.test(cleanToken)) {
         logger.warn("[Discord] editInteractionMessage: format invalide (applicationId/interactionToken)");
         return false;
     }
@@ -1329,18 +1483,23 @@ export async function editInteractionMessage(
                     Authorization: `Bot ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ content, flags: 64 }), // flags:64 = EPHEMERAL
+                // ⚠️ Pas de `flags: 64` ici : la réponse différée (type 5) est DÉJÀ éphémère,
+                // et Discord refuse qu'une édition re-spécifie le flag EPHEMERAL — le PATCH
+                // répond 400 et « SigilOS réfléchit… » restait à l'écran indéfiniment
+                // (mesuré le 29/10/2026 sur /valider-recrue). Seul SUPPRESS_EMBEDS (4) est
+                // modifiable à l'édition.
+                body: JSON.stringify(typeof payload === "string" ? { content: payload } : payload),
             }
         );
 
         if (!res.ok) {
             const errBody = await res.text();
-            console.error(`[Discord] editInteractionMessage failed ${res.status}: ${errBody}`);
+            logger.warn(`[Discord] editInteractionMessage failed: ${res.status}`);
             return false;
         }
         return true;
     } catch (error) {
-        console.error("[Discord] Error editing interaction message:", error);
+        logger.warn("[Discord] Error editing interaction message:", error);
         return false;
     }
 }
@@ -1418,10 +1577,31 @@ export async function deleteChannelMessage(channelId: string, messageId: string,
             },
         });
 
-        // 204 No Content = success
-        return res.status === 204 || res.ok;
+        if (res.status === 204 || res.ok) {
+            // Si le salon cible était un fil/thread (forum post), supprimer le message ne suffit pas :
+            // on supprime également le fil pour ne pas laisser un post forum fantôme.
+            try {
+                const ch = await fetchChannel(channelId).catch(() => null);
+                if (ch && (ch.type === 10 || ch.type === 11 || ch.type === 12)) {
+                    await deleteChannel(channelId);
+                }
+            } catch { /* best effort */ }
+            return true;
+        }
+
+        // Si la suppression du message échoue (400 Bad Request sur starter message de forum post)
+        if (res.status === 400 || res.status === 404) {
+            try {
+                const ch = await fetchChannel(channelId).catch(() => null);
+                if (ch && (ch.type === 10 || ch.type === 11 || ch.type === 12)) {
+                    return await deleteChannel(channelId);
+                }
+            } catch { /* best effort */ }
+        }
+
+        return false;
     } catch (error) {
-        console.error("[Discord] Error deleting message:", error);
+        logger.warn("[Discord] Error deleting message:", error);
         return false;
     }
 }
@@ -1444,7 +1624,7 @@ export async function deleteChannel(channelId: string): Promise<boolean> {
         // 200 OK or 204 No Content = success
         return res.ok || res.status === 204;
     } catch (error) {
-        console.error("[Discord] Error deleting channel:", error);
+        logger.warn("[Discord] Error deleting channel:", error);
         return false;
     }
 }
@@ -1464,7 +1644,7 @@ export async function createPrivateThread(
 ): Promise<{ id: string; name: string } | null> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
-        console.error("[Discord] Missing DISCORD_BOT_TOKEN");
+        logger.error("[Discord] Missing DISCORD_BOT_TOKEN");
         return null;
     }
 
@@ -1483,14 +1663,14 @@ export async function createPrivateThread(
         });
 
         if (!res.ok) {
-            const errBody = await res.text();
-            console.error(`[Discord] Failed to create private thread: ${res.status} ${errBody}`);
+            await res.text(); // corps jamais journalisé (F-15)
+            logger.warn(`[Discord] Failed to create private thread: ${res.status}`);
             return null;
         }
 
         return (await res.json()) as { id: string; name: string };
     } catch (error) {
-        console.error("[Discord] Error creating private thread:", error);
+        logger.warn("[Discord] Error creating private thread:", error);
         return null;
     }
 }
@@ -1560,8 +1740,8 @@ export async function createForumPost(
         });
 
         if (!res.ok) {
-            const error = await res.text();
-            console.error(`[Discord] Forum creation failed: ${res.status} ${error}`);
+            await res.text(); // corps jamais journalisé (F-15)
+            logger.warn(`[Discord] Forum creation failed: ${res.status}`);
             return null;
         }
 
@@ -1571,7 +1751,7 @@ export async function createForumPost(
             messageId: data.message.id // First message ID
         };
     } catch (error) {
-        console.error("[Discord] Error creating forum post:", error);
+        logger.warn("[Discord] Error creating forum post:", error);
         return null;
     }
 }
@@ -1590,7 +1770,7 @@ export async function addUserToThread(threadId: string, userId: string): Promise
         });
         return res.ok || res.status === 204;
     } catch (error) {
-        console.error("[Discord] Error adding user to thread:", error);
+        logger.warn("[Discord] Error adding user to thread:", error);
         return false;
     }
 }
@@ -1609,7 +1789,7 @@ export async function addRoleToMember(guildId: string, userId: string, roleId: s
         });
         return res.ok || res.status === 204;
     } catch (error) {
-        console.error("[Discord] Error adding role to member:", error);
+        logger.warn("[Discord] Error adding role to member:", error);
         return false;
     }
 }
@@ -1628,7 +1808,7 @@ export async function removeRoleFromMember(guildId: string, userId: string, role
         });
         return res.ok || res.status === 204;
     } catch (error) {
-        console.error("[Discord] Error removing role from member:", error);
+        logger.warn("[Discord] Error removing role from member:", error);
         return false;
     }
 }
@@ -1651,7 +1831,7 @@ export async function archiveThread(threadId: string): Promise<boolean> {
         });
         return res.ok;
     } catch (error) {
-        console.error("[Discord] Error archiving thread:", error);
+        logger.warn("[Discord] Error archiving thread:", error);
         return false;
     }
 }
@@ -1858,7 +2038,7 @@ export async function sendDiscordRawEmbed(
     try {
         return await postChannelMessage(channelId, body);
     } catch (error) {
-        console.error("[Discord] Error sending raw embed:", error);
+        logger.warn("[Discord] Error sending raw embed:", error);
         return null;
     }
 }
@@ -1904,7 +2084,7 @@ export async function addGuildMemberRole(
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
     } catch (error: any) {
-        logger.error(`[Discord] Error adding role ${roleId} to user ${userId}:`, error);
+        logDiscordFailure(`[Discord] Error adding role ${roleId} to user ${userId}`, error);
         return { success: false, error: error?.message || "Erreur réseau Discord" };
     }
 }
@@ -1947,7 +2127,7 @@ export async function removeGuildMemberRole(
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
     } catch (error: any) {
-        logger.error(`[Discord] Error removing role ${roleId} from user ${userId}:`, error);
+        logDiscordFailure(`[Discord] Error removing role ${roleId} from user ${userId}`, error);
         return { success: false, error: error?.message || "Erreur réseau Discord" };
     }
 }
@@ -2018,7 +2198,7 @@ export async function verifyBotRoleHierarchy(
             targetRolePosition
         };
     } catch (error: any) {
-        logger.error("[Discord] Error in verifyBotRoleHierarchy:", error);
+        logDiscordFailure("[Discord] Error in verifyBotRoleHierarchy", error);
         return { canManage: false, reason: error?.message || "Erreur vérification hiérarchie" };
     }
 }
@@ -2088,7 +2268,7 @@ export async function deployReactionRoleMessage(
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
     } catch (error: any) {
-        logger.error("[Discord] Error deploying reaction role message:", error);
+        logDiscordFailure("[Discord] Error deploying reaction role message", error);
         return { success: false, error: error?.message || "Erreur déploiement Discord" };
     }
 }
@@ -2159,7 +2339,7 @@ export async function deployTicketPanelMessage(
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
     } catch (error: any) {
-        logger.error("[Discord] Error deploying ticket panel message:", error);
+        logDiscordFailure("[Discord] Error deploying ticket panel message", error);
         return { success: false, error: error?.message || "Erreur déploiement Discord" };
     }
 }
@@ -2180,6 +2360,8 @@ export async function createTicketChannelDiscord(
          * Absent = repli historique (équipe + demandeur, tout le monde refusé).
          */
         overwrites?: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>;
+        /** Position du salon dans sa catégorie ("TOP" = tout en haut, "BOTTOM" = fin de catégorie). */
+        positionInCategory?: "TOP" | "BOTTOM";
     }
 ): Promise<{ success: boolean; channelId?: string; error?: string }> {
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -2235,6 +2417,10 @@ export async function createTicketChannelDiscord(
             body.parent_id = options.parentId;
         }
 
+        if (options.positionInCategory === "TOP") {
+            body.position = 0;
+        }
+
         const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
             method: "POST",
             headers: {
@@ -2247,13 +2433,27 @@ export async function createTicketChannelDiscord(
 
         if (res.ok) {
             const data = await res.json();
+            // Si position "TOP", réindexe explicitement pour garantir le placement au sommet de la catégorie
+            if (options.positionInCategory === "TOP" && options.parentId) {
+                await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        "Content-Type": "application/json",
+                        "User-Agent": DISCORD_USER_AGENT,
+                    },
+                    body: JSON.stringify([{ id: data.id, position: 0 }]),
+                }).catch((err) => {
+                    logger.warn("[Discord] Impossible de réindexer le salon au sommet de la catégorie", { err });
+                });
+            }
             return { success: true, channelId: data.id };
         }
 
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData?.message || `Erreur création salon Discord (${res.status})` };
     } catch (error: any) {
-        logger.error("[Discord] Error creating ticket channel:", error);
+        logDiscordFailure("[Discord] Error creating ticket channel", error);
         return { success: false, error: error?.message || "Erreur création salon" };
     }
 }
@@ -2298,7 +2498,7 @@ export async function applyTicketChannelOverwrites(
         }
         return { success: true };
     } catch (error: any) {
-        logger.error("[Discord] Error applying ticket overwrites:", error);
+        logDiscordFailure("[Discord] Error applying ticket overwrites", error);
         return { success: false, error: error?.message || "Erreur permissions salon" };
     }
 }
@@ -2344,7 +2544,7 @@ export async function setMemberChannelPermissionDiscord(
 
         return { success: res.ok };
     } catch (error: any) {
-        logger.error("[Discord] Error setting member channel permission:", error);
+        logDiscordFailure("[Discord] Error setting member channel permission", error);
         return { success: false, error: error?.message || "Erreur mise à jour permissions" };
     }
 }
@@ -2374,7 +2574,7 @@ export async function renameChannelDiscord(
 
         return { success: res.ok };
     } catch (error: any) {
-        logger.error("[Discord] Error renaming channel:", error);
+        logDiscordFailure("[Discord] Error renaming channel", error);
         return { success: false, error: error?.message || "Erreur renommage" };
     }
 }
@@ -2397,7 +2597,7 @@ export async function deleteChannelDiscord(channelId: string): Promise<{ success
 
         return { success: res.ok };
     } catch (error: any) {
-        logger.error("[Discord] Error deleting channel:", error);
+        logDiscordFailure("[Discord] Error deleting channel", error);
         return { success: false, error: error?.message || "Erreur suppression salon" };
     }
 }
@@ -2465,7 +2665,7 @@ export async function fetchChannelMessagesPagedDiscord(
             }
         }
     } catch (error: any) {
-        logger.error("[Discord] Error paging channel messages:", error);
+        logDiscordFailure("[Discord] Error paging channel messages", error);
         complete = false;
     }
 
@@ -2499,7 +2699,7 @@ export async function fetchChannelMessagesDiscord(
         }
         return [];
     } catch (error: any) {
-        logger.error("[Discord] Error fetching channel messages:", error);
+        logDiscordFailure("[Discord] Error fetching channel messages", error);
         return [];
     }
 }

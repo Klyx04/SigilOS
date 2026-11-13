@@ -2,11 +2,13 @@
 
 import { z } from "zod";
 import { db } from "@/lib/prisma";
+import { buildDiscordAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
 import { getUserContext } from "./user-actions";
 import { isSuperAdmin } from "./super-admin-actions";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import {
     deployTicketPanelMessage,
     createTicketChannelDiscord,
@@ -14,9 +16,13 @@ import {
     setMemberChannelPermissionDiscord,
     renameChannelDiscord,
     deleteChannelDiscord,
+    editInteractionMessage,
+    patchChannelMessage,
+    deleteChannelMessage,
     sendChannelMessage,
 } from "@/server/discord";
 import { captureTicketArchives } from "@/server/tickets/archive";
+import { sendTicketCsatSurvey } from "@/server/tickets/csat";
 import { clearTicketDraft } from "@/server/tickets/journey-open";
 import {
     evaluateAnswers,
@@ -30,14 +36,35 @@ import {
     buildModerationRows,
     buildPanelEmbed,
     buildPanelRows,
+    buildTicketAnswersEmbed,
     buildTicketWelcomeEmbed,
     formatTicketChannelName,
+    ticketStatusLabel,
 } from "@/lib/tickets/embeds";
-import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import { resolveTicketLang, ticketLabel, type TicketLang } from "@/lib/tickets/ticket-texts";
 import {
+    readTicketButtonSettings,
+    ticketButtonAccess,
+    writeTicketButtonSettings,
+    type TicketButtonKey,
+    type TicketButtonSettings,
+} from "@/lib/tickets/button-config";
+import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import { isDiscordSnowflake } from "@/lib/discord-ids";
+import { raceWithDeadline } from "@/lib/discord/deadline";
+import {
+    renameTicketChannelOnClose,
+    restoreTicketChannelNameOnReopen,
+} from "@/server/tickets/channel-naming";
+import {
+    readTicketMessagingSettings,
     readTicketPermissionSettings,
     resolveCategoryClosePolicy,
+    resolveTicketChannelPosition,
+    TICKET_MOTIF_DUPLICATE_MESSAGE,
     writeTicketPermissionSettings,
+    type TicketCsatDestination,
+    type TicketMotifButtonOverrides,
 } from "@/lib/tickets/category-permissions";
 import {
     clampTicketGuildQuotas,
@@ -53,7 +80,9 @@ import {
     type TicketChannelState,
 } from "@/lib/tickets/channel-permissions";
 import {
-    buildTicketNotifyContent,
+    buildTicketCreatorContent,
+    buildTicketNotifyContentWithTemplate,
+    buildTicketOpeningContent,
     resolveTicketNotifyRoleIds,
 } from "@/lib/tickets/notifications";
 import {
@@ -78,9 +107,14 @@ const TicketGuildConfigSchema = z.object({
     logChannelId: z.string().nullable().optional(),
     transcriptsChannelId: z.string().nullable().optional(),
     staffRoleIds: z.array(z.string()).default([]),
-    maxActiveTicketsPerUser: z.number().min(1).max(10).default(1),
-    maxTicketsTotalGuild: z.number().min(5).max(500).default(50),
-    enableCsat: z.boolean().default(true),
+    maxActiveTicketsPerUser: z.number().min(1).max(5).default(1),
+    maxTicketsTotalGuild: z.number().min(5).max(50).default(50),
+    // Avis des membres : désactivés par défaut (revue 14/10), le staff les
+    // active quand il veut mesurer la satisfaction.
+    enableCsat: z.boolean().default(false),
+    // Copies des messages : désactivées par défaut (stockage VPS), interrupteur
+    // de guilde qui s'ajoute au verrou plateforme.
+    enableTranscripts: z.boolean().default(false),
     enableDmNotifications: z.boolean().default(true),
     /** Permissions sans migration : objet JSON (voir `category-permissions.ts`). */
     settingsJson: z.record(z.string(), z.unknown()).optional(),
@@ -102,6 +136,7 @@ const TicketPanelSchema = z.object({
     /** 🆕 v2 — parcours exposés par ce message Discord (l'ordre = celui des boutons). */
     journeyIds: z.array(z.string()).max(25).default([]),
     isActive: z.boolean().default(true),
+    deployAfterSave: z.boolean().optional(),
 });
 
 // =============================================================================
@@ -126,10 +161,14 @@ export async function getTicketGuildConfigAction(guildId: string): Promise<Actio
         });
 
         if (!config) {
+            // Nouguildes : avis et copies désactivés par défaut (revue 14/10).
+            // Les guildes existantes gardent leurs valeurs (aucune réécriture).
             config = await db.ticketGuildConfig.create({
                 data: {
                     guildId: guildConfig.id,
                     isEnabled: true,
+                    enableCsat: false,
+                    enableTranscripts: false,
                 },
             });
         }
@@ -186,8 +225,32 @@ export async function updateTicketGuildConfigAction(
             },
         });
 
+        // 🔗 Synchronisation bidirectionnelle avec Pilotage -> Modules (GuildModules.tickets)
+        if (parsed.data.isEnabled !== undefined) {
+            await db.guildModules.upsert({
+                where: { guildId: guildConfig.id },
+                create: {
+                    guildId: guildConfig.id,
+                    tickets: parsed.data.isEnabled,
+                },
+                update: {
+                    tickets: parsed.data.isEnabled,
+                },
+            }).catch((err) => {
+                logger.warn("[updateTicketGuildConfigAction] échec sync GuildModules.tickets", { err });
+            });
+            const { invalidateModuleCache } = await import("@/server/actions/module-actions");
+            await invalidateModuleCache(guildId).catch(() => {});
+        }
+
         revalidatePath(`/dashboard/${guildId}/tickets`);
-        return { success: true, data: updated };
+        revalidatePath(`/dashboard/${guildId}/admin/pilotage`);
+        // Le clamp God est silencieux en base : on le dit au dashboard pour
+        // qu'il affiche un avertissement au lieu de laisser croire que « 10 » est sauvé.
+        const clamped =
+            quotas.maxActiveTicketsPerUser !== parsed.data.maxActiveTicketsPerUser ||
+            quotas.maxTicketsTotalGuild !== parsed.data.maxTicketsTotalGuild;
+        return { success: true, data: { ...updated, clamped, platformLimits } };
     } catch (error: any) {
         logger.error("[updateTicketGuildConfigAction] Error:", error);
         return { success: false, error: error?.message || "Erreur de mise à jour" };
@@ -203,9 +266,25 @@ export async function saveTicketGuildPermissionsAction(
     patch: {
         allowUserClose?: boolean;
         requireCloseConfirm?: boolean;
+        channelPositionInCategory?: "TOP" | "BOTTOM";
         blacklistRoleIds?: string[];
         /** Matrice Ouvert/Fermé (validée permission par permission, jamais en aveugle). */
         channelPermissions?: TicketChannelMatrix;
+        /** Enquête de satisfaction : en privé ou dans le salon fermé. */
+        csatDestination?: TicketCsatDestination;
+        /** Titre personnalisé de l'embed CSAT. */
+        csatTitle?: string;
+        /** Description personnalisée de l'embed CSAT. */
+        csatDescription?: string;
+        /** Langue du bot sur Discord (une seule, jamais doublée). */
+        ticketLanguage?: "fr" | "en";
+        /**
+         * 🆕 Boutons du salon : nom, icône et **droit** de chacun (`settingsJson.buttons`).
+         * Un bouton `disabled` est réellement retiré du message.
+         */
+        buttons?: TicketButtonSettings;
+        /** 🏷️ Nom du salon après fermeture (`ticket-clos` par défaut, vide = défaut). */
+        closedChannelPattern?: string;
     }
 ): Promise<ActionResponse> {
     try {
@@ -225,11 +304,26 @@ export async function saveTicketGuildPermissionsAction(
             select: { settingsJson: true },
         });
 
-        let next = writeTicketPermissionSettings(current?.settingsJson, patch);
+        let next = writeTicketPermissionSettings(current?.settingsJson, {
+            allowUserClose: patch.allowUserClose,
+            requireCloseConfirm: patch.requireCloseConfirm,
+            channelPositionInCategory: patch.channelPositionInCategory,
+            blacklistRoleIds: patch.blacklistRoleIds,
+            csatDestination: patch.csatDestination,
+            ticketLanguage: patch.ticketLanguage,
+            csatTitle: patch.csatTitle,
+            csatDescription: patch.csatDescription,
+            closedChannelPattern: patch.closedChannelPattern,
+        });
         if (patch.channelPermissions) {
             // Relecture stricte : seules les 3 groupes modifiables, booléens exigés.
             const clean = readChannelPermissions({ channelPermissions: patch.channelPermissions });
             next = writeChannelPermissions(next, clean);
+        }
+        if (patch.buttons) {
+            // Relecture stricte (libellé borné, icône bornée, droit dans l'enum) : une
+            // configuration illisible ne peut pas ouvrir un accès.
+            next = writeTicketButtonSettings(next, readTicketButtonSettings({ buttons: patch.buttons }));
         }
 
         await db.ticketGuildConfig.upsert({
@@ -376,6 +470,17 @@ export async function saveTicketPanelAction(
                     isActive: payload.isActive,
                 },
             });
+        }
+
+        if (payload.deployAfterSave) {
+            const deployRes = await deployTicketPanelAction(guildId, panel.id);
+            if (!deployRes.success) {
+                return {
+                    success: true,
+                    data: panel,
+                    error: `Panneau enregistré en base, mais échec de publication Discord : ${deployRes.error}`,
+                };
+            }
         }
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
@@ -528,6 +633,8 @@ export async function getTicketRecordsAction(
     filters: {
         status?: string;
         categoryId?: string;
+        /** 🆕 v2 — filtre par type de demande (la boîte sait filtrer les deux générations). */
+        journeyId?: string;
         claimedByDiscordId?: string;
         search?: string;
         page?: number;
@@ -558,14 +665,21 @@ export async function getTicketRecordsAction(
         if (filters.categoryId && filters.categoryId !== "ALL") {
             where.categoryId = filters.categoryId;
         }
+        if (filters.journeyId && filters.journeyId !== "ALL") {
+            where.journeyId = filters.journeyId;
+        }
         if (filters.claimedByDiscordId) {
             where.claimedByDiscordId = filters.claimedByDiscordId;
         }
         if (filters.search) {
-            where.OR = [
+            const or: Array<Record<string, unknown>> = [
                 { creatorDiscordName: { contains: filters.search, mode: "insensitive" } },
                 { creatorDiscordId: { contains: filters.search } },
             ];
+            // « #12 » ou « 12 » retrouve le ticket n°12 (membre, #ID ou sujet).
+            const asNumber = Number.parseInt(filters.search.replace(/^#/, ""), 10);
+            if (Number.isFinite(asNumber)) or.push({ ticketNumber: asNumber });
+            where.OR = or;
         }
 
         const [tickets, total] = await Promise.all([
@@ -636,6 +750,25 @@ export async function getTicketRecordAction(guildId: string, ticketId: string): 
     }
 }
 
+/**
+ * 🔴 **Identité Discord d'un auteur d'action dashboard.**
+ *
+ * `getUserContext().id` est un **cuid Prisma** (clé interne), pas un flocon Discord :
+ * l'écrire dans une colonne `*DiscordId` ou dans un `<@…>` produisait la mention morte
+ * `<@cmlozn4dj000g01mj6d1lz4iw>` (constatée en bêta le 16/10/2026). On n'accepte donc
+ * qu'un flocon ; sinon on rend le repli demandé (`null` pour une colonne nullable,
+ * `"unknown"` pour une colonne requise) — jamais une valeur inventée.
+ */
+function resolveActorDiscordId(user: { discordId?: string | null }, fallback?: string): string;
+function resolveActorDiscordId(user: { discordId?: string | null }, fallback: null): string | null;
+function resolveActorDiscordId(
+    user: { discordId?: string | null },
+    fallback: string | null = "unknown"
+): string | null {
+    const snowflake = String(user.discordId ?? "").trim();
+    return /^\d{15,21}$/.test(snowflake) ? snowflake : fallback;
+}
+
 export async function claimTicketAction(guildId: string, ticketId: string): Promise<ActionResponse> {
     try {
         const user = await getUserContext(guildId);
@@ -645,17 +778,27 @@ export async function claimTicketAction(guildId: string, ticketId: string): Prom
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, ticketConfig: { select: { settingsJson: true } } },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // 🔴 `user.id` (cuid interne) n'est pas un identifiant Discord : le confondre avec
+        // un flocon écrivait une fausse identité dans `claimedByDiscordId` et affichait
+        // `<@cmlozn4dj000g01mj6d1lz4iw>` au lieu de pinger la personne.
+        const claimerDiscordId = resolveActorDiscordId(user, null);
+        const claimerName = user.name || "Staff";
 
         const updated = await db.ticketRecord.update({
             where: { id: ticketId, guildId: guildConfig.id },
             data: {
                 status: "CLAIMED",
-                claimedByDiscordId: user.id || "unknown",
-                claimedByName: user.name || "Staff",
+                claimedByDiscordId: claimerDiscordId,
+                claimedByName: claimerName,
                 claimedAt: new Date(),
+            },
+            include: {
+                category: true,
+                journey: true,
             },
         });
 
@@ -663,17 +806,41 @@ export async function claimTicketAction(guildId: string, ticketId: string): Prom
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
-                actorName: user.name || "Staff",
+                actorDiscordId: claimerDiscordId ?? "unknown",
+                actorName: claimerName,
                 action: "CLAIM",
+                detailsJson: { internalUserId: user.id ?? null },
             },
         });
 
-        // Notify in Discord channel if exists
+        // Met à jour l'embed d'accueil Discord en direct et notifie dans le salon
         if (updated.discordChannelId) {
+            const settingsJson = (guildConfig.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson;
+            const claimLang = resolveTicketLang(
+                readTicketMessagingSettings(settingsJson).ticketLanguage
+            );
+            await patchTicketWelcomeMessage({
+                ticketId: updated.id,
+                channelId: updated.discordChannelId,
+                metadataJson: updated.metadataJson,
+                embed: ticketWelcomeEmbedFrom(
+                    { ...updated, claimedByDiscordId: claimerDiscordId },
+                    { status: "CLAIMED", settingsJson, lang: claimLang }
+                ),
+                components: buildActionRows({
+                    ticketId: updated.id,
+                    status: "CLAIMED",
+                    lang: claimLang,
+                    buttons: readTicketButtonSettings(settingsJson),
+                    motifButtons: motifButtonsOf(settingsJson, updated),
+                }),
+            }).catch(() => {});
+
             await sendChannelMessage(
                 updated.discordChannelId,
-                `🛡️ **${user.name || "Le Staff"}** a pris en charge ce ticket.`
+                claimerDiscordId
+                    ? `🛡️ <@${claimerDiscordId}> (**${claimerName}**) a pris en charge ce ticket.`
+                    : `🛡️ **${claimerName}** a pris en charge ce ticket.`
             ).catch(() => {});
         }
 
@@ -694,7 +861,7 @@ export async function unclaimTicketAction(guildId: string, ticketId: string): Pr
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, ticketConfig: { select: { settingsJson: true } } },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -706,19 +873,45 @@ export async function unclaimTicketAction(guildId: string, ticketId: string): Pr
                 claimedByName: null,
                 claimedAt: null,
             },
+            include: {
+                category: true,
+                journey: true,
+            },
         });
 
         await db.ticketAuditLog.create({
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "UNCLAIM",
             },
         });
 
+        // Met à jour l'embed d'accueil Discord en direct et notifie dans le salon
         if (updated.discordChannelId) {
+            const settingsJson = (guildConfig.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson;
+            const openLang = resolveTicketLang(
+                readTicketMessagingSettings(settingsJson).ticketLanguage
+            );
+            await patchTicketWelcomeMessage({
+                ticketId: updated.id,
+                channelId: updated.discordChannelId,
+                metadataJson: updated.metadataJson,
+                embed: ticketWelcomeEmbedFrom(
+                    { ...updated, claimedByDiscordId: null },
+                    { status: "OPEN", settingsJson, lang: openLang }
+                ),
+                components: buildActionRows({
+                    ticketId: updated.id,
+                    status: "OPEN",
+                    lang: openLang,
+                    buttons: readTicketButtonSettings(settingsJson),
+                    motifButtons: motifButtonsOf(settingsJson, updated),
+                }),
+            }).catch(() => {});
+
             await sendChannelMessage(
                 updated.discordChannelId,
                 `🔓 Ce ticket n'est plus assigné et est retourné dans la file générale.`
@@ -758,7 +951,7 @@ export async function addTicketNoteAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                authorDiscordId: user.id || "unknown",
+                authorDiscordId: resolveActorDiscordId(user),
                 authorName: user.name || "Staff",
                 content: content.trim(),
             },
@@ -768,7 +961,7 @@ export async function addTicketNoteAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "NOTE_ADD",
             },
@@ -816,10 +1009,12 @@ export async function closeTicketAction(
 
         // 1. Archives — **une seule source de vérité** (`captureTicketArchives`) :
         // pagination réelle, document partageable sans notes internes, annexe staff
-        // séparée, échéance issue des **plafonds plateforme** (God, jamais la guilde).
+        // séparée, double verrou plateforme + guilde, échéance issue des **plafonds
+        // plateforme** (God, jamais la guilde).
+        const archiveConfig = await ticketArchiveConfig(guildConfig.id);
         const archive = await captureTicketArchives({
             ticket,
-            config: await ticketArchiveConfig(),
+            config: archiveConfig,
             closedByName: user.name || "Staff",
             closedReason: reason ?? null,
         });
@@ -830,7 +1025,8 @@ export async function closeTicketAction(
             data: {
                 status: "CLOSED",
                 closedAt: new Date(),
-                closedByDiscordId: user.id || "unknown",
+                // Nullable : si le flocon est inconnu on n'écrit **rien** (jamais un cuid).
+                closedByDiscordId: resolveActorDiscordId(user, null),
                 closedByName: user.name || "Staff",
                 closedReason: reason || "Fermé par le Staff",
             },
@@ -840,7 +1036,7 @@ export async function closeTicketAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "CLOSE",
                 // L'archive est traçable : nature, complétude et échéance.
@@ -878,27 +1074,110 @@ export async function closeTicketAction(
                     ticketId: ticket.id,
                 });
             }
+            // 🏷️ Le salon passe au nom de fermeture défini par le staff (`ticket-clos`).
+            await renameTicketChannelOnClose({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                ticketId: ticket.id,
+            });
+            const closeLang = resolveTicketLang(
+                readTicketMessagingSettings(
+                    (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+                ).ticketLanguage
+            );
+            const closeBy = user.name || "Staff";
+            const closeButtons = readTicketButtonSettings(
+                (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+            );
+            // 🆕 Le message d'accueil du salon **révèle** Rouvrir / Transcript / Supprimer :
+            // c'est le même message qui portait « Prendre en charge » et « Fermer le ticket »
+            // (un seul endroit à regarder, aucun bouton en double).
+            await patchTicketWelcomeMessage({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(ticket, {
+                    status: "CLOSED",
+                    settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                    lang: closeLang,
+                }),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "CLOSED",
+                    lang: closeLang,
+                    buttons: closeButtons,
+                    motifButtons: motifButtonsOf(
+                        (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                        ticket
+                    ),
+                    enableTranscripts: archiveConfig.enableTranscripts,
+                }),
+            });
             await sendChannelMessage(
                 ticket.discordChannelId,
-                `📦 Ticket #${ticket.ticketNumber} fermé par **${user.name || "Staff"}**${reason ? ` — ${reason.slice(0, 200)}` : ""}`,
+                closeLang === "en"
+                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${closeBy}**`
+                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${closeBy}**`,
                 {
-                    embedTitle: `📦 Ticket #${ticket.ticketNumber} — Fermé / Closed`,
+                    embedTitle:
+                        closeLang === "en"
+                            ? `📦 Ticket #${ticket.ticketNumber} — Closed`
+                            : `📦 Ticket #${ticket.ticketNumber} — Fermé`,
                     embedColor: 0x71717a,
-                    embedDescription: [
-                        `Fermé par **${user.name || "Staff"}** / Closed`,
-                        reason ? `Motif / Reason : ${reason.slice(0, 300)}` : null,
-                        archive.note ? `Copie / Transcript : ${archive.note}` : null,
-                    ]
-                        .filter(Boolean)
-                        .join("\n"),
+                    // 🔇 Le **motif** n'est plus affiché : un membre n'a pas à lire
+                    // « Exécution de la commande /bienvenue ». Il reste en base
+                    // (`closedReason`), dans l'audit et dans les archives staff.
+                    embedDescription:
+                        closeLang === "en" ? `Closed by **${closeBy}**` : `Fermé par **${closeBy}**`,
                     embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
-                    components: buildModerationRows(ticket.id),
+                    components: buildModerationRows(
+                        ticket.id,
+                        closeLang,
+                        closeButtons,
+                        motifButtonsOf(
+                            (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                            ticket
+                        )
+                    ),
                 }
             ).catch((error) => {
                 logger.warn("[closeTicketAction] message de modération non envoyé", {
                     error,
                     ticketId: ticket.id,
                 });
+            });
+        }
+
+        // 4. Enquête de satisfaction — **même service que la fermeture depuis Discord**
+        // (`sendTicketCsatSurvey`). La fermeture dashboard n'en envoyait aucune : le vote
+        // ne partait donc jamais quand un staff fermait depuis la boîte de réception.
+        const csat = await sendTicketCsatSurvey({
+            ticket: {
+                id: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                creatorDiscordId: ticket.creatorDiscordId,
+                discordChannelId: ticket.discordChannelId,
+            },
+            guildName: ticket.guild.name,
+            motifName: ticket.journey?.name || ticket.category?.name || "Support",
+            settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+            enableCsat: ticketConfig?.enableCsat !== false,
+        });
+        if (!csat.sent && csat.reason !== "disabled") {
+            // Jamais un échec muet : l'écran dit « clôturé », le log dit que l'avis n'est
+            // pas parti (et pourquoi).
+            logger.warn("[closeTicketAction] enquête de satisfaction non envoyée", {
+                ticketId: ticket.id,
+                reason: csat.reason,
+                detail: csat.detail,
             });
         }
 
@@ -940,7 +1219,7 @@ export async function renameTicketAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "RENAME",
                 detailsJson: { newName },
@@ -1112,7 +1391,7 @@ export async function toggleGodTicketBotModuleAction(
 
 /**
  * 🆕 Plafonds plateforme (God) : rétention, transcripts, quotas max.
- * Ligne absente ou panne ⇒ **défauts sûrs** (90/90/180 j, caps 5/100) : un ticket
+ * Ligne absente ou panne ⇒ **défauts sûrs** (7/7/90 j, caps 5/100) : un ticket
  * continue de s'ouvrir, avec des archives courtes — jamais de stockage illimité.
  */
 export async function getTicketPlatformLimits(): Promise<TicketPlatformLimits> {
@@ -1448,6 +1727,12 @@ export async function saveTicketFormAction(guildId: string, data: unknown): Prom
         return { success: true, data: { id: form.id, updatedAt: form.updatedAt } };
     } catch (error: any) {
         logger.error("[saveTicketFormAction] Error:", error);
+        // Course entre le pré-contrôle de doublon et l'écriture (double-clic, deux
+        // onglets) : message FR, jamais le nom brut de la contrainte (même patron
+        // que la création de parcours — constat bêta du 16/10/2026).
+        if (error?.code === "P2002") {
+            return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+        }
         return { success: false, error: error?.message || "Erreur enregistrement formulaire" };
     }
 }
@@ -1511,7 +1796,28 @@ export async function listTicketJourneysAction(guildId: string): Promise<ActionR
             },
         });
 
-        return { success: true, data: journeys };
+        // Compteur « ouverts » réel : l'historique fermé ne gonfle plus le chiffre.
+        // `_count.tickets` reste renvoyé pour compat, mais l'UI lit `openTickets`.
+        const openGroups = await db.ticketRecord.groupBy({
+            by: ["journeyId"],
+            where: {
+                guildId: guard.guildInternalId,
+                journeyId: { in: journeys.map((journey) => journey.id) },
+                status: { in: ["REQUESTED", "OPEN", "CLAIMED", "PENDING_USER", "RESOLVED", "ARCHIVE_FAILED"] },
+            },
+            _count: { journeyId: true },
+        });
+        const openByJourney = new Map(
+            openGroups.map((group) => [group.journeyId, group._count.journeyId])
+        );
+
+        return {
+            success: true,
+            data: journeys.map((journey) => ({
+                ...journey,
+                openTickets: openByJourney.get(journey.id) ?? 0,
+            })),
+        };
     } catch (error: any) {
         logger.error("[listTicketJourneysAction] Error:", error);
         return { success: false, error: error?.message || "Erreur récupération des parcours" };
@@ -1637,17 +1943,36 @@ export async function publishTicketJourneyAction(guildId: string, journeyId: str
     }
 }
 
-export async function deleteTicketJourneyAction(guildId: string, journeyId: string): Promise<ActionResponse> {
+export async function deleteTicketJourneyAction(
+    guildId: string,
+    journeyId: string,
+    force: boolean = false
+): Promise<ActionResponse<{ openTickets?: number; canForce?: boolean }>> {
     try {
         const guard = await requireTicketManager(guildId);
         if (!guard.ok) return { success: false, error: guard.error };
 
-        const tickets = await db.ticketRecord.count({ where: { guildId: guard.guildInternalId, journeyId } });
-        if (tickets > 0) {
-            return {
-                success: false,
-                error: `Ce motif porte ${tickets} ticket(s) : désactive-le plutôt que de le supprimer.`,
-            };
+        // Compter les tickets liés
+        const openTickets = await db.ticketRecord.count({
+            where: {
+                guildId: guard.guildInternalId,
+                journeyId,
+                status: { in: ["REQUESTED", "OPEN", "CLAIMED", "PENDING_USER", "RESOLVED", "ARCHIVE_FAILED"] },
+            },
+        });
+        if (openTickets > 0) {
+            if (!force) {
+                return {
+                    success: false,
+                    error: `Ce motif est lié à ${openTickets} ticket(s) ouvert(s). Vous pouvez confirmer pour détacher ces tickets et supprimer le motif.`,
+                    data: { openTickets, canForce: true },
+                };
+            }
+            // Détacher les tickets avant suppression pour éviter tout blocage
+            await db.ticketRecord.updateMany({
+                where: { guildId: guard.guildInternalId, journeyId },
+                data: { journeyId: null },
+            });
         }
 
         await db.ticketJourney.delete({ where: { id: journeyId, guildId: guard.guildInternalId } });
@@ -1656,6 +1981,30 @@ export async function deleteTicketJourneyAction(guildId: string, journeyId: stri
     } catch (error: any) {
         logger.error("[deleteTicketJourneyAction] Error:", error);
         return { success: false, error: error?.message || "Erreur suppression motif" };
+    }
+}
+
+/** Supprime définitivement un ticket (et son salon Discord s'il existe). */
+export async function deleteTicketRecordAction(guildId: string, ticketId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const ticket = await db.ticketRecord.findUnique({
+            where: { id: ticketId, guildId: guard.guildInternalId },
+        });
+        if (!ticket) return { success: false, error: "Ticket introuvable" };
+
+        if (ticket.discordChannelId) {
+            await deleteChannelDiscord(ticket.discordChannelId).catch(() => null);
+        }
+
+        await db.ticketRecord.delete({ where: { id: ticket.id } });
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[deleteTicketRecordAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur suppression ticket" };
     }
 }
 
@@ -1681,7 +2030,34 @@ const TicketMotifSaveSchema = z.object({
     namingPattern: z.string().min(1).max(80).default("ticket-{num}"),
     closePolicy: z.enum(["STAFF_ONLY", "STAFF_OR_CREATOR"]).default("STAFF_OR_CREATOR"),
     requireConfirm: z.boolean().default(true),
+    channelPositionInCategory: z.enum(["TOP", "BOTTOM"]).optional(),
     additionalRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    welcomeMessage: z.string().max(2000).nullable().optional(),
+    /**
+     * 🆕 **Qui peut ouvrir** ce motif (RBAC). Vide = tout le monde ; sinon, seuls ces rôles
+     * (l'admin Discord passe toujours). Vérifié au clic du panneau, refus motivé.
+     */
+    allowedRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    /** 🆕 Interrupteur « prévenir l'équipe à l'ouverture » (défaut : oui). */
+    notifyEnabled: z.boolean().default(true),
+    /** 🆕 Message personnalisé envoyé avec le ping des rôles (`{membre}`, `{motif}`, `{numero}`). */
+    notifyMessage: z.string().max(900).nullable().optional(),
+    /** 🆕 Message personnalisé envoyé au demandeur (`{membre}` = sa mention). */
+    creatorMessage: z.string().max(900).nullable().optional(),
+    /**
+     * 🆕 **Boutons surchargés pour CE motif** (héritage du global sinon) : par
+     * bouton, `disabled` retire le bouton de ce salon, `label` le renomme.
+     * Emoji, couleur et droit restent réglés dans `Configuration`.
+     */
+    motifButtons: z
+        .record(
+            z.enum(["claim", "close", "reopen", "transcript", "delete"]),
+            z.object({
+                disabled: z.boolean().default(false),
+                label: z.string().max(80).nullable().optional(),
+            })
+        )
+        .optional(),
     isEnabled: z.boolean().default(true),
     order: z.number().int().min(0).max(999).default(0),
     /** Questionnaire (4 natures, 20 au plus) : validé par le contrat v2. */
@@ -1755,20 +2131,32 @@ export async function saveTicketMotifAction(guildId: string, data: unknown): Pro
             isEnabled: payload.isEnabled,
         };
 
-        let journey = payload.journeyId
-            ? await db.ticketJourney.update({
-                  where: { id: payload.journeyId, guildId: guard.guildInternalId },
-                  data: { ...journeyValues, formId: undefined, formVersion: undefined },
-              })
-            : await db.ticketJourney.create({
-                  data: {
-                      guildId: guard.guildInternalId,
-                      ...journeyValues,
-                      isPublished: true,
-                      publishedAt: new Date(),
-                      publishedVersion: 1,
-                  },
-              });
+        let journey: { id: string; publishedAt: Date | null };
+        try {
+            journey =
+                payload.journeyId
+                    ? await db.ticketJourney.update({
+                          where: { id: payload.journeyId, guildId: guard.guildInternalId },
+                          data: { ...journeyValues, formId: undefined, formVersion: undefined },
+                      })
+                    : await db.ticketJourney.create({
+                          data: {
+                              guildId: guard.guildInternalId,
+                              ...journeyValues,
+                              isPublished: true,
+                              publishedAt: new Date(),
+                              publishedVersion: 1,
+                          },
+                      });
+        } catch (error: any) {
+            // Course entre deux enregistrements simultanés (le pré-contrôle de
+            // doublon ci-dessus ne couvre pas la concurrence) : message FR, jamais
+            // le nom brut de la contrainte.
+            if (error?.code === "P2002") {
+                return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+            }
+            throw error;
+        }
 
         // 3. Formulaire lié (`q-<slug>`) : nouvelle version figée si changé.
         const formSlug = `q-${payload.slug}`.slice(0, 60);
@@ -1777,16 +2165,28 @@ export async function saveTicketMotifAction(guildId: string, data: unknown): Pro
             include: { versions: { orderBy: { version: "desc" }, take: 1 } },
         });
         if (!form) {
-            form = await db.ticketForm.create({
-                data: {
-                    guildId: guard.guildInternalId,
-                    name: `Questionnaire — ${payload.name}`.slice(0, 80),
-                    slug: formSlug,
-                    description: null,
-                    draftSchemaJson: formCheck.form as never,
-                },
-                include: { versions: { orderBy: { version: "desc" }, take: 1 } },
-            });
+            try {
+                form = await db.ticketForm.create({
+                    data: {
+                        guildId: guard.guildInternalId,
+                        name: `Questionnaire — ${payload.name}`.slice(0, 80),
+                        slug: formSlug,
+                        description: null,
+                        draftSchemaJson: formCheck.form as never,
+                    },
+                    include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                });
+            } catch (error: any) {
+                // `q-<slug>` créé entre le `findFirst` et le `create` (double-clic,
+                // deux onglets) : on reprend le formulaire gagnant au lieu d'échouer.
+                if (error?.code !== "P2002") throw error;
+                const winner = await db.ticketForm.findFirst({
+                    where: { guildId: guard.guildInternalId, slug: formSlug },
+                    include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                });
+                if (!winner) return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+                form = winner;
+            }
         } else if (JSON.stringify(form.draftSchemaJson) !== JSON.stringify(formCheck.form)) {
             form = await db.ticketForm.update({
                 where: { id: form.id },
@@ -1839,9 +2239,37 @@ export async function saveTicketMotifAction(guildId: string, data: unknown): Pro
                 override: {
                     closePolicy: payload.closePolicy,
                     requireConfirm: payload.requireConfirm,
+                    ...(payload.channelPositionInCategory
+                        ? { channelPositionInCategory: payload.channelPositionInCategory }
+                        : {}),
+                    // 🆕 RBAC d'ouverture : la liste est écrite **même vide** (elle porte le
+                    // choix explicite « tout le monde »), l'interrupteur est toujours écrit.
+                    allowedRoleIds: payload.allowedRoleIds,
+                    notifyEnabled: payload.notifyEnabled,
                     ...(payload.additionalRoleIds.length > 0
                         ? { additionalRoleIds: payload.additionalRoleIds }
                         : {}),
+                    ...(payload.welcomeMessage?.trim()
+                        ? { welcomeMessage: payload.welcomeMessage.trim() }
+                        : {}),
+                    ...(payload.notifyMessage?.trim()
+                        ? { notifyMessage: payload.notifyMessage.trim() }
+                        : {}),
+                    ...(payload.creatorMessage?.trim()
+                        ? { creatorMessage: payload.creatorMessage.trim() }
+                        : {}),
+                    // 🆕 Surcharge de boutons du motif (seules les cases non
+                    // héritées sont stockées : retiré et/ou renommé).
+                    ...((() => {
+                        const entries = Object.entries(payload.motifButtons ?? {}).flatMap(
+                            ([key, value]) => {
+                                const label = value.label?.trim().slice(0, 80) ?? "";
+                                if (!value.disabled && !label) return [];
+                                return [[key, { ...(value.disabled ? { disabled: true } : {}), ...(label ? { label } : {}) }]];
+                            }
+                        );
+                        return entries.length > 0 ? { buttons: Object.fromEntries(entries) } : {};
+                    })()),
                 },
             },
         });
@@ -1855,6 +2283,10 @@ export async function saveTicketMotifAction(guildId: string, data: unknown): Pro
         return { success: true, data: { id: journey.id, formId: form.id } };
     } catch (error: any) {
         logger.error("[saveTicketMotifAction] Error:", error);
+        // Jamais de nom de contrainte brut côté client (ex. `TicketForm_guildId_slug_key`).
+        if (error?.code === "P2002") {
+            return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+        }
         return { success: false, error: error?.message || "Erreur enregistrement motif" };
     }
 }
@@ -1891,7 +2323,9 @@ export async function setTicketMotifEnabledAction(
  * Migration « tout passer en Motifs » : chaque `TicketBotCategory` devient un
  * parcours publié (+ questionnaire publié). Idempotente (reprise sans doublon
  * via `settingsJson.migratedCategories`), les tickets existants gardent leur
- * `categoryId`, les panneaux exposent les deux (repli v1 conservé).
+ * `categoryId`, les panneaux sont **basculés sur les parcours** (leurs
+ * `categoryIds` héritées sont retirées : un panneau migré n'ouvre plus que des
+ * types de demande — l'admin le redéploie pour publier).
  */
 export async function migrateCategoriesToMotifsAction(guildId: string): Promise<ActionResponse> {
     try {
@@ -1955,18 +2389,41 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
             }
 
             const formSlug = `q-${slug}`.slice(0, 60);
-            const form = await db.ticketForm.create({
-                data: {
-                    guildId: guard.guildInternalId,
-                    name: `Questionnaire — ${category.name}`.slice(0, 80),
-                    slug: formSlug,
-                    description: null,
-                    draftSchemaJson: (built.ok ? built.form : { schemaVersion: 2, fields: [] }) as never,
-                    currentVersion: 1,
-                    publishedVersion: 1,
-                    status: "PUBLISHED",
-                },
+            // Idempotence : deux catégories v1 peuvent se normaliser vers le même
+            // `q-<slug>` (ex. « Candidature » / « candidature »), et une migration
+            // rejouée après un état partiel retrouve un formulaire orphelin — on le
+            // réutilise au lieu d'exploser en P2002 brut (constat bêta du 16/10/2026).
+            let form = await db.ticketForm.findFirst({
+                where: { guildId: guard.guildInternalId, slug: formSlug },
+                include: { versions: { orderBy: { version: "desc" }, take: 1 } },
             });
+            if (!form) {
+                try {
+                    form = await db.ticketForm.create({
+                        data: {
+                            guildId: guard.guildInternalId,
+                            name: `Questionnaire — ${category.name}`.slice(0, 80),
+                            slug: formSlug,
+                            description: null,
+                            draftSchemaJson: (built.ok ? built.form : { schemaVersion: 2, fields: [] }) as never,
+                            currentVersion: 1,
+                            publishedVersion: 1,
+                            status: "PUBLISHED",
+                        },
+                        include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                    });
+                } catch (error: any) {
+                    // Créé entre le `findFirst` et le `create` (migration ouverte dans
+                    // deux onglets) : on reprend le gagnant, même patron que le motif.
+                    if (error?.code !== "P2002") throw error;
+                    const winner = await db.ticketForm.findFirst({
+                        where: { guildId: guard.guildInternalId, slug: formSlug },
+                        include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                    });
+                    if (!winner) return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+                    form = winner;
+                }
+            }
             if (built.ok && built.form.fields.length > 0) {
                 await db.ticketFormVersion.create({
                     data: { formId: form.id, guildId: guard.guildInternalId, version: 1, schemaJson: built.form as never },
@@ -2020,7 +2477,12 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
                 if (panel.categoryIds.includes(category.id) && !panel.journeyIds.includes(journey.id)) {
                     await db.ticketBotPanel.update({
                         where: { id: panel.id },
-                        data: { journeyIds: [...panel.journeyIds, journey.id] },
+                        data: {
+                            journeyIds: [...panel.journeyIds, journey.id],
+                            // Le panneau ne sert plus l'ancienne catégorie : vieux
+                            // boutons morts à la source (l'admin redéploie derrière).
+                            categoryIds: panel.categoryIds.filter((id: string) => id !== category.id),
+                        },
                     });
                 }
             }
@@ -2039,6 +2501,11 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
         return { success: true, data: { migrated: created, skipped } };
     } catch (error: any) {
         logger.error("[migrateCategoriesToMotifsAction] Error:", error);
+        // Filet : aucun nom de contrainte brut côté client, même sur une course
+        // non couverte par les reprises ci-dessus.
+        if (error?.code === "P2002") {
+            return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+        }
         return { success: false, error: error?.message || "Erreur migration motifs" };
     }
 }
@@ -2064,10 +2531,17 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
  *
  * La route fournit le contexte (`TicketAuthorizationContext`) — jamais le client.
  */
-async function guardTicketAction(input: {
+/**
+ * 🔐 **RBAC par bouton** (demande user du 16/10/2026) : le droit effectif est celui réglé
+ * pour CE bouton (`settingsJson.buttons`), sinon le défaut du module. `disabled` retire le
+ * bouton ⇒ l'action est refusée même si un ancien message le porte encore (fail-closed).
+ */
+export async function guardTicketAction(input: {
     ticketId: string;
     discordGuildId: string;
     access: "staff" | "creator" | "staff_or_creator";
+    /** Bouton du salon concerné — porte le réglage de droit du serveur. */
+    buttonKey?: TicketButtonKey;
     actor: TicketAuthorizationContext;
 }) {
     const ticket = await db.ticketRecord.findUnique({
@@ -2104,8 +2578,21 @@ async function guardTicketAction(input: {
         ticket.journey?.closePolicy ??
         resolveCategoryClosePolicy(permissionSettings, ticket.categoryId);
 
+    // 🆕 Le réglage du bouton est lu **ici** (jamais côté client) : `disabled` refuse, et
+    // un niveau « équipe ou demandeur » est offert au demandeur — la politique de clôture
+    // du motif reste prioritaire (`STAFF_ONLY` ⇒ équipe seule).
+    const buttonSettings = readTicketButtonSettings(
+        (config as { settingsJson?: unknown } | null)?.settingsJson
+    );
+    if (input.buttonKey && ticketButtonAccess(input.buttonKey, buttonSettings) === "disabled") {
+        return { ok: false as const, message: "🚫 Ce bouton est désactivé pour ce serveur." };
+    }
+    const effectiveAccess = input.buttonKey
+        ? (ticketButtonAccess(input.buttonKey, buttonSettings) as "staff" | "staff_or_creator")
+        : input.access;
+
     const decision = decideTicketAccess({
-        access: input.access,
+        access: effectiveAccess,
         actor: actorFromAuthorizationContext(input.actor),
         staffRoleIds,
         creatorDiscordId: ticket.creatorDiscordId,
@@ -2125,16 +2612,27 @@ async function guardTicketAction(input: {
 }
 
 /**
- * 🆕 Config d'archive effective : **plafonds plateforme** (God), jamais la guilde.
- * La guilde ne règle plus ni les transcripts ni les durées (VPS).
+ * 🆕 Config d'archive effective : **double verrou** — la plateforme (God, durées
+ * et interrupteur global) **et** la guilde (son interrupteur `enableTranscripts`).
+ * Les deux doivent être ouverts pour écrire des copies, sinon rien n'est stocké
+ * (le VPS ne gonfle jamais par défaut). Les durées restent God (VPS).
  */
-async function ticketArchiveConfig(): Promise<{
+async function ticketArchiveConfig(guildInternalId?: string): Promise<{
     enableTranscripts: boolean;
     transcriptRetentionDays: number;
 }> {
     const limits = await getTicketPlatformLimits();
+    let guildEnabled = true;
+    if (guildInternalId) {
+        const guildConfig = await db.ticketGuildConfig.findUnique({
+            where: { guildId: guildInternalId },
+            select: { enableTranscripts: true },
+        });
+        // Ligne absente ou colonne à faux (nouveaux défauts) : pas de copies.
+        guildEnabled = guildConfig?.enableTranscripts === true;
+    }
     return {
-        enableTranscripts: limits.transcriptsEnabled,
+        enableTranscripts: limits.transcriptsEnabled && guildEnabled,
         transcriptRetentionDays: limits.retentionArchivesDays,
     };
 }
@@ -2180,6 +2678,7 @@ async function createTicketFromJourney(input: {
     guildInternalId: string;
     guildStaffRoleIds: string[];
     maxActiveTicketsPerUser: number;
+    maxTicketsTotalGuild: number;
     /** Réglages sans migration (`TicketGuildConfig.settingsJson`) : matrice + invités. */
     settingsJson: unknown;
     params: {
@@ -2257,6 +2756,20 @@ async function createTicketFromJourney(input: {
         };
     }
 
+    // Quota guilde simultané : le réglage avait un champ sans exécutant (§4.6).
+    const activeGuildTickets = await db.ticketRecord.count({
+        where: {
+            guildId: input.guildInternalId,
+            status: { in: ["REQUESTED", "OPEN", "CLAIMED", "PENDING_USER", "RESOLVED", "ARCHIVE_FAILED"] },
+        },
+    });
+    if (activeGuildTickets >= input.maxTicketsTotalGuild) {
+        return {
+            success: false,
+            error: `Cette guilde a déjà ${activeGuildTickets} ticket(s) ouvert(s) (maximum ${input.maxTicketsTotalGuild}). Réessaie après une clôture.`,
+        };
+    }
+
     // 3. Rôles staff : parcours **+** équipe **+** configuration de la guilde (une seule règle).
     const staffRoles = mergeStaffRoleIds(
         input.guildStaffRoleIds,
@@ -2272,7 +2785,11 @@ async function createTicketFromJourney(input: {
             discordGuildId: params.discordGuildId,
             creatorDiscordId: params.discordUserId,
             creatorDiscordName: params.discordUserName,
-            creatorAvatarUrl: params.discordUserAvatar,
+            // L'interaction Discord ne donne qu'un HASH d'avatar brut : un hash mis tel
+            // quel en `thumbnail.url` fait rejeter TOUT le message d'accueil par Discord
+            // (400) — bienvenue, pings et boutons perdus, seules les réponses partent
+            // (constat bêta du 16/10/2026). On persiste une vraie URL CDN (ou rien).
+            creatorAvatarUrl: resolveTicketCreatorAvatarUrl(params.discordUserId, params.discordUserAvatar),
             status: "OPEN",
             intakeAnswersJson: intake,
         },
@@ -2284,10 +2801,14 @@ async function createTicketFromJourney(input: {
         journey: journey.name,
     });
 
+    const permSettingsForPosition = readTicketPermissionSettings(input.settingsJson);
+    const channelPosition = resolveTicketChannelPosition(permSettingsForPosition, journey.id);
+
     const channelRes = await createTicketChannelDiscord(params.discordGuildId, channelName, {
         parentId: journey.channelParentId,
         creatorDiscordId: params.discordUserId,
         staffRoleIds: staffRoles,
+        positionInCategory: channelPosition,
         topic: `Ticket #${record.ticketNumber} — ${journey.name} | Demandeur: @${params.discordUserName}`,
         overwrites: ticketOverwritesFor({
             ticket: {
@@ -2319,90 +2840,295 @@ async function createTicketFromJourney(input: {
         discordUserId: params.discordUserId,
     });
 
-    // 5. Message d'accueil : embed du parcours, **vue du demandeur** (jamais les boutons de
-    // staff : invariant #1), et ping des seuls rôles choisis par le parcours.
+    // 5. Accueil en deux temps : embed n°1 (texte libre du motif + photo du
+    // créateur + boutons, dont « Je m'en occupe » soumis au gate staff) puis
+    // embed n°2 (réponses du questionnaire, absent en ouverture directe).
+    // Le créateur est pingé avec les rôles staff (mentions explicites).
+    const messaging = readTicketMessagingSettings(input.settingsJson);
+    const permSettings = readTicketPermissionSettings(input.settingsJson);
+    const categoryOverride = permSettings.categories[journey.id];
+    const lang = messaging.ticketLanguage;
     const welcomeEmbed = buildTicketWelcomeEmbed({
         ticketNumber: record.ticketNumber,
         journeyName: journey.name,
         emoji: journey.emoji,
         creatorDiscordId: params.discordUserId,
-        statusLabel: "🟡 En attente de prise en charge",
-        form,
-        answers: intake,
-        description: notice,
+        creatorAvatarUrl: record.creatorAvatarUrl,
+        statusLabel: ticketStatusLabel("OPEN", lang),
+        // Le texte libre du motif ouvre le salon (message d'accueil du motif) ;
+        // le résumé affiché sur les listes dashboard n'y figure plus (il ne
+        // part pas sur Discord) ; l'avertissement de validation suit après.
+        welcomeMessage: [categoryOverride?.welcomeMessage, notice].filter(Boolean).join("\n\n") || null,
+        lang,
     });
+    const answersEmbed = form ? buildTicketAnswersEmbed({ ticketNumber: record.ticketNumber, form, answers: intake, lang }) : null;
 
     const notifyRoleIds = resolveTicketNotifyRoleIds({
         journeyRoleIds: journey.notifyRoleIds,
         teamRoleIds: journey.team?.notifyRoleIds,
     }).roleIds;
 
-    await postTicketWelcomeMessage({
+    const welcomeMessageId = await postTicketWelcomeMessage({
         channelId: channelRes.channelId,
         embed: welcomeEmbed,
+        secondEmbed: answersEmbed,
+        // Deux boutons seulement à l'ouverture (« Prendre en charge », « Fermer le ticket »),
+        // renommables et retirables par motif (surcharge `settingsJson.categories`,
+        // héritage du global `settingsJson.buttons` sinon).
         components: buildActionRows({
             ticketId: record.id,
             status: record.status,
-            viewerIsStaff: false,
-            viewerIsCreator: true,
-            closePolicy: journey.closePolicy,
+            lang,
+            buttons: readTicketButtonSettings(input.settingsJson),
+            motifButtons: categoryOverride?.buttons ?? null,
         }),
+        creatorDiscordId: params.discordUserId,
+        creatorName: params.discordUserName,
+        motifName: journey.name,
+        ticketNumber: record.ticketNumber,
+        // 🆕 Messages personnalisés du motif + interrupteur de notification (settingsJson).
+        notifyMessage: categoryOverride?.notifyMessage ?? null,
+        creatorMessage: categoryOverride?.creatorMessage ?? null,
+        notifyEnabled: categoryOverride?.notifyEnabled,
         notifyRoleIds,
     });
+
+    // 🆕 L'identifiant du message d'accueil est conservé : c'est lui qu'on **patche** en
+    // direct (prise en charge, clôture, réouverture) pour que le salon dise toujours qui
+    // traite la demande et quels boutons sont disponibles. `metadataJson` = aucune migration.
+    if (welcomeMessageId) {
+        await db.ticketRecord
+            .update({ where: { id: record.id }, data: { metadataJson: { welcomeMessageId } } })
+            .catch((error) => {
+                logger.warn("[tickets] identifiant du message d'accueil non conservé", {
+                    ticketId: record.id,
+                    error,
+                });
+            });
+    }
 
     return { success: true, channelId: channelRes.channelId };
 }
 /**
- * Poste le message d'accueil du ticket. `allowed_mentions` est **explicite** : seuls les
- * rôles configurés sont notifiés (`roles` et `parse: ["roles"]` sont exclusifs côté
- * Discord), donc jamais `@everyone` et jamais de ping subi par le demandeur.
+ * Poste l'accueil du ticket : embed n°1 (boutons) puis, s'il existe, embed n°2
+ * (réponses du questionnaire). `allowed_mentions` est **explicite** : le créateur
+ * et les rôles configurés sont notifiés, jamais `@everyone`.
  */
+/**
+ * Avatar du demandeur tel que stocké et envoyé à Discord : une vraie URL CDN ou
+ * rien. L'interaction ne fournit qu'un hash brut (`member.user.avatar`) — passé tel
+ * quel en `thumbnail.url`, Discord rejette le message entier (400). Une URL déjà
+ * valide (autre appelant) est conservée telle quelle.
+ */
+function resolveTicketCreatorAvatarUrl(
+    discordUserId: string,
+    raw: string | null | undefined
+): string | null {
+    if (isDiscordAvatarUrl(raw)) return raw as string;
+    return buildDiscordAvatarUrl(discordUserId, raw);
+}
+
 async function postTicketWelcomeMessage(input: {
     channelId: string;
     embed: Record<string, unknown>;
+    /** Embed n°2 (réponses) : posté en second message, sans boutons. */
+    secondEmbed?: Record<string, unknown> | null;
     components: DiscordActionRow[];
+    /** Le créateur est pingé à l'ouverture (mention **garantie**, message personnalisable). */
+    creatorDiscordId?: string | null;
+    creatorName?: string | null;
+    /** Motif et numéro alimentent `{motif}` / `{numero}` des messages personnalisés. */
+    motifName?: string | null;
+    ticketNumber?: number | null;
     notifyRoleIds: string[];
-}): Promise<void> {
+    /** Message personnalisé de l'équipe (`{membre}` = pseudo, aucun ping sur le membre). */
+    notifyMessage?: string | null;
+    /** Message personnalisé du demandeur (`{membre}` = sa mention). */
+    creatorMessage?: string | null;
+    /** `false` = l'admin a coupé la notification de l'équipe. */
+    notifyEnabled?: boolean;
+}): Promise<string | null> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
         logger.warn("[tickets] message d'accueil non envoyé : DISCORD_BOT_TOKEN absent");
-        return;
+        return null;
     }
 
+    const content = buildTicketOpeningContent({
+        creatorDiscordId: input.creatorDiscordId,
+        creatorName: input.creatorName,
+        roleIds: input.notifyRoleIds,
+        notifyEnabled: input.notifyEnabled,
+        notifyMessage: input.notifyMessage,
+        creatorMessage: input.creatorMessage,
+        motif: input.motifName,
+        numero: input.ticketNumber,
+    });
+    const mentionedUsers = input.creatorDiscordId ? [input.creatorDiscordId] : [];
     const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-    const content = buildTicketNotifyContent(input.notifyRoleIds);
 
-    await fetchWithRetry(`/api/v10/channels/${input.channelId}/messages`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bot ${token}`,
-            "Content-Type": "application/json",
-            "User-Agent": DISCORD_USER_AGENT,
-        },
-        body: JSON.stringify({
-            content: content ?? undefined,
+    const post = (payload: Record<string, unknown>) =>
+        fetchWithRetry(`/api/v10/channels/${input.channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(payload),
+        });
+
+    let welcomeMessageId: string | null = null;
+    try {
+        const response = await post({
+            content: content || undefined,
             embeds: [input.embed],
             components: input.components,
-            allowed_mentions:
-                input.notifyRoleIds.length > 0 ? { parse: [], roles: input.notifyRoleIds } : { parse: [] },
-        }),
-    }).catch((error) => {
+            allowed_mentions: { parse: [], roles: input.notifyRoleIds, users: mentionedUsers },
+        });
+        const posted = (await response.json().catch(() => null)) as { id?: unknown } | null;
+        // Seul un **vrai flocon** est conservé : c'est lui qui permettra de patcher l'embed
+        // plus tard (prise en charge, clôture). Jamais un identifiant de file d'attente.
+        if (typeof posted?.id === "string" && /^\d{15,21}$/.test(posted.id)) {
+            welcomeMessageId = posted.id;
+        }
+    } catch (error) {
         // L'ouverture du ticket n'échoue pas sur un message d'accueil : on le dit.
         logger.warn("[tickets] message d'accueil non envoyé", { error });
+    }
+
+    if (input.secondEmbed) {
+        await post({
+            embeds: [input.secondEmbed],
+            allowed_mentions: { parse: [] },
+        }).catch((error) => {
+            logger.warn("[tickets] réponses du questionnaire non envoyées", { error });
+        });
+    }
+
+    return welcomeMessageId;
+}
+
+/**
+ * Budget d'attente du PATCH du message d'accueil : l'ACK Discord doit partir < 3 s.
+ * Mesure du 24/10/2026 : ce PATCH atteint **2,66 s** au p95 sur la bêta.
+ */
+const TICKET_PATCH_DEADLINE_MS = 1_200;
+
+/**
+ * PATCH du message d'accueil **borné** : au-delà du budget, on ne bloque plus la
+ * réponse d'interaction (« L'application n'a pas répondu ») ; le PATCH n'est pas
+ * annulé, il se termine en tâche de fond et l'issue est journalisée (jamais muette).
+ */
+async function patchWelcomeWithinDeadline(
+    input: Parameters<typeof patchTicketWelcomeMessage>[0]
+): Promise<void> {
+    const outcome = await raceWithDeadline(
+        patchTicketWelcomeMessage(input),
+        TICKET_PATCH_DEADLINE_MS
+    );
+    if (outcome.status === "timeout") {
+        logger.warn("[Tickets] PATCH du message d'accueil au-delà du budget — poursuivi en tâche de fond", {
+            ticketId: input.ticketId,
+        });
+    }
+}
+
+/**
+ * Identifiant du **message d'accueil** d'un ticket (`metadataJson.welcomeMessageId`).
+ * Un ticket ouvert avant cette version n'en a pas : on ne patche alors rien — jamais de
+ * faux succès (le message de modération prend le relais pour les boutons).
+ */
+function readTicketWelcomeMessageId(metadataJson: unknown): string | null {
+    const value = (metadataJson as { welcomeMessageId?: unknown } | null)?.welcomeMessageId;
+    return typeof value === "string" && /^\d{15,21}$/.test(value) ? value : null;
+}
+
+/**
+ * 🆕 **Met à jour le message d'accueil du salon en direct** (demande user du 16/10/2026) :
+ * l'embed dit qui traite la demande, et la barre de boutons suit l'état — deux boutons tant
+ * que le ticket vit, Rouvrir / Transcript / Supprimer une fois fermé.
+ */
+async function patchTicketWelcomeMessage(input: {
+    ticketId: string;
+    channelId?: string | null;
+    metadataJson?: unknown;
+    embed: Record<string, unknown>;
+    components: DiscordActionRow[];
+}): Promise<boolean> {
+    const messageId = readTicketWelcomeMessageId(input.metadataJson);
+    if (!input.channelId || !messageId) return false;
+    const patched = await patchChannelMessage(input.channelId, messageId, {
+        embeds: [input.embed],
+        components: input.components,
     });
+    if (!patched) {
+        logger.warn("[tickets] message d'accueil non mis à jour", {
+            ticketId: input.ticketId,
+            channelId: input.channelId,
+        });
+    }
+    return patched;
+}
+
+/**
+ * Embed d'accueil d'un ticket **existant**, relu de la base : mêmes entrées qu'à la
+ * création (motif, texte libre, photo) + l'état courant et, s'il y en a un, le preneur
+ * en charge. Une seule fabrique ⇒ l'embed ne diverge jamais de celui de l'ouverture.
+ */
+function ticketWelcomeEmbedFrom(
+    ticket: {
+        ticketNumber: number;
+        creatorDiscordId: string;
+        creatorAvatarUrl?: string | null;
+        journeyId?: string | null;
+        categoryId?: string | null;
+        claimedByDiscordId?: string | null;
+        journey?: { name: string; emoji: string | null } | null;
+        category?: { name: string; emoji: string | null } | null;
+    },
+    options: { status: string; settingsJson?: unknown; lang: TicketLang }
+): Record<string, unknown> {
+    const permissionSettings = readTicketPermissionSettings(options.settingsJson);
+    const key = ticket.journeyId ?? ticket.categoryId ?? "";
+    const welcomeMessage = (key ? permissionSettings.categories[key]?.welcomeMessage : null) ?? null;
+    return buildTicketWelcomeEmbed({
+        ticketNumber: ticket.ticketNumber,
+        journeyName: ticket.journey?.name ?? ticket.category?.name ?? "Support",
+        emoji: ticket.journey?.emoji ?? ticket.category?.emoji ?? "🎫",
+        creatorDiscordId: ticket.creatorDiscordId,
+        creatorAvatarUrl: ticket.creatorAvatarUrl,
+        statusLabel: ticketStatusLabel(options.status, options.lang),
+        welcomeMessage,
+        lang: options.lang,
+        claimedByDiscordId: ticket.claimedByDiscordId ?? null,
+    });
+}
+
+/**
+ * 🆕 Surcharge de boutons du motif d'un ticket existant (une seule lecture :
+ * clé `journeyId` puis `categoryId`). Absente = héritage total du global.
+ */
+function motifButtonsOf(
+    settingsJson: unknown,
+    ticket: { journeyId?: string | null; categoryId?: string | null }
+): TicketMotifButtonOverrides | null {
+    const key = ticket.journeyId ?? ticket.categoryId ?? "";
+    if (!key) return null;
+    return readTicketPermissionSettings(settingsJson).categories[key]?.buttons ?? null;
 }
 
 
 
 /**
- * Ouvre un ticket — **deux chemins, une seule porte**.
+ * Ouvre un ticket — **une seule porte : le parcours** (`journeyId` + `formVersionId`
+ * + réponses clés par `id` de champ).
  *
- * · **v2 (parcours)** : `journeyId` + `formVersionId` + réponses clés par `id` de champ.
- *   Le questionnaire **figé** est relu ici et revalidé (`evaluateAnswers`) : la route ne
- *   décide jamais de ce qui est complet. Le salon porte le nom, l'embed et la politique de
- *   fermeture du parcours, et les rôles `notifyRoleIds` sont mentionnés.
- * · **v1 (catégorie)** : comportement conservé à l'identique pour les panneaux **déjà
- *   déployés** (réponses clés par libellé, boutons de staff dans le salon).
+ * Le questionnaire **figé** est relu ici et revalidé (`evaluateAnswers`) : la route ne
+ * décide jamais de ce qui est complet. Le salon porte le nom, l'embed et la politique de
+ * fermeture du parcours, et les rôles `notifyRoleIds` sont mentionnés.
+ * Un appel avec une `categoryId` héritée (vieux bouton Discord non redéployé) est
+ * **refusé avec un message clair** : les catégories v1 sont mortes (one-shot R2).
  */
 export async function internalHandleTicketCreate(params: {
     discordGuildId: string;
@@ -2441,6 +3167,7 @@ export async function internalHandleTicketCreate(params: {
                 guildInternalId: guildConfig.id,
                 guildStaffRoleIds: config.staffRoleIds,
                 maxActiveTicketsPerUser: config.maxActiveTicketsPerUser,
+                maxTicketsTotalGuild: config.maxTicketsTotalGuild,
                 settingsJson: (config as { settingsJson?: unknown }).settingsJson,
                 params: {
                     discordGuildId: params.discordGuildId,
@@ -2454,167 +3181,22 @@ export async function internalHandleTicketCreate(params: {
             });
         }
 
+        // 🧹 v1 (catégories héritées) : **fin de vie** (one-shot R2). Les panneaux
+        // sont migrés vers les types de demande (migration auto au dashboard) et
+        // n'exposent plus que des `journeyIds` : un appel qui arrive encore ici
+        // vient d'un vieux message Discord non redéployé. Refus motivé
+        // (fail-closed), jamais de salon créé à moitié.
         if (!params.categoryId) {
             return { success: false, error: "Motif de ticket non spécifié." };
         }
-
-        const category = await db.ticketBotCategory.findUnique({
-            where: { id: params.categoryId, guildId: guildConfig.id },
+        logger.warn("[internalHandleTicketCreate] catégorie v1 refusée : panneau à migrer vers les types de demande", {
+            discordGuildId: params.discordGuildId,
+            categoryId: params.categoryId,
         });
-        if (!category || !category.isEnabled) {
-            return { success: false, error: "Cette catégorie de ticket n'est plus active." };
-        }
-
-        // Limit active tickets per user
-        const activeUserTickets = await db.ticketRecord.count({
-            where: {
-                guildId: guildConfig.id,
-                creatorDiscordId: params.discordUserId,
-                status: { in: ["OPEN", "CLAIMED", "PENDING_USER"] },
-            },
-        });
-
-        if (activeUserTickets >= config.maxActiveTicketsPerUser) {
-            return {
-                success: false,
-                error: `Vous avez déjà ${activeUserTickets} ticket(s) ouvert(s). Veuillez attendre leur résolution avant d'en ouvrir un nouveau.`,
-            };
-        }
-
-        // Combine staff roles: category specific + global
-        const staffRoles = Array.from(new Set([...config.staffRoleIds, ...category.staffRoleIds])).filter(Boolean);
-
-        // Generate Ticket Record first
-        const record = await db.ticketRecord.create({
-            data: {
-                guildId: guildConfig.id,
-                categoryId: category.id,
-                discordGuildId: params.discordGuildId,
-                creatorDiscordId: params.discordUserId,
-                creatorDiscordName: params.discordUserName,
-                creatorAvatarUrl: params.discordUserAvatar,
-                status: "OPEN",
-                intakeAnswersJson: params.answers || {},
-            },
-        });
-
-        // Compute channel name: ticket-001 or namingPattern
-        const channelName = category.namingPattern
-            .replace("{num}", String(record.ticketNumber).padStart(4, "0"))
-            .replace("{user}", params.discordUserName.slice(0, 10))
-            .replace("{category}", category.slug);
-
-        // Create Discord channel
-        const channelRes = await createTicketChannelDiscord(params.discordGuildId, channelName, {
-            parentId: category.channelParentId,
-            creatorDiscordId: params.discordUserId,
-            staffRoleIds: staffRoles,
-            topic: `Ticket #${record.ticketNumber} — ${category.name} | Demandeur: @${params.discordUserName} (${params.discordUserId})`,
-            overwrites: ticketOverwritesFor({
-                ticket: {
-                    discordGuildId: params.discordGuildId,
-                    creatorDiscordId: params.discordUserId,
-                    categoryId: category.id,
-                },
-                staffRoleIds: staffRoles,
-                settingsJson: (config as { settingsJson?: unknown }).settingsJson,
-                state: "open",
-            }),
-        });
-
-        if (!channelRes.success || !channelRes.channelId) {
-            // Delete orphan record
-            await db.ticketRecord.delete({ where: { id: record.id } }).catch(() => {});
-            return { success: false, error: channelRes.error || "Impossible de créer le salon Discord" };
-        }
-
-        // Update record with discordChannelId
-        await db.ticketRecord.update({
-            where: { id: record.id },
-            data: { discordChannelId: channelRes.channelId },
-        });
-
-        // Build welcome embed in channel
-        const intakeFields = params.answers
-            ? Object.entries(params.answers).map(([label, value]) => ({
-                  name: `📋 ${label}`,
-                  value: String(value).slice(0, 1024) || "*Non renseigné*",
-                  inline: false,
-              }))
-            : [];
-
-        const staffPings = staffRoles.map((rId) => `<@&${rId}>`).join(" ");
-
-        const welcomeEmbed = {
-            title: `${category.emoji || "🎫"} Ticket #${record.ticketNumber} — ${category.name}`,
-            description: `Bienvenue <@${params.discordUserId}> ! Un membre du staff prendra en charge votre demande dans les plus brefs délais.\n\nMerci de détailler votre besoin si ce n'est pas déjà fait.`,
-            color: 0x5865f2,
-            fields: [
-                { name: "Demandeur", value: `<@${params.discordUserId}>`, inline: true },
-                { name: "Catégorie", value: category.name, inline: true },
-                { name: "Statut", value: "🟡 En attente de prise en charge", inline: true },
-                ...intakeFields,
-            ],
-            footer: { text: "SigilOS Ticket System" },
-            timestamp: new Date().toISOString(),
+        return {
+            success: false,
+            error: "Ce bouton vient d'une ancienne catégorie : demande au staff de convertir le panneau en « Types de demande » depuis le dashboard (puis de le redéployer), et réessaie.",
         };
-
-        const actionButtons = [
-            {
-                type: 1, // Action Row
-                components: [
-                    {
-                        type: 2,
-                        style: 3, // SUCCESS
-                        label: "Prendre en charge",
-                        custom_id: `tb:claim:${record.id}`,
-                        emoji: { name: "🛡️" },
-                    },
-                    {
-                        type: 2,
-                        style: 2, // SECONDARY
-                        label: "Note interne",
-                        custom_id: `tb:note:${record.id}`,
-                        emoji: { name: "🔒" },
-                    },
-                    {
-                        type: 2,
-                        style: 2, // SECONDARY
-                        label: "Renommer",
-                        custom_id: `tb:rename:${record.id}`,
-                        emoji: { name: "✏️" },
-                    },
-                    {
-                        type: 2,
-                        style: 4, // DANGER
-                        label: "Fermer le ticket",
-                        custom_id: `tb:close:${record.id}`,
-                        emoji: { name: "🔒" },
-                    },
-                ],
-            },
-        ];
-
-        // Send welcome message in ticket channel
-        const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-        const token = process.env.DISCORD_BOT_TOKEN;
-        if (token) {
-            await fetchWithRetry(`/api/v10/channels/${channelRes.channelId}/messages`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bot ${token}`,
-                    "Content-Type": "application/json",
-                    "User-Agent": DISCORD_USER_AGENT,
-                },
-                body: JSON.stringify({
-                    content: staffPings ? `🔔 Notification Staff: ${staffPings}` : undefined,
-                    embeds: [welcomeEmbed],
-                    components: actionButtons,
-                }),
-            }).catch(() => {});
-        }
-
-        return { success: true, channelId: channelRes.channelId };
     } catch (error: any) {
         logger.error("[internalHandleTicketCreate] Error:", error);
         return { success: false, error: error?.message || "Erreur création ticket" };
@@ -2634,10 +3216,11 @@ export async function internalHandleTicketClaim(params: {
             ticketId: params.ticketId,
             discordGuildId: params.discordGuildId,
             access: "staff",
+            buttonKey: "claim",
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
-        const { ticket } = guard;
+        const { ticket, config: claimConfig } = guard;
 
         if (ticket.status === "CLOSED" || ticket.status === "REFUSED") {
             return { success: false, message: "Ce ticket est clôturé." };
@@ -2669,9 +3252,31 @@ export async function internalHandleTicketClaim(params: {
         });
 
         if (ticket.discordChannelId) {
+            const claimLang = resolveTicketLang(
+                readTicketMessagingSettings((claimConfig as { settingsJson?: unknown } | null)?.settingsJson)
+                    .ticketLanguage
+            );
+            // 🆕 L'embed du salon dit **en direct** qui traite la demande, et le demandeur est
+            // mentionné en même temps que la personne qui prend en charge (demande user).
+            await patchTicketWelcomeMessage({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(
+                    { ...ticket, claimedByDiscordId: params.discordUserId },
+                    { status: "CLAIMED", settingsJson: claimConfig?.settingsJson, lang: claimLang }
+                ),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "CLAIMED",
+                    lang: claimLang,
+                    buttons: readTicketButtonSettings(claimConfig?.settingsJson),
+                    motifButtons: motifButtonsOf(claimConfig?.settingsJson, ticket),
+                }),
+            });
             await sendChannelMessage(
                 ticket.discordChannelId,
-                `🛡️ **<@${params.discordUserId}>** a pris en charge ce ticket.`
+                `🛡️ <@${ticket.creatorDiscordId}> — <@${params.discordUserId}> a pris en charge ta demande.`
             ).catch(() => {});
         }
 
@@ -2752,6 +3357,7 @@ export async function internalHandleTicketClose(params: {
             ticketId: params.ticketId,
             discordGuildId: params.discordGuildId,
             access: "staff_or_creator",
+            buttonKey: "close",
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
@@ -2763,13 +3369,34 @@ export async function internalHandleTicketClose(params: {
 
         // Archives : même service que la fermeture depuis le dashboard (une seule
         // source de vérité — pagination réelle, partageable / annexe distinctes,
-        // échéance issue des **plafonds plateforme**).
-        const archive = await captureTicketArchives({
-            ticket,
-            config: await ticketArchiveConfig(),
-            closedByName: params.discordUserName,
-            closedReason: params.reason ?? null,
-        });
+        // double verrou plateforme + guilde, échéance issue des **plafonds plateforme**).
+        const archiveConfig = await ticketArchiveConfig(ticket.guildId);
+        // 🛡️ Les archives ne doivent **jamais** faire échouer une clôture : la capture
+        // pagine tout l'historique du salon (plusieurs secondes sur un gros ticket, et
+        // un 404 si le salon a bougé). Échec ⇒ on poursuit avec un résumé « partiel »,
+        // journalisé — jamais une erreur muette ni un ticket à moitié fermé.
+        let archive: Awaited<ReturnType<typeof captureTicketArchives>>;
+        try {
+            archive = await captureTicketArchives({
+                ticket,
+                config: archiveConfig,
+                closedByName: params.discordUserName,
+                closedReason: params.reason ?? null,
+            });
+        } catch (archiveError) {
+            logger.warn("[internalHandleTicketClose] archives indisponibles — clôture poursuivie", {
+                ticketId: ticket.id,
+                error: archiveError,
+            });
+            archive = {
+                kinds: [],
+                captured: 0,
+                totalCount: null,
+                partial: true,
+                note: "Archives indisponibles : capture impossible au moment de la clôture.",
+                errors: ["capture impossible"],
+            };
+        }
 
         // Close ticket in DB
         await db.ticketRecord.update({
@@ -2797,55 +3424,36 @@ export async function internalHandleTicketClose(params: {
             },
         });
 
-        // Send CSAT survey in DM if enabled
-        if (ticketConfig?.enableCsat && ticket.creatorDiscordId) {
-            const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-            const token = process.env.DISCORD_BOT_TOKEN;
-            if (token) {
-                // Open DM channel
-                const dmRes = await fetchWithRetry("/api/v10/users/@me/channels", {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                        "Content-Type": "application/json",
-                        "User-Agent": DISCORD_USER_AGENT,
-                    },
-                    body: JSON.stringify({ recipient_id: ticket.creatorDiscordId }),
+        // Enquête de satisfaction (seul le créateur vote, garde `creator`) — **service
+        // partagé** avec la fermeture depuis le dashboard (`sendTicketCsatSurvey`) :
+        // mention du demandeur, et **repli** dans le salon fermé si les MP sont fermés
+        // (avant : un MP refusé perdait l'avis en silence).
+        try {
+            const csat = await sendTicketCsatSurvey({
+                ticket: {
+                    id: ticket.id,
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordId: ticket.creatorDiscordId,
+                    discordChannelId: ticket.discordChannelId,
+                },
+                guildName: ticket.guild.name,
+                motifName: ticket.journey?.name || ticket.category?.name || "Support",
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                enableCsat: ticketConfig?.enableCsat !== false,
+            });
+            if (!csat.sent && csat.reason !== "disabled") {
+                logger.warn("[internalHandleTicketClose] enquête de satisfaction non envoyée", {
+                    ticketId: ticket.id,
+                    reason: csat.reason,
+                    detail: csat.detail,
                 });
-
-                if (dmRes.ok) {
-                    const dmChannel = await dmRes.json();
-                    await fetchWithRetry(`/api/v10/channels/${dmChannel.id}/messages`, {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bot ${token}`,
-                            "Content-Type": "application/json",
-                            "User-Agent": DISCORD_USER_AGENT,
-                        },
-                        body: JSON.stringify({
-                            embeds: [
-                                {
-                                    title: `⭐ Votre avis sur le Ticket #${ticket.ticketNumber}`,
-                                    description: `Votre ticket concernant **${ticket.journey?.name || ticket.category?.name || "Support"}** sur **${ticket.guild.name}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
-                                    color: 0x5865f2,
-                                    footer: { text: "SigilOS Feedback" },
-                                },
-                            ],
-                            components: [
-                                {
-                                    type: 1, // Action Row
-                                    components: [1, 2, 3, 4, 5].map((star) => ({
-                                        type: 2,
-                                        style: 2, // Secondary
-                                        label: `${"⭐".repeat(star)}`,
-                                        custom_id: `tb:csat:${ticket.id}:${star}`,
-                                    })),
-                                },
-                            ],
-                        }),
-                    }).catch(() => {});
-                }
             }
+        } catch (csatError) {
+            // Un MP fermé / une enquête impossible ne doit pas annuler une clôture.
+            logger.warn("[internalHandleTicketClose] enquête de satisfaction en échec — clôture poursuivie", {
+                ticketId: ticket.id,
+                error: csatError,
+            });
         }
 
         // Delete Discord channel
@@ -2873,30 +3481,105 @@ export async function internalHandleTicketClose(params: {
                     ticketId: ticket.id,
                 });
             }
-            await sendChannelMessage(
+            // 🏷️ Salon renommé selon le réglage du module (`ticket-clos` par défaut).
+            await renameTicketChannelOnClose({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                ticketId: ticket.id,
+            });
+            const internalCloseLang = resolveTicketLang(
+                readTicketMessagingSettings(
+                    (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+                ).ticketLanguage
+            );
+            const internalButtons = readTicketButtonSettings(
+                (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+            );
+            // 🆕 Le message d'accueil **révèle** Rouvrir / Transcript / Supprimer : c'est le
+            // même message qui portait « Prendre en charge » et « Fermer le ticket ».
+            await patchWelcomeWithinDeadline({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(ticket, {
+                    status: "CLOSED",
+                    settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                    lang: internalCloseLang,
+                }),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "CLOSED",
+                    lang: internalCloseLang,
+                    buttons: internalButtons,
+                    motifButtons: motifButtonsOf(
+                        (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                        ticket
+                    ),
+                    enableTranscripts: archiveConfig.enableTranscripts,
+                }),
+            });
+            const moderationMessageId = await sendChannelMessage(
                 ticket.discordChannelId,
-                `📦 Ticket #${ticket.ticketNumber} fermé par **${params.discordUserName}**${params.reason ? ` — ${params.reason.slice(0, 200)}` : ""}\nTicket #${ticket.ticketNumber} closed by **${params.discordUserName}**.`,
+                internalCloseLang === "en"
+                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${params.discordUserName}**`
+                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${params.discordUserName}**`,
                 {
-                    embedTitle: `📦 Ticket #${ticket.ticketNumber} — Fermé / Closed`,
+                    embedTitle:
+                        internalCloseLang === "en"
+                            ? `📦 Ticket #${ticket.ticketNumber} — Closed`
+                            : `📦 Ticket #${ticket.ticketNumber} — Fermé`,
                     embedColor: 0x71717a,
-                    embedDescription: [
-                        `Fermé par **${params.discordUserName}** / Closed by **${params.discordUserName}**`,
-                        params.reason ? `Motif / Reason : ${params.reason.slice(0, 300)}` : null,
-                        archive.note ? `Copie / Transcript : ${archive.note}` : null,
-                        "",
-                        "Rouvrir, récupérer une copie ou supprimer le salon ci-dessous. / Reopen, get a copy or delete the channel below.",
-                    ]
-                        .filter(Boolean)
-                        .join("\n"),
+                    // 🔇 Pas de motif affiché (ex. « Exécution de la commande /bienvenue ») :
+                    // il reste en base, dans l'audit et dans les archives staff.
+                    embedDescription:
+                        internalCloseLang === "en"
+                            ? `Closed by **${params.discordUserName}**`
+                            : `Fermé par **${params.discordUserName}**`,
                     embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
-                    components: buildModerationRows(ticket.id),
+                    components: buildModerationRows(
+                        ticket.id,
+                        internalCloseLang,
+                        internalButtons,
+                        motifButtonsOf(
+                            (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                            ticket
+                        )
+                    ),
                 }
             ).catch((error) => {
                 logger.warn("[internalHandleTicketClose] message de modération non envoyé", {
                     error,
                     ticketId: ticket.id,
                 });
+                return null;
             });
+
+            // 🆕 Mémorise le message de modération pour pouvoir le **supprimer** à la
+            // réouverture (sinon sa barre de boutons « fermé » reste un vestige au-dessus
+            // du salon rouvert). Flocon réel uniquement : en mode outbox l'identifiant
+            // vaut `outbox:<jobId>` et ne peut être ni édité ni supprimé.
+            if (isDiscordSnowflake(moderationMessageId)) {
+                const metadata = (ticket.metadataJson as Record<string, unknown> | null) ?? {};
+                await db.ticketRecord
+                    .update({
+                        where: { id: ticket.id },
+                        data: { metadataJson: { ...metadata, moderationMessageId } },
+                    })
+                    .catch((metadataError) => {
+                        logger.warn("[internalHandleTicketClose] id du message de modération non mémorisé", {
+                            ticketId: ticket.id,
+                            error: metadataError,
+                        });
+                    });
+            }
         }
 
         return { success: true, message: `Ticket #${ticket.ticketNumber} clôturé avec succès.` };
@@ -2925,7 +3608,7 @@ export async function internalHandleTicketRelease(params: {
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
-        const { ticket } = guard;
+        const { ticket, config: releaseConfig } = guard;
 
         if (ticket.status === "CLOSED") {
             return { success: false, message: "Ce ticket est clôturé." };
@@ -2952,9 +3635,32 @@ export async function internalHandleTicketRelease(params: {
         });
 
         if (ticket.discordChannelId) {
+            const releaseLang = resolveTicketLang(
+                readTicketMessagingSettings(
+                    (releaseConfig as { settingsJson?: unknown } | null)?.settingsJson
+                ).ticketLanguage
+            );
+            await patchTicketWelcomeMessage({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(
+                    { ...ticket, claimedByDiscordId: null },
+                    { status: "OPEN", settingsJson: releaseConfig?.settingsJson, lang: releaseLang }
+                ),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "OPEN",
+                    lang: releaseLang,
+                    buttons: readTicketButtonSettings(releaseConfig?.settingsJson),
+                    motifButtons: motifButtonsOf(releaseConfig?.settingsJson, ticket),
+                }),
+            }).catch(() => {});
             await sendChannelMessage(
                 ticket.discordChannelId,
-                `🛡️ **<@${params.discordUserId}>** a remis ce ticket en file. / has released this ticket.`
+                releaseLang === "en"
+                    ? `🔓 <@${params.discordUserId}> has released this ticket.`
+                    : `🔓 <@${params.discordUserId}> a remis ce ticket en file.`
             ).catch(() => {});
         }
 
@@ -2985,7 +3691,7 @@ export async function internalHandleTicketAdd(params: {
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
-        const { ticket } = guard;
+        const { ticket, config: addConfig } = guard;
 
         const target = String(params.targetDiscordId ?? "").replace(/[<@!>]/g, "").trim();
         if (!/^\d{5,}$/.test(target)) {
@@ -3011,9 +3717,13 @@ export async function internalHandleTicketAdd(params: {
             },
         });
 
+        const addLang = resolveTicketLang(
+            readTicketMessagingSettings((addConfig as { settingsJson?: unknown } | null)?.settingsJson)
+                .ticketLanguage
+        );
         await sendChannelMessage(
             ticket.discordChannelId,
-            `👤 <@${target}> a accès au salon. / now has access to the channel.`
+            addLang === "en" ? `👤 <@${target}> now has access to the channel.` : `👤 <@${target}> a accès au salon.`
         ).catch(() => {});
 
         return { success: true, message: `<@${target}> ajouté au ticket.` };
@@ -3097,6 +3807,7 @@ export async function internalHandleTicketReopen(params: {
             ticketId: params.ticketId,
             discordGuildId: params.discordGuildId,
             access: "staff_or_creator",
+            buttonKey: "reopen",
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
@@ -3153,6 +3864,75 @@ export async function internalHandleTicketReopen(params: {
                     ticketId: ticket.id,
                 });
             }
+            // 🏷️ Le salon reprend son nom d'ouverture (il portait `ticket-clos`).
+            await restoreTicketChannelNameOnReopen({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                ticketId: ticket.id,
+            });
+        }
+
+        // 🧹 Supprime le message de modération créé à la clôture : sa barre de boutons
+        // « fermé » (Rouvrir / Transcript / Supprimer) resterait un vestige au-dessus du
+        // salon rouvert, alors que le message d'accueil porte déjà les boutons de l'état
+        // ouvert. L'id est celui mémorisé à la fermeture (flocon réel uniquement).
+        if (ticket.discordChannelId) {
+            const staleModerationId = (ticket.metadataJson as { moderationMessageId?: unknown } | null)
+                ?.moderationMessageId;
+            if (isDiscordSnowflake(staleModerationId)) {
+                const removed = await deleteChannelMessage(ticket.discordChannelId, staleModerationId);
+                if (!removed) {
+                    logger.warn("[internalHandleTicketReopen] message de modération non supprimé", {
+                        ticketId: ticket.id,
+                    });
+                }
+                const metadata = (ticket.metadataJson as Record<string, unknown> | null) ?? {};
+                await db.ticketRecord
+                    .update({
+                        where: { id: ticket.id },
+                        data: { metadataJson: { ...metadata, moderationMessageId: null } },
+                    })
+                    .catch(() => undefined);
+            }
+        }
+
+        if (ticket.discordChannelId) {
+            const reopenLang = resolveTicketLang(
+                readTicketMessagingSettings(
+                    (guard.config as { settingsJson?: unknown } | null)?.settingsJson
+                ).ticketLanguage
+            );
+            // 🆕 Le message d'accueil repasse en état « ouvert » : les boutons redeviennent
+            // « Prendre en charge » / « Fermer le ticket » (plus de Supprimer en évidence).
+            await patchWelcomeWithinDeadline({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(ticket, {
+                    status: "OPEN",
+                    settingsJson: (guard.config as { settingsJson?: unknown } | null)?.settingsJson,
+                    lang: reopenLang,
+                }),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "OPEN",
+                    lang: reopenLang,
+                    buttons: readTicketButtonSettings(
+                        (guard.config as { settingsJson?: unknown } | null)?.settingsJson
+                    ),
+                    motifButtons: motifButtonsOf(
+                        (guard.config as { settingsJson?: unknown } | null)?.settingsJson,
+                        ticket
+                    ),
+                }),
+            });
         }
 
         await sendChannelMessage(
@@ -3182,6 +3962,7 @@ export async function internalHandleTicketTranscript(params: {
             ticketId: params.ticketId,
             discordGuildId: params.discordGuildId,
             access: "staff",
+            buttonKey: "transcript",
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
@@ -3189,7 +3970,7 @@ export async function internalHandleTicketTranscript(params: {
 
         const archive = await captureTicketArchives({
             ticket,
-            config: await ticketArchiveConfig(),
+            config: await ticketArchiveConfig(ticket.guildId),
             closedByName: params.discordUserId,
             closedReason: null,
         });
@@ -3220,18 +4001,78 @@ export async function internalHandleTicketTranscript(params: {
  * `tb:delete` → `tb:delete_confirm`). Échec **observé** : le ticket reste et
  * passe `ARCHIVE_FAILED` au lieu de disparaître en silence.
  */
+/**
+ * 🗑️ **Suppression du salon, avec compte à rebours de 4 secondes** (demande user du
+ * 16/10/2026 : « laisse 3-4 secondes entre le clic et la suppression »).
+ *
+ * Discord exige un accusé de réception en **3 secondes** : on répond donc immédiatement
+ * (« suppression dans 4 s »), puis `after()` poursuit après la réponse — le décompte est
+ * édité seconde par seconde et le salon disparaît à la 4ᵉ.
+ *
+ * ⚠️ Les droits sont **revérifiés au moment de la suppression** : un ticket rouvert pendant
+ * le décompte n'est **pas** supprimé (fail-closed, jamais d'effet de bord différé).
+ */
+const TICKET_DELETE_COUNTDOWN_SECONDS = 4;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Suppression effective + état + journal (une seule implémentation, deux appelants). */
+async function performTicketChannelDelete(input: {
+    ticketId: string;
+    ticketNumber: number;
+    channelId: string;
+    guildId: string;
+    actorDiscordId: string;
+    actorName: string;
+}): Promise<{ success: boolean; message: string }> {
+    const deleted = await deleteChannelDiscord(input.channelId);
+    if (!deleted.success) {
+        await db.ticketRecord.update({
+            where: { id: input.ticketId },
+            data: { status: "ARCHIVE_FAILED" },
+        });
+        return {
+            success: false,
+            message: deleted.error || "Suppression Discord refusée — vérifie le rôle du bot.",
+        };
+    }
+
+    await db.ticketRecord.update({
+        where: { id: input.ticketId },
+        data: { status: "CLOSED", discordChannelId: null },
+    });
+
+    await db.ticketAuditLog.create({
+        data: {
+            ticketId: input.ticketId,
+            guildId: input.guildId,
+            actorDiscordId: input.actorDiscordId,
+            actorName: input.actorName,
+            action: "DELETE_CHANNEL",
+        },
+    });
+
+    return { success: true, message: `Ticket #${input.ticketNumber} : salon supprimé. / Channel deleted.` };
+}
+
 export async function internalHandleTicketDelete(params: {
     discordGuildId: string;
     discordUserId: string;
     discordUserName: string;
     ticketId: string;
     actor: TicketAuthorizationContext;
+    /** Identité de l'interaction, pour éditer le message de décompte après l'accusé. */
+    applicationId?: string;
+    interactionToken?: string;
+    /** Délai avant suppression (défaut 4 s, borné 1-10 s). */
+    seconds?: number;
 }): Promise<{ success: boolean; message: string }> {
     try {
         const guard = await guardTicketAction({
             ticketId: params.ticketId,
             discordGuildId: params.discordGuildId,
             access: "staff",
+            buttonKey: "delete",
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
@@ -3241,34 +4082,77 @@ export async function internalHandleTicketDelete(params: {
             return { success: false, message: "Aucun salon Discord à supprimer." };
         }
 
-        const deleted = await deleteChannelDiscord(ticket.discordChannelId);
-        if (!deleted.success) {
-            await db.ticketRecord.update({
-                where: { id: ticket.id },
-                data: { status: "ARCHIVE_FAILED" },
-            });
-            return {
-                success: false,
-                message: deleted.error || "Suppression Discord refusée — vérifie le rôle du bot.",
-            };
-        }
+        const seconds = Math.min(
+            Math.max(
+                Math.trunc(params.seconds ?? TICKET_DELETE_COUNTDOWN_SECONDS) || TICKET_DELETE_COUNTDOWN_SECONDS,
+                1
+            ),
+            10
+        );
+        const channelId = ticket.discordChannelId;
 
-        await db.ticketRecord.update({
-            where: { id: ticket.id },
-            data: { status: "CLOSED", discordChannelId: null },
-        });
-
-        await db.ticketAuditLog.create({
-            data: {
+        // Sans jeton d'interaction (appel de service), on supprime tout de suite : le décompte
+        // existe pour le cliqueur, jamais pour ralentir un appel interne.
+        if (!params.applicationId || !params.interactionToken) {
+            return await performTicketChannelDelete({
                 ticketId: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                channelId,
                 guildId: ticket.guildId,
                 actorDiscordId: params.discordUserId,
                 actorName: params.discordUserName,
-                action: "DELETE_CHANNEL",
-            },
+            });
+        }
+
+        const applicationId = params.applicationId;
+        const interactionToken = params.interactionToken;
+
+        after(async () => {
+            try {
+                for (let remaining = seconds - 1; remaining >= 1; remaining -= 1) {
+                    await sleep(1000);
+                    await editInteractionMessage(
+                        applicationId,
+                        interactionToken,
+                        `🗑️ Suppression du salon dans **${remaining}** s…`
+                    );
+                }
+                await sleep(1000);
+
+                // ⚠️ Revérification : le ticket a pu être rouvert pendant le décompte.
+                const fresh = await db.ticketRecord.findUnique({
+                    where: { id: ticket.id },
+                    select: { status: true, discordChannelId: true },
+                });
+                if (!fresh?.discordChannelId || fresh.status !== "CLOSED") {
+                    await editInteractionMessage(
+                        applicationId,
+                        interactionToken,
+                        "⛔ Suppression annulée : le ticket n'est plus fermé."
+                    );
+                    return;
+                }
+
+                const result = await performTicketChannelDelete({
+                    ticketId: ticket.id,
+                    ticketNumber: ticket.ticketNumber,
+                    channelId: fresh.discordChannelId,
+                    guildId: ticket.guildId,
+                    actorDiscordId: params.discordUserId,
+                    actorName: params.discordUserName,
+                });
+                if (!result.success) {
+                    await editInteractionMessage(applicationId, interactionToken, `⚠️ ${result.message}`);
+                }
+            } catch (error) {
+                logger.error("[internalHandleTicketDelete] décompte interrompu", {
+                    error,
+                    ticketId: ticket.id,
+                });
+            }
         });
 
-        return { success: true, message: `Ticket #${ticket.ticketNumber} : salon supprimé. / Channel deleted.` };
+        return { success: true, message: `🗑️ Suppression du salon dans **${seconds}** secondes…` };
     } catch (error: any) {
         logger.error("[internalHandleTicketDelete] Error:", error);
         return { success: false, message: error?.message || "Erreur suppression salon" };
@@ -3282,7 +4166,7 @@ export async function internalHandleTicketCsat(params: {
     comment?: string;
     /** Contexte d'autorisation résolu par la route (identité normalisée MP **ou** salon). */
     actor: TicketAuthorizationContext;
-}): Promise<{ success: boolean; message: string }> {
+}): Promise<{ success: boolean; message: string; alreadyVoted?: boolean; rating?: number }> {
     try {
         // Le sondage arrive par **message privé** : l'isolation ne peut pas passer par la
         // guilde de l'interaction (absente), elle passe par l'identité du demandeur.
@@ -3303,24 +4187,37 @@ export async function internalHandleTicketCsat(params: {
             return { success: false, message: "Le ticket n'est pas encore clôturé." };
         }
 
+        const existing = await db.ticketFeedback.findUnique({
+            where: { ticketId: ticket.id },
+            select: { id: true, rating: true },
+        });
+        if (existing) {
+            return {
+                success: false,
+                alreadyVoted: true,
+                rating: existing.rating,
+                message: `Vous avez déjà transmis votre avis sur ce ticket (${existing.rating} ⭐).`,
+            };
+        }
+
         const rating = Math.min(Math.max(Math.trunc(params.rating) || 0, 1), 5);
 
-        await db.ticketFeedback.upsert({
-            where: { ticketId: ticket.id },
-            create: {
+        await db.ticketFeedback.create({
+            data: {
                 ticketId: ticket.id,
                 guildId: ticket.guildId,
                 creatorDiscordId: params.discordUserId,
                 rating,
                 comment: params.comment,
             },
-            update: {
-                rating,
-                comment: params.comment,
-            },
         });
 
-        return { success: true, message: `Merci pour votre note de ${rating} ⭐ ! Votre avis nous aide à nous améliorer.` };
+        return {
+            success: true,
+            alreadyVoted: false,
+            rating,
+            message: `Merci pour votre note de ${rating} ⭐ ! Votre avis nous aide à nous améliorer.`,
+        };
     } catch (error: any) {
         logger.error("[internalHandleTicketCsat] Error:", error);
         return { success: false, message: error?.message || "Erreur enregistrement avis" };

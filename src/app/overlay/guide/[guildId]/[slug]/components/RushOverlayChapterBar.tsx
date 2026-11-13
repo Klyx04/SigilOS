@@ -23,14 +23,11 @@ interface RushOverlayChapterBarProps {
   onSelectChapter: (msId: string) => void;
   completedMsIds: Set<string>;
   doneByMs: Map<string, Set<string>>;
-  isLightMode?: boolean;
   className?: string;
   /** Case « tout le chapitre » : le bloc courant se valide (ou se décoche) d'un clic. */
   onToggleChapter?: (ms: RushMilestone) => void;
   /** Bloc courant en cours d'écriture serveur : la case ne repart pas en double. */
   loading?: boolean;
-  /** Dofus visé par le chapitre courant : icône + pastille « obtenu ». */
-  dofus?: { imageUrl: string; label: string; done: boolean } | null;
 }
 
 /**
@@ -42,9 +39,13 @@ interface RushOverlayChapterBarProps {
  * perdus dans une fenêtre PiP.
  *
  * Cette barre unique porte les trois informations sur UNE rangée :
- *   · case à cocher « tout le chapitre » (à gauche) ;
- *   · titre + chevron (clic = recherche parmi les chapitres) ;
- *   · avancement chiffré (`n/N · x%`) et jauge fine collée au bas de la barre.
+ *   · nœud « tout le chapitre » (à gauche) ;
+ *   · médaillon + titre + chevron (clic = recherche parmi les chapitres) ;
+ *   · compteur sur mini-écriteau et jauge fine collée au bas de la barre.
+ *
+ * DA « Gouache Wakfu » (E1e) : la barre est le `dock` de la maquette — barre pleine
+ * largeur, médaillon 26 px, titre 13 px condensé qui passe à la ligne (jamais
+ * tronqué), compteur sur planches 40 × 28, nœud rond au lieu d'un carré nu.
  *
  * Deux mentions disparaissent quand elles n'informent personne : « Chapitre 1 / 1 »
  * (un guide à un seul chapitre) et la jauge d'un bloc sans quête (séparateur, encart).
@@ -55,11 +56,9 @@ export function RushOverlayChapterBar({
   onSelectChapter,
   completedMsIds,
   doneByMs,
-  isLightMode = false,
   className,
   onToggleChapter,
   loading = false,
-  dofus = null,
 }: RushOverlayChapterBarProps) {
   const [open, setOpen] = useState(false);
   if (chapters.length === 0) return null;
@@ -95,14 +94,10 @@ export function RushOverlayChapterBar({
   return (
     <nav
       aria-label="Chapitres du guide"
-      className={cn(
-        "relative shrink-0 px-3 py-2.5 border-b z-30",
-        isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1014] border-[#28303a]/70",
-        className
-      )}
+      className={cn("da-dock", className)}
     >
-      <div className="flex items-center gap-2">
-        {/* Case à cocher « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/* Case « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais
             imbriqué dedans (HTML invalide, et le clic ouvrirait la liste). */}
         {activeMs && onToggleChapter && showProgress && (
           <button
@@ -114,121 +109,94 @@ export function RushOverlayChapterBar({
             aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
             title={msDone ? "Décocher tout le chapitre" : "Valider tout le chapitre"}
             className={cn(
-              "shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1",
-              isLightMode ? "focus-visible:outline-emerald-600" : "focus-visible:outline-[#39bc95]",
+              "da-node-btn shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
               loading && "cursor-not-allowed opacity-50"
             )}
           >
-            <span
-              className={cn(
-                "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
-                msDone
-                  ? "bg-[#39bc95] border-[#39bc95] text-black"
-                  : isLightMode
-                    ? "border-slate-300 bg-white"
-                    : "border-[#3a4d60] bg-[#0f1419]"
-              )}
-            >
-              {msDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+            {/* DA « Gouache Wakfu » : le nœud de la liste, pas un carré nu. */}
+            <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true">
+              {msDone && <Check className="h-3 w-3 stroke-[3]" />}
             </span>
           </button>
         )}
 
-        {/* Déclencheur : titre du chapitre + avancement + chevron (liste déroulante) */}
+        {/* Déclencheur : médaillon + titre du chapitre + compteur + chevron */}
         <button
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label="Choisir un chapitre"
+          aria-current="true"
+          title={activeMs?.title || `Chapitre ${activeIdx + 1}`}
           onClick={() => canSelect && setOpen((v) => !v)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-xl border font-semibold transition-colors",
-            "px-2.5 py-2 text-[11px]",
-            canSelect && "cursor-pointer",
-            isLightMode
-              ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300"
-              : "bg-[#181c22] border-[#28303a] text-[#f2f0e9] hover:border-[#2a3646]"
+            "da-dock-trigger rounded-[6px] transition-colors motion-reduce:transition-none",
+            canSelect && "cursor-pointer"
           )}
         >
-          {/* Picto de QUÊTE du jeu (asset réel, 64 px servi en 16 px) : une quête/un chapitre
-              se reconnaît à son picto, pas à un glyphe d'interface. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 shrink-0 object-contain" />
-          <span className="min-w-0 flex-1 truncate text-left">
+          {/* Médaillon 26 px (DA) : le picto de QUÊTE du jeu, pas un glyphe. */}
+          <span className="da-medal" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 object-contain" />
+          </span>
+          <span className="da-dock-label min-w-0 flex-1 text-left">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
           </span>
-          {/* Dofus visé par le bloc courant (icône Dofus + pastille quand il est obtenu) */}
-          {dofus && (
-            <span className="relative flex shrink-0 items-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={dofus.imageUrl}
-                alt={dofus.label}
-                title={dofus.label}
-                className={cn("h-5 w-5 object-contain drop-shadow", dofus.done && "animate-pulse")}
+          {/* Compteur + chevron dans un groupe collé à DROITE (`margin-left: auto`) :
+              quand le titre passe à deux lignes en PiP étroite, il poussait le
+              compteur au milieu de la barre (mesure du 05/11/2026). Le numéro de
+              chapitre y vit aussi : la grille n'a que trois colonnes. */}
+          <span className="da-dock-trail">
+            {showChapterCount && (
+              <span
+                className={cn(
+                  "hidden shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] sm:inline",
+                  "text-muted-foreground"
+                )}
+              >
+                Chapitre {chapterPos + 1} / {selectable.length}
+              </span>
+            )}
+            {showProgress && (
+              <span
+                className="da-plank shrink-0"
+                data-size="mini"
+                role="img"
+                aria-label={`${done} étapes validées sur ${total}`}
+              >
+                <i />
+                <b />
+                <span>
+                  {done}/{total}
+                </span>
+              </span>
+            )}
+            {canSelect && (
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+                  open && "rotate-180"
+                )}
               />
-              {dofus.done && (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#39bc95]" />
-              )}
-            </span>
-          )}
-          {dofus?.done && (
-            <span
-              className={cn(
-                "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wide",
-                isLightMode
-                  ? "border-emerald-600/40 bg-emerald-50 text-emerald-700"
-                  : "border-[#39bc95]/50 bg-[#39bc95]/15 text-[#39bc95]"
-              )}
-            >
-              Dofus obtenu
-            </span>
-          )}
-          {showChapterCount && (
-            <span
-              className={cn(
-                "hidden shrink-0 text-[9px] font-black uppercase tracking-[0.12em] sm:inline",
-                isLightMode ? "text-slate-400" : "text-[#6e7784]"
-              )}
-            >
-              Chapitre {chapterPos + 1} / {selectable.length}
-            </span>
-          )}
-          {showProgress && (
-            <span
-              className={cn(
-                "shrink-0 font-mono text-[9px] font-bold tabular-nums",
-                isLightMode ? "text-slate-600" : "text-[#969daa]"
-              )}
-            >
-              {done}/{total} · {pct}%
-            </span>
-          )}
-          {canSelect && (
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 transition-transform",
-                isLightMode ? "text-slate-400" : "text-[#6e7784]",
-                open && "rotate-180"
-              )}
-            />
-          )}
+            )}
+          </span>
         </button>
       </div>
       {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée
           entière (c'était le 2ᵉ des trois blocs empilés). */}
       {showProgress && (
         <span
-          className={cn(
-            "absolute inset-x-0 bottom-0 h-[3px] overflow-hidden",
-            isLightMode ? "bg-slate-200" : "bg-[#1e2530]"
-          )}
+          className="absolute inset-x-0 bottom-0 h-[2px] bg-elevated"
           aria-hidden="true"
         >
           <span
-            className="block h-full bg-[#d5a94e] transition-all duration-500"
+            className="relative block h-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
             style={{ width: `${pct}%` }}
-          />
+          >
+            {pct > 0 && (
+              <span className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold" />
+            )}
+          </span>
         </span>
       )}
 
@@ -244,9 +212,9 @@ export function RushOverlayChapterBar({
           <ul
             role="listbox"
             className={cn(
-              "absolute top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-xl border py-1 shadow-2xl",
+              "absolute top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-[6px] border py-1",
               "left-3 right-3",
-              isLightMode ? "bg-white border-slate-200" : "bg-[#161b21] border-[#2a3646]"
+              "border-border-strong bg-elevated"
             )}
           >
             {selectable.map((ms, idx) => {
@@ -265,24 +233,18 @@ export function RushOverlayChapterBar({
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors",
+                      "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors motion-reduce:transition-none",
                       isActive
-                        ? isLightMode
-                          ? "bg-slate-100 text-slate-900"
-                          : "bg-[#242c36] text-[#f2f0e9]"
-                        : isLightMode
-                          ? "text-slate-700 hover:bg-slate-50"
-                          : "text-[#c4cad2] hover:bg-[#1f2733]"
+                        ? "bg-surface text-foreground"
+                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
                     )}
                   >
                     <span
                       className={cn(
                         "flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
                         isDone
-                          ? "bg-[#39bc95] text-black"
-                          : isLightMode
-                            ? "border border-slate-300"
-                            : "border border-[#3a4d60]"
+                          ? "bg-success text-background"
+                          : "border border-border-strong"
                       )}
                     >
                       {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
@@ -291,8 +253,8 @@ export function RushOverlayChapterBar({
                     <span className="min-w-0 flex-1 truncate">{ms.title || `Chapitre ${idx + 1}`}</span>
                     <span
                       className={cn(
-                        "shrink-0 font-mono text-[9px] font-bold tabular-nums",
-                        isLightMode ? "text-slate-400" : "text-[#6e7784]"
+                        "shrink-0 font-mono text-[9px] font-semibold tabular-nums",
+                        "text-muted-foreground"
                       )}
                     >
                       {msDoneCount}/{msTotal}

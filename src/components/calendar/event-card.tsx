@@ -195,7 +195,8 @@ export function EventCard({
 
     // View: Card (Vertical) - Modernized
 
-    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
+    // Statut = celui décidé côté serveur (règle unique `@/lib/calendar-auto-close`).
+    const isCompleted = event.status === "COMPLETED";
 
     return (
         <Card className={cn(

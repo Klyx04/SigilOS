@@ -27,6 +27,8 @@ import {
     resolveInvocationLabel,
     scaleUnityDamageLine,
 } from "@/lib/monster-spell-levels";
+import { cleanDofusText, isRenderableDofusEffectLine } from "@/lib/dofus-spells";
+import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
 import {
     getMonsterSpellLevels,
     resolveMonsterNames,
@@ -129,7 +131,7 @@ export function MonsterFicheView({
     // Onglets : **source unique** partagée (mêmes règles que les fiches boss / avis).
     const tabs = buildBossFicheTabs({
         entity: "monster",
-        counts: { grades: grades.length, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+        counts: { grades: grades.length, roomMonsters: 0, quests: 0, achievements: 0 },
         hasMechanics: !!passive,
         locale,
     });
@@ -163,11 +165,6 @@ export function MonsterFicheView({
                 <div className="min-w-0">
                     <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">{fiche.name}</h1>
                     {zoneName ? <p className="mt-0.5 text-xs text-muted-foreground">{zoneName}</p> : null}
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                        {fiche.source === "unity"
-                            ? (fr ? "Fiche locale — bestiaire du client de jeu" : "Local page — game client bestiary")
-                            : (fr ? "Fiche siphonnée — DofusDB · Dofensive" : "Synced page — DofusDB · Dofensive")}
-                    </p>
                 </div>
             </header>
 
@@ -226,9 +223,15 @@ export function MonsterFicheView({
                                 air: carac?.agility,
                             };
                             const lookup = (id: number): string | null => summonNames[id] ?? null;
-                            const renderedEffects = rawEffects.map((effect) =>
-                                scaleUnityDamageLine(resolveInvocationLabel(String(effect), lookup), dmgStats)
-                            );
+                            // Mesure du 20/10/2026 : `unity-bestiary.json` contient **4 380** lignes
+                            // d'effet réduites à un id client nu (« 24515 ») et **5 351** lignes portant
+                            // des balises `{{~ps}}` / `{{~zs}}`. La règle de nettoyage existait déjà
+                            // (`cleanDofusText`, utilisée par la fiche boss, l'overlay et Succès) mais
+                            // **pas ici** : le monstre était la seule surface publique à afficher le brut.
+                            const renderedEffects = rawEffects
+                                .map((effect) => cleanDofusText(String(effect)))
+                                .filter((effect) => isRenderableDofusEffectLine(effect))
+                                .map((effect) => scaleUnityDamageLine(resolveInvocationLabel(effect, lookup), dmgStats));
                             const enriched = (spellLevels?.spells ?? []).find((s) => s.spellId === Number(spell.id));
                             return (
                                 <div key={`${spell.id}-${index}`} className="flex items-start gap-2.5 rounded-xl border border-border bg-background/40 p-3">
@@ -245,7 +248,13 @@ export function MonsterFicheView({
                                         {renderedEffects.length > 0 ? (
                                             <ul className="mt-1 space-y-0.5">
                                                 {renderedEffects.map((effect, i) => (
-                                                    <li key={i} className="text-[11px] text-muted-foreground">{effect}</li>
+                                                    // `formatDofusEffectLine` porte l'icône ET la couleur d'élément :
+                                                    // la fiche boss s'en servait déjà, la fiche monstre affichait du
+                                                    // texte nu (« 32 à 38 dommages Eau » sans picto) — incohérence
+                                                    // relevée le 20/10/2026.
+                                                    <li key={i} className="text-[11px] text-muted-foreground">
+                                                        {formatDofusEffectLine(effect)}
+                                                    </li>
                                                 ))}
                                             </ul>
                                         ) : description ? (
@@ -299,9 +308,7 @@ export function MonsterFicheView({
             {detailTab === "loot" && (
                 drops.length === 0 ? (
                     <p className="py-6 text-center text-xs text-muted-foreground">
-                        {fiche.source === "unity"
-                            ? (fr ? "Butin non renseigné : la fiche locale du client de jeu ne le porte pas." : "Loot not provided by the local game-client page.")
-                            : (fr ? "Aucun butin référencé." : "No loot referenced.")}
+                        {fr ? "Butin non renseigné pour ce monstre." : "No loot referenced for this monster."}
                     </p>
                 ) : (
                     <div className="space-y-2">

@@ -20,6 +20,7 @@ import {
     type EventPayload
 } from "@/lib/mission-payloads";
 import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2, Sparkles, Check } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -326,7 +327,20 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                     
                     <div className="pt-3 border-t border-border">
                         <div className="flex items-center justify-between">
-                            <span className="text-caption text-muted-foreground font-bold uppercase tracking-tighter">Objectif de guilde</span>
+                            <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground font-bold uppercase tracking-tighter">
+                                {/* Asset réel du combat (même icône que les sorties RAID/DONJON) : la ligne
+                                    « Objectif de guilde » n'était qu'un libellé nu, sans repère visuel. */}
+                                <Image
+                                    src="/assets/dofus/game-icons/crossed-swords.png"
+                                    alt=""
+                                    aria-hidden="true"
+                                    width={14}
+                                    height={14}
+                                    className="object-contain shrink-0 opacity-80"
+                                    unoptimized
+                                />
+                                Objectif de guilde
+                            </span>
                             <span className="text-success font-black text-xs">Vaincre 50 monstres</span>
                         </div>
                     </div>

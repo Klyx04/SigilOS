@@ -91,7 +91,9 @@ describe('updateUserProfile — gate pseudo ladder + fallback God', () => {
         expect(upsertArg.update.pseudoDofus).toBe('Darkfeudala');
         expect(upsertArg.update.successPoints).toBe(13324);
         expect(upsertArg.update.totalXp).toBe(BigInt('9010295762'));
-        expect(upsertArg.update.dofusLevel).toBe(52);
+        // Le ladder renvoie le niveau Oméga (52) ; l'XP totale (9 Md > 4,7166 Md) prouve
+        // que le niveau 200 est passé : on stocke le niveau **total** 252 (200 + 52).
+        expect(upsertArg.update.dofusLevel).toBe(252);
         expect(upsertArg.update.lastLadderUpdate).toBeInstanceOf(Date);
     });
 

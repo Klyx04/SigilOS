@@ -18,6 +18,7 @@ import { getDofusWeek } from "@/lib/date-utils";
 import { grantRewards } from "./mission-actions";
 import { hashImage } from "@/lib/llm-ocr";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // Le client etendu ($extends) masque les types TS des modeles, on caste vers PrismaClient
 // pour acceder a kamaDonation avec les bons types. En runtime, tout fonctionne correctement.
@@ -185,7 +186,7 @@ export async function submitKamaDonation(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = submitDonationSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Donnees invalides" };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || "Donnees invalides" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -282,7 +283,7 @@ export async function submitKamaDonation(
                     select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
                 });
                 const userName = profile?.discordNickname || profile?.pseudoDofus || profile?.user?.name || "Un membre";
-                const dashUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${input.guildId}/admin/validation`;
+                const dashUrl = `${getAppBaseUrl()}/dashboard/${input.guildId}/admin/validation`;
                 const absoluteImageUrl = getDiscordPublicUrl(uploadResult.url);
                 const mentionRole = (guildConfig as any).kamaNotifyRoleId;
                 const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
@@ -380,7 +381,7 @@ export async function reviewKamaDonation(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = reviewDonationSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -876,6 +877,11 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
     success: boolean;
     totalDonated?: number;
     isEligible?: boolean;
+    raidRequireKamaDonation?: boolean;
+    /** Don exigé (tranches × 10 000 kamas) — la même valeur que celle comparée par la garde. */
+    requiredKamas?: number;
+    /** Coût décompté par présent à la clôture (tranches × 10 🟣). */
+    purpleKamasCost?: number;
     weekNumber?: number;
     yearNumber?: number;
     error?: string;
@@ -897,6 +903,9 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
                 success: true,
                 totalDonated: 0,
                 isEligible: true,
+                raidRequireKamaDonation: false,
+                requiredKamas: 0,
+                purpleKamasCost: 0,
                 weekNumber: week,
                 yearNumber: year,
             };
@@ -928,6 +937,9 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
             success: true,
             totalDonated,
             isEligible: purpleKamasBalance >= requiredPurpleKamas,
+            raidRequireKamaDonation: true,
+            requiredKamas: threshold,
+            purpleKamasCost: requiredPurpleKamas,
             weekNumber: week,
             yearNumber: year,
         };

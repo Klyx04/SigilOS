@@ -16,7 +16,8 @@ import {
 import { updateTicketGuildConfigAction, saveTicketGuildPermissionsAction } from "@/server/actions/ticket-bot-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { TicketRolesPicker } from "../ticket-discord-pickers";
-import { readTicketPermissionSettings } from "@/lib/tickets/category-permissions";
+import { readTicketPermissionSettings, readTicketMessagingSettings, readTicketNamingSettings, type TicketCsatDestination } from "@/lib/tickets/category-permissions";
+import { DEFAULT_CLOSED_CHANNEL_PATTERN, formatClosedTicketChannelName } from "@/lib/tickets/embeds";
 import {
     TICKET_CHANNEL_GROUPS,
     TICKET_CHANNEL_GROUP_LABELS,
@@ -32,7 +33,22 @@ import {
 } from "@/lib/tickets/channel-permissions";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+    TICKET_BUTTON_ACCESS,
+    TICKET_BUTTON_ACCESS_LABELS,
+    TICKET_BUTTON_ADMIN_HINTS,
+    TICKET_BUTTON_ADMIN_LABELS,
+    TICKET_BUTTON_EMOJI_MAX,
+    TICKET_BUTTON_KEYS,
+    TICKET_BUTTON_LABEL_MAX,
+    readTicketButtonSettings,
+    resolveTicketButton,
+    type TicketButtonAccess,
+    type TicketButtonKey,
+    type TicketButtonSettings,
+} from "@/lib/tickets/button-config";
 
 interface TicketSettingsTabProps {
     guildId: string;
@@ -54,6 +70,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
         config?.maxTicketsTotalGuild ?? 50
     );
     const [enableCsat, setEnableCsat] = useState<boolean>(config?.enableCsat ?? true);
+    const [enableTranscripts, setEnableTranscripts] = useState<boolean>(config?.enableTranscripts ?? false);
     const [enableDmNotifications, setEnableDmNotifications] = useState<boolean>(
         config?.enableDmNotifications ?? true
     );
@@ -71,13 +88,37 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
 
     // 🆕 Permissions globales (sans migration : `settingsJson`).
     const initialPermissions = readTicketPermissionSettings(config?.settingsJson);
+    const initialMessaging = readTicketMessagingSettings(config?.settingsJson);
     const [allowUserClose, setAllowUserClose] = useState<boolean>(initialPermissions.allowUserClose);
     const [requireCloseConfirm, setRequireCloseConfirm] = useState<boolean>(
         initialPermissions.requireCloseConfirm
     );
+    const [channelPositionInCategory, setChannelPositionInCategory] = useState<"TOP" | "BOTTOM">(
+        initialPermissions.channelPositionInCategory ?? "BOTTOM"
+    );
     const [blacklistRoleIds, setBlacklistRoleIds] = useState<string[]>(
         initialPermissions.blacklistRoleIds
     );
+    const [csatDestination, setCsatDestination] = useState<TicketCsatDestination>(initialMessaging.csatDestination);
+    const [csatTitle, setCsatTitle] = useState<string>(initialMessaging.csatTitle ?? "");
+    const [csatDescription, setCsatDescription] = useState<string>(initialMessaging.csatDescription ?? "");
+    // 🆕 Boutons du salon : nom affiché, icône et droit (RBAC) de chacun.
+    const [buttonSettings, setButtonSettings] = useState<TicketButtonSettings>(
+        readTicketButtonSettings(config?.settingsJson)
+    );
+    const patchButton = (key: TicketButtonKey, patch: Partial<NonNullable<TicketButtonSettings[TicketButtonKey]>>) =>
+        setButtonSettings((previous) => ({ ...previous, [key]: { ...previous[key], ...patch } }));
+    const [ticketLanguage, setTicketLanguage] = useState<"fr" | "en">(initialMessaging.ticketLanguage);
+    // 🏷️ Nom du salon une fois le ticket fermé (réglage du staff, `ticket-clos` par défaut).
+    const [closedChannelPattern, setClosedChannelPattern] = useState<string>(
+        readTicketNamingSettings(config?.settingsJson).closedChannelPattern
+    );
+    const closedChannelPreview = formatClosedTicketChannelName(closedChannelPattern, {
+        number: 42,
+        user: "membre",
+        journey: "Support",
+    });
+
     // 🆕 Matrice Ouvert/Fermé (4 groupes × 2 états × 8 permissions, sans migration).
     const [matrix, setMatrix] = useState<TicketChannelMatrix>(() =>
         readChannelPermissions(config?.settingsJson)
@@ -101,11 +142,9 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 transcriptsChannelId: transcriptsChannelId.trim() || undefined,
                 staffRoleIds,
                 maxActiveTicketsPerUser,
-                maxTicketsTotalGuild,
+                maxTicketsTotalGuild: 50,
                 enableCsat,
-                // `enableDmNotifications` n'est **plus exposé** : aucun code ne consomme ce
-                // réglage (il n'existe pas d'envoi de MP « réponse du staff »). La colonne
-                // reste en base, sa valeur est simplement conservée telle quelle.
+                enableTranscripts,
                 enableDmNotifications: config?.enableDmNotifications ?? true,
             });
 
@@ -117,8 +156,15 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             const permRes = await saveTicketGuildPermissionsAction(guildId, {
                 allowUserClose,
                 requireCloseConfirm,
+                channelPositionInCategory,
                 blacklistRoleIds,
                 channelPermissions: matrix,
+                csatDestination,
+                ticketLanguage,
+                csatTitle,
+                csatDescription,
+                buttons: buttonSettings,
+                closedChannelPattern,
             });
 
             if (!permRes.success) {
@@ -126,7 +172,11 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 return;
             }
 
-            toast.success("Paramètres enregistrés !");
+            if (res.data?.clamped) {
+                toast.warning("Paramètres enregistrés (certaines valeurs ont été plafonnées par les limites globales de la plateforme).");
+            } else {
+                toast.success("Paramètres enregistrés !");
+            }
             onRefresh();
         });
     };
@@ -136,23 +186,44 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Sliders className="h-5 w-5 text-amber-400" /> Paramètres du Système de Support
+                        <Sliders className="h-5 w-5 text-emerald-400" /> Paramètres du Système de Support
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         Règles globales de modération, quotas par membre et alertes automatisées.
                     </p>
                 </div>
 
-                <Button onClick={handleSave} disabled={isPending} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
+                <Button onClick={handleSave} disabled={isPending} size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
                     <Save className="h-3.5 w-3.5 mr-1" /> Sauvegarder
                 </Button>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-emerald-400" /> Nom du salon à la clôture
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                    Le salon est renommé à la fermeture, puis reprend son nom d&apos;ouverture si le ticket est
+                    rouvert. Placeholders : <code className="font-mono">{"{num}"}</code>,{" "}
+                    <code className="font-mono">{"{user}"}</code>,{" "}
+                    <code className="font-mono">{"{journey}"}</code>.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Input
+                        value={closedChannelPattern}
+                        onChange={(event) => setClosedChannelPattern(event.target.value)}
+                        placeholder={DEFAULT_CLOSED_CHANNEL_PATTERN}
+                        className="text-xs h-9 font-mono bg-background max-w-xs"
+                    />
+                    <span className="text-[11px] text-emerald-400 font-mono">→ {closedChannelPreview}</span>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* General Toggles */}
                 <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-amber-400" /> Options & Notifications
+                        <Shield className="h-4 w-4 text-emerald-400" /> Options & Notifications
                     </h3>
 
                     <div className="space-y-3 divide-y divide-border/40 text-xs">
@@ -164,12 +235,110 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
                         </div>
 
+                        <div className="pt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-semibold text-foreground">Avis & Satisfaction des membres</div>
+                                    <div className="text-muted-foreground">Propose une note de 1 à 5 étoiles après clôture (vote réservé au demandeur).</div>
+                                </div>
+                                <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
+                            </div>
+
+                            {enableCsat && (
+                                <div className="space-y-3 pl-3 border-l-2 border-emerald-500/30 pt-1">
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground text-[11px]">Envoi de l&apos;enquête</label>
+                                        <select
+                                            value={csatDestination}
+                                            onChange={(e) => setCsatDestination(e.target.value as TicketCsatDestination)}
+                                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                        >
+                                            <option value="TICKET">Dans le salon du ticket fermé (recommandé)</option>
+                                            <option value="DM">En message privé Discord (DM)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Personnalisation du texte de l'embed CSAT */}
+                                    <div className="space-y-2.5 pt-1">
+                                        <div className="space-y-1">
+                                            <label className="font-semibold text-foreground text-[11px] flex items-center justify-between">
+                                                <span>Titre de l&apos;encadré (Embed)</span>
+                                                <span className="text-[10px] text-muted-foreground font-normal">Défaut si vide</span>
+                                            </label>
+                                            <Input
+                                                value={csatTitle}
+                                                onChange={(e) => setCsatTitle(e.target.value)}
+                                                placeholder="⭐ Votre avis sur le Ticket #{numero}"
+                                                maxLength={256}
+                                                className="text-xs h-8"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="font-semibold text-foreground text-[11px] flex items-center justify-between">
+                                                <span>Texte & Question de satisfaction</span>
+                                                <span className="text-[10px] text-muted-foreground font-normal">Défaut si vide</span>
+                                            </label>
+                                            <Textarea
+                                                value={csatDescription}
+                                                onChange={(e) => setCsatDescription(e.target.value)}
+                                                placeholder={"Votre ticket concernant **{motif}** sur **{serveur}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?"}
+                                                rows={3}
+                                                maxLength={2048}
+                                                className="text-xs resize-y"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Balises disponibles : <code className="text-emerald-400 font-mono text-[10px]">{`{numero}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{motif}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{serveur}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{demandeur}`}</code>.
+                                            </p>
+                                        </div>
+
+                                        {/* Aperçu Discord réaliste CSAT */}
+                                        <div className="mt-2 rounded-xl bg-[#2b2d31] p-3 text-xs border-l-4 border-[#5865F2] space-y-2">
+                                            <div className="font-bold text-sm text-white break-words">
+                                                {csatTitle.trim()
+                                                    ? csatTitle.replace(/\{numero\}/gi, "#0042").replace(/\{motif\}/gi, "Recrutement").replace(/\{serveur\}/gi, "Guilde SigilOS")
+                                                    : "⭐ Votre avis sur le Ticket #0042"}
+                                            </div>
+                                            <div className="text-[#dbdee1] text-xs whitespace-pre-line break-words">
+                                                {csatDescription.trim()
+                                                    ? csatDescription.replace(/\{numero\}/gi, "#0042").replace(/\{motif\}/gi, "Recrutement").replace(/\{serveur\}/gi, "Guilde SigilOS").replace(/\{demandeur\}/gi, "@Demandeur")
+                                                    : "Votre ticket concernant **Recrutement** sur **Guilde SigilOS** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?"}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <span key={star} className="px-2 py-1 bg-[#4e5058]/40 hover:bg-[#4e5058]/60 text-amber-300 font-bold rounded text-[11px] select-none cursor-default border border-[#4e5058]/40">
+                                                        {"⭐".repeat(star)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                                SigilOS Feedback
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center justify-between pt-3">
                             <div>
-                                <div className="font-semibold text-foreground">Enquête de Satisfaction CSAT</div>
-                                <div className="text-muted-foreground">Envoie un sondage 1-5 étoiles en DM Discord à la fermeture.</div>
+                                <div className="font-semibold text-foreground">Archivage des transcripts</div>
+                                <div className="text-muted-foreground">Enregistre l&apos;historique complet des messages à la clôture (désactivé par défaut).</div>
                             </div>
-                            <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
+                            <Switch checked={enableTranscripts} onCheckedChange={setEnableTranscripts} />
+                        </div>
+
+                        <div className="pt-3 space-y-1.5">
+                            <label className="font-semibold text-foreground text-xs">Langue des interactions Discord</label>
+                            <select
+                                value={ticketLanguage}
+                                onChange={(e) => setTicketLanguage(e.target.value as "fr" | "en")}
+                                className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                            >
+                                <option value="fr">🇫🇷 Français (boutons & messages en français)</option>
+                                <option value="en">🇬🇧 English (buttons & messages in English)</option>
+                            </select>
+                            <p className="text-[11px] text-muted-foreground">Une seule langue active : aucun doublage de texte bilingue.</p>
                         </div>
 
                         <div className="pt-3 text-[11px] text-muted-foreground">
@@ -183,7 +352,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 {/* Quotas & Roles */}
                 <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-amber-400" /> Quotas & Canaux Discord
+                        <Layers className="h-4 w-4 text-emerald-400" /> Quotas & Canaux Discord
                     </h3>
                     <div className="space-y-3">
                         <div className="space-y-1">
@@ -199,32 +368,32 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                                 <label className="font-semibold text-foreground">Max tickets par membre</label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    max={platformLimits?.maxPerUserCap ?? 5}
+                                <select
                                     value={maxActiveTicketsPerUser}
                                     onChange={(e) => setMaxActiveTicketsPerUser(Number(e.target.value))}
-                                    className="text-xs h-8"
-                                />
+                                    className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                >
+                                    {[1, 2, 3, 4, 5].map((num) => (
+                                        <option key={num} value={num}>
+                                            {num} ticket{num > 1 ? "s" : ""} simultané{num > 1 ? "s" : ""}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="space-y-1">
-                                <label className="font-semibold text-foreground">Quota max simultané guilde</label>
+                                <label className="font-semibold text-foreground">Quota guilde (fixe)</label>
                                 <Input
                                     type="number"
-                                    min={5}
-                                    max={platformLimits?.maxGuildCap ?? 100}
-                                    value={maxTicketsTotalGuild}
-                                    onChange={(e) => setMaxTicketsTotalGuild(Number(e.target.value))}
-                                    className="text-xs h-8"
+                                    value={50}
+                                    disabled
+                                    className="text-xs h-8 opacity-70 cursor-not-allowed bg-surface"
                                 />
                             </div>
                         </div>
 
                         <p className="text-[11px] text-muted-foreground">
-                            Plafonds plateforme : {platformLimits?.maxPerUserCap ?? 5} par membre,{" "}
-                            {platformLimits?.maxGuildCap ?? 100} au total — le serveur plafonne automatiquement.
+                            Plafonds de protection : maximum 5 par membre, capé à 50 tickets ouverts en simultané par guilde.
                         </p>
                     </div>
                 </div>
@@ -233,7 +402,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             {/* 🆕 Permissions globales : qui ferme, confirmation, blacklist. */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des tickets
+                    <Shield className="h-4 w-4 text-emerald-400" /> Permissions des tickets
                 </h3>
 
                 <div className="space-y-3 divide-y divide-border/40">
@@ -241,7 +410,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                         <div>
                             <div className="font-semibold text-foreground">Les demandeurs peuvent fermer</div>
                             <div className="text-muted-foreground">
-                                Sinon, seule l'équipe ferme. Réglable par motif dans l'onglet Motifs.
+                                Sinon, seule l'équipe ferme. Réglable individuellement dans l'onglet Types de Demande.
                             </div>
                         </div>
                         <Switch checked={allowUserClose} onCheckedChange={setAllowUserClose} />
@@ -257,14 +426,37 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                         <Switch checked={requireCloseConfirm} onCheckedChange={setRequireCloseConfirm} />
                     </div>
 
+                    <div className="space-y-1.5 pt-3">
+                        <label className="font-semibold text-foreground">Position des salons dans la catégorie Discord</label>
+                        <select
+                            value={channelPositionInCategory}
+                            onChange={(e) => setChannelPositionInCategory(e.target.value as "TOP" | "BOTTOM")}
+                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                        >
+                            <option value="BOTTOM">En bas de catégorie (défaut Discord — nouveaux salons en fin)</option>
+                            <option value="TOP">Tout en haut de catégorie (visible en premier au-dessus)</option>
+                        </select>
+                        <p className="text-[11px] text-muted-foreground">
+                            Emplacement où sont créés les salons dans leur catégorie Discord. Surchargeable par type de demande.
+                        </p>
+                    </div>
+
                     <div className="space-y-1 pt-3">
                         <label className="font-semibold text-foreground">Rôles bloqués (blacklist)</label>
                         <TicketRolesPicker
                             guildId={guildId}
                             value={blacklistRoleIds}
                             onChange={setBlacklistRoleIds}
-                            description="Ces rôles ne voient aucun bouton d'ouverture et ne peuvent pas agir sur les tickets."
+                            title="Rôles bloqués"
+                            triggerPlaceholder="Sélectionner les rôles à bloquer..."
+                            emptyTitle="Aucun rôle bloqué"
+                            description="Ces rôles ne peuvent pas ouvrir de ticket et ne peuvent pas agir sur un ticket (fail-closed : un rôle absent de cette liste n'est pas bloqué)."
                         />
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                            ℹ️ Ici on <strong>bloque</strong>. Pour choisir <strong>qui a le droit d&apos;ouvrir</strong>,
+                            c&apos;est par type de demande : onglet <strong>« Types de Demande »</strong>, bouton crayon du
+                            type, champ <strong>« Qui peut ouvrir ce type de demande ? »</strong>.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -272,11 +464,10 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             {/* 🆕 Matrice des permissions de salon : 4 groupes × Ouvert/Fermé. */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des salons de ticket
+                    <Shield className="h-4 w-4 text-emerald-400" /> Permissions des salons de ticket
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
-                    Qui peut quoi dans le salon, quand il est ouvert puis après fermeture.
-                    Les rôles invités se choisissent par motif, dans l'onglet Motifs.
+                    Qui peut voir et agir dans le salon (ouvert puis fermé). Les <strong>rôles invités</strong> (ex: observateurs, experts métier ou référents ponctuels) sont assignés individuellement par type de demande dans l'onglet <strong>Types de Demande</strong>.
                 </p>
 
                 {matrix.everyone.open.view && (
@@ -330,6 +521,85 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                     )}
                                 </tr>
                             ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* 🆕 Boutons du salon : nom, icône et droit (RBAC) — demande user du 16/10/2026. */}
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-emerald-400" /> Boutons du salon de ticket
+                </h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Le salon affiche <strong>Prendre en charge</strong> et <strong>Fermer le ticket</strong> ; une fois
+                    le ticket fermé, il révèle <strong>Rouvrir</strong>, <strong>Transcript</strong> et{" "}
+                    <strong>Supprimer le salon</strong>. Discord sert les mêmes boutons à tout le monde : le droit est
+                    vérifié <strong>au clic</strong> — et « Désactivé » retire réellement le bouton du message.
+                </p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                        <thead>
+                            <tr className="text-muted-foreground">
+                                <th className="text-left font-semibold p-2">Bouton</th>
+                                <th className="text-left font-semibold p-2">Nom affiché sur Discord</th>
+                                <th className="text-left font-semibold p-2">Icône</th>
+                                <th className="text-left font-semibold p-2">Qui peut le cliquer</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {TICKET_BUTTON_KEYS.map((key) => {
+                                const resolved = resolveTicketButton(key, buttonSettings, ticketLanguage);
+                                return (
+                                    <tr key={key} className="border-t border-border/40">
+                                        <td className="p-2 align-top">
+                                            <div className="font-semibold text-foreground">
+                                                {TICKET_BUTTON_ADMIN_LABELS[key]}
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {TICKET_BUTTON_ADMIN_HINTS[key]}
+                                            </div>
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <Input
+                                                value={resolved.label}
+                                                maxLength={TICKET_BUTTON_LABEL_MAX}
+                                                onChange={(event) => patchButton(key, { label: event.target.value })}
+                                                className="h-8 text-xs"
+                                                aria-label={`Nom du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            />
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <Input
+                                                value={resolved.emoji}
+                                                maxLength={TICKET_BUTTON_EMOJI_MAX}
+                                                onChange={(event) => patchButton(key, { emoji: event.target.value })}
+                                                className="h-8 text-xs w-20"
+                                                aria-label={`Icône du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            />
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <select
+                                                value={resolved.access}
+                                                onChange={(event) =>
+                                                    patchButton(key, {
+                                                        access: event.target.value as TicketButtonAccess,
+                                                    })
+                                                }
+                                                className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                                aria-label={`Droit du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            >
+                                                {TICKET_BUTTON_ACCESS.map((access) => (
+                                                    <option key={access} value={access}>
+                                                        {TICKET_BUTTON_ACCESS_LABELS[access]}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

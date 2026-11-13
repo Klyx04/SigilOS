@@ -5,16 +5,21 @@ import { cn } from "@/lib/utils";
 
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
+import { recoverFromStaleDeployment } from "@/lib/stale-deployment";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map, Zap, Crown,
-    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
+    Users, CheckCircle2, X, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { getDefis } from "@/server/actions/defi-admin-actions";
 import { getTitans } from "@/server/actions/titan-admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -41,7 +46,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { getDungeonFinderConfig } from "@/server/actions/dungeon-finder-actions";
 import { Eye } from "lucide-react";
-import { questThumbnail, QUEST_ICON_FALLBACK } from "@/lib/dungeon-finder-utils";
+import { QuestThumbnail } from "./quest-thumbnail";
 
 /** Les 4 modes du chercheur de groupe. */
 type FinderMode = "DONJON" | "QUETE" | "DEFI" | "TITAN";
@@ -74,7 +79,7 @@ interface Dungeon {
     achievements: {
         id: string;
         points: number;
-        challenge: { id: string; name: string; iconUrl?: string | null };
+        challenge: { id: string; name: string; iconUrl?: string | null; slug?: string | null };
     }[];
 }
 
@@ -107,6 +112,24 @@ interface DjPostCreateModalProps {
     isDiscordConfigured?: boolean;
     onClose: () => void;
     onCreated: () => void;
+}
+
+/**
+ * Source d'un résultat de recherche de quête : la route `/api/dofusdb/quests` cherche **d'abord
+ * dans NOTRE base** (`GameQuest` : 1 976 quêtes siphonnées) et ne sollicite DofusDB qu'en repli.
+ * Le libellé « DofusDB » du champ était donc trompeur (constat user du 16/10/2026) : on montre la
+ * provenance réelle de chaque ligne au lieu de la supposer.
+ */
+function QuestSourceChip({ isLocal }: { isLocal?: boolean }) {
+    return (
+        <span
+            className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                isLocal ? "bg-emerald-500/10 text-emerald-400" : "bg-surface text-muted-foreground"
+            }`}
+        >
+            {isLocal ? "base locale" : "DofusDB"}
+        </span>
+    );
 }
 
 export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQuestName, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
@@ -163,11 +186,20 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     const [message, setMessage] = useState("");
     const [targetDate, setTargetDate] = useState("");
     const [requiredClasses, setRequiredClasses] = useState<string[]>([]);
+    // Classe du CRÉATEUR (main ou mule) : le sélecteur partagé charge le roster et
+    // pré-sélectionne le personnage principal. Ce n'est PAS « les classes recherchées ».
+    const [creatorClass, setCreatorClass] = useState<string | null>(null);
     const [isDiscordPublished, setIsDiscordPublished] = useState(false);
     const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
+    /** ⚠️ Un échec de chargement des rôles ne doit JAMAIS masquer le bloc en silence :
+     *  sans ce message, l'absence de l'étape « ping d'un rôle » était inexplicable pour
+     *  l'utilisateur (constat du 17/10/2026). */
+    const [rolesError, setRolesError] = useState<string | null>(null);
+    /** Incrémenté par « Réessayer » ⇒ relance l'effet de chargement des rôles. */
+    const [rolesReloadKey, setRolesReloadKey] = useState(0);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
 
     const [isPending, startTransition] = useTransition();
@@ -210,6 +242,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setRequiredClasses([]);
             setIsDiscordPublished(isDiscordConfigured === true);
             setMentionRoleIds([]);
+            setRolesError(null);
+            setRolesReloadKey(0);
             setMultiDungeons(null);
             setIsMultiOpen(false);
         }
@@ -217,21 +251,39 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
     // Fetch Discord Roles and auto-fill whitelisted ping roles
     useEffect(() => {
-        if (isOpen && isDiscordPublished && discordRoles.length === 0) {
-            setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId, { context: "dj" })
-                .then(res => {
-                    if (res.success && res.roles) {
-                        const filtered = res.roles.filter(r => r.name !== "@everyone") as any;
-                        setDiscordRoles(filtered);
-                        // No auto-selection: default = aucun rôle pingé
-                        // L'utilisateur doit choisir explicitement
-                    }
-                })
-                .catch(console.error)
-                .finally(() => setIsLoadingRoles(false));
-        }
-    }, [isOpen, isDiscordPublished, guildId, discordRoles.length]);
+        // ⚠️ Garde conservée (un seul chargement à l'ouverture) + « Réessayer » qui la force :
+        // sans `rolesReloadKey`, un échec laissait le bloc vide et muet pour toujours.
+        if (!isOpen || !isDiscordPublished) return;
+        if (discordRoles.length > 0 && rolesReloadKey === 0) return;
+
+        let cancelled = false;
+        setIsLoadingRoles(true);
+        setRolesError(null);
+
+        getDiscordRolesAction(guildId, { context: "dj" })
+            .then(res => {
+                if (cancelled) return;
+                if (res.success && res.roles) {
+                    // Aucune auto-sélection : par défaut, aucun rôle n'est pingé.
+                    setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+                } else {
+                    setRolesError(res.error || "Les rôles Discord n'ont pas pu être récupérés.");
+                }
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                // Décalage de build : la reprise est déjà déclenchée (rechargement de l'onglet),
+                // inutile d'alarmer en plus sur un état qui va disparaître.
+                if (recoverFromStaleDeployment(err)) return;
+                logger.error("[DJ] Rôles Discord indisponibles (modale de création)", err);
+                setRolesError("Les rôles Discord n'ont pas pu être récupérés.");
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingRoles(false);
+            });
+
+        return () => { cancelled = true; };
+    }, [isOpen, isDiscordPublished, guildId, discordRoles.length, rolesReloadKey]);
 
     // Fetch Target Channel Name
     useEffect(() => {
@@ -266,7 +318,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingDungeons(true);
             getDungeonsWithAchievements()
                 .then(res => { if (res.success && res.data) setDungeons(res.data); })
-                .catch(console.error)
+                .catch((err) => {
+                    // Décalage de build : la reprise (rechargement) est déjà déclenchée.
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingDungeons(false));
         }
     }, [isOpen, dungeons.length]);
@@ -277,7 +333,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingDefis(true);
             getDefis()
                 .then(res => { if (res.success && res.data) setDefis(res.data as Defi[]); })
-                .catch(console.error)
+                .catch((err) => {
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingDefis(false));
         }
     }, [isOpen, defis.length]);
@@ -288,7 +347,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingTitans(true);
             getTitans()
                 .then(res => { if (res.success && res.data) setTitans(res.data as Titan[]); })
-                .catch(console.error)
+                .catch((err) => {
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingTitans(false));
         }
     }, [isOpen, titans.length]);
@@ -425,9 +487,12 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                     targetDate: s.targetDate ? new Date(s.targetDate) : null,
                     // #203 — taille de groupe par donjon (fallback : la valeur globale)
                     maxMembers: s.maxMembers ?? maxMembers,
+                    // #26 — classes recherchées propres à ce donjon (l'UI les demande par donjon)
+                    requiredClasses: s.requiredClasses ?? [],
                 })),
                 maxMembers,
                 requiredClasses,
+                creatorClass: creatorClass ?? undefined,
                 isDiscordPublished,
                 mentionRoleIds,
             };
@@ -485,6 +550,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             message: message ? message : null,
             targetDate: targetDate ? new Date(targetDate) : null,
             requiredClasses,
+            creatorClass: creatorClass ?? undefined,
             isDiscordPublished,
             mentionRoleIds,
         };
@@ -810,7 +876,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                         {isSearchingQuests && <div className="p-4 text-sm text-muted-foreground flex items-center gap-2"><div className="w-4 h-4 border-2 border-border border-t-indigo-500 rounded-full animate-spin" /> Recherche Base de Données...</div>}
 
                                                                         {!isSearchingQuests && questSearchResults.length === 0 && (
-                                                                            <div className="p-4 text-sm text-muted-foreground">Aucune quête officielle trouvée sur DofusDB.</div>
+                                                                            <div className="p-4 text-sm text-muted-foreground">Aucune quête trouvée dans la base.</div>
                                                                         )}
 
                                                                         {!isSearchingQuests && questSearchResults.map(q => (
@@ -820,19 +886,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                                 className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-muted hover:text-foreground transition-colors border-b border-border/50 last:border-0 flex items-center gap-3"
                                                                             >
                                                                                 {/* Vrai visuel de la quête (carte de départ du jeu, sinon icône de quête
-                                                                                    Dofus) et plus aucun id technique `#606` dans la liste. */}
+                                                                                    Dofus) et plus aucun id technique `#606` dans la liste.
+                                                                                    Repli sur l'icône si la carte manque du cache disque
+                                                                                    (`<QuestThumbnail>` : jamais d'image cassée). */}
                                                                                 <span className="w-14 h-10 rounded-lg overflow-hidden bg-background border border-border shrink-0">
-                                                                                    {/* Carte absente du cache disque ⇒ repli sur l'icône de quête
-                                                                                        (jamais d'image cassée dans la liste). */}
-                                                                                    <img
-                                                                                        src={questThumbnail(q)}
-                                                                                        alt=""
-                                                                                        className="w-full h-full object-cover"
-                                                                                        loading="lazy"
-                                                                                        onError={(e) => { e.currentTarget.src = QUEST_ICON_FALLBACK; }}
-                                                                                    />
+                                                                                    <QuestThumbnail quest={q} />
                                                                                 </span>
                                                                                 <span className="truncate block font-medium min-w-0">{q.name?.fr}</span>
+                                                                                <QuestSourceChip isLocal={q.isLocal} />
                                                                             </button>
                                                                         ))}
                                                                     </>
@@ -961,7 +1022,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             }`}
                                                     >
                                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${selected ? "bg-warning/20 border-warning/20" : "bg-background border-border"}`}>
-                                                            {a.challenge.iconUrl ? <img src={a.challenge.iconUrl} alt="" className="w-5 h-5 object-contain" /> : <Trophy className="w-4 h-4" />}
+                                                            <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={20} />
                                                         </div>
                                                         <span className="flex-1 text-left truncate">{a.challenge.name}</span>
                                                         {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning" />}
@@ -1013,7 +1074,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             type="text"
                                                             value={linkedQuestSearch}
                                                             onChange={e => setLinkedQuestSearch(e.target.value)}
-                                                            placeholder="Rechercher une quête sur DofusDB..."
+                                                            placeholder="Rechercher une quête..."
                                                             className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-info/50 rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-info/10 transition-all placeholder:text-muted-foreground shadow-xl"
                                                         />
                                                         {isSearchingLinkedQuest && <p className="text-xs text-muted-foreground">Recherche...</p>}
@@ -1026,6 +1087,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                     >
                                                                         {q.name?.fr}
                                                                         {q.levelMin && <span className="text-xs text-muted-foreground ml-2">Niv. {q.levelMin}</span>}
+                                                                        <QuestSourceChip isLocal={q.isLocal} />
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -1082,6 +1144,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                     </div>
                                 </div>
 
+                                {/* Ma classe (créateur) — indépendante des classes recherchées */}
+                                <CreatorClassSelector
+                                    guildId={guildId}
+                                    value={creatorClass}
+                                    onChange={setCreatorClass}
+                                    label="Ma classe pour ce groupe"
+                                    description="Ton personnage principal et tes mules du profil SigilOS. Une classe que tu ne possèdes pas ne peut pas être choisie."
+                                />
+
+
                                 {/* Classes Requises */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between ml-1">
@@ -1110,10 +1182,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 {/* Message */}
                                 {!multiDungeons && (
                                 <div className="space-y-3">
-                                    <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Note pour la guilde</p>
+                                    <div className="flex items-center justify-between ml-1">
+                                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">Note pour la guilde</p>
+                                        <span className="text-[11px] font-mono text-muted-foreground">{message.length}/200</span>
+                                    </div>
                                     <textarea
                                         value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
+                                        maxLength={200}
+                                        onChange={(e) => setMessage(e.target.value.slice(0, 200))}
                                         rows={3}
                                         placeholder="Ex: On cherche un tank pour clean les succès du premier coup..."
                                         className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-warning/50 focus:ring-2 focus:ring-warning/10 rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none shadow-xl placeholder:text-muted-foreground"
@@ -1200,8 +1276,53 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </div>
                                     )}
 
-                                    {isDiscordPublished && discordRoles.length > 0 && (
+                                    {isDiscordPublished && (
                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-warning/20 space-y-3">
+                                            {/* ⚠️ Ce bloc n'était rendu que si `discordRoles.length > 0` : un échec de
+                                                chargement (ou une whitelist de ping vide) faisait donc **disparaître**
+                                                l'étape « ping d'un rôle » sans un mot (constat du 17/10/2026).
+                                                Ici, chaque état se dit : chargement · erreur · whitelist vide · prêt. */}
+                                            {isLoadingRoles && (
+                                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest ml-1 animate-pulse">
+                                                    Chargement des rôles Discord…
+                                                </p>
+                                            )}
+
+                                            {!isLoadingRoles && rolesError && (
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-danger/8 border border-danger/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-danger shrink-0 mt-0.5" />
+                                                    <p className="text-caption text-danger/90 font-medium leading-relaxed">
+                                                        {rolesError}{" "}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRolesReloadKey((key) => key + 1)}
+                                                            className="font-bold underline underline-offset-2 hover:text-danger"
+                                                        >
+                                                            Réessayer
+                                                        </button>
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {!isLoadingRoles && !rolesError && discordRoles.length === 0 && (
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                                                    <p className="text-caption text-warning/80 font-medium leading-relaxed">
+                                                        <span className="font-bold text-warning">Aucun rôle autorisé au ping.</span>{" "}
+                                                        Un administrateur doit en autoriser à l&apos;étape « Rôles de Ping Autorisés » des{" "}
+                                                        <Link
+                                                            href={`/dashboard/${guildId}/admin/settings`}
+                                                            className="font-bold underline underline-offset-2 hover:text-warning"
+                                                        >
+                                                            réglages Donjons &amp; Quêtes
+                                                        </Link>{" "}
+                                                        — sans cela, aucun rôle n&apos;est proposé ici.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {!isLoadingRoles && !rolesError && discordRoles.length > 0 && (
+                                            <>
                                             <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
                                                 <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
                                                 <p className="text-caption text-warning/80 font-medium leading-relaxed">
@@ -1311,6 +1432,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 </PopoverContent>
                                             </Popover>
                                             <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
+                                            </>
+                                            )}
                                         </motion.div>
                                     )}
                                 </div>

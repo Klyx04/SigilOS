@@ -52,3 +52,73 @@ export function isServableAlmanaxDay(day: string, now: Date = new Date()): boole
     const today = parisCivilDate(now);
     return day >= today && day <= almanaxWindowLastDay(today);
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Extraits SERP — bornés, jamais coupés au milieu d'un mot par Google.
+ *
+ * Mesure du 19/10/2026 (export Search Console de la bêta, 01/08 → 17/10 : 6 156 impressions,
+ * 109 clics, CTR 1,77 %) :
+ *  - les **fiches boss** pesaient 1 715 impressions pour **4 clics** (0,23 %) et leur titre
+ *    dépassait **90 caractères** ⇒ Google n'en affichait que la moitié, précisément la partie
+ *    qui donne envie de cliquer ;
+ *  - `/almanax` : 479 impressions pour **1 clic** (0,21 %) ;
+ *  - le guide « créer une guilde » : **933 impressions pour 6 clics** (0,64 %).
+ * Le nom cherché doit rester **en tête** ; le qualificatif est ce qu'on sacrifie en premier.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** Longueur maximale d'un titre réellement affiché dans les résultats Google (~580 px). */
+export const SERP_TITLE_MAX_LENGTH = 60;
+
+/** Longueur maximale d'une description réellement affichée (au-delà, Google coupe). */
+export const SERP_DESCRIPTION_MAX_LENGTH = 155;
+
+/** Normalise les espaces : jamais deux de suite, jamais en bord. */
+function normalizeSerpText(text: string): string {
+    return (text ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Coupe sur un **mot entier**, sans ellipse : Google ajoute la sienne et un « … » consomme un
+ * caractère utile. La ponctuation pendante en fin de coupe est retirée.
+ */
+export function truncateAtWord(text: string, max: number): string {
+    const clean = normalizeSerpText(text);
+    if (clean.length <= max) return clean;
+    // `+ 1` : on garde la frontière du mot qui commence juste après la limite.
+    const window = clean.slice(0, max + 1);
+    const lastSpace = window.lastIndexOf(" ");
+    const cut = lastSpace > 0 ? window.slice(0, lastSpace) : clean.slice(0, max);
+    return cut.replace(/[\s,;:.·—–-]+$/, "");
+}
+
+/**
+ * Compose un titre SERP à partir de trois éléments, en dégradant dans cet ordre :
+ *  1. tout tient → `nom suffixe — qualificatif` ;
+ *  2. le qualificatif ne tient pas → `nom suffixe` ;
+ *  3. même le suffixe (niveau) ne tient pas → le **nom seul**, coupé sur un mot.
+ *
+ * Le nom passe toujours avant : c'est la requête que le joueur tape.
+ */
+export function composeSerpTitle(
+    name: string,
+    suffix: string,
+    qualifier: string,
+    max: number = SERP_TITLE_MAX_LENGTH,
+): string {
+    const cleanName = normalizeSerpText(name);
+    const cleanSuffix = normalizeSerpText(suffix);
+    const cleanQualifier = normalizeSerpText(qualifier);
+    const withSuffix = `${cleanName}${cleanSuffix ? ` ${cleanSuffix}` : ""}`.trim();
+    const full = cleanQualifier ? `${withSuffix} — ${cleanQualifier}` : withSuffix;
+    if (full.length <= max) return full;
+    if (withSuffix && withSuffix.length <= max) return withSuffix;
+    return truncateAtWord(cleanName || cleanQualifier, max);
+}
+
+/** Description SERP bornée, coupée sur un mot (aucune phrase fantôme). */
+export function clampSerpDescription(
+    text: string,
+    max: number = SERP_DESCRIPTION_MAX_LENGTH,
+): string {
+    return truncateAtWord(text, max);
+}

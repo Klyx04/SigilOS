@@ -1,24 +1,37 @@
 "use client";
 
+/**
+ * Bloc « est en LIVE » de la barre du haut — **déslopé le 02/11/2026**.
+ *
+ * Ce qui change (et pourquoi) :
+ * - la **vraie photo du streamer** remplace la miniature du stream (l'ancien code mettait
+ *   `thumbnailUrl` dans `avatarUrl` : ce n'était pas un visage) ;
+ * - la **marque** (Twitch) est un SVG local, pas une icône lucide dépréciée ;
+ * - un seul accent (`danger`), rayons ≤ 12 px, plus de `font-black`, plus de double
+ *   `animate-ping` : règle de deslop de `docs/RULES.md`.
+ *
+ * Aucune donnée inventée : si l'avatar manque, on retombe sur la marque, jamais sur un faux.
+ */
 import { useEffect, useState } from "react";
-import { Tv, X, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { X, ExternalLink, Eye } from "lucide-react";
 import { getLiveStreamers } from "@/server/actions/feed-actions";
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TwitchIcon } from "@/components/icons/brand-icons";
 
 interface LiveStreamer {
     creatorId: string;
     url: string;
     title: string;
     avatarUrl?: string | null;
+    gameName?: string | null;
+    viewers?: number | null;
+    platform?: "TWITCH" | string;
+    login?: string | null;
 }
+
+const DISMISS_MS = 4 * 60 * 60 * 1000;
+const POLL_MS = 5 * 60 * 1000;
 
 export function LiveStreamBadge({ guildId }: { guildId: string }) {
     const [liveStreamers, setLiveStreamers] = useState<LiveStreamer[]>([]);
@@ -29,8 +42,8 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
     useEffect(() => {
         const lastDismiss = localStorage.getItem(`live-badge-dismissed-${guildId}`);
         if (lastDismiss) {
-            const dimissTime = parseInt(lastDismiss, 10);
-            if (Date.now() - dimissTime < 1000 * 60 * 60 * 4) {
+            const dismissTime = parseInt(lastDismiss, 10);
+            if (Number.isFinite(dismissTime) && Date.now() - dismissTime < DISMISS_MS) {
                 setIsDismissed(true);
                 return;
             }
@@ -42,29 +55,28 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                 setLiveStreamers(res.data);
                 setIsHidden(false);
             } else {
+                setLiveStreamers([]);
                 setIsHidden(true);
             }
         };
 
         fetchLive();
-        const interval = setInterval(fetchLive, 1000 * 60 * 5);
+        const interval = setInterval(fetchLive, POLL_MS);
         return () => clearInterval(interval);
     }, [guildId]);
 
-    const handleDismiss = (e: React.SyntheticEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleDismiss = (event: React.SyntheticEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
         localStorage.setItem(`live-badge-dismissed-${guildId}`, Date.now().toString());
         setIsDismissed(true);
     };
 
-    const handleBadgeClick = (e: React.MouseEvent) => {
-        e.preventDefault();
+    const handleBadgeClick = (event: React.MouseEvent) => {
+        event.preventDefault();
         if (liveStreamers.length === 1) {
-            // Single streamer: open directly
             window.open(liveStreamers[0].url, "_blank", "noopener");
         } else {
-            // Multiple: show picker modal
             setIsModalOpen(true);
         }
     };
@@ -73,102 +85,114 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
     const count = liveStreamers.length;
     const first = liveStreamers[0];
-    const text = count === 1 ? `${first.creatorId} est en LIVE` : `${count} Créateurs en LIVE`;
+    const label = count === 1 ? `${first.creatorId} est en live` : `${count} créateurs en live`;
 
     return (
         <>
-            <div className="relative group/badge">
+            <div className="relative group/badge shrink-0">
                 <button
+                    type="button"
                     onClick={handleBadgeClick}
-                    className={cn(
-                        "flex h-8 items-center gap-2 px-3 rounded-full bg-danger/10 border border-danger/20 hover:bg-danger/15 transition-colors shrink-0 cursor-pointer",
-                        "animate-in fade-in duration-150"
-                    )}
+                    aria-label={
+                        count === 1
+                            ? `${first.creatorId} est en direct — ouvrir le stream`
+                            : `${count} créateurs en direct — voir la liste`
+                    }
+                    className="flex h-9 items-center gap-2 pl-1 pr-2.5 rounded-xl bg-danger/10 border border-danger/20 hover:bg-danger/15 transition-colors cursor-pointer"
                 >
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
+                    <span className="relative flex h-6 w-6 items-center justify-center shrink-0">
+                        {first.avatarUrl ? (
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={first.avatarUrl} alt="" className="object-cover" />
+                                <AvatarFallback className="bg-danger/15 text-danger text-[10px] font-semibold">
+                                    {first.creatorId?.[0]?.toUpperCase() ?? "?"}
+                                </AvatarFallback>
+                            </Avatar>
+                        ) : (
+                            <TwitchIcon className="h-3.5 w-3.5 text-danger" />
+                        )}
+                        <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
                     </span>
 
-                    <Tv className="w-3 h-3 text-danger" />
+                    <span className="hidden xl:inline text-xs font-semibold text-foreground max-w-[190px] truncate">{label}</span>
 
-                    <span className="text-caption font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
-                        {text}
-                    </span>
+                    {count > 1 && (
+                        <span className="text-[10px] font-semibold text-danger bg-danger/15 rounded-md px-1.5 py-0.5">
+                            {count}
+                        </span>
+                    )}
+                </button>
 
-                    <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={handleDismiss}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDismiss(e);
-                            }
-                        }}
-                        className="ml-1 p-0.5 rounded-full hover:bg-muted/20 text-foreground/20 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                        title="Cacher pour 4h"
-                        aria-label="Cacher pour 4h"
-                    >
-                        <X className="w-2.5 h-2.5" />
-                    </span>
+                <button
+                    type="button"
+                    onClick={handleDismiss}
+                    aria-label="Masquer les annonces de live pendant 4 heures"
+                    className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-surface border border-border text-muted-foreground hover:text-foreground items-center justify-center hidden group-hover/badge:flex"
+                >
+                    <X className="h-2.5 w-2.5" />
                 </button>
             </div>
 
-            {/* Streamer Picker Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="w-[90vw] max-w-sm bg-background border border-border p-0 overflow-hidden shadow-2xl rounded-2xl">
-                    <div className="p-4 border-b border-border bg-surface">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-danger/10 border border-danger/20 flex items-center justify-center shrink-0">
-                                <Tv className="h-4 w-4 text-danger" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider truncate">Créateurs en LIVE</DialogTitle>
-                                <p className="text-caption text-muted-foreground font-medium">Choisis un streamer à regarder</p>
-                            </div>
+                <DialogContent className="w-[min(420px,calc(100vw-2rem))] p-0 gap-0 overflow-hidden rounded-xl">
+                    <div className="flex items-center gap-3 p-4 border-b border-border">
+                        <span className="h-9 w-9 rounded-xl bg-danger/10 text-danger flex items-center justify-center shrink-0">
+                            <TwitchIcon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <DialogTitle className="text-sm font-semibold text-foreground">Créateurs en direct</DialogTitle>
+                            <p className="text-caption text-muted-foreground">Choisis le stream à regarder</p>
                         </div>
                     </div>
 
-                    <div className="p-3 space-y-1.5 max-h-[300px] overflow-y-auto">
+                    <div className="p-2 max-h-[320px] overflow-y-auto">
                         {liveStreamers.map((streamer) => (
                             <a
                                 key={streamer.creatorId}
                                 href={streamer.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-3 rounded-xl bg-elevated/30 hover:bg-elevated/60 border border-border hover:border-danger/30 transition-all group"
+                                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-elevated/50 transition-colors group"
                             >
                                 <div className="relative shrink-0">
-                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarImage src={streamer.avatarUrl || undefined} className="object-cover" />
-                                            <AvatarFallback className="bg-danger/20 text-danger text-xs font-black">
-                                                {streamer.creatorId?.[0]?.toUpperCase() || "?"}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    </div>
-                                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-danger border-2 border-border animate-pulse" />
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={streamer.avatarUrl || undefined} alt="" className="object-cover" />
+                                        <AvatarFallback className="bg-danger/15 text-danger text-xs font-semibold">
+                                            {streamer.creatorId?.[0]?.toUpperCase() || "?"}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-danger ring-2 ring-background" />
                                 </div>
+
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-black text-foreground group-hover:text-foreground uppercase tracking-tight truncate">
+                                    <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5">
                                         {streamer.creatorId}
+                                        <TwitchIcon className="h-3 w-3 text-[#9146FF] shrink-0" />
                                     </p>
-                                    <p className="text-caption text-muted-foreground font-bold truncate mt-0.5">
-                                        {streamer.title || "En direct"}
-                                    </p>
+                                    <p className="text-caption text-muted-foreground truncate">{streamer.title || "En direct"}</p>
+                                    {(streamer.gameName || typeof streamer.viewers === "number") && (
+                                        <p className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                                            {streamer.gameName && <span className="truncate">{streamer.gameName}</span>}
+                                            {typeof streamer.viewers === "number" && (
+                                                <span className="flex items-center gap-1 shrink-0">
+                                                    <Eye className="h-3 w-3" />
+                                                    {streamer.viewers.toLocaleString("fr-FR")}
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
                                 </div>
-                                <ExternalLink className="h-4 w-4 text-danger/50 group-hover:text-danger shrink-0 transition-colors" />
+
+                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0 transition-colors" />
                             </a>
                         ))}
                     </div>
 
                     {liveStreamers.length > 1 && (
-                        <div className="px-4 pb-4">
+                        <div className="px-2 pb-2">
                             <a
                                 href={`/dashboard/${guildId}/ressources?tab=creators`}
-                                className="block w-full text-center py-2.5 rounded-xl bg-surface hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-wider transition-all border border-border"
+                                className="block w-full text-center py-2 rounded-lg bg-elevated/50 hover:bg-elevated text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
                             >
                                 Voir tous les créateurs
                             </a>

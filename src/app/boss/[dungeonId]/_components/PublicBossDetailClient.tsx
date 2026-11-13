@@ -10,8 +10,6 @@ import {
   Users,
   ArrowRight,
   Target,
-  Flame,
-  Loader2,
   MapPin,
   Check,
   Info,
@@ -24,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
+import { MonsterStatsSummary } from "@/components/succes/MonsterStatsSummary";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
 import { BossOverlayButton } from "@/components/boss-overlay/boss-overlay-button";
@@ -36,6 +35,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
+import { BRAND_ICONS } from "@/lib/source-icons";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { DungeonMinimapCard } from "./DungeonMinimapCard";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
@@ -51,7 +51,9 @@ import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { DocContent } from "@/components/doc/doc-content";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
-import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
+import { monsterFicheHref } from "@/lib/monster-fiche";
+import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
+import { getMultiBossConfig, type MultiBossConfig } from "@/lib/dungeon-multi-boss";
 
 interface PublicDungeon {
   id: string;
@@ -88,6 +90,11 @@ interface FamilyMember {
 export interface DungeonFamily {
   familyId: number | null;
   monsters: FamilyMember[];
+  /**
+   * Lot 6 — provenance de la composition : `local` (catalogue souverain),
+   * `network` (repli DofusDB/Dofensive) ou `empty`. L'UI le dit quand ce n'est pas local.
+   */
+  source?: "local" | "network" | "empty";
   /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
   companions?: FamilyMember[];
   /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */
@@ -128,6 +135,12 @@ function MonsterImage({
     : src || null;
   const [currentSrc, setCurrentSrc] = useState<string | null>(initialSrc);
   const [failed, setFailed] = useState(false);
+  // 🐛 Mesure du 20/10/2026 : la première vague de 10 vignettes affichait toutes l'épée
+  // générique alors que `/api/assets-dofus/monsters/3416` répond **200 image/webp**. Le proxy
+  // télécharge l'asset à froid : un échec transitoire condamnait la vignette (`failed`
+  // définitif) pour toute la session. On retente **une fois** (paramètre de cache-busting
+  // inoffensif pour la route) avant de basculer sur un repli qui a du sens.
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const next = targetId
@@ -135,18 +148,33 @@ function MonsterImage({
       : src || null;
     setCurrentSrc(next);
     setFailed(false);
+    setRetry(0);
   }, [src, targetId, assetType]);
 
   if (!currentSrc || failed) {
     return (
       <span className={cn("inline-flex items-center justify-center text-muted-foreground/40 bg-background", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/assets/dofus/icons/crossedSwords.png" alt="" className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50" />
+        <img
+          src="/assets/dofus/icons/waveMonsters.png"
+          alt=""
+          className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50"
+        />
       </span>
     );
   }
   return (
-    <img src={currentSrc} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={retry > 0 ? `${currentSrc}${currentSrc.includes("?") ? "&" : "?"}retry=${retry}` : currentSrc}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (retry < 1) setRetry((n) => n + 1);
+        else setFailed(true);
+      }}
+    />
   );
 }
 
@@ -219,7 +247,25 @@ export function PublicBossDetailClient({
   initialQuestsData,
   initialAchievements,
 }: PublicBossDetailClientProps) {
-  const bossName = dungeon.bossName || dungeon.name;
+  // 🐛 Double boss (mesure du 20/10/2026) : `dungeon.bossName` porte le nom du donjon
+  // (« Comte et Nileza ») et non un monstre ⇒ l'écran demandait les stats du Comte et la
+  // simulation ne pouvait filtrer aucune salle. La règle donne le vrai boss de la salle
+  // (`focus`) et son partenaire (`partner`), sans rien inventer.
+  const bossPair = resolveDungeonBossPair({
+    name: dungeon.name,
+    bossName: dungeon.bossName,
+    dofensiveMonsterName: dungeon.dofensiveMonsterName,
+    dofensiveDungeonName: dungeon.dofensiveDungeonName,
+  });
+  const bossName = bossPair.focus;
+  /** Les deux combattants d'un donjon double boss (partenaire d'abord, focus ensuite). */
+  const doubleBossNames = bossPair.isDoubleBoss
+    ? [bossPair.partner, bossPair.focus].filter((n): n is string => !!n)
+    : [];
+  const multiBossConfig = useMemo(() => getMultiBossConfig(dungeon), [dungeon]);
+  const isMultiBoss = !!multiBossConfig;
+  const multiBossNames = multiBossConfig?.bossNames ?? [];
+  const effectiveBossName = isMultiBoss && multiBossConfig ? multiBossConfig.bossNames[0] : bossName;
   // 📜 Onglets « quêtes liées » / « succès du donjon » : le serveur ne fournit ces données que
   // pour les **vrais donjons** (ni titan, ni avis de recherche) ⇒ l'onglet disparaît quand il n'y
   // a rien à montrer, jamais un onglet vide.
@@ -272,7 +318,7 @@ export function PublicBossDetailClient({
   const drops: any[] = displayStats?.drops ?? currentStats?.drops ?? [];
   const roomMonsters = familyByDungeon[dungeon.id]?.monsters ?? [];
   const hasRoomMonsters = roomMonsters.length > 1;
-  const activeBossKey = activeMonsterName ?? bossName;
+  const activeBossKey = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
   const dungeonMaps = mapsByBoss[activeBossKey];
 
   // Passif enrichi : 100% intact si déjà des effets (Tal Kasha), enrichi via StartingSpell sinon (Kwakwa)
@@ -297,7 +343,7 @@ export function PublicBossDetailClient({
     if (statsByKey[entityKey] || loadingByKey[entityKey]) return;
     let cancelled = false;
     setLoadingByKey((p) => ({ ...p, [entityKey]: true }));
-    const target = activeMonsterName ?? bossName;
+    const target = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
     getMonsterStats(target, dungeon.name, false, undefined, locale)
       .then(async (res) => {
         if (cancelled) return;
@@ -331,7 +377,7 @@ export function PublicBossDetailClient({
   // Lazy-load sorts pour le grade actif (si le monstre a plusieurs grades)
   useEffect(() => {
     if (grades.length <= 1 || !currentStats) return;
-    const target = activeMonsterName ?? bossName;
+    const target = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
     const targetGrade = gradeIdx + 1;
     const targetGradeKey = `${entityKey}::g${targetGrade}`;
     if (statsByKey[targetGradeKey] || loadingByKey[targetGradeKey]) return;
@@ -421,7 +467,7 @@ export function PublicBossDetailClient({
     const gradeNumber = activeGradeIndex + 1;
     let cancelled = false;
     getBossDofensiveSpells(
-      activeMonsterName ?? bossName,
+      activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName),
       dungeon.name,
       gradeNumber,
       false,
@@ -452,7 +498,10 @@ export function PublicBossDetailClient({
   }, [dungeon.id, activeMonsterName, activeGradeIndex]);
 
   const selectMonster = (m: FamilyMember) => {
-    if (m.isBoss || m.name === bossName) {
+    // Double boss (mesure du 20/10/2026) : la condition `m.isBoss` renvoyait TOUJOURS le
+    // boss de la fiche, donc le second boss d'une salle n'était pas sélectionnable.
+    // Seul le monstre **déjà affiché** (`bossName`) remet la vue par défaut.
+    if (m.name === bossName) {
       setActiveMonsterName(null);
     } else {
       setActiveMonsterName(m.name);
@@ -464,15 +513,11 @@ export function PublicBossDetailClient({
   // Liste d'onglets : **source unique** partagée avec les fiches internes du module Succès
   // (`@/lib/boss-fiche-tabs`) — plus aucune définition locale, donc plus aucune divergence
   // possible entre la fiche publique et les fiches internes.
-  // Monstres normaux de la salle (hors boss / avis / anomalie / titan / raid) : ce sont eux
-  // qui ont droit à leur propre fiche `/bestiaire/<slug>` (onglet « Monstres »).
-  const normalMonsterList = listNormalMonsters(roomMonsters as any);
   const tabs = buildBossFicheTabs({
     entity: isRaid ? "raid" : isTitan ? "titan" : isBounty ? "bounty" : isAnomalyBoss ? "anomaly" : "dungeon",
     counts: {
       grades: grades.length,
       roomMonsters: hasRoomMonsters ? roomMonsters.length : 0,
-      monsters: normalMonsterList.length,
       quests: questCount,
       achievements: achievementCount,
     },
@@ -480,14 +525,14 @@ export function PublicBossDetailClient({
     locale: locale === "en" ? "en" : "fr",
   });
 
-  const resists = activeGrade?.resists || {};
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
-  const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
+  const effectiveCoords = (isMultiBoss && multiBossConfig) ? multiBossConfig.coordinates : coords;
+  const travelCmd = effectiveCoords ? `/travel ${effectiveCoords.x} ${effectiveCoords.y}` : null;
   /* Encart « Localisation » : la zone de l'avis (subareaIds) ou du donjon (mapId),
      avec repli sur la carte de l'entrée (coordonnées seules). */
   const bountySubareaIds = bountyMeta?.subareaIds ?? [];
-  const hasZoneLocation = !!(coords || dungeon.mapId || bountySubareaIds.length > 0);
-  const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
+  const hasZoneLocation = !!(effectiveCoords || dungeon.mapId || bountySubareaIds.length > 0);
+  const zoneWorldId = Number(effectiveCoords?.worldMapId ?? 0) > 0 ? (effectiveCoords!.worldMapId as number) : 1;
   const resolvedBossName =
     dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
 
@@ -500,7 +545,7 @@ export function PublicBossDetailClient({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
           <BossOverlayButton
-            monsterName={activeMonsterName ?? bossName}
+            monsterName={activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}
             dungeonName={dungeon.name}
           />
         </div>
@@ -511,9 +556,13 @@ export function PublicBossDetailClient({
             <div className="flex items-center gap-4 min-w-0">
               <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                 <MonsterImage
-                  src={currentStats?.imageUrl ?? dungeon.imageUrl}
-                  alt={activeMonsterName ?? bossName}
-                  monsterId={currentStats?.id}
+                  src={
+                    isMultiBoss
+                      ? (activeMonsterName ? (currentStats?.imageUrl ?? dungeon.imageUrl) : (dungeon.imageUrl ?? currentStats?.imageUrl))
+                      : (currentStats?.imageUrl ?? dungeon.imageUrl)
+                  }
+                  alt={activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}
+                  monsterId={isMultiBoss && !activeMonsterName ? undefined : currentStats?.id}
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
@@ -523,7 +572,7 @@ export function PublicBossDetailClient({
                   <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
                 </p>
                 <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
-                  {activeMonsterName ?? bossName}
+                  {activeMonsterName ?? (bossPair.isDoubleBoss || isMultiBoss ? dungeon.name : bossName)}
                 </h1>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Compass className="w-3.5 h-3.5 opacity-70" />
@@ -533,8 +582,54 @@ export function PublicBossDetailClient({
               </div>
             </div>
 
+            {/* Double boss — les deux combattants de la salle, cliquables (mesure du 20/10/2026) :
+                sans ce bandeau, la fiche annonçait « Comte et Nileza » mais ne montrait que le Comte. */}
+            {(bossPair.isDoubleBoss || isMultiBoss) && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="boss-pair">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isMultiBoss ? (multiBossConfig?.label ?? "Quatuor") : "Double boss"}
+                </span>
+                {(isMultiBoss ? multiBossNames : doubleBossNames).map((name) => {
+                  const monster = roomMonsters.find((m) => m.name === name);
+                  const active = (activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)) === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        if (monster) {
+                          selectMonster(monster);
+                        } else {
+                          setActiveMonsterName(name);
+                          setActiveGradeIndex(null);
+                          setSelectedSpellId(undefined);
+                        }
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors",
+                        active
+                          ? "border-border-strong bg-surface/80 text-foreground"
+                          : "border-border bg-surface/40 text-muted-foreground hover:text-foreground"
+                      )}
+                      title={locale === "en" ? `Show ${name}` : `Afficher ${name}`}
+                    >
+                      {monster?.imageUrl ? (
+                        <MonsterImage
+                          src={monster.imageUrl}
+                          alt=""
+                          monsterId={monster.id}
+                          className="h-3.5 w-3.5 object-contain"
+                        />
+                      ) : null}
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
-            {coords && (
+            {effectiveCoords && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
                 <button
                   type="button"
@@ -552,7 +647,7 @@ export function PublicBossDetailClient({
                   <span>
                     {t.bossPage.dungeonEntrance}{" "}
                     <strong className="font-mono text-foreground/90">
-                      [{coords.x}, {coords.y}]
+                      [{effectiveCoords.x}, {effectiveCoords.y}]
                     </strong>
                   </span>
                   {copiedTravel ? (
@@ -565,237 +660,75 @@ export function PublicBossDetailClient({
                 </button>
                 <span className="text-xs font-semibold text-muted-foreground">
                   {t.bossPage.zoneLabel}{" "}
-                  <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
+                  <strong className="text-foreground">{multiBossConfig?.zoneName ?? getWorldName(effectiveCoords.worldMapId, locale)}</strong>
                 </span>
               </div>
             )}
 
-            {/* Caractéristiques : PV / PA / PM en cartes, résistances dans un encadré. */}
-            {isLoadingCurrent ? (
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.hp}>
-                    <span className="flex items-baseline gap-1.5">
-                      <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
-                        {activeGrade ? activeGrade.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR") : "—"}
-                      </span>
-                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.hpShort}</span>
+            {/* Caractéristiques : LE MÊME bloc que les fiches internes et la fiche Titan
+                (`MonsterStatsSummary` — lot B3, mesure du 30/10/2026). */}
+            <MonsterStatsSummary
+              grades={grades}
+              activeGradeIndex={grades.length > 0 ? gradeIdx : null}
+              onGradeChange={(idx) => setActiveGradeIndex(idx)}
+              locale={locale}
+              loading={isLoadingCurrent}
+              loadingLabel={`${locale === "en" ? "Loading characteristics of" : "Chargement des caractéristiques de"} ${activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}…`}
+              onGradesOpen={() => setDetailTab("grades")}
+            />
+
+            {/* Immunités et restrictions de combat (Dofensive / DofusDB) */}
+            {currentStats?.encyclo && (() => {
+              const props = encycloProperties(currentStats.encyclo, activeGrade?.level ?? null);
+              if (props.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {props.map((p, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    >
+                      <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
+                      {p}
                     </span>
-                  </div>
-                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.ap}>
-                    <span className="flex items-baseline gap-1.5">
-                      <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.actionPoints ?? "—"}</span>
-                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.ap}</span>
-                    </span>
-                  </div>
-                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.mp}>
-                    <span className="flex items-baseline gap-1.5">
-                      <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.movementPoints ?? "—"}</span>
-                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.mp}</span>
-                    </span>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2.5">
-                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t.bossPage.resistance}</span>
-                  {grades.length === 0 && !isLoadingCurrent && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {locale === "en"
-                        ? "Characteristics not synced for this wanted poster yet — run the siphon (God → Game data)."
-                        : "Caractéristiques non synchronisées pour cet avis — relance le siphon (God → Données de jeu)."}
-                    </p>
-                  )}
-                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {(
-                        [
-                          { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? null },
-                          { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? null },
-                          { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? null },
-                          { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? null },
-                          { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? null },
-                        ] as const
-                      ).map(({ key, label, icon, value }) => (
-                        <span key={key} className="inline-flex items-center gap-1.5" title={label + " %"}>
-                          <img src={icon} alt="" className="w-4 h-4 object-contain" />
-                          <span
-                            className={cn(
-                              "font-mono text-[13px] tabular-nums",
-                              typeof value === "number" && value < 0 ? "text-rose-400" : "text-foreground/85"
-                            )}
-                          >
-                            {typeof value === "number" ? `${value}%` : "—"}
-                          </span>
-                          <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
-                        </span>
-                      ))}
-                    </div>
-                    {grades.length > 1 && (
-                      <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center gap-1 rounded-md bg-background/70 border border-border/70 p-0.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
-                            {locale === "en" ? "Rank:" : "Rang :"}
-                          </span>
-                          {grades.map((g: any, idx: number) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setActiveGradeIndex(idx)}
-                              className={cn(
-                                "min-w-[22px] h-5 text-[10px] px-1.5 rounded-[4px] font-mono transition-colors cursor-pointer",
-                                idx === gradeIdx
-                                  ? "bg-accent text-accent-foreground font-bold"
-                                  : "text-muted-foreground hover:text-foreground"
-                              )}
-                              title={`${locale === "en" ? "Rank" : "Rang"} ${idx + 1} · ${t.bossPage.levelShort} ${g.level}`}
-                            >
-                              {idx + 1}
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDetailTab("grades")}
-                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
-                        >
-                          <Flame className="w-3.5 h-3.5" />
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Caractéristiques avancées officielles du client (Tacle, Fuite, Esquives, Retraits, Puissance, Soin, Initiative) */}
-                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined || activeGrade?.power !== undefined) && (
-                  <div className="space-y-2 rounded-lg border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="flex flex-col items-center">
-                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                          <img src="/assets/dofus/stats/tacle.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                          {locale === "en" ? "Lock" : "Tacle"}
-                        </span>
-                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.tackle ?? "—"}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                          <img src="/assets/dofus/stats/fuite.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                          {locale === "en" ? "Dodge" : "Fuite"}
-                        </span>
-                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.evade ?? "—"}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                          <img src="/assets/dofus/stats/esquivePA.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                          {locale === "en" ? "AP Dodge" : "Esq PA"}
-                        </span>
-                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.apDodge ?? "—"}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                          <img src="/assets/dofus/stats/esquivePM.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                          {locale === "en" ? "MP Dodge" : "Esq PM"}
-                        </span>
-                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.mpDodge ?? "—"}</span>
-                      </div>
-                    </div>
-
-                    {/* Ligne secondaire : Retraits, Puissance, Soins (si présents) */}
-                    {(activeGrade?.apRemoval !== undefined || activeGrade?.mpRemoval !== undefined || (activeGrade?.power !== undefined && activeGrade.power > 0) || (activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0)) && (
-                      <div className="grid grid-cols-4 gap-2 pt-1.5 border-t border-border">
-                        {activeGrade?.apRemoval !== undefined && (
-                          <div className="flex flex-col items-center">
-                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                              <img src="/assets/dofus/stats/retraitPA.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                              {locale === "en" ? "AP Red" : "Ret PA"}
-                            </span>
-                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.apRemoval}</span>
-                          </div>
-                        )}
-                        {activeGrade?.mpRemoval !== undefined && (
-                          <div className="flex flex-col items-center">
-                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                              <img src="/assets/dofus/stats/retraitPM.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                              {locale === "en" ? "MP Red" : "Ret PM"}
-                            </span>
-                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.mpRemoval}</span>
-                          </div>
-                        )}
-                        {activeGrade?.power !== undefined && activeGrade.power > 0 && (
-                          <div className="flex flex-col items-center">
-                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                              <img src="/assets/dofus/stats/puissance.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                              {locale === "en" ? "Power" : "Puissance"}
-                            </span>
-                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.power}</span>
-                          </div>
-                        )}
-                        {activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0 && (
-                          <div className="flex flex-col items-center">
-                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
-                              <img src="/assets/dofus/stats/soin.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                              {locale === "en" ? "Heal" : "Soin"}
-                            </span>
-                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.healBonus}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {activeGrade?.initiative !== undefined && activeGrade.initiative > 0 && (
-                      <div className="flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
-                        <span className="flex items-center gap-1.5 text-muted-foreground font-sans">
-                          <img src="/assets/dofus/stats/initiative.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                          Initiative
-                        </span>
-                        <span className="text-foreground font-semibold tabular-nums">
-                          {activeGrade.initiative.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Immunités et restrictions de combat (Dofensive / DofusDB) */}
-                {currentStats?.encyclo && (() => {
-                  const props = encycloProperties(currentStats.encyclo, activeGrade?.level ?? null);
-                  if (props.length === 0) return null;
-                  return (
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {props.map((p, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20"
-                        >
-                          <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </>
-            )}
+              );
+            })()}
           </div>
 
           {/* ── Colonne droite : où se trouve le donjon / l'avis (zone encadrée, sinon entrée seule) ── */}
-          {hasZoneLocation && (
+          {multiBossConfig?.locationImageUrl ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-surface/60 lg:max-w-md lg:ml-auto w-full">
+              <div className="border-b border-border px-4 py-2.5 text-sm font-semibold text-foreground">
+                {t.bossPage.minimapTitle}
+              </div>
+              <div className="relative aspect-[5/3] w-full overflow-hidden bg-black/40">
+                <img
+                  src={multiBossConfig.locationImageUrl}
+                  alt={multiBossConfig.zoneName ?? dungeon.name}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <img
+                    src="/assets/worldmap/dungeon-boss.png"
+                    alt=""
+                    className="w-7 h-7 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-border px-4 py-2.5 text-sm font-medium text-foreground/90">
+                {multiBossConfig.zoneName ?? dungeon.name}
+              </div>
+            </div>
+          ) : hasZoneLocation && (
             <ZoneLocationCard
               subareaIds={bountySubareaIds}
               mapId={dungeon.mapId ?? null}
               worldId={zoneWorldId}
               mapHref={
-                coords
-                  ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                effectiveCoords
+                  ? `/carte-du-monde?play=1&x=${effectiveCoords.x}&y=${effectiveCoords.y}&zoom=-2&world=${zoneWorldId}`
                   : null
               }
               title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
@@ -804,11 +737,11 @@ export function PublicBossDetailClient({
               markerIcon="/assets/worldmap/dungeon-boss.png"
               className="lg:max-w-md lg:ml-auto w-full"
               fallback={
-                coords ? (
+                effectiveCoords ? (
                   <DungeonMinimapCard
-                    x={coords.x}
-                    y={coords.y}
-                    worldMapId={coords.worldMapId}
+                    x={effectiveCoords.x}
+                    y={effectiveCoords.y}
+                    worldMapId={effectiveCoords.worldMapId}
                     title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
                     placeName={dungeon.name}
                     openLabel={t.bossPage.minimapOpen}
@@ -858,7 +791,7 @@ export function PublicBossDetailClient({
             {bountyMeta.battleMapLabel && (
               <span
                 className="inline-flex items-center gap-1.5 text-muted-foreground"
-                title="Aucune carte de combat n'est exposée pour un avis (Dofensive ne publie que les salles de donjon) : la simulation utilise la grille vide, sans décor trompeur."
+                title="Aucune carte de combat n'est exposée pour un avis : la simulation utilise la grille vide, sans décor trompeur."
               >
                 <Info className="w-3.5 h-3.5" /> Simulation : {bountyMeta.battleMapLabel}
               </span>
@@ -871,11 +804,6 @@ export function PublicBossDetailClient({
             </p>
           )}
 
-          {bountyMeta.syncedAt && (
-            <p className="text-[11px] text-muted-foreground sm:col-span-2">
-              Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}
-            </p>
-          )}
         </div>
       )}
 
@@ -1094,6 +1022,13 @@ export function PublicBossDetailClient({
               activeGradeIndex={activeGradeIndex ?? (grades.length - 1)}
               onGradeChange={(idx) => setActiveGradeIndex(idx)}
               monsters={roomMonsters}
+              companion={(() => {
+                // Double boss : le second combattant de la salle est posé d'office sur une case
+                // de départ alliée (mesure du 20/10/2026 : un seul caster était modélisé).
+                if (!bossPair.isDoubleBoss || !bossPair.partner) return null;
+                const partner = roomMonsters.find((m) => m.name === bossPair.partner);
+                return { id: partner?.id, name: bossPair.partner, imageUrl: partner?.imageUrl ?? null };
+              })()}
               entityScale={isTitan ? 4 : 1}
               allowFreeCasterMove
             />
@@ -1182,8 +1117,14 @@ export function PublicBossDetailClient({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/dofus/modules/chest.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.lootTitle}
           </h4>
-          {drops.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noLootFound}</p>
+          {isLoadingCurrent && !currentStats ? (
+            // Ne jamais annoncer « aucun drop » pendant le chargement : c'est faux et définitif
+            // aux yeux du joueur (constat du 30/10/2026 — 106 fiches servaient `drops: []`).
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.loadingLoot}</p>
+          ) : drops.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">
+              {t.bossPage.noLootFound}
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {drops.map((drop: any, idx: number) => {
@@ -1211,52 +1152,6 @@ export function PublicBossDetailClient({
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* — TAB: TOUS LES MONSTRES NORMALUX (hors boss / avis / anomalie / titan / raid).
-          Chacun ouvre SA fiche (`/bestiaire/<slug>`, source unique `monsterFicheHref`). */}
-      {detailTab === "monsters" && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
-            <h4 className="text-sm font-bold text-foreground">
-              {locale === "en" ? "All monsters" : "Tous les monstres"}
-            </h4>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-              {normalMonsterList.length} {locale === "en" ? "monsters" : "monstres"}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {locale === "en"
-              ? "Normal monsters only — dungeon bosses, bounty monsters, anomaly guardians, titans and raid bosses have their own page."
-              : "Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens d'anomalie, titans et boss de raid ont leur propre fiche."}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-            {normalMonsterList.map((m: any) => {
-              const href = monsterFicheHref(m.name);
-              const card = (
-                <>
-                  <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
-                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
-                  </div>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
-                    {m.level ? <span className="block text-[11px] text-muted-foreground">{t.bossPage.levelShort} {m.level}</span> : null}
-                  </span>
-                </>
-              );
-              const className = "flex items-center gap-2.5 rounded-xl border border-border/70 bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
-              return href ? (
-                <Link key={m.id} href={href} title={`${locale === "en" ? "Open the page of" : "Ouvrir la fiche de"} ${m.name}`} className={className}>
-                  {card}
-                </Link>
-              ) : (
-                <div key={m.id} className={className}>{card}</div>
-              );
-            })}
-          </div>
         </div>
       )}
 
@@ -1331,6 +1226,20 @@ export function PublicBossDetailClient({
                     >
                       <Target className="w-3 h-3" /> {t.bossPage.simulateSpell}
                     </button>
+                    {/* Le lien vers la fiche publique remplace l'ancien onglet « Monstres » :
+                        il ne concerne que les monstres **normaux** (un boss a sa propre page). */}
+                    {(() => {
+                      const href = m.isBoss ? null : monsterFicheHref(m.name);
+                      return href ? (
+                        <Link
+                          href={href}
+                          className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center"
+                          title={locale === "en" ? `Open ${m.name}'s page` : `Ouvrir la fiche de ${m.name}`}
+                        >
+                          {locale === "en" ? "Page" : "Fiche"}
+                        </Link>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               );
@@ -1395,7 +1304,7 @@ export function PublicBossDetailClient({
         )}
         {dungeon.dofuspourlesnoobsUrl && (
           <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/60 text-foreground text-xs font-semibold hover:bg-surface transition-colors">
-            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
+            <img src={BRAND_ICONS.dofuspourlesnoobs.src} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
             DPLN
           </a>
         )}

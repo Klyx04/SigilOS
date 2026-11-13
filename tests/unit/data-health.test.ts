@@ -131,6 +131,51 @@ describe("buildBossFicheGaps (pur)", () => {
     it("insensible à la casse et vide → aucun écart", () => {
         expect(buildBossFicheGaps([], [], NOW)).toEqual([]);
     });
+
+    // ── Butin manquant = trou réparable (mesure du 30/10/2026) ───────────────────────────
+    // Une ligne **fraîche** mais vide (`drops: []`, repli Unity) était déclarée saine : le cron
+    // ne la re-synchronisait jamais et 106 fiches beta sur 146 restaient sans butin.
+
+    it("une ligne fraîche sans butin est INCOMPLÈTE (pas « fraîche donc saine »)", () => {
+        const gaps = buildBossFicheGaps(
+            [{ bossName: "L'Éternel Conflit", name: "Gantar", level: 200 }],
+            [{ monsterName: "l'eternel conflit", monsterId: 6792, lastSyncedAt: iso(NOW - H), complete: false }],
+            NOW
+        );
+        expect(gaps).toHaveLength(1);
+        expect(gaps[0]).toMatchObject({ reason: "incomplète", monsterId: 6792 });
+    });
+
+    it("une ligne fraîche marquée « aucun butin documenté » n'est pas un écart", () => {
+        const gaps = buildBossFicheGaps(
+            [{ bossName: "Kardorim", name: "Crypte", level: 10 }],
+            [{ monsterName: "kardorim", lastSyncedAt: iso(NOW - H), complete: true }],
+            NOW
+        );
+        expect(gaps).toEqual([]);
+    });
+
+    it("une ligne ancienne mais complète reste PÉRIMÉE", () => {
+        const gaps = buildBossFicheGaps(
+            [{ bossName: "Kardorim", name: "Crypte", level: 10 }],
+            [{ monsterName: "kardorim", lastSyncedAt: iso(NOW - 25 * H), complete: true }],
+            NOW
+        );
+        expect(gaps).toHaveLength(1);
+        expect(gaps[0].reason).toBe("périmée");
+    });
+
+    it("un doublon vide récent ne masque pas le frère complet plus ancien", () => {
+        const gaps = buildBossFicheGaps(
+            [{ bossName: "Blop Indigo Royal", name: "Donjon des Blops", level: 60 }],
+            [
+                { monsterName: "blop indigo royal", monsterId: 7972, lastSyncedAt: iso(NOW - H), complete: false },
+                { monsterName: "blop indigo royal", monsterId: 1186, lastSyncedAt: iso(NOW - 3 * H), complete: true },
+            ],
+            NOW
+        );
+        expect(gaps).toEqual([]);
+    });
 });
 
 describe("checkBossFicheGaps (action, mocks)", () => {
@@ -139,7 +184,9 @@ describe("checkBossFicheGaps (action, mocks)", () => {
             { bossName: "A", name: "DA", level: 10 },
             { bossName: "B", name: "DB", level: 20 },
         ]);
-        mockMonsterStatFindMany.mockResolvedValue([{ monsterName: "a", lastSyncedAt: iso(NOW - H) }]);
+        mockMonsterStatFindMany.mockResolvedValue([
+            { monsterName: "a", monsterId: 1, lastSyncedAt: iso(NOW - H), stats: { drops: [{ id: 1 }] } },
+        ]);
 
         const res = await checkBossFicheGaps();
         expect(res.success).toBe(true);
@@ -157,7 +204,9 @@ describe("getDataHealthOverview (action, mocks)", () => {
             { bossName: "A", name: "DA", level: 10 },
             { bossName: "B", name: "DB", level: 20 },
         ]);
-        mockMonsterStatFindMany.mockResolvedValue([{ monsterName: "a", lastSyncedAt: nowIso }]);
+        mockMonsterStatFindMany.mockResolvedValue([
+            { monsterName: "a", monsterId: 1, lastSyncedAt: nowIso, stats: { drops: [{ id: 1 }] } },
+        ]);
         mockDofensiveMapFindMany.mockResolvedValue([
             { mapId: 1, lastSyncedAt: nowIso },
             { mapId: 2, lastSyncedAt: "2020-01-01T00:00:00.000Z" },

@@ -74,6 +74,42 @@ export function getDiscordApiStatus(error: unknown): number {
     return typeof status === "number" && Number.isFinite(status) ? status : 0;
 }
 
+/**
+ * Un `404` Discord à l'édition signifie que **le message n'existe plus** (supprimé à la
+ * main, post forum fermé, salon recréé) : il faut alors **recréer** au lieu de réécrire
+ * un embed fantôme — sans quoi la synchronisation échoue à chaque passe.
+ *
+ * Correctif du 22/10/2026 (Sentry `JAVASCRIPT-NEXTJS-23`) : le classifieur ne lisait que
+ * le **texte** (`/Discord Update Error: 404/`, `/Unknown Message/`). Or
+ * `updateChannelMessage` lève désormais un `DiscordApiError` dont le message est
+ * « Salon ou message introuvable » **sans le 404** : un message d'objet supprimé à la
+ * main n'était donc pas reconnu, faisait échouer **tout** le lot et rejouait l'erreur à
+ * chaque passe du cron. La règle lit maintenant le **statut porté par l'erreur** (source
+ * de vérité), et retombe sur le texte pour les chemins qui n'ont que la chaîne
+ * (`MarketDiscordResult.error`).
+ *
+ * Pur (aucune I/O) → verrou `tests/unit/market-discord-gone-error.test.ts`.
+ */
+export function isDiscordMessageGoneError(error: unknown): boolean {
+    if (error === null || error === undefined) return false;
+
+    if (getDiscordApiStatus(error) === 404) return true;
+
+    const message =
+        typeof error === "string"
+            ? error
+            : typeof (error as { message?: unknown }).message === "string"
+                ? ((error as { message: string }).message)
+                : "";
+    if (!message) return false;
+
+    return (
+        /Discord Update Error:\s*404\b/.test(message) ||
+        /Unknown Message/i.test(message) ||
+        /Salon ou message introuvable/i.test(message)
+    );
+}
+
 /** `code` d'erreur Discord porté par une erreur (undefined si inconnu). */
 export function getDiscordApiCode(error: unknown): number | undefined {
     const code = (error as { discordCode?: unknown } | null)?.discordCode;
@@ -98,6 +134,51 @@ export function describeDiscordRefusal(error: unknown): string {
     return `${status ? ` · HTTP ${status}` : ""}${code !== undefined ? ` · code ${code}` : ""}`;
 }
 
+/**
+ * Niveau de log d'un échec **d'appel Discord**.
+ *
+ * Mesure du 18/10/2026 : la couche réseau (`src/server/discord.ts`) journalisait 43 sites en
+ * « erreur », dont 27 `console.error` ⇒ `captureConsoleIntegration({ levels: ["error"] })`
+ * transformait chaque refus Discord (403 permissions, 404 salon supprimé, 429 rate-limit) en
+ * **Issue Sentry**. Ce n'est pas un défaut du produit : c'est de l'**exploitation**.
+ *
+ * Règle (fail-loud par défaut) :
+ *  · HTTP **401** → `error` (token invalide/reset : configuration cassée, on veut le voir) ;
+ *  · tout autre statut HTTP (4xx/5xx) → `warn` (permissions, salon supprimé, rate-limit, panne Discord) ;
+ *  · erreur **réseau** connue (ETIMEDOUT, ENETUNREACH, ECONNRESET, fetch failed…) → `warn` ;
+ *  · tout le reste (bug inconnu, valeur illisible) → `error` : on ne fait taire que du connu.
+ */
+export type DiscordFailureLevel = "warn" | "error";
+
+/** Codes/ motifs réseau reconnus comme « amont indisponible », jamais un bug produit. */
+const DISCORD_NETWORK_CODE_RE = /^(EAI_AGAIN|ECONNREFUSED|ECONNRESET|ENETUNREACH|ENOTFOUND|ETIMEDOUT|EPIPE|EHOSTUNREACH|UND_ERR_)/;
+const DISCORD_NETWORK_MESSAGE_RE =
+    /ETIMEDOUT|ENETUNREACH|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|fetch failed|socket hang up|network (error|timeout)/i;
+
+export function discordFailureLevel(error: unknown): DiscordFailureLevel {
+    const status = getDiscordApiStatus(error);
+    if (status === 401) return "error";
+    if (status > 0) return "warn";
+
+    const code = (error as { code?: unknown } | null)?.code;
+    if (typeof code === "string" && DISCORD_NETWORK_CODE_RE.test(code)) return "warn";
+
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    if (DISCORD_NETWORK_MESSAGE_RE.test(message)) return "warn";
+
+    // Défaut : on garde le signal. Une erreur qu'on ne sait pas classer reste une erreur.
+    return "error";
+}
+
+/** Contexte de log d'un refus Discord : statut + code, jamais le corps brut (F-15). */
+export function describeDiscordFailure(error: unknown): { status?: number; code?: number } {
+    const status = getDiscordApiStatus(error);
+    const code = getDiscordApiCode(error);
+    return {
+        ...(status ? { status } : {}),
+        ...(code !== undefined ? { code } : {}),
+    };
+}
 export type DiscordOutboxFailureAlert = {
     title: string;
     message: string;

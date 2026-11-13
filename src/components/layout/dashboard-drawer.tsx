@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
+import { resolveGuildSetupView } from "@/lib/guild-setup-view";
 
 interface DashboardDrawerProps {
     children: React.ReactNode;
@@ -35,13 +36,35 @@ interface DashboardDrawerProps {
 export function DashboardDrawer({ children, clientId = "1458259008355045519" }: DashboardDrawerProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [guilds, setGuilds] = useState<{ active: any[], pending: any[] }>({ active: [], pending: [] });
+    const [guilds, setGuilds] = useState<{
+        active: any[];
+        pending: any[];
+        guildLimitReached: boolean;
+    }>({ active: [], pending: [], guildLimitReached: false });
+
+    /**
+     * 🔒 Plafond de guildes — **même règle que la carte du portail** (`resolveGuildSetupView`) :
+     * une porte fermée ne propose **aucune** action. Sans ça, ce tiroir offrait l'invitation du
+     * bot au plafond (mesure du 06/11/2026) : le portail refusait ensuite le déploiement.
+     */
+    const deployView = resolveGuildSetupView({
+        // `pending` est déjà filtré par `isAllowedForDeployment` côté serveur : le kill-switch
+        // ne peut pas laisser passer une guilde ici.
+        autoOnboardingOn: true,
+        guildLimitReached: guilds.guildLimitReached,
+        hasBot: false,
+        loading,
+    });
 
     const loadGuilds = async () => {
         setLoading(true);
         try {
             const data = await getGuildsSeparated();
-            setGuilds({ active: data.active, pending: data.pending });
+            setGuilds({
+                active: data.active,
+                pending: data.pending,
+                guildLimitReached: data.guildLimitReached,
+            });
         } catch (error) {
             console.error("Failed to load guilds for drawer:", error);
         } finally {
@@ -149,11 +172,25 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                             {guilds.pending.length > 0 && (
                                 <div className="space-y-4 pt-4 border-t border-border">
                                     <div className="flex items-center justify-between px-2">
-                                        <h3 className="text-caption font-semibold text-success uppercase tracking-wider flex items-center gap-2">
-                                            <PlusCircle className="w-3 h-3" /> Déploiement Disponible
+                                        <h3
+                                            className={cn(
+                                                "text-caption font-semibold uppercase tracking-wider flex items-center gap-2",
+                                                deployView.blocked ? "text-warning" : "text-success"
+                                            )}
+                                        >
+                                            <PlusCircle className="w-3 h-3" />
+                                            {deployView.blocked ? "Déploiement verrouillé" : "Déploiement Disponible"}
                                         </h3>
                                     </div>
 
+                                    {deployView.blocked ? (
+                                        <p
+                                            role="status"
+                                            className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning"
+                                        >
+                                            {deployView.subtitle}
+                                        </p>
+                                    ) : (
                                     <div className="grid gap-3">
                                         {guilds.pending.map((guild, i) => (
                                             <motion.div
@@ -188,6 +225,8 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                             </motion.div>
                                         ))}
                                     </div>
+                                    )}
+
                                 </div>
                             )}
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Bell, Check, Info, X, Loader2 } from "lucide-react";
+import type { NotificationCategory } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,39 +13,80 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { getUnreadNotifications, markAllAsRead, markAsRead, type Notification } from "@/server/actions/notification-actions";
+import {
+    buildNotificationFilters,
+    notificationCategoryIcon,
+    type NotificationFilterId,
+} from "@/lib/notification-categories";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 /**
- * Icônes des catégories : vrais assets du jeu (aucun emoji, aucune illustration IA).
- * Partagé avec le centre de notifications (`dashboard/[guildId]/notifications`).
+ * Icônes de catégorie : la **source unique** vit dans `src/lib/notification-categories.ts`
+ * — partagée avec le centre de notifications **et** le serveur (un palier de succès annoncé
+ * dans le flux porte le même picto que sa catégorie). Ré-export conservé : des écrans
+ * importent d'ici.
  */
-export const CATEGORY_ICONS: Record<string, string> = {
-    ALL: "/assets/dofus/game-icons/bell-on.png",
-    MISSION: "/assets/icons/icone-quete.png",
-    SUCCESS: "/assets/icons/succes.png",
-    SONGES: "/assets/dofus-ui/pictos/songes.png",
-    DONJONS: "/assets/dofus-ui/pictos/donjon.png",
-    EVENT: "/assets/missions/event.png",
-    POLL: "/assets/dofus/game-icons/question-mark.png",
-    OCRE: "/assets/icons/ocre.png",
-    MARKET: "/assets/dofus/game-icons/shop.png",
-    ADMIN_ALERT: "/assets/dofus/game-icons/shield.png",
-    SYSTEM: "/assets/dofus/game-icons/bell-on.png",
-};
+export { NOTIFICATION_CATEGORY_ICONS as CATEGORY_ICONS } from "@/lib/notification-categories";
 
 export function CategoryIcon({ category, size = 14 }: { category: string; size?: number }) {
-    const src = CATEGORY_ICONS[category];
-    if (!src) return null;
     return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" aria-hidden="true" width={size} height={size} loading="lazy" className="object-contain shrink-0" />
+        <img
+            src={notificationCategoryIcon(category)}
+            alt=""
+            aria-hidden="true"
+            width={size}
+            height={size}
+            loading="lazy"
+            className="object-contain shrink-0"
+        />
+    );
+}
+
+/**
+ * Pastille d'une notification, du plus informatif au plus générique :
+ *   ① l'**asset de l'objet** annoncé (illustration de donjon, icône de Dofus, objet du marché) ;
+ *   ② l'**avatar Discord** de l'émetteur (le même que les bulles d'activité) ;
+ *   ③ le **picto de la catégorie** (comportement d'avant).
+ *
+ * Les deux premiers sont facultatifs (`null` en base) : la pastille est donc **toujours**
+ * rendue, on ne laisse jamais un trou visuel. Le chemin d'image est validé **côté serveur**
+ * (`sanitizeNotificationImageUrl`) — jamais une URL distante.
+ */
+export function NotificationThumb({ notification, size = 36 }: { notification: Notification; size?: number }) {
+    const boxClass =
+        "rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0";
+    const style = { width: size, height: size };
+
+    if (notification.imageUrl) {
+        return (
+            <div className={boxClass} style={style}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- chemin interne validé en amont */}
+                <img src={notification.imageUrl} alt="" className="w-full h-full object-contain p-0.5" loading="lazy" />
+            </div>
+        );
+    }
+
+    if (notification.actorImage) {
+        return (
+            <div className={boxClass} style={style}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- avatar distant (Discord), déjà borné */}
+                <img src={notification.actorImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+            </div>
+        );
+    }
+
+    return (
+        <div className={boxClass} style={style}>
+            <CategoryIcon category={notification.category ?? "ALL"} size={Math.round(size * 0.6)} />
+        </div>
     );
 }
 
 export function NotificationBell({ userId, guildId, mode = "popover", className }: { userId: string, guildId: string, mode?: "popover" | "simple", className?: string }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [activeCategory, setActiveCategory] = useState<string>("ALL");
+    const [activeCategory, setActiveCategory] = useState<NotificationFilterId>("ALL");
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -104,6 +146,14 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
     }, []);
 
     const unreadCount = notifications.length;
+
+    // Comptage par catégorie : la rangée de filtres en découle (`buildNotificationFilters`),
+    // donc « ce qui est vide ne s'affiche pas » est une règle, pas une décision d'écran.
+    const categoryCounts = notifications.reduce<Partial<Record<NotificationCategory, number>>>((acc, n) => {
+        acc[n.category] = (acc[n.category] ?? 0) + 1;
+        return acc;
+    }, {});
+    const filters = buildNotificationFilters(categoryCounts, activeCategory);
 
     if (mode === "simple") {
         return (
@@ -167,18 +217,12 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                     )}
                 </div>
 
-                {/* Filtres : retour à la ligne (jamais coupés, jamais scrollés hors vue) */}
-                <div className="flex flex-wrap items-center gap-1.5 p-2 border-b border-border bg-surface/50">
-                    {[
-                        { id: "ALL", label: "Toutes" },
-                        { id: "MISSION", label: "Missions" },
-                        { id: "SONGES", label: "Songes" },
-                        { id: "DONJONS", label: "Donjons" },
-                        { id: "EVENT", label: "Events" },
-                        { id: "POLL", label: "Sondages" },
-                        { id: "MARKET", label: "Marché" },
-                        { id: "ADMIN_ALERT", label: "Admin" },
-                    ].map((cat) => {
+                {/* Filtres : **une seule rangée régulière** (grille de 3) et **uniquement les
+                    catégories qui contiennent quelque chose** — « Toutes » + les non vides + la
+                    catégorie active (`buildNotificationFilters`, source unique). Afficher huit
+                    filtres à (0) dans trois rangées bancales ne renseignait personne. */}
+                <div className="grid grid-cols-3 gap-1.5 p-2 border-b border-border bg-surface/50">
+                    {filters.map((cat) => {
                         const count = cat.id === "ALL"
                             ? notifications.length
                             : notifications.filter(n => n.category === cat.id).length;
@@ -188,14 +232,14 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] text-caption font-bold transition-colors border",
+                                    "inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-[4px] text-caption font-bold transition-colors border min-w-0",
                                     activeCategory === cat.id
                                         ? "bg-info/15 text-info border-info/30"
                                         : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                 )}
                             >
                                 <CategoryIcon category={cat.id} />
-                                {cat.label}
+                                <span className="truncate">{cat.label}</span>
                                 <span className="text-caption opacity-60 tabular-nums">({count})</span>
                             </button>
                         );
@@ -231,9 +275,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                                     className="p-3 hover:bg-elevated/50 cursor-pointer transition-colors flex items-start gap-3"
                                     onClick={() => handleNotificationClick(n)}
                                 >
-                                    <div className="w-9 h-9 rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0">
-                                        <CategoryIcon category={n.category || "ALL"} size={22} />
-                                    </div>
+                                    <NotificationThumb notification={n} size={36} />
                                     <div className="space-y-1 overflow-hidden flex-1 min-w-0">
                                         <p className="text-sm font-bold text-foreground leading-tight truncate">{n.title}</p>
                                         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{n.message}</p>

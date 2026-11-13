@@ -23,7 +23,7 @@
 # et `/uploads/*` (preuves/guides) dans l'exemption — ces ressources légitimes
 # ne doivent JAMAIS être limitées.
 (rate_limit_base) {
-    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/*
+    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/* /api/assets-dofus/*
 
     rate_limit @rl_exempt {
         zone public_ip {
@@ -50,6 +50,20 @@
         rewrite * /429.html
         file_server
     }
+}
+
+# =============================================================================
+# 🔗 www.sigilos.fr — redirection vers l'apex
+# =============================================================================
+# Mesure du 20/10/2026 (`openssl s_client` depuis le VPS) : `www.sigilos.fr` **résout** vers le
+# serveur (DNS OK) mais ne sert **aucun certificat** → « Could not read certificate » : un
+# visiteur qui tape « www.sigilos.fr » (favori, lien ancien) tombe sur une alerte de sécurité
+# **sans jamais atteindre la vitrine**.
+# Le `www` est une adresse que les gens tapent par réflexe ; on le redirige en **301** vers
+# l'apex, seule forme canonique (un nom indexable, pas deux).
+www.sigilos.fr {
+    import security_headers
+    redir https://sigilos.fr{uri} permanent
 }
 
 # =============================================================================
@@ -113,10 +127,17 @@ ROBOTS 200
         respond 404
     }
 
-    # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server
-    # ⚠️ Le rewrite maintenance ne doit JAMAIS avaler /assets/* (sinon images cassées).
-    handle /assets/* {
-        root * /srv/static
+    # ============================================================================
+    # Fichiers STATIQUES de la vitrine (assets, images, module-dofus, logo...) -- file_server
+    # Le rewrite maintenance ne doit JAMAIS avaler un fichier REEL. Mesure du 22/10/2026 :
+    # seul /assets/* etait exclu, donc /images/songes-bosses/*.png (references par
+    # maintenance.html) renvoyait la page dattente en 200 text/html -> carres blancs.
+    # Le matcher file couvre TOUS les dossiers presents sous /srv/static (= ./public),
+    # sans liste a maintenir quand la vitrine gagne un dossier.
+    # ============================================================================
+    root * /srv/static
+    @vitrineFichier file
+    handle @vitrineFichier {
         file_server
     }
 
@@ -196,11 +217,5 @@ beta.sigilos.fr {
 }
 
 # =============================================================================
-# 📊 MONITORING
+# 📊 MONITORING (interne : Prometheus, non exposé par Caddy)
 # =============================================================================
-monitor.sigilos.fr {
-    import security_headers
-    import rate_limit_base
-    import error_page_429
-    reverse_proxy sigilos-grafana:3000
-}

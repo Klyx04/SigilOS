@@ -11,6 +11,13 @@
 import { describe, it, expect } from "vitest";
 
 import {
+    getDjCreatorClass,
+    withDjCreatorClass,
+    isDjDungeonClosed,
+    openDjDungeonIndexes,
+    areAllDjDungeonsClosed,
+    withDjDungeonsClosed,
+    withDjDungeonReminder,
     getMultiDungeons,
     getDjPostTitle,
     getDjPostSubtitle,
@@ -19,8 +26,13 @@ import {
     formatDjDateLabel,
     formatDiscordDateStamp,
     mergeMultiDungeonTargetDates,
+    mergeMultiDungeonRequiredClasses,
     achievementLines,
     embedCoverUrl,
+    getDjDungeonStats,
+    summarizeDjDungeons,
+    getMultiMessageIds,
+    withMultiMessageIds,
     QUEST_ICON_FALLBACK,
     questStartMapId,
     questMapImageUrl,
@@ -269,6 +281,14 @@ describe("achievementLines", () => {
     it("liste vide → chaîne vide (le champ n'est alors pas ajouté à l'embed)", () => {
         expect(achievementLines([], picto)).toBe("");
     });
+
+    it("repli par slug quand iconUrl est null — l'emoji custom du bot se résout", () => {
+        const lines = achievementLines(
+            [{ name: "Collant", iconUrl: null, slug: "collant" }],
+            picto
+        );
+        expect(lines).toBe("\u003c:dofus_success_collant:1234567890> Collant");
+    });
 });
 
 /**
@@ -358,3 +378,302 @@ describe("dungeon-finder — visuel d'une quête (liste de recherche)", () => {
 });
 
 });
+
+/**
+ * Places par groupe — chantier #26/#203.
+ *
+ * Régression verrouillée : la carte et la modale affichaient un ratio **global**
+ * (`1/4 — 3 dispos`) sur un post de 5 donjons, alors que Discord compte **par
+ * donjon** et que la capacité serveur (`acceptDjParticipant`) fait de même.
+ * Une seule règle pour le post simple ET le multi : `getDjDungeonStats`.
+ */
+describe("getDjDungeonStats / summarizeDjDungeons", () => {
+    const multi = [dj("Imagiro", 200), dj("Bastion", 190), dj("Trône", 200)];
+
+    const participant = (status: string, dungeonIndex?: number | null, id = Math.random().toString(36)) => ({
+        id,
+        status,
+        dungeonIndex,
+        classe: "Iop",
+    });
+
+    it("post simple : un seul groupe, créateur compté (wording inchangé)", () => {
+        const post = { dungeonsJson: null, maxMembers: 4, participants: [participant("ACCEPTED")] };
+        const stats = getDjDungeonStats(post);
+        expect(stats).toHaveLength(1);
+        expect(stats[0].index).toBe(-1);
+        expect(stats[0].dungeon).toBeNull();
+        expect(stats[0].acceptedCount).toBe(2); // 1 inscrit + créateur
+        expect(stats[0].spotsLeft).toBe(2);
+        expect(stats[0].isFull).toBe(false);
+        expect(summarizeDjDungeons(stats).label).toBe("2/4");
+    });
+
+    it("multi : capacité ET inscrits par donjon (#203)", () => {
+        const post = {
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 2 })),
+            maxMembers: 8,
+            participants: [participant("ACCEPTED", 0), participant("ACCEPTED", 2)],
+        };
+        const stats = getDjDungeonStats(post);
+        expect(stats).toHaveLength(3);
+        // Donjon 1 : créateur + 1 inscrit sur une capacité de 2 → complet.
+        expect(stats[0].acceptedCount).toBe(2);
+        expect(stats[0].spotsLeft).toBe(0);
+        expect(stats[0].isFull).toBe(true);
+        // Donjon 2 : créateur seul.
+        expect(stats[1].acceptedCount).toBe(1);
+        expect(stats[1].spotsLeft).toBe(1);
+        // Donjon 3 : créateur + 1 inscrit.
+        expect(stats[2].acceptedCount).toBe(2);
+        expect(stats[2].isFull).toBe(true);
+        const summary = summarizeDjDungeons(stats);
+        expect(summary.total).toBe(3);
+        expect(summary.full).toBe(2);
+        expect(summary.openSpots).toBe(1);
+        expect(summary.allFull).toBe(false);
+    });
+
+    it("inscrit « sans donjon » (dungeonIndex null) : compté dans CHAQUE donjon (tolérance #203)", () => {
+        const post = {
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 4 })),
+            maxMembers: 4,
+            participants: [participant("ACCEPTED", null)],
+        };
+        const stats = getDjDungeonStats(post);
+        expect(stats.map((s) => s.acceptedCount)).toEqual([2, 2, 2]);
+        // Post simple : le même inscrit compte une fois (un seul groupe).
+        expect(getDjDungeonStats({ dungeonsJson: null, maxMembers: 4, participants: [participant("ACCEPTED", null)] })[0].acceptedCount).toBe(2);
+    });
+
+    it("capacité du donjon absente → repli sur `post.maxMembers` (jamais 0 place)", () => {
+        const post = { dungeonsJson: multi, maxMembers: 6, participants: [] };
+        const stats = getDjDungeonStats(post);
+        expect(stats.map((s) => s.maxMembers)).toEqual([6, 6, 6]);
+        expect(stats.map((s) => s.spotsLeft)).toEqual([5, 5, 5]);
+    });
+
+    it("file d'attente filtrée par donjon, et places jamais négatives", () => {
+        const post = {
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 1 })),
+            maxMembers: 1,
+            participants: [participant("PENDING", 1), participant("PENDING", 1), participant("PENDING", null)],
+        };
+        const stats = getDjDungeonStats(post);
+        expect(stats[0].pending).toHaveLength(1); // créateur seul → déjà complet
+        expect(stats[0].isFull).toBe(true);
+        expect(stats[1].pending).toHaveLength(3);
+        expect(stats.every((s) => s.spotsLeft === 0)).toBe(true);
+    });
+
+    it("libellés : identiques partout, hétérogènes, ou complet partout", () => {
+        const even = getDjDungeonStats({
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 4 })),
+            maxMembers: 4,
+            participants: [],
+        });
+        expect(summarizeDjDungeons(even).label).toBe("3 places sur 3 donjons");
+
+        const uneven = getDjDungeonStats({
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 4 })),
+            maxMembers: 4,
+            participants: [participant("ACCEPTED", 0), participant("ACCEPTED", 0), participant("ACCEPTED", 0)],
+        });
+        expect(summarizeDjDungeons(uneven).label).toBe("0 à 3 places selon le donjon");
+
+        const full = getDjDungeonStats({
+            dungeonsJson: multi.map((d) => ({ ...d, maxMembers: 1 })),
+            maxMembers: 1,
+            participants: [],
+        });
+        const fullSummary = summarizeDjDungeons(full);
+        expect(fullSummary.allFull).toBe(true);
+        expect(fullSummary.label).toBe("Complet partout");
+        expect(fullSummary.perDungeon.map((d) => d.name)).toEqual(["Imagiro", "Bastion", "Trône"]);
+    });
+
+    it("aucun groupe (statistiques vides) → libellé vide, pas de NaN", () => {
+        expect(summarizeDjDungeons([])).toEqual({
+            total: 0,
+            full: 0,
+            openSpots: 0,
+            minSpots: 0,
+            maxSpots: 0,
+            allFull: false,
+            label: "",
+            perDungeon: [],
+        });
+    });
+});
+
+
+/**
+ * Enveloppe `dungeonsJson` : identifiants des **messages Discord par donjon** (#26).
+ *
+ * Le format « un message par donjon » doit pouvoir être adopté **sans migration** : la clé
+ * `_messageIds` vit à côté de `_items` (déjà écrite par les rappels d'inactivité), et rien
+ * de ce qui existait ne doit être perdu à l'écriture.
+ */
+describe("getMultiMessageIds / withMultiMessageIds", () => {
+    it("sans ids (tableau nu ou enveloppe) → aucun message : format historique", () => {
+        expect(getMultiMessageIds(null)).toEqual([]);
+        expect(getMultiMessageIds([dj("A", 1)])).toEqual([]);
+        expect(getMultiMessageIds({ _items: [dj("A", 1)], _autoReminderCount: 2 })).toEqual([]);
+        // Valeurs inexploitables ignorées (jamais un PATCH vide ni un `42` en custom_id).
+        expect(getMultiMessageIds({ _items: [], _messageIds: ["1", "", null, 42, "2"] })).toEqual(["1", "2"]);
+    });
+
+    it("écrit les ids en préservant les items et les autres clés", () => {
+        const out = withMultiMessageIds({ _items: [dj("A", 1), dj("B", 2)], _autoReminderCount: 3 }, ["m1", "m2"]);
+        expect(out._messageIds).toEqual(["m1", "m2"]);
+        expect(out._autoReminderCount).toBe(3); // jamais perdu
+        expect(getMultiDungeons(out).map((d) => d.name)).toEqual(["A", "B"]);
+        // Aller-retour : ce qu'on écrit est ce qu'on relit.
+        expect(getMultiMessageIds(out)).toEqual(["m1", "m2"]);
+    });
+
+    it("depuis un tableau nu (post créé avant l'enveloppe) : normalisé sans perte", () => {
+        const fromArray = withMultiMessageIds([dj("C", 3)], ["m3"]);
+        expect(fromArray._items.map((d) => d.name)).toEqual(["C"]);
+        expect(getMultiMessageIds(fromArray)).toEqual(["m3"]);
+    });
+});
+
+
+/**
+ * Classes recherchées **par donjon** (#26) — même contrat que les dates : l'enveloppe
+ * `{ _items, _autoReminderCount, _messageIds }` est préservée, un donjon non fourni n'est
+ * jamais touché, et une liste **vide** est un choix explicite (« aucune classe demandée »).
+ */
+describe("mergeMultiDungeonRequiredClasses", () => {
+    it("remplace les classes du donjon visé et laisse les autres intacts", () => {
+        const items = [
+            { ...dj("A", 1), requiredClasses: ["Iop"] },
+            { ...dj("B", 2), requiredClasses: ["Cra"] },
+            { ...dj("C", 3) },
+        ];
+        const merged = mergeMultiDungeonRequiredClasses(items, [["Zobal"], undefined, ["Eniripsa", "Pandawa"]]) as {
+            requiredClasses?: string[];
+        }[];
+        expect(merged[0].requiredClasses).toEqual(["Zobal"]);
+        expect(merged[1].requiredClasses).toEqual(["Cra"]); // non fourni → intact
+        expect(merged[2].requiredClasses).toEqual(["Eniripsa", "Pandawa"]);
+    });
+
+    it("liste vide = choix explicite ; enveloppe `{ _items }` et compteurs préservés", () => {
+        const envelope = {
+            _items: [{ ...dj("A", 1), requiredClasses: ["Iop"] }],
+            _autoReminderCount: 2,
+            _messageIds: ["m1"],
+        };
+        const merged = mergeMultiDungeonRequiredClasses(envelope, [[]]) as Record<string, unknown> & {
+            _items: { requiredClasses?: string[] }[];
+        };
+        expect(merged._items[0].requiredClasses).toEqual([]);
+        expect(merged._autoReminderCount).toBe(2);
+        expect(merged._messageIds).toEqual(["m1"]);
+        // Aucun donjon multi → l'entrée est rendue telle quelle (jamais de destruction).
+        expect(mergeMultiDungeonRequiredClasses(null, [["Iop"]])).toBeNull();
+    });
+});
+
+
+describe("classe du créateur — enveloppe `dungeonsJson._creatorClass`", () => {
+    it("lit la classe choisie, seule ou à côté des donjons multi", () => {
+        expect(getDjCreatorClass({ _creatorClass: "Cra" })).toBe("Cra");
+        expect(getDjCreatorClass({ _items: [{ dungeonId: "1" }], _creatorClass: "Eniripsa" })).toBe("Eniripsa");
+    });
+
+    it("n'invente rien quand la clé est absente, vide ou d'un autre type", () => {
+        expect(getDjCreatorClass(null)).toBeNull();
+        expect(getDjCreatorClass(undefined)).toBeNull();
+        expect(getDjCreatorClass([{ dungeonId: "1" }])).toBeNull();
+        expect(getDjCreatorClass({ _creatorClass: "   " })).toBeNull();
+        expect(getDjCreatorClass({ _creatorClass: 42 })).toBeNull();
+    });
+
+    it("écrit la classe SANS perdre l'enveloppe (donjons, messages, rappels H-1)", () => {
+        const before = {
+            _items: [{ dungeonId: "1" }],
+            _messageIds: ["m1"],
+            _h1ReminderSentAt: "2026-10-01T10:00:00.000Z",
+        };
+        const after = withDjCreatorClass(before, "Iop");
+        expect(after).toEqual({ ...before, _creatorClass: "Iop" });
+        expect(getDjCreatorClass(after)).toBe("Iop");
+    });
+
+    it("retire la clé sur `null` et n'écrit jamais une enveloppe creuse", () => {
+        expect(withDjCreatorClass({ _items: [{ dungeonId: "1" }], _creatorClass: "Cra" }, null))
+            .toEqual({ _items: [{ dungeonId: "1" }] });
+        expect(withDjCreatorClass({ _creatorClass: "Cra" }, null)).toBeNull();
+        expect(withDjCreatorClass(null, "Cra")).toEqual({ _creatorClass: "Cra" });
+        expect(withDjCreatorClass(null, null)).toBeNull();
+    });
+
+    it("convertit un tableau en enveloppe, toujours lisible par `getMultiDungeons`", () => {
+        const after = withDjCreatorClass([{ dungeonId: "1" }], "Cra");
+        expect(getMultiDungeons(after)).toEqual([{ dungeonId: "1" }]);
+        expect(getDjCreatorClass(after)).toBe("Cra");
+    });
+});
+
+describe("clôture unitaire d'un donjon (post multi)", () => {
+    const envelope = {
+        _items: [{ dungeonId: "d1" }, { dungeonId: "d2" }, { dungeonId: "d3" }],
+        _messageIds: ["m1", "m2", "m3"],
+        _creatorClass: "Cra",
+    };
+
+    it("marque UN donjon sans toucher les autres ni l'enveloppe", () => {
+        const next = withDjDungeonsClosed(envelope, [1], "2026-10-23T12:00:00.000Z");
+        const items = getMultiDungeons(next);
+        expect(isDjDungeonClosed(items[1])).toBe(true);
+        expect(isDjDungeonClosed(items[0])).toBe(false);
+        expect(isDjDungeonClosed(items[2])).toBe(false);
+        // Les autres clés de l'enveloppe survivent (messages Discord, classe du créateur).
+        expect(next?._messageIds).toEqual(["m1", "m2", "m3"]);
+        expect(next?._creatorClass).toBe("Cra");
+        expect(openDjDungeonIndexes(next)).toEqual([0, 2]);
+        expect(areAllDjDungeonsClosed(next)).toBe(false);
+    });
+
+    it("est idempotent : un donjon déjà clôturé garde sa première date", () => {
+        const first = withDjDungeonsClosed(envelope, [0], "2026-10-23T12:00:00.000Z");
+        const second = withDjDungeonsClosed(first, [0], "2026-10-24T09:00:00.000Z");
+        expect(getMultiDungeons(second)[0].closedAt).toBe("2026-10-23T12:00:00.000Z");
+    });
+
+    it("ne considère le post terminé que si TOUS les donjons sont clôturés", () => {
+        const partial = withDjDungeonsClosed(envelope, [0, 2]);
+        expect(areAllDjDungeonsClosed(partial)).toBe(false);
+        const total = withDjDungeonsClosed(envelope, [0, 1, 2]);
+        expect(areAllDjDungeonsClosed(total)).toBe(true);
+        expect(openDjDungeonIndexes(total)).toEqual([]);
+    });
+
+    it("ignore un index hors bornes et ne fabrique rien sur un post simple", () => {
+        expect(withDjDungeonsClosed(envelope, [9])).toBeNull();
+        expect(withDjDungeonsClosed(null, [0])).toBeNull();
+        expect(withDjDungeonsClosed([], [0])).toBeNull();
+        expect(areAllDjDungeonsClosed(null)).toBe(false);
+        // Un post simple (aucun item) n'est jamais « entièrement clôturé » : c'est `status`.
+        expect(areAllDjDungeonsClosed({ _creatorClass: "Cra" })).toBe(false);
+    });
+
+    it("pose le marqueur de rappel H-1 du bon donjon, et de lui seul", () => {
+        const next = withDjDungeonReminder(
+            envelope,
+            2,
+            "2026-10-23T19:00:00.000Z",
+            "2026-10-23T20:00:00.000Z"
+        );
+        const items = getMultiDungeons(next);
+        expect(items[2]._h1SentAt).toBe("2026-10-23T19:00:00.000Z");
+        expect(items[2]._h1For).toBe("2026-10-23T20:00:00.000Z");
+        expect(items[0]._h1SentAt).toBeUndefined();
+        expect(withDjDungeonReminder(envelope, 9, "x", "y")).toBeNull();
+    });
+});
+
+

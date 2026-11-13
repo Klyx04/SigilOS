@@ -18,6 +18,12 @@ import { ChangelogCategory } from '@prisma/client';
 import { getAppBaseUrl } from '@/lib/utils';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/types';
 import { getServerLocale } from '@/lib/i18n/server';
+import { sanitizeHtml } from '@/lib/security';
+import {
+    CHANGELOG_CATEGORY_LABELS,
+    CHANGELOG_CATEGORY_EMOJI,
+    CHANGELOG_CATEGORY_COLORS,
+} from '@/lib/changelog-meta';
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -74,7 +80,7 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
 
     const parsed = ChangelogSchema.safeParse(input);
     if (!parsed.success) {
-        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+        return { success: false, error: parsed.error.issues[0]?.message ?? 'Données invalides' };
     }
 
     try {
@@ -87,7 +93,6 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
             }
         });
 
-        revalidatePath('/changelog');
         revalidatePath('/god/changelog');
 
         return { success: true, entry };
@@ -112,7 +117,7 @@ export async function updateChangelogEntry(id: string, input: Partial<CreateChan
 
     const parsed = ChangelogUpdateSchema.safeParse(input);
     if (!parsed.success) {
-        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+        return { success: false, error: parsed.error.issues[0]?.message ?? 'Données invalides' };
     }
 
     try {
@@ -121,7 +126,6 @@ export async function updateChangelogEntry(id: string, input: Partial<CreateChan
             data: parsed.data
         });
 
-        revalidatePath('/changelog');
         revalidatePath('/god/changelog');
 
         return { success: true, entry };
@@ -149,7 +153,6 @@ export async function deleteChangelogEntry(id: string) {
             where: { id }
         });
 
-        revalidatePath('/changelog');
         revalidatePath('/god/changelog');
 
         return { success: true };
@@ -349,6 +352,8 @@ export async function updatePlatformConfig(data: {
     statusMode?: string,
     statusMention?: string,
     statusFrequency?: number,
+    /** LG-3 — plafond de guildes par utilisateur (borné 1..10, jamais 0). */
+    maxGuildsPerUser?: number,
     kofiChannelId?: string,
     nsfwFilterEnabled?: boolean,
     donationsEnabled?: boolean,
@@ -388,6 +393,16 @@ export async function updatePlatformConfig(data: {
         return { success: false, error: "Valeur invalide pour forceDarkMode (booléen requis)" };
     }
 
+    // LG-3 — seuil de guildes par utilisateur : **entier borné 1..10**, jamais 0 (un 0 refuserait
+    // même la première guilde et verrouillerait la plateforme). Même borne que `resolveGuildLimit`.
+    if (data.maxGuildsPerUser !== undefined) {
+        const limitParsed = z.coerce.number().int().min(1).max(10).safeParse(data.maxGuildsPerUser);
+        if (!limitParsed.success) {
+            return { success: false, error: "Seuil de guildes invalide (entier de 1 à 10)" };
+        }
+        data.maxGuildsPerUser = limitParsed.data;
+    }
+
     // Refonte onboarding — le kill-switch « Auto-onboarding » est un booléen strict (fail-closed).
     if (data.autoOnboardingEnabled !== undefined && typeof data.autoOnboardingEnabled !== "boolean") {
         return { success: false, error: "Valeur invalide pour autoOnboardingEnabled (booléen requis)" };
@@ -410,6 +425,8 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
                 ...(data.kofiChannelId !== undefined && { kofiChannelId: data.kofiChannelId || null }),
                 ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled }),
+                // LG-3 — plafond de guildes par utilisateur (validé 1..10 plus haut).
+                ...(data.maxGuildsPerUser !== undefined && { maxGuildsPerUser: data.maxGuildsPerUser }),
                 ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled }),
                 ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null }),
                 // Toggle God : fallback saisie manuelle pseudo si le ladder Ankama est KO.
@@ -574,7 +591,7 @@ export async function testBackupNotification(channelId?: string) {
         const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
         if (channelId) await clearDiscordChannelBlock(channelId);
 
-        const { notifyGod } = await import("./god-notif-actions");
+        const { notifyGod } = await import("@/server/god-notifications");
         const res = await notifyGod({
             title: "Sauvegarde Système (TEST)",
             message: "Ceci est une notification de test pour vérifier le bon fonctionnement du flux R2 / Cloudflare.",
@@ -625,15 +642,26 @@ export async function sendSentryTestEvent() {
         return { success: false, error: e.message || "Erreur interne" };
     }
 }
-const CATEGORY_EMOJI: Record<string, string> = {
-    FEATURE: '✨', BUGFIX: '🐛', SECURITY: '🔒', PERFORMANCE: '⚡', DOCUMENTATION: '📄'
-};
-const CATEGORY_COLOR: Record<string, number> = {
-    FEATURE: 0x22c55e, BUGFIX: 0xf59e0b, SECURITY: 0xef4444, PERFORMANCE: 0x3b82f6, DOCUMENTATION: 0xa855f7
-};
-const CATEGORY_FR: Record<string, string> = {
-    FEATURE: 'Fonctionnalité', BUGFIX: 'Correction', SECURITY: 'Sécurité', PERFORMANCE: 'Performance', DOCUMENTATION: 'Documentation'
-};
+/**
+ * Texte brut d'un résumé HTML (les embeds Discord ne rendent pas le HTML).
+ *
+ * Sécurité : on passe par l'assainisseur **unique** du dépôt (`sanitizeHtml` → DOMPurify) avant la
+ * mise à plat, et le retrait des balises est **répété jusqu'à stabilité** : un seul passage de
+ * `/<[^>]*>/g` peut laisser « <script> » derrière lui (alerte CodeQL « incomplete multi-character
+ * sanitization » — corrigée le 13/10/2026 sur la PR du module docs).
+ */
+function changelogSummaryText(summary: string | null): string {
+    const safe = sanitizeHtml(summary ?? "", 2000, true) ?? "";
+    let text = safe;
+    for (let previous = ""; previous !== text; ) {
+        previous = text;
+        text = text.replace(/<[^>]*>/g, "");
+    }
+    return (
+        text.replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim() ||
+        "_Améliorations et corrections de bugs._"
+    );
+}
 
 /**
  * DISC-1 — Publish a changelog entry to the SigilOS Hub (official Discord).
@@ -655,23 +683,18 @@ export async function sendChangelogToDiscord(entryId: string) {
     const entry = await db.changelogEntry.findUnique({ where: { id: entryId } });
     if (!entry) return { success: false, error: 'Entrée introuvable' };
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
-    const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
-    const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
+    const emoji = CHANGELOG_CATEGORY_EMOJI[entry.category] ?? '📝';
+    const color = CHANGELOG_CATEGORY_COLORS[entry.category] ?? 0x9333ea;
 
-    // SLIM FORMAT
-    const fullDescription = [
-        entry.summary || "_Améliorations et corrections de bugs._",
-        '',
-        `> 🔗 **[Consulter le changelog complet v${entry.version}](${appUrl}/changelog)**`
-    ].join('\n');
+    // SLIM FORMAT — sans lien : le Hub touche aussi des non-membres, et il
+    // n'existe plus de page changelog publique (l'ancienne URL rendait 404).
+    const fullDescription = changelogSummaryText(entry.summary);
 
     const embed = {
         embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
-        embedUrl: `${appUrl}/changelog`,
         embedDescription: fullDescription.slice(0, 4096),
         embedColor: color,
-        embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+        embedFooter: `SigilOS Updater • ${CHANGELOG_CATEGORY_LABELS[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
         embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
     };
 
@@ -711,31 +734,32 @@ export async function broadcastChangelogToGuilds(entryId: string) {
         errors: [] as string[]
     };
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
-    const emoji = CATEGORY_EMOJI[entry.category] ?? '📝';
-    const color = CATEGORY_COLOR[entry.category] ?? 0x9333ea;
-
-    // SLIM FORMAT
-    const fullDescription = [
-        entry.summary || "_Améliorations et corrections de bugs._",
-        '',
-        `> 🔗 **[Découvrir les nouveautés v${entry.version} sur SigilOS](${appUrl}/changelog)**`
-    ].join('\n');
-
-    const embed = {
-        embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
-        embedUrl: `${appUrl}/changelog`,
-        embedDescription: fullDescription.slice(0, 4096),
-        embedColor: color,
-        embedFooter: `SigilOS Updater • ${CATEGORY_FR[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
-        embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
-    };
+    const appUrl = getAppBaseUrl();
+    const emoji = CHANGELOG_CATEGORY_EMOJI[entry.category] ?? '📝';
+    const color = CHANGELOG_CATEGORY_COLORS[entry.category] ?? 0x9333ea;
 
     const { sendChannelMessage } = await import("@/server/discord");
 
     // Batch sending (serial to avoid rate limits)
     for (const guild of guilds) {
         try {
+            // Lien par guilde : chaque salon reçoit l'URL de SA page interne.
+            const guildChangelogUrl = `${appUrl}/dashboard/${guild.discordGuildId}/changelog`;
+            const fullDescription = [
+                changelogSummaryText(entry.summary),
+                '',
+                `> 🔗 **[Découvrir les nouveautés v${entry.version} sur SigilOS](${guildChangelogUrl})**`
+            ].join('\n');
+
+            const embed = {
+                embedTitle: `${emoji} SigilOS ${entry.version} — ${entry.title}`,
+                embedUrl: guildChangelogUrl,
+                embedDescription: fullDescription.slice(0, 4096),
+                embedColor: color,
+                embedFooter: `SigilOS Updater • ${CHANGELOG_CATEGORY_LABELS[entry.category] ?? entry.category} • ${new Date(entry.publishedAt).toLocaleDateString('fr-FR')}`,
+                embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
+            };
+
             const mid = await sendChannelMessage(guild.systemNotifyChannelId!, "", embed);
             if (mid) results.success++;
             else throw new Error(`API null response for ${guild.name}`);

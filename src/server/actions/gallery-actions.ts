@@ -6,9 +6,19 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { hasSavedVariant, normalizeSavedVariants, describeSavedVariants, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
+import type { VariantItemSets } from "@/lib/dofus-variant-utils";
+import { normalizeItemSetTiers, type ItemSetData } from "@/lib/dofus-set-bonuses";
+import { attachItemSetsToBuilds, resolveVariantItemSets, resolveVariantPreview } from "@/server/build-item-sets";
+import { validateSavedVariants, effectiveSlotIds, validatePrysmaraditeLimit } from "@/lib/dofus-variant-rules";
+import { evaluateDofusConditions } from "@/lib/dofus-conditions";
+import type { DofusbookItem } from "@/lib/dofusbook-utils";
+import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
+import { getAppBaseUrl } from "@/lib/utils";
 
 /**
  * Route image provider URLs through the internal proxy to bypass anti-hotlink
@@ -32,7 +42,7 @@ function resolveDiscordImage(rawImage: string, baseUrl?: string): string | undef
             host === "d-bk.net" || host.endsWith(".d-bk.net");
 
         if (isProtectedProvider) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
+            const appUrl = getAppBaseUrl();
             return `${appUrl}/api/proxy-image?url=${encodeURIComponent(parsedUrl.href)}`;
         }
         return parsedUrl.href;
@@ -50,6 +60,17 @@ export type GalleryBuild = {
     tags?: string[];
     classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
+    /**
+     * Variante **proposée par le joueur** (JSON `dofusBookLinks[].variants`, assainie).
+     * Le build Dofusbook d'origine reste intact : la variante s'applique à l'affichage.
+     */
+    variants?: SavedVariant;
+    /**
+     * Panoplies du build (paliers complets + objet → panoplie), **résolues côté serveur**.
+     * Indispensables au recalcul des bonus quand une variante change une pièce : sans elles,
+     * la variante n'est pas calculée (fail-closed) — voir `applyVariantsToBuild`.
+     */
+    itemSets?: VariantItemSets;
     source?: "dofusbook";
     author: {
         id: string;
@@ -197,6 +218,9 @@ export async function getStuffGalleryPage(
                         profile.classe
                     ) || undefined;
 
+                    // Variante proposée par le joueur (assainie : entrée non fiable).
+                    const savedVariant = normalizeSavedVariants(link.variants);
+
                     allBuilds.push({
                         id: buildId,
                         name: link.name,
@@ -208,6 +232,7 @@ export async function getStuffGalleryPage(
                             ...link.previewData,
                             thumbnail
                         },
+                        ...(hasSavedVariant(savedVariant) ? { variants: savedVariant } : {}),
                         author: {
                             id: profile.id,
                             name: getGameDisplayName(profile),
@@ -272,11 +297,17 @@ export async function getStuffGalleryPage(
         const offset = (page - 1) * PAGE_SIZE;
         const pageBuilds = allBuilds.slice(offset, offset + PAGE_SIZE);
         const hasMore = offset + PAGE_SIZE < total;
+        /**
+         * 🔗 Panoplies des builds **de cette page** (celles qui portent une variante) : deux
+         * requêtes bornées, aucun catalogue complet côté client. Sans contexte, la variante
+         * affiche un refus explicite au lieu de garder les bonus du stuff d'origine.
+         */
+        const buildsWithItemSets = await attachItemSetsToBuilds(pageBuilds);
 
         return {
             success: true,
             data: {
-                builds: pageBuilds,
+                builds: buildsWithItemSets,
                 total,
                 hasMore,
                 nextPage: hasMore ? page + 1 : null,
@@ -301,7 +332,7 @@ export async function refreshBuildMetadata(
     if (!guildId || !profileId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
     const user = await getUserContext(guildId);
-    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
 
     try {
         const galleryGuild = await db.guildConfig.findUnique({
@@ -327,10 +358,12 @@ export async function refreshBuildMetadata(
         // 2. Update user profile dofusBookLinks
         const profile = await db.userProfile.findFirst({
             where: { id: profileId, guildId: galleryGuild.id },
-            select: { id: true, dofusBookLinks: true }
+            select: { id: true, userId: true, dofusBookLinks: true }
         });
 
         if (!profile) return { success: false, error: "Profil introuvable" };
+        // Fail-closed : on ne rafraîchit que son propre build ou en tant qu'admin.
+        if (!user.isAdmin && profile.userId !== user.id) return { success: false, error: "Non autorisé" };
 
         const links = (profile.dofusBookLinks as any[]) || [];
         const updatedLinks = links.map(link => {
@@ -371,12 +404,13 @@ export async function refreshBuildMetadata(
 export async function storeClientDofusbookPreview(
     guildId: string,
     buildUrl: string,
-    raw: unknown
-): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean }>> {
+    raw: unknown,
+    options: { force?: boolean } = {},
+): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean; changed?: boolean }>> {
     if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
     const user = await getUserContext(guildId);
-    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
 
     const limited = await rateLimit(`dofusbook-client-bake:${user.id ?? "anon"}`, 30, 60_000);
     if (!limited.success) return { success: false, error: "Trop de rafraîchissements — réessaie dans une minute." };
@@ -402,16 +436,45 @@ export async function storeClientDofusbookPreview(
         // profil archivé/inactif conserve ses builds et doit pouvoir être rafraîchi).
         const profiles = await db.userProfile.findMany({
             where: { guildId: guildConfig.id },
-            select: { id: true, dofusBookLinks: true },
+            select: { id: true, userId: true, dofusBookLinks: true },
         });
         const owner = profiles.find((p) =>
             ((p.dofusBookLinks as any[]) || []).some((l) => l?.url === buildUrl)
         );
 
         if (!owner) return { success: true, data: { data, persisted: false } };
+        // Fail-closed : seul le propriétaire du build ou un admin persiste.
+        if (!user.isAdmin && owner.userId !== user.id) {
+            return { success: true, data: { data, persisted: false } };
+        }
 
         const now = new Date().toISOString();
-        const updatedLinks = ((owner.dofusBookLinks as any[]) || []).map((link) =>
+        const ownerLinks = (owner.dofusBookLinks as any[]) || [];
+        const currentLink = ownerLinks.find((l) => l?.url === buildUrl);
+        /**
+         * ⚠️ Le worker Cloudflare peut renvoyer son **cache edge** (24 h) : dater `updatedAt`
+         * sans comparer ferait croire à une mise à jour réelle alors que rien n'a bougé
+         * (constat user du 25/10/2026 : un item retiré sur Dofusbook restait affiché).
+         * On ne réécrit donc la ligne que si le payload produit a **vraiment** changé.
+         */
+        const changed = JSON.stringify(currentLink?.previewData ?? null) !== JSON.stringify(data);
+        if (!changed) {
+            /**
+             * ⚠️ **Un rafraîchissement forcé qui rend un payload identique n'est pas une preuve
+             * que rien n'a changé** : le relais peut servir son cache (24 h). Mesure du
+             * 26/10/2026 : `force=1` renvoyait le **même** payload **et aucun** en-tête `X-Cache`
+             * (signature d'un relais qui n'est pas la version du dépôt) ⇒ trace côté serveur.
+             */
+            if (options.force) {
+                logger.warn("[dofusbook] rafraîchissement forcé sans changement — relais probablement en cache", {
+                    buildId: id,
+                    items: Object.keys((data.items ?? {}) as Record<string, unknown>).length,
+                });
+            }
+            return { success: true, data: { data, persisted: true, changed: false } };
+        }
+
+        const updatedLinks = ownerLinks.map((link) =>
             link?.url === buildUrl
                 ? { ...link, previewData: data, source: "dofusbook" as const, updatedAt: now }
                 : link
@@ -426,10 +489,253 @@ export async function storeClientDofusbookPreview(
         // 🔗 #126 : la page membre est servie sous /members/<slug> → on revalide le pattern
         revalidatePath(`/dashboard/${guildId}/members/[slug]`);
 
-        return { success: true, data: { data, persisted: true } };
+        return { success: true, data: { data, persisted: true, changed: true } };
     } catch (error) {
         logger.error("[Dofusbook] Client bake storage error:", { error });
         return { success: false, error: "Erreur serveur lors de l'enregistrement" };
+    }
+}
+
+/**
+ * Enregistre la **variante proposée par le joueur** sur un de ses builds.
+ *
+ * Pourquoi (demande user du 23/10/2026) : la variante (trophée/dofus/objet remplacé) doit être
+ * **visible dans la galerie** par les autres membres, sans toucher au stuff Dofusbook d'origine.
+ *
+ * Persistance : `UserProfile.dofusBookLinks[].variants` (JSON) — **aucune migration**, et tous les
+ * chemins de rafraîchissement Dofusbook font `{ ...link, previewData }`, donc la variante survit.
+ *
+ * Gardes : `getUserContext` (auth + membre), build **du profil courant** (isolation de la cible),
+ * rate limit Redis, assainissement borné (`normalizeSavedVariants`).
+ */
+const SaveBuildVariantSchema = z.object({
+    guildId: z.string().min(1).max(32),
+    buildId: z.string().min(1).max(80),
+    variants: z.unknown(),
+});
+
+/** Bornes du contexte de panoplies demandé par la miniature (16 slots d'équipement). */
+const GetVariantItemSetsSchema = z.object({
+    guildId: z.string().min(1).max(32),
+    ankamaIds: z.array(z.number().int().positive().max(99_999_999)).min(1).max(64),
+});
+
+/**
+ * 🔗 **Panoplies d'une variante**, demandées par la miniature elle-même.
+ *
+ * Pourquoi : la page peut être rendue **avant** la synchronisation des panoplies (cas réel du
+ * 26/10/2026 : un `next dev` démarré avant le siphon servait un rendu sans référentiel). Sans
+ * ce rattrapage, la variante affichait un refus alors que la donnée existait déjà en base.
+ *
+ * Lecture seule, bornée (64 ids), réservée aux membres de la guilde.
+ */
+export async function getVariantItemSets(
+    rawGuildId: string,
+    rawAnkamaIds: unknown,
+): Promise<ActionResponse<VariantItemSets>> {
+    const parsed = GetVariantItemSetsSchema.safeParse({ guildId: rawGuildId, ankamaIds: rawAnkamaIds });
+    if (!parsed.success) return { success: false, error: "Données invalides" };
+
+    const user = await getUserContext(parsed.data.guildId);
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
+
+    const context = await resolveVariantItemSets(parsed.data.ankamaIds);
+    if (!context) return { success: false, error: "Panoplies indisponibles" };
+
+    return { success: true, data: context };
+}
+
+export async function saveBuildVariant(
+    rawGuildId: string,
+    rawBuildId: string,
+    rawVariants: unknown,
+): Promise<ActionResponse<{ variants: SavedVariant }>> {
+    const parsed = SaveBuildVariantSchema.safeParse({
+        guildId: rawGuildId,
+        buildId: rawBuildId,
+        variants: rawVariants,
+    });
+    if (!parsed.success) return { success: false, error: "Données invalides" };
+    const { guildId, buildId } = parsed.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.isMember || !user.profileId) {
+        return { success: false, error: "Non autorisé" };
+    }
+
+    const limited = await rateLimit(`gallery-variant:${user.profileId}`, 30, 60_000);
+    if (!limited.success) return { success: false, error: "Trop d'enregistrements — réessaie dans une minute." };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { id: user.profileId, guildId: guildConfig.id },
+            select: { id: true, dofusBookLinks: true },
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const links = ((profile.dofusBookLinks as any[]) || []);
+        const index = links.findIndex((link) => link?.id === buildId);
+        if (index < 0) return { success: false, error: "Build introuvable" };
+
+        const variants = normalizeSavedVariants(parsed.data.variants);
+        /**
+         * 🔒 **Légalité de la variante** (fail-closed) : slots/type d'objet, niveau ≤ build,
+         * aucun doublon. Le client ne fait qu'afficher le refus — l'autorité est ici.
+         * (Armes à deux mains, `criterions` et règles de panoplie : données absentes de
+         * `GameItem`, lot séparé avec migration.)
+         */
+        const previewData = (links[index] as { previewData?: DofusbookPreviewData | null })?.previewData ?? null;
+        const buildLevel = Number(previewData?.level);
+        const decision = validateSavedVariants({
+            baseItems: (previewData?.items ?? null) as Record<string, DofusbookItem | null> | null,
+            variants,
+            buildLevel: Number.isFinite(buildLevel) && buildLevel > 0 ? buildLevel : 200,
+        });
+        if (!decision.ok) {
+            return { success: false, error: decision.violation.message };
+        }
+
+        /**
+         * Règles **serveur** (fail-closed) qui exigent les données du catalogue :
+         *  · une seule **Prysmaradite** (partage le 1ᵉʳ emplacement Dofus/Trophée) ;
+         *  · **arme à deux mains** ⇒ pas de bouclier ;
+         *  · **conditions d'objet** (`GameItem.conditions`, arbre DofusDude) évaluées sur le
+         *    build effectif, sans l'apport propre de l'objet (Heaume Oplate : +1 PA mais PA < 12).
+         * Les valeurs du client ne sont **jamais** utilisées : tout est relu en base par id Ankama.
+         */
+        const effective = effectiveSlotIds(
+            (previewData?.items ?? null) as Record<string, DofusbookItem | null> | null,
+            variants,
+        );
+        if (effective.length > 0) {
+            const catalog = await db.gameItem.findMany({
+                where: { ankamaId: { in: effective.map((entry) => entry.id) } },
+                select: { ankamaId: true, typeName: true, conditions: true, twoHanded: true, itemSetId: true },
+            });
+            const byAnkamaId = new Map(catalog.map((item) => [item.ankamaId, item]));
+
+            const prysmaradite = validatePrysmaraditeLimit(catalog.map((item) => item.typeName));
+            if (!prysmaradite.ok) {
+                return { success: false, error: prysmaradite.violation.message };
+            }
+
+            const weapon = effective.find((entry) => entry.slot === "ar");
+            const hasShield = effective.some((entry) => entry.slot === "br");
+            if (weapon && hasShield && byAnkamaId.get(weapon.id)?.twoHanded === true) {
+                return {
+                    success: false,
+                    error: "Arme à deux mains : aucun bouclier ne peut être équipé en même temps.",
+                };
+            }
+
+            // Panoplies **actives** : ≥ 2 pièces **distinctes** du même `itemSetId`.
+            const piecesBySet = new Map<number, Set<number>>();
+            for (const entry of effective) {
+                const setId = Number(byAnkamaId.get(entry.id)?.itemSetId ?? -1);
+                if (!Number.isInteger(setId) || setId <= 0) continue;
+                const pieces = piecesBySet.get(setId) ?? new Set<number>();
+                pieces.add(entry.id);
+                piecesBySet.set(setId, pieces);
+            }
+            const activeSets = [...piecesBySet.values()].filter((pieces) => pieces.size >= 2).length;
+
+            /**
+             * 🔁 **Stats effectives** : les conditions sont évaluées sur le build **avec la
+             * variante**, bonus de panoplie **recalculés** (jusqu'ici on évaluait sur les stats
+             * du stuff d'origine — une approximation dès qu'une panoplie bougeait).
+             * Fail-closed : contexte incohérent ou panoplie absente du référentiel ⇒ refus,
+             * jamais une acceptation sur un total faux.
+             */
+            const byItem: Record<number, number> = {};
+            for (const [ankamaId, info] of byAnkamaId) {
+                const setId = Number(info.itemSetId ?? -1);
+                if (Number.isInteger(setId) && setId > 0) byItem[ankamaId] = setId;
+            }
+            const setIds = [...new Set(Object.values(byItem))].slice(0, 64);
+            const setRows = setIds.length > 0
+                ? await db.gameItemSet.findMany({
+                    where: { id: { in: setIds } },
+                    select: { id: true, name: true, itemCount: true, tiers: true },
+                })
+                : [];
+            const sets: Record<number, ItemSetData> = {};
+            for (const row of setRows) {
+                // Tableau **vide** = panoplie sans bonus (valide) ; pas un tableau = illisible ⇒ inconnue.
+                if (!Array.isArray(row.tiers)) continue;
+                sets[row.id] = { id: row.id, name: row.name, itemCount: row.itemCount, tiers: normalizeItemSetTiers(row.tiers) };
+            }
+            const effectiveBuild = previewData ? applyVariantsToBuild(previewData, variants, { sets, byItem }) : null;
+            if (previewData && !effectiveBuild) {
+                return { success: false, error: "Bonus de panoplie indisponibles pour ce build — variante refusée." };
+            }
+
+            const elements = effectiveBuild?.elements ?? previewData?.elements;
+            const stats = effectiveBuild?.stats ?? previewData?.stats;
+            const baseContext = {
+                pa: Number(stats?.pa ?? 0),
+                pm: Number(stats?.pm ?? 0),
+                vit: Number(stats?.vit ?? 0),
+                sa: Number(elements?.sa ?? 0),
+                fo: Number(elements?.fo ?? 0),
+                in: Number(elements?.in ?? 0),
+                ch: Number(elements?.ch ?? 0),
+                ag: Number(elements?.ag ?? 0),
+                activeSets,
+                level: Number.isFinite(buildLevel) && buildLevel > 0 ? buildLevel : 200,
+            };
+
+            for (const [slot, variant] of Object.entries(variants)) {
+                const info = byAnkamaId.get(Number(variant.official || variant.id));
+                if (!info?.conditions) continue;
+
+                // Le candidat ne se compte pas lui-même dans PA/PM (règle du jeu).
+                const own = (code: "pa" | "pm") =>
+                    (variant.effects ?? [])
+                        .filter((effect) => effect.code === code)
+                        .reduce((sum, effect) => sum + Math.max(0, Number(effect.value ?? effect.max ?? 0)), 0);
+
+                const evaluation = evaluateDofusConditions(info.conditions, {
+                    ...baseContext,
+                    pa: baseContext.pa - own("pa"),
+                    pm: baseContext.pm - own("pm"),
+                });
+
+                if (!evaluation.ok) {
+                    const reason = evaluation.unsupported.length > 0
+                        ? `condition non vérifiable (${evaluation.unsupported.join(", ")})`
+                        : `condition non remplie (${evaluation.failed.join(", ")})`;
+                    return {
+                        success: false,
+                        error: `« ${variant.name} » (${slot}) — ${reason}.`,
+                    };
+                }
+            }
+        }
+
+        const now = new Date().toISOString();
+        const updatedLinks = links.map((link, i) =>
+            i === index ? { ...link, variants, updatedAt: now } : link,
+        );
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: { dofusBookLinks: updatedLinks as any },
+        });
+
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+        revalidatePath(`/dashboard/${guildId}/profile`);
+
+        return { success: true, data: { variants } };
+    } catch (error) {
+        logger.error("[saveBuildVariant] Erreur", { error });
+        return { success: false, error: "Impossible d'enregistrer la variante" };
     }
 }
 
@@ -637,7 +943,7 @@ export async function shareGalleryItemOnDiscord(
     }
 
     let embedImage: string | undefined = undefined;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
+    const appUrl = getAppBaseUrl();
     try {
         const { fetchChannel, sendChannelMessage, createForumPost } = await import("@/server/discord");
 
@@ -743,7 +1049,13 @@ export async function shareGalleryItemOnDiscord(
             }
 
             itemName = build.name;
-            const pd = build.previewData;
+            /**
+             * 🟡 **Variante** (arbitrage du 23/10/2026) : l'embed montre les stats **effectives** et
+             * un tag explicite. Une seule règle (`resolveVariantPreview`) avec l'image OG — et pas
+             * de tag si le calcul a échoué (fail-closed).
+             */
+            const variantView = await resolveVariantPreview(build.previewData, build.variants);
+            const pd = variantView.preview;
             const resolvedClassNum = canonicalClassId(
                 pd?.classId ??
                 build.classId ??
@@ -753,7 +1065,7 @@ export async function shareGalleryItemOnDiscord(
             const className = pd?.className || (resolvedClassNum ? getClassName(resolvedClassNum) : "");
             const levelStr = pd?.level ? ` · Niv. ${pd.level}` : "";
             
-            embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}`;
+            embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}${variantView.variantApplied ? " · 🟡 Variante" : ""}`;
             embedUrl = build.url;
             const classNum = resolvedClassNum;
             embedThumbnail = classNum 
@@ -762,6 +1074,23 @@ export async function shareGalleryItemOnDiscord(
 
             // Dynamic visual render of the inventory ring generated by SigilOS
             embedImage = `${appUrl}/api/og/build/${build.id}`;
+
+            /**
+             * 🟡 Tag **explicite** de la variante (arbitrage du 23/10/2026) : l'embed dit ce qui a
+             * changé et pourquoi les stats ne sont pas celles de Dofusbook. Borné à 6 lignes.
+             */
+            if (variantView.variantApplied) {
+                const replaced = describeSavedVariants(variantView.variants, build.previewData?.items);
+                const lines = replaced
+                    .slice(0, 6)
+                    .map((entry) => `• **${entry.slotLabel}** : ${entry.originalName ?? "—"} → ${entry.name}`);
+                if (replaced.length > 6) lines.push(`… et ${replaced.length - 6} autre(s)`);
+                fields.push({
+                    name: "🟡 Variante proposée",
+                    value: lines.length > 0 ? lines.join("\n") : "Aucun objet remplacé",
+                    inline: false,
+                });
+            }
 
             // 1. ⚔️ Caractéristiques principales
             if (pd?.stats) {

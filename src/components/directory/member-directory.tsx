@@ -14,6 +14,7 @@ import { Search, Filter, X } from "lucide-react";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { GameIcon } from "@/components/shared/game-icon";
 
 
 /**
@@ -44,24 +45,6 @@ const PICKER_ITEM_ACTIVE =
     "bg-elevated border-border-strong text-foreground aria-selected:bg-elevated aria-selected:text-foreground!";
 /** Bouton de choix large (faction, ordre) : neutre, l'actif se lit au bord éclairci. */
 const PICKER_TILE = "relative flex flex-col items-center justify-center gap-2 p-3 rounded-md border transition-colors";
-
-/**
- * Icône de filtre : **asset Dofus réel** (`public/assets/dofus/game-icons/`), jamais un glyphe
- * générique ni un emoji — même convention que `public-header.tsx` (« l'asset qui identifie
- * l'entrée en jeu »). Décorative : `alt=""` + `aria-hidden`, le sens est porté par le libellé.
- */
-function GameIcon({ src, className }: { src: string; className?: string }) {
-    return (
-        <Image
-            src={`/assets/dofus/game-icons/${src}`}
-            alt=""
-            aria-hidden="true"
-            width={16}
-            height={16}
-            className={cn("object-contain", className)}
-        />
-    );
-}
 
 interface MemberDirectoryProps {
     initialMembers: any[];

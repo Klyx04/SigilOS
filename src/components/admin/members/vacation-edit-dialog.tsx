@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { VacationMode } from "@/components/profile/vacation-mode";
 import { updateVacationMode } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { Palmtree } from "lucide-react";
+import { CalendarClock, Palmtree } from "lucide-react";
 
 interface VacationEditDialogProps {
     guildId: string;
@@ -70,22 +70,23 @@ export function VacationEditDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px] bg-background border-border text-foreground rounded-[24px] overflow-hidden p-0">
-                <div className="p-6 pb-2">
+            <DialogContent className="gap-0 overflow-hidden rounded-lg border-border bg-background p-0 sm:max-w-[425px]">
+                <div className="p-5 pb-2">
                     <DialogHeader>
-                        <div className="w-12 h-12 rounded-2xl bg-info/10 border border-info/20 flex items-center justify-center mb-4">
-                            <Palmtree className="w-6 h-6 text-info" />
+                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-info/30 bg-info/10">
+                            <Palmtree className="h-5 w-5 text-info" aria-hidden="true" />
                         </div>
-                        <DialogTitle className="text-xl font-black tracking-tight uppercase italic">
-                            Éditer <span className="text-info">Vacances</span>
+                        <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <CalendarClock className="h-4 w-4 text-info" aria-hidden="true" />
+                            Éditer les <span className="text-info">vacances</span>
                         </DialogTitle>
-                        <DialogDescription className="text-muted-foreground italic">
-                            Modifiez les dates de vacances pour <span className="text-foreground font-bold">{memberName}</span>.
+                        <DialogDescription className="text-muted-foreground">
+                            Modifiez les dates de vacances pour <span className="font-semibold text-foreground">{memberName}</span>.
                         </DialogDescription>
                     </DialogHeader>
                 </div>
 
-                <div className="px-6 py-4">
+                <div className="px-5 py-3">
                     <VacationMode 
                         vacationStart={initialVacationStart ? new Date(initialVacationStart) : null}
                         vacationEnd={initialVacationEnd ? new Date(initialVacationEnd) : null}
@@ -97,11 +98,11 @@ export function VacationEditDialog({
                     />
                 </div>
 
-                <div className="px-6 py-4 bg-surface flex justify-end">
+                <div className="flex justify-end border-t border-border bg-surface/40 px-5 py-3">
                     <Button 
                         variant="ghost" 
                         onClick={() => onOpenChange(false)}
-                        className="font-bold text-muted-foreground hover:text-foreground uppercase text-caption tracking-widest"
+                        className="text-caption font-semibold text-muted-foreground hover:text-foreground"
                     >
                         Fermer
                     </Button>

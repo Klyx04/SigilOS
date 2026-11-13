@@ -43,7 +43,8 @@ describe("overlay — changer de chapitre à tout moment (sélecteur partagé un
     expect(tree).not.toMatch(/variant/);
     expect(tree).not.toMatch(/isInline/);
     // Une seule barre : c'est le seul rendu (chrome + liste déroulante + jauge fusionnés).
-    expect(tree).toMatch(/"relative shrink-0 px-3 py-2.5 border-b z-30"/);
+    // Depuis la DA « Gouache Wakfu », elle porte la classe du dock de la maquette.
+    expect(tree).toMatch(/className=\{cn\("da-dock", className\)\}/);
     expect(tree).toMatch(/const showProgress = !!activeMs && total > 0;/);
   });
 
@@ -116,13 +117,19 @@ describe("overlay — la mini-modale des membres défile vraiment", () => {
 describe("overlay — enchaîner un chapitre et fermer la modale depuis la PiP", () => {
   const MODAL = `${BASE}/components/RushOverlayQuestDetailModal.tsx`;
 
-  it("cocher la DERNIÈRE quête d'un chapitre ouvre le chapitre suivant", () => {
+  it("cocher la DERNIÈRE quête d'un chapitre ouvre le chapitre suivant (avec le toast de bloc)", () => {
     const overlay = codeOf(OVERLAY);
     // La bascule existait pour la case « tout le chapitre » (chemin invité + chemin
     // connecté) : elle doit désormais exister aussi pour la dernière quête cochée à la main,
     // sans quoi l'utilisateur restait sur un chapitre vide à 100 % (retour user 08/10/2026).
-    expect(overlay.match(/if \(!was\) goToNextMs\(\);/g)?.length).toBe(2);
-    expect(overlay.match(/if \(!was && allChecked\) goToNextMs\(\);/g)?.length).toBe(2);
+    // Depuis le 10/11, chaque bascule porte aussi le toast « Bloc validé / Dofus obtenu ».
+    expect(
+      overlay.match(/if \(!was\) \{\s*notifyBlockDone\(ms\);\s*goToNextMs\(\);/g)?.length
+    ).toBe(2);
+    expect(
+      overlay.match(/if \(!was && allChecked\) \{\s*notifyBlockDone\(ms\);\s*goToNextMs\(\);/g)
+        ?.length
+    ).toBe(2);
   });
 
   it("Échap écoute la fenêtre du document qui PORTE la modale (PiP)", () => {

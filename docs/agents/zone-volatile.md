@@ -1,8 +1,9 @@
 # 📁 `src/temp/` — la zone volatile (règle)
 
-> **Cette page est LA RÈGLE de la zone de brouillons.** Le dossier `src/temp/` **n'existe pas**
-> dans le dépôt : il est **recréé à la demande** par la session qui a besoin d'un brouillon,
-> et il est **ignoré par git** (`.gitignore` → `/src/temp/`).
+> **Cette page est LA RÈGLE de la zone de brouillons.** Le dossier `src/temp/` n'est **pas versionné**
+> (`.gitignore` → `/src/temp/`) et peut être recréé à la demande. Depuis le 19/10/2026, c'est la
+> **seule** zone volatile : l'ancien `temp/` de la racine a été **déplacé** dans
+> `src/temp/archive/audit-2026-09/` (aucune suppression).
 > ⚠️ **Rien** de ce qui y est écrit n'est sauvegardé par git, par un commit ou par une corbeille.
 > Un document qui doit survivre à la session va dans **`docs/`** (ou est commité ailleurs).
 > Les **demandes ouvertes** ne vivent plus ici : source unique = **`docs/ROADMAP.md`**.
@@ -51,11 +52,17 @@ src/temp/
 ├─ chantier.md                  ← historique léger des chantiers
 ├─ memo-AAAA-MM-JJ-<chantier>.md
 ├─ <chantier>/                  ← chantier EN COURS (plan, maquette, amorces, captures)
+├─ docs/<slug>.html             ← doc PRODUIT prête à uploader (God → Docs) — jamais commitée
 ├─ archive/                     ← chantiers TERMINÉS
 │  ├─ memos/  amorces/  commits/  contexte/  media/
 │  └─ _decommissionne-AAAA-MM/
 └─ _<script>.mjs / _*.ps1       ← scripts jetables
 ```
+
+**Documentation produit** : un bouton « Documentation » de module pointe sur un **slug** dont le
+contenu vit en base (`DocPage`, God → Docs). On l'écrit ici : `src/temp/docs/<slug>.html`, on le
+relit dans un navigateur, **on ne le commit jamais** — le mainteneur l'uploade lui-même. Règle
+complète : `.clinerules/04-docs.md`.
 
 ---
 

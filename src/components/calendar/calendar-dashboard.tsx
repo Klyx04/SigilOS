@@ -40,7 +40,6 @@ import {
     cancelCalendarEvent,
     undoCompleteRaidEvent,
     sendEventReminder,
-    autoCloseExpiredEvents,
     sendCalendarDiscordNotification,
     getDiscordRolesForCalendar,
     type GuildEventInput
@@ -69,6 +68,7 @@ interface CalendarDashboardProps {
     isAdmin?: boolean;
     /** Personnages Dofus du membre : raccourci « Mes personnages » des modales d'inscription. */
     myCharacters?: { main: string | null; secondaries: string[] };
+    currentProfileId?: string;
 }
 
 type ViewMode = "grid";
@@ -82,7 +82,7 @@ interface DiscordRole {
 /** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
 const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM", "DUNGEON_FARM", "SONGES_RUN"] as const;
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters, currentProfileId: propsProfileId }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
@@ -105,6 +105,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [hasMetamobKey, setHasMetamobKey] = useState(false);
+    const [currentProfileId, setCurrentProfileId] = useState<string | undefined>(propsProfileId);
+
+    useEffect(() => {
+        if (propsProfileId) {
+            setCurrentProfileId(propsProfileId);
+        }
+    }, [propsProfileId]);
 
     // Discord roles for notifications
     const [discordRoles, setDiscordRoles] = useState<DiscordRole[]>([]);
@@ -118,7 +125,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
 
     // Raid eligibility (kamas gate)
-    const [raidEligibility, setRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
+    const [raidEligibility, setRaidEligibility] = useState<{
+        isEligible: boolean;
+        totalDonated: number;
+        raidRequireKamaDonation?: boolean;
+        requiredKamas?: number;
+        purpleKamasCost?: number;
+    } | null>(null);
 
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
@@ -169,6 +182,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         if (result.success && result.event) {
             setSelectedEvent(result.event);
             setHasMetamobKey(!!(result as any).hasMetamobKey);
+            if ((result as any).currentProfileId) {
+                setCurrentProfileId((result as any).currentProfileId);
+            }
         } else {
             toast.error(result.error || "Impossible de charger l'événement");
         }
@@ -187,7 +203,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         // Fetch raid kamas eligibility for the current user
         getUserRaidEligibility(guildId).then(res => {
             if (res.success) {
-                setRaidEligibility({ isEligible: res.isEligible ?? false, totalDonated: res.totalDonated ?? 0 });
+                setRaidEligibility({
+                    isEligible: res.isEligible ?? false,
+                    totalDonated: res.totalDonated ?? 0,
+                    raidRequireKamaDonation: res.raidRequireKamaDonation,
+                    requiredKamas: res.requiredKamas,
+                    purpleKamasCost: res.purpleKamasCost,
+                });
             }
         });
     }, [currentDate, guildId, canManage]);
@@ -259,8 +281,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         const result = await registerForEvent(guildId, selectedEventId, data);
         if (result.success) {
             if ((result as any).isReserve) {
-                const msg = (result as any).reserveMessage || "Tes Kamas Violets ne seront pas déduits si tu ne participes pas.";
-                toast.success(`Ajouté à la file d'attente — ${msg}`);
+                const msg = (result as any).reserveMessage;
+                toast.success(msg ? `Ajouté à la file d'attente — ${msg}` : "Ajouté à la file d'attente !");
             } else {
                 toast.success("Inscription réussie !");
             }
@@ -355,7 +377,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             delete (window as any).__raidCompletionData;
             const result = await completeRaidEvent(guildId, selectedEventId, raidData);
             if (result.success) {
-                toast.success(`Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)${result.score ? ` — Score : ${result.score}` : ""}`);
+                const noShows = "noShows" in result && typeof result.noShows === "number" ? result.noShows : 0;
+                toast.success(
+                    `Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)`
+                    + (result.score ? ` — Score : ${result.score}` : "")
+                    + (noShows > 0 ? ` — ${noShows} no-show${noShows > 1 ? "s" : ""} enregistré${noShows > 1 ? "s" : ""}` : ""),
+                );
                 fetchEventDetails(selectedEventId);
                 fetchEvents();
             } else {
@@ -669,6 +696,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     }
                 }}
                 currentUserId={currentUserId}
+                currentProfileId={currentProfileId}
                 guildId={guildId}
                 canManage={canManage}
                 isAdmin={isAdmin}
@@ -692,6 +720,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 onUndoComplete={handleUndoComplete}
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
+                onRefresh={() => {
+                    fetchEvents();
+                    if (selectedEventId) {
+                        fetchEventDetails(selectedEventId);
+                    }
+                }}
             />
 
             {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}
@@ -732,7 +766,15 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     {editingEvent && (
                         <EventForm
                             guildId={guildId}
-                            initialData={editingEvent}
+                            initialData={{
+                                ...editingEvent,
+                                // Classe du créateur sur CET événement (participant) : point de
+                                // départ du sélecteur. Sans elle, l'édition repartirait du main.
+                                creatorClass:
+                                    (editingEvent as any).participants?.find(
+                                        (p: any) => p.userId === currentUserId
+                                    )?.classe ?? null,
+                            }}
                             onSubmit={handleUpdate}
                             discordChannels={discordChannels}
                             canManageRaid={canManageRaid}

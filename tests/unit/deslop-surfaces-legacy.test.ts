@@ -51,13 +51,16 @@ describe("allowlist eslint — plus d'entrée qui masque du code déjà propre",
       "access-denied", "global-error", "\\\\maintenance\\\\", "\\\\auth\\\\",
       "public-header", "galactic-header", "galactic-footer", "ui-test",
       "nebula-client-wrapper", "coming-soon-banner", "ganymede", "guide-styles", "optimized-guide",
+      // Module Songes (13/10/2026) : plus une seule couleur en dur ⇒ l'exemption est retirée
+      // (garde à demeure : `tests/unit/songes-ui-deslop.test.ts`).
+      "songes",
     ]) {
       expect(allowBlock, `entrée morte restée dans l'allowlist : ${removed}`).not.toContain(removed);
     }
   });
 
   it("les exemptions restantes sont des chantiers legacy assumés (chantiers dédiés)", () => {
-    for (const kept of ["songes", "worldmap", "ocre-filter-bar", "guide", "rush", "geoguesser", "\\\\god\\\\"]) {
+    for (const kept of ["worldmap", "ocre-filter-bar", "guide", "rush", "geoguesser", "\\\\god\\\\"]) {
       expect(allowBlock, `exemption perdue : ${kept}`).toContain(kept);
     }
   });

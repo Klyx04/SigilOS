@@ -40,6 +40,21 @@ function normK(s = "") {
 }
 const clean = (s = "") => (s || "").replace(/[.!?\u00a0]+$/g, "");
 
+/**
+ * « Bonta » / « Brâkmar » → `bontarien` / `brakmarien` ; tout le reste → `null`.
+ *
+ * Pourquoi : le payload enrichi porte un **rang** dans `alignReq` (1…99, la position de
+ * la quête dans la série) et le camp dans `alignment.camp`. Écrire ce rang dans la
+ * colonne `alignReq` **masquait** la quête pour tout le monde (la route est fail-closed
+ * sur une cité inconnue). Mesuré le 27/10/2026 : 104 entrées numériques.
+ */
+function citeFromLabel(value) {
+  const k = normK(String(value ?? "").trim());
+  if (k.startsWith("bont")) return "bontarien";
+  if (k.startsWith("brak")) return "brakmarien";
+  return null;
+}
+
 function tagKey(t = {}) {
   return `${t.type || ""}|${t.name || ""}|${t.level ?? ""}|${t.count ?? ""}`;
 }
@@ -63,8 +78,12 @@ function buildUpdate(seq, q) {
   if (q.dofuspourlesnoobsUrl && !seq.dofuspourlesnoobsUrl) data.dofuspourlesnoobsUrl = q.dofuspourlesnoobsUrl;
   if (q.questDbIds && q.questDbIds.length && (!seq.questDbIds || !seq.questDbIds.length)) data.questDbIds = q.questDbIds;
   if (q.mapPositions && q.mapPositions.length && (!Array.isArray(seq.mapPositions) || !seq.mapPositions.length)) data.mapPositions = q.mapPositions;
-  if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
-  if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
+  if (q.alignReq != null && seq.alignReq == null) {
+    const camp = citeFromLabel(q.alignment?.camp);
+    if (camp) data.alignReq = camp;
+  }
+  // `alignOrderReq` (seuil de niveau legacy, S5-1) n'est plus écrit : il valait `1` sur
+  // toutes les séquences qui le portaient, il ne verrouillait donc rien.
   if (q.dungeonIds && q.dungeonIds.length && (!seq.dungeonIds || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
   // Positions GPS : mapPositions (structuré x,y) -> tag « pos_tags » (lu par GOD/Dashboard/Overlay).
   // L'UI ne consomme que activityTags[pos_tags], jamais mapPositions directement.
@@ -103,7 +122,7 @@ async function main() {
   }
 
   const plan = { matched: 0, unmatched: 0, updates: 0 };
-  const fieldsCount = { dofusdbUrl: 0, dofuspourlesnoobsUrl: 0, questDbIds: 0, mapPositions: 0, activityTags: 0, alignReq: 0, alignOrderReq: 0, dungeonIds: 0 };
+  const fieldsCount = { dofusdbUrl: 0, dofuspourlesnoobsUrl: 0, questDbIds: 0, mapPositions: 0, activityTags: 0, alignReq: 0, dungeonIds: 0 };
   const toWrite = [];
 
   let unmatchedNames = [];

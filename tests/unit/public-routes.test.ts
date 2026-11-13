@@ -27,4 +27,9 @@ describe("public-routes — périmètre des pages publiques", () => {
         expect(isPublicRoute(null)).toBe(false);
         expect(isPublicRoute(undefined)).toBe(false);
     });
+
+    it("le changelog interne n'est pas une page publique (plus de /changelog mort)", () => {
+        expect(isPublicRoute("/changelog")).toBe(false);
+        expect(isPublicRoute("/changelog/v2")).toBe(false);
+    });
 });

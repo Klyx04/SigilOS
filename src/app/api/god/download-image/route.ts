@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
 import { downloadExternalImage } from "@/lib/image-downloader";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
@@ -24,6 +26,19 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // AUD-08 (audit 13/11/2026) : rate-limit par super-admin (20/min).
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+        }
+        const rl = await rateLimit(`god-image-download:${session.user.id}`, 20, 60_000);
+        if (!rl.success) {
+            return NextResponse.json(
+                { success: false, error: "Trop de requêtes, veuillez patienter." },
+                { status: 429, headers: { "Retry-After": "60" } }
+            );
+        }
+
         // 2. Parse and validate body
         const body = await req.json();
         const validation = schema.safeParse(body);
@@ -32,7 +47,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: validation.error.errors[0].message
+                    error: validation.error.issues[0].message
                 },
                 { status: 400 }
             );

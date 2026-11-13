@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { ShieldAlert, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
+import { StaleDeploymentPanel } from "@/components/shared/stale-deployment-panel";
+import { isStaleDeploymentError } from "@/lib/stale-deployment";
 
 export default function GodError({
     error,
@@ -11,11 +13,19 @@ export default function GodError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    // Décalage de build (onglet resté ouvert pendant un déploiement) : « Relancer la section »
+    // rejouerait le même bundle périmé ⇒ on recharge l'onglet (voir `src/lib/stale-deployment.ts`).
+    const staleDeployment = isStaleDeploymentError(error);
+
     useEffect(() => {
         // #108 — on ne log plus le message minifié React (#441/#419) qui n'aide pas :
         // on trace côté serveur le digest (référence Sentry/erreur) pour diagnostic.
-        console.error("[God Dashboard] Error (digest):", error.digest || error.name);
-    }, [error]);
+        if (!staleDeployment) {
+            console.error("[God Dashboard] Error (digest):", error.digest || error.name);
+        }
+    }, [error, staleDeployment]);
+
+    if (staleDeployment) return <StaleDeploymentPanel />;
 
     return (
         <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">

@@ -56,7 +56,7 @@ export async function GET() {
 ## Réservé aux membres d'une guilde activée (connexion Discord)
 
 - Progression d'un guide partagée entre membres : sur quelle quête chacun est, repères,
-  « qui peut aider » (métier, donjon, alignement).
+  présence (« je suis ici ») et donjons déjà validés.
 - Sorties de guilde, missions internes, suivi des membres, statistiques, bot Discord.
 
 ## À savoir

@@ -22,6 +22,8 @@
  *   • repli     : nos pictos du jeu (`/assets/dofus/icons/…`) — jamais une URL distante.
  */
 
+import { isSafeDofusImageSrc } from "@/lib/dofus-image-url";
+
 // -----------------------------------------------------------------------------
 // TYPES (shape « lite » : ce qui voyage de la page vers l'overlay, sérialisable)
 // -----------------------------------------------------------------------------
@@ -41,6 +43,13 @@ export interface OcreMonsterLite {
   step?: number | null;
   zone?: string | null;
   subzone?: string | null;
+  /**
+   * Image **résolue par le serveur** (proxy interne, espace d'apparence `sprite=1`), transportée
+   * comme une **donnée** : aucun composant ne code ce chemin, donc la règle « aucune dépendance
+   * distante en dur dans le module Ocre » reste tenue. `null` ⇒ le composant retombe sur nos
+   * fichiers locaux, puis sur le picto du jeu.
+   */
+  imageUrl?: string | null;
 }
 
 /** Données de la quête Ocre utiles à l'overlay (mêmes chiffres que le dashboard). */
@@ -123,9 +132,73 @@ export function ocreMonsterImage(id: number): string {
   return `${OCRE_MONSTER_IMAGE_DIR}/${id}.webp`;
 }
 
+/**
+ * Repli **livré avec le dépôt** : `public/assets/dofus/monsters/{id}.png`.
+ *
+ * Mesure du 08/11 : les vignettes viennent du cache siphonné (`/uploads/assets-dofus/monsters`,
+ * `.webp`), alors que le dépôt porte aussi des `.png` dans `assets/dofus/monsters`. Deux dossiers,
+ * deux extensions, un seul lu — les monstres présents uniquement en `.png` restaient donc sur le
+ * picto générique. On tente le PNG **avant** le picto.
+ */
+export function ocreMonsterLegacyImage(id: number): string {
+  return `/assets/dofus/monsters/${id}.png`;
+}
+
 /** Repli local (picto du jeu) d'une cible — jamais une URL distante. */
 export function ocreMonsterIcon(type?: string | null): string {
   return OCRE_MONSTER_ICONS[String(type ?? "").toLowerCase()] ?? OCRE_MONSTER_ICONS.monstre;
+}
+
+/**
+ * Image **serveur** utilisable dans le DOM : uniquement un chemin **interne** et sain.
+ *
+ * Mesure du 09/11/2026 (journal navigateur, modale « Mon Ocre ») : la vignette ne tentait que
+ * deux fichiers locaux (`/uploads/assets-dofus/monsters/<id>.webp`, absent, puis
+ * `assets/dofus/monsters/<id>.png`, qui ne couvre que 31 monstres pour 337 cibles) ⇒ **404 en
+ * série** et picto générique. Le serveur, lui, résout déjà la bonne image
+ * (`internalDofusDbImageUrl`, espace d'apparence `sprite=1`) ; elle arrive donc ici comme une
+ * **donnée**. On n'accepte que le **relatif interne** : une URL absolue (même DofusDB, même
+ * Metamob) ne doit jamais finir dans le `src` d'un `<img>`.
+ */
+export function ocreMonsterImageUrl(raw?: string | null): string | null {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  return value.startsWith("/") && isSafeDofusImageSrc(value) ? value : null;
+}
+
+/**
+ * Chaîne de repli d'une vignette de cible Ocre — **règle pure**, une seule source pour l'overlay
+ * et la modale « Mon Ocre ».
+ *
+ * Mesure du 09/11/2026 (bêta) : quand le serveur a résolu l'image, le premier repli local
+ * (`/uploads/…/<id>.webp`) ne peut PAS exister — ce dossier est indexé par un id d'entité de jeu,
+ * alors que l'`id` d'une cible Ocre est un id Metamob (mesuré : 404 en série, un par vignette).
+ * On ne le retente donc que lorsque le serveur n'a rien résolu ; le PNG du dépôt puis le picto du
+ * jeu restent, eux, toujours tentés (ce sont des fichiers que nous livrons).
+ */
+export function ocreMonsterThumbChain(
+  id: number,
+  type?: string | null,
+  imageUrl?: string | null
+): string[] {
+  const internal = ocreMonsterImageUrl(imageUrl);
+  return [
+    internal,
+    internal ? null : ocreMonsterImage(id),
+    ocreMonsterLegacyImage(id),
+    ocreMonsterIcon(type),
+  ].filter((src): src is string => typeof src === "string" && src.length > 0);
+}
+
+/**
+ * Nature d'une cible de quête Ocre, à partir du libellé Metamob (« Archimonstre », « Gardien »).
+ *
+ * Règle **pure** et partagée : le guide interne et l'espace visiteur doivent produire le même
+ * classement, sinon les compteurs « Gardiens / Archis » divergent d'une surface à l'autre.
+ * Tout libellé inconnu tombe sur `archimonstre` — l'immense majorité d'une quête Ocre.
+ */
+export function classifyOcreType(label: string | null | undefined): "boss" | "archimonstre" {
+  const value = String(label ?? "").toLowerCase();
+  return value.includes("gardien") || value.includes("boss") ? "boss" : "archimonstre";
 }
 
 // -----------------------------------------------------------------------------
@@ -258,7 +331,7 @@ export function buildOcrePlan(data: Pick<OcrePanelData, "monsters" | "currentSte
  * (actions serveur). Typé structurellement pour ne rien importer du serveur ici.
  */
 export interface OcreProgressSource {
-  monsters?: Array<Partial<OcreMonsterLite> & { id: number; nameFr?: string; name?: string }> | null;
+  monsters?: Array<Partial<OcreMonsterLite> & { id: number; nameFr?: string; name?: string; image?: string | null }> | null;
   questInfo?: {
     currentStep?: number;
     totalSteps?: number;
@@ -285,6 +358,7 @@ export function toOcrePanelData(src: OcreProgressSource | null | undefined): Ocr
     step: Number(m.step ?? 0),
     zone: m.zone ?? null,
     subzone: m.subzone ?? null,
+    imageUrl: ocreMonsterImageUrl(m.image),
   }));
 
   const lastSync = src?.lastSync instanceof Date

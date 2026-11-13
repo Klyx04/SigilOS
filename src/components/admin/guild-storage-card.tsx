@@ -1,5 +1,5 @@
 import { getGuildStorageUsage } from "@/server/actions/guild-storage-actions";
-import { HardDrive, AlertTriangle, FileImage, Coins, Trophy, Image as ImageIcon, Building2, ExternalLink } from "lucide-react";
+import { HardDrive, AlertTriangle, FileImage, Coins, Trophy, Image as ImageIcon, Building2, ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const BREAKDOWN_LINK: Record<string, string> = {
     ACHIEVEMENT: "/admin/validation?tab=succes",
     PRESENTATION: "/presentation",
     ASSETS: "/presentation",
+    TRANSCRIPTS: "/tickets?tab=transcripts",
 };
 
 const BREAKDOWN_ICON: Record<string, { icon: React.ElementType; color: string }> = {
@@ -25,6 +26,7 @@ const BREAKDOWN_ICON: Record<string, { icon: React.ElementType; color: string }>
     ACHIEVEMENT: { icon: Trophy, color: "text-info" },
     PRESENTATION: { icon: Building2, color: "text-success" },
     ASSETS: { icon: ImageIcon, color: "text-sky-400" },
+    TRANSCRIPTS: { icon: FileText, color: "text-indigo-400" },
 };
 
 /**

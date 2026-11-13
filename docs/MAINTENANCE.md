@@ -13,11 +13,18 @@ Logs: /home/sigiladmin/SigilOS/logs/backup.log
 ```
 
 **Actions**:
-1. Backup PostgreSQL (prod + beta)
+1. **Chaque nuit à 3h00 UTC, le dump** (rotation 7 quotidiens + dernier de 3 mois, plafond 4 Go) ;
+   **le 1ᵉʳ janvier, avril, juillet et octobre à 5h00 UTC, la répétition de restauration** :
+   ```cron
+   0 5 1 1,4,7,10 * /usr/bin/flock -n /tmp/restore-drill.lock /bin/bash /home/sigiladmin/SigilOS/scripts/restore-drill.sh beta >> /home/sigiladmin/SigilOS/logs/restore-drill.log 2>&1
+   ```
+   Elle envoie une notification God **SYSTEM** (verte si la restauration est conforme, rouge sinon) —
+   elle n'écrit **pas** dans la télémétrie `backup_db`, donc la carte « Sauvegarde » de God reste
+   celle de la vraie sauvegarde.
 2. Compression gzip
 3. Chiffrement GPG
 4. Upload vers Cloudflare R2
-5. Rotation locale (30 jours)
+5. Rotation locale (**5** derniers fichiers — `BACKUP_LOCAL_KEEP`, `scripts/backup_db.sh`) et rotation R2 **bornée par le script** (7 quotidiens + dernier de 3 mois, plafond **4 Go**) : **R2 est l'archive**, pas la copie locale
 
 ### Maintenance (4h00 UTC)
 ```bash
@@ -31,25 +38,126 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 3. Rotation logs (journalctl 7j)
 4. Rotation logs application (>10MB)
 5. Alerte Discord si disque >85%
+6. **Nettoyage des notifications** — queue BullMQ `sigilos-cleanup` (`src/workers/metamob-worker.ts`, `0 4 * * *`), non bloquant : **lues > 30 j** (une passe) et **non lues > 90 j** (par lots de 500, 20 000 lignes/jour au maximum, reliquat repris le lendemain). Mesure du 15/10/2026 : la purge ne visait que les lues, or **66 lignes sur 11 722** l'étaient — la table ne décroissait donc jamais. **Aucune clôture de contenu ici** (05/11/2026) : ce job abandonnait les runs Songes à **J+3**, sans rappel ni suppression du post Discord ; ce calendrier est supprimé, le seul est `cleanup-inactive-posts` (J+7/15/20/21, §Cron).
+7. **Contrôle de la mémoire Redis** — le mot de passe est relu dans la ligne de commande du conteneur (injecté au parse du compose, donc absent de son environnement) et transmis par `REDISCLI_AUTH`, **jamais affiché**. Alerte Discord au-delà de **60 %** du plafond, et alerte explicite si `maxmemory` vaut **0** (le plafond vit dans `docker-compose.prod.yml` : `--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes`, sur **les deux** Redis). Politique `noeviction` = à 100 %, Redis **refuse les écritures** : les files BullMQ s'arrêtent, d'où l'alerte précoce.
+
+### 🛡️ Mises à jour système & veille CVE noyau
+
+**Le socle.** `scripts/setup_security_updates.sh` installe et configure `unattended-upgrades` :
+origines **`-security` uniquement**, `docker-ce`/`containerd.io` blacklistés (pour ne pas casser la stack
+la nuit), `Automatic-Reboot "false"`. `scripts/maintenance.sh` ne fait que le **ménage**
+(`autoremove`/`autoclean`) : les deux sont complémentaires, aucun ne remplace l'autre.
+
+| Contrôle | Commande | Attendu |
+|---|---|---|
+| Patchs actifs | `cat /etc/apt/apt.conf.d/20auto-upgrades` | `Unattended-Upgrade "1";` |
+| Service | `systemctl is-active unattended-upgrades` | `active` |
+| Reboot en attente | `cat /var/run/reboot-required` | absent = rien à faire |
+| Noyau réellement booté | `uname -r` | à comparer au dernier `linux-image-*` installé |
+| Méta noyau présent | `apt-mark showmanual \| grep '^linux-'` | sinon **aucun** nouveau noyau n'est tiré |
+
+**⚠️ Le piège : `Automatic-Reboot "false"`.** `unattended-upgrades` installe le noyau corrigé **sur le
+disque** mais ne redémarre jamais : la machine continue de tourner sur l'ancien noyau, donc **la CVE reste
+active en mémoire**. `maintenance.sh` (§4c) alerte désormais quand `/var/run/reboot-required` existe. Le
+reboot reste une **décision humaine** (prod + bêta tombent ensemble, ~1‑2 min) et la preuve est `uname -r`,
+**pas** `apt-cache policy`.
+
+**⚠️ Les paquets `-updates` ne partent jamais seuls.** Seule l'origine `-security` est autorisée : les
+correctifs de bugs/matériel/`universe` (`glib2.0`, `tmux`, `cloud-init` le 04/11/2026) restent en attente
+indéfiniment. Rituel : 1×/mois, lire `apt list --upgradable`, puis passer le lot **système** d'abord (aucun
+service redémarré) et le lot **Docker** ensuite, en fenêtre — `containerd.io` est le parent des conteneurs,
+son redémarrage les tue. Après : `docker compose config -q` (la CLI change de majeure) + health check.
+
+**Veille CVE noyau — la grille de lecture, mesurée le 04/11/2026 (CVE‑2026‑98432, CVSS 9.8) :**
+
+| Mesure | Ce qu'elle tranche |
+|---|---|
+| `systemd-detect-virt` | `kvm` = noyau patchable par nous · `lxc`/`openvz` = c'est l'hébergeur |
+| `uname -r` + `apt-cache policy linux-image-virtual` | le noyau **et** son méta sont-ils à la bonne version ? |
+| `sysctl net.mptcp.enabled` | doit rester **0** (`secure_vps.sh`) : vecteur de la chaîne d'exploit |
+| `ss -M` | 0 socket MPTCP = la voie d'exploitation démontrée est fermée |
+| `sysctl net.ipv4.tcp_migrate_req` | **0** ferme le second chemin du bug (migration de request socket) |
+
+**Le proxy (Caddy) ne se patche pas tout seul.** `Dockerfile.caddy` est épinglé (verrou :
+`tests/unit/caddy-image-pin.test.ts`). Mesure du 04/11/2026 : le binaire tournait sur `go1.23.8`,
+buildé depuis `master` (janvier 2025), sans un seul correctif Go/Caddy depuis.
+
+**La preuve après rebuild, c'est `caddy version` — pas `build-info`.** `xcaddy` compile le module
+principal localement : `build-info` affichera **toujours** `mod caddy (devel)`, même sur une version
+taggée (constaté le 04/11/2026 sur 2.11.7 — la version réelle est `v2.11.7`, le `(devel)` ne veut rien
+dire de plus). Contrôle complet après bascule :
+
+| Commande | Attendu |
+|---|---|
+| `docker exec sigilos-gateway caddy version` | `v2.11.x` |
+| `docker run --rm --entrypoint caddy sigilos-caddy:latest build-info \| head -2` | `go go1.2x` (≥ 1.25) |
+| `ss -M` | **vide** — Go ≥ 1.24 active MPTCP par défaut ; `net.mptcp.enabled = 0` le neutralise |
+| `curl -fsS https://beta.sigilos.fr/api/health` | `"status":"healthy"` |
+| `curl -sI https://sigilos.fr \| head -1` | `HTTP/2 200` |
+
+⚠️ **Avant de bumper la version** : la release GitHub précède la publication Docker Hub de plusieurs
+heures. Vérifier que les images existent, sinon le build casse en fenêtre
+(`2.11.8` était encore absent le 04/11/2026 à 15 h) :
+
+```bash
+curl -s 'https://hub.docker.com/v2/repositories/library/caddy/tags/?name=<ver>-alpine' | grep -o '"count":[0-9]*'
+```
+
+**Résultat de la bascule du 04/11/2026** : 2.9.1 → **2.11.7** (`xcaddy build v2.11.7`), Go **1.27.3**,
+`ss -M` vide, bêta `healthy`, vitrine `200`. L'ancienne image reste taguée `sigilos-caddy:rollback`
+(supprimable après quelques jours sans incident).
+
+**Dettes cosmétiques constatées par `caddy validate` sur 2.11.7** : `header_up X-Forwarded-For`
+redondant (2 occurrences dans le `Caddyfile`) et fichier non formaté (`caddy fmt --overwrite`). Aucun
+impact fonctionnel — à nettoyer au prochain passage sur le `Caddyfile`.
+
+
 
 ### Crons HTTP (endpoints protégés `x-cron-secret`)
 Appelés depuis le crontab VPS (`crontab -l`) via
 `curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :
 
-- `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
-- `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
-- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique.
+⚠️ **Depuis un shell SSH, `$CRON_SECRET` est vide** (mesuré le 26/10/2026) : la variable est définie
+**en tête du crontab** (`CRON_SECRET=…`, § « Tâches planifiées »), pas dans l'environnement du shell.
+Le header part alors **vide** et la route répond `{"error":"Unauthorized"}` — ce n'est **pas** un
+problème de route.
+
+Pour un appel **manuel**, lire le secret là où il est réellement (jamais l'afficher) :
+
+```bash
+# ✅ méthode fiable : l'environnement du conteneur applicatif (sigilos-beta / sigilos-prod)
+curl -sS -H "x-cron-secret: $(docker exec sigilos-beta printenv CRON_SECRET)" \
+  "https://beta.sigilos.fr/api/cron/<name>"
+```
+
+⚠️ Le fichier `~/.sigilos-cron-secret` **n'existe pas** sur ce VPS (`cat: No such file or directory`,
+relevé du 26/10/2026) : les exemples plus bas qui l'utilisent ne valent que si on l'a créé
+(`umask 077 && printf '%s' '<secret>' > ~/.sigilos-cron-secret`).
+
+- `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h). La passe appelle aussi `closeOrphanContentForGuild` (lot B, 30/10/2026) : tout profil **non actif** qui porte encore du contenu ouvert voit ce contenu **fermé** — posts DJ/quêtes `CLOSED`, runs Songes `ABANDONED`, **événements du calendrier `CANCELLED`** (rappels + embed purgés, miroirs recopiés), annonces du Marché `WITHDRAWN` — puis les embeds Discord sont supprimés. Bornée (50 profils/guilde, `limit: 25` depuis la synchro), idempotente, et **indépendante de qui a archivé** : le bot ne peut pas fermer le contenu (image sans `src/`), c'est cette passe qui le fait.
+- `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` **uniquement si l'URL a changé** ; **pas d'avatar personnalisé ⇒ avatar Discord par défaut officiel écrit en base** (`embed/avatars/{n}.png`), jamais `null` — les initiales ne servent plus qu'aux comptes sans identité Discord. Un membre qui met un avatar est repris à la **connexion OAuth** ou au **prochain passage du cron** ; d'ici là, l'ancien hash 404 est remplacé à l'écran par le même avatar par défaut (cascade `useResilientAvatarSrc`). Fréquence recommandée : quotidien (`0 5 * * *`).
+- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique. **`cleanup-inactive-posts` (05/11/2026)** : relance et clôture des posts DJ **et des runs Songes** — `RECRUITING` **et** `IN_PROGRESS` — J+7/J+15/J+20 puis clôture à **J+21 d'activité réelle** (dernière candidature, dernier étage ; `updatedAt` figé lors des rappels : un rappel ne repousse plus le palier). La clôture passe par `abandonDreamRun` (garde d'état + purge du message **et du fil** Discord, cf. `deleteChannelMessage`). Une passe de **rattrapage** (25/passe) supprime les embeds de runs déjà closes restés en ligne ; idempotente, les références n'étant effacées qu'après une suppression réussie.
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
-- `/api/cron/raid-reminders` — **rappels des raids, deux passes** (une seule ligne de crontab) : ① **H-1** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. ② **H+24 — rappel de clôture** : pour chaque raid terminé depuis 24 h et encore `PUBLISHED`, UN message qui ne ping que le **capitaine actuel** (`creatorId`, donc le nouveau lead après un transfert de capitanat) : « reste à clôturer : présents + score → XP/Kamas » + lien vers le raid. Idempotent (`metadata.closureReminderSentAt`). Un raid n'est **pas** clôturé d'office par la passe de fond avant **48 h** (`src/lib/calendar-auto-close.ts`) — sinon le rappel de clôture ne partirait jamais. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/raid-reminders` — **rappels des raids, trois passes** (une seule ligne de crontab) : ① **H-24 (J-1)** : pour chaque raid `PUBLISHED` programmé au moins 48 h à l'avance (`startDate - createdAt >= 48 h`), entré dans sa fenêtre H-24 (tolérance 4 h [H-24 .. H-20]), poste UN message dans le salon du raid avec ping des seuls inscrits (REGISTERED + CONFIRMED + créateur). Idempotent (`metadata.raidReminder24hSentAt`), silencieux si rappel manuel récent. ② **H-1** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. ③ **H+24 — rappel de clôture** : pour chaque raid terminé depuis 24 h et encore `PUBLISHED`, UN message qui ne ping que le **capitaine actuel** (`creatorId`, donc le nouveau lead après un transfert de capitanat) : « reste à clôturer : présents + score → XP/Kamas » + lien vers le raid. Idempotent (`metadata.closureReminderSentAt`). Un raid n'est **pas** clôturé d'office avant **48 h** (`src/lib/calendar-auto-close.ts`) — sinon le rappel de clôture ne partirait jamais. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/calendar-auto-close` — **clôture d'office du calendrier + purge Discord** (depuis le 25/10/2026, une seule passe) : ① **raid** encore `PUBLISHED` **48 h** après sa fin ⇒ `COMPLETED` avec `metadata.closedBySystem` + `systemClosedAt` (et **pas** `completedAt`) — le capitaine peut encore **compléter** (présents + score) ou **annuler** pendant 24 h, le raid n'est donc jamais « terminé sans points » définitivement ; ② **autres types** : clôturés dès la fin ; ③ **miroirs DJ/Songes** : jamais clôturés ici (la copie suit son post d'origine, `syncDjMirror`/`syncSongesMirror`) ; ④ **purge** de `metadata.reminderMessages` (rappels H-24/H-1/clôture/manuel, outbox résolu par `messageKey`) **et** de l'embed de publication. Garde d'état `status: "PUBLISHED"` dans le `WHERE` (jamais deux clôtures), 200 événements max par passe, refs non supprimées conservées pour rejeu. **Les pages ne clôturent plus rien** : ouvrir le calendrier est une lecture pure. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
 - `/api/cron/event-reminders` — **rappel des events calendrier non-raid** (même contrat, fenêtre `notifyBefore`, marqueur `metadata.eventReminderSentAt` ; sans `startDate` → ignoré).
 - `/api/cron/dj-reminders` — **rappel H-1 des posts DJ/Quêtes datés** (`targetDate` ; posts indéfinis ignorés ; marqueur `dungeonsJson._h1ReminderSentAt`).
 - `/api/cron/songes-reminders` — **rappel H-1 des runs Songes planifiées** (`scheduledAt` ; runs indéfinies ignorées ; idempotence Redis par échéance).
+- **Stand-by (30/10/2026)** — un post DJ/quête (`DjSearchPost.standBy`), une run Songes (`DreamRun.standBy`) ou un événement calendrier (`GuildEvent.standBy`) peut être **mis en pause** par son créateur (ou un administrateur, avec motif) : colonne JSONB `{ at, userId, name }`, forme et règles uniques dans `src/lib/group-standby.ts`. La pause **suspend** le rappel H-1 (`dj-reminders`, `songes-reminders`), les trois passes d'un raid (`raid-reminders` : H-24, H-1, rappel de clôture), le rappel des events non-raid (`event-reminders`), les relances d'inactivité J+7/J+15/J+20 **et** la clôture d'office (J+21 ; +48 h pour un raid, `calendar-auto-close`), ainsi que les **rappels manuels** (deux relances DJ, rappel Songes, rappel calendrier — un bouton « Stand-by » qui laisserait pinger à la main serait un faux silence). Elle ne change **ni le statut ni les inscriptions** : c'est un état de pause, pas une fermeture. Un `standBy` **illisible** compte comme une pause (fail-closed : on préfère le silence à un ping qu'on croyait suspendu) ; chaque passe compte ses refus sous la raison `stand-by`. L'embed Discord porte la ligne « ⏸️ Mis en stand-by par … » et un bouton dont **seul le créateur** peut se servir (le contrôle est dans le handler : Discord ne sait pas griser un bouton par personne) ; le dashboard expose la même bascule. **Modules sans pause** : le stand-by n'existe **que** sur ces trois contenus. Le **Marché** (`market-expire`), les **demandes de service** (`cleanup-inactive-service-requests`, J+7/J+14 puis suppression) et les **sondages** (`close-old-polls`) s'expirent sans bouton : contenus passifs, sans rappel à suspendre. Les rendre pausables demanderait une colonne sur **trois modèles de plus** (lot séparé, non demandé — rang 60 de `docs/ROADMAP.md`).
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
-- `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
+- `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j **d'inactivité réelle** (`User.lastSeenAt`, écrit au plus 1×/h par `src/server/last-seen.ts` ; `null` = jamais mesuré ⇒ traité comme inactif) et grâce `scheduledDeletion` écoulée, 50 max/exécution. **Les événements de guilde survivent au compte** (décision user du 30/10/2026, option C) : le contenu encore publié est refermé (embeds + rappels), les événements ouverts sont annulés, le nom du capitaine est retiré du JSON, puis les événements sont rattachés à un **compte technique** `system-deleted-member` nommé « **Ancien membre** » (`src/server/deleted-member.ts`) — la guilde garde son historique, l'identité disparaît. Ce compte technique est **protégé** de la purge (sinon la cascade emporterait tous les événements anonymisés). **Lot 7** : la même passe purge `DiscordMemberActivity` **365 j après le départ** (`leftDiscordAt`, membres inscrits **ou non**) — une seule requête indexée, aucune ligne de crontab en plus ; un échec de cette purge rend le cron **rouge** et apparaît dans le résumé. Fréquence recommandée : quotidien (`0 6 * * *`).
 - `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
-- `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). **+ phase 5 (11/10/2026) — succès « spéciaux »** : complète **25 challenges par run** (`Challenge.description` = la **vraie** explication DofusDB, `iconUrl` servie par le proxy, `conditions` lues) — idempotent (un challenge déjà complet est sauté **sans requête**) ⇒ coût nul en régime établi, et **aucune opération manuelle sur le VPS** (l'image de prod ne contient ni `src/` ni tsconfig : un script qui importe du TS n'y tourne pas). Fréquence recommandée : quotidien (`45 3 * * *`).
+- `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). **+ veille du bestiaire** (filigrane `id`, curseur persistant, jamais de recul) : **`MONSTER_FICHES_VEILLE_LIMIT`** fiches par nuit (défaut **300**, borné à **800**) — le plafond était `60` en dur, soit ~74 nuits pour couvrir les ~4 700 monstres (mesure du 31/10/2026). En régime établi, la passe ne coûte **qu'une requête** (rien de neuf) et ramasse automatiquement les nouveaux monstres. **+ phase 5 (11/10/2026) — succès « spéciaux »** : complète **25 challenges par run** (`Challenge.description` = la **vraie** explication DofusDB, `iconUrl` servie par le proxy, `conditions` lues) — idempotent (un challenge déjà complet est sauté **sans requête**) ⇒ coût nul en régime établi, et **aucune opération manuelle sur le VPS** (l'image de prod ne contient ni `src/` ni tsconfig : un script qui importe du TS n'y tourne pas). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
+- `/api/cron/guild-purge` — **purge réelle des guildes arrivées à échéance** (chantier `guildes-cycle-de-vie`, 01/11/2026) : supprime **définitivement** les guildes désactivées dont `scheduledDeletion` est atteinte (`deletedAt` non nul **et** date passée), via `src/server/guild-purge-core.ts` — **même** implémentation que le hard delete God : config + toutes les relations en cascade (profils, événements, tickets, marché…), `AllowedGuild`, caches, sortie du bot. 20 guildes maximum par passe, du plus ancien au plus récent ; bilan notifié à God. Une guilde **active** ne peut jamais être purgée par ce chemin. Fréquence recommandée : quotidien (`45 4 * * *`). **Preuve de suppression (D-B, 02/11/2026)** : avant d'effacer, la purge écrit une ligne `AuditLog` **plateforme** (`guildId: null`, `isGodLog: true`, action `GUILD_PURGED`) qui porte l'identité de la guilde disparue ; elle survit à la cascade et suit la rétention plateforme (**90 j**). Si la preuve ne peut pas être écrite, **la purge est annulée** (le cron repasse le lendemain).
+- `/api/cron/live-watch` — **annonces de créateurs** (02/11/2026, **salons séparés le 04/11/2026**), télémétrie `creator_watch` : ① **live Twitch** — un appel Helix `streams` + un appel `users` (photos de profil) pour le pool de créateurs God, puis **par guilde** un embed dans `liveNotifyChannelId` (interrupteur `notifyTwitchLives`) avec ping optionnel (`livePingRoleIds`, vide = sans ping) ; anti-doublon Redis par **session de stream** (`live:notified:<guilde>:<streamId>`, TTL 7 j), clé posée **seulement après** un envoi réussi, un live commencé depuis plus de 2 h n'est pas annoncé ; ② **nouvelle vidéo YouTube** — flux **RSS** de la chaîne (0 quota), résolution `@handle → channel_id` **une fois** par créateur (100 unités, cache 30 j), anti-doublon par vidéo (`yt:notified:*`, TTL 30 j), embed dans le **salon YouTube** `youtubeNotifyChannelId` (interrupteur `notifyYouTubeUploads`), vidéo de plus de 24 h ignorée. Une panne YouTube ne bloque jamais l'annonce d'un live. Aucune suppression. Fréquence recommandée : `*/5 * * * *`.
 - `/api/cron/discord-channel-watch` — **surveillance des salons Discord** : pour chaque guilde active avec un `systemNotifyChannelId`, compare les IDs de canaux configurés dans `GuildConfig` aux canaux visibles par le bot. Si un canal configuré a disparu, envoie un embed d'alerte dans `systemNotifyChannelId` avec la liste des champs affectés et un lien vers `/admin/pilotage?tab=diagnostic`. Fréquence recommandée : quotidien (`0 7 * * *`).
+- `/api/cron/siphon-item-conditions` — **conditions d'équipement** (`DofusDude` → `GameItem.conditions`, 264 objets
+  conditionnés) : sans elles, aucune variante ne peut être **bloquée** sur un trophée conditionnel (`pk<2`, `PA<12`).
+  `apply` = **0 par défaut** (dry-run). ⚠️ **Route, pas un script** : mesuré le 26/10/2026, `node scripts/*.mjs`
+  échoue dans le conteneur (`@prisma/driver-adapter-utils` absent du build standalone). Fréquence : mensuelle.
+- `/api/cron/siphon-item-sets` — **référentiel des panoplies** (`GameItemSet`, 940 lignes DofusDB / **938** écrites) : nécessaire aux **bonus de panoplie recalculés** des variantes. `apply` = **0 par défaut** (dry-run), `pages` borne la passe (19 au total) et `startSkip` reprend au `nextSkip` rendu — la passe complète peut donc être découpée derrière un proxy. **Une seule fois** après une migration/MAJ, puis à la demande. Existe aussi en local (`npm run siphon:item-sets -- --apply`) : la route sert aux **conteneurs** (l'image standalone ne porte ni `tsx` ni les alias `@/`).
+
 
 ### 🛒 Module « Marché » — cron unique des échéances
 
@@ -129,31 +237,93 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
 
+# Sondages PROGRAMMÉS (module staff `scheduledPolls`) — CHAQUE MINUTE : le
+# formulaire choisit une date, une heure ET une minute, c'est donc la cadence
+# exigée par la fonctionnalité. Le core revendique chaque créneau en base
+# (garde d'état dans le `WHERE`) : un double déclenchement — ou la reprise
+# quotidienne dans `maintenance.sh` — ne publie jamais deux fois le même sondage.
+# ⚠️ La minute manquée n'est pas perdue : l'exécution suivante rattrape tous les
+#    créneaux échus (c'est ce qui rend le déclencheur « sans état »).
+# ⚠️ `CRON_SECRET`, `APP_URL` et `LOG_DIR` sont définis EN TÊTE du crontab de ce VPS (relevé du
+#    12/10/2026) : on utilise donc `$CRON_SECRET` (et non `$(cat ~/.sigilos-cron-secret)`, fichier
+#    absent). Le log porte EXACTEMENT le
+#    nom déclaré dans `KNOWN_CRON_TASKS` (`publish-scheduled-polls.log`), sinon
+#    le panneau God affiche « Inconnu ».
+* * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
+
 # Rappels des raids (toutes les 10 min) — ① ping des INSCRITS 1 h avant le départ
 # (un seul ping par raid, silence si un rappel manuel vient d'être envoyé) ;
 # ② rappel de CLÔTURE au capitaine 24 h après la fin (un seul par raid)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
+# flock : trois passes + appels Discord dans la même exécution (jamais deux en parallèle).
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/raid-reminders.lock curl -s -m 60 -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
+
+# Clôture d'office du calendrier (toutes les 10 min) — ① raid encore ouvert 48 h
+# après la fin : clôture traçable (à compléter par le capitaine) ; ② autres types :
+# dès la fin ; ③ miroirs DJ/Songes jamais clôturés ; ④ PURGE des rappels Discord +
+# de l'embed dans le salon. Aucune page n'écrit de statut : cette ligne est le SEUL
+# exécutant de la règle `src/lib/calendar-auto-close.ts`.
+# ⚠️ `flock -n` : la passe purge des messages Discord un par un (jusqu'à 200 événements,
+#    runtime plafonné à 15 min côté monitoring) — jamais deux passes concurrentes.
+# ⚠️ `\%` obligatoire (cron coupe la ligne au premier `%` non échappé : exit 2, aucun log).
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/calendar-auto-close.lock curl -s -m 60 -o /dev/null -w "calendar-auto-close \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/calendar-auto-close" >> "$LOG_DIR/calendar-auto-close.log" 2>&1
 
 # Rappel des events calendrier non-raid (même fenêtre `notifyBefore`, 60 min par
 # défaut ; posts sans `startDate` ignorés ; un seul ping par event)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "event-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/event-reminders" >> "$LOG_DIR/event-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/event-reminders.lock curl -s -m 60 -o /dev/null -w "event-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/event-reminders" >> "$LOG_DIR/event-reminders.log" 2>&1
 
 # Rappel H-1 des posts DJ/Quêtes datés (`targetDate` ; posts indéfinis ignorés)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "dj-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/dj-reminders" >> "$LOG_DIR/dj-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/dj-reminders.lock curl -s -m 60 -o /dev/null -w "dj-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/dj-reminders" >> "$LOG_DIR/dj-reminders.log" 2>&1
 
 # Rappel H-1 des runs Songes planifiées (`scheduledAt` ; runs indéfinies ignorées)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/songes-reminders.lock curl -s -m 60 -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
+
+# Rôles automatiques par ancienneté (chantier Y, lot Y-2) — UNE FOIS par jour : la passe
+# réconcilie les rôles des paliers atteints (`jours → rôles`) et n'annonce que les
+# franchissements POSTÉRIEURS à l'activation du module (les paliers déjà atteints sont
+# posés en silence — décision user du 14/10/2026, aucun message rétroactif dans le salon).
+# ⚠️ Sans état : une passe manquée n'est pas perdue, la suivante applique le même diff.
+30 4 * * * curl -s -o /dev/null -w "seniority-roles \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/seniority-roles" >> "$LOG_DIR/seniority-roles.log" 2>&1
+
+# 🔭 Veille DofusDB — UNE FOIS par semaine (dimanche 05h00 UTC : **ligne déjà en place** avant le
+# 26/10/2026). Deux rôles dans la même passe :
+#  ① **alerte** God, seulement en cas de nouveauté (objet/quête/donjon/condition jamais vue) ;
+#  ② **entretien** systématique : veille ciblée des objets + passe ciblée des **panoplies**.
+# ⚠️ Ce qui manquait n'était PAS cette ligne mais le **code** : jusqu'au 26/10/2026 l'entretien était
+#    conditionné à une nouveauté, or un rééquilibrage de statistiques (mise à jour 3.7 des trophées)
+#    ne change **aucun compteur** ⇒ aucun siphon. Ne pas ajouter une seconde ligne (double passe).
+# ⚠️ `flock` + `-m 300` : après une longue coupure, la passe relit les panoplies des 60 derniers jours.
+0 5 * * 0 /usr/bin/flock -n /tmp/data-watch.lock curl -s -m 300 -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
+
+# 📋 Conditions d'équipement (DofusDude → `GameItem.conditions`) — UNE FOIS par mois.
+# C'est ce qui permet d'afficher et de **bloquer** une variante sur un trophée conditionnel
+# (« Bonus de panoplies < 2 », « PA < 12 »…).
+# ⚠️ Route cron et **pas** `docker exec node scripts/…` : mesuré le 26/10/2026, le script échoue
+#    DANS le conteneur (`ERR_MODULE_NOT_FOUND: @prisma/driver-adapter-utils`, dépendance
+#    transitive de l'adaptateur absente du build standalone). Le cœur est le même (une source).
+# ⚠️ À lancer APRÈS la veille des objets : une fiche absente est comptée `missing`, jamais créée.
+5 5 1 * * curl -s -m 180 -o /dev/null -w "siphon-item-conditions \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/siphon-item-conditions?apply=1" >> "$LOG_DIR/siphon-conditions.log" 2>&1
 ```
 
-> 📋 **Rappel des 23 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
+### Ce qui suit le jeu tout seul — et ce qui reste humain
+
+| Ce qui change côté jeu | Porté par | Automatique ? |
+|---|---|---|
+| Nouvel objet / objet retiré | `GameItem` | ✅ `data-watch` hebdo : alerte God **+** veille ciblée |
+| **Stats / effets d'un objet existant** (rééquilibrage 3.7) | `GameItem.effects` **et** le payload Dofusbook du build | ✅ veille ciblée hebdo (inconditionnelle depuis le 26/10/2026) |
+| **Paliers de bonus d'une panoplie** | `GameItemSet` (référentiel **à nous**) | ✅ passe ciblée `data-watch` (`updatedAt[$gt]`, filigrane Redis `game-data:watch:item-sets`) |
+| Condition d'équipement (trophée conditionnel, `pk<2`…) | `GameItem.conditions` (DofusDude) | ⚠️ **script mensuel** (ligne de crontab ci-dessus) — en attendant, l'évaluateur est **fail-closed** : variante refusée, jamais un total faux |
+| Type d'objet ou atome de condition inconnu | veille des conditions | ✅ **signalé** (alerte God), jamais deviné |
+| Plafonds PA/PM/PO/invocations, pods, formules | `src/lib/dofus-{caps,pods,set-bonuses}.ts` + tests | 👤 humain (lot + PR), versionné et verrouillé par des tests |
+| Forgémagie, potions d'élément, gemmes régénérantes | — | ❌ **hors modèle** : l'app ne simule pas la forgemagie |
+| Suppression d'un objet / d'une panoplie | — | 👤 jamais automatique (décision humaine) |
+
+> ⚠️ **Les totaux d'un build ne viennent pas de `GameItem`** : ils viennent du **payload Dofusbook**
+> enregistré avec le build (c'est lui qui est recalculé quand une variante est appliquée). Notre
+> référentiel sert aux **paliers de panoplie**, aux **conditions**, aux icônes et au marché. Un
+> rééquilibrage arrive donc dans un build au **re-sync de ce build**, et dans nos calculs de
+> panoplie à la passe `data-watch`.
+
+> 📋 **Rappel des 33 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
 > n'apparaît « Succès » que si son **log** est écrit (`$LOG_DIR` **codé** dans
 > `src/app/api/god/cron-status/route.ts` = `/home/sigiladmin/SigilOS/logs`) **et/ou** si le Redis de
 > l'environnement reçoit `recordCronExecution`. `janitor` n'a **pas** de ligne : il est lancé par
@@ -432,9 +602,10 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 - **Critique**: app-prod, app-beta, db-prod, db-beta, caddy, redis
 
 ### Backups
-- **Fréquence**: Quotidien @ 3h UTC
-- **Rétention**: 30 jours local, illimité R2
-- **Vérification**: `ls -lh backups/db/`
+- **Fréquence**: Quotidien @ 3h UTC (`scripts/backup_db.sh`, plan gratuit R2)
+- **Rétention locale**: 5 derniers `.gpg` (`BACKUP_LOCAL_KEEP`)
+- **Rétention R2**: 7 dumps + le dernier de chacun des 3 derniers mois, **plafond 4 Go** (`BACKUP_R2_MAX_MB`) — plan gratuit 10 Go, aucune facture
+- **Vérification**: `ls -lh backups/db/` · la notification God du matin porte le poids du bucket (`r2_total_mb`)
 
 ---
 
@@ -576,6 +747,38 @@ Critère **strict** : aucun `DungeonAchievement` rattaché **et** `conditions` n
 challenges du seed ont `conditions: null`) ⇒ un challenge créé à la main dans God est rattaché à un
 donjon, donc jamais visé. Le code ne **recrée** jamais ces lignes (la passe ne crée plus de challenge).
 
+### Rattrapage « Donjon validé » — donjons sans aucun succès (25/10/2026)
+
+Les **doubles boss** (« Comte et Klime », « Comte et Nileza », « Comte et Sylargh »,
+« Comte et Missiz Frizz », « Harebourg et Frizz », « Abyssaux du Gouffre du Gigalodon ») et les
+**boss d'anomalie** (Mureine, Jardins éternels ×3, Willorque, Exécrabe, Cire Momore…) n'ont
+**aucun** succès propre : sans coche, l'écran affichait « Succès — 0/0 ». L'outil rattache le
+pseudo-succès `donjon-valide` (« Donjon validé ») **uniquement** à ces donjons (aucune ligne
+`DungeonAchievement`), et le rend **seulement** s'il est le seul du donjon
+(`src/lib/dungeon-no-achievement.ts`).
+
+Bundlé dans l'image (`npm run build:backfill-dungeon-completion`), **dry-run par défaut**,
+**idempotent** (`upsert`) ; il **crée** le challenge s'il a été purgé :
+
+```bash
+# 1) contrôle — AUCUNE écriture (liste des donjons visés, avec le flag « sans succès »)
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js
+# 2) écriture
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js --apply
+# 3) re-contrôle : doit afficher « Donjons sans succès : 0 / N »
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js
+```
+
+Idem `sigilos-prod` (noms de conteneurs mesurés le 25/10/2026 dans `docker ps`).
+
+Mesure du 25/10/2026 en **bêta** : **13 donjons / 150** cochés, re-contrôle `0 / 150`.
+
+⚠️ **`Cannot find module '/app/scripts/backfill-dungeon-completion.js'` = image trop ancienne**,
+pas une panne : le bundle n'existe que depuis le commit `5009643d` (25/10/2026). Une image
+antérieure (prod `main` = `07c0500e` du 12/10) ne l'a pas ⇒ lancer le rattrapage **après** le
+déploiement du lot, jamais en copiant le fichier dans un conteneur en marche (`docker cp` =
+artefact hors image, perdu au prochain redéploiement).
+
 ### Pourquoi pas `docker compose exec … tsx`
 L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,
 `scripts/` et les JS compilés) alors que le script importe le catalogue TypeScript ⇒
@@ -626,11 +829,37 @@ salon de notification est un **forum** (un post de forum est un thread).
 ---
 
 
+## 📊 Supervision — God « Système & Infra »
+
+- **Aucune exposition publique** : `monitor.sigilos.fr` a été retiré le 19/10/2026 et le service **Grafana supprimé** du compose de prod.
+- **Prometheus reste interne** (`prometheus:9090`, non publié) : node-exporter et postgres-exporter. cAdvisor a été **supprimé le 13/11/2026** (SEC-04) : plus aucun conteneur ne monte `/var/run/docker.sock`.
+- **Accès** : God → **Système & Infra** (`?tab=infrastructure`) : CPU, RAM, disque, Redis, PostgreSQL (taille/connexions), sauvegarde, worker et les 8 crons les plus critiques.
+- **Pas d'Alertmanager** : Prometheus ne pousse aucune alerte. L'alerte disque >85 % reste le webhook Discord (`DISCORD_ADMIN_WEBHOOK`).
+- **Volume `grafana_data`** : conservé sur le VPS, plus monté. Ne le supprimer qu'après accord explicite (données de dashboards).
+- **Diagnostic ponctuel** : `sudo docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f prometheus` (jamais de port public).
+
+### État au 19/10/2026
+
+- Bêta déployée en **`5b31ad0`** : 6 conteneurs `Healthy`, base à jour, `/`, `/guides`, `/guides/rush-sylvestre`, `/boss`, `robots.txt`, `sitemap.xml`, `/api/health` → **200**.
+- `sigilos-grafana` **supprimé** ; `monitor.sigilos.fr` → **000 / TLS coupé** (voulu).
+- **Limites connues** : cAdvisor supprimé (carte « Conteneurs » retirée, plus de socket Docker) ; règles d'alerte Grafana non auditées (volume `grafana_data` conservé).
+- **Prod non déployée** : `main` = `07c0500e` (12/10), `dev` = **103 commits d'avance**. Les images prod ne sont construites que depuis `main`.
+- **Convention des tags** : la CI publie **7 caractères** (`5b31ad0`). Utiliser `./scripts/deploy-cd.sh beta <sha7>` ; le script ne normalise pas encore un SHA 8/40.
+
+---
 ## 📞 Contacts & Alertes
 
-**Discord Webhook**: Configuré dans `.env.prod`  
-**Variable**: `DISCORD_ADMIN_WEBHOOK`  
-**Alertes**: Saturation disque >85%
+**Discord Webhook** : `DISCORD_ADMIN_WEBHOOK`, à poser dans **`.env.beta` ET `.env.prod`**. ⚠️ Le cron
+de maintenance charge **`.env.beta` par défaut** (`TARGET_BASE` est vide en cron) : une variable posée
+seulement dans `.env.prod` est **invisible** pour lui. Mesure du 04/11/2026 : présente dans `.env` et
+`.env.prod`, absente de `.env.beta` → les 5 alertes infra étaient **silencieuses**. `maintenance.sh`
+écrit désormais `⚠️ DISCORD_ADMIN_WEBHOOK absent de <fichier> : alerte NON envoyée` dans
+`logs/maintenance.log`.
+**Variable** : `DISCORD_ADMIN_WEBHOOK`  
+**Alertes** : saturation disque >85 %, Redis >60 % ou sans plafond, **reboot-required**
+(`/var/run/reboot-required`), échec de maintenance → webhook Discord. **Pas d'Alertmanager** :
+Prometheus n'envoie aucune alerte.
+**Contrôle** : `grep -q '^DISCORD_ADMIN_WEBHOOK=https' ~/SigilOS/.env.beta && echo ok || echo absent`
 
 ---
 
@@ -648,11 +877,11 @@ salon de notification est un **forum** (un post de forum est un thread).
 - [ ] Vérifier backups R2 (existence + taille)
 - [ ] Analyser logs maintenance (erreurs ?)
 - [ ] Vérifier croissance DB (`df -h`)
-- [ ] Tester restauration backup (dry-run)
+- [ ] Tester restauration backup (`bash scripts/restore-drill.sh beta` — conteneur jetable, aucun impact)
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
-- [ ] Review Grafana dashboards
+- [ ] Vérifier God → Système & Infra (CPU, RAM, disque, Redis, DB, conteneurs, crons)
 - [ ] Vérifier certificats SSL Caddy
-- [ ] ⏰ Vérifier expiration GHCR_TOKEN (renouveler si < 2 semaines) — voir section 3b CI/CD
+- [ ] ⏰ Vérifier que `GHCR_TOKEN` est toujours valide (token **sans expiration** — rotation/révocation manuelle) — voir section 3b CI/CD
 
 ---
 
@@ -745,21 +974,22 @@ salon de notification est un **forum** (un post de forum est un thread).
     ⚠️ **Ne JAMAIS Ctrl+C en pleine migration** : une migration à moitié appliquée exige `migrate resolve --rolled-back <migration>` avant de relancer.
 - **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
 - ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
-- ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).
-- ⏰ **⚠️ EXPIRATION DU GHCR_TOKEN (IMPORTANT)** : le PAT GitHub créé avec « Expiration: 90 days » **expire ≈ 90 jours après sa création** (créé le 03/08/2026 → **expire ≈ début novembre 2026**). Quand il expire, `deploy-cd.sh` échoue sur le `docker pull` → déploiement CD bloqué.
-  
-  **Renouvellement (LE minimum, ~2 min)** :
-  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**
-     → **Generate new token (classic)** → Note `sigilos-vps`, expiration 90 jours, cocher **uniquement `read:packages`** → Generate.
-     📝 **Note la date « Expires on »** affichée (ex: `Sun, Nov 1 2026`).
-  2. Sur le VPS, coller 2 lignes (remplacer par le nouveau token + la date notée) :
+- ⚠️ **GHCR Token sur le VPS** : PAT GitHub **classic**, scope **`read:packages` uniquement**, **sans expiration**, nommé `sigilos-vps-AAAA-MM`. Exporté dans `~/.bashrc` (`chmod 600`) et lu par `deploy-cd.sh`. `GHCR_TOKEN_EXPIRY` reste **optionnel** : le définir affiche un compte à rebours, l'omettre affiche « expiration non renseignée » (ligne grise, pas une alerte).
+- 🔑 **Token sans expiration — rotation manuelle (décision du 20/10/2026)** : le token est **en lecture seule** (télécharger des images, jamais publier ni toucher au code) ⇒ risque accepté, **à condition** de pouvoir le révoquer en un clic.
+  - **Créer / régénérer** : GitHub → Settings → Developer settings → Personal access tokens → **Tokens (classic)** → cocher **uniquement `read:packages`** → **Expiration : No expiration** → nommer `sigilos-vps-AAAA-MM` (la date de création sert de repère).
+  - **Poser le token sur le VPS** (remplacer la ligne, ne pas empiler) :
      ```bash
-     echo 'export GHCR_TOKEN=<NOUVEAU_TOKEN>' >> ~/.bashrc && source ~/.bashrc
-     echo 'export GHCR_TOKEN_EXPIRY=<AAAA-MM-JJ>' >> ~/.bashrc && source ~/.bashrc
-     # exemple : export GHCR_TOKEN_EXPIRY=2026-11-01
+     sed -i 's|^export GHCR_TOKEN=.*|export GHCR_TOKEN=<NOUVEAU_TOKEN>|' ~/.bashrc
+     sed -i '/^export GHCR_TOKEN_EXPIRY=/d' ~/.bashrc   # plus de compte à rebours
+     chmod 600 ~/.bashrc && source ~/.bashrc
      ```
-  → C'est tout. Le script affichera le nouveau compte à rebours.
-  ⚠️ Alternative **zéro renouvellement** : à la prochaine création, choisir un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) → plus jamais besoin de renouveler.
+  - **Tester le token sans rien déployer** : `list` ne fait **pas** de `docker login` (il réutilise `/root/.docker/config.json`), donc la preuve est un `pull` :
+     ```bash
+     echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u klyx04 --password-stdin
+     sudo docker pull ghcr.io/klyx04/sigilos-app-beta:latest
+     ```
+  - ⚠️ **Régénérer invalide immédiatement l'ancien secret** : `/root/.docker/config.json` garde l'ancien jusqu'au `docker login` suivant. Un `list` lancé entre-temps affiche `accès refusé (token GHCR périmé ?)` — c'est le token, pas les images (mesuré le 20/10/2026).
+  - **Révoquer** : supprimer l'ancienne ligne dans GitHub dès que le nouveau token est validé (un seul token vivant).
 
 #### 3c. Séparer le Redis beta/prod (chantier I-07) — ✅ FAIT + DÉPLOYÉ (09/08)
 - **Problème** : la beta et la prod partageaient le **même Redis** → risque de collision de jobs BullMQ/queues.
@@ -874,7 +1104,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 **Fait** : phase 1, 3a (rollback), 3b (CI/CD GHCR), **3c (Redis séparé — déployé beta 09/08)**.
 **Reste** :
 1. **Phase 2** (image de base partagée) — optionnel, le CI/CD règle déjà le build redondant sur le VPS.
-2. **Renouveler GHCR_TOKEN** (expire ≈ début nov 2026) — cf. section 3b.
+2. **Vérifier `GHCR_TOKEN`** (sans expiration : le remplacer/révoquer en cas de doute) — cf. section 3b.
 
 
 
@@ -903,4 +1133,159 @@ Le guide vit **en base** (`GuideMilestone` / `GuideSequence`), seedé depuis le 
 - **Hors environnement** : `scripts/enrich-rush-guide-items.mjs` (trame siphonée → vrais noms + ids
   d'objets) est un outil de **session** — il lui faut la trame HTML ; on le joue là où le siphon est
   fait, **avant** de committer le dataset (il n'écrit rien en base : re-seeder ensuite).
+
+### Rejouer le contenu **S1** (Ordres, classes, cités, variantes) après un déploiement
+
+> **Mesuré le 27/10/2026.** Le contenu S1 n'est **pas** dans le dataset seedé : il a été produit par
+> l'outil Trame (`src/temp/trame-rush/`, **hors dépôt**) puis **importé** dans God ▸ JSON, suivi de
+> **3 correctifs SQL**. Les exports sont **portables** : tout se rapproche **par nom** (aucun cuid de
+> donjon, aucun id de guilde), et les `questDbIds` sont des ids DofusDB (universels).
+
+**Ordre obligatoire : le code d'abord, les données ensuite** — l'import n'écrit le tag
+`choice_group` que si le serveur porte le modèle (`src/lib/rush-choice-groups.ts`).
+
+| # | Action | Où | Attendu sur un environnement vierge |
+|---|---|---|---|
+| 1 | `./scripts/deploy-cd.sh <env>` | VPS | l'app tourne (bouton **`JSON`** disponible) |
+| 2 | `export-god-ordres.json` | God ▸ **JSON** ▸ dry-run ▸ Appliquer | 6 blocs · **30** quêtes · 0 avertissement |
+| 3 | `export-god-classes.json` | idem | 1 bloc · **19** quêtes |
+| 4 | `export-god-cites.json` | idem | 6 blocs · **104** quêtes |
+| 5 | `export-god-variantes.json` | idem | 0 bloc · **3** quêtes |
+| 6 | SQL `01` → `02` → `03` (ci-dessous) | `docker exec -i sigilos-db-<env> sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -'` | contrôles dans chaque fichier |
+
+```bash
+# sur le VPS, après les 5 étapes ci-dessus
+for f in 01-tag-alignreq 02-tag-choice-groups 03-fix-bonta-order; do
+  echo "── $f ──"
+  docker exec -i sigilos-db-<env> sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < ~/$f.sql
+done
+```
+
+**Pièges mesurés**
+- Jouer les SQL **avant** les imports ne casse rien mais **ne fait rien** (les 5 variantes et les 2 quêtes
+  n'existent pas encore) — constaté en bêta le 27/10/2026.
+- Les scripts de `src/temp/` ne sont **pas** dans l'image (non tracés) : d'où le SQL. Les CLI de
+  `scripts/` (seed / prune) sont, elles, embarquées par `outputFileTracingIncludes`.
+- Le doublon « Entraînement avec JF » n'est supprimé **que s'il ne porte aucune progression** :
+  `doublon_jf = 1` en fin de `03` = un joueur l'avait cochée, on ne force pas.
+- **Idempotence** : un second passage affiche `UPDATE 0` / `DELETE 0`. C'est normal, pas un échec.
+
+**État au 27/10/2026** : bêta **rejouée** (contrôles : `100` · `55 → 3` · `66 → 2` · `0` doublon) ·
+**prod à faire** avec la même séquence.
+
+#### `01-tag-alignreq.sql` — repose le camp sur les quêtes de cité déjà présentes
+
+```sql
+BEGIN;
+
+UPDATE "GuideSequence" s
+SET "alignReq" = 'bontarien'
+FROM "GuideMilestone" m, "OptimizedGuide" g
+WHERE m.id = s."milestoneId"
+  AND g.id = m."guideId"
+  AND g.slug = 'rush-sylvestre'
+  AND m.title LIKE 'Alignement Bonta (%'
+  AND s."alignReq" IS NULL;
+
+COMMIT;
+
+-- Contrôle : 100 quêtes de cité bontariennes attendues.
+SELECT count(*) AS cites_bontariennes
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre' AND s."alignReq" = 'bontarien' AND s."alignOrderCode" IS NULL;
+```
+
+#### `02-tag-choice-groups.sql` — pose le groupe de choix (55 / 66)
+
+```sql
+-- 02 — étapes à choix : tag choice_group (55 = 3 variantes, 66 = 2). Idempotent.
+BEGIN;
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Le magnanime' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Les kamas résolvent tout' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Assassinat effectué' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"66"}]'::jsonb
+WHERE "subGuideName" = 'Les ordres sont-ils les ordres ?' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"66"}]'::jsonb
+WHERE "subGuideName" = 'On m''appelle l''Escargot' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+COMMIT;
+
+-- Contrôle : 55 → 3, 66 → 2 (lecture du tag PARMI les tags, pas seulement en position 0).
+SELECT (SELECT t->>'name' FROM jsonb_array_elements(s."activityTags") t WHERE t->>'type' = 'choice_group') AS groupe,
+       count(*) AS sequences
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre' AND s."activityTags" @> '[{"type":"choice_group"}]'::jsonb
+GROUP BY 1 ORDER BY 1;
+```
+
+#### `03-fix-bonta-order.sql` — doublon, remise en place, bloc vide
+
+```sql
+BEGIN;
+
+-- a) « Entraînement avec JF » = copie de « Entraînement avec Tarche » (DofusDB 55), nom inexistant
+--    dans le jeu. Supprimé UNIQUEMENT s'il ne porte aucune progression.
+WITH cible AS (
+  SELECT s.id FROM "GuideSequence" s
+  WHERE s."subGuideName" = 'Entraînement avec JF'
+    AND s."dofusdbUrl" LIKE '%/quest/55'
+    AND s."milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+    AND NOT EXISTS (SELECT 1 FROM "PlayerGuideProgress" p WHERE p."completedSteps" @> to_jsonb(s.id::text))
+)
+DELETE FROM "GuideSequence" WHERE id IN (SELECT id FROM cible);
+
+-- b) Bandanarthrie (#65) = 1re quête de « Alignement Bonta (65 à 70) » (le bloc commence à 1).
+UPDATE "GuideSequence"
+SET "milestoneId" = (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (65 à 70)'),
+    "order" = 0
+WHERE "subGuideName" = 'Bandanarthrie'
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+  AND EXISTS (SELECT 1 FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (65 à 70)');
+
+-- c) Le subterfuge de la corne (#70) = 1re quête de « Alignement Bonta (70 à 85 + Ordre 4) ».
+UPDATE "GuideSequence"
+SET "milestoneId" = (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (70 à 85 + Ordre 4)'),
+    "order" = 0
+WHERE "subGuideName" = 'Le subterfuge de la corne'
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+  AND EXISTS (SELECT 1 FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (70 à 85 + Ordre 4)');
+
+-- d) Bloc créé par l'import, devenu vide : supprimé (jamais un bloc porteur de quêtes).
+DELETE FROM "GuideMilestone"
+WHERE title = 'Alignement Bontarien — palier 80'
+  AND "guideId" IN (SELECT id FROM "OptimizedGuide" WHERE slug = 'rush-sylvestre')
+  AND NOT EXISTS (SELECT 1 FROM "GuideSequence" s WHERE s."milestoneId" = "GuideMilestone".id);
+
+COMMIT;
+
+-- Contrôle : 100 cités bontariennes attendues, 0 doublon « JF ».
+SELECT count(*) FILTER (WHERE s."alignReq" = 'bontarien' AND s."alignOrderCode" IS NULL) AS cites_bonta,
+       count(*) FILTER (WHERE s."subGuideName" = 'Entraînement avec JF') AS doublon_jf
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre';
+```
+
+> **Encodage** : les noms comportent des accents (`é`, `à`). Passe les fichiers **en flux** (`< ~/01-….sql`)
+> ou colle-les depuis un client en `UTF8` (`SHOW client_encoding;`) — un pipe qui ré-encode (PowerShell →
+> psql) casse les correspondances par nom (mesuré : 2 lignes sur 5 muettes).
+
 

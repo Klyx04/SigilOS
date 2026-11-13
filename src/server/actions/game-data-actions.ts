@@ -11,8 +11,8 @@ import path from 'path';
 import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { resolveSubAreaCenter } from "@/lib/zone-minimap";
-import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
-import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
+import { internalDofusDbImageUrl, normalizeChallengeIconUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
@@ -299,15 +299,22 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
             include: { achievements: { include: { challenge: true } } },
             orderBy: { level: 'asc' }
         });
-        // « Donjon validé » retiré (11/10/2026) : ce pseudo-succès n'est plus publié à AUCUN
-        // consommateur (hub Succès **et** « Mes Succès », qui compte `achievements.length` pour ses
-        // totaux et ses « tranches complètes ») — même si une ligne résiduelle traîne en base avant
-        // la purge (`scripts/succes-speciaux.ts retirer-donjon-valide`).
+        // « Donjon validé » n'est rendu **que** s'il est le seul succès du donjon (25/10/2026) :
+        // les doubles boss n'ont rien d'autre à cocher. Partout ailleurs, il reste écarté (11/10).
         const data = dungeons.map((dungeon) => ({
             ...dungeon,
-            achievements: (dungeon.achievements ?? []).filter(
-                (achievement: any) => achievement?.challenge?.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG
-            ),
+            achievements: visibleDungeonAchievements(dungeon.achievements ?? [])
+                // Icône de défi servie sous sa forme **canonique** (proxy interne) : sans ça les modales
+                // du module DJ affichaient la variante assombrie de l'URL stockée (mesure 15/10/2026).
+                .map((achievement: any) => ({
+                    ...achievement,
+                    challenge: achievement?.challenge
+                        ? {
+                              ...achievement.challenge,
+                              iconUrl: normalizeChallengeIconUrl(achievement.challenge.iconUrl),
+                          }
+                        : achievement?.challenge,
+                })),
         }));
         return { success: true, data };
     } catch (error) {
@@ -1612,9 +1619,10 @@ export async function getMonsterStats(
     dungeonName?: string,
     forceRefresh = false,
     monsterId?: number,
-    locale: "fr" | "en" = "fr"
+    locale: "fr" | "en" = "fr",
+    options?: { persist?: boolean }
 ): Promise<ActionResponse<any>> {
-    return getMonsterStatsCore(monsterName, dungeonName, forceRefresh, monsterId, locale);
+    return getMonsterStatsCore(monsterName, dungeonName, forceRefresh, monsterId, locale, options);
 }
 
 /**
@@ -1625,7 +1633,7 @@ export async function getMonsterStats(
 export async function getDungeonMonsters(
     bossName: string,
     dungeonName?: string
-): Promise<ActionResponse<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] }>> {
+): Promise<ActionResponse<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[]; source: "local" | "network" | "empty" }>> {
     const cacheKey = `${bossName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
     const cached = dungeonFamilyCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
@@ -1683,7 +1691,7 @@ export async function getDungeonMonsters(
 
             const monsters = Array.from(mapById.values());
             if (monsters.length > 0) {
-                const result = { familyId: matchedDungeon.raceId ?? null, monsters };
+                const result = { familyId: matchedDungeon.raceId ?? null, monsters, source: "local" as const };
                 dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                 return { success: true, data: result };
             }
@@ -1702,7 +1710,7 @@ export async function getDungeonMonsters(
                         isBoss: !!m.isBoss,
                     }));
                 if (famMobs.length > 0) {
-                    const result = { familyId: mob.raceId, monsters: famMobs };
+                    const result = { familyId: mob.raceId, monsters: famMobs, source: "local" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
@@ -1733,7 +1741,7 @@ export async function getDungeonMonsters(
                     isBoss: !!m.isBoss,
                 }));
                 if (monsters.length > 0) {
-                    const result = { familyId: race, monsters };
+                    const result = { familyId: race, monsters, source: "network" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
@@ -1768,7 +1776,7 @@ export async function getDungeonMonsters(
                             } catch {}
                         }
                         if (mobList.length > 0) {
-                            const result = { familyId: null, monsters: mobList };
+                            const result = { familyId: null, monsters: mobList, source: "network" as const };
                             dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                             return { success: true, data: result };
                         }
@@ -1788,16 +1796,23 @@ export async function getDungeonMonsters(
                         imageUrl: null,
                         isBoss: idx === 0 || dofDungeon.data?.bossMonsterId === m.id,
                     }));
-                    const result = { familyId: null, monsters };
+                    const result = { familyId: null, monsters, source: "network" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
             } catch {}
         }
 
-        return { success: true, data: { familyId: null, monsters: [] } };
+        return { success: true, data: { familyId: null, monsters: [], source: "empty" as const } };
     } catch (error) {
-        logger.error('[getDungeonMonsters] Error:', { error });
+        // ① Amont DofusDB indisponible (5xx, 429, coupure) : cas d'EXPLOITATION, pas un défaut
+        // du produit — la fiche dégrade déjà proprement (`success: false`, repli local tenté
+        // juste avant). ② `sentry.server.config.ts` active
+        // `captureConsoleIntegration({ levels: ["error"] })` : un `logger.error` ici crée une
+        // **Issue par incident** (mesure du 18/10/2026 : `JAVASCRIPT-NEXTJS-1Q`, 3 événements
+        // sur `/boss/comte-et-klime`, 0 utilisateur). Donc `warn` — visible dans `docker logs`,
+        // invisible pour Sentry.
+        logger.warn("[getDungeonMonsters] DofusDB indisponible — repli sans monstres", error);
         return { success: false, error: 'Erreur DofusDB' };
     }
 }
@@ -3282,7 +3297,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         // B2 — Notifier les nouveaux archis/boss Ocre détectés (base panel GOD + Discord)
         if (newOcreMonsters.length > 0) {
             try {
-                const { notifyGod } = await import('./god-notif-actions');
+                const { notifyGod } = await import("@/server/god-notifications");
                 const count = newOcreMonsters.length;
                 const sample = newOcreMonsters.slice(0, 8)
                     .map(m => `• **${m.name}** (${m.type}${m.zone ? `, ${m.zone}` : ''})`)
@@ -3524,7 +3539,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
         // B2 — Notifier les nouveautés détectées (base panel GOD + Discord)
         if (newMonsters.length > 0) {
             try {
-                const { notifyGod } = await import('./god-notif-actions');
+                const { notifyGod } = await import("@/server/god-notifications");
                 const count = newMonsters.length;
                 const sample = newMonsters.slice(0, 8)
                     .map(m => `• **${m.name}** (${m.type}${m.id ? `, #${m.id}` : ''})`)

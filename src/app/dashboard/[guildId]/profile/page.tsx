@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getUserProfile, getProfileStats } from "@/server/actions/profile-actions";
+import { attachItemSetsToBuilds } from "@/server/build-item-sets";
 import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
@@ -9,7 +10,6 @@ import type { AvailabilityMap } from "@/lib/dofus-assets";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ProfileTourReplayButton } from "@/components/profile/profile-tour-replay-button";
-import { UserCircle } from "lucide-react";
 
 export default async function ProfilePage({ params, searchParams }: {
     params: Promise<{ guildId: string }>;
@@ -34,11 +34,12 @@ export default async function ProfilePage({ params, searchParams }: {
         return <AccessDenied />;
     }
 
-    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // 🔒 Verrou de module (guilde ∪ plateforme) + toggle admin : une URL directe reboucle (A1).
     // Le God plateforme garde l'accès (`bypassModules = isGod`).
     if (!userContext.isSuperAdmin) {
-        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        const { isModuleLocked, isModuleEnabled } = await import("@/server/actions/module-actions");
         if (await isModuleLocked(guildId, "profile")) redirect(`/dashboard/${guildId}`);
+        if (!(await isModuleEnabled(guildId, "profile"))) redirect(`/dashboard/${guildId}`);
     }
 
     if (!profileResponse.success || !profileResponse.data) {
@@ -51,6 +52,12 @@ export default async function ProfilePage({ params, searchParams }: {
     }
 
     const profile = profileResponse.data;
+    /**
+     * 🔗 Bonus de panoplie des variantes : résolus **côté serveur** (la variante stockée ne
+     * porte pas l'id de panoplie, et le catalogue complet n'a rien à faire côté client).
+     * Sans ce contexte, `applyVariantsToBuild` refuse la variante (fail-closed, message explicite).
+     */
+    const dofusBookLinks = await attachItemSetsToBuilds((profile.dofusBookLinks as any[]) || []);
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,
@@ -84,7 +91,7 @@ export default async function ProfilePage({ params, searchParams }: {
                 <UnifiedModuleHeader
                     title="Mon Profil"
                     description="Gérez votre identité de guilde, votre classe et vos métiers."
-                    imageSrc="/assets/ui/icons/profile.png"
+                    imageSrc="/assets/dofus/modules/character.png"
                     backHref={`/dashboard/${guildId}`}
                     actions={<ProfileTourReplayButton />}
                 />
@@ -110,7 +117,7 @@ export default async function ProfilePage({ params, searchParams }: {
                         metamobVerified: profile.metamobVerified,
                         metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                         altPseudos: (profile.altPseudos as string[]) || [],
-                        dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                        dofusBookLinks,
                         introduction: profile.introduction,
                         objectifs: profile.objectifs,
                         preferredActivities: (profile.preferredActivities as string[]) || [],

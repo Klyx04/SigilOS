@@ -13,9 +13,10 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { GovernanceWidget } from "@/components/admin/governance-widget";
 import { PilotageCommandsSection } from "./pilotage-commands-section";
 import { PilotageDiscordDiagnostic } from "./pilotage-discord-diagnostic";
+import { PilotageDangerZone } from "./pilotage-danger-zone";
 import { ModulesClient } from "../modules/_components/modules-client";
 import { PermissionsManager } from "../_components/permissions-manager";
-import { CheckCircle2, XCircle, Rocket, LayoutDashboard, Puzzle, Shield, Terminal, Activity } from "lucide-react";
+import { CheckCircle2, XCircle, Rocket, LayoutDashboard, Puzzle, Shield, Terminal, Activity, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -35,14 +36,22 @@ export default async function PilotagePage({ params, searchParams }: Props) {
 
     const { guildId } = await params;
     const tab = (await searchParams)?.tab;
-    const activeTab: "etat" | "modules" | "acces" | "commandes" | "diagnostic" =
-        tab === "modules" || tab === "acces" || tab === "commandes" || tab === "diagnostic" ? tab : "etat";
 
     const user = await getUserContext(guildId);
     if (!user.isDiscordAdmin) {
         await logAdminAccessDenied(guildId, "/admin/pilotage");
         return <AccessDenied />;
     }
+
+    // 🔒 « Zone sensible » : réservée au **propriétaire live** du serveur. Un administrateur Discord
+    // voit le pilotage, mais n'engage pas le serveur ; God passe par la console God.
+    const isGuildOwner = Boolean(user.isGuildOwner);
+    const activeTab: "etat" | "modules" | "acces" | "commandes" | "diagnostic" | "sensible" =
+        tab === "sensible"
+            ? isGuildOwner ? "sensible" : "etat"
+            : tab === "modules" || tab === "acces" || tab === "commandes" || tab === "diagnostic"
+              ? tab
+              : "etat";
 
     const { db } = await import("@/lib/prisma");
     const { verifyGuildAccessibility } = await import("@/server/discord");
@@ -127,6 +136,10 @@ export default async function PilotagePage({ params, searchParams }: Props) {
                     { id: "acces" as const, label: "Accès & Rôles", icon: Shield, href: `/dashboard/${guildId}/admin/pilotage?tab=acces` },
                     { id: "commandes" as const, label: "Commandes", icon: Terminal, href: `/dashboard/${guildId}/admin/pilotage?tab=commandes` },
                     { id: "diagnostic" as const, label: "Diagnostic Discord", icon: Activity, href: `/dashboard/${guildId}/admin/pilotage?tab=diagnostic` },
+                    // 🔒 Propriétaire uniquement : cette entrée n'existe pas pour un simple admin.
+                    ...(isGuildOwner
+                        ? [{ id: "sensible" as const, label: "Zone sensible", icon: AlertTriangle, href: `/dashboard/${guildId}/admin/pilotage?tab=sensible` }]
+                        : []),
                 ];
                 return (
                     <nav aria-label="Pilotage" className="flex items-center gap-1.5 flex-wrap">
@@ -231,6 +244,10 @@ export default async function PilotagePage({ params, searchParams }: Props) {
 
             {activeTab === "diagnostic" && (
                 <PilotageDiscordDiagnostic guildId={guildId} />
+            )}
+
+            {activeTab === "sensible" && isGuildOwner && (
+                <PilotageDangerZone guildId={guildId} guildName={config.name} />
             )}
         </div>
     );

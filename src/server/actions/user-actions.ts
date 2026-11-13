@@ -3,11 +3,13 @@
 import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild, fetchGuildMember, fetchGuildExists, invalidateDiscordCache } from "@/server/discord";
 import { db } from "@/lib/prisma";
+import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
 import { applyGodLocks, normalizeGodLocks } from "@/lib/module-lock";
 import { getPlatformModuleState } from "@/server/platform-module-state";
 import { logger } from "@/lib/logger";
+import { GUILD_LIMIT_DEFAULT } from "@/lib/guild-limit";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { type AuditLogEntry, logAction } from "./audit-actions";
@@ -16,9 +18,11 @@ import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
+import { resolveIsMember } from "@/lib/guild-membership";
 
 import { redis } from "@/lib/redis";
 import { isCompleteCachedGuildConfig } from "@/lib/guild-config-cache";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // In-memory cache for configs and user context
 const configCache = new Map<string, { data: any, expiresAt: number }>();
@@ -179,7 +183,14 @@ export async function revalidateUserContext(guildId?: string) {
 
 export type UserContext = {
     isAuthenticated: boolean;
+    /** `User.id` interne (cuid Prisma) — clé de la base, **jamais** un identifiant Discord. */
     id?: string;
+    /**
+     * 🆕 Snowflake Discord du membre (`session.user.discordId`) — **seule** valeur
+     * utilisable dans un `<@…>` ou dans une colonne `*DiscordId`. Distincte de `id`
+     * (cuid) : les confondre affichait `<@cmlozn4dj000g01mj6d1lz4iw>` (mention morte).
+     */
+    discordId?: string | null;
     name?: string;
     image?: string;
     roleName?: string;
@@ -190,13 +201,22 @@ export type UserContext = {
     canViewDashboard: boolean;
     canViewPresentation: boolean;
     canViewWelcome: boolean;
-    canViewStats: boolean;
     canViewDocs: boolean;
     canViewAdminDocs: boolean;
     canViewResources: boolean;
     canViewCommands: boolean;
     canViewProfile: boolean;
     canManageMembers: boolean;
+    /** Suppression DÉFINITIVE d'un profil de guilde (permission dédiée `staff:member_delete`, B-3). */
+    canDeleteMembers: boolean;
+    /**
+     * Bannissement **plateforme** (action God) — cause distincte d'une exclusion de guilde.
+     * Retourné avec `isAuthenticated: false`, pour que l'écran dise « compte suspendu » au lieu
+     * de « bêta fermée » (mesure du 25/10/2026).
+     */
+    isPlatformBanned?: boolean;
+    /** Motif du bannissement plateforme, tel que saisi par le God (affiché au membre). */
+    platformBanReason?: string | null;
     // Modules
     canViewMissions: boolean;
     canManageMissions: boolean;
@@ -225,6 +245,8 @@ export type UserContext = {
     canViewStuffGallery: boolean;
     canViewMiniGames: boolean;
     canViewPolls: boolean;
+    /** Sondages programmés (staff) : créer / annuler des créneaux (module `scheduledPolls` + `staff:scheduled_polls`). */
+    canSchedulePolls: boolean;
     canViewCalendar: boolean;
     canManageCalendar: boolean;
     canManageRaid: boolean;
@@ -243,6 +265,11 @@ export type UserContext = {
     isAdmin: boolean;
     isFirstAdminForGuild?: boolean;
     isDiscordAdmin: boolean;
+    /**
+     * Propriétaire **live** du serveur Discord (`owner_id`), jamais un simple administrateur et
+     * jamais God par défaut. Seul ce drapeau ouvre les actions qui engagent le serveur.
+     */
+    isGuildOwner: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
     // Timeout Discord (« Exclure temporairement ») — suspension temporaire d'accès.
@@ -350,6 +377,7 @@ async function getPendingOnboardingContext(
             isMember: true,
             isAdmin: true,
             isDiscordAdmin: true,
+            isGuildOwner: false,
             isSuperAdmin: false,
             isOnboardingComplete: false,
             canViewDashboard: true,
@@ -384,6 +412,10 @@ const GUILD_CONFIG_CACHE_SELECT = {
     name: true,
     isActive: true,
     deletedAt: true,
+    // Échéance de suppression : lue par l'écran « Serveur Supprimé » (compte à rebours J+30).
+    scheduledDeletion: true,
+    // Propriétaire enregistré : comparé au `owner_id` live pour réconcilier un transfert Discord.
+    ownerId: true,
     dofusServerId: true,
     welcomeEnabled: true,
     welcomeDashboardEnabled: true,
@@ -407,9 +439,9 @@ const GUILD_CONFIG_CACHE_SELECT = {
             docs: true,
             profile: true,
             roster: true,
-            stats: true,
             presentation: true,
             polls: true,
+            scheduledPolls: true,
             logs: true,
             quests: true,
             worldmap: true,
@@ -486,6 +518,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
     if (!session?.user?.id) return { isAuthenticated: false } as any;
 
+    // D-A (02/11/2026) : mesure d'activité réelle, au plus une écriture par heure et par personne
+    // (throttle Redis). Best-effort — ne bloque jamais le contexte, ne jette jamais.
+    try {
+        const { touchLastSeen } = await import("@/server/last-seen");
+        await touchLastSeen(session.user.id);
+    } catch {
+        // jamais bloquant
+    }
+
     const guildId = targetGuildId || process.env.DISCORD_GUILD_ID || "";
     const redisKey = `user:ctx:${session.user.id}:${guildId}`;
 
@@ -506,18 +547,19 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAuthenticated: !!session?.user?.id,
         isAdmin: false,
         isDiscordAdmin: false,
+        isGuildOwner: false,
         isSuperAdmin: false,
         isMember: false,
         canViewDashboard: false,
         canViewPresentation: false,
         canViewWelcome: false,
-        canViewStats: false,
         canViewDocs: false,
         canViewAdminDocs: false,
         canViewResources: false,
         canViewCommands: false,
         canViewProfile: false,
         canManageMembers: false,
+        canDeleteMembers: false,
         canViewMissions: false,
         canManageMissions: false,
         canValidateMissions: false,
@@ -543,6 +585,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: false,
         canViewMiniGames: false,
         canViewPolls: false,
+        canSchedulePolls: false,
         canViewCalendar: false,
         canManageCalendar: false,
         canManageRaid: false,
@@ -631,6 +674,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             isServerDeleted: true,
             guildName: guildConfig?.name || "Serveur Inconnu",
+            // Échéance de la purge réelle (cron `guild-purge`) : l'écran affiche le compte à rebours.
+            scheduledDeletion: guildConfig?.scheduledDeletion?.toISOString() ?? null,
         } as any;
     }
 
@@ -654,7 +699,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     });
     if (platformBan && platformBan.entityType === "USER" && !isGod) {
         logger.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
-        return { ...baseContext, isAuthenticated: false };
+        // `isAuthenticated: false` seul ne distinguait pas « guilde non whitelistée » d'un
+        // bannissement plateforme : le membre banni voyait « Bêta Fermée » (mesure du 25/10/2026).
+        return {
+            ...baseContext,
+            isAuthenticated: false,
+            isPlatformBanned: true,
+            platformBanReason: platformBan.reason ?? null,
+        };
     }
 
     // --- GUILD-SCOPED BAN CHECK (GuildMemberBan / tombstone) — F-01 ---
@@ -679,6 +731,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 image: session.user.image || undefined,
                 isMember: false,
                 isBanned: true,
+                // Motif de l'exclusion (F-01) — affiché au membre sur l'écran « Accès Banni ».
+                banReason: guildBan.reason,
                 guildName: guildConfig?.name || "Serveur Inconnu",
             } as any;
         }
@@ -786,6 +840,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             guildName: guildConfig?.name || "Serveur Inconnu",
             isBanned: true,
+            // Cause réelle du blocage, dite au membre (jamais un texte générique) : le motif
+            // saisi à l'exclusion, ou celui du départ enregistré.
+            banReason: profile.departureReason ?? null,
             scheduledDeletion: profile.scheduledDeletion?.toISOString() || null
         } as any;
     }
@@ -841,6 +898,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // --- NON-MEMBER CHECK (Not on Discord and not already handled) ---
     // RESILIENCE: If fetchGuildMember failed due to Discord API issue (rate-limit, timeout),
     // but the user has an active profile in the DB, we trust the DB and don't block them.
+    // Effectif en projection finale via `resolveIsMember` (le fall-through seul
+    // ne suffisait pas : `isMember` y était recalculé à `false`).
     if (!member && profile && profile.status === "ACTIVE" && memberFetchFailed) {
         // Discord API errored, but DB says user is active — trust DB, fall through to RBAC
         logger.warn(`[UserContext] Discord API error for known active member ${discordUserId} — falling back to DB`);
@@ -853,6 +912,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             isArchived: profile?.status === "ARCHIVED",
             isBanned: profile?.status === "BANNED",
+            banReason: profile?.status === "BANNED" ? profile.departureReason ?? null : null,
             guildName: guildConfig?.name || "Serveur Inconnu",
             isSuperAdmin: !!isGod,
         } as any;
@@ -905,6 +965,23 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
+
+    // 🔄 Réconciliation du **propriétaire** : un transfert de serveur Discord n'émet aucun événement
+    // que le site écoute. Le propriétaire live est la vérité ; on aligne la colonne une seule fois.
+    // ⚠️ `ownerId` peut être `null` (STELLIUM) : `{ not }` seul ne matche pas `NULL` en SQL, d'où le `OR`.
+    if (isOwner && guildConfig && guildConfig.ownerId !== discordUserId) {
+        await db.guildConfig
+            .updateMany({
+                where: {
+                    id: guildConfig.id,
+                    OR: [{ ownerId: null }, { ownerId: { not: discordUserId } }],
+                },
+                data: { ownerId: discordUserId },
+            })
+            .catch(() => {
+                /* best-effort : la visite suivante rejouera l'alignement */
+            });
+    }
 
     // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
     const userHasAdminPermission = memberRoles.some(rId => {
@@ -979,6 +1056,33 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
         if (!profile) {
             try {
+                // 🔒 G1 — limite de guildes (`docs/ROADMAP.md`, chantier « limite-guildes ») : on ne crée un
+                // profil que si l'utilisateur a encore de la place. Le comptage n'a lieu **qu'ici**
+                // (chemin d'arrivée), jamais en haut de `_getUserContext` : ce serait un N+1 sur tout
+                // le dashboard pour une règle qui ne concerne que les arrivées.
+                const { isGuildLimitReached } = await import("@/server/guild-limit");
+                if (await isGuildLimitReached(session.user.id)) {
+                    return {
+                        ...baseContext,
+                        isAuthenticated: true,
+                        id: session.user.id,
+                        name: displayName,
+                        isMember: !!member || isGod,
+                        guildName: guildConfig?.name || "Serveur Inconnu",
+                        canViewDashboard: false,
+                        guildLimitReached: true,
+                        error: "Vous faites déjà partie du nombre maximum de guildes.",
+                    } as any;
+                }
+
+                // B-2 : le staff a pu remplir une ligne de registre **avant** l'inscription
+                // (pseudo Dofus, tag Ankama, date d'arrivée, recruteur, essai, mules). Sans reprise,
+                // ces informations resteraient invisibles : l'affichage donne la priorité au profil,
+                // qui naîtrait vide. On les reporte donc sur le profil, puis on libère la ligne.
+                const registryEntry = await db.memberRegistryEntry.findUnique({
+                    where: { guildId_discordId: { guildId: guildConfig.id, discordId: discordUserId } },
+                });
+
                 profile = await db.userProfile.create({
                     data: {
                         userId: session.user.id,
@@ -989,8 +1093,34 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         discordJoinedAt: joinedAt,
                         discordCacheUpdatedAt: now,
                         lastActivityAt: now,
+                        ...(registryEntry
+                            ? {
+                                pseudoDofus: registryEntry.pseudoDofus,
+                                ankamaId: registryEntry.ankamaId,
+                                guildJoinedAt: registryEntry.guildJoinedAt,
+                                recruitedById: registryEntry.recruitedById,
+                                trialValidated: registryEntry.trialValidated,
+                                trialEndsAt: registryEntry.trialEndsAt,
+                                altPseudos: registryEntry.altPseudos ?? undefined,
+                            }
+                            : {}),
                     }
                 });
+
+                if (registryEntry) {
+                    // Les commentaires du staff suivent la fiche : ils visent désormais le profil
+                    // (le schéma interdit les deux cibles à la fois — on bascule, on ne duplique pas).
+                    try {
+                        await db.memberRegistryComment.updateMany({
+                            where: { guildId: guildConfig.id, discordId: discordUserId },
+                            data: { profileId: profile.id, discordId: null },
+                        });
+                        await db.memberRegistryEntry.delete({ where: { id: registryEntry.id } });
+                    } catch (e) {
+                        // Non bloquant : le profil est créé et porte déjà les informations reportées.
+                        logger.error("[UserContext] Reprise du registre impossible:", e);
+                    }
+                }
 
                 // Invalidation du cache membre/rôles Discord pour que le rôle
                 // octroyé au membre soit pris en compte immédiatement (évite le
@@ -1078,9 +1208,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         "presentation:edit": PERMISSIONS.STAFF_CONTENT,
         "docs:view_admin": PERMISSIONS.STAFF_CONTENT,
         "admin:audit": PERMISSIONS.STAFF_AUDIT,
-        // NOTE: l'ancienne permission "stats:view" n'est PAS remappée vers STAFF_AUDIT.
-        // La page Stats Guilde dépend de DASHBOARD_LOGIN (canViewStats) — mapper ici
-        // octroyait par accident l'accès Audit Logs à tout rôle legacy "stats:view".
+        // NOTE: l'ancienne permission "stats:view" n'est PAS remappée vers STAFF_AUDIT :
+        // le faire octroyait par accident l'accès Audit Logs à tout rôle legacy "stats:view".
         "admin:settings": PERMISSIONS.SYSTEM_CONFIG,
         "admin:full": PERMISSIONS.SYSTEM_GOD,
     };
@@ -1107,8 +1236,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal;
     const canEditPresentation = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
-    // Stats Guilde = même RBAC que la page guilde (DASHBOARD_LOGIN), pas lié aux Audit Logs
-    const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || isAdminFinal;
@@ -1117,6 +1244,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
     const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    // Suppression définitive (B-3) : permission dédiée, **fail-closed** — jamais accordée par défaut.
+    const canDeleteMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_DELETE) || isAdminFinal;
     const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
     const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
@@ -1154,6 +1283,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canManageReactionRoles = permissionSet.has(PERMISSIONS.STAFF_REACTION_ROLES) || isAdminFinal;
     const canManageTickets = permissionSet.has(PERMISSIONS.STAFF_TICKETS) || isAdminFinal;
+    // Sondages programmés (module staff) : la permission dédiée ouvre la page et
+    // les actions ; le module effectif est appliqué à la projection (plus bas).
+    const canSchedulePolls = permissionSet.has(PERMISSIONS.STAFF_SCHEDULED_POLLS) || isAdminFinal;
     const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod;
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
@@ -1197,6 +1329,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const finalContext = {
         isAuthenticated: true,
         id: session.user.id,
+        // 🔴 Identité Discord **distincte** de `id` : tout ce qui est pingé sur Discord
+        // ou écrit dans une colonne `*DiscordId` (prise en charge, clôture, audit) doit
+        // utiliser ce flocon. Le confondre avec `session.user.id` (cuid) produisait la
+        // mention morte `<@cmlozn4dj000g01mj6d1lz4iw>` constatée en bêta (16/10/2026).
+        discordId: discordUserId ?? null,
         name: displayName,
         image: (() => {
             // #23 — avatars Discord bornés en taille (`?size=256`, webp) → chargement fiable.
@@ -1214,7 +1351,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDashboard: true,
         canViewPresentation: !!applyModule(!!mod?.presentation, !!canViewPresentation),
         canViewWelcome: !!applyModule(!!(guildConfig?.welcomeEnabled && guildConfig?.welcomeDashboardEnabled), !!canViewWelcome),
-        canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
         canViewCommands: !!applyModule(!!mod?.commandes, !!canViewCommands),
@@ -1223,6 +1359,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewResources: !!applyModule(!!mod?.resources, permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal),
         canViewProfile: !!applyModule(!!mod?.profile, true),
         canManageMembers: !!canManageMembers,
+        canDeleteMembers: !!canDeleteMembers,
         canViewMissions: !!applyModule(!!mod?.missions, !!canViewMissions),
         canManageMissions: !!applyModule(!!mod?.missions, !!canManageMissions),
         canValidateMissions: !!applyModule(!!mod?.missions, !!canValidateMissions),
@@ -1248,6 +1385,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: !!applyModule(!!mod?.gallery, !!canViewStuffGallery),
         canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
+        canSchedulePolls: !!applyModule(!!mod?.scheduledPolls, !!canSchedulePolls),
         canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
         canManageRaid: !!applyModule(!!mod?.calendar, !!canManageRaid),
@@ -1265,8 +1403,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAdmin: !!isAdminFinal,
         isFirstAdminForGuild,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
+        isGuildOwner: !!isOwner,
         isSuperAdmin: !!isGod,
-        isMember: !!member,
+        // Résilience panne Discord : un membre connu et ACTIF en base reste
+        // membre sur erreur API (repli BDD) ; un 404 (kick/départ) bloque
+        // toujours — règle pure `resolveIsMember`, fail-closed préservé.
+        isMember: resolveIsMember({
+            memberPresent: !!member,
+            isGod,
+            memberFetchFailed,
+            hasKnownActiveProfile,
+        }),
         isTimedOut,
         timedOutUntil,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
@@ -1286,7 +1433,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
         metamobPseudo: profile?.metamobPseudo,
         classe: profile?.classe,
-        dofusLevel: profile?.dofusLevel,
+        dofusLevel: toTotalDofusLevel(profile?.dofusLevel, profile?.totalXp),
         altPseudos: (profile?.altPseudos as any[]) || [],
         pinnedNavItems: profile?.pinnedNavItems || [],
         hiddenNavItems: profile?.hiddenNavItems || [],
@@ -1301,12 +1448,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewWelcome = false;
         finalContext.canViewCommands = false;
         finalContext.canViewPresentation = false;
-        finalContext.canViewStats = false;
         finalContext.canViewDocs = false;
         finalContext.canViewAdminDocs = false;
         finalContext.canViewResources = false;
         finalContext.canViewProfile = false;
         finalContext.canManageMembers = false;
+        finalContext.canDeleteMembers = false;
         finalContext.canViewMissions = false;
         finalContext.canManageMissions = false;
         finalContext.canValidateMissions = false;
@@ -1332,6 +1479,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewStuffGallery = false;
         finalContext.canViewMiniGames = false;
         finalContext.canViewPolls = false;
+        finalContext.canSchedulePolls = false;
         finalContext.canViewCalendar = false;
         finalContext.canManageCalendar = false;
         finalContext.canManageRaid = false;
@@ -1351,7 +1499,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Ne JAMAIS mettre en cache un contexte incomplet (onboarding non terminé) :
     // sinon un "isOnboardingComplete: false" transitoire resterait actif 60s
     // même après que l'admin ait fini la configuration de la guilde.
-    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard || !finalContext.isOnboardingComplete;
+    // Ni un verdict `isMember: false` : un flake Discord d'une seconde
+    // verrouillerait sinon le membre 60 s (« Accès Restreint » fantôme).
+    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard || !finalContext.isOnboardingComplete || !finalContext.isMember;
     if (!isDeniedContext) {
         await redis.set(redisKey, JSON.stringify(finalContext), "EX", REDIS_CACHE_TTL_SEC).catch(() => { });
     }
@@ -1440,7 +1590,7 @@ export type GuildPortalItem = {
 
 export async function getGuildsSeparated(): Promise<{
     active: GuildPortalItem[];
-    pending: Array<{ id: string; name: string; icon: string | null }>;
+    pending: Array<{ id: string; name: string; icon: string | null; isBotPresent?: boolean }>;
     /**
      * Serveurs où l'utilisateur est admin/owner mais EXCLUS du déploiement par
      * un gel explicite (whitelist désactivée) ou le kill-switch auto-onboarding.
@@ -1456,11 +1606,44 @@ export async function getGuildsSeparated(): Promise<{
      * explicite (bouton « Reconnecter avec l'accès serveurs »).
      */
     needsReconnect: boolean;
+    /**
+     * Plafond de guildes atteint pour l'utilisateur courant — **source unique** de l'état :
+     * le portail, le tiroir « Gestion SigilOS » et la carte de déploiement le lisent ici.
+     * **Fail-closed** : tant que le comptage n'a pas réussi, vaut `true` (aucune offre).
+     */
+    guildLimitReached: boolean;
+    /** Seuil courant, pour que l'écran l'écrive sans le recalculer. */
+    guildLimit: number;
 }> {
     const session = await auth();
-    if (!session?.user?.id) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
+    if (!session?.user?.id) {
+        return {
+            active: [],
+            pending: [],
+            awaiting: [],
+            rateLimited: false,
+            needsReconnect: false,
+            guildLimitReached: false,
+            guildLimit: GUILD_LIMIT_DEFAULT,
+        };
+    }
 
     const userId = session.user.id;
+
+    // 🔒 Plafond de guildes — mesuré **une seule fois**, ici. `isGuildLimitReached` est
+    // fail-closed (God exempté) ; si la lecture échoue, on masque l'offre plutôt que de laisser
+    // un écran promettre un déploiement que la garde G2 refusera.
+    let guildLimitReached = true;
+    let guildLimit = GUILD_LIMIT_DEFAULT;
+    try {
+        const { isGuildLimitReached, readGuildLimit } = await import("@/server/guild-limit");
+        [guildLimitReached, guildLimit] = await Promise.all([
+            isGuildLimitReached(userId),
+            readGuildLimit(),
+        ]);
+    } catch {
+        guildLimitReached = true;
+    }
 
     // 1. Get all guilds where the Bot is active (from DB)
     const activeConfigs = await db.guildConfig.findMany({
@@ -1521,7 +1704,17 @@ export async function getGuildsSeparated(): Promise<{
         select: { access_token: true, providerAccountId: true }
     });
 
-    if (!account?.access_token) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
+    if (!account?.access_token) {
+        return {
+            active: [],
+            pending: [],
+            awaiting: [],
+            rateLimited: false,
+            needsReconnect: false,
+            guildLimitReached,
+            guildLimit,
+        };
+    }
     const discordUserIdForPortal = account.providerAccountId || null;
 
     const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
@@ -1572,6 +1765,8 @@ export async function getGuildsSeparated(): Promise<{
             awaiting: [],
             rateLimited: errorKind === "RATE_LIMIT",
             needsReconnect: errorKind === "SCOPE",
+            guildLimitReached,
+            guildLimit,
         };
     }
 
@@ -1675,7 +1870,15 @@ export async function getGuildsSeparated(): Promise<{
         })
     );
 
-    return { active, pending, awaiting: awaitingCandidates, rateLimited: false, needsReconnect: false };
+    return {
+        active,
+        pending,
+        awaiting: awaitingCandidates,
+        rateLimited: false,
+        needsReconnect: false,
+        guildLimitReached,
+        guildLimit,
+    };
 }
 
 export async function searchGuildMembers(
@@ -1864,12 +2067,21 @@ export async function getGuildMemberStats(guildId: string) {
 
     if (!guildConfig) throw new Error("Guild not found");
 
-    // 2. Count by status
-    const [active, archived, banned] = await Promise.all([
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "ACTIVE" } }),
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "ARCHIVED" } }),
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "BANNED" } })
-    ]);
+    // 2. Répartition par statut — **une** requête.
+    // 🐛 Mesure du 19/10/2026 (`JAVASCRIPT-NEXTJS-1X`, `GET /dashboard/[guildId]/admin/members`) :
+    // trois `count` successifs ne différaient que par la **valeur** du statut, que Sentry ne voit
+    // pas dans le SQL paramétré (`status = $2`) ⇒ trois spans identiques dans la même transaction,
+    // signalés comme N+1. Un `groupBy` rend une requête (et un span) pour le même résultat.
+    const statusCounts = await db.userProfile.groupBy({
+        by: ["status"],
+        where: { guildId: guildConfig.id },
+        _count: { _all: true },
+    });
+
+    const countByStatus = new Map(statusCounts.map((row) => [row.status, row._count._all]));
+    const active = countByStatus.get("ACTIVE") ?? 0;
+    const archived = countByStatus.get("ARCHIVED") ?? 0;
+    const banned = countByStatus.get("BANNED") ?? 0;
 
     return {
         active,
@@ -2167,7 +2379,7 @@ export async function internalUpdateMemberProfileStatus(
             }
 
             if (status === "ACTIVE") {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const appUrl = getAppBaseUrl();
                 dmDesc += `\n\n**🔗 [Accéder au Dashboard](${appUrl}/dashboard/${profile.guild.discordGuildId})**`;
             }
 
@@ -2209,7 +2421,13 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
     if (!profile) throw new Error("Profile not found");
 
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual pseudo override");
+    // Le droit de gérer les membres (`staff:member_mgmt`) vaut ici comme partout
+    // ailleurs : l'écran expose l'édition du pseudo dès `canManageMembers`, le
+    // serveur ne peut pas exiger davantage (constat : « ça marche pas même avec
+    // les droits » = un staff voyait le champ et se faisait refuser l'écriture).
+    if (!actor.isAdmin && !actor.canManageMembers) {
+        throw new Error("Forbidden: permission « Ressources Humaines » requise pour modifier un pseudo manuellement");
+    }
 
     const updated = await db.userProfile.update({
         where: { id: profileId },
@@ -2252,7 +2470,11 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     if (!profile) throw new Error("Profile not found");
 
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual ID override");
+    // Même règle que le pseudo ci-dessus : la permission de gestion des membres
+    // gouverne l'écriture, pas le seul rôle admin natif.
+    if (!actor.isAdmin && !actor.canManageMembers) {
+        throw new Error("Forbidden: permission « Ressources Humaines » requise pour modifier un ID Dofus manuellement");
+    }
 
     // Validation
     const ankamaIdRegex = /^[a-zA-Z0-9\-]{1,50}#[0-9]{4}$/;
@@ -2285,7 +2507,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" }) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "scheduledPolls" | "missions" | "legacy" | "raid" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -2298,7 +2520,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true, missionNotifyRoleId: true, scheduledPollsPingRoleIds: true }
             })
         ]);
 
@@ -2316,7 +2538,16 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else if (options?.context === "polls") allowedIds = guildConfig?.pollsPingRoleIds || [];
-            else if (options?.context === "missions") allowedIds = guildConfig?.missionPingRoleIds || [];
+            else if (options?.context === "scheduledPolls") allowedIds = guildConfig?.scheduledPollsPingRoleIds || [];
+            else if (options?.context === "missions") {
+                const baseAllowed = guildConfig?.missionPingRoleIds || [];
+                const notifyRole = (guildConfig as any)?.missionNotifyRoleId;
+                if (notifyRole && !baseAllowed.includes(notifyRole)) {
+                    allowedIds = [...baseAllowed, notifyRole];
+                } else {
+                    allowedIds = baseAllowed;
+                }
+            }
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
 
             filteredRoles = roles.filter(r => allowedIds.includes(r.id));
@@ -2378,7 +2609,7 @@ export async function countPingedMembers(
 /**
  * Update the whitelist of allowed Discord roles for pings (Admin only)
  */
-export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" = "legacy") {
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "scheduledPolls" | "missions" | "legacy" | "raid" = "legacy") {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -2393,6 +2624,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         else if (context === "dj") data.djPingRoleIds = roleIds;
         else if (context === "songes") data.songesPingRoleIds = roleIds;
         else if (context === "polls") data.pollsPingRoleIds = roleIds;
+        else if (context === "scheduledPolls") data.scheduledPollsPingRoleIds = roleIds;
         else if (context === "missions") data.missionPingRoleIds = roleIds;
         else data.allowedPingRoleIds = roleIds;
 

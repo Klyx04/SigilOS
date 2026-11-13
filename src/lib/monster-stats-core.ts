@@ -24,13 +24,14 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "@/lib/logger";
-import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { dofusDbFetch, LOCAL_THROTTLE_HEADER, LOCAL_THROTTLE_VALUE } from "@/lib/dofusdb-limiter";
 import { getLocalMonsterStatAny, getLocalMonsterStatByIdAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
 import { getUnityMonster, findUnityMonsterBySlug, type UnityMonsterData } from "@/lib/unity-bestiary";
 import { extractDamageFromLabel, formatInvocationLabel, type SpellElementKey } from "@/lib/dofus-spells";
 import { NO_DAMAGE_BONUS, type MonsterDamageStats } from "@/lib/dofus-monster-damage";
+import { deriveGradeCombatStats } from "@/lib/dofus-monster-grades";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -238,6 +239,18 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
 }
 
 /**
+ * Pourquoi un repli bestiaire a-t-il été servi ?
+ *
+ * `quota` = budget DofusDB **partagé** épuisé (un 429 de DofusDB ou le nôtre) : réparable en
+ * rejouant ; `network` = panne/timeout, aussi rejouable mais sans pause imposée. Cette distinction
+ * évite de compter des dizaines de faux « sans source » (mesure du 31/10/2026 : 66 sur 83).
+ */
+function degradedReason(res: Response): "quota" | "network" {
+    const local = res.headers?.get?.(LOCAL_THROTTLE_HEADER) === LOCAL_THROTTLE_VALUE;
+    return res.status === 429 || local ? "quota" : "network";
+}
+
+/**
  * Construit une fiche complète à partir du bestiaire local Unity quand DofusDB
  * ne connaît pas le monstre (ex: raids Gigalodon, Jardins Éternels, nouveaux titans/anomalies)
  * ou en cas de coupure/quota réseau.
@@ -248,6 +261,11 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
         id: unity.id,
         name: unity.name,
         nameEn: null,
+        // 🏷️ Origine **explicite** du payload (champ additif, aucune migration) : ce repli n'a
+        // aucun butin (`drops: []`) et ne doit jamais passer pour une fiche DofusDB vide. Le
+        // classement (`@/lib/monster-stat-choice`) le classe derrière toute ligne complète, et
+        // la garde d'écriture de `persistMonsterStat` refuse qu'il écrase un butin existant.
+        source: "unity",
         // Mesure du 09/10/2026 : ce chemin local derive n existe pas pour la plupart des
         // monstres (et melange deux espaces d ids) : la simulation affichait la couronne. Le proxy
         // resout l apparence par l API avec garde d identite et met en cache sous cet id.
@@ -267,13 +285,7 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
             lifePoints: g.lifePoints,
             actionPoints: g.actionPoints,
             movementPoints: g.movementPoints,
-            resists: {
-                neutral: g.neutralResistance,
-                earth: g.earthResistance,
-                fire: g.fireResistance,
-                water: g.waterResistance,
-                air: g.airResistance,
-            },
+            resists: gradeResists(g),
             carac: {
                 wisdom: g.wisdom,
                 strength: g.strength,
@@ -349,6 +361,31 @@ export interface LocalMonsterFiche {
  * base, **0** « Piou » (mesuré sur la base de dev). Ce n'est donc PAS un siphon manquant :
  * le bestiaire COMPLET est déjà versionné, il suffisait de le lire.
  */
+/**
+ * Résistances d'un grade, **quelle que soit la source**.
+ *
+ * 🐛 Mesure du 20/10/2026 : DofusDB ne sert **pas** `neutralResistance` mais
+ * `reductionNeutral` / `reductionEarth` / … (les % de résistance du jeu). Le Comte
+ * Harebourg (3416) sortait donc avec `resists = {}` — la fiche affichait « — » partout —
+ * alors que Nileza, Sylargh, Missiz et Klime avaient la valeur (payload enrichi).
+ * On accepte les deux formes ; `null` reste `null` (on n'invente pas 0 %).
+ */
+function gradeResists(g: any): {
+    neutral: number | null;
+    earth: number | null;
+    fire: number | null;
+    water: number | null;
+    air: number | null;
+} {
+    return {
+        neutral: g?.neutralResistance ?? g?.reductionNeutral ?? null,
+        earth: g?.earthResistance ?? g?.reductionEarth ?? null,
+        fire: g?.fireResistance ?? g?.reductionFire ?? null,
+        water: g?.waterResistance ?? g?.reductionWater ?? null,
+        air: g?.airResistance ?? g?.reductionAir ?? null,
+    };
+}
+
 export async function getLocalMonsterFiche(identifier: string | number): Promise<LocalMonsterFiche | null> {
     const raw = typeof identifier === "number" ? String(identifier) : String(identifier ?? "").trim();
     if (!raw) return null;
@@ -424,7 +461,14 @@ export async function getMonsterStats(
     dungeonName?: string,
     forceRefresh = false,
     monsterId?: number,
-    locale: "fr" | "en" = "fr"
+    locale: "fr" | "en" = "fr",
+    /**
+     * `persist: false` = **lecture seule** : aucune auto-réparation, rien n'est écrit en base.
+     * Indispensable aux outils qui promettent un **dry-run** (`reparer-butins` sans `--apply`) :
+     * sans ça, le simple fait de « lire » une fiche la réparait déjà (mesure du 31/10/2026 :
+     * un dry-run écrivait, puis le `--apply` répondait « 0 fiche analysée »).
+     */
+    options?: { persist?: boolean },
 ): Promise<ActionResponse<any>> {
     // 🎯 Résolution **par ID** (chantier « Avis de recherche ») : les homonymes existent en jeu
     // (3 × « Ronce » 3530/3555/3531, plusieurs « Mouchâme »). La recherche se fait sinon par
@@ -549,8 +593,12 @@ export async function getMonsterStats(
                 const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
                 if (unityFallback) {
                     const synthesized = buildMonsterDataFromUnity(unityFallback);
-                    monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                    return { success: true, data: synthesized };
+                    // 🏷️ Pourquoi ce repli ? Sans cette étiquette, la passe de réparation comptait
+                    // « sans source DofusDB » à la chaîne alors que c'était **notre** budget partagé
+                    // (mesure du 31/10/2026 : 66 noms « sans source » en quelques secondes).
+                    const tagged = { ...synthesized, degraded: degradedReason(searchRes) };
+                    monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                    return { success: true, data: tagged };
                 }
                 const reason = searchRes.status === 429
                     ? "Quota DofusDB atteint (429) — relancer plus tard"
@@ -607,8 +655,10 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                // « introuvable » ≠ « quota » : le premier ne se répare jamais, le second oui.
+                const tagged = { ...synthesized, degraded: "not_found" };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             return { success: false, error: 'Monstre non trouvé' };
         }
@@ -622,8 +672,9 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                const tagged = { ...synthesized, degraded: degradedReason(fullRes) };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             const reason = fullRes.status === 429
                 ? "Quota DofusDB atteint (429) — relancer plus tard"
@@ -970,13 +1021,7 @@ export async function getMonsterStats(
                     lifePoints: g.lifePoints,
                     actionPoints: g.pa || g.actionPoints,
                     movementPoints: g.pm || g.movementPoints,
-                    resists: {
-                        neutral: g.neutralResistance,
-                        earth: g.earthResistance,
-                        fire: g.fireResistance,
-                        water: g.waterResistance,
-                        air: g.airResistance
-                    },
+                    resists: gradeResists(g),
                     carac: {
                         wisdom: carac.wisdom,
                         strength: carac.strength,
@@ -991,6 +1036,11 @@ export async function getMonsterStats(
                     damage: g.damage ?? g.Damage ?? g.SecondaryCharacteristics?.Damage ?? 0,
                     healBonus: g.healBonus ?? g.HealBonus ?? g.SecondaryCharacteristics?.HealBonus ?? g.SecondaryCharacteristics?.Heals ?? 0,
                     criticalHit: g.criticalHit ?? g.CriticalHit ?? g.SecondaryCharacteristics?.CriticalHit ?? 0,
+                    // Lot R-3 (chantier Raccord DofusDB) : ce producteur omettait les caractéristiques de
+                    // combat que le premier écrit déjà (`:287-293`) — les fiches issues de ce chemin
+                    // affichaient « Tacle — » / « Fuite — » (`tackle` mesuré 0/283 en base). Valeur publiée
+                    // d'abord, tacle/fuite dérivés de l'agilité seulement si absents (`floor(agi/10) + bonus`).
+                    ...deriveGradeCombatStats(g, carac),
                 };
             }),
             drops: monster.drops?.map((d: any) => {
@@ -1038,6 +1088,10 @@ export async function getMonsterStats(
                     percentByGrade: gradePercents.map(formatRate)
                 };
             }) || [],
+            // 🏷️ Source **interrogée** et aucun butin documenté (mesure du 31/10/2026) : le marqueur
+            // dit « vraiment rien à lâcher », évite de re-tester ce monstre chaque nuit (budget
+            // DofusDB partagé) et distingue l'absence réelle d'un simple défaut de synchronisation.
+            dropsUnavailable: (monster.drops ?? []).length === 0,
             spells: spellsArr.map(s => {
                 const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
                 const level = spellLevelsMap[levelId] || {};
@@ -1074,9 +1128,12 @@ export async function getMonsterStats(
         const enrichedData = enrichWithUnityData(resultData, monsterName, safeId);
         monsterStatsCache.set(cacheKey, { data: enrichedData, expiresAt: Date.now() + MONSTER_STATS_TTL });
         // Self-healing (sync intelligente) : copie locale de la fiche pour le
-        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
+        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant — et **jamais**
+        // quand l'appelant demande une lecture seule (`persist: false`, dry-run des outils).
         try {
-            if (process.env.VITEST !== "true") await persistMonsterStat({ ...enrichedData, dungeonName });
+            if (process.env.VITEST !== "true" && options?.persist !== false) {
+                await persistMonsterStat({ ...enrichedData, dungeonName });
+            }
         } catch (err) {
             logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
         }

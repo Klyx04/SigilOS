@@ -75,12 +75,20 @@ export function hasPseudoDiscordMismatch(
 
 const DAY_MS = 86_400_000;
 
-/** Date d'arrivée retenue : la saisie manuelle, sinon la création du profil. */
+/**
+ * Date d'arrivée retenue, dans cet ordre : la saisie manuelle (`guildJoinedAt`), la date
+ * d'arrivée **Discord** (`discordJoinedAt`, mesurée par le bot), la création du profil.
+ *
+ * Pourquoi la date Discord : un profil créé à la première visite du dashboard peut être
+ * **bien plus récent** que l'arrivée réelle dans la guilde ; s'en servir seule ferait perdre
+ * des mois d'ancienneté (rôles par ancienneté, chantier Y).
+ */
 export function resolveJoinedAt(input: {
     guildJoinedAt?: string | null;
+    discordJoinedAt?: string | null;
     createdAt: string;
 }): string {
-    return input.guildJoinedAt ?? input.createdAt;
+    return input.guildJoinedAt ?? input.discordJoinedAt ?? input.createdAt;
 }
 
 /** Ancienneté en jours calendaires, jamais négative. */
@@ -113,6 +121,61 @@ export function getTrialDecision(input: {
     const defaultEnd = joined + Math.max(1, input.trialDurationDays) * DAY_MS;
     // Marge d'un jour : un essai posé « à durée par défaut » n'est pas une prolongation.
     return ends > defaultEnd + DAY_MS ? "prolonge" : "non";
+}
+
+/**
+ * Affichage de l'essai — **une seule règle** pour la liste, la fiche et le bandeau.
+ *
+ * Trois états distincts, demandés le 29/10/2026 :
+ *  - `validated` (vert) : essai validé, plus d'échéance à suivre ;
+ *  - `extended` (bleu) : **second** essai, c.-à-d. une échéance au-delà de l'arrivée + durée
+ *    par défaut (`getTrialDecision === "prolonge"`) ;
+ *  - `running` (jaune) : essai en cours, avec la **date de fin** jj/mm/aaaa ;
+ *  - `expired` (rouge) : échéance dépassée sans validation (`Essai échu`) ;
+ *  - `undated` : pas d'échéance posée (aucun état inventé).
+ */
+export type MemberTrialTone = "validated" | "extended" | "running" | "expired" | "undated";
+
+export interface MemberTrialDescription {
+    tone: MemberTrialTone;
+    label: string;
+    /** Échéance au format jj/mm/aaaa (jamais l'heure), `null` si aucune. */
+    endsAtLabel: string | null;
+}
+
+/** jj/mm/aaaa d'un instant ISO — `null` si la date est illisible. */
+export function formatTrialEndsAt(iso: string | null): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${date.getFullYear()}`;
+}
+
+export function describeMemberTrial(
+    input: {
+        validated: boolean;
+        endsAt: string | null;
+        remainingDays: number | null;
+        decision: TrialDecision;
+    } | null
+): MemberTrialDescription | null {
+    if (!input) return null;
+    if (input.validated) return { tone: "validated", label: "Essai validé", endsAtLabel: null };
+    if (!input.endsAt) return { tone: "undated", label: "Essai — sans échéance", endsAtLabel: null };
+
+    const endsAtLabel = formatTrialEndsAt(input.endsAt);
+    const suffix = endsAtLabel ? ` (fin ${endsAtLabel})` : "";
+    const remaining = input.remainingDays ?? 0;
+
+    if (remaining < 0) {
+        return { tone: "expired", label: `Essai échu · ${Math.abs(remaining)} j${suffix}`, endsAtLabel };
+    }
+    if (input.decision === "prolonge") {
+        return { tone: "extended", label: `Essai prolongé · ${remaining} j${suffix}`, endsAtLabel };
+    }
+    return { tone: "running", label: `Essai · ${remaining} j${suffix}`, endsAtLabel };
 }
 
 export interface RegistryCsvRow {
@@ -294,10 +357,15 @@ export interface DiscordRoleOption {
  *
  * `members` = les deux natures de lignes du registre (profils dashboard **et** membres Discord
  * seuls) : le filtre doit pouvoir cibler les deux.
+ *
+ * `allowedRoleIds` (facultatif) restreint la liste aux rôles **autorisés dashboard** (ceux mappés
+ * dans le RBAC) : les rôles de jeu ou cosmétiques n'ouvrent aucune page, ils n'ont rien à faire
+ * dans un filtre de gestion. `null`/`undefined` = aucune restriction (vue God, écrans historiques).
  */
 export function registryRoleOptions(
     roles: readonly { id: string; name: string; color?: number | null; position?: number | null }[] | null | undefined,
-    members: readonly { roles: readonly string[] | null | undefined }[] | null | undefined
+    members: readonly { roles: readonly string[] | null | undefined }[] | null | undefined,
+    allowedRoleIds?: readonly string[] | null
 ): DiscordRoleOption[] {
     const counts = new Map<string, number>();
     for (const member of members ?? []) {
@@ -305,7 +373,9 @@ export function registryRoleOptions(
             counts.set(roleId, (counts.get(roleId) ?? 0) + 1);
         }
     }
+    const allowed = allowedRoleIds ? new Set(allowedRoleIds) : null;
     return (roles ?? [])
+        .filter((role) => !allowed || allowed.has(role.id))
         .map((role) => ({
             id: role.id,
             name: role.name,

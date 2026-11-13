@@ -13,6 +13,7 @@ export interface FocusCardData {
     actionLabel: string;
     actionHref: string;
     priority: number; // 0-100
+    asset?: string;
     metadata?: any;
 }
 
@@ -46,7 +47,8 @@ export async function getDashboardFocus(
                         description: `Vous avez complété ${stats.progressPercent}% de la quête. Plus que ${stats.manquants} monstres pour valider l'étape.`,
                         actionLabel: "Voir les monstres",
                         actionHref: `/dashboard/${guildId}/archimonstres`,
-                        priority: stats.progressPercent
+                        priority: stats.progressPercent,
+                        asset: "/assets/dofus/modules/dofus_ocre.png"
                     });
                 }
             }
@@ -68,7 +70,8 @@ export async function getDashboardFocus(
                             description: `Un groupe pour une run ${run.difficulty} cherche ${missing} ${missing > 1 ? 'joueurs' : 'joueur'}.`,
                             actionLabel: "Consulter la run",
                             actionHref: `/dashboard/${guildId}/songes`,
-                            priority: 85
+                            priority: 85,
+                            asset: "/assets/dofus/modules/songes_run.png"
                         });
                     } else {
                         const totalMissing = recruitingRuns.reduce((acc: number, run: any) => acc + (4 - run.members.length), 0);
@@ -78,7 +81,8 @@ export async function getDashboardFocus(
                             description: `${recruitingRuns.length} groupes de runs cherchent actuellement un total de ${totalMissing} joueurs.`,
                             actionLabel: "Voir les runs",
                             actionHref: `/dashboard/${guildId}/songes`,
-                            priority: 88
+                            priority: 88,
+                            asset: "/assets/dofus/modules/songes_run.png"
                         });
                     }
                 }
@@ -113,7 +117,8 @@ export async function getDashboardFocus(
                     description: `Rejoignez "${event.title}" prévu dans ${rel} .`,
                     actionLabel: "S'inscrire / Rejoindre",
                     actionHref: `/dashboard/${guildId}/calendar?event=${event.id}`,
-                    priority: 95 // Highest priority to put it at the very top of the Dashboard Focus Hero
+                    priority: 95, // Highest priority to put it at the very top of the Dashboard Focus Hero
+                    asset: isRaid ? "/assets/dofus/modules/calendar.png" : "/assets/dofus/modules/party.png"
                 });
             }
         }
@@ -126,7 +131,8 @@ export async function getDashboardFocus(
                 description: "Consultez les missions disponibles pour cette semaine et participez à l'effort collectif.",
                 actionLabel: "Voir les missions",
                 actionHref: `/dashboard/${guildId}/missions`,
-                priority: 10
+                priority: 10,
+                asset: "/assets/dofus/modules/guildatons.png"
             });
         } else {
             // General fallback if missions are restricted
@@ -136,7 +142,8 @@ export async function getDashboardFocus(
                 description: "Consultez la présentation de la guilde et la documentation pour bien commencer.",
                 actionLabel: "Lire le guide",
                 actionHref: `/dashboard/${guildId}/presentation`,
-                priority: 10
+                priority: 10,
+                asset: "/assets/dofus/modules/guild.png"
             });
         }
 

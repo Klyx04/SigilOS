@@ -7,6 +7,7 @@ import { ProfileStatus } from "@prisma/client";
 import { PresenceManager } from "@/lib/presence";
 import { getDisplayName } from "@/lib/display-name";
 import { cache } from "react";
+import { assertGuildMemberAccess } from "@/server/guild-access";
 
 // In-memory cache for internal guild IDs (5min TTL)
 const guildIdCache = new Map<string, { id: string, expiresAt: number }>();
@@ -115,6 +116,10 @@ export async function updateHeartbeat(guildId: string, isAfk: boolean = false) {
     try {
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+        // Audit 06/11/2026 : sans cette garde, un compte connecté pouvait écrire une
+        // présence dans n'importe quelle guilde en changeant `guildId`.
+        const access = await assertGuildMemberAccess(guildId);
+        if (!access.ok) return { success: false, error: access.error };
         const userId = session.user.id;
 
         const internalId = await getInternalGuildId(guildId);

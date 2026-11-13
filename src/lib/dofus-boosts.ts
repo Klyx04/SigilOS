@@ -49,6 +49,8 @@ export interface DamageBoost {
     id: string;
     /** Libellé affiché (preset traduit, ou libellé saisi). */
     label: string;
+    /** Icône authentique du sort, de l'effet ou de la stat associée. */
+    iconUrl?: string;
     /** Provenance mesurée (absente pour une ligne personnalisée). */
     source?: {
         spellId: number;
@@ -70,27 +72,72 @@ function num(v: unknown): number {
 }
 
 /**
- * **Presets mesurés** (22/09/2026) — les trois boosts dont la valeur est vérifiable dans la
- * donnée DofusDB. Tout autre boost se saisit en « personnalisé » (aucune valeur inventée).
+ * **Presets mesurés** — les buffs et malus emblématiques dont la valeur est vérifiable dans le jeu.
+ * Dotés de leurs vrais assets d'icônes Dofus (spells / stats).
  */
 export const BOOST_PRESETS: DamageBoost[] = [
     {
         id: "puissance",
-        label: "Puissance (grade 3)",
+        label: "Puissance Iop (+300 Puissance)",
+        iconUrl: "/assets/dofus/stats/puissance.png",
         source: { spellId: 13118, spellLevelId: 41312, effectId: 138, characteristic: 25 },
         caster: { puissance: 300 },
     },
     {
         id: "epee-divine",
-        label: "Épée Divine (grade 3)",
+        label: "Épée Divine (+30 Dommages)",
+        iconUrl: "/assets/dofus/stats/dommages.png",
         source: { spellId: 13110, spellLevelId: 41288, effectId: 112, characteristic: 16 },
         caster: { dommagesGeneraux: 30 },
     },
     {
         id: "bond",
-        label: "Bond (grade 3, ennemis)",
+        label: "Bond (+15% Do Subis Ennemi)",
+        iconUrl: "/assets/dofus/stats/erosion.png",
         source: { spellId: 13107, spellLevelId: 41279, effectId: 1163 },
         targetDamageTakenPercent: 15,
+    },
+    {
+        id: "vulnerabilite",
+        label: "Vulnérabilité (+10% Do Subis)",
+        iconUrl: "/assets/dofus/stats/bouclier.png",
+        source: { spellId: 13144, spellLevelId: 41380, effectId: 1163 },
+        targetDamageTakenPercent: 10,
+    },
+    {
+        id: "maitrise-arme",
+        label: "Maîtrise d'Arme (+15% Do Armes)",
+        iconUrl: "/assets/dofus/stats/dmgArme.png",
+        source: { spellId: 376, spellLevelId: 376, effectId: 122 },
+        caster: { pctSorts: 0 },
+    },
+    {
+        id: "roue-fortune",
+        label: "Roue de la Fortune (+300 Puissance)",
+        iconUrl: "/assets/dofus/stats/puissance.png",
+        source: { spellId: 13076, spellLevelId: 41180, effectId: 138 },
+        caster: { puissance: 300 },
+    },
+    {
+        id: "tir-puissant",
+        label: "Tir Puissant (+250 Pui, +14 Do Crit)",
+        iconUrl: "/assets/dofus/stats/dmgCritique.png",
+        source: { spellId: 13054, spellLevelId: 41100, effectId: 138 },
+        caster: { puissance: 250, dommagesCritiques: 14 },
+    },
+    {
+        id: "dofus-pourpre",
+        label: "Dofus Pourpre (+20% Dommages finaux)",
+        iconUrl: "/module-dofus/Dofus_Pourpre.png",
+        source: { spellId: 0, spellLevelId: 0, effectId: 0 },
+        caster: { pctFinaux: 20 },
+    },
+    {
+        id: "dofus-nebuleux",
+        label: "Dofus Nébuleux (+20% Tour impair)",
+        iconUrl: "/module-dofus/Dofus_Nebuleux.png",
+        source: { spellId: 0, spellLevelId: 0, effectId: 0 },
+        caster: { pctFinaux: 20 },
     },
 ];
 

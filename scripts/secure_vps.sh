@@ -34,6 +34,12 @@ net.ipv4.ip_forward = 1
 # Désactiver l'écoute de l'adresse Source (Anti IP Spoofing)
 net.ipv4.conf.all.rp_filter = 1
 net.ipv4.conf.default.rp_filter = 1
+# Fermer MPTCP (multipath TCP) : aucun service du VPS ne l'utilise (mesure du 04/11/2026,
+# `ss -M` vide) et c'est le vecteur de la chaîne d'exploitation CVE-2026-98432
+# (use-after-free IPv4, fuite KASLR via un listener MPTCP). Repli TCP transparent :
+# un client MPTCP retombe sur TCP normal, aucun service n'est dégradé.
+# ⚠️ À reposer AVANT tout rebuild d'un binaire Go ≥ 1.24 (MPTCP activé par défaut).
+net.mptcp.enabled = 0
 EOF
 sysctl -p /etc/sysctl.d/99-sigilos-security.conf
 

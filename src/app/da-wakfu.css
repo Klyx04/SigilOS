@@ -1,0 +1,1530 @@
+/* ═══ SigilOS — DA « Gouache Wakfu » ═════════════════════════════════════════
+   Couche 1 (tokens + socle). Extraite de la maquette validée
+   (`src/temp/DA-SigilOS/rush-sylvestre-wakfu-affine.html`) et adaptée au dépôt.
+   Le mode d'emploi complet vit dans `.cline/skills/sigilos-da-wakfu/`.
+
+   Règles de la couche :
+     1. Préfixe `--da-` OBLIGATOIRE. Les noms sémantiques globaux appartiennent
+        déjà au produit, et `--muted` y est une SURFACE alors qu'il est un TEXTE
+        dans la maquette : les mélanger repeindrait le dashboard par accident.
+     2. Portée `[data-da="wakfu"]` : un écran non migré ne change pas de couleur.
+     3. Thème = `data-block` (accent du bloc) × `data-theme` (clair / sombre).
+     4. Écarts à la maquette, chacun justifié par une mesure (WCAG AA, 4,5:1) :
+          · `--da-muted0` clair #5f6e5d → #54634f : 3,96 → 5,26:1 sur carte ;
+          · `--da-amber-ink` : ambre en TEXTE, 1,76 → 5,94:1 en clair ;
+          · `--da-acc-ink` : accent en TEXTE, 1,76 → 5,08:1 en clair ;
+          · `--da-ok` FIXE : la maquette peignait « validé » avec l'accent du
+            bloc, donc « validé » changeait de couleur selon le chapitre.
+   Mesures verrouillées par `tests/unit/da-wakfu.test.ts`.                    */
+
+@property --da-acc { syntax: '<color>'; inherits: true; initial-value: #b8cf6a }
+@property --da-acc2 { syntax: '<color>'; inherits: true; initial-value: #7f9a45 }
+@property --da-tint { syntax: '<color>'; inherits: true; initial-value: #34452f }
+@property --da-on { syntax: '<color>'; inherits: true; initial-value: #1c250d }
+@property --da-outline { syntax: '<color>'; inherits: true; initial-value: #0f1410 }
+
+/* ── Base (sombre par défaut, comme la maquette) ─────────────────────────── */
+[data-da="wakfu"] {
+  color-scheme: dark;
+  --da-page: #0c0f0d;
+  --da-bg0: #131815;
+  --da-panel0: #1f2822;
+  --da-field: #0e120f;
+  --da-line0: #364239;
+  --da-ink: #eceedf;
+  --da-muted0: #a3afa1;
+  --da-warn: #ec9a85;
+  --da-amber: #e3a63c;
+  --da-amber-ink: #e3a63c;
+  --da-ok: #8fbf5a;
+  --da-plank: #cdcbbd;
+  --da-plank-ink: #2a2924;
+}
+
+[data-da="wakfu"][data-theme="light"] {
+  color-scheme: light;
+  --da-page: #e4e3d5;
+  --da-bg0: #f3f1e5;
+  --da-panel0: #e9ecd9;
+  --da-field: #fbf9ee;
+  --da-line0: #c5cab2;
+  --da-ink: #2a3123;
+  --da-muted0: #54634f;
+  --da-warn: #9d543a;
+  --da-amber: #e3a63c;
+  --da-amber-ink: #7a4d0c;
+  --da-ok: #3f6b1f;
+  --da-plank: #e7e3d1;
+  --da-plank-ink: #2a2924;
+}
+
+/* ── Accent par bloc — six combinaisons, une seule structure ─────────────── */
+[data-da="wakfu"][data-block="emeraude"] {
+  --da-acc: #b8cf6a; --da-acc2: #7f9a45; --da-acc-ink: #b8cf6a;
+  --da-tint: #34452f; --da-on: #1c250d; --da-outline: #0f1410;
+}
+[data-da="wakfu"][data-block="cauchemar"] {
+  --da-acc: #79c7d4; --da-acc2: #3a8fa0; --da-acc-ink: #79c7d4;
+  --da-tint: #123e4b; --da-on: #06212a; --da-outline: #07141a;
+}
+[data-da="wakfu"][data-block="ocre"] {
+  --da-acc: #e9a93a; --da-acc2: #b97c1c; --da-acc-ink: #e9a93a;
+  --da-tint: #4d3826; --da-on: #2a1a05; --da-outline: #1a1108;
+}
+[data-da="wakfu"][data-theme="light"][data-block="emeraude"] {
+  --da-acc: #9fc43e; --da-acc2: #668c20; --da-acc-ink: #52690f;
+  --da-tint: #d3e5ae; --da-on: #1f2d0c; --da-outline: #3a4720;
+}
+[data-da="wakfu"][data-theme="light"][data-block="cauchemar"] {
+  --da-acc: #4fb6c8; --da-acc2: #177a8e; --da-acc-ink: #0d5666;
+  --da-tint: #c2e2ea; --da-on: #04222a; --da-outline: #224654;
+}
+[data-da="wakfu"][data-theme="light"][data-block="ocre"] {
+  --da-acc: #eba126; --da-acc2: #b57206; --da-acc-ink: #7a4d0c;
+  --da-tint: #f0d9b0; --da-on: #2a1a05; --da-outline: #59401a;
+}
+
+/* Bloc arbitraire (accent fourni par la donnée `GuideMilestone.accentColor`) :
+   l'accent pose `--da-acc` en style inline ; le reste est dérivé. En mode
+   clair, l'accent ne sert JAMAIS de texte (`--da-acc-ink` retombe sur l'encre) :
+   on ne peut pas calculer un contraste en CSS. */
+[data-da="wakfu"][data-block="custom"] {
+  --da-acc2: color-mix(in srgb, var(--da-acc) 72%, #000);
+  --da-acc-ink: var(--da-ink);
+  --da-outline: #0f1410;
+  --da-tint: color-mix(in srgb, var(--da-acc) 26%, #0c0f0d);
+  --da-on: #10140c;
+}
+[data-da="wakfu"][data-theme="light"][data-block="custom"] {
+  --da-outline: #3a4720;
+  --da-tint: color-mix(in srgb, var(--da-acc) 30%, #f3f1e5);
+  --da-on: #1f2d0c;
+}
+
+/* ── Dérivés : c'est ici que six thèmes ne coûtent aucun composant ───────── */
+[data-da="wakfu"] {
+  --da-bg: color-mix(in srgb, var(--da-bg0) 90%, var(--da-tint));
+  --da-panel: color-mix(in srgb, var(--da-panel0) 80%, var(--da-tint));
+  /* Valeur EXACTE de la maquette (`references/tokens.css` puis `.window`) :
+     carte = panel0 88 % + teinte du bloc. Ne pas « éclaircir » à l'œil : la
+     capture d'écran d'une PiP est plus sombre que le rendu réel (gamma). */
+  --da-card: color-mix(in srgb, var(--da-panel0) 88%, var(--da-tint));
+  --da-line: color-mix(in srgb, var(--da-line0) 76%, var(--da-tint));
+  --da-muted: var(--da-muted0);
+  --da-ln: color-mix(in srgb, var(--da-acc2) 40%, var(--da-outline));
+  --da-ok-soft: color-mix(in srgb, var(--da-ok) 14%, transparent);
+  --da-amber-soft: color-mix(in srgb, var(--da-amber) 18%, transparent);
+  transition:
+    --da-acc .8s, --da-acc2 .8s, --da-tint .8s, --da-on .8s, --da-outline .8s;
+}
+
+/* ── Socle : typographie, focus, grain ───────────────────────────────────── */
+[data-da="wakfu"] {
+  --da-font-title: var(--font-barlow), "Barlow Condensed", "Arial Narrow", sans-serif;
+  --da-font-text: var(--font-source-sans), "Source Sans 3", system-ui, sans-serif;
+  --da-font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
+  --da-font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+
+  color: var(--da-ink);
+  font-family: var(--da-font-text);
+}
+
+[data-da="wakfu"] :focus-visible {
+  outline: 2px solid var(--da-acc);
+  outline-offset: 3px;
+}
+
+.da-title {
+  margin: 0;
+  font-family: var(--da-font-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  line-height: .95;
+  color: var(--da-ink);
+}
+
+.da-mono {
+  font-family: var(--da-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.da-serif {
+  font-family: var(--da-font-serif);
+  font-style: italic;
+}
+
+/* Grain de gouache : UNE fois par surface racine, jamais par composant. */
+.da-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: .1;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.1 -.2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ── Fenêtre (hôte : largeur 100 %, hauteur 100dvh côté page) ────────────── */
+.da-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--da-bg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.da-window[data-host="pip"] {
+  height: 100dvh;
+  border-radius: 0;
+}
+
+/* Hors PiP (aperçu, guide) la fenêtre est encadrée : liseré, pas d'ombre molle. */
+.da-window[data-host="page"] {
+  border-radius: 14px; /* exception mesurée à la règle « rayons ≤ 12 px » : signature de fenêtre */
+  box-shadow:
+    0 0 0 2px var(--da-outline),
+    0 0 0 3px color-mix(in srgb, var(--da-acc2) 30%, transparent);
+}
+
+.da-chrome {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .4rem .875rem;
+  background: var(--da-field);
+  border-bottom: 1.5px solid var(--da-ln);
+  color: var(--da-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Bouton planche ──────────────────────────────────────────────────────── */
+.da-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem 1.05rem;
+  border: 0;
+  background: none;
+  color: var(--da-ink);
+  font: 700 13px var(--da-font-text);
+  letter-spacing: .03em;
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform .1s;
+}
+
+.da-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.8px solid var(--da-outline);
+  border-radius: 7px 2px 7px 2px;
+  background-color: var(--da-panel);
+  background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .07) 0 1px, transparent 1px 5px);
+  filter: url(#da-rough);
+}
+
+.da-btn[data-variant="main"] {
+  color: var(--da-on);
+}
+
+.da-btn[data-variant="main"]::before {
+  background-color: var(--da-acc);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / .14), inset 0 1px 0 rgb(255 255 255 / .35);
+}
+
+.da-btn:hover { transform: translateY(-1px); }
+.da-btn:active { transform: translateY(1px); }
+.da-btn:disabled { opacity: .45; cursor: default; transform: none; }
+
+/* ── Description du bloc — sous la bannière, comme la maquette ───────────── */
+.da-blockdesc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: .6rem .1rem 0;
+  color: var(--da-muted);
+  font: 500 12.5px/1.6 var(--da-font-text);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ── Rangée d'actions — Reprendre / Ressources (celle de la maquette) ─────── */
+.da-actions {
+  display: flex;
+  gap: .6rem;
+  padding: .75rem .75rem 0;
+}
+
+.da-actions .da-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Pastille de comptage du bouton « Ressources » : l'ambre de la maquette, encre
+   sombre de l'écriteau (aucune couleur en dur). Rayon 10 px : le verrou de la DA
+   interdit au-delà de 12 px. */
+.da-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 .35rem;
+  border-radius: 10px;
+  background: var(--da-amber);
+  color: var(--da-plank-ink);
+  font: 700 10px var(--da-font-text);
+  letter-spacing: 0;
+}
+
+/* ── « Conseil » dépliable (maquette) : filets, + / −, puces losange ─────── */
+.da-conseil {
+  margin: .5rem 0;
+  border: 0;
+}
+
+.da-conseil > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .1rem;
+  border-top: 1.5px solid var(--da-ln);
+  border-bottom: 1.5px solid var(--da-ln);
+  color: var(--da-ink);
+  font: 700 12px var(--da-font-text);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.da-conseil > summary::-webkit-details-marker { display: none; }
+
+.da-conseil > summary svg { color: var(--da-acc); }
+
+.da-conseil > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--da-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.da-conseil[open] > summary::after { content: "\2212"; }
+
+.da-conseil-body {
+  margin: .6rem .1rem .2rem;
+  color: var(--da-muted);
+  font: 500 12px/1.65 var(--da-font-text);
+}
+
+.da-conseil-body ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.da-conseil-body p,
+.da-conseil-body li {
+  position: relative;
+  margin: 0 0 .5rem;
+  padding-left: .875rem;
+}
+
+/* Puce losange : le même losange que les nœuds et les pips de stade. La puce
+   interne de `RushTipLines` (pastille ronde ambre) est masquée ici : une seule
+   puce par ligne, et c'est celle de la DA. */
+.da-conseil-body p::before,
+.da-conseil-body li::before {
+  content: "";
+  position: absolute;
+  top: .45em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 6px 0 6px 0;
+  background: var(--da-acc);
+  transform: rotate(45deg);
+}
+
+.da-conseil-body li > span[aria-hidden="true"]:first-child { display: none; }
+
+/* ── Toasts de l'overlay (Sonner) — les matières du reste de la fenêtre ──── */
+/* Sonner injecte sa feuille à l'exécution avec `[data-sonner-toast][data-styled]`
+   (spécificité 0,2,0) : on passe par le conteneur `.da-toaster` et `!important`
+   pour que la DA gagne, quel que soit l'ordre d'injection. */
+[data-sonner-toaster].da-toaster [data-sonner-toast] {
+  background: var(--da-panel, #1f2822) !important;
+  color: var(--da-ink, #eceedf) !important;
+  border: 1.5px solid var(--da-outline, #0f1410) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  font: 600 11px/1.45 var(--da-font-text, inherit) !important;
+  padding: 6px 9px !important;
+}
+
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-title] {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-description] {
+  color: var(--da-muted, #a3afa1) !important;
+  font-size: 10px !important;
+}
+
+.da-toast-desc { font-size: 10px; color: var(--da-muted, #a3afa1); }
+
+/* ── Recherche ───────────────────────────────────────────────────────────── */
+.da-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .55rem .7rem;
+  color: var(--da-muted);
+  isolation: isolate;
+}
+
+.da-search::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--da-field);
+  border: 1.5px solid var(--da-ln);
+  border-radius: 6px;
+  filter: url(#da-rough);
+}
+
+.da-search input {
+  width: 100%;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--da-ink);
+  font: 600 13px var(--da-font-text);
+}
+
+.da-search kbd {
+  border: 1.5px solid var(--da-ln);
+  border-radius: 4px;
+  padding: 0 .3rem;
+  font: 700 10px var(--da-font-text);
+}
+
+/* ── Filtres : texte seul, compteur en petit, actif = trait de pinceau ───── */
+.da-filters {
+  display: flex;
+  flex-wrap: wrap;
+  /* Quatre libellés courts : **centrés**, et jamais de bande scrollable
+     horizontale — sur une PiP de 250 px, ils passaient sous le bord. */
+  justify-content: center;
+  align-items: center;
+  gap: .5rem .9rem;
+  /* De l'air par rapport au dock au-dessus et à la liste en dessous (retour user
+     du 08/11/2026 : la rangée était collée au reste). */
+  margin: .85rem .75rem 1rem;
+  padding-bottom: .45rem;
+  border-bottom: 1.5px solid var(--da-ln);
+}
+
+.da-filters button {
+  position: relative;
+  flex: none;
+  padding: .55rem .3rem .6rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  font: 700 12px var(--da-font-text);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.da-filters button b {
+  margin-left: .3rem;
+  font-size: 10px;
+  font-weight: 700;
+  /* Le compteur est un chiffre aligné sur la ligne de base — pas un exposant. */
+  vertical-align: baseline;
+  line-height: 1;
+  opacity: .65;
+}
+
+.da-filters button[aria-selected="true"],
+.da-filters button[aria-pressed="true"] { color: var(--da-ink); }
+
+.da-filters button[aria-selected="true"]::after,
+.da-filters button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1.5px;
+  left: 0;
+  height: 3px;
+  background: var(--da-acc);
+  clip-path: polygon(0 30%, 8% 0, 100% 40%, 94% 100%, 0 85%);
+}
+
+/* ── Écriteau en planches — LA signature, compteurs de bloc uniquement ───── */
+.da-plank {
+  position: relative;
+  flex: none;
+  width: 76px;
+  height: 50px;
+  margin-bottom: -2px;
+  transform: rotate(-5deg);
+}
+
+.da-plank i,
+.da-plank b {
+  position: absolute;
+  display: block;
+  background: var(--da-plank);
+}
+
+.da-plank i {
+  inset: 0 4px 12px 0;
+  transform: rotate(3deg);
+  clip-path: polygon(2% 12%, 98% 0, 100% 88%, 0 100%);
+  background-image: repeating-linear-gradient(2deg, rgb(0 0 0 / .08) 0 1px, transparent 1px 6px);
+}
+
+.da-plank b {
+  inset: 12px 0 0 6px;
+  filter: brightness(.93);
+  clip-path: polygon(0 6%, 100% 0, 97% 100%, 3% 88%);
+  background-image: repeating-linear-gradient(-1deg, rgb(0 0 0 / .1) 0 1px, transparent 1px 7px);
+}
+
+.da-plank span {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--da-plank-ink);
+  font: 800 24px var(--da-font-title);
+  letter-spacing: .02em;
+  transform: rotate(3deg) translateY(-3px);
+  filter: url(#da-brush);
+}
+
+/* Mini-écriteau 40 × 28 : le compteur du dock. Même signature (deux planches
+   inclinées, rayures de bois, chiffres au pinceau), à l'échelle de la barre. */
+.da-plank[data-size="mini"] {
+  width: 40px;
+  height: 28px;
+  margin-bottom: 0;
+  transform: rotate(-4deg);
+}
+
+.da-plank[data-size="mini"] i { inset: 0 2px 7px 0; }
+.da-plank[data-size="mini"] b { inset: 7px 0 0 3px; }
+
+.da-plank[data-size="mini"] span {
+  font-size: 13px;
+  transform: rotate(3deg) translateY(-1px);
+}
+
+/* ── Fil de sève + nœud + carte ──────────────────────────────────────────── */
+.da-rail {
+  position: relative;
+  margin-top: 14px;
+}
+
+.da-rail::before,
+.da-rail::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 8px;
+  width: 12px;
+  background-color: var(--da-line);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='60' viewBox='0 0 12 60'><path d='M6 0 C0 10 12 20 6 30 C0 40 12 50 6 60' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>") repeat-y 0 0 / 12px 60px;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='60' viewBox='0 0 12 60'><path d='M6 0 C0 10 12 20 6 30 C0 40 12 50 6 60' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>") repeat-y 0 0 / 12px 60px;
+}
+
+.da-rail::before { bottom: 20px; }
+
+.da-rail::after {
+  height: var(--da-grow, 0px);
+  background-color: var(--da-acc);
+  transition: height .6s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.da-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+/* Pas de marge morte sous la dernière carte : elle laissait un vide en bas du
+   défilement dans une PiP courte (vu à l'écran le 05/11/2026). */
+.da-rail .da-row:last-child { margin-bottom: 0; }
+
+.da-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: .75rem;
+  color: var(--da-muted);
+  isolation: isolate;
+}
+
+.da-node::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.8px solid var(--da-ln);
+  /* Cercle « peint » : quatre rayons différents = bord organique à coût NUL.
+     Un `filter` ici coûterait une rastérisation PAR LIGNE (une trentaine). */
+  border-radius: 48% 52% 47% 53% / 52% 48% 53% 47%;
+  background: var(--da-field);
+}
+
+/* États : validé (--da-ok, FIXE), à faire maintenant (accent), verrouillé. */
+.da-row[data-state="done"] .da-node { color: var(--da-on); }
+.da-row[data-state="done"] .da-node::before {
+  border-color: var(--da-outline);
+  background: var(--da-ok);
+}
+
+.da-row[data-state="next"] .da-node::before {
+  border-color: var(--da-acc2);
+  background: var(--da-acc);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--da-acc) 26%, transparent);
+}
+
+.da-row[data-state="locked"] .da-node::before {
+  background: var(--da-bg);
+  border-style: dashed;
+}
+
+.da-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .75rem .75rem .75rem .875rem;
+}
+
+/* Bord : `clip-path` (coût nul) par défaut. Le déplacement « rough » est
+   réservé aux surfaces à `data-quality="high"` — sinon 20 cartes = 20 filtres
+   recalculés au défilement, dans une PiP au-dessus du jeu.
+   Le filet est TEINTÉ par le bloc (`--da-acc2`), plus un gris uniforme : la carte
+   appartient visiblement à son chapitre. */
+.da-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1.6px solid var(--da-acc2);
+  border-radius: 4px 14px 4px 14px; /* exception mesurée : signature de carte (coins asymétriques) */
+  background: var(--da-card);
+  clip-path: polygon(0 1%, 100% 0, 99.6% 99.2%, 0.5% 100%);
+}
+
+[data-quality="high"] .da-card::before { filter: url(#da-rough); }
+
+.da-row[data-state="done"] .da-card::before {
+  background: color-mix(in srgb, var(--da-acc2) 12%, var(--da-card));
+}
+
+.da-row[data-state="next"] .da-card::before {
+  border-color: var(--da-acc2);
+  background: color-mix(in srgb, var(--da-acc) 12%, var(--da-card));
+}
+
+/* Repère « je suis ici » : c'est le point focal de la liste, mais il ne prend
+   pas la couleur d'un état de validation — accent du bloc, teinte légère. */
+.da-row[data-here="true"] .da-card::before {
+  border-color: color-mix(in srgb, var(--da-acc) 55%, var(--da-ln));
+  background: color-mix(in srgb, var(--da-acc) 9%, var(--da-card));
+}
+
+.da-row[data-state="locked"] .da-card { opacity: .78; }
+
+.da-state {
+  display: inline-block;
+  margin-bottom: .3rem;
+  color: var(--da-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.da-row[data-state="done"] .da-state { color: var(--da-ok); }
+.da-row[data-state="next"] .da-state { color: var(--da-acc-ink); }
+
+.da-card h3,
+.da-qtitle {
+  margin: 0 0 .5rem;
+  font: 700 17.5px/1.2 var(--da-font-title);
+  text-transform: uppercase;
+  letter-spacing: .015em;
+  color: var(--da-ink);
+}
+
+.da-row[data-here="true"] .da-state { color: var(--da-acc-ink); }
+
+.da-row[data-state="done"] .da-card h3,
+.da-row[data-state="done"] .da-qtitle {
+  color: var(--da-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--da-ok);
+}
+
+.da-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  color: var(--da-muted);
+  font: 600 11px var(--da-font-text);
+}
+
+.da-coord {
+  padding: 1px 7px;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 4px;
+  background: var(--da-field);
+  font: 600 11px var(--da-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.da-req { color: var(--da-amber-ink); }
+
+.da-prereq {
+  margin: .5rem 0 0;
+  color: var(--da-warn);
+  font: 600 11px var(--da-font-text);
+}
+
+.da-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.25rem;
+  color: var(--da-muted);
+  font: 600 10px var(--da-font-text);
+  letter-spacing: .04em;
+}
+
+.da-foot strong { color: var(--da-acc-ink); }
+
+/* ── Barre de blocs (collante) ───────────────────────────────────────────── */
+.da-dock {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem .75rem 0;
+  background: var(--da-bg);
+  border-bottom: 1.5px solid var(--da-ln);
+}
+
+.da-dock button {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .5rem .55rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Le bouton du nœud n'est PAS le déclencheur : il ne doit jamais s'étirer
+   (`flex: 1` hérité créait un vide de 200 px entre le nœud et le titre). */
+.da-dock button.da-node-btn {
+  flex: none;
+  padding: .4rem .1rem .55rem .25rem;
+}
+
+/* Compteur + chevron : un seul bloc collé à droite, insensible au passage du titre
+   sur deux lignes (sinon le compteur glissait au milieu de la barre). */
+.da-dock .da-dock-trail {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
+.da-medal {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 50%;
+  background: var(--da-field);
+}
+
+/* Déclencheur : une GRILLE à trois colonnes, pas un flex. En flex, le titre se
+   faisait écraser à la largeur de son plus long mot et s'empilait sur cinq lignes
+   dans une PiP de 250 px (mesure du 05/11/2026) ; ici la colonne du milieu prend
+   TOUT l'espace restant, le compteur et le chevron restent collés à droite. */
+.da-dock .da-dock-trigger {
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  min-width: 0;
+  padding: .4rem .25rem .55rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.da-dock .da-dock-label {
+  min-width: 0;
+  /* Deux lignes MAXIMUM : au-delà, la barre mangeait la hauteur de la liste.
+     Le nom complet reste lisible en infobulle et dans la liste déroulante. */
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 700 13px/1.15 var(--da-font-title);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.da-dock small {
+  display: block;
+  font: 600 9px var(--da-font-text);
+  letter-spacing: .04em;
+  text-transform: none;
+  opacity: .85;
+}
+
+.da-dock button[aria-current="true"] { color: var(--da-ink); }
+
+.da-dock button[aria-current="true"] .da-medal {
+  border-color: var(--da-outline);
+  background: var(--da-acc);
+  color: var(--da-on);
+}
+
+.da-dock button[aria-current="true"]::after {
+  content: "";
+  position: absolute;
+  right: .25rem;
+  bottom: -1.5px;
+  left: .25rem;
+  height: 3px;
+  background: var(--da-acc);
+  clip-path: polygon(0 40%, 10% 0, 100% 30%, 92% 100%, 0 80%);
+}
+
+/* Nœud du dock : la case « tout le chapitre » est le MÊME cercle peint que les
+   nœuds de la liste (elle était un carré nu, hors grammaire). */
+.da-dock .da-node { margin-top: 0; }
+
+.da-dock .da-node[data-state="done"] { color: var(--da-on); }
+
+.da-dock .da-node[data-state="done"]::before {
+  border-color: var(--da-outline);
+  background: var(--da-ok);
+}
+
+/* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
+.da-hero {
+  position: relative;
+  /* Au-dessus du dock (sticky, empilé à 30) : ses enfants sont plafonnés à 2
+     (voir `.da-hero > *` plus bas), donc le menu « ⋯ » — un panneau `absolute
+     top-full z-50` — était enfermé dans un contexte SOUS le dock et se faisait
+     recouvrir. Le header reste en flux : il ne chevauche rien.
+     PAS de rognage ici (retiré le 08/11/2026) : il coupait ce même menu. Rien ne le
+     justifiait — `.da-hero-img` est un `background` sur une boîte `inset: 0`, donc
+     il ne déborde jamais de son parent. */
+  z-index: 40;
+  border-bottom: 1.5px solid var(--da-ln);
+  background: var(--da-field);
+}
+
+.da-hero[data-density="wide"] { min-height: min(276px, 30vh); }
+.da-hero[data-density="normal"] { min-height: 112px; }
+.da-hero[data-density="tight"] { min-height: 80px; }
+
+/* Fenêtre COURTE — le PiP de l'overlay. Mesure du 09/11/2026 : en densité « wide »,
+   276 px étaient réservés pour ~100 px de contenu (titre + barre + présence), d'où une
+   bande vide qui volait la liste des quêtes. On plafonne à la densité « normal » quand
+   la hauteur disponible est faible ; le grand écran garde ses 276 px. */
+@media (max-height: 700px) {
+  .da-hero[data-density="wide"] { min-height: 112px; }
+}
+
+.da-hero-img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 38%;
+  transition: opacity .9s;
+}
+
+/* Le voile de lisibilité est un `::after` : sans cette règle il passerait
+   AU-DESSUS du texte. Les enfants de l'en-tête remontent donc au-dessus des
+   deux couches (image + voile) — aucune structure JSX ajoutée. */
+.da-hero > *:not(.da-hero-img) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Repli sans image : dégradés du bloc (aucune illustration Ankama requise). */
+.da-hero-img[data-block="emeraude"] {
+  background-image:
+    radial-gradient(60% 70% at 30% 62%, #53703a 0, transparent 70%),
+    radial-gradient(70% 60% at 82% 28%, #3a484d 0, transparent 70%),
+    linear-gradient(#222b2e, #171d1b);
+}
+
+.da-hero-img[data-block="ocre"] {
+  background-image:
+    radial-gradient(50% 80% at 35% 40%, #e5ad5c 0, transparent 70%),
+    radial-gradient(60% 60% at 85% 80%, #566f7d 0, transparent 70%),
+    linear-gradient(#53402c, #251d15);
+}
+
+.da-hero-img[data-block="cauchemar"] {
+  background-image:
+    radial-gradient(55% 70% at 40% 45%, #2b6b7d 0, transparent 72%),
+    radial-gradient(60% 50% at 80% 25%, #17333d 0, transparent 70%),
+    linear-gradient(#16262c, #0d171b);
+}
+
+.da-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top,
+      color-mix(in srgb, var(--da-bg) 97%, transparent) 0,
+      color-mix(in srgb, var(--da-bg) 55%, transparent) 34%,
+      transparent 66%),
+    linear-gradient(to right, color-mix(in srgb, var(--da-bg) 45%, transparent), transparent 55%);
+}
+
+.da-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: inherit;
+  flex-direction: column;
+  padding: .9rem 1rem .8rem;
+}
+
+.da-kicker {
+  display: flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: .5rem;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--da-ink);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .66);
+}
+
+.da-kicker::before {
+  content: "";
+  width: 22px;
+  height: 1.5px;
+  background: var(--da-acc);
+}
+
+.da-kicker b { color: var(--da-acc-ink); }
+
+.da-logo { margin: .35rem 0 0; line-height: .9; text-transform: uppercase; }
+
+.da-logo .da-logo-a {
+  display: block;
+  color: var(--da-ink);
+  font: 700 19px var(--da-font-title);
+  letter-spacing: .5em;
+  text-shadow: 0 2px 6px rgb(0 0 0 / .7);
+}
+
+.da-logo .da-logo-b {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--da-acc-ink);
+  /* `clamp` : le titre ne doit JAMAIS être tronqué quand l'en-tête est étroit
+     (10 actions à droite laissent ~250 px). Mesuré : « SYLVESTRE » tient à 26 px. */
+  font: 700 clamp(24px, 8.6vw, 44px) var(--da-font-title);
+  letter-spacing: .015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 3px 0 var(--da-outline), 0 8px 18px rgb(0 0 0 / .53);
+}
+
+.da-hero[data-density="tight"] .da-logo .da-logo-b { font-size: clamp(22px, 8vw, 30px); }
+.da-hero[data-density="normal"] .da-logo .da-logo-b { font-size: clamp(24px, 7.4vw, 32px); }
+.da-hero[data-density="wide"] .da-logo .da-logo-b { font-size: clamp(30px, 9vw, 56px); }
+
+/* Le surtitre `RUSH` est la signature du hero : il rétrécit avant de disparaître. */
+.da-hero[data-density="normal"] .da-logo .da-logo-a { font-size: 16px; letter-spacing: .34em; }
+.da-hero[data-density="tight"] .da-logo .da-logo-a { font-size: 13px; letter-spacing: .24em; }
+
+.da-logo .da-logo-b::after {
+  content: "";
+  display: block;
+  width: 132px;
+  height: 5px;
+  margin-top: 6px;
+  background: var(--da-acc2);
+  clip-path: polygon(0 30%, 6% 0, 100% 40%, 94% 100%, 0 80%);
+}
+
+.da-hero-bottom { margin-top: auto; padding-top: .4rem; }
+
+.da-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: .3rem;
+  color: var(--da-ink);
+  font: 600 12px var(--da-font-text);
+  text-shadow: 0 1px 4px rgb(0 0 0 / .8);
+}
+
+.da-meta strong { font: 700 16px var(--da-font-title); letter-spacing: .04em; }
+
+.da-track {
+  position: relative;
+  height: 9px;
+  /* La jauge respire sous la ligne « joueur · MAIN » (elle la touchait). */
+  margin-top: .4rem;
+}
+
+.da-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--da-field) 80%, transparent);
+}
+
+.da-track i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  min-width: 6px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--da-acc2), var(--da-acc));
+  transition: width .5s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.da-track i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  width: 11px;
+  height: 11px;
+  margin-top: -6px;
+  border: 1.5px solid var(--da-outline);
+  border-radius: 9px 0 9px 0;
+  background: var(--da-acc);
+  transform: rotate(45deg);
+}
+
+/* ── Qualité : la PiP passe au-dessus du jeu, on coupe le coût inutile ───── */
+[data-quality="low"] .da-grain::after { display: none; }
+
+[data-quality="low"] .da-btn::before,
+[data-quality="low"] .da-search::before,
+[data-quality="low"] .da-plank span {
+  filter: none;
+}
+
+/* ── Guide plein écran — sa propre coque, sa propre grille ──────────────────
+   `reg-shell` (1 120 px) reste pour almanax / bestiaire / marché : la route du
+   guide reçoit SA coque, comme la maquette (1 360 px, gouttière 32).
+
+   Écart assumé au brief du 05/11/2026 : entre 900 et 1 279 px le sommaire ne
+   passe PAS en tiroir. Un tiroir demande un bouton neuf, interdit par la règle
+   « habillage seul » ; il reste dans la grille et c'est la colonne du module
+   (inventaire) qui descend en fin de page. */
+.da-guide {
+  width: 100%;
+  /* Le fond vient d'ici : la coque n'emprunte PAS `.da-window`, dont
+     `overflow: hidden` annulerait le `position: sticky` du sommaire et de la
+     colonne du module (mesure du 05/11/2026 : les deux décrochaient au scroll). */
+  background: var(--da-bg);
+  padding-inline: 1rem;
+  padding-block: 1.5rem 2.5rem;
+}
+
+@media (min-width: 900px) {
+  .da-guide { padding-inline: 1.5rem; }
+}
+
+@media (min-width: 1440px) {
+  /* 1 360 px de coque, gouttière 32 : 260 | 720–760 | 300 tient sans débord. */
+  .da-guide {
+    width: min(100% - 4rem, 1360px);
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+}
+
+.da-guide-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+}
+
+/* 900–1 279 px : sommaire + contenu, colonne du module en fin de page. */
+@media (min-width: 900px) {
+  .da-guide-grid {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .da-guide-aside { grid-column: 1 / -1; }
+}
+
+/* 1 280–1 439 px : trois colonnes, la colonne du module à 280. */
+@media (min-width: 1280px) {
+  .da-guide-grid {
+    grid-template-columns: 240px minmax(0, 1fr) 280px;
+    gap: 2rem;
+  }
+
+  .da-guide-aside { grid-column: auto; }
+}
+
+/* ≥ 1 440 px : la grille exacte de la maquette. */
+@media (min-width: 1440px) {
+  .da-guide-grid {
+    grid-template-columns: 260px minmax(680px, 760px) 300px;
+  }
+}
+
+.da-guide-nav,
+.da-guide-main,
+.da-guide-aside { min-width: 0; }
+
+/* La colonne du module suit la lecture (progression, donjons, objets requis) :
+   c'est elle qui porte le repère une fois la barre de contrôle défilée. */
+@media (min-width: 1280px) {
+  .da-guide-aside {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+  }
+}
+
+/* Le sommaire suit la lecture : il reste visible pendant qu'on descend le
+   chapitre (même rôle que le rail de droite de l'overlay). */
+@media (min-width: 900px) {
+  .da-guide-nav {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+    /* ⚠️ Un sommaire collant doit être OPAQUE : sans fond, le contenu qui défile
+       passe DERRIÈRE lui et se lit au travers (mesure du 05/11/2026 sur le guide
+       interne : la barre de recherche et le bouton Options se voyaient à travers
+       les chapitres). Le fond est celui de la DA, donc identique à la coque du
+       guide public — invisible là-bas, correct ici. */
+    background: var(--da-bg);
+  }
+}
+
+/* ── Sommaire — le langage du dock, sans la barre ────────────────────────── */
+.da-guide-nav > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .5rem;
+  padding-bottom: .5rem;
+  border-bottom: 1.5px solid var(--da-line);
+}
+
+.da-guide-nav > header strong {
+  font: 700 12px var(--da-font-title);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--da-muted);
+}
+
+.da-guide-nav > header span {
+  font: 700 11px var(--da-font-mono);
+  color: var(--da-muted);
+}
+
+.da-guide-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: .125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Médaillon | libellé | compteur : la grille du dock (un flex écraserait le
+   libellé à la largeur de son plus long mot — mesure du 05/11 sur la barre). */
+.da-guide-nav-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .35rem .3rem .4rem;
+  border: 1.5px solid transparent;
+  border-radius: 4px 12px 4px 12px;
+  background: none;
+  color: var(--da-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: color .15s, background-color .15s, border-color .15s;
+}
+
+.da-guide-nav-item:hover {
+  color: var(--da-ink);
+  border-color: var(--da-line);
+}
+
+.da-guide-nav-item[aria-current="true"] {
+  color: var(--da-ink);
+  background: var(--da-card);
+  border-color: var(--da-ln);
+}
+
+.da-guide-nav-item[aria-current="true"] .da-medal {
+  border-color: var(--da-outline);
+  background: var(--da-acc);
+  color: var(--da-on);
+}
+
+/* Le libellé du dock est borné à deux lignes ; dans un sommaire vertical on
+   laisse le titre respirer, sans troncature (nom complet). */
+.da-guide-nav-item .da-dock-label {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: none;
+}
+
+/* Mention secondaire sous le nom du bloc (le chapitre, qui ne pilote plus la
+   navigation). Tokens `--da-*` uniquement, taille alignée sur les libellés
+   secondaires de la DA (10 px). */
+.da-guide-nav-sub {
+  display: block;
+  margin-top: .05rem;
+  color: var(--da-muted);
+  font: 400 .625rem/1.3 var(--da-font-text);
+  letter-spacing: .01em;
+}
+
+/* L'écriteau est RÉPÉTÉ par chapitre ici : on coupe le filtre de pinceau
+   (`#da-brush` = une rastérisation par écriteau) — coût mesuré, règle « jamais
+   de filtre sur une liste ». La signature reste : deux planches, chiffres. */
+.da-guide-nav-item .da-plank span { filter: none; }
+
+@media (max-width: 899px) {
+  /* Sous 900 px la disposition est celle de l'overlay : le sommaire passe en
+     bande horizontale défilante, jamais en colonne qui pousse le contenu. */
+  .da-guide-nav ul {
+    flex-direction: row;
+    gap: .25rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+
+  .da-guide-nav li { flex: none; }
+
+  .da-guide-nav-item {
+    width: auto;
+    max-width: 15rem;
+  }
+}
+
+/* ── Bandeau du guide — 320 px, l'image du bloc remplit le cadre ────────────
+   Même règle que `.da-banner-art` : `cover`, et c'est le VOILE qui porte la
+   lisibilité du titre (jamais l'image). `GuideMilestone.imageUrl` servait déjà
+   d'icône de bloc : en `cover` sur 320 px elle est floue, c'est assumé — le
+   voile et le titre la recouvrent, et le repli (aucune image) tient tout seul. */
+.da-guide-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 1.75rem;
+  padding: 0;
+  overflow: hidden;
+  border: 1.5px solid var(--da-outline);
+  border-radius: 4px 12px 4px 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--da-acc2) 26%, var(--da-card)), var(--da-bg));
+  isolation: isolate;
+}
+
+/* Le titre et l'icône du Dofus forment UNE ligne (V2a-5). L'icône est un asset du jeu
+   posé NU, calée sur la hauteur du mot : `AVENTURE` reste au-dessus. */
+.da-guide-hero .da-logo-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(.5rem, 2vw, 1.25rem);
+  min-width: 0;
+}
+
+.da-guide-hero-dofus {
+  width: clamp(52px, 10vw, 96px);
+  height: auto;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Porte de l'espace visiteur, dans le bandeau du titre (V2a-5). C'est un LIEN :
+   il change de page, se lit comme tel au clavier et ne prend pas l'accent de
+   l'action principale (une seule teinte d'accent par écran). */
+.da-guide-hero-cta {
+  margin-top: .9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  align-self: center;
+  padding: .4rem .85rem;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--da-card) 72%, transparent);
+  color: var(--da-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.da-guide-hero-cta:hover {
+  border-color: var(--da-acc);
+  background: color-mix(in srgb, var(--da-acc) 14%, var(--da-card));
+}
+
+.da-guide-hero-cta:focus-visible {
+  outline: 2px solid var(--da-acc);
+  outline-offset: 2px;
+}
+
+/* Deux voiles : un vertical qui assoit le titre en bas, un radial qui éclaire
+   l'angle du surtitre. Aucun dégradé « lumineux » : que du ton de bloc. */
+.da-guide-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--da-outline) 45%, transparent) 0%,
+      color-mix(in srgb, var(--da-outline) 78%, transparent) 55%,
+      var(--da-outline) 100%),
+    radial-gradient(120% 90% at 12% 100%,
+      color-mix(in srgb, var(--da-outline) 72%, transparent),
+      transparent 62%);
+}
+
+.da-guide-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 220px;
+  padding: 1.25rem 1.5rem 1.5rem;
+  text-align: center;
+  color: var(--da-ink);
+}
+
+/* Fil d'Ariane du bandeau : posé à gauche, il ne se centre pas avec le titre. */
+.da-guide-hero-crumb {
+  align-self: flex-start;
+  margin: 0 0 auto;
+}
+
+/* Le panneau de contrôle vit DANS le bandeau (une seule carte, demande user du
+   05/11/2026) : il ne porte donc pas de carte à lui, seulement un fond opaque et
+   un filet — sinon c'était une boîte dans une boîte. */
+.da-guide-controls {
+  position: relative;
+  z-index: 2;
+  background: var(--da-bg, var(--background));
+  border-top: 1.5px solid var(--da-ln);
+}
+
+.da-guide-controls > :last-child { border-bottom: 0; }
+
+.da-guide-hero-inner > .da-kicker { margin: 0 0 .3rem; }
+
+/* `SYLVESTRE` — titre centré du bandeau (demande user du 05/11/2026 : « centre
+   Rush Sylvestre en gros »). La densité suit la largeur, jamais une hauteur
+   fixe qui déborderait sur 390 px. */
+.da-guide-hero .da-logo-b { font-size: clamp(44px, 8.6vw, 92px); }
+.da-guide-hero .da-logo-a { font-size: 15px; }
+
+.da-guide-hero .da-kicker,
+.da-guide-hero-inner a.da-kicker { color: var(--da-muted); }
+
+@media (max-width: 899px) {
+  .da-guide-hero-inner {
+    min-height: 168px;
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-da="wakfu"] *,
+  [data-da="wakfu"] *::before,
+  [data-da="wakfu"] *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ── Modale portailée — la fenêtre de la DA hors de son arbre ────────────────
+   Mesure du 05/11/2026 : Radix porte ses `DialogContent` dans `document.body`.
+   Le nœud ne reçoit donc ni `data-da` ni `.rush-guide` : les modales du guide
+   retombaient sur les jetons produit (153 occurrences mesurées). `.da-portal`
+   (posée par `daScopeProps`, `src/lib/da-scope.ts`) rétablit la passerelle des
+   jetons ; `.da-modal` donne la matière de la fenêtre.
+
+   Aucune ombre molle : la fenêtre de la DA est un **liseré** (`--da-outline`),
+   jamais un halo. Rayon 12 px : c'est le plafond du verrou « ≤ 12 px » — les
+   deux exceptions mesurées restent la fenêtre (14 px) et le coin de carte. */
+.da-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Jetons `--da-*` AVEC repli produit : les modales du Rush sont partagées avec
+     des écrans non migrés (profil, module Quêtes Dofus, studio God). Hors portée,
+     les `--da-*` ne sont pas définis (`--da-card` n'a pas d'`@property`) : sans
+     repli, la modale serait transparente. Dans la portée, la passerelle
+     `.da-portal` a déjà remappé les jetons produit — les deux chemins mènent à la
+     même matière. */
+  background: var(--da-card, var(--surface));
+  border: 1.5px solid var(--da-ln, var(--border-strong));
+  border-radius: 12px;
+  color: var(--da-ink, var(--foreground));
+  font-family: var(--da-font-text, inherit);
+}
+
+/* Liseré de fenêtre : réservé à la portée (hors DA, `--da-outline` garde sa
+   valeur `@property` et peindrait un cadre vert sombre sur un thème clair). */
+[data-da="wakfu"] .da-modal,
+.da-modal[data-da="wakfu"] {
+  box-shadow: 0 0 0 2px var(--da-outline);
+}
+
+/* Voile : la DA refuse le flou d'arrière-plan (une passe de composition pleine
+   page par modale ouverte, et le jeu devient illisible derrière). La doctrine
+   est déjà celle du dépôt — `RushOverlayQuestDetailModal` : « aucune ombre,
+   aucun flou d'arrière-plan, aucun glow ». */
+.da-modal-scrim {
+  background-color: rgb(0 0 0 / .72);
+  backdrop-filter: none;
+}
+
+.da-modal-head {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: .85rem 1.1rem .75rem;
+  border-bottom: 1.5px solid var(--da-ln, var(--border-strong));
+  background: var(--da-field, var(--surface));
+}
+
+/* Le titre prend la typographie de la DA. Les modales qui portaient déjà un
+   `DialogTitle` produit n'ont qu'à ajouter cette classe : le libellé est
+   inchangé, seule la fonte change (habillage seul). */
+.da-modal-title {
+  margin: 0;
+  font-family: var(--da-font-title, inherit);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .03em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--da-ink, var(--foreground));
+}
+
+.da-modal-sub {
+  margin: 0;
+  font-family: var(--da-font-text, inherit);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--da-muted, var(--muted-foreground));
+}
+
+/* Corps : seul élément qui défile — l'en-tête et le pied restent visibles
+   (même règle que la modale d'accueil du Rush, mesure du 02/11/2026). */
+.da-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: .85rem 1.1rem;
+}
+
+.da-modal-foot {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding: .7rem 1.1rem;
+  border-top: 1.5px solid var(--da-ln, var(--border-strong));
+  background: var(--da-field, var(--surface));
+}
+

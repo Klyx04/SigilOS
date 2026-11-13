@@ -2,12 +2,13 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
+import { clampSerpDescription, composeSerpTitle } from "@/lib/seo";
 import { db } from "@/lib/prisma";
 import { bountyIdFromLegacySlug } from "@/lib/bounty";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
@@ -17,6 +18,10 @@ import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
 import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/actions/public-boss-tabs-actions";
+import { bossSovereigntyKey } from "@/lib/boss-sovereignty";
+import { readLocalDungeonCatalogue } from "@/lib/dungeon-monsters-siphon";
+import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
+import { getMultiBossConfig } from "@/lib/dungeon-multi-boss";
 
 export const revalidate = 3600;
 
@@ -68,6 +73,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const bossName = dungeon ? dungeon.bossName || dungeon.name : bounty ? bounty.name : titan!.name;
+  /**
+   * Nom « propre » pour les extraits SERP : certaines entrées de la base portent un espace
+   * parasite (`"Phossile "`), qui produisait « Phossile , boss du donjon … » en production
+   * (relevé le 20/10/2026). Le titre est déjà normalisé par `composeSerpTitle`.
+   */
+  const cleanBossName = String(bossName).replace(/\s+/g, " ").trim();
   const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || (locale === "en" ? "Wanted Bounty" : "Avis de recherche") : titan!.zone || "Titan";
   const level = dungeon ? dungeon.level : bounty ? bounty.level : titan!.level;
   const imageUrl = dungeon ? dungeon.imageUrl : bounty ? bounty.imageUrl : titan!.imageUrl;
@@ -76,15 +87,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalUrl = `${getAppBaseUrl()}/boss/${canonicalSegment}`;
   if (bounty) {
     return {
-      // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+      // `absolute` : on maîtrise la longueur SERP — le template du layout ajouterait
+      // « | SigilOS » et repousserait le titre au-delà de ce que Google affiche.
       title: {
-        absolute: locale === "en"
-          ? `${bossName} (${t.bossPage.levelShort} ${level}) Wanted Bounty: Spells, Hunt Zone & Simulation | SigilOS`
-          : `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+        absolute: composeSerpTitle(
+          bossName,
+          `(${t.bossPage.levelShort} ${level})`,
+          locale === "en" ? "wanted bounty" : "avis de recherche",
+        ),
       },
-      description: locale === "en"
-        ? `Tactical guide for wanted bounty ${bossName} (${t.bossPage.levelShort.toLowerCase()} ${level}, hunt zone: ${dungeonLabel}): monster spells, ranges, resistances, loot and isometric simulation. 100% free.`
-        : `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
+      description: clampSerpDescription(locale === "en"
+        ? `${cleanBossName}, wanted bounty (level ${level}, hunt zone: ${dungeonLabel}): spells, ranges, resistances, loot and range simulation. Free, no account required.`
+        : `${cleanBossName}, avis de recherche niveau ${level} (zone de traque : ${dungeonLabel}) : sorts, portées, résistances, butin et simulation de portée. 100 % gratuit.`),
       alternates: {
         canonical: canonicalUrl,
       },
@@ -99,15 +113,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
   return {
-    // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+    // `absolute` : même raison que pour l'avis — la longueur SERP est tenue par le composeur.
     title: {
-      absolute: locale === "en"
-        ? `${bossName} (${t.bossPage.levelShort} ${level}): Spells, Ranges & Strategy | SigilOS`
-        : `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+      absolute: composeSerpTitle(
+        bossName,
+        `(${t.bossPage.levelShort} ${level})`,
+        locale === "en" ? "spells, ranges & resistances" : "sorts, portées, résistances",
+      ),
     },
-    description: locale === "en"
-      ? `Complete tactical sheet for ${dungeon ? `boss ${bossName} from dungeon ${dungeonLabel}` : `titan ${bossName} (${dungeonLabel})`}. Isometric spell range simulation, resistances and detachable in-game overlay over Dofus. 100% free.`
-      : `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
+    description: clampSerpDescription(locale === "en"
+      // `dungeonLabel` porte déjà « Donjon … » pour la plupart des donjons : jamais de préfixe
+      // « boss of » / « boss du donjon », qui produisait « donjon Donjon du Comte Harebourg ».
+      ? `${cleanBossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
+      : `${cleanBossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
     alternates: {
       canonical: canonicalUrl,
     },
@@ -169,6 +187,21 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
     : isBounty
       ? bounty!.dungeon.name
       : titan!.mapName || titan!.zone || titan!.name;
+  // 🐛 Double boss (mesure du 20/10/2026) : `bossName` porte le **nom du donjon**
+  // (« Comte et Nileza ») et non un monstre ⇒ les stats, les sorts et la carte étaient
+  // résolus sur le Comte, et la simulation ouvrait *toutes* les salles. La règle
+  // `resolveDungeonBossPair` désigne le vrai boss de la salle (`dofensiveMonsterName`)
+  // et son partenaire ; `bossName` reste le nom du donjon (SEO, famille).
+  const bossPair = dungeon
+    ? resolveDungeonBossPair({
+        name: dungeon.name,
+        bossName: dungeon.bossName,
+        dofensiveMonsterName: dungeon.dofensiveMonsterName,
+        dofensiveDungeonName: dungeon.dofensiveDungeonName,
+      })
+    : { focus: bossName, partner: null, isDoubleBoss: false };
+  const multiBossConfig = dungeon ? getMultiBossConfig(dungeon) : null;
+  const focusMonsterName = multiBossConfig ? multiBossConfig.bossNames[0] : bossPair.focus;
   // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
   // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
   // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
@@ -183,10 +216,10 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
     isBounty
       ? Promise.resolve({ success: true, data: bounty!.monsterStats })
-      : getMonsterStats(bossName, dungeonName, false, undefined, locale),
+      : getMonsterStats(focusMonsterName, dungeonName, false, undefined, locale),
     isBounty
       ? Promise.resolve({ success: false, data: null })
-      : getBossDofensiveSpells(bossName, dungeonName, undefined, false, undefined, locale),
+      : getBossDofensiveSpells(focusMonsterName, dungeonName, undefined, false, undefined, locale),
     // « Famille » (monstres accompagnateurs) : pour une anomalie = les autres gardiens de la
     // même carte + les monstres de l'anomalie (Briko/Bruto/Gromo), 100 % local (siphon).
     isBounty
@@ -203,7 +236,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
         : isRaidBoss
           ? Promise.resolve({ success: true, data: null })
           : getDofensiveDungeonForBoss(
-            bossName,
+            focusMonsterName,
             dungeonName,
             dungeon
               ? {
@@ -215,6 +248,12 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   ]);
 
   let monsterStats = statsRes.success ? statsRes.data : null;
+  if (monsterStats && multiBossConfig) {
+    monsterStats = {
+      ...monsterStats,
+      coordinates: multiBossConfig.coordinates,
+    };
+  }
   const spellsData = spellsRes.success ? spellsRes.data : null;
   if (monsterStats && spellsData) {
     // Lot 6 — garde d'appartenance : seuls les sorts du monstre (DofusDB +
@@ -225,10 +264,23 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
     ];
     monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData, legitIds) };
   } else if (!monsterStats && spellsData) {
-    monsterStats = { name: bossName, spells: spellsData, grades: [], drops: [] };
+    monsterStats = { name: focusMonsterName, spells: spellsData, grades: [], drops: [] };
   }
   const family: DungeonFamily | null = familyRes.success ? ((familyRes.data as DungeonFamily) ?? null) : null;
   const dungeonMaps = mapsRes.success ? mapsRes.data : null;
+
+  /**
+   * Lot 6 — **repli explicite** : le catalogue local ne couvre que 187 donjons (mesure du
+   * 18/10/2026, pour 207 en base). Quand ce donjon n'y est pas, la fiche s'appuie sur le
+   * repli réseau : elle le dit au lieu de présenter ces valeurs comme locales.
+   * `null` = catalogue illisible ⇒ on ne prétend rien (aucune bannière inventée).
+   */
+  const localCatalogue = dungeon ? readLocalDungeonCatalogue() : null;
+  const localCovered: boolean | null = dungeon && localCatalogue
+    ? localCatalogue.dungeons.some(
+        (entry) => bossSovereigntyKey(entry.cleanName || entry.name) === bossSovereigntyKey(dungeon.name)
+      )
+    : null;
 
   // Quêtes et succès — uniquement pour les vrais donjons (pas titans, pas bounties).
   const [questsRes, achievementsRes] = dungeon
@@ -310,6 +362,18 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
 
         </div>
 
+        {/* Lot 6 — **repli explicite** : aucune donnée locale ⇒ on le dit (jamais un réseau déguisé). */}
+        {localCovered === false && (
+          <p className="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-surface/60 px-3 py-2 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              {locale === "en"
+                ? "Partial sheet: some data (resistances, loot, spells) may be missing for this dungeon."
+                : "Fiche partielle : certaines données (résistances, butin, sorts) peuvent manquer pour ce donjon."}
+            </span>
+          </p>
+        )}
+
         {/* Client Boss Detail Client */}
         <PublicBossDetailClient
           dungeon={
@@ -319,7 +383,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   name: dungeon.name,
                   bossName: dungeon.bossName,
                   level: dungeon.level,
-                  imageUrl: dungeon.imageUrl,
+                  imageUrl: dungeon.imageUrl || multiBossConfig?.dungeonImageUrl || null,
                   dofensiveUrl: dungeon.dofensiveUrl,
                   dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl,
                   dofensiveMonsterName: dungeon.dofensiveMonsterName,

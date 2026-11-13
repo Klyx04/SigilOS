@@ -11,7 +11,15 @@ import {
     buildLadderSyncFields,
     buildLadderWorkerMessage,
     buildLadderWorkerFields,
+    buildLadderGuildFields,
+    formatLadderFailureContext,
+    ladderFailureDetailRows,
+    summarizeLadderFailuresByGuild,
+    LADDER_SYNC_MAX_DETAIL_ROWS,
     LADDER_SYNC_MAX_LISTED_FAILURES,
+    LADDER_SYNC_MAX_LISTED_GUILDS,
+    LADDER_SYNC_MAX_MESSAGE_GUILDS,
+    type LadderFailureProfile,
 } from "@/lib/ladder-sync-alert";
 
 describe("summarizeLadderSync", () => {
@@ -135,5 +143,146 @@ describe("run du WORKER BullMQ — message et champs FR (fin du jargon synced/no
         expect(
             buildLadderWorkerFields({ total: 1, cooldowns: 1 }).some((f) => f.name === "Pauses anti-blocage"),
         ).toBe(true);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C3 — « qui, par guilde », avec le maximum de contexte (pseudo renommé ?)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const failure = (over: Partial<LadderFailureProfile> = {}): LadderFailureProfile => ({
+    guildId: "g1",
+    guildName: "STELLIUM",
+    serverId: "draconiros",
+    pseudo: "Pseudo",
+    altPseudos: [],
+    classe: null,
+    dofusLevel: null,
+    successPoints: null,
+    totalXp: null,
+    lastLadderUpdate: null,
+    discordNickname: null,
+    ...over,
+});
+
+describe("summarizeLadderFailuresByGuild — le « qui » est rattaché à sa guilde", () => {
+    it("regroupe par guilde, compte les totaux et trie la plus touchée d'abord", () => {
+        const breakdown = summarizeLadderFailuresByGuild(
+            [
+                failure({ pseudo: "a" }),
+                failure({ pseudo: "b" }),
+                failure({ pseudo: "c", guildId: "g2", guildName: "AUTRE", serverId: null }),
+            ],
+            [failure({ pseudo: "d" })],
+        );
+
+        expect(breakdown.guildsTotal).toBe(2);
+        expect(breakdown.hiddenGuilds).toBe(0);
+        expect(breakdown.guilds[0]).toMatchObject({ guildId: "g1", notFoundTotal: 2, erroredTotal: 1 });
+        expect(breakdown.guilds[1]).toMatchObject({ guildId: "g2", notFoundTotal: 1, erroredTotal: 0 });
+    });
+
+    it("plafonne le nombre de guildes détaillées en DISANT combien sont masquées", () => {
+        const many = Array.from({ length: LADDER_SYNC_MAX_LISTED_GUILDS + 2 }, (_, index) =>
+            failure({ guildId: `g${index}`, guildName: `G${index}`, pseudo: `p${index}` }),
+        );
+        const breakdown = summarizeLadderFailuresByGuild(many, []);
+        expect(breakdown.guilds).toHaveLength(LADDER_SYNC_MAX_LISTED_GUILDS);
+        expect(breakdown.guildsTotal).toBe(LADDER_SYNC_MAX_LISTED_GUILDS + 2);
+        expect(breakdown.hiddenGuilds).toBe(2);
+    });
+});
+
+describe("formatLadderFailureContext — de quoi comprendre un pseudo disparu", () => {
+    it("rend niveau, points, classe, dernier sync, alias et pseudo Discord", () => {
+        const context = formatLadderFailureContext(
+            failure({
+                dofusLevel: 200,
+                successPoints: 3512,
+                classe: "Iop",
+                lastLadderUpdate: "2026-10-12T03:00:00.000Z",
+                altPseudos: ["Ancien-Nom", "Autre-Nom"],
+                discordNickname: "Nick",
+            }),
+        );
+
+        expect(context).toContain("niv. 200");
+        expect(context).toMatch(/3.512 pts/);
+        expect(context).toContain("Iop");
+        expect(context).toContain("dernier sync 2026-10-12");
+        expect(context).toContain("alias : Ancien-Nom, Autre-Nom");
+        expect(context).toContain("Discord : Nick");
+    });
+
+    it("dit « jamais synchronisé » quand aucune date n'existe (jamais un vide)", () => {
+        expect(formatLadderFailureContext(failure())).toContain("jamais synchronisé");
+    });
+});
+
+describe("rendu — champs d'embed, message et lignes du journal", () => {
+    it("un champ par guilde, avec les pseudos contextés et le reste résumé", () => {
+        const six = Array.from({ length: LADDER_SYNC_MAX_LISTED_FAILURES + 1 }, (_, index) =>
+            failure({ pseudo: `p${index}`, dofusLevel: 200 }),
+        );
+        const fields = buildLadderGuildFields(summarizeLadderFailuresByGuild(six, []));
+
+        expect(fields).toHaveLength(1);
+        expect(fields[0].name).toBe("STELLIUM · serveur draconiros");
+        expect(fields[0].value).toContain("6 introuvable(s)");
+        expect(fields[0].value).toContain("p0 (niv. 200");
+        expect(fields[0].value).toContain("(+1)");
+    });
+
+    it("ajoute un champ « … autres guildes » quand le plafond est atteint", () => {
+        const many = Array.from({ length: LADDER_SYNC_MAX_LISTED_GUILDS + 2 }, (_, index) =>
+            failure({ guildId: `g${index}`, guildName: `G${index}`, pseudo: `p${index}` }),
+        );
+        const fields = buildLadderGuildFields(summarizeLadderFailuresByGuild(many, []));
+        const last = fields[fields.length - 1];
+        expect(last.name).toBe("… autres guildes");
+        expect(last.value).toContain("2");
+    });
+
+    it("le message nomme la guilde ET les pseudos, et résume les guildes en trop", () => {
+        const breakdown = summarizeLadderFailuresByGuild(
+            [failure({ pseudo: "Toto" })],
+            [failure({ pseudo: "Kaput", guildId: "g2", guildName: "AUTRE", serverId: null })],
+        );
+        const message = buildLadderWorkerMessage(
+            { synced: 1, notFound: 1, errored: 1, total: 3 },
+            breakdown,
+        );
+        expect(message).toContain("STELLIUM · serveur draconiros");
+        expect(message).toContain("Toto");
+        expect(message).toContain("AUTRE");
+        expect(message).toContain("Kaput");
+
+        const manyGuilds = Array.from({ length: LADDER_SYNC_MAX_MESSAGE_GUILDS + 1 }, (_, index) =>
+            failure({ guildId: `g${index}`, guildName: `G${index}`, pseudo: `p${index}` }),
+        );
+        const longMessage = buildLadderWorkerMessage(
+            { synced: 0, notFound: manyGuilds.length, errored: 0, total: manyGuilds.length },
+            summarizeLadderFailuresByGuild(manyGuilds, []),
+        );
+        expect(longMessage).toContain("et 1 autre(s) guilde(s)");
+    });
+
+    it("une ligne de journal par profil en échec (le tableau du journal God)", () => {
+        const rows = ladderFailureDetailRows(
+            summarizeLadderFailuresByGuild([failure({ pseudo: "Toto" })], [failure({ pseudo: "Kaput" })]),
+        );
+
+        expect(Object.keys(rows)).toEqual(["STELLIUM · Toto", "STELLIUM · Kaput"]);
+        expect(rows["STELLIUM · Toto"]).toContain("introuvable");
+        expect(rows["STELLIUM · Kaput"]).toContain("erreur technique");
+    });
+
+    it("plafonne les lignes du journal en DISANT combien manquent", () => {
+        const many = Array.from({ length: LADDER_SYNC_MAX_DETAIL_ROWS + 5 }, (_, index) =>
+            failure({ pseudo: `p${index}` }),
+        );
+        const rows = ladderFailureDetailRows(summarizeLadderFailuresByGuild(many, []));
+        expect(Object.keys(rows)).toHaveLength(LADDER_SYNC_MAX_DETAIL_ROWS + 1);
+        expect(rows["… autres profils non détaillés"]).toContain("5");
     });
 });

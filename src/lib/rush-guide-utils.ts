@@ -1,6 +1,8 @@
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { getJob } from "@/lib/dofus-assets";
 import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
+import { normalizeAlignmentCamp, previousOrderRank } from "@/lib/rush-route";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -221,6 +223,33 @@ export function isNonCheckableBlock(
 }
 
 /**
+ * Table `id → rang` des CHAPITRES du guide (blocs cochables), bandeaux exclus.
+ *
+ * 🎯 Mesure du 12/11/2026 : les deux guides navigateur numérotaient chacun à leur
+ * façon — le guide membre avec `msIdx + 1`, c'est-à-dire le rang **dans le chapitre**
+ * (sa liste ne porte que les blocs d'un chapitre), le guide public avec
+ * `milestones.indexOf(ms) + 1`, c'est-à-dire le rang **bandeaux compris**. Deux
+ * numérotations différentes pour le même guide, et des numéros qui sautaient dès
+ * qu'un séparateur ou un encart s'intercalait. L'overlay suivait déjà la bonne règle.
+ *
+ * 🛡️ SOURCE UNIQUE : construite sur `isNonCheckableBlock`, et `rushChapterPosition`
+ * en dérive — une liste n'a donc pas à rappeler la règle ligne par ligne (O(n), pas
+ * O(n²)), et les deux surfaces lisent la MÊME table.
+ */
+export function rushChapterNumbers(
+  blocks: ReadonlyArray<Pick<RushMilestone, "id" | "type">>
+): ReadonlyMap<string, number> {
+  const numbers = new Map<string, number>();
+  let position = 0;
+  for (const block of blocks) {
+    if (isNonCheckableBlock(block)) continue;
+    position += 1;
+    numbers.set(block.id, position);
+  }
+  return numbers;
+}
+
+/**
  * Position d'un bloc dans la numérotation des CHAPITRES (les blocs non cochables ne
  * sont pas numérotés : sinon « Chapitre 12 / 45 » compterait des bandeaux).
  *
@@ -228,14 +257,11 @@ export function isNonCheckableBlock(
  *          de chapitres (blocs cochables) du guide.
  */
 export function rushChapterPosition(
-  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  blocks: ReadonlyArray<Pick<RushMilestone, "id" | "type">>,
   msId: string | null | undefined
 ): { index: number; total: number } {
-  const chapters = blocks.filter((b) => !isNonCheckableBlock(b));
-  const total = chapters.length;
-  if (!msId) return { index: 0, total };
-  const idx = chapters.findIndex((b) => b.id === msId);
-  return { index: idx >= 0 ? idx + 1 : 0, total };
+  const numbers = rushChapterNumbers(blocks);
+  return { index: (msId ? numbers.get(msId) : 0) ?? 0, total: numbers.size };
 }
 
 /**
@@ -253,6 +279,97 @@ export function getSequenceCoord(seq: RushSequence | null | undefined) {
     parseCoordinates(seq.tips || "") ||
     parseCoordinates(seq.note || "") ||
     null;
+}
+
+/**
+ * Coordonnée à afficher sur l'en-tête d'un **bloc** du guide interne.
+ *
+ * Parité guide public : côté public, chaque quête porte sa position à côté de son nom.
+ * Côté interne, un bloc replié ne montrait que son titre et `0 / 1 étapes` — impossible
+ * de savoir où aller sans déplier. Règle : un bloc à **une seule quête** affiche la
+ * position de cette quête ; un bloc à plusieurs quêtes n'en affiche aucune (il n'existe
+ * pas « une » position de bloc, on n'en invente pas).
+ */
+export function blockHeaderCoord(
+  sequences: readonly RushSequence[] | null | undefined
+): ReturnType<typeof getSequenceCoord> {
+  const quests = (sequences ?? []).filter((seq) => !isInfoSequence(seq));
+  if (quests.length !== 1) return null;
+  return getSequenceCoord(quests[0]);
+}
+
+// ─── Alignement : camp « donné » par une quête + cascade de décoche ───────────
+// Ces deux règles vivaient dans `src/lib/rush-helpers.ts`, avec le matching
+// « qui peut aider » retiré le 22/10/2026 (badge interne jugé inutile, à remplacer
+// plus tard par un vrai onglet de suivi entre membres). Elles n'ont rien à voir avec
+// l'entraide : elles restent, au même endroit que les autres règles du guide.
+
+/** Camp + niveau définis par une quête d'alignement (tag `alignment_set`). */
+export type RushAlignmentSet = { camp: string; level: number };
+
+/**
+ * Camp porté par un tag `alignment_set` — **`camp` d'abord** (canonique), puis `name`
+ * (legacy : import Tougli, exports JSON, tags écrits avant le 02/11/2026).
+ *
+ * Une seule source de lecture pour les 4 surfaces (badges, serveur, reset) : sans ça,
+ * les 67 lignes importées avec `camp` étaient lues comme « pas d'alignement » alors que
+ * `getAlignmentSet` exigeait `name` (défaut mesuré le 02/11/2026).
+ */
+export function alignmentTagCamp(tag: RushActivityTag | null | undefined): string | null {
+  if (!tag || tag.type !== "alignment_set") return null;
+  const raw = (tag as { camp?: unknown }).camp ?? (tag as { name?: unknown }).name;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+/**
+ * Lit le tag `alignment_set` d'une séquence : la quête « donne » cet alignement
+ * (camp + niveau) quand elle est cochée. `null` si ce n'est pas une quête d'alignement.
+ *
+ * Le camp rendu est **normalisé** (`Bonta` → `bontarien`) pour que les libellés et les
+ * comparaisons soient stables ; une valeur inconnue est rendue telle quelle (jamais
+ * rattachée d'office).
+ */
+export function getAlignmentSet(seq: RushSequence | null | undefined): RushAlignmentSet | null {
+  if (!seq || !Array.isArray(seq.activityTags)) return null;
+  const tag = seq.activityTags.find((t) => t.type === "alignment_set");
+  const raw = alignmentTagCamp(tag);
+  if (!raw) return null;
+  return {
+    camp: normalizeAlignmentCamp(raw) ?? raw,
+    level: typeof tag?.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
+  };
+}
+
+/**
+ * Cascade décoche : quand on décoche `targetSeqId`, on décoche aussi TOUTES les quêtes
+ * qui en dépendent (directement ou transitivement via les prérequis).
+ * Retourne l'ensemble des ids à décocher (cible incluse). Point fixe : tant qu'une
+ * quête cochée redevient « bloquée », on la décoche.
+ */
+export function collectCascadeUncheck(
+  targetSeqId: string,
+  milestones: RushMilestone[],
+  allCompletedSeqIds: Set<string>
+): Set<string> {
+  const completed = new Set(allCompletedSeqIds);
+  completed.delete(targetSeqId);
+  const cascade = new Set<string>([targetSeqId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const ms of milestones) {
+      if (!ms || ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (!seq || cascade.has(seq.id) || !completed.has(seq.id)) continue;
+        if (isSequenceBlockedByPrereqs(seq, completed, milestones)) {
+          completed.delete(seq.id);
+          cascade.add(seq.id);
+          changed = true;
+        }
+      }
+    }
+  }
+  return cascade;
 }
 
 /**
@@ -363,73 +480,114 @@ export function rushResourceKey(tag: { id?: string | null; name?: string | null 
   return `id:${tag.id ?? ""}|${normResourceName(tag.name ?? "")}`;
 }
 
-/**
- * Retourne les quêtes prérequis d'une séquence (match par nom via tags `prereq_text`).
- * Indépendant de la complétion : sert à afficher/dispatcher les prérequis cliquables.
- */
-export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
-  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) return [];
-  const prereqNames = seq.activityTags
-    .filter((tag) => tag.type === "prereq_text")
-    .map((tag) => tag.name?.toLowerCase().trim())
-    .filter(Boolean) as string[];
-  if (!prereqNames.length) return [];
+type PrereqCandidate = {
+  seqId: string;
+  milestoneId: string;
+  /** Libellé affichable (libellé d'origine de la séquence). */
+  name: string;
+  /** Libellé normalisé (casse + espaces insécables). */
+  label: string;
+};
 
-  const out: RushPrereqRef[] = [];
-  for (const candidateMs of allMilestones) {
-    if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
-    for (const candidateSeq of candidateMs.sequences) {
-      if (candidateSeq.id === seq.id) continue;
-      const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "")
-        .toLowerCase()
-        .trim();
-      if (prereqNames.includes(candidateName)) {
-        out.push({
-          seqId: candidateSeq.id,
-          milestoneId: candidateMs.id,
-          name: candidateSeq.subGuideName || candidateSeq.subGuideRef || candidateSeq.id,
-        });
-      }
+/** Index des cibles possibles d'un prérequis : les séquences des VRAIS chapitres. */
+function prereqCandidates(allMilestones: RushMilestone[]): PrereqCandidate[] {
+  const out: PrereqCandidate[] = [];
+  for (const ms of allMilestones) {
+    if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+    for (const seq of ms.sequences) {
+      out.push({
+        seqId: seq.id,
+        milestoneId: ms.id,
+        name: seq.subGuideName || seq.subGuideRef || seq.id,
+        label: normPrereqName(seq.subGuideName || seq.subGuideRef),
+      });
     }
   }
   return out;
 }
 
 /**
- * Résout la CIBLE d'un prérequis déclaré en God vers la séquence à ouvrir.
+ * Résout UN tag `prereq_text` vers sa séquence cible.
  *
- * ⚠️ Mesure (08/10/2026) : le tag `prereq_text` ne porte **qu'un nom** —
- * `RushSylvestreAdminClient` écrit `{ type: "prereq_text", name }`. Il n'y a donc pas d'id à
- * lire : l'id se **résout**, et c'est l'ORDRE de résolution qui décide de la justesse :
- *   1. **nom exact** (casse / espaces / espaces insécables normalisés) ;
- *   2. nom **partiel** en dernier recours — l'ancien code s'arrêtait au premier `includes`,
- *      donc « La grande bibliothèque » pouvait envoyer vers « La grande bibliothèque
- *      interdite » (retour user 08/10/2026 : « le prérequis peut viser la mauvaise quête »).
- *
- * Fonction PURE (exportée pour les tests) : `null` quand rien ne correspond — on ne devine pas.
- * Le stockage d'un **id** dans le tag est un changement God + backfill, tracé à part (T-2c).
+ * **L'id d'abord** (T-2c) : un tag qui porte un id ne dépend plus du libellé, donc
+ * renommer une quête dans le studio God ne casse plus ses prérequis.
+ * **Fail-closed** : un id fourni mais introuvable ⇒ `null` — on ne devine pas par nom
+ * (un id périmé doit se voir, pas retomber silencieusement sur un homonyme).
+ * Sans id (tags historiques), on garde l'ordre historique : nom exact, puis partiel.
  */
-export function resolvePrereqTarget(
-  name: string | null | undefined,
-  allMilestones: RushMilestone[]
-): { seqId: string; milestoneId: string } | null {
-  const wanted = normPrereqName(name);
-  if (!wanted) return null;
+function resolvePrereqTag(
+  tag: { id?: string | null; name?: string | null },
+  candidates: PrereqCandidate[]
+): PrereqCandidate | null {
+  const wantedId = (tag.id ?? "").trim();
+  if (wantedId) return candidates.find((c) => c.seqId === wantedId) ?? null;
 
-  const candidates: { seqId: string; milestoneId: string; label: string }[] = [];
-  for (const ms of allMilestones) {
-    if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
-    for (const seq of ms.sequences) {
-      const label = normPrereqName(seq.subGuideName || seq.subGuideRef);
-      if (label) candidates.push({ seqId: seq.id, milestoneId: ms.id, label });
+  const wanted = normPrereqName(tag.name);
+  if (!wanted) return null;
+  return (
+    candidates.find((c) => c.label === wanted) ??
+    candidates.find((c) => c.label.includes(wanted)) ??
+    null
+  );
+}
+
+
+/**
+ * Retourne les quêtes prérequis d'une séquence.
+ *
+ * Deux sources, **une seule liste** :
+ *  1. le tag `prereq_text` (résolu par **id** puis par libellé, indépendant de la
+ *     complétion) ;
+ *  2. la **chaîne des rangs** (L2) : le rang N d'un Ordre exige le rang N−1
+ *     (`previousOrderRank`). Les 30 quêtes d'Ordre ne portent aucun tag : sans cette
+ *     seconde source, la carte bloquée affichait « 0 prérequis à terminer » et le
+ *     joueur ne savait pas quoi faire.
+ */
+export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
+  if (!seq) return [];
+
+  const out: RushPrereqRef[] = [];
+  const seen = new Set<string>();
+
+  const tags = Array.isArray(seq.activityTags)
+    ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
+    : [];
+  if (tags.length) {
+    const candidates = prereqCandidates(allMilestones);
+    for (const tag of tags) {
+      const hit = resolvePrereqTag(tag, candidates);
+      if (!hit || hit.seqId === seq.id || seen.has(hit.seqId)) continue;
+      seen.add(hit.seqId);
+      out.push({ seqId: hit.seqId, milestoneId: hit.milestoneId, name: hit.name });
     }
   }
 
-  const exact = candidates.find((c) => c.label === wanted);
-  if (exact) return { seqId: exact.seqId, milestoneId: exact.milestoneId };
-  const partial = candidates.find((c) => c.label.includes(wanted));
-  if (partial) return { seqId: partial.seqId, milestoneId: partial.milestoneId };
-  return null;
+  const rankRef = previousOrderRank(seq, allMilestones);
+  if (rankRef && rankRef.seqId !== seq.id && !seen.has(rankRef.seqId)) {
+    seen.add(rankRef.seqId);
+    out.push(rankRef);
+  }
+
+  return out;
+}
+
+/**
+ * Résout la CIBLE d'un prérequis vers la séquence à ouvrir.
+ *
+ * **T-2c** : le tag `prereq_text` porte désormais un **id** stable (écrit par le studio
+ * God). La résolution est donc : **id** d'abord, puis libellé (tags historiques) —
+ * nom exact, puis nom partiel. Un id fourni mais introuvable renvoie `null` :
+ * on ne devine pas (fail-closed), sinon un id périmé viserait un homonyme.
+ *
+ * Fonction PURE (exportée pour les tests) : `null` quand rien ne correspond.
+ */
+export function resolvePrereqTarget(
+  name: string | null | undefined,
+  allMilestones: RushMilestone[],
+  id?: string | null
+): { seqId: string; milestoneId: string } | null {
+  const hit = resolvePrereqTag({ id, name }, prereqCandidates(allMilestones));
+  return hit ? { seqId: hit.seqId, milestoneId: hit.milestoneId } : null;
 }
 
 /** Normalisation d'un libellé de prérequis : espaces (dont insécables), casse. */
@@ -437,45 +595,87 @@ function normPrereqName(value: string | null | undefined): string {
   return (value ?? "").replace(/\u00a0/g, " ").trim().toLowerCase();
 }
 
+/** Camp d'alignement d'une séquence : `alignReq` d'abord, sinon le tag `alignment_set`. */
+function alignmentCampOf(seq: RushSequence): string | null {
+  const raw = (seq.alignReq ?? "").trim();
+  if (raw) return raw;
+  const tags = Array.isArray(seq.activityTags) ? seq.activityTags : [];
+  return alignmentTagCamp(tags.find((t) => t.type === "alignment_set"));
+}
+
 /**
- * Helper pur vérifiant si une séquence est bloquée par des prérequis inachevés.
- * Renvoie false si la séquence n'a pas de tag prereq_text OU si tous les prérequis sont terminés.
+ * **Compteur** de quêtes d'alignement validées pour une cité.
+ *
+ * C'est lui qui remplace la « tranche » : il se met à jour en cochant, sans aucune
+ * saisie. Les quêtes d'Ordre au palier N exigent `count >= N` (20/40/60/80/100).
+ */
+export function alignmentCountForCamp(
+  allMilestones: RushMilestone[],
+  completedSeqIds: Set<string>,
+  camp: string | null | undefined
+): number {
+  const wanted = normalizeAlignmentCamp(camp);
+  if (!wanted) return 0;
+  let count = 0;
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      if (!completedSeqIds.has(seq.id)) continue;
+      // Une quête d'ORDRE porte aussi `alignReq` : elle ne compte PAS dans la série de
+      // cité. Sans cette exclusion, 15 quêtes d'Ordre gonflaient le palier de 15
+      // (défaut mesuré le 02/11/2026 : 15 quêtes de rang 5 cochées « débloquaient » le
+      // palier 100 sans les 100 quêtes de cité).
+      if ((seq.alignOrderCode ?? "").trim()) continue;
+      if (normalizeAlignmentCamp(alignmentCampOf(seq)) === wanted) count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Une séquence est-elle bloquée ? Trois verrous, dans cet ordre :
+ *  1. **palier de cité** (`alignLevelReq` = 20/40/60/80/100 validé par le compteur) ;
+ *  2. **chaîne des rangs** (L2) : le rang N d'un Ordre exige le rang N−1 ;
+ *  3. **prérequis explicites** (`prereq_text`), résolus par id puis par libellé.
+ *
+ * `false` dès qu'aucun des trois ne s'applique ou que tout est satisfait — un prérequis
+ * introuvable ne bloque jamais à vie (il est signalé dans le studio God).
  */
 export function isSequenceBlockedByPrereqs(
   seq: RushSequence,
   allCompletedSeqIds: Set<string>,
   allMilestones: RushMilestone[]
 ): boolean {
-  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) {
-    return false;
+  if (!seq) return false;
+
+  // 1. Verrou de palier : une quête d'Ordre au palier N exige N quêtes de cité
+  //    validées. Il est vérifié AVANT les tags : une quête d'Ordre n'en porte pas.
+  const levelReq = seq.alignLevelReq ?? 0;
+  if (levelReq > 0) {
+    const count = alignmentCountForCamp(allMilestones, allCompletedSeqIds, alignmentCampOf(seq));
+    if (count < levelReq) return true;
   }
 
-  const prereqNames = seq.activityTags
-    .filter((tag) => tag.type === "prereq_text")
-    .map((tag) => tag.name?.toLowerCase().trim())
-    .filter(Boolean) as string[];
+  // 2. Chaîne des rangs (L2) : le rang N d'un Ordre exige le rang N−1 validé. Comme le
+  //    verrou de palier, il est vérifié AVANT les tags — les quêtes d'Ordre n'en portent
+  //    aucun (mesure du 02/11/2026 : 0 `prereq_text` sur les 30).
+  const rankRef = previousOrderRank(seq, allMilestones);
+  if (rankRef && !allCompletedSeqIds.has(rankRef.seqId)) return true;
 
-  if (!prereqNames.length) return false;
+  // 3. Prérequis explicites (`prereq_text`).
+  const tags = Array.isArray(seq.activityTags)
+    ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
+    : [];
+  if (!tags.length) return false;
 
-  return allMilestones.some((candidateMs) => {
-    if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") return false;
-    return candidateMs.sequences.some((candidateSeq) => {
-      if (candidateSeq.id === seq.id) return false;
-      const candidateName = (
-        candidateSeq.subGuideName ||
-        candidateSeq.subGuideRef ||
-        ""
-      )
-        .toLowerCase()
-        .trim();
-
-      // Si le candidat correspond à un prérequis requis ET qu'il n'est PAS complété -> bloqué
-      return (
-        prereqNames.includes(candidateName) &&
-        !allCompletedSeqIds.has(candidateSeq.id)
-      );
-    });
-  });
+  const candidates = prereqCandidates(allMilestones);
+  for (const tag of tags) {
+    const hit = resolvePrereqTag(tag, candidates);
+    if (!hit || hit.seqId === seq.id) continue;
+    // Cible connue et non cochée ⇒ bloqué. Un prérequis introuvable ne bloque pas :
+    // il est signalé dans le studio, il ne peut pas verrouiller une quête à vie.
+    if (!allCompletedSeqIds.has(hit.seqId)) return true;
+  }
+  return false;
 }
 
 /**
@@ -593,3 +793,192 @@ export function findMilestoneInsertIndex(
   }
   return ordered.length;
 }
+
+/**
+ * **Graines du reset d'alignement** — toutes les quêtes de la cité (`alignReq`), Ordre
+ * compris. C'est la règle de jeu : changer de cité efface la branche de l'**ancienne**
+ * cité, pas seulement les 67 quêtes qui portent le tag `alignment_set` (défaut mesuré
+ * le 02/11/2026 : 67 racines sur 236).
+ *
+ * Camp inconnu ou « neutre » ⇒ repli sur les tags `alignment_set` : le bouton « reset »
+ * historique continue de nettoyer quelque chose, même sans cité mémorisée.
+ *
+ * Règle PURE : aucun accès base, aucune mutation.
+ */
+export function alignmentResetSeeds(
+  allMilestones: RushMilestone[],
+  camp: string | null | undefined
+): string[] {
+  const wanted = normalizeAlignmentCamp(camp);
+  const ids: string[] = [];
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      const isSeed = wanted
+        ? normalizeAlignmentCamp(seq.alignReq) === wanted
+        : Array.isArray(seq.activityTags) && seq.activityTags.some((t) => t.type === "alignment_set");
+      if (isSeed) ids.push(seq.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * **Décision** du reset quand l'alignement d'un personnage change — sans toucher à la base.
+ *
+ * Règle de jeu : un changement de **cité** remet à zéro toute la branche quittée (cité +
+ * ses Ordres + dépendants) ; un changement d'**Ordre** seul ne décoche que les 5 quêtes de
+ * l'ancien Ordre. Un envoi **identique** ne décoche rien — c'est ce qui permet à
+ * l'onboarding ou à une fiche de réenregistrer le profil sans perdre de progression
+ * (mesure du 12/11/2026 : `updateUserProfile` acceptait `alignment` sans aucun reset).
+ *
+ * @returns `"camp"` pour un reset de cité, `"order"` pour un reset d'Ordre, `null` sinon.
+ */
+export function alignmentChangeReset(input: {
+  current: { alignment?: string | null; alignmentOrder?: string | null };
+  next: { alignment?: string | null; alignmentOrder?: string | null };
+}): "camp" | "order" | null {
+  const currentCamp = normalizeAlignmentCamp(input.current.alignment) ?? "neutre";
+  const nextCamp =
+    input.next.alignment === undefined
+      ? currentCamp
+      : normalizeAlignmentCamp(input.next.alignment) ?? "neutre";
+  if (nextCamp !== currentCamp) return "camp";
+
+  const currentOrder = (input.current.alignmentOrder ?? "").trim() || null;
+  const nextOrder =
+    input.next.alignmentOrder === undefined
+      ? currentOrder
+      : (input.next.alignmentOrder ?? "").trim() || null;
+  // Sans Ordre quitté, il n'y a rien à décocher : fail-closed, on ne devine pas.
+  if (currentOrder && nextOrder !== currentOrder) return "order";
+  return null;
+}
+
+/**
+ * **Graines du reset de changement d'ORDRE** (L2) — les 5 quêtes de l'Ordre quitté.
+ *
+ * Règle de jeu (`ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` § 8.2) : changer d'Ordre
+ * décoche **les 5 quêtes de l'ancien Ordre** ; le nouvel Ordre repart de son rang 1 et la
+ * progression de cité n'est pas touchée.
+ *
+ * Pas de cascade ici, volontairement :
+ *  · mesuré le 02/11/2026 — **aucun** tag `prereq_text` ne vise une quête d'Ordre, donc
+ *    il n'y a aucun dépendant à décocher ;
+ *  · une cascade emprunterait la **chaîne des rangs** (`previousOrderRank`) et effacerait
+ *    la branche du nouvel Ordre au lieu des 5 quêtes de l'ancien.
+ *
+ * Cité ou Ordre inconnu ⇒ **aucune** graine (fail-closed : on ne décoche rien au hasard).
+ *
+ * Règle PURE : aucun accès base, aucune mutation.
+ */
+export function orderResetSeeds(
+  allMilestones: RushMilestone[],
+  camp: string | null | undefined,
+  order: string | null | undefined
+): string[] {
+  const wantedCamp = normalizeAlignmentCamp(camp);
+  const wantedOrder = normalizeOrderCode(order);
+  if (!wantedCamp || !wantedOrder) return [];
+
+  const ids: string[] = [];
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      if (normalizeOrderCode(seq.alignOrderCode) !== wantedOrder) continue;
+      // L'Ordre est déjà propre à une cité ; la vérifier évite qu'une donnée mal taguée
+      // fasse déborder le reset sur l'autre branche.
+      if (normalizeAlignmentCamp(seq.alignReq) !== wantedCamp) continue;
+      ids.push(seq.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * **Cascade de réinitialisation** d'un changement de cité.
+ *
+ * En jeu, refaire son alignement invalide aussi les quêtes qui **dépendent** d'une
+ * quête d'alignement (prérequis), puis celles qui dépendent de celles-ci, etc.
+ * On calcule la **fermeture transitive** du graphe de prérequis à partir des graines.
+ *
+ * Fonction PURE : aucun accès base, aucune mutation. Les cycles sont absorbés.
+ */
+export function cascadeResetIds(
+  allMilestones: RushMilestone[],
+  seedIds: Iterable<string>
+): Set<string> {
+  const toReset = new Set(seedIds);
+  if (toReset.size === 0) return toReset;
+
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const ms of allMilestones) {
+      for (const seq of ms.sequences || []) {
+        if (toReset.has(seq.id)) continue;
+        const refs = getPrereqRefs(seq, allMilestones);
+        if (refs.some((ref) => toReset.has(ref.seqId))) {
+          toReset.add(seq.id);
+          grew = true;
+        }
+      }
+    }
+  }
+  return toReset;
+}
+
+/**
+ * **S0-7 (surfaces locales) — décocher un donjon dévalide la quête.**
+ *
+ * Le guide public et l'overlay invité n'ont pas de serveur pour corriger l'état : c'est
+ * la surface qui doit retirer la quête de ses étapes cochées. Règle pure, une seule fois
+ * pour les deux surfaces (aucune copie), et sans mutation des entrées.
+ *
+ * Le bloc redevient « non terminé » dès qu'une de ses quêtes cochables manque — les
+ * encarts informatifs (`info_sequence`) ne comptent jamais comme une étape à cocher.
+ */
+export function deselectSequenceFromProgress(input: {
+  completedStepsByMs: Map<string, Set<string>>;
+  completedIds: Set<string>;
+  milestones: Array<{ id: string; sequences?: Array<{ id: string; activityTags?: unknown }> }>;
+  sequenceId: string;
+}): {
+  completedStepsByMs: Map<string, Set<string>>;
+  completedIds: Set<string>;
+  /** Bloc propriétaire de la quête (`null` si la quête n'est pas dans le guide). */
+  milestoneId: string | null;
+  /** `false` = rien à faire (quête inconnue ou déjà décochée). */
+  changed: boolean;
+} {
+  const { completedStepsByMs, completedIds, milestones, sequenceId } = input;
+
+  const owner = milestones.find((m) => (m.sequences ?? []).some((s) => s.id === sequenceId));
+  if (!owner) {
+    return { completedStepsByMs, completedIds, milestoneId: null, changed: false };
+  }
+
+  const steps = new Set(completedStepsByMs.get(owner.id) ?? []);
+  if (!steps.has(sequenceId)) {
+    return { completedStepsByMs, completedIds, milestoneId: owner.id, changed: false };
+  }
+
+  steps.delete(sequenceId);
+  const nextSteps = new Map(completedStepsByMs);
+  nextSteps.set(owner.id, steps);
+
+  const contentIds = (owner.sequences ?? [])
+    .filter((s) => !isInfoSequence(s as { activityTags?: Array<{ type?: string | null }> }))
+    .map((s) => s.id);
+  const allDone = contentIds.length > 0 && contentIds.every((id) => steps.has(id));
+
+  const nextIds = new Set(completedIds);
+  if (allDone) nextIds.add(owner.id);
+  else nextIds.delete(owner.id);
+
+  return {
+    completedStepsByMs: nextSteps,
+    completedIds: nextIds,
+    milestoneId: owner.id,
+    changed: true,
+  };
+}
+

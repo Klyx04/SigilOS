@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { validateChannelBelongsToGuild } from "@/server/discord";
 import { getDisplayName } from "@/lib/display-name";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const GuildatonRecordSchema = z.object({
     discordId: z.string().regex(/^(\d{17,20}|manual_[\w\d_\.\-]+)$/, "ID Discord ou manuel invalide"),
@@ -624,7 +625,7 @@ export async function sendManualGuildatonReport(guildId: string): Promise<Action
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
 
     try {
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl = getAppBaseUrl();
         const url = `${baseUrl}/api/cron/guildaton-report?token=${process.env.CRON_SECRET}&forceGuild=${guildId}`;
         
         logger.info(`[Guildaton] Triggering manual report for guild: ${guildId}`);

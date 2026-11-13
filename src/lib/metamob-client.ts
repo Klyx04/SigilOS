@@ -128,6 +128,17 @@ const QuestTemplateSchema = z.object({
     monster_count: z.number().optional(),
     step_count: z.number().optional(),
     game_version: GameVersionSchema.optional(),
+    /**
+     * Type de quête (`ocre`, `eternelle-moisson`…). La doc API du 11/11/2026 le renvoie
+     * dans le template : c'est l'identifiant le plus fiable de la quête d'échange.
+     */
+    quest_type: z
+        .object({
+            id: z.number(),
+            slug: z.string(),
+            name: LocalizedNameSchema,
+        })
+        .optional(),
 });
 
 const UserQuestSchema = z.object({
@@ -137,6 +148,8 @@ const UserQuestSchema = z.object({
     parallel_quests: z.number(),
     wanted_count: z.number().optional(),
     offered_count: z.number().optional(),
+    /** « Afficher sur mon profil public » — `false` = quête masquée aux autres joueurs. */
+    show_trades: z.boolean().optional(),
     server: ServerSchema,
     quest_template: QuestTemplateSchema,
 });
@@ -423,8 +436,17 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
 /** I-15 : détecte une ressource utilisateur (privée) depuis l'URL complète.
  *  Outre /quests/ et /users/, couvre les endpoints privés sans ces segments :
  *  /v1/me et /v1/conversations (sinon cache Redis PARTAGÉ entre clés = fuite). */
-function isUserResourceFromUrl(url: string): boolean {
-    return url.includes("/quests/") || url.includes("/users/") || url.includes("/v1/me") || url.includes("/conversations");
+export function isUserResourceFromUrl(url: string): boolean {
+    // `/v1/quests` (la LISTE de ses propres quêtes) n'a pas de slash final : sans le préfixe
+    // ci-dessous, elle était classée « publique », écrite dans le cache partagé puis relue
+    // pour une autre clé quand le disjoncteur s'ouvrait. Mesuré le 11/11/2026.
+    return (
+        url.includes("/quests/") ||
+        url.startsWith("/v1/quests") ||
+        url.includes("/users/") ||
+        url.includes("/v1/me") ||
+        url.includes("/conversations")
+    );
 }
 
 /**
@@ -504,7 +526,7 @@ async function fetchApi<T>(
                 return JSON.parse(cached);
             }
         } catch (e) {
-            console.error("[Metamob] Cache-First lookup failed:", e);
+            logger.warn("[Metamob] Cache-First indisponible — lecture réseau", e);
         }
     }
 
@@ -593,23 +615,29 @@ async function fetchApi<T>(
                     return JSON.parse(cached);
                 }
             } catch (cacheErr) {
-                console.error("[Metamob] Redis fallback failed:", cacheErr);
+                // Redis indisponible = cas d'INFRA géré (on continue sans cache) — `warn`, sinon
+                // chaque hoquet Redis créait une Issue Sentry (le serveur capture `console.error`).
+                logger.warn("[Metamob] Cache Redis indisponible — repli réseau", cacheErr);
             }
         }
 
         if (error instanceof z.ZodError) {
-            console.error("[Metamob] Schema validation failed:", error.errors);
+            // Là, c'est un VRAI signal : le format de l'API a changé (drift) → reste en `error`.
+            logger.error("[Metamob] Format de réponse API inattendu", error.issues);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        
-        console.error("[Metamob] Network error:", error);
-        
-        // Final fallback: If not a user resource, return null instead of throwing to avoid blocking UI
+
+        // Amont MetaMob injoignable (DNS/TLS/timeout, 2 reprises épuisées) : cas
+        // d'EXPLOITATION, pas un défaut du produit. Ressource publique → repli (cache ou
+        // `null`) ; ressource utilisateur → erreur typée renvoyée à l'écran. Un seul log par
+        // branche, en `warn` (visible dans `docker logs`, hors Sentry) — mesure du 18/10/2026 :
+        // `JAVASCRIPT-NEXTJS-1S` (`ETIMEDOUT`/`ENETUNREACH` vers Cloudflare, 1 événement).
         if (!isUserResource) {
-            console.warn(`[Metamob] Silent fail for public resource: ${endpoint}`);
+            logger.warn(`[Metamob] Amont indisponible — repli silencieux sur ${endpoint}`, error);
             return null as any;
         }
-        
+
+        logger.warn(`[Metamob] Amont indisponible — erreur typée renvoyée pour ${endpoint}`, error);
         throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
@@ -642,7 +670,7 @@ async function fetchPaginatedApi<T>(
             const cached = await redis.get(cacheKey);
             if (cached) return JSON.parse(cached);
         } catch (e) {
-            console.error("[Metamob] Cache-First paginated lookup failed:", e);
+            logger.warn("[Metamob] Cache-First indisponible (paginé) — lecture réseau", e);
         }
     }
 
@@ -729,21 +757,20 @@ async function fetchPaginatedApi<T>(
                     return JSON.parse(cached);
                 }
             } catch (cacheErr) {
-                console.error("[Metamob] Redis fallback failed (paginated):", cacheErr);
+                logger.warn("[Metamob] Cache Redis indisponible (paginé) — repli réseau", cacheErr);
             }
         }
 
-        console.error("[Metamob] Network error (paginated):", error);
-
-        // Final fallback for public resources: Return empty items instead of throwing
+        // Même règle que la voie non paginée : amont indisponible = `warn`, une seule ligne.
         if (!isUserResource) {
-            console.warn(`[Metamob] Silent fail for public paginated resource: ${fullEndpoint}`);
+            logger.warn(`[Metamob] Amont indisponible — liste vide pour ${fullEndpoint}`, error);
             return { 
                 data: [], 
                 pagination: { total: 0, limit: 50, offset: 0 } 
             };
         }
 
+        logger.warn(`[Metamob] Amont indisponible — erreur typée renvoyée pour ${fullEndpoint}`, error);
         throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
@@ -831,20 +858,38 @@ export async function getPrivateQuestDetails(username: string, slug: string, opt
     }
 }
 
+/**
+ * GET /v1/quests/{slug}/matches — partenaires d'échange de **ses propres quêtes**.
+ *
+ * Doc mesurée le 11/11/2026 : `limit` **max 50** (défaut 20), `min_parallel_quests`,
+ * `only_possible_trades`. Les anciens `direction` / `active_within_days` sont **acceptés
+ * mais ignorés** par l'API : on ne les envoie plus (ils donnaient une fausse impression
+ * de filtre). Le tri est fait par Metamob (équilibre donner/recevoir) — on le conserve.
+ */
 export async function getQuestMatches(
     slug: string,
-    options?: FetchOptions & { direction?: string; activeWithinDays?: number; limit?: number; offset?: number }
+    options?: FetchOptions & {
+        minParallelQuests?: number;
+        onlyPossibleTrades?: boolean;
+        limit?: number;
+        offset?: number;
+    }
 ): Promise<{ matches: MatchPartner[]; pagination: z.infer<typeof PaginationSchema> }> {
     const params = new URLSearchParams();
-    if (options?.direction) params.set("direction", options.direction);
-    if (options?.activeWithinDays) params.set("active_within_days", options.activeWithinDays.toString());
-    if (options?.limit) params.set("limit", options.limit.toString());
-    if (options?.offset) params.set("offset", options.offset.toString());
+    if (options?.minParallelQuests && options.minParallelQuests > 1) {
+        params.set("min_parallel_quests", String(Math.floor(options.minParallelQuests)));
+    }
+    if (options?.onlyPossibleTrades) params.set("only_possible_trades", "1");
     const qs = params.toString();
-    const result = await fetchPaginatedApi(`/v1/quests/${encodeURIComponent(slug)}/matches${qs ? `?${qs}` : ""}`, MatchPartnerSchema, {
-        ...options,
-        tags: [`metamob-quest-matches-${slug}`]
-    });
+    const result = await fetchPaginatedApi(
+        `/v1/quests/${encodeURIComponent(slug)}/matches${qs ? `?${qs}` : ""}`,
+        MatchPartnerSchema,
+        {
+            ...options,
+            // `limit` / `offset` sont ajoutés par `fetchPaginatedApi` : ne pas les remettre ici.
+            tags: [`metamob-quest-matches-${slug}`],
+        }
+    );
     return { matches: result.data, pagination: result.pagination };
 }
 
@@ -935,8 +980,15 @@ export async function getOwnQuestMonsters(
  */
 export function matchesOcreQuest(q: {
     slug?: string | null;
-    quest_template?: { id?: number; monster_count?: number } | null;
+    quest_template?: {
+        id?: number;
+        monster_count?: number;
+        quest_type?: { slug?: string | null } | null;
+    } | null;
 }): boolean {
+    // Le type renvoyé par l'API est la source la plus fiable (doc 11/11/2026).
+    const typeSlug = (q.quest_template?.quest_type?.slug || "").toLowerCase();
+    if (typeSlug === "ocre" || typeSlug.includes("eternelle-moisson")) return true;
     const slug = (q.slug || "").toLowerCase();
     if (slug.includes("ocre") || slug.includes("eternelle-moisson")) return true;
     if (q.quest_template?.id === 1 || q.quest_template?.id === 2) return true;

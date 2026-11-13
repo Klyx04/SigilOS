@@ -4,6 +4,8 @@
  * utilisés par GOD, le Dashboard Membre et l'Overlay In-Game.
  */
 
+import type { RushQuestConstraints } from "@/types/rush-constraints";
+
 export type RushActivityTagType =
   | "combat_tactique"
   | "combat_vagues"
@@ -30,6 +32,11 @@ export type RushActivityTagType =
 export type RushActivityTag = {
   type: RushActivityTagType | string;
   name?: string;
+  /**
+   * Camp d'un tag `alignment_set` — **vocabulaire canonique** (02/11/2026).
+   * L'ancien import écrivait `name` : il reste lu en legacy (`alignmentTagCamp`).
+   */
+  camp?: string | null;
   level?: number;
   count?: number;
   color?: string;
@@ -46,6 +53,8 @@ export type RushDungeonRef = {
   name: string;
   bossName?: string;
   imageUrl?: string | null;
+  /** Optionnel : affiché dans la quête, mais ne bloque pas sa validation. */
+  isOptional?: boolean;
 };
 
 export type RushSequence = {
@@ -64,12 +73,28 @@ export type RushSequence = {
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
+  /** Conditions structurées (horaire, joueurs, métiers, sorts, notes) — des infos, jamais un blocage. */
+  constraints?: RushQuestConstraints | null;
   alignReq?: string | null;
-  alignOrderReq?: number | null;
+  /** Code d'Ordre (6 valeurs) — seules les quêtes d'Ordre en portent. */
+  alignOrderCode?: string | null;
+  /** Palier d'alignement requis : 20 | 40 | 60 | 80 | 100 (VERROU calculé). */
+  alignLevelReq?: number | null;
+  /** Classe requise (fec | osa | enu | …) — quêtes de classe. */
+  classReq?: string | null;
+  /** Variantes de texte par camp (lot 4) — vide ⇒ `subGuideName` / `tips` de base. */
+  routeVariants?: {
+    bontarien?: { name?: string; tips?: string };
+    brakmarien?: { name?: string; tips?: string };
+  } | null;
   isSuccess?: boolean;
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: RushActivityTag[];
+  /** Bloc B — page publique : slug figé à la publication, `null` tant que non publiée. */
+  publicSlug?: string | null;
+  /** Bloc B — la page publique existe-t-elle ? */
+  isPublished?: boolean;
 };
 
 export type RushMilestoneType =
@@ -82,7 +107,9 @@ export type RushMilestoneType =
   | "DONJON"
   | "INFO"
   | "SEPARATEUR"
-  | "DOFUS_OBTAINED";
+  | "DOFUS_OBTAINED"
+  | "COMBAT_TACTIQUE"
+  | "COMBAT_SEMI_TACTIQUE";
 
 export type RushMilestone = {
   id: string;
@@ -96,6 +123,8 @@ export type RushMilestone = {
   isOptional: boolean;
   order: number;
   tips?: string | null;
+  /** Liens externes nommés des blocs Combat / Conseils (JSON borné). */
+  links?: unknown;
   dofusId?: string | null;
   type?: RushMilestoneType | string;
   sequences: RushSequence[];

@@ -21,3 +21,18 @@ export const SONGES_BUTTON = {
 } as const;
 
 export type SongesButtonVariant = keyof typeof SONGES_BUTTON;
+
+/**
+ * Groupe d'actions secondaires : **un seul** contenant bordé, items séparés par un filet.
+ * Les 4 actions de l'en-tête du module ne doivent pas ressembler à 4 boutons étrangers :
+ * l'action principale (créer) porte seule l'accent, les outils d'aide vivent dans ce groupe.
+ */
+export const SONGES_ACTION_GROUP =
+    "flex items-center h-9 rounded-lg border border-border bg-surface/40 divide-x divide-border overflow-hidden";
+
+/** Item d'un groupe d'actions : MÊME hauteur, MÊME padding, MÊME graisse que le reste du groupe. */
+export const SONGES_ACTION_GROUP_ITEM =
+    "inline-flex items-center gap-2 h-full px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface transition-colors";
+
+/** Hauteur commune des actions d'en-tête (l'action principale s'aligne sur le groupe). */
+export const SONGES_HEADER_ACTION_HEIGHT = "h-9";

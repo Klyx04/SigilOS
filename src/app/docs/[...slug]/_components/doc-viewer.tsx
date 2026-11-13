@@ -9,44 +9,8 @@ import { cn } from "@/lib/utils";
 import * as React from "react";
 import { DocBreadcrumbs } from "@/components/doc/doc-breadcrumbs";
 import { DocPagination } from "@/components/doc/doc-pagination";
-
-// Map slug → route Dashboard correspondante
-const MODULE_ROUTES: Record<string, { label: string; href: string }> = {
-    // 🌟 Guides Membres
-    "introduction":                    { label: "Accueil Dashboard",           href: "/home" },
-    "missions":                        { label: "Missions de Guilde",          href: "/missions" },
-    "quete-ocre":                      { label: "Quête Ocre",                  href: "/quete-ocre" },
-    "ladder":                          { label: "Ladder de Guilde",            href: "/ladder" },
-    "succes":                          { label: "Succès & Donjons",            href: "/succes" },
-    "quetes-dofus":                    { label: "Les Quêtes Dofus",            href: "/quetes-dofus" },
-    "donjons-et-quetes":               { label: "Donjons & Quêtes (LFG)",      href: "/donjons-et-quetes" },
-    "songes":                          { label: "Songes Infinis",              href: "/songes" },
-    "galerie-stuff":                   { label: "Galerie de Stuff",            href: "/galerie-stuff" },
-    "services":                        { label: "Services de Guilde",          href: "/services" },
-    "planning":                        { label: "Planning & Disponibilités",   href: "/planning" },
-    "members":                         { label: "Annuaire de Guilde",          href: "/members" },
-    "calendar":                        { label: "Calendrier des Sorties",      href: "/calendar" },
-    "sondages":                        { label: "Sondages Communautaires",     href: "/sondages" },
-    "worldmap":                        { label: "Carte du Monde HD",           href: "/worldmap" },
-    "mini-jeux":                       { label: "Mini-Jeux Dofus",             href: "/mini-jeux" },
-    "ressources":                      { label: "Ressources Dofus",            href: "/ressources" },
-
-    // 🛡️ Administration & Staff
-    "admin-getting-started":           { label: "Centre de Contrôle Admin",   href: "/admin" },
-    "admin-settings":                  { label: "Paramètres Généraux",         href: "/admin/settings" },
-    "admin-permissions":               { label: "Rôles & Permissions",         href: "/admin/permissions" },
-    "admin-modules":                   { label: "Gestion des Modules",         href: "/admin/modules" },
-    "admin-reaction-roles":            { label: "Reaction Roles Discord",      href: "/admin/reaction-roles" },
-    "admin-tickets":                   { label: "Bot Tickets & Support",       href: "/admin/tickets" },
-    "admin-presentation":              { label: "Identité & Vitrine Publique", href: "/admin/presentation" },
-    "admin-missions":                  { label: "Gestion des Missions",        href: "/missions/manage" },
-    "admin-validation":                { label: "File de Validation OCR",      href: "/admin/validation" },
-    "admin-members":                   { label: "Audit Roster Discord",        href: "/admin/members" },
-    "module-recrutement-cycle-de-vie": { label: "Recrutement & Cycle de Vie", href: "/admin/members" },
-    "admin-points":                    { label: "Points & Économie Guilde",    href: "/admin/points" },
-    "admin-logs":                      { label: "Logs d'Audit Staff",          href: "/admin/logs" },
-    "admin-api-keys":                  { label: "Clés d'API Rest",             href: "/admin/api-keys" },
-};
+import { getModuleRoute } from "@/lib/docs-modules";
+import { getDocMeta } from "@/lib/doc-meta";
 
 export function DocViewer({
     content,
@@ -56,7 +20,8 @@ export function DocViewer({
     next,
     breadcrumbs,
     guildId,
-    slug
+    slug,
+    accessLevel
 }: {
     content: string,
     title: string,
@@ -65,14 +30,15 @@ export function DocViewer({
     next?: { title: string, slug: string } | null,
     breadcrumbs?: { label: string, href: string }[],
     guildId?: string | null,
-    slug?: string
+    slug?: string,
+    accessLevel?: string | null
 }) {
     const [headings, setHeadings] = React.useState<{ id: string; text: string; level: number }[]>([]);
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const [scrollProgress, setScrollProgress] = React.useState(0);
 
     // Module route link
-    const moduleRoute = slug ? MODULE_ROUTES[slug] : null;
+    const moduleRoute = slug ? getModuleRoute(slug) : null;
     const moduleHref = moduleRoute && guildId
         ? `/dashboard/${guildId}${moduleRoute.href}`
         : null;
@@ -140,13 +106,54 @@ export function DocViewer({
                         </div>
                     </div>
 
-                    <h1 className="mb-3 text-2xl font-semibold leading-snug text-foreground">
-                        {title}
-                    </h1>
-                    <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-accent" aria-hidden="true">
+                            {(() => {
+                                const DocIcon = getDocMeta(slug ?? "").icon;
+                                return <DocIcon className="h-5 w-5" />;
+                            })()}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="reg-eyebrow">{breadcrumbs?.[0]?.label ?? "Documentation"}</p>
+                            <h1 className="mt-1.5 text-2xl font-semibold leading-snug text-foreground">
+                                {title}
+                            </h1>
+                        </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                         <span className="reg-mono">Mis à jour le {format(new Date(lastUpdate), "d MMMM yyyy", { locale: fr })}</span>
+                        {accessLevel === "ADMIN" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-400">
+                                Staff
+                            </span>
+                        )}
+                        {accessLevel === "MEMBER" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                Membres
+                            </span>
+                        )}
                     </div>
                 </header>
+
+                {/* Sommaire chips — visible sous xl (la TOC latérale prend le relais au-delà) */}
+                {headings.length > 1 && (
+                    <nav aria-label="Sommaire" className="mb-8 flex items-center gap-2 overflow-x-auto pb-1 xl:hidden">
+                        {headings.map((heading, i) => (
+                            <a
+                                key={i}
+                                href={`#${heading.id}`}
+                                className={cn(
+                                    "shrink-0 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors",
+                                    activeId === heading.id
+                                        ? "border-accent bg-surface text-foreground"
+                                        : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground"
+                                )}
+                            >
+                                {heading.text}
+                            </a>
+                        ))}
+                    </nav>
+                )}
 
                 {(() => {
                     const EXTENDED_SEPARATOR = /<!--\s*(?:MORE|EXTENDED)\s*-->/i;

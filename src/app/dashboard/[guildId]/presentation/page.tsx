@@ -13,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import AccessDenied from "@/components/access-denied";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { DocContent } from "@/components/doc/doc-content";
+import { isInternalRulesEmpty } from "@/lib/presentation-rules";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -27,11 +29,12 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
         return <AccessDenied />;
     }
 
-    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // 🔒 Verrou de module (guilde ∪ plateforme) + toggle admin : une URL directe reboucle (A1).
     // Le God plateforme garde l'accès (`bypassModules = isGod`).
     if (!user.isSuperAdmin) {
-        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        const { isModuleLocked, isModuleEnabled } = await import("@/server/actions/module-actions");
         if (await isModuleLocked(guildId, "presentation")) redirect(`/dashboard/${guildId}`);
+        if (!(await isModuleEnabled(guildId, "presentation"))) redirect(`/dashboard/${guildId}`);
     }
 
     if (!guild) {
@@ -175,6 +178,32 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             <h3 className="text-sm font-bold text-muted-foreground mb-1">Aucune histoire racontée</h3>
                             <p className="text-xs text-muted-foreground max-w-xs">Partagez l'épopée de votre guilde avec le monde.</p>
                         </Card>
+                    )}
+
+                    {/* Règlement intérieur — interne seul, jamais public. */}
+                    {guild.internalRules && !isInternalRulesEmpty(guild.internalRules) ? (
+                        <Card className="border-border bg-surface/50">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <BookOpen className="w-5 h-5 text-info" />
+                                    Règlement intérieur
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">Interne — invisible de l&apos;annuaire public.</p>
+                            </CardHeader>
+                            <CardContent>
+                                <DocContent content={guild.internalRules} />
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        canEdit && (
+                            <Card className="border-border border-dashed bg-surface/20 py-12 flex flex-col items-center justify-center text-center px-6">
+                                <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mb-4">
+                                    <BookOpen className="w-6 h-6 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-sm font-bold text-muted-foreground mb-1">Aucun règlement écrit</h3>
+                                <p className="text-xs text-muted-foreground max-w-xs">Posez les règles de la maison en cinq minutes — visibles des membres seuls.</p>
+                            </Card>
+                        )
                     )}
 
                     {/* Guild Photo */}

@@ -8,8 +8,6 @@ import type { TagClassification } from "./overlay-utils";
 
 interface RushOverlayTagSectionProps {
   tags: TagClassification;
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode?: boolean;
   className?: string;
 }
 
@@ -37,7 +35,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
     <div className={cn("space-y-2", className)}>
       {/* A — Nature de l'étape */}
       {hasNature && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex min-w-0 max-w-full flex-wrap gap-1">
           {tags.nature.slice(0, 4).map((tag, i) => (
             <RushTagBadge key={i} tag={tag} size="sm" />
           ))}
@@ -67,7 +65,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
           </button>
 
           {showConditions && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            <div className="mt-1.5 flex min-w-0 max-w-full flex-wrap gap-1">
               {tags.condition.map((tag, i) => (
                 <RushTagBadge key={i} tag={tag} size="sm" />
               ))}
@@ -94,7 +92,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
           </button>
 
           {showTools && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            <div className="mt-1.5 flex min-w-0 max-w-full flex-wrap gap-1">
               {tags.tool.map((tag, i) => (
                 <RushTagBadge key={i} tag={tag} size="sm" />
               ))}

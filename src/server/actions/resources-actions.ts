@@ -162,7 +162,6 @@ export async function getResourceCategories(guildId: string) {
                     { title: "Dofus Pour Les Noobs", description: "Le wiki ultime pour toutes les quêtes et donjons", url: "https://www.dofuspourlesnoobs.com", emoji: "📖" },
                     { title: "Metamob", description: "Outil indispensable pour l'Éternelle Moisson (Ocre)", url: "https://www.metamob.fr/", emoji: "🐙" },
                     { title: "Barbofus", description: "Aides, quêtes et outils pratiques", url: "https://barbofus.com/", emoji: "🧔" },
-                    { title: "Dofensive", description: "Sorts, IA et résistances précises de chaque monstre", url: "https://dofensive.com", emoji: "🛡️" },
                     { title: "Ganymède", description: "Application d'outils et gestion de personnages", url: "https://ganymede-app.com/about", emoji: "🦅" },
                     { title: "Doflinks", description: "Annuaire exhaustif de tous les outils et sites Dofus", url: "https://doflinks.fr/", emoji: "🔗" },
                 ]

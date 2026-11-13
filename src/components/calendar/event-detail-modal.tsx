@@ -4,6 +4,7 @@
  * EventDetailModal V3 - 4 Types + Native ClassIcon
  */
 
+import { MISSION_CATEGORY_IMAGES } from "@/lib/mission-category-images";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -19,6 +20,7 @@ import {
     Check,
     X,
     Play,
+    Pause,
     Square,
     ChevronLeft,
     ChevronRight,
@@ -39,6 +41,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +57,11 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
-import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
+import { DjPostDetailModal } from "@/components/dungeon-finder/DjPostDetailModal";
+import { SongesRunDetailModal } from "@/components/songes/SongesRunDetailModal";
+import { getDjPostById, type DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { getDreamRunById } from "@/server/actions/songes/dream-run-actions";
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
@@ -63,7 +70,15 @@ import { ClassIcon } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
-import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
+import { kickParticipant, transferRaidCaptaincy, setEventStandBy } from "@/server/actions/calendar-actions";
+import {
+    RAID_ABSENCE_DEFAULT,
+    RAID_ABSENCE_REASONS,
+    RAID_PRESENCE_LABELS,
+    buildRaidClosureAttestation,
+    type RaidAbsenceReason,
+} from "@/lib/raid-presence";
+import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { useRaidLive } from "@/hooks/use-raid-live";
 import {
@@ -116,37 +131,37 @@ const MISSION_CATEGORY_CONFIG: Record<string, { picto: DofusUiIconName; color: s
     DONJON: {
         picto: "dungeon",
         color: "text-danger",
-        fallbackImage: "/banners/donjon.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.DONJON,
         label: "Donjon"
     },
     REGULATION: {
         picto: "skull",
         color: "text-success",
-        fallbackImage: "/banners/regulation.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.REGULATION,
         label: "Régulation"
     },
     ANOMALIE: {
         picto: "monster",
         color: "text-warning",
-        fallbackImage: "/assets/missions/ano1.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.ANOMALIE,
         label: "Anomalie"
     },
     SONGES: {
         picto: "hourglass",
         color: "text-info",
-        fallbackImage: "/assets/missions/songes.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.SONGES,
         label: "Songes"
     },
     EXPEDITION: {
         picto: "treasure",
         color: "text-success",
-        fallbackImage: "/banners/expedition.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EXPEDITION,
         label: "Expédition"
     },
     EVENT: {
         picto: "trophy",
         color: "text-warning",
-        fallbackImage: "/assets/missions/event.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EVENT,
         label: "Événement"
     },
 };
@@ -188,6 +203,8 @@ interface EventDetail {
     };
     participants: Participant[];
     discordMessageId?: string | null;
+    /** « Stand-by » (30/10/2026) : `null` = actif, sinon `{ at, userId, name }` — règle `@/lib/group-standby`. */
+    standBy?: unknown;
 }
 
 interface DiscordRole {
@@ -227,11 +244,21 @@ interface EventDetailModalProps {
     discordChannels?: DiscordChannels;
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
-    raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
+    raidEligibility?: {
+        isEligible: boolean;
+        totalDonated: number;
+        raidRequireKamaDonation?: boolean;
+        /** Don hebdomadaire exigé (tranches × 10 000 kamas) — affiché tel quel, jamais codé en dur. */
+        requiredKamas?: number;
+        /** Coût décompté **par présent** à la clôture (tranches × 10 🟣). */
+        purpleKamasCost?: number;
+    } | null;
     /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
     myCharacters?: { main: string | null; secondaries: string[] };
     /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
     onMyClassChange?: (classe: string) => Promise<void>;
+    currentProfileId?: string;
+    onRefresh?: () => void;
 }
 
 // ============================================
@@ -264,6 +291,8 @@ export function EventDetailModal({
     raidEligibility = null,
     myCharacters,
     onMyClassChange,
+    currentProfileId,
+    onRefresh,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -281,6 +310,8 @@ export function EventDetailModal({
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
+    // R1 « no-show » : motif de chaque inscrit **décoché** (défaut « Prévenu », consigne §14).
+    const [absenceReasons, setAbsenceReasons] = useState<Record<string, RaidAbsenceReason>>({});
     const { openRaidOverlay } = useRaidOverlay();
 
     const eventMetadata = (event as any)?.metadata as any;
@@ -304,6 +335,14 @@ export function EventDetailModal({
     const isRaid = event?.type === "RAID_OFFICIAL";
     const raidMeta = isRaid ? eventMetadata : null;
 
+    // R1 « no-show » : inscrits au raid, décochés et motif manquant — l'attestation, la
+    // validation bloquante et le payload de clôture partent tous de ces trois listes.
+    const registeredParticipants = (event?.participants ?? []).filter((p) => p.status === "REGISTERED");
+    const absentParticipants = registeredParticipants
+        .map((p) => p.user.id)
+        .filter((userId) => !presentParticipants.has(userId));
+    const missingAbsenceReasons = absentParticipants.filter((userId: string) => !absenceReasons[userId]);
+
     // Raids are fully independent from the calendar channel — never fall back to it.
     const hasDiscordForType = isRaid
         ? (raidMeta?.raidType === "gigalodon"
@@ -321,6 +360,10 @@ export function EventDetailModal({
             });
         }
     }, [event?.type, missionIds]);
+
+    // R1 — registre de présence : **déplacé** dans la fiche membre (onglet « Présences »).
+    // La modale de clôture ne garde que le motif par inscrit : le constat d'un raid n'est pas
+    // l'historique d'un joueur (décision du 31/10/2026).
 
     // Lot 2 — session live : visible par tous, pilotée par le lead seul
     // (créateur OU capitaine actuel). Hooks avant le return précoce ci-dessous.
@@ -386,7 +429,106 @@ export function EventDetailModal({
     const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
     const liveStepsCount = liveSession ? getLocalizedRaidData(liveSession.raidType, "fr").steps.length : 0;
 
+    const mirrorSource = agendaMirrorSource(eventMetadata);
+
+    const [mirrorDjPost, setMirrorDjPost] = useState<DjPostWithDetails | null>(
+        () => (event as any)?.mirrorDjPost ?? null
+    );
+    const [mirrorDreamRun, setMirrorDreamRun] = useState<any | null>(
+        () => (event as any)?.mirrorDreamRun ?? null
+    );
+
+    useEffect(() => {
+        if ((event as any)?.mirrorDjPost) {
+            setMirrorDjPost((event as any).mirrorDjPost);
+        } else if (open && mirrorSource?.kind === "DJ") {
+            getDjPostById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.data) setMirrorDjPost(res.data);
+            });
+        } else if (!open) {
+            setMirrorDjPost(null);
+        }
+    }, [event, open, mirrorSource?.kind, mirrorSource?.id, guildId]);
+
+    useEffect(() => {
+        if ((event as any)?.mirrorDreamRun) {
+            setMirrorDreamRun((event as any).mirrorDreamRun);
+        } else if (open && mirrorSource?.kind === "SONGES") {
+            getDreamRunById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.run) setMirrorDreamRun(res.run);
+            });
+        } else if (!open) {
+            setMirrorDreamRun(null);
+        }
+    }, [event, open, mirrorSource?.kind, mirrorSource?.id, guildId]);
+
+    const handleMirrorRefresh = () => {
+        if (mirrorSource?.kind === "DJ") {
+            getDjPostById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.data) setMirrorDjPost(res.data);
+            });
+        } else if (mirrorSource?.kind === "SONGES") {
+            getDreamRunById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.run) setMirrorDreamRun(res.run);
+            });
+        }
+        onRefresh?.();
+    };
+
     if (!event) return null;
+
+    if (open && mirrorSource?.kind === "DJ") {
+        if (!mirrorDjPost) {
+            return (
+                <Dialog open={open} onOpenChange={(o) => !o && onOpenChange(false)}>
+                    <DialogContent className="max-w-md p-8 bg-surface border-border flex flex-col items-center justify-center gap-3">
+                        <DialogTitle className="sr-only">Chargement de l'événement</DialogTitle>
+                        <DialogDescription className="sr-only">Chargement des détails du groupe de donjon</DialogDescription>
+                        <Loader2 className="w-8 h-8 animate-spin text-warning" />
+                        <p className="text-sm text-muted-foreground font-medium">Chargement du groupe...</p>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
+        return (
+            <DjPostDetailModal
+                isOpen={open}
+                onClose={() => onOpenChange(false)}
+                post={mirrorDjPost}
+                guildId={guildId}
+                currentProfileId={currentProfileId}
+                isAdmin={isAdmin}
+                onRefresh={handleMirrorRefresh}
+            />
+        );
+    }
+
+    if (open && mirrorSource?.kind === "SONGES") {
+        if (!mirrorDreamRun) {
+            return (
+                <Dialog open={open} onOpenChange={(o) => !o && onOpenChange(false)}>
+                    <DialogContent className="max-w-md p-8 bg-surface border-border flex flex-col items-center justify-center gap-3">
+                        <DialogTitle className="sr-only">Chargement de l'événement</DialogTitle>
+                        <DialogDescription className="sr-only">Chargement des détails de la run Songes</DialogDescription>
+                        <Loader2 className="w-8 h-8 animate-spin text-warning" />
+                        <p className="text-sm text-muted-foreground font-medium">Chargement de la run...</p>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
+        return (
+            <SongesRunDetailModal
+                isOpen={open}
+                onClose={() => onOpenChange(false)}
+                run={mirrorDreamRun}
+                guildId={guildId}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                isDiscordConfigured={Boolean(discordChannels?.calendarNotifyChannelId)}
+                onRefresh={handleMirrorRefresh}
+            />
+        );
+    }
 
     // Init present participants when entering completion mode
     const initRaidCompletion = () => {
@@ -397,8 +539,20 @@ export function EventDetailModal({
         setShowRaidCompletion(true);
     };
 
-    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
-    const effectiveStatus = isCompleted ? "COMPLETED" : event.status;
+    // Statut = celui décidé par le SERVEUR (règle unique `@/lib/calendar-auto-close`) : l'écran
+    // ne rejuge plus la date. C'est cette recomparaison locale qui marquait « Terminé » un raid
+    // encore `PUBLISHED` et masquait le bouton « Clôturer le Raid » au capitaine.
+    const isCompleted = event.status === "COMPLETED";
+    const effectiveStatus = event.status;
+    // Raid terminé mais encore ouvert : la passe de fond ne le clôturera qu'à +48 h, le
+    // capitaine a donc 24 h après le rappel de clôture pour saisir présents + score.
+    const awaitsClosure =
+        isRaid && effectiveStatus === "PUBLISHED" && Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now();
+    // Clôturé d'office (aucun `metadata.completedAt`) : la fiche propose de rattraper les points.
+    const systemClosed = isRaid && effectiveStatus === "COMPLETED" && !raidMeta?.completedAt;
+    // Beaucoup d'actions (raid terminé) : une ligne entière SOUS le titre plutôt qu'un titre
+    // comprimé à une lettre par ligne (capture du 25/10/2026).
+    const denseActions = isRaid && (effectiveStatus === "COMPLETED" || awaitsClosure);
     const typeConfig = calendarEventTheme(event.type);
     const statusConfig = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.DRAFT;
 
@@ -478,7 +632,29 @@ export function EventDetailModal({
         }
     };
 
-
+    /**
+     * Stand-by (30/10/2026) : suspend le H-24, le H-1, le rappel de clôture et la clôture
+     * d'office ; les inscriptions restent ouvertes (contrat `@/lib/group-standby`).
+     */
+    const handleToggleStandBy = async () => {
+        const paused = !isStandByActive(event.standBy);
+        setIsLoading(true);
+        try {
+            const res = await setEventStandBy(guildId, event.id, paused);
+            if (!res.success) {
+                toast.error(res.error || "Changement impossible.");
+                return;
+            }
+            toast.success(paused
+                ? "Événement en stand-by — rappels et clôture suspendus."
+                : "Stand-by levé — rappels et clôture reprennent.");
+            onRefresh?.();
+        } catch {
+            toast.error("Erreur lors du changement de stand-by");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <>
@@ -506,8 +682,8 @@ export function EventDetailModal({
                             </div>
                         )}
 
-                        <div className="relative z-10 flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-                            <div className="flex min-w-0 gap-4">
+                        <div className="relative z-10 flex w-full flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
+                            <div className="flex min-w-0 flex-1 gap-4">
                                 {/* Vrai visuel de l'événement : même source que l'embed Discord et
                                     les cartes du dashboard (`resolveEventImagePath`). Pour un raid,
                                     l'illustration 3:4 est affichée ENTIÈRE (jamais rognée). */}
@@ -539,20 +715,28 @@ export function EventDetailModal({
                                     )}
                                 </div>
 
-                                <div className="min-w-0 space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" className={cn("text-caption font-bold uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
                                             {typeConfig.label}
                                         </Badge>
-                                        <Badge className={cn("text-caption font-black uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
+                                        <Badge className={cn("text-caption font-bold uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
                                             {statusConfig.label}
                                         </Badge>
+                                        {awaitsClosure && (
+                                            <Badge className="text-caption font-bold uppercase tracking-wider px-2 py-0 border border-warning/40 bg-warning/10 text-warning">
+                                                À clôturer
+                                            </Badge>
+                                        )}
                                     </div>
                                     <DialogHeader>
-                                        <DialogTitle className={cn(
-                                            "font-black tracking-tight text-foreground uppercase leading-tight break-words",
-                                            event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
-                                        )}>
+                                        <DialogTitle
+                                            title={event.title}
+                                            className={cn(
+                                                "font-bold tracking-tight text-foreground uppercase leading-tight break-words line-clamp-2",
+                                                event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
+                                            )}
+                                        >
                                             {event.title}
                                         </DialogTitle>
                                     </DialogHeader>
@@ -563,7 +747,14 @@ export function EventDetailModal({
                                 sur desktop (jamais de débordement horizontal).
                                 Miroirs R1 : aucune action, même admin (lecture seule). */}
                             {canManage && !isMirror && (
-                                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+                                <div
+                                    className={cn(
+                                        "flex flex-wrap items-center gap-2 sm:justify-end",
+                                        // Raid terminé = beaucoup d'actions : on leur donne une ligne
+                                        // entière SOUS le titre plutôt que de comprimer celui-ci.
+                                        denseActions ? "sm:basis-full" : "sm:max-w-[45%]"
+                                    )}
+                                >
                                     {/* Edit button — only creator or admin, disabled for Kralamoure */}
                                     {onEdit && event.type !== "KRALAMOURE" && (isCreator || isAdmin) && (
                                         <Button
@@ -601,6 +792,26 @@ export function EventDetailModal({
                                         >
                                             <Trash2 className="h-4 w-4 mr-1.5" />
                                             {isDeleteConfirming ? "Confirmer" : "Annuler"}
+                                        </Button>
+                                    )}
+
+                                    {/* Stand-by (30/10/2026) — créateur ou admin : suspend les
+                                        rappels et la clôture d'office **sans** annuler l'événement. */}
+                                    {isOpen && !isMirror && !isKrala && (isCreator || isAdmin) && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleStandBy();
+                                            }}
+                                            disabled={isLoading}
+                                            className="text-muted-foreground hover:text-foreground hover:bg-surface"
+                                            title="Suspendre les rappels et la clôture sans annuler l'événement"
+                                        >
+                                            {isStandByActive(event.standBy)
+                                                ? <><Play className="h-4 w-4 mr-1.5" /> Reprendre</>
+                                                : <><Pause className="h-4 w-4 mr-1.5" /> Stand-by</>}
                                         </Button>
                                     )}
 
@@ -661,7 +872,18 @@ export function EventDetailModal({
                                         )
                                     )}
                                     {effectiveStatus === "COMPLETED" && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {systemClosed && (isCreator || canManage) && (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={initRaidCompletion}
+                                                    disabled={isLoading}
+                                                    className="bg-danger text-danger-foreground hover:bg-danger/90"
+                                                >
+                                                    <Trophy className="h-4 w-4 mr-1.5" />
+                                                    Compléter le raid
+                                                </Button>
+                                            )}
                                             {isRaid && onUndoComplete && (isCreator || canManage) && (
                                                 <Button
                                                     size="sm"
@@ -675,7 +897,7 @@ export function EventDetailModal({
                                                 </Button>
                                             )}
                                             <Badge variant="secondary" className="bg-background/50 text-muted-foreground border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider">
-                                                {isRaid ? "Raid terminé" : "Event terminé"}
+                                                {systemClosed ? "Clôturé d'office — à compléter" : isRaid ? "Raid terminé" : "Event terminé"}
                                             </Badge>
                                         </div>
                                     )}
@@ -714,10 +936,10 @@ export function EventDetailModal({
                                     label="Participants"
                                     value={
                                         <div className="flex items-center gap-2">
-                                            <span className="font-black text-lg">{displayCount}</span>
+                                            <span className="font-bold text-lg">{displayCount}</span>
                                             {event.maxParticipants && <span className="text-muted-foreground text-xs font-bold">/ {event.maxParticipants}</span>}
                                             {reserveCount > 0 && (
-                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black normal-case gap-1">
+                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-bold normal-case gap-1">
                                                     <DofusUiIcon name="hourglass" size={12} />
                                                     {reserveCount} en attente
                                                 </Badge>
@@ -730,7 +952,7 @@ export function EventDetailModal({
                                     label="Organisateur"
                                     value={
                                         (isDirectKralamoure || isImportedKralamoure) && metamobCreator ? (
-                                            <span className="truncate font-black text-foreground tracking-tight" title={metamobCreator}>
+                                            <span className="truncate font-bold text-foreground tracking-tight" title={metamobCreator}>
                                                 {metamobCreator}
                                             </span>
                                         ) : event.creator ? (
@@ -767,11 +989,11 @@ export function EventDetailModal({
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <DofusUiIcon name={event.type === "SONGES_RUN" ? "hourglass" : "dungeon"} size={16} />
-                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                                 {mirrorDetail.label || "Groupe"} · {mirrorDetail.memberCount ?? 0}{mirrorDetail.maxMembers ? ` / ${mirrorDetail.maxMembers}` : ""} joueurs
                                             </span>
                                         </div>
-                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-black uppercase tracking-wider">
+                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-bold uppercase tracking-wider">
                                             Miroir
                                         </Badge>
                                     </div>
@@ -782,7 +1004,7 @@ export function EventDetailModal({
                                             {mirrorDetail.classes!.map((c) => (
                                                 <span key={c.classe} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1" title={`${c.classe} × ${c.count}`}>
                                                     <ClassIcon classId={c.classe} size={22} />
-                                                    <span className="text-xs font-black text-foreground">× {c.count}</span>
+                                                    <span className="text-xs font-bold text-foreground">× {c.count}</span>
                                                 </span>
                                             ))}
                                         </div>
@@ -832,13 +1054,13 @@ export function EventDetailModal({
                                 <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <DofusUiIcon name="dungeon" size={16} />
-                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
                                     </div>
 
                                     {/* Raid type + badges */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         {raidMeta.raidLabel && (
-                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-black uppercase tracking-wider">
+                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-bold uppercase tracking-wider">
                                                 {raidMeta.raidLabel}
                                             </span>
                                         )}
@@ -858,29 +1080,105 @@ export function EventDetailModal({
                                         <div className="flex items-center gap-2 text-sm">
                                             <DofusUiIcon name="leader" size={16} />
                                             <span className="text-muted-foreground text-xs uppercase tracking-wider">Capitaine :</span>
-                                            <span className="font-black text-warning tracking-tight">{raidMeta.raidCaptain}</span>
+                                            <span className="font-bold text-warning tracking-tight">{raidMeta.raidCaptain}</span>
                                         </div>
                                     )}
 
-                                    {/* Guide du raid + overlay : on retrouve la strat depuis l'event */}
+                                    {/* Guide du raid + assistant overlay */}
                                     {raidMeta?.raidType && RAID_GUIDE_LINKS[raidMeta.raidType] && (
-                                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                                            <Link
-                                                href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
-                                                title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
-                                            >
-                                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Voir le guide du raid
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
-                                            >
-                                                <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Overlay
-                                            </button>
+                                        <div className="space-y-2 border-t border-border pt-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Link
+                                                    href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
+                                                    title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Voir le guide du raid
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                                                >
+                                                    <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Ouvrir l'overlay
+                                                </button>
+                                            </div>
+
+                                            {/* Bannière d'incitation à l'overlay pour le Capitaine */}
+                                            {isLead && (
+                                                <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/[0.08] p-3 space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tv2 className="h-4 w-4 text-cyan-400" />
+                                                            <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">
+                                                                Assistant de Raid en Direct (Overlay)
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                                            Capitaine
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                                        Pilotez la squad avec l'overlay flottant au-dessus du jeu : chrono serveur 60 min, plans des étages, trajets sûrs et validation des objectifs en direct.
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={async () => {
+                                                                if (!liveSession || liveSession.status !== "LIVE") {
+                                                                    await handleLiveAction(() => startRaidLiveSession(guildId, event.id));
+                                                                }
+                                                                openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId });
+                                                            }}
+                                                            disabled={liveLoading || isLoading}
+                                                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
+                                                        >
+                                                            {liveLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                                                            {liveSession?.status === "LIVE" ? "Rejoindre l'overlay en direct" : "Lancer le raid & Ouvrir l'overlay"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Bannière d'incitation à l'overlay pour les Membres Inscrits */}
+                                            {!isLead && isRegistered && (
+                                                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tv2 className="h-4 w-4 text-primary" />
+                                                            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                                                                Overlay d'assistance en jeu disponible
+                                                            </span>
+                                                        </div>
+                                                        {liveSession?.status === "LIVE" && (
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                                                En Direct
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                                        {liveSession?.status === "LIVE"
+                                                            ? "La session de raid est lancée ! Ouvrez la mini-fenêtre flottante (PiP) pour suivre le chrono, les étages et les objectifs validés par le lead."
+                                                            : "Inscrit à ce raid ? Ouvrez la mini-fenêtre flottante (PiP) au-dessus de votre jeu Dofus pour retrouver toutes les étapes, trajets sécurisés et le bestiaire."}
+                                                    </p>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
+                                                        className={cn(
+                                                            "text-xs font-bold",
+                                                            liveSession?.status === "LIVE"
+                                                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                                                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        )}
+                                                    >
+                                                        <Tv2 className="h-3.5 w-3.5 mr-1.5" />
+                                                        {liveSession?.status === "LIVE" ? "Rejoindre la session dans l'overlay" : "Ouvrir l'overlay de raid"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -920,7 +1218,7 @@ export function EventDetailModal({
                                                 <span>{raidMeta.raidMax} max</span>
                                             </div>
                                             <div className="text-center">
-                                                <span className="text-lg font-black text-foreground">{registeredCount}</span>
+                                                <span className="text-lg font-bold text-foreground">{registeredCount}</span>
                                                 <span className="text-muted-foreground text-xs font-bold"> / {raidMeta.raidMax} joueurs</span>
                                             </div>
                                         </div>
@@ -934,13 +1232,13 @@ export function EventDetailModal({
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <DofusUiIcon name="hourglass" size={16} />
-                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                                 Session live
                                             </span>
                                         </div>
                                         {liveSession?.status === "LIVE" && (
                                             <span className={cn(
-                                                "font-mono font-black tabular-nums",
+                                                "font-mono font-bold tabular-nums",
                                                 liveAlert === "alert45" || liveAlert === "ended" ? "text-danger" : liveAlert === "ok" ? "text-success" : "text-warning"
                                             )}>
                                                 {liveRemaining}
@@ -966,7 +1264,7 @@ export function EventDetailModal({
                                     ) : (
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between gap-2 text-xs">
-                                                <span className="font-black text-foreground tabular-nums">
+                                                <span className="font-bold text-foreground tabular-nums">
                                                     {(liveSession.score ?? 0).toLocaleString("fr-FR")} pts
                                                 </span>
                                                 {livePresence.length > 0 && (
@@ -1068,7 +1366,7 @@ export function EventDetailModal({
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2">
                                         <Target className="h-4 w-4 text-warning" />
-                                        <h3 className="text-xs font-black text-muted-foreground uppercase italic tracking-widest">Objectifs de la session</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Objectifs de la session</h3>
                                     </div>
 
                                     {loadingMissions ? (
@@ -1116,7 +1414,7 @@ export function EventDetailModal({
                                                                     </div>
 
                                                                     <div className="absolute inset-x-0 bottom-0 p-2">
-                                                                        <p className="text-caption font-black text-foreground uppercase tracking-tighter line-clamp-1 leading-none mb-1">
+                                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tighter line-clamp-1 leading-none mb-1">
                                                                             {mTitle}
                                                                         </p>
                                                                         {payload.objectives && (
@@ -1127,7 +1425,7 @@ export function EventDetailModal({
                                                                     </div>
                                                                 </Link>
                                                             </TooltipTrigger>
-                                                            <TooltipContent side="bottom" className="bg-warning text-warning-foreground font-black uppercase text-caption tracking-widest border-none">
+                                                            <TooltipContent side="bottom" className="bg-warning text-warning-foreground font-bold uppercase text-caption tracking-widest border-none">
                                                                 Aller voir les missions ?
                                                             </TooltipContent>
                                                         </Tooltip>
@@ -1145,12 +1443,12 @@ export function EventDetailModal({
                             {(() => {
                                 return (
                                     <div>
-                                        <h3 className="text-sm font-black text-muted-foreground mb-4 flex items-center justify-between uppercase tracking-wider">
+                                        <h3 className="text-sm font-bold text-muted-foreground mb-4 flex items-center justify-between uppercase tracking-wider">
                                             <div className="flex items-center gap-2">
                                                 <DofusUiIcon name="player" size={15} />
                                                 Participants{isKrala ? " Metamob" : ""}
                                             </div>
-                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-black text-foreground">
+                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-bold text-foreground">
                                                 {displayCount}
                                             </span>
                                         </h3>
@@ -1205,16 +1503,16 @@ export function EventDetailModal({
                                                 (eventMetadata.metamobParticipants as any[]).map((p, i) => (
                                                     <div key={`meta-${i}`} className="group relative flex items-center justify-between p-3 rounded-xl bg-surface/40 border border-border/50 hover:bg-elevated/60 transition-all">
                                                         <div className="flex items-center gap-4 min-w-0">
-                                                            <div className="h-8 w-8 rounded-full bg-elevated border border-border flex items-center justify-center text-caption font-black text-muted-foreground shrink-0 group-hover:border-pink-500/30 group-hover:text-pink-400 transition-colors">
+                                                            <div className="h-8 w-8 rounded-full bg-elevated border border-border flex items-center justify-center text-caption font-bold text-muted-foreground shrink-0 group-hover:border-border group-hover:text-foreground transition-colors">
                                                                 #{i + 1}
                                                             </div>
-                                                            <Avatar className="h-10 w-10 border border-border shadow-xl group- transition-transform">
+                                                            <Avatar className="h-10 w-10 border border-border shadow-xl transition-transform">
                                                                 <AvatarFallback className="bg-gradient-to-br from-elevated to-surface text-muted-foreground text-xs font-bold">
                                                                     {p.username?.[0] || "?"}
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div className="flex flex-col min-w-0">
-                                                                <span className="text-sm font-black text-foreground truncate group-hover:text-foreground transition-colors uppercase italic tracking-tight">
+                                                                <span className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors uppercase tracking-tight">
                                                                     {(p.username || "Anonyme").replace(/\s\(\d+\)$/, "")}
                                                                 </span>
                                                                 <span className="text-caption font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
@@ -1223,7 +1521,7 @@ export function EventDetailModal({
                                                             </div>
                                                         </div>
                                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Badge variant="outline" className="text-caption font-black border-pink-500/20 text-pink-400 bg-pink-500/5">
+                                                            <Badge variant="outline" className="text-caption font-bold border-border text-foreground bg-elevated/50">
                                                                 METAMOB
                                                             </Badge>
                                                         </div>
@@ -1305,7 +1603,7 @@ export function EventDetailModal({
                                     <Button
                                         asChild
                                         size="lg"
-                                        className="h-12 rounded-xl font-black text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
+                                        className="h-12 rounded-xl font-bold text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
                                     >
                                         <Link
                                             href={mirrorDetail?.href ?? `/dashboard/${guildId}/donjons-et-quetes`}
@@ -1315,7 +1613,7 @@ export function EventDetailModal({
                                             Ouvrir le post d'origine
                                         </Link>
                                     </Button>
-                                    <p className="text-caption text-muted-foreground italic">
+                                    <p className="text-caption text-muted-foreground">
                                         Miroir lecture seule — inscriptions et modifications depuis le post d'origine.
                                     </p>
                                 </div>
@@ -1324,7 +1622,7 @@ export function EventDetailModal({
                                     <div className="flex items-center gap-2">
                                         <Button
                                             asChild
-                                            className="bg-info hover:bg-info text-info-foreground font-bold shadow-lg shadow-indigo-500/20"
+                                            className="bg-info hover:bg-info text-info-foreground font-bold"
                                         >
                                             <a
                                                 href="https://metamob.fr/kralove"
@@ -1350,7 +1648,7 @@ export function EventDetailModal({
                                         )}
                                     </div>
                                     {!hasMetamobKey && (
-                                        <p className="text-caption text-muted-foreground italic">
+                                        <p className="text-caption text-muted-foreground">
                                             Liez votre compte pour que SigilOS puisse synchroniser votre état de jeu.
                                         </p>
                                     )}
@@ -1359,9 +1657,9 @@ export function EventDetailModal({
                                 <>
                                     {canRegister && (
                                         (() => {
-                                            // Kamas gate: only for RAID_OFFICIAL events
+                                            // Kamas gate: only for RAID_OFFICIAL events when donation requirement is active
                                             const isRaidOfficial = event.type === "RAID_OFFICIAL";
-                                            const isBlocked = isRaidOfficial && raidEligibility !== null && raidEligibility !== undefined && !raidEligibility.isEligible;
+                                            const isBlocked = isRaidOfficial && raidEligibility?.raidRequireKamaDonation !== false && raidEligibility !== null && raidEligibility !== undefined && !raidEligibility.isEligible;
 
                                             if (isBlocked) {
                                                 const donated = raidEligibility!.totalDonated.toLocaleString("fr-FR");
@@ -1370,7 +1668,7 @@ export function EventDetailModal({
                                                         <Button
                                                             size="lg"
                                                             disabled
-                                                            className="h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-inner relative group overflow-hidden border border-border/50 bg-elevated/50 text-muted-foreground cursor-not-allowed px-8"
+                                                            className="h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 relative group overflow-hidden border border-border/50 bg-elevated/50 text-muted-foreground cursor-not-allowed px-8"
                                                         >
                                                             <Lock className="h-4 w-4 mr-2.5" />
                                                             Inscription verrouillée
@@ -1378,15 +1676,21 @@ export function EventDetailModal({
                                                         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-warning/5 border border-warning/20 text-warning">
                                                             <Coins className="h-4 w-4 shrink-0 mt-0.5" />
                                                             <div className="text-xs leading-relaxed">
-                                                                <span className="font-black uppercase tracking-wide">Don requis : 30 000 kamas</span>
+                                                                <span className="font-bold uppercase tracking-wide">
+                                                                    Don requis : {typeof raidEligibility?.requiredKamas === "number"
+                                                                        ? raidEligibility.requiredKamas.toLocaleString("fr-FR")
+                                                                        : "—"} kamas
+                                                                </span>
                                                                 <br />
                                                                 <span className="text-warning/70">
-                                                                    Tu as donné <strong>{donated}</strong> kamas cette semaine. Complète ton don pour débloquer l'accès aux raids.
+                                                                    Tu as <strong>{donated}</strong> kamas de dons validés au total
+                                                                    (les Kamas Violets déjà consommés en sont déduits). Complète ton don
+                                                                    pour débloquer l'accès aux raids.
                                                                 </span>
                                                                 <br />
                                                                 <Link
                                                                     href={`/dashboard/${guildId}/missions#don-kamas`}
-                                                                    className="inline-flex items-center gap-1 mt-1.5 font-black text-warning hover:text-warning underline underline-offset-2"
+                                                                    className="inline-flex items-center gap-1 mt-1.5 font-bold text-warning hover:text-warning underline underline-offset-2"
                                                                 >
                                                                     <Coins className="h-3 w-3" />
                                                                     Faire mon don maintenant
@@ -1404,10 +1708,10 @@ export function EventDetailModal({
                                                     onClick={() => setShowRegistration(true)}
                                                     disabled={isLoading}
                                                     className={cn(
-                                                        "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-border px-8",
+                                                        "h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-border px-8",
                                                         isFull
-                                                            ? "bg-warning hover:bg-warning shadow-amber-600/30 text-warning-foreground"
-                                                            : "bg-info hover:bg-info shadow-indigo-600/30 text-info-foreground"
+                                                            ? "bg-warning hover:bg-warning text-warning-foreground"
+                                                            : "bg-info hover:bg-info text-info-foreground"
                                                     )}
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1470,7 +1774,7 @@ export function EventDetailModal({
                                     <DofusUiIcon name="trophy" size={20} />
                                 </div>
                                 <div>
-                                    <DialogTitle className="text-foreground font-black uppercase tracking-tight">Clôturer le Raid</DialogTitle>
+                                    <DialogTitle className="text-foreground font-bold uppercase tracking-tight">Clôturer le Raid</DialogTitle>
                                     <p className="text-caption text-muted-foreground uppercase tracking-wider">Distribution des points & score</p>
                                 </div>
                             </div>
@@ -1479,7 +1783,7 @@ export function EventDetailModal({
                         <div className="p-6 space-y-5">
                             {/* Score */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                     <DofusUiIcon name="success" size={14} />
                                     Score du Raid
                                 </label>
@@ -1488,7 +1792,7 @@ export function EventDetailModal({
                                     placeholder="Ex: 84 500 pts"
                                     value={raidScore}
                                     onChange={e => setRaidScore(e.target.value)}
-                                    className="w-full h-11 px-4 rounded-xl bg-background/80 border border-border text-foreground font-black text-base placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
+                                    className="w-full h-11 px-4 rounded-xl bg-background/80 border border-border text-foreground font-bold text-base placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
                                 />
                                 <p className="text-caption text-muted-foreground">Score visible dans le module de raid en jeu.</p>
                             </div>
@@ -1496,11 +1800,11 @@ export function EventDetailModal({
                             {/* Participants présents */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 text-pink-400" />
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
                                         Présents au Raid
                                     </label>
-                                    <span className="text-xs font-black text-muted-foreground">
+                                    <span className="text-xs font-bold text-muted-foreground">
                                         {presentParticipants.size} / {event.participants.filter(p => p.status === "REGISTERED").length}
                                     </span>
                                 </div>
@@ -1510,14 +1814,23 @@ export function EventDetailModal({
                                         .map(p => {
                                             const isPresent = presentParticipants.has(p.user.id);
                                             return (
-                                                <button
-                                                    key={p.id}
-                                                    type="button"
+                                                <div key={p.id} className="space-y-1">
+                                                    <button
+                                                        type="button"
                                                     onClick={() => {
+                                                        const userId = p.user.id;
                                                         setPresentParticipants(prev => {
                                                             const next = new Set(prev);
-                                                            if (next.has(p.user.id)) next.delete(p.user.id);
-                                                            else next.add(p.user.id);
+                                                            if (next.has(userId)) next.delete(userId);
+                                                            else next.add(userId);
+                                                            return next;
+                                                        });
+                                                        // R1 : décoché ⇒ un motif est **exigé** (« Prévenu » par
+                                                        // défaut, consigne §14) ; recoché ⇒ le motif disparaît.
+                                                        setAbsenceReasons(prev => {
+                                                            const next = { ...prev };
+                                                            if (presentParticipants.has(userId)) delete next[userId];
+                                                            else next[userId] = next[userId] ?? RAID_ABSENCE_DEFAULT;
                                                             return next;
                                                         });
                                                     }}
@@ -1539,16 +1852,31 @@ export function EventDetailModal({
                                                         <AvatarFallback className="bg-elevated text-caption">{p.user.name?.[0] || "?"}</AvatarFallback>
                                                     </Avatar>
                                                     <span className={cn(
-                                                        "text-sm font-black uppercase tracking-tight",
+                                                        "text-sm font-bold uppercase tracking-tight",
                                                         isPresent ? "text-foreground" : "text-muted-foreground"
                                                     )}>
                                                         {p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme"}
                                                     </span>
                                                     {isPresent && (
-                                                        <span className="ml-auto text-caption font-black text-success uppercase">+50 pts</span>
+                                                        <span className="ml-auto text-caption font-bold text-success uppercase">+50 pts</span>
                                                     )}
                                                 </button>
-                                            );
+                                                {!isPresent && (
+                                                    <select
+                                                        aria-label={`Motif d'absence — ${p.user.profiles?.[0]?.discordNickname || p.user.name || "membre"}`}
+                                                        value={absenceReasons[p.user.id] ?? RAID_ABSENCE_DEFAULT}
+                                                        onChange={(e) =>
+                                                            setAbsenceReasons(prev => ({ ...prev, [p.user.id]: e.target.value as RaidAbsenceReason }))
+                                                        }
+                                                        className="w-full h-9 px-2 rounded-lg bg-background border border-border text-xs text-foreground focus:outline-none focus:border-danger/50"
+                                                    >
+                                                        {RAID_ABSENCE_REASONS.map((reason) => (
+                                                            <option key={reason} value={reason}>{RAID_PRESENCE_LABELS[reason]}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                            </div>
+                                        );
                                         })}
                                 </div>
                             </div>
@@ -1563,7 +1891,21 @@ export function EventDetailModal({
                                     className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-elevated text-danger focus:ring-danger/50"
                                 />
                                 <label htmlFor="confirm-raid-complete" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } verront leurs Kamas Violets déduits.
+                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe.{" "}
+                                    <strong className="text-foreground">
+                                        {buildRaidClosureAttestation({
+                                            present: presentParticipants.size,
+                                            noShows: absentParticipants.filter(
+                                                (userId) => (absenceReasons[userId] ?? RAID_ABSENCE_DEFAULT) === "NO_SHOW",
+                                            ).length,
+                                            purpleKamasCost:
+                                                raidEligibility?.raidRequireKamaDonation === false
+                                                    ? null
+                                                    : typeof raidEligibility?.purpleKamasCost === "number"
+                                                        ? raidEligibility.purpleKamasCost
+                                                        : 0,
+                                        })}
+                                    </strong>
                                 </label>
                             </div>
 
@@ -1578,7 +1920,13 @@ export function EventDetailModal({
                                 </Button>
                                 <Button
                                     className="flex-1 bg-danger text-danger-foreground hover:bg-danger/90 font-bold"
-                                    disabled={isCompletingRaid || !confirmRaidComplete}
+                                    disabled={
+                                        isCompletingRaid ||
+                                        !confirmRaidComplete ||
+                                        // R1 : ni score vide, ni inscrit décoché sans motif.
+                                        !raidScore.trim() ||
+                                        missingAbsenceReasons.length > 0
+                                    }
                                     onClick={async () => {
                                         if (!onComplete) return;
                                         setIsCompletingRaid(true);
@@ -1587,7 +1935,12 @@ export function EventDetailModal({
                                             // The caller (calendar-dashboard) will handle the extended data
                                             (window as any).__raidCompletionData = {
                                                 score: raidScore,
-                                                presentUserIds: Array.from(presentParticipants)
+                                                presentUserIds: Array.from(presentParticipants),
+                                                // R1 : un motif pour **chaque** inscrit décoché.
+                                                absences: absentParticipants.map((userId) => ({
+                                                    userId,
+                                                    reason: absenceReasons[userId] ?? RAID_ABSENCE_DEFAULT,
+                                                })),
                                             };
                                             await onComplete();
                                             setShowRaidCompletion(false);
@@ -1750,7 +2103,7 @@ function ParticipantRow({
                             </span>
                         )}
                         {participant.hasParticipatedThisWeek && (
-                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-black uppercase py-0 px-1.5 shrink-0">
+                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-bold uppercase py-0 px-1.5 shrink-0">
                                 Déjà participé cette semaine
                             </Badge>
                         )}
@@ -1849,7 +2202,7 @@ function ParticipantRow({
                                 "shrink-0 transition-all",
                                 isTransferConfirming
                                     ? "h-8 px-3 text-xs font-medium bg-warning hover:bg-warning text-warning-foreground"
-                                    : "h-8 px-2 text-caption font-black uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10"
+                                    : "h-8 px-2 text-caption font-bold uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10"
                             )}
                             title={
                                 isTransferConfirming

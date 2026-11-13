@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronDown, ChevronUp, CheckCheck, Copy } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCheck, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
-import { RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { RUSH_RESOURCES_PICTO, rushResourceKey } from "@/lib/rush-guide-utils";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 import type { RushActivityTag } from "@/types/rush-guide-types";
 
@@ -19,11 +19,15 @@ interface QuestItemResourceGridProps {
   showHeaderMeta?: boolean;
   /**
    * Le toggle « Masquer les étapes faites » du guide PRIME sur cette grille : quand il est
-   * actif, les objets déjà fournis (portés par une étape cochée, donc dans `completedIds`)
-   * sortent de la liste et le filtre local « Restantes/Toutes » n'est plus rendu — un seul
-   * état pour une même chose, sur les 3 surfaces (guide public, interne, overlay).
+   * actif, les objets déjà fournis (porteurs d'une étape cochée) sortent de la liste et le
+   * filtre local « Restantes/Toutes » n'est plus rendu — un seul état pour une même chose,
+   * sur les 3 surfaces (guide public, interne, overlay).
    */
   hideProvided?: boolean;
+  /** Coches MANUELLES (« déjà préparé »), keyées par `rushResourceKey`. */
+  checkedKeys?: Set<string>;
+  /** Coche/décoche une ressource. Sans handler, aucune case n'est rendue. */
+  onToggleCheck?: (key: string) => void;
 }
 
 /**
@@ -37,36 +41,42 @@ export function QuestItemResourceGrid({
   onToggleItem,
   showHeaderMeta = true,
   hideProvided = false,
+  checkedKeys = EMPTY_SET,
+  onToggleCheck,
 }: QuestItemResourceGridProps) {
   const [filterMode, setFilterMode] = useState<"remaining" | "all">("remaining");
   const [copiedName, setCopiedName] = useState<string | null>(null);
 
   const parsedItems = useMemo(() => {
-    return items.map((it, idx) => {
-      const key = (it as any).id || it.name || `item-${idx}`;
-      return {
-        key: (it as any).id || `${it.name}-${idx}`,
-        id: (it as any).id,
-        name: it.name || "Ressource",
-        count: (it as any).count || (it as any).quantity || 1,
-        level: it.level,
-        imageUrl: (it as any).imageUrl,
-        isDone: key ? completedIds.has(key) : false,
-      };
-    });
-  }, [items, completedIds]);
+    return items
+      .map((it) => {
+        const name = it.name || "Ressource";
+        const key = rushResourceKey({ id: (it as any).id, name });
+        return {
+          key,
+          id: (it as any).id,
+          name,
+          count: (it as any).count || (it as any).quantity || 1,
+          level: it.level,
+          imageUrl: (it as any).imageUrl,
+          isProvided: completedIds.has(key),
+          isChecked: checkedKeys.has(key),
+        };
+      })
+      .map((item) => ({ ...item, isPrepared: item.isProvided || item.isChecked }));
+  }, [items, completedIds, checkedKeys]);
 
   const visibleItems = useMemo(() => {
-    // Le toggle du guide prime (cf. `hideProvided`) : les objets déjà fournis sortent.
-    if (hideProvided) return parsedItems.filter((it) => !it.isDone);
+    // Le toggle du guide prime (cf. `hideProvided`) : les objets déjà préparés sortent.
+    if (hideProvided) return parsedItems.filter((it) => !it.isPrepared);
     if (!showHeaderMeta) return parsedItems;
     if (filterMode === "remaining") {
-      return parsedItems.filter((it) => !it.isDone);
+      return parsedItems.filter((it) => !it.isPrepared);
     }
     return parsedItems;
   }, [parsedItems, filterMode, showHeaderMeta, hideProvided]);
 
-  const remainingCount = parsedItems.filter((it) => !it.isDone).length;
+  const remainingCount = parsedItems.filter((it) => !it.isPrepared).length;
 
   const handleCopy = (name: string) => {
     copyToClipboard(name).then((ok) => {
@@ -142,13 +152,33 @@ export function QuestItemResourceGrid({
               onClick={() => (item.id && onToggleItem ? onToggleItem(item.id) : handleCopy(item.name))}
               className={cn(
                 "group flex cursor-pointer select-none items-center justify-between gap-2.5 rounded-[4px] border p-2 transition-colors",
-                item.isDone
+                item.isPrepared
                   ? "border-border bg-surface opacity-60"
                   : "border-border bg-elevated hover:border-warning/40"
               )}
-              title="Cliquer pour copier le nom"
+              title={onToggleCheck ? "Cocher la case · cliquer sur le nom pour copier" : "Cliquer pour copier le nom"}
             >
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                {onToggleCheck && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleCheck(item.key);
+                    }}
+                    aria-pressed={item.isChecked}
+                    aria-label={item.isChecked ? `Remettre « ${item.name} » à préparer` : `Marquer « ${item.name} » comme préparé`}
+                    title={item.isChecked ? "Déjà préparé — cliquer pour décocher" : "J'ai déjà préparé cet objet"}
+                    className={cn(
+                      "flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors motion-reduce:transition-none",
+                      item.isChecked
+                        ? "border-success text-success"
+                        : "border-border-strong text-transparent hover:border-success"
+                    )}
+                  >
+                    <Check className="h-3 w-3 stroke-[3]" aria-hidden="true" />
+                  </button>
+                )}
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-border bg-background p-0.5">
                   <ResourceImage
                     id={item.id}
@@ -163,7 +193,7 @@ export function QuestItemResourceGrid({
                     className={cn(
                       // Nom COMPLET : on passe à la ligne plutôt que de le couper.
                       "text-xs font-semibold block break-words group-hover:text-warning transition-colors",
-                      item.isDone ? "line-through text-muted-foreground" : "text-foreground"
+                      item.isPrepared ? "line-through text-muted-foreground" : "text-foreground"
                     )}
                   >
                     {item.name}
@@ -178,7 +208,7 @@ export function QuestItemResourceGrid({
                 <span
                   className={cn(
                     "reg-mono text-xs font-semibold",
-                    item.isDone ? "text-muted-foreground" : "text-warning"
+                    item.isPrepared ? "text-muted-foreground" : "text-warning"
                   )}
                 >
                   ×{item.count}

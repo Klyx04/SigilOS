@@ -134,6 +134,49 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         expect(source).toMatch(/1 870/);
     });
 
+    it("⑧ un amont externe en échec (DofusDB, Metamob) n'est loggé qu'en `warn`", () => {
+        // Mesure du 18/10/2026 — deux Issues **neuves** sur la bêta, même famille : un cas
+        // DÉJÀ géré (repli local / liste vide) journalisé en `error`, donc transformé en Issue
+        // par `captureConsoleIntegration({ levels: ["error"] })` :
+        //   · `JAVASCRIPT-NEXTJS-1Q` — `[getDungeonMonsters]` (`DofusDB search failed`),
+        //     3 événements sur `GET /boss/comte-et-klime` ;
+        //   · `JAVASCRIPT-NEXTJS-1P` — `[getGuildKralamoureEvents]` (« Accès refusé : Ce
+        //     compte Metamob est privé. »), 1 événement sur `POST …/quete-ocre`.
+        const sites = [
+            { file: "src/server/actions/game-data-actions.ts", marker: "[getDungeonMonsters]" },
+            { file: "src/server/actions/ocre-actions.ts", marker: "[getGuildKralamoureEvents]" },
+            // 18/10/2026, troisième occurrence de la même famille (widget d'échanges
+            // d'archimonstres, `POST …/members/<pseudo>`) : compte Metamob non authentifié.
+            { file: "src/server/actions/ocre-actions.ts", marker: "[getProfileMatchingArchis]" },
+        ];
+
+        for (const { file, marker } of sites) {
+            const source = readFileSync(file, "utf8");
+            const lignes = source.split("\n").filter((line) => line.includes(marker));
+            expect(lignes.length, file).toBeGreaterThan(0);
+            for (const ligne of lignes) {
+                expect(ligne, `${file} → ${ligne.trim()}`).not.toMatch(/logger\.error\(/);
+            }
+            // Le repli reste **rendu** (jamais un throw) : l'écran dégrade sans casser.
+            expect(source, file).toContain("logger.warn(");
+        }
+    });
+
+    it("⑨ la couche MetaMob ne journalise plus un amont en échec en `console.error`", () => {
+        // Mesure du 18/10/2026 — `JAVASCRIPT-NEXTJS-1S` : `TypeError: fetch failed`
+        // (`connect ETIMEDOUT 172.67.169.207:443` / `ENETUNREACH` IPv6 vers Cloudflare) sur
+        // `GET /dashboard/<guildId>`. Le catch DÉGRADE (cache Redis, `null`, liste vide) ou
+        // lève une erreur typée — ce n'est pas un défaut du produit. Deux `console.error`
+        // suffisaient à créer une Issue ; il y en avait même un **doublon** avec le
+        // `console.warn("Silent fail…")` juste après.
+        const source = readFileSync("src/lib/metamob-client.ts", "utf8");
+        expect(source).not.toMatch(/console\.error\(/);
+        // Le vrai signal (format d'API changé) reste en `error`, une seule fois.
+        expect(source).toContain('logger.error("[Metamob] Format de réponse API inattendu"');
+        // Et l'amont indisponible est dit en `warn`, une ligne par branche.
+        expect(source).toMatch(/logger\.warn\(`\[Metamob\] Amont indisponible/);
+    });
+
     it("⑦ une image pas encore siphonnée ne devient plus une Issue serveur", () => {
         // Mesure du 11/10/2026 (Sentry) : 12 issues `⨯ The requested resource isn't a valid
         // image for /game-data/monsters/<slug>.webp received null`, ~64 événements chacune,
@@ -142,5 +185,46 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         const source = readFileSync("src/lib/sentry-ignores.ts", "utf8");
         expect(source).toMatch(/isn't a valid image/);
         expect(source).toMatch(/fuji-givrefoux\.webp/);
+    });
+
+    it("⑩ la couche Discord ne journalise plus un refus d'exploitation en `console.error`", () => {
+        // Mesure du 18/10/2026 : `src/server/discord.ts` portait 43 sites « erreur », dont 27
+        // `console.error` ⇒ une Issue Sentry par 403/404/429. Le fichier passe désormais par
+        // `logger` + `logDiscordFailure` (401/inconnu = error, refus Discord/réseau = warn).
+        const source = readFileSync("src/server/discord.ts", "utf8");
+        const code = codeSeul(source);
+        expect(code).not.toMatch(/\bconsole\s*\./);
+        expect(code).toContain('from "@/lib/logger"');
+        expect(code).toContain("logDiscordFailure(");
+        expect(code).toContain("discordFailureLevel");
+
+        // Le vrai signal reste en `error` : isolation inter-guilde, token/clé absents, signature.
+        for (const marker of [
+            "[Discord Security] BLOCKED",
+            "Missing DISCORD_BOT_TOKEN",
+            "Missing DISCORD_APPLICATION_PUBLIC_KEY",
+            "Clé publique Ed25519 invalide",
+            "Signature verification failed",
+        ]) {
+            const ligne = code.split("\n").find((line) => line.includes(marker) && line.includes("logger.error("));
+            expect(ligne, marker).toBeDefined();
+        }
+
+        // Aucun repli rendu ne reste au niveau `error`, et aucun corps brut n'est journalisé.
+        for (const marker of [
+            "Error sending DM",
+            "Failed to create DM channel",
+            "Error creating forum thread",
+            "Error deleting message",
+            "Error adding role to member",
+            "Error archiving thread",
+            "Error sending raw embed",
+        ]) {
+            const fautives = code
+                .split("\n")
+                .filter((line) => line.includes(marker) && line.includes("logger.error("));
+            expect(fautives, marker).toEqual([]);
+        }
+        expect(code).not.toMatch(/logger\.\w+\([^)]*errBody/);
     });
 });

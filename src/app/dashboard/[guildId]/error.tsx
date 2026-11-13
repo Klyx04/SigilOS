@@ -5,6 +5,8 @@ import * as Sentry from "@sentry/nextjs";
 import { RefreshCw, Home, ServerCrash, AlertOctagon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { StaleDeploymentPanel } from "@/components/shared/stale-deployment-panel";
+import { isStaleDeploymentError } from "@/lib/stale-deployment";
 
 export default function DashboardError({
     error,
@@ -13,9 +15,17 @@ export default function DashboardError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    // Décalage de build (onglet resté ouvert pendant un déploiement) : ce n'est **pas** une
+    // panne du produit — on ne le remonte pas à Sentry (voir `src/lib/sentry-ignores.ts`) et
+    // on recharge l'onglet, seul moyen de reprendre un bundle à jour. « Réessayer » (reset)
+    // était inopérant ici : il rejouait le même bundle périmé.
+    const staleDeployment = isStaleDeploymentError(error);
+
     useEffect(() => {
-        Sentry.captureException(error);
-    }, [error]);
+        if (!staleDeployment) Sentry.captureException(error);
+    }, [error, staleDeployment]);
+
+    if (staleDeployment) return <StaleDeploymentPanel />;
 
     return (
         <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 relative overflow-hidden">

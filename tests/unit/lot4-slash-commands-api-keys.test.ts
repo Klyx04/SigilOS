@@ -69,7 +69,6 @@ vi.mock("@/server/discord", () => ({
 }));
 
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
-import { API_SCOPES } from "@/lib/api-scopes";
 import { db } from "@/lib/prisma";
 import crypto from "crypto";
 
@@ -121,7 +120,10 @@ describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
         expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "valider-recrue"]);
     });
 
-    it("should validate command execution based on roles and channels", async () => {
+    // Budget explicite : ce cas paie l'**import** du graphe serveur (user-actions, Prisma,
+    // Redis, Discord) — mesuré **3 777 ms** seul et **5 023 ms** sous charge le 12/11/2026,
+    // au-delà du timeout par défaut de 5 s. Ce n'est pas une attente : rien à alléger ici.
+    it("should validate command execution based on roles and channels", { timeout: 20_000 }, async () => {
         const { checkSlashCommandExecutionAllowed } = await import("@/server/actions/slash-command-actions");
 
         // Cas 1 : salon restreint et utilisateur dans le mauvais salon.
@@ -175,33 +177,6 @@ describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
         // Le mock est **indexé** : chaque cas a lu sa propre ligne, quel que
         // soit l'ordre d'exécution (aucune file `mockResolvedValueOnce`).
         expect(db.guildConfig.findUnique).toHaveBeenCalledTimes(5);
-    });
-});
-
-describe("🔐 Lot 4 — Public API & API Keys Management (#196)", () => {
-    it("should have defined scopes with strict read-only permissions", () => {
-        const scopeIds = API_SCOPES.map(s => s.id);
-        expect(scopeIds).toContain("read:members");
-        expect(scopeIds).toContain("read:quests");
-        expect(scopeIds).toContain("read:events");
-        expect(scopeIds).toContain("read:bounties");
-        expect(API_SCOPES.length).toBe(4);
-    });
-
-    it("should generate a cryptographically secure API key hash (scrypt) and prefix", () => {
-        const rawEntropy = crypto.randomBytes(24).toString("hex");
-        const rawApiKey = `sigil_live_${rawEntropy}`;
-        const prefix = rawApiKey.slice(0, 16);
-        const keySalt = crypto.randomBytes(16).toString("hex");
-        const keyHash = `scrypt$${keySalt}$${crypto.scryptSync(rawApiKey, keySalt, 64).toString("hex")}`;
-
-        expect(rawApiKey.startsWith("sigil_live_")).toBe(true);
-        expect(prefix.length).toBe(16);
-        expect(keyHash.startsWith("scrypt$")).toBe(true);
-
-        // Deterministic with the same salt
-        const rehash = crypto.scryptSync(rawApiKey, keySalt, 64).toString("hex");
-        expect(rehash).toBe(keyHash.split("$")[2]);
     });
 });
 

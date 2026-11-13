@@ -32,7 +32,10 @@ import {
   ocreLocalState,
   ocreMonsterIcon,
   ocreMonsterImage,
+  ocreMonsterImageUrl,
+  ocreMonsterThumbChain,
   ocreStateLabel,
+  classifyOcreType,
   soulStoneForLevel,
   soulStoneLevelLabel,
   toOcrePanelData,
@@ -252,6 +255,82 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     }
   });
 
+  it("l'image résolue par le serveur passe AVANT nos fichiers locaux", () => {
+    const upstream =
+      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+    // Relatif interne ⇒ accepté tel quel (aucune requête distante depuis le navigateur).
+    expect(ocreMonsterImageUrl(upstream)).toBe(upstream);
+    // URL absolue (DofusDB, Metamob, n'importe quel hôte) ⇒ refusée : jamais dans le DOM.
+    expect(ocreMonsterImageUrl("https://api.dofusdb.fr/img/monsters/90.png")).toBeNull();
+    expect(ocreMonsterImageUrl("https://metamob.fr/x.png")).toBeNull();
+    expect(ocreMonsterImageUrl("")).toBeNull();
+
+    const data = toOcrePanelData({
+      monsters: [
+        { id: 2508, nameFr: "Kiroyal le Sirupeux", type: "archimonstre", owned: 0, state: "MANQUANT", image: upstream },
+        { id: 2509, nameFr: "Sans image sûre", type: "archimonstre", owned: 0, state: "MANQUANT", image: "https://metamob.fr/x.png" },
+      ],
+    });
+    expect(data.monsters[0].imageUrl).toBe(upstream);
+    expect(data.monsters[1].imageUrl).toBeNull();
+
+    // La chaîne du composant : image serveur → PNG du dépôt → picto du jeu (règle pure ci-dessous).
+    const bitsSrc = read("src/components/ocre/OcreTargetBits.tsx");
+    const questPanelSrc = read("src/components/ocre/OcreQuestPanel.tsx");
+    const overlaySrc = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx");
+    expect(bitsSrc).toContain("ocreMonsterThumbChain(id, type, imageUrl)");
+    // Le placeholder du proxy (PNG 1×1) ne doit pas laisser une vignette vide.
+    expect(bitsSrc).toContain("naturalWidth <= 1");
+    expect(questPanelSrc).toContain("imageUrl={m.imageUrl ?? null}");
+    expect(overlaySrc).toContain("imageUrl={t.imageUrl ?? null}");
+  });
+
+  it("ne retente pas un WebP local quand l'image serveur est résolue (404 mesuré)", () => {
+    const upstream =
+      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+
+    // Image serveur connue ⇒ on ne demande PAS /uploads/…/<id Metamob>.webp (il n'existe pas).
+    const resolved = ocreMonsterThumbChain(2508, "archimonstre", upstream);
+    expect(resolved[0]).toBe(upstream);
+    expect(resolved).not.toContain("/uploads/assets-dofus/monsters/2508.webp");
+    expect(resolved).toContain("/assets/dofus/monsters/2508.png");
+    expect(resolved[resolved.length - 1]).toBe("/assets/dofus/icons/archimonster.png");
+
+    // Sans image serveur, la chaîne historique est conservée (le cache siphonné peut exister).
+    const unresolvable = ocreMonsterThumbChain(301, "boss", null);
+    expect(unresolvable[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+
+    // Une URL absolue (Metamob ou autre hôte) n'est jamais une étape de la chaîne.
+    const unsafe = ocreMonsterThumbChain(301, "boss", "https://www.metamob.fr/img/monsters/x.png");
+    expect(unsafe).not.toContain("https://www.metamob.fr/img/monsters/x.png");
+    expect(unsafe[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+  });
+
+  it("la progression Ocre résout l'image par NOM depuis la table locale, pas par l'id Metamob", () => {
+    // Mesure du 09/11/2026 : l'id du panneau est un id Metamob (347 → introuvable, 2508 → un
+    // AUTRE monstre). L'image doit donc venir de `Archimonstre`, résolue par nom puis proxifiée.
+    const src = read("src/server/actions/ocre-actions.ts");
+    expect(src).toContain("db.archimonstre.findMany");
+    // Aucun filtre `type` : la clé est le NOM (mesure du 09/11/2026, 4 Blops royaux non résolus).
+    expect(src).toContain("where: { OR: [{ imageUrl: { not: null } }, { dofusdbId: { not: null } }] }");
+    expect(src).not.toContain('type: { in: ["archimonstre", "boss"] }');
+    expect(src).toContain("const imgVal = nameToImageMap.get(imageKey(norm.nameFr))");
+    expect(src).toContain("if (imgVal) norm.image = imgVal");
+    expect(src).toContain("internalDofusDbImageUrl(a.imageUrl)");
+    // La clé de rapprochement ignore les accents (même règle que `getZoneArchmonsters`).
+    expect(src).toContain('s.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim()');
+    // Aucune image construite depuis l'id du monstre affiché (espace d'entité ≠ id Metamob).
+    expect(src).not.toContain("resolveDofusAssetImageUrl(\"monsters\", norm.id)");
+  });
+
+  it("nomme les cibles sans image résolue (diagnostic, jamais un identifiant de membre)", () => {
+    // Une cible sans image doit être NOMMÉE dans les logs : sans ça, « la vignette est un picto »
+    // ne dit pas si la ligne manque en base, si la graphie diverge ou si `imageUrl` est nulle.
+    const src = read("src/server/actions/ocre-actions.ts");
+    expect(src).toContain('logger.warn("[getMyOcreProgress] cibles sans image résolue"');
+    expect(src).toContain("unresolved,");
+  });
+
   it("les vignettes viennent du WebP local, le repli de nos pictos du jeu", () => {
     expect(ocreMonsterImage(301)).toBe("/uploads/assets-dofus/monsters/301.webp");
     expect(ocreMonsterIcon("archimonstre")).toBe("/assets/dofus/icons/archimonster.png");
@@ -289,7 +368,6 @@ describe("rendu réel — panneau de l'overlay (données fournies, aucun chargem
   const html = render(
     React.createElement(RushOverlayOcreModal, {
       guildId: "1290442961380835451",
-      isLightMode: false,
       initial: PANEL,
       onClose: () => {},
     })
@@ -350,7 +428,7 @@ describe("câblage — overlay interne seulement", () => {
 
   it("le header porte le picto archimonstre et la pastille du reste à capturer", () => {
     expect(header).toContain('src="/assets/dofus/icons/archimonster.png"');
-    expect(header).toContain("onOpenOcre && ocre && (");
+    expect(header).toContain("onOpenOcre && (");
     expect(header).toContain("ocre.missing");
     // Le bouton vit dans la rangée d'actions (plus de condition « narrow ») : la place
     // est rendue par le retour bug, déplacé dans le menu « ⋯ » avec l'aide.
@@ -359,16 +437,19 @@ describe("câblage — overlay interne seulement", () => {
   });
 
   it("l'overlay conditionne le panneau à un membre connecté et à sa guilde", () => {
-    expect(overlayClient).toContain('const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public"');
+    // V-G : l'entrée ne dépend PLUS des données — un compte non lié doit pouvoir ouvrir
+    // le panneau et lier son compte (sinon : bouton absent = cul-de-sac).
+    expect(overlayClient).toContain('const ocreEnabled = !isGuest && !!guildId && guildId !== "public"');
     expect(overlayClient).toContain("<RushOverlayOcreModal");
     expect(overlayClient).toContain("initial={ocre}");
+    expect(overlayClient).toContain("state={ocreState}");
   });
 
   it("la page overlay ne charge les données Ocre que si Metamob est lié", () => {
     expect(overlayPage).toContain("metamobPseudo");
     expect(overlayPage).toContain('await import("@/server/actions/ocre-actions")');
     expect(overlayPage).toContain("toOcrePanelData");
-    expect(overlayPage).toContain("ocre={ocre}");
+    expect(overlayPage).toContain("ocreState={ocreState}");
   });
 
   it("le guide PUBLIC ne reçoit jamais le panneau Ocre", () => {
@@ -380,6 +461,22 @@ describe("câblage — overlay interne seulement", () => {
     expect(read("src/store/rush-overlay-store.ts")).toContain("ocre?: OcrePanelData | null");
     expect(read("src/app/dashboard/[guildId]/_components/rush-overlay-host.tsx")).toContain("ocre={payload.ocre ?? null}");
     expect(read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx")).toContain("toOcrePanelData(");
+  });
+
+  it("la page du guide convertit les monstres AVANT de les passer au client (sinon imageUrl est perdu)", () => {
+    // Mesure du 09/11/2026 : `ocreMonsters = monsters` passait les objets bruts au panneau,
+    // donc `imageUrl` n'existait jamais et la vignette retombait sur les replis 404.
+    const page = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx");
+    expect(page).toContain("toOcrePanelData({ monsters }).monsters");
+    expect(page).not.toContain("ocreMonsters = monsters;");
+  });
+
+  it("le bandeau des guides « par Dofus » fait la MÊME conversion (iso partout)", () => {
+    // Mesure du 09/11/2026 : le bandeau castait les monstres bruts
+    // (`as unknown as OcreMonsterLite[]`), donc même défaut sur `/quetes-dofus/<dofus>`.
+    const banner = read("src/components/dofus-quests/DofusQuestBanner.tsx");
+    expect(banner).toContain("toOcrePanelData({ monsters: ocreRes.data.monsters }).monsters");
+    expect(banner).not.toContain("as unknown as OcreMonsterLite[]");
   });
 
   it("l'écriture passe par la file partagée, bornée côté serveur (rate limit + pause)", () => {
@@ -472,15 +569,34 @@ describe("rendu réel — pas ±1 d'une cible (brique partagée)", () => {
   });
 });
 
+describe("nature d'une cible Ocre — règle partagée interne / public", () => {
+  it("reconnaît les gardiens et les archimonstres", () => {
+    expect(classifyOcreType("Gardien")).toBe("boss");
+    expect(classifyOcreType("Boss")).toBe("boss");
+    expect(classifyOcreType("Archimonstre")).toBe("archimonstre");
+  });
+
+  it("un libellé inconnu ou absent tombe sur archimonstre (aucune cible perdue)", () => {
+    expect(classifyOcreType(null)).toBe("archimonstre");
+    expect(classifyOcreType(undefined)).toBe("archimonstre");
+    expect(classifyOcreType("")).toBe("archimonstre");
+    expect(classifyOcreType("Truc bizarre")).toBe("archimonstre");
+  });
+});
+
 describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => {
   const modal = read("src/components/dofus-quests/OcreProgressModal.tsx");
+  /** Depuis le partage avec le public, la liste vit dans le panneau commun. */
+  const panel = read("src/components/ocre/OcreQuestPanel.tsx");
   const bits = read("src/components/ocre/OcreTargetBits.tsx");
   const css = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/guide-styles.css");
 
   it("consomme le hook partagé et les briques partagées (aucune écriture directe)", () => {
     expect(modal).toContain("useOcreWriteQueue");
-    expect(modal).toContain("<OcreTargetStepper");
-    expect(modal).toContain("<OcreMonsterThumb");
+    // La modale monte le panneau commun, et c'est LUI qui rend les briques partagées.
+    expect(modal).toContain("<OcreQuestPanel");
+    expect(panel).toContain("<OcreTargetStepper");
+    expect(panel).toContain("<OcreMonsterThumb");
     expect(modal).not.toContain("updateUserMonsterQuantityAction");
     expect(modal).not.toContain("toast."); // retour d'écriture DANS la modale
   });
@@ -495,9 +611,13 @@ describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => 
     expect(codeOnly(modal)).not.toContain("rounded-[2rem]");
   });
 
-  it("n'affiche que nos vignettes locales (aucune image Metamob dans le DOM)", () => {
+  it("aucune image Metamob brute dans le DOM (l'image sûre arrive du serveur)", () => {
     expect(modal).not.toContain("src={m.image}");
-    expect(bits).toContain("ocreMonsterImage(id)");
+    expect(panel).not.toContain("src={m.image}");
+    // La chaîne de vignette est une règle PURE (`src/lib`), consommée par le composant :
+    // les replis locaux ne vivent donc qu'à un seul endroit.
+    expect(bits).toContain("ocreMonsterThumbChain(id, type, imageUrl)");
+    expect(read("src/lib/ocre-soul-stones.ts")).toContain("ocreMonsterImage(id)");
     expect(bits).toContain("ocreStateLabel(owned, requiredCopies)"); // libellé : source unique
   });
 });

@@ -13,6 +13,7 @@ import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
 import { isSafeImageUrl } from "@/lib/security";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { QUEST_TYPE_KEYS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { extractNpcRef } from "@/lib/npc-portrait";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -144,7 +145,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
             <div className="flex -space-x-1.5">
               {liveViewers.map((m) => (
                 <div key={m.profileId} title={`${m.userName} regarde cette quête`} className="w-5 h-5 rounded-full border-2 border-success/60 overflow-hidden bg-muted shrink-0">
-                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-success flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                  <MemberAvatar src={m.userAvatar} name={m.userName} alt={m.userName} fallbackClassName="text-caption font-black text-success" />
                 </div>
               ))}
             </div>
@@ -848,7 +849,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
                   title={m.questId ? `${m.userName} — ${questNameById.get(m.questId) || "parcourt la page"}` : m.userName}
                   className="w-6 h-6 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0"
                 >
-                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-muted-foreground flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                  <MemberAvatar src={m.userAvatar} name={m.userName} alt={m.userName} fallbackClassName="text-caption font-black text-muted-foreground" />
                 </div>
               ))}
             </div>

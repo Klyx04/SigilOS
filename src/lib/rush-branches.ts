@@ -1,0 +1,340 @@
+/**
+ * Rush Sylvestre — **vue Branches à deux étages** (cité → Ordre), règle pure.
+ *
+ * Mesure de référence (21/10/2026, `docs/plans/MODULE-RUSH-SYLESTRE.md` § F2) :
+ *  · **100** quêtes de cité côté Bontarien (100ᵉ = « L'exorciste »), **102** côté Brâkmarien
+ *    (102ᵉ = « La danse macabre ») ;
+ *  · le miroir vaut **par position** tant que les deux séries avancent ensemble : les positions
+ *    101-102 n'ont **pas** de jumelle côté Bonta (ce n'est pas un manque) ;
+ *  · **3 Ordres par cité**, **5 quêtes d'Apprentissage** chacun (seuils 20/40/60/80/100), avec un
+ *    **nom propre par Ordre** ⇒ **30 quêtes d'Ordre**.
+ *
+ * Cette règle ne lit rien, n'écrit rien : elle range ce que le chargeur God a déjà ramené.
+ * Les séquences d'Ordre ne comptent **jamais** dans une série de cité (piège mesuré : sans ce
+ * filtre, la cible 100/102 est atteinte à tort).
+ */
+
+import { DOFUS_CLASSES, ORDERS } from "@/lib/dofus-assets";
+import { normalizeAlignmentCamp, type RushAlignmentCamp } from "@/lib/rush-route";
+import { RUSH_ORDER_CODES, normalizeOrderCode } from "@/lib/rush-order-codes";
+
+/** Cible mesurée par cité (Tougli, 21/10/2026). */
+export const RUSH_CAMP_TARGETS: Record<RushAlignmentCamp, number> = {
+    bontarien: 100,
+    brakmarien: 102,
+};
+
+/** Seuils d'Apprentissage des quêtes d'Ordre. */
+export const RUSH_ORDER_LEVELS = [20, 40, 60, 80, 100] as const;
+export type RushOrderLevel = (typeof RUSH_ORDER_LEVELS)[number];
+
+export type RushBranchSequence = {
+    id: string;
+    /**
+     * Ordre **dans son bloc** — il repart à 0 dans chaque bloc, donc il ne donne PAS la
+     * position dans la série. Le tri de la vue utilise `blockOrder` d'abord.
+     */
+    order: number;
+    /**
+     * Ordre du **bloc** dans le guide (`GuideMilestone.order`). Sans lui, deux séquences de
+     * blocs différents partagent le même `order` (0, 1, 2…) et le tri retombait sur le nom :
+     * les « paires alignées par position » sortaient en **alphabet** (mesuré le 27/10/2026 —
+     * « L'exorciste », 100ᵉ quête, apparaissait en position 68).
+     */
+    blockOrder?: number;
+    subGuideName: string;
+    alignReq?: string | null;
+    alignOrderCode?: string | null;
+    alignLevelReq?: number | null;
+    /** Id de classe (`feca`, `osamodas`…) — quêtes de classe du 3ᵉ étage. */
+    classReq?: string | null;
+};
+
+export type RushBranchPair = {
+    /** Position 1..N dans la série de cité (le miroir se lit à position égale). */
+    position: number;
+    bontarien?: RushBranchSequence;
+    brakmarien?: RushBranchSequence;
+};
+
+export type RushOrderSlot = {
+    level: RushOrderLevel;
+    /** Nom propre du palier pour cet Ordre (« Disciple de Ménalt »…). */
+    label: string;
+    sequences: RushBranchSequence[];
+};
+
+export type RushBranchOrder = {
+    id: string;
+    name: string;
+    icon: string;
+    slots: RushOrderSlot[];
+    /** Emplacements vides (0 = branche complète). */
+    missing: number;
+    /** Quêtes de cet Ordre sans palier renseigné (signalées, jamais comptées comme remplies). */
+    unlevelled: RushBranchSequence[];
+};
+
+export type RushBranchCamp = {
+    camp: RushAlignmentCamp;
+    label: string;
+    target: number;
+    present: number;
+    /** Quêtes manquantes pour atteindre la cible. */
+    missing: number;
+    /** Positions au-delà du plus petit des deux totaux (hors miroir, pas des manques). */
+    beyondMirror: number;
+    orders: RushBranchOrder[];
+};
+
+export type RushBranchesView = {
+    camps: [RushBranchCamp, RushBranchCamp];
+    pairs: RushBranchPair[];
+    /** Séquences dont la cité ou l'Ordre n'est pas reconnu (jamais perdues en silence). */
+    orphans: RushBranchSequence[];
+    /** Séries complètes ? (bontarien = 100 ET brâkmarien = 102) */
+    complete: boolean;
+};
+
+const CAMP_LABELS: Record<RushAlignmentCamp, string> = {
+    bontarien: "Bontarien",
+    brakmarien: "Brâkmarien",
+};
+
+const CAMPS: RushAlignmentCamp[] = ["bontarien", "brakmarien"];
+
+/**
+ * Tri stable : **bloc**, puis `order` interne, puis nom, puis id.
+ *
+ * Le `order` d'une séquence est **local au bloc** : sans l'ordre du bloc, toutes les
+ * séquences de même index se mélangeaient et le nom tranchait (alphabet).
+ */
+function sortSequences(list: RushBranchSequence[]): RushBranchSequence[] {
+    return [...list].sort(
+        (a, b) =>
+            (a.blockOrder ?? 0) - (b.blockOrder ?? 0) ||
+            a.order - b.order ||
+            a.subGuideName.localeCompare(b.subGuideName, "fr") ||
+            a.id.localeCompare(b.id),
+    );
+}
+
+function normalizeLevel(value: number | null | undefined): RushOrderLevel | null {
+    const level = Number(value);
+    return (RUSH_ORDER_LEVELS as readonly number[]).includes(level) ? (level as RushOrderLevel) : null;
+}
+
+/**
+ * Range les séquences du guide en deux étages.
+ *
+ * @param sequences toutes les séquences du guide, toutes cités/Ordres confondus.
+ */
+export function buildRushBranches(sequences: readonly RushBranchSequence[]): RushBranchesView {
+    const orphans: RushBranchSequence[] = [];
+    const campQuests: Record<RushAlignmentCamp, RushBranchSequence[]> = { bontarien: [], brakmarien: [] };
+    const orderQuests: Record<RushAlignmentCamp, RushBranchSequence[]> = { bontarien: [], brakmarien: [] };
+
+    for (const seq of sequences) {
+        const raw = (seq.alignReq ?? "").trim();
+        if (!raw) continue; // quête commune : hors branches
+
+        const camp = normalizeAlignmentCamp(raw);
+        if (!camp) {
+            orphans.push(seq); // fail-closed : jamais rattachée d'office
+            continue;
+        }
+        const hasOrder = !!(seq.alignOrderCode ?? "").trim();
+        if (hasOrder) orderQuests[camp].push(seq);
+        else campQuests[camp].push(seq);
+    }
+
+    const sortedCamp: Record<RushAlignmentCamp, RushBranchSequence[]> = {
+        bontarien: sortSequences(campQuests.bontarien),
+        brakmarien: sortSequences(campQuests.brakmarien),
+    };
+
+    // Étage 1 — paires alignées **par position**.
+    const pairCount = Math.max(sortedCamp.bontarien.length, sortedCamp.brakmarien.length);
+    const mirrorLimit = Math.min(RUSH_CAMP_TARGETS.bontarien, RUSH_CAMP_TARGETS.brakmarien);
+    const pairs: RushBranchPair[] = [];
+    for (let i = 0; i < pairCount; i += 1) {
+        pairs.push({
+            position: i + 1,
+            bontarien: sortedCamp.bontarien[i],
+            brakmarien: sortedCamp.brakmarien[i],
+        });
+    }
+
+    // Étage 2 — 3 Ordres × 5 paliers par cité.
+    const camps = CAMPS.map((camp): RushBranchCamp => {
+        const catalog = (ORDERS as unknown as Record<
+            string,
+            Array<{ id: string; name: string; icon: string; levels: Record<number, string> }>
+        >)[camp] ?? [];
+        const ownQuests = orderQuests[camp];
+
+        // ⚠️ Deux vocabulaires cohabitent : le catalogue `ORDERS` porte des ids **courts**
+        // (`vaillant`, `attentif`…), alors que le studio (S4-2) et l'import écrivent le code
+        // **canonique** (`coeur_vaillant`…). Comparer les deux tels quels faisait tomber
+        // TOUTES les quêtes d'Ordre en « hors branche » et laissait les 30 emplacements vides
+        // (mesuré le 27/10/2026, juste après l'import des 30 quêtes). On ramène donc chaque
+        // code au canonique avec la source unique `rush-order-codes`.
+        const knownCodes = new Set(
+            RUSH_ORDER_CODES.filter((o) => o.camp === camp).map((o) => o.code),
+        );
+
+        // Un code d'Ordre inconnu — ou appartenant à l'autre cité — ne se fond dans aucun
+        // autre : il est signalé, jamais rattaché d'office.
+        for (const seq of ownQuests) {
+            const code = normalizeOrderCode(seq.alignOrderCode);
+            if (!code || !knownCodes.has(code)) orphans.push(seq);
+        }
+
+        const orders: RushBranchOrder[] = catalog.map((order) => {
+            const canonical = normalizeOrderCode(order.id);
+            const mine = canonical
+                ? ownQuests.filter((seq) => normalizeOrderCode(seq.alignOrderCode) === canonical)
+                : [];
+            const unlevelled: RushBranchSequence[] = [];
+            const slots: RushOrderSlot[] = RUSH_ORDER_LEVELS.map((level) => ({
+                level,
+                label: order.levels?.[level] ?? `Palier ${level}`,
+                sequences: [],
+            }));
+
+            for (const seq of sortSequences(mine)) {
+                const level = normalizeLevel(seq.alignLevelReq);
+                const slot = level ? slots.find((s) => s.level === level) : undefined;
+                if (slot) slot.sequences.push(seq);
+                else unlevelled.push(seq);
+            }
+
+            return {
+                id: order.id,
+                name: order.name,
+                icon: order.icon,
+                slots,
+                missing: slots.filter((s) => s.sequences.length === 0).length,
+                unlevelled,
+            };
+        });
+
+        const target = RUSH_CAMP_TARGETS[camp];
+        const present = sortedCamp[camp].length;
+
+        return {
+            camp,
+            label: CAMP_LABELS[camp],
+            target,
+            present,
+            missing: Math.max(0, target - present),
+            beyondMirror: Math.max(0, present - mirrorLimit),
+            orders,
+        };
+    }) as [RushBranchCamp, RushBranchCamp];
+
+    return {
+        camps,
+        pairs,
+        orphans: sortSequences(orphans),
+        complete: camps.every((c) => c.present >= c.target),
+    };
+}
+
+/** Emplacements d'Ordre vides au total (cible : 6 Ordres × 5 paliers). */
+export function countMissingOrderSlots(view: RushBranchesView): number {
+    return view.camps.reduce((total, camp) => total + camp.orders.reduce((n, order) => n + order.missing, 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// 3ᵉ étage — classes (G4, 02/11/2026)
+// ---------------------------------------------------------------------------
+
+export type RushClassBranch = {
+    /** Id de classe écrit dans `GuideSequence.classReq` (`feca`, `osamodas`…). */
+    id: string;
+    name: string;
+    icon: string;
+    /**
+     * Quêtes de cette classe. **0 = manque** ; **> 1 = doublon** (défaut de saisie
+     * signalé, jamais masqué : la route n'en rendrait qu'une).
+     */
+    sequences: RushBranchSequence[];
+};
+
+export type RushClassBranchesView = {
+    /** Classes jouables attendues (19 au 27/10/2026). */
+    target: number;
+    /** Classes qui portent au moins une quête. */
+    present: number;
+    missing: number;
+    classes: RushClassBranch[];
+    /** `classReq` inconnu (faute de frappe, libellé `Féca`, ancien id `osa`) : signalé. */
+    unknown: RushBranchSequence[];
+    /** Quête de classe qui porte **aussi** une cité, un Ordre ou un palier : elle fausserait la série. */
+    misplaced: RushBranchSequence[];
+};
+
+/**
+ * Range les **quêtes de classe** — le 3ᵉ étage de la route (cité → Ordre → classe).
+ *
+ * Cibles mesurées : **19** quêtes de classe, une par classe jouable. Ce que ce verrou
+ * interdit :
+ *  · rattacher d'office une valeur inconnue — la route (`isSequenceOnRoute`) la masque
+ *    en fail-closed, donc le joueur ne la verrait jamais : elle doit être **nommée** ici ;
+ *  · compter deux quêtes pour une même classe sans le dire (`sequences.length > 1`) ;
+ *  · laisser une quête de classe porter une cité, un Ordre ou un palier : elle compterait
+ *    dans la série de cité (cible 100/102) ou serait verrouillée par
+ *    `isSequenceBlockedByPrereqs` (`alignLevelReq`), qui compte des quêtes de cité.
+ *
+ * Règle pure : ne lit rien, n'écrit rien.
+ */
+export function buildRushClassBranches(
+    sequences: readonly RushBranchSequence[],
+): RushClassBranchesView {
+    const byClass = new Map<string, RushBranchSequence[]>();
+    const unknown: RushBranchSequence[] = [];
+    const misplaced: RushBranchSequence[] = [];
+
+    for (const seq of sequences) {
+        const raw = (seq.classReq ?? "").trim();
+        if (!raw) continue; // quête commune / cité / Ordre : hors 3ᵉ étage
+
+        // Comparaison stricte sur l'id (casse ignorée), comme la route : un libellé
+        // (« Féca ») ou un ancien id (« osa ») n'est PAS une classe reconnue.
+        const id = raw.toLowerCase();
+        const known = DOFUS_CLASSES.some((c) => c.id === id);
+        if (!known) {
+            unknown.push(seq);
+            continue;
+        }
+        if (
+            (seq.alignReq ?? "").trim() ||
+            (seq.alignOrderCode ?? "").trim() ||
+            seq.alignLevelReq != null
+        ) {
+            misplaced.push(seq);
+        }
+        const list = byClass.get(id) ?? [];
+        list.push(seq);
+        byClass.set(id, list);
+    }
+
+    const classes: RushClassBranch[] = DOFUS_CLASSES.map((c) => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon,
+        sequences: sortSequences(byClass.get(c.id) ?? []),
+    }));
+
+    const present = classes.filter((c) => c.sequences.length > 0).length;
+
+    return {
+        target: DOFUS_CLASSES.length,
+        present,
+        missing: classes.length - present,
+        classes,
+        unknown: sortSequences(unknown),
+        misplaced: sortSequences(misplaced),
+    };
+}

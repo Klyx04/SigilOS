@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { safeEqualStrings } from "@/lib/god-route";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
@@ -37,7 +37,7 @@ const notifySchema = z.object({
     ]),
     success: z.boolean().optional(),
     metadata: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .refine(obj => Object.keys(obj).length <= 20, "metadata : trop de clés")
         .refine(
             obj => Object.values(obj).every(v => ["string", "number", "boolean"].includes(typeof v) && v !== null),

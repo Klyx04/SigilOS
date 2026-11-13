@@ -60,15 +60,15 @@ describe("missions — hall de guilde : zoom d'aperçu dans la plage du CRS", ()
     });
 });
 
-describe("missions — bouton PREUVE : règle d'affichage verrouillée (#204)", () => {
-    it("PREUVE exige !vitrine && !god-hide && !déjà-validé (un God sans bouton = #204, pas un bug)", () => {
+describe("missions — bouton PREUVE : règle d'affichage pour les membres et super-admins", () => {
+    it("PREUVE exige !vitrine && !hideUpload && !déjà-validé (accessible aux super-admins membres de la guilde)", () => {
         const code = codeOnly(read("src/components/missions/mission-card.tsx"));
         expect(code).toContain("!vitrineMode && !hideUpload && !isValidated");
-        // La page masque l'upload aux super-admins (God) — décision #204, pas un oubli.
+        // La page masque l'upload aux non-membres (les super-admins membres peuvent participer)
         const page = codeOnly(
             read("src/app/dashboard/[guildId]/missions/page.tsx")
         );
-        expect(page).toContain("hideUpload={!!user.isSuperAdmin}");
+        expect(page).toContain("hideUpload={!user.isMember}");
     });
 });
 

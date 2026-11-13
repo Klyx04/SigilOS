@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { getLegendaryCraftingData, syncLegendaryCrafts } from "@/server/actions/legendary-actions";
-import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Sparkles, Hammer, Info, Lock } from "lucide-react";
+import { Sparkles, Hammer, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
 interface LegendaryCraftingProps {
     guildId: string;
@@ -77,129 +74,139 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
 
     if (loading) {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map(i => (
-                    <Skeleton key={i} className="h-32 w-full rounded-2xl bg-surface" />
+                    <Skeleton key={i} className="h-28 w-full rounded-xl bg-surface" />
                 ))}
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xl font-black uppercase tracking-tighter text-foreground">
-                    <Sparkles className="w-6 h-6 text-info" />
-                    Craft Légendaire
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-warning/15 border border-warning/30 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-warning" />
+                    </div>
+                    <h3 className="text-base font-bold text-foreground">
+                        Craft Légendaire
+                    </h3>
                 </div>
-                <p className="text-muted-foreground text-sm">
-                    Déclarez les objets légendaires que vous êtes capable de fabriquer. 
-                    Vous devez être **niveau 200** dans le métier correspondant et posséder les **6 Dofus primordiaux**.
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                    Déclarez les objets légendaires que vous pouvez fabriquer. 
+                    Niveau 200 dans le métier requis et possession des 6 Dofus primordiaux indispensables.
                 </p>
                 
-                <div className="mt-2 p-3 rounded-xl bg-info/10 border border-info/20 text-info/80 text-xs flex items-center gap-3">
-                    <Info className="w-4 h-4 text-info shrink-0" />
+                <div className="p-3 rounded-xl bg-surface/50 border border-border text-xs text-muted-foreground flex items-center gap-2.5">
+                    <Info className="w-4 h-4 text-warning shrink-0" />
                     <p>
-                        Une fois vos prérequis confirmés, les membres pourront voir vos capacités depuis l'annuaire et vous taguer sur Discord pour des commandes.
+                        Une fois vos prérequis confirmés, les membres pourront vous solliciter depuis l'annuaire ou Discord.
                     </p>
                 </div>
             </div>
 
             {jobsAt200.length === 0 && !readOnly && (
-                <Card className="p-6 bg-warning/10 border-warning/20 rounded-2xl flex items-start gap-4">
-                    <Info className="w-6 h-6 text-warning shrink-0 mt-1" />
+                <div className="p-4 bg-warning/10 border border-warning/20 rounded-xl flex items-start gap-3">
+                    <Info className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="text-warning font-bold uppercase text-sm tracking-widest">Aucun métier 200</h4>
-                        <p className="text-warning/70 text-xs mt-1">
-                            Vous n'avez déclaré aucun métier de niveau 200 dans votre profil. 
-                            Seuls les artisans de niveau maximum peuvent fabriquer des objets légendaires.
+                        <h4 className="text-xs font-bold text-warning uppercase tracking-wider">Aucun métier 200</h4>
+                        <p className="text-xs text-warning/80 mt-0.5">
+                            Vous n'avez déclaré aucun métier niveau 200. Seuls les artisans de niveau maximum peuvent fabriquer des objets légendaires.
                         </p>
                     </div>
-                </Card>
+                </div>
             )}
 
             {jobsAt200.length > 0 && !readOnly && (
-                <Card className="p-6 bg-surface/40 border-border rounded-2xl">
+                <div className="p-4 bg-surface/50 border border-border rounded-xl">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
-                            <h4 className="text-foreground font-bold uppercase tracking-widest text-sm flex items-center gap-2">
-                                Prérequis <a href="https://www.dofuspourlesnoobs.com/objets-legendaires.html" target="_blank" rel="noopener noreferrer" className="text-info hover:text-info" title="Voir les prérequis sur Dofus pour les Noobs"><Info className="w-4 h-4" /></a>
+                            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                                Prérequis Dofus Primordiaux
+                                <a 
+                                    href="https://www.dofuspourlesnoobs.com/objets-legendaires.html" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-muted-foreground hover:text-foreground transition-colors" 
+                                    title="Voir les prérequis sur Dofus pour les Noobs"
+                                >
+                                    <Info className="w-3.5 h-3.5" />
+                                </a>
                             </h4>
-                            <p className="text-muted-foreground text-sm mt-1">
-                                Cochez cette case pour confirmer que vous avez terminé les séries de quêtes nécessaires pour fabriquer des objets légendaires (Dofus primordiaux, etc.).
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Confirmez que vous possédez les quêtes requises pour fabriquer des objets légendaires.
                             </p>
                         </div>
                         <Switch 
                             checked={hasPrerequisites}
                             onCheckedChange={handlePrerequisitesToggle}
-                            className="data-[state=checked]:bg-info"
+                            className="data-[state=checked]:bg-warning"
                         />
                     </div>
-                </Card>
+                </div>
             )}
 
             {(!readOnly && !hasPrerequisites && jobsAt200.length > 0) ? (
-                <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-surface/20">
-                    Veuillez confirmer vos prérequis ci-dessus pour déclarer vos objets légendaires.
+                <div className="p-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl bg-surface/20">
+                    Activez vos prérequis ci-dessus pour déclarer vos objets légendaires.
                 </div>
             ) : (
-                <div className="space-y-8">
+                <div className="space-y-6">
                     {Object.entries(groupedItems).map(([job, jobItems]: [string, any]) => (
-                        <div key={job} className="space-y-4">
-                            <h4 className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em] flex items-center gap-2 px-1">
-                                <Hammer className="w-3 h-3" /> {job}
+                        <div key={job} className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 px-0.5">
+                                <Hammer className="w-3.5 h-3.5 text-warning" /> {job}
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                                 {jobItems.map((item: any) => (
-                                    <Card 
+                                    <div 
                                         key={item.id}
                                         className={cn(
-                                            "group relative overflow-hidden p-4 transition-all duration-300 rounded-2xl border-border bg-surface/40 backdrop-blur-md",
-                                            item.canCraft ? "border-info/30 bg-info/5 " : "hover:border-border"
+                                            "group relative p-3 rounded-xl border transition-all flex items-center gap-3",
+                                            item.canCraft 
+                                                ? "bg-surface/50 border-warning/30 hover:border-warning/50" 
+                                                : "bg-surface/30 border-border opacity-70"
                                         )}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-black/40 border border-border flex items-center justify-center p-2">
-                                                {item.imageUrl ? (
-                                                     <img 
-                                                         src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} 
-                                                         alt={item.name} 
-                                                         width={48} 
-                                                         height={48}
-                                                         className="object-contain group- transition-transform duration-300"
-                                                     />
-                                                ) : (
-                                                    <Sparkles className="w-8 h-8 text-muted-foreground" />
-                                                )}
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-foreground font-bold text-sm truncate uppercase tracking-tight leading-none">
-                                                    {item.name}
-                                                </h4>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <Badge variant="outline" className="bg-surface text-caption uppercase border-none text-muted-foreground">
-                                                        {item.category}
-                                                    </Badge>
-                                                </div>
-                                            </div>
+                                        <div className="relative w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-background/80 border border-border flex items-center justify-center p-1">
+                                            {item.imageUrl ? (
+                                                <img 
+                                                    src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} 
+                                                    alt={item.name} 
+                                                    width={36} 
+                                                    height={36}
+                                                    className="object-contain transition-transform duration-200 group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <Sparkles className="w-5 h-5 text-muted-foreground" />
+                                            )}
                                         </div>
 
-                                        {/* Status Indicator */}
-                                        {item.canCraft && (
-                                            <div className="absolute top-0 right-0 p-1.5 bg-info rounded-bl-xl shadow-lg animate-in zoom-in duration-300">
-                                                <Sparkles className="w-3 h-3 text-foreground" />
+                                        <div className="flex-1 min-w-0">
+                                            <h5 className="text-xs font-semibold text-foreground truncate">
+                                                {item.name}
+                                            </h5>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal text-muted-foreground border-border/60">
+                                                    {item.category}
+                                                </Badge>
+                                                {item.canCraft && (
+                                                    <span className="text-[10px] font-semibold text-warning">
+                                                        Disponible
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
-                                    </Card>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
                     ))}
                     
                     {displayItems.length === 0 && jobsAt200.length > 0 && (
-                        <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-surface/20">
-                            Aucun objet légendaire correspondant à vos métiers n'a été trouvé.
+                        <div className="p-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl bg-surface/20">
+                            Aucun objet légendaire correspondant à vos métiers.
                         </div>
                     )}
                 </div>

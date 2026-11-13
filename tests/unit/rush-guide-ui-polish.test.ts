@@ -72,7 +72,9 @@ describe("overlay — le mode compact est supprimé (retour user 07/10/2026)", (
     it("la pile d'en-tête respire (recherche, UNE barre de chapitre)", () => {
         // Renfort visuel verrouillé pour éviter un retour en arrière silencieux.
         expect(codeOf(SEARCH)).toContain("mx-3 mt-3 mb-2.5");
-        expect(codeOf(TREE)).toContain("px-3 py-2.5 border-b");
+        // DA « Gouache Wakfu » : la barre de blocs est le dock de la maquette
+        // (`sticky`, bord bas, médaillon) — même rôle, même place.
+        expect(codeOf(TREE)).toContain("da-dock");
         // Depuis le 08/10/2026, l'overlay n'a PLUS de 2ᵉ barre « chapitre courant » empilée
         // (les trois blocs qui coûtaient ~120 px sont fusionnés dans `RushOverlayChapterBar`) :
         // cette classe-là ne doit pas revenir dans le client.
@@ -100,15 +102,46 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
     it("la barre de contrôle n'est plus collante (elle recouvrait le rail)", () => {
         const code = codeOf(PUBLIC);
         expect(code).not.toContain("sticky top-16 z-30");
-        expect(code).toContain('<div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">');
+        // Le panneau porte désormais la classe de la DA : il vit DANS le bandeau
+        // (une seule carte, 05/11/2026) et n'a plus de carte à lui.
+        expect(code).toContain('<div className="da-guide-controls">');
+    });
+
+    it("le titre et le panneau de contrôle ne font qu'UNE carte", () => {
+        // Demande user du 05/11/2026 : « mets ce bloc dans le bloc du titre ».
+        // Le panneau est DANS le `<header>` du bandeau, pas dans la colonne du module.
+        const code = codeOf(PUBLIC);
+        const hero = code.indexOf('<header className="da-guide-hero">');
+        const controls = code.indexOf('<div className="da-guide-controls">');
+        const heroEnd = code.indexOf("</header>", hero);
+        expect(hero).toBeGreaterThan(-1);
+        expect(controls).toBeGreaterThan(hero);
+        expect(controls).toBeLessThan(heroEnd);
+
+        // Les lignes explicatives du titre sont supprimées (slop) : plus de
+        // sous-titre, plus de « ~370 étapes optimisées », plus de « sauvegarde
+        // locale » — le titre parle seul.
+        const page = codeOf("src/app/guides/rush-sylvestre/page.tsx");
+        expect(code).not.toMatch(/da-guide-hero-sub/);
+        expect(page).not.toMatch(/da-guide-hero-sub|étapes optimisées|sauvegarde locale/);
     });
 
     it("le rail est collant, borné au scrollport et défilable en interne", () => {
         // `100dvh` (et non `100vh`) : sur mobile la barre d'URL fait varier la hauteur
         // visible — `dvh` suit la hauteur VISIBLE, `vh` la maximale (mesure du 08/10/2026).
-        expect(codeOf(PUBLIC)).toContain(
-            'className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto custom-scrollbar"'
-        );
+        //
+        // E2 (05/11/2026) : la borne a quitté la classe du rail pour la COLONNE de la
+        // grille du guide (`.da-guide-aside`). Même intention, même mécanisme — le rail
+        // est sticky dans les deux cas, seule la surface qui pose la contrainte change.
+        const code = codeOf(PUBLIC);
+        expect(code).toMatch(/<RushChapterSidebar/);
+        const css = readFileSync("src/app/da-wakfu.css", "utf8");
+        const asideRules = [...css.matchAll(/\.da-guide-aside\s*\{([^}]*)\}/g)]
+            .map((m) => m[1])
+            .join(";");
+        expect(asideRules).toMatch(/position:\s*sticky/);
+        expect(asideRules).toMatch(/max-height:\s*calc\(100dvh - 6rem\)/);
+        expect(asideRules).toMatch(/overflow-y:\s*auto/);
     });
 
     it("le sommaire repliable est supprimé (les ancres partageables restent)", () => {
@@ -127,32 +160,59 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
 const DASHBOARD_RUSH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 
 describe("guide interne — encart « Personnage Actif » aligné sur le design system", () => {
-    it("le statut du personnage est un `Badge` (plus de `span` teinté fait main)", () => {
+    it("le statut Main/Mule n'est plus une pastille faite main : il vit dans le menu du personnage", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/<Badge\s+variant="outline"/);
+        // 26/10/2026 — le `Badge` « Main » de la rangée a été retiré à la demande du
+        // propriétaire (« vire le bandeau ai slop autour du pseudo ») : le statut est
+        // porté par le menu du personnage, pas par une pastille collée à côté du nom.
+        expect(code).not.toMatch(/<Badge/);
         expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-warning border/);
         expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-info border/);
+        expect(code).toMatch(/<DropdownMenuRadioItem value="PRINCIPAL"/);
     });
 
-    it("le choix du perso passe par `Button` + des RadioItems (l'actif porte la pastille)", () => {
+    it("le choix du perso est un menu (role combobox) + RadioItems, sans pastille", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/<Button variant="outline" size="sm" role="combobox"/);
+        // Déclencheur sobre : plus de bouton à bordure qui doublait le badge.
+        expect(code).toMatch(/<Button variant="ghost" size="sm" role="combobox"/);
         expect(code).toMatch(/<DropdownMenuRadioGroup value=\{selectedCharacter\} onValueChange=\{handleSelect\}>/);
         expect(code).toMatch(/<DropdownMenuRadioItem value="PRINCIPAL"/);
         // Plus d'item maison souligné en vert.
         expect(code).not.toMatch(/rounded-lg cursor-pointer transition-colors \$\{selectedCharacter/);
     });
 
-    it("le reset est un `Button` sobre et nommé pour les lecteurs d'écran", () => {
+    it("le reset est atteignable depuis le menu du personnage, et nommé", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/size="icon-sm"[\s\S]{0,400}onClick=\{\(\) => setResetModalOpen\(true\)\}[\s\S]{0,400}aria-label=\{`Réinitialiser la progression de/);
-        expect(code).not.toMatch(/bg-danger\/10 hover:bg-danger\/20 border border-danger\/20 text-danger transition-all shadow-sm/);
+        // Le gros bouton rouge de la rangée a été retiré (même demande) ; l'action
+        // reste disponible, par personnage, depuis le menu.
+        expect(code).toMatch(/onRequestReset/);
+        expect(code).toMatch(/Réinitialiser \{?"?«? ?\{currentLabel\}/);
+        expect(code).toMatch(/<RotateCcw className="size-3\.5"\/>/);
+        expect(code).not.toMatch(/size="icon-sm"[\s\S]{0,200}setResetModalOpen/);
     });
 
     it("les appairages (pseudo, Metamob) passent par `Button` : plus de pastille ambre qui brille", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code.match(/variant="outline" size="sm"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+        // Deux appairages restants (pseudo + Metamob) : le troisième bouton de la
+        // rangée était le reset, désormais dans le menu (voir cas précédent).
+        expect(code.match(/variant="outline" size="sm"/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
         expect(code).not.toMatch(/bg-warning\/10 hover:bg-warning\/20 px-2\.5 py-1/);
+    });
+
+    it("une seule anatomie pour les cinq blocs : asset nu 28 px, libellé 11 px (pas de `font-serif`)", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toContain('text-[11px] text-muted-foreground">Personnage actif');
+        expect(code).toContain('text-[11px] text-muted-foreground">Rush Live');
+        // La seule `font-serif` restante est le titre du guide (H1), pas un libellé.
+        expect(code.match(/font-serif/g)?.length ?? 0).toBe(1);
+        const serifLine = code.split("\n").find((line) => line.includes("font-serif"));
+        expect(serifLine).toContain("<h1");
+    });
+
+    it("« Rush Live » porte un asset du jeu, pas un picto générique dans une tuile", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toContain("/assets/dofus/modules/guild.png");
+        expect(code).not.toMatch(/bg-success\/15 border border-success\/30 flex items-center justify-center/);
     });
 });
 

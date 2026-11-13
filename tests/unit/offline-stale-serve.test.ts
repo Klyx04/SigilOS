@@ -16,7 +16,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { COMBAT_SPELLS_PAYLOAD_VERSION } from "@/lib/dofensive-spells";
 
 // ── Socle : PostgreSQL mocké (aucune base en test) ────────────────────────────
-const monsterStatFindFirst = vi.fn();
+const monsterStatFindMany = vi.fn();
 const monsterStatFindUnique = vi.fn();
 const monsterStatUpdate = vi.fn();
 const dofensiveMapFindUnique = vi.fn();
@@ -25,7 +25,7 @@ const dofensiveDungeonFindMany = vi.fn();
 vi.mock("@/lib/prisma", () => ({
     db: {
         monsterStat: {
-            findFirst: (...args: any[]) => monsterStatFindFirst(...args),
+            findMany: (...args: any[]) => monsterStatFindMany(...args),
             findUnique: (...args: any[]) => monsterStatFindUnique(...args),
             update: (...args: any[]) => monsterStatUpdate(...args),
         },
@@ -80,7 +80,7 @@ afterEach(() => {
 
 describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absence)", () => {
     it("sert une fiche monstre PÉRIMÉE (stale + date) là où le getter gaté refusait", async () => {
-        monsterStatFindFirst.mockResolvedValue({ stats: { id: 999, name: "Vieux" }, lastSyncedAt: STALE });
+        monsterStatFindMany.mockResolvedValue([{ stats: { id: 999, name: "Vieux" }, lastSyncedAt: STALE }]);
 
         const hit = await sync.getLocalMonsterStatAny("Vieux");
         expect(hit?.data).toEqual({ id: 999, name: "Vieux" });
@@ -92,7 +92,7 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
     });
 
     it("sert une fiche FRAÎCHE sans la marquer périmée (non-régression)", async () => {
-        monsterStatFindFirst.mockResolvedValue({ stats: { id: 1, name: "Frais" }, lastSyncedAt: FRESH });
+        monsterStatFindMany.mockResolvedValue([{ stats: { id: 1, name: "Frais" }, lastSyncedAt: FRESH }]);
 
         const hit = await sync.getLocalMonsterStatAny("Frais");
         expect(hit?.stale).toBe(false);
@@ -100,7 +100,7 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
     });
 
     it("renvoie null (⇒ repli live légitime) quand AUCUNE ligne n'existe", async () => {
-        monsterStatFindFirst.mockResolvedValue(null);
+        monsterStatFindMany.mockResolvedValue([]);
         await expect(sync.getLocalMonsterStatAny("Inconnu")).resolves.toBeNull();
         await expect(sync.getLocalMonsterStat("Inconnu")).resolves.toBeNull();
     });

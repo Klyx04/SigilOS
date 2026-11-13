@@ -621,6 +621,18 @@ export async function siphonGameItemByAnkamaId(
         else if (typeLower.includes('consommable') || typeLower.includes('potion') || typeLower.includes('pain') || typeLower.includes('viande')) category = 'consumables';
         else if (typeLower.includes('apparat') || typeLower.includes('cosmétique') || typeLower.includes('montilier') || typeLower.includes('costume')) category = 'cosmetics';
 
+        // ── R-1 (16/10/2026) — même règle que le batch : la recette détaillée est
+        // persistée (jamais requêtée en live par la fiche). Échec ⇒ `null`, reprise suivante.
+        let recipe: unknown = null;
+        if (Boolean(raw.hasRecipe || raw.is_recipe_item)) {
+            try {
+                const { siphonGameItemRecipeCore } = await import('@/lib/game-items-siphon');
+                recipe = await siphonGameItemRecipeCore(ankamaId);
+            } catch {
+                recipe = null;
+            }
+        }
+
         const data = {
             name,
             level: Number(raw.level || 1),
@@ -640,10 +652,11 @@ export async function siphonGameItemByAnkamaId(
             superTypeId: raw.superTypeId != null ? Number(raw.superTypeId) : null,
             superTypeName: typeof raw.superType?.name?.fr === 'string' ? raw.superType.name.fr : null,
             nativeEffects: (toNativeEffects(raw) ?? undefined) as any,
+            recipe: (recipe ?? undefined) as any,
             isDeprecated: false,
         };
 
-        const dataHash = crypto.createHash('md5').update(JSON.stringify(data)).digest('hex');
+        const dataHash = crypto.createHash('md5').update(JSON.stringify({ ...data, recipe })).digest('hex');
         await db.gameItem.upsert({
             where: { ankamaId },
             create: { ankamaId, ...data, dataHash },

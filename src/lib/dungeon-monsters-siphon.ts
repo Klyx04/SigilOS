@@ -5,7 +5,6 @@ import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { diffCollection, recordGameDataChanges } from "@/lib/game-data-changelog";
 
 const OUTPUT_PATH = path.join(process.cwd(), "public", "game-data", "dungeon-monsters.json");
-
 function norm(str: string | null | undefined): string {
     return (str || "")
         .toLowerCase()
@@ -61,6 +60,40 @@ export function readLocalMonsterCatalogue(): { monsters: LocalMonsterEntry[]; up
         return { monsters, updatedAt: parsed.updatedAt };
     } catch (e) {
         logger.warn("[dungeon-monsters] Catalogue local illisible", e);
+        return null;
+    }
+}
+
+/** Donjon du catalogue local (nom + clé normalisée, ce que la souveraineté compare). */
+export interface LocalDungeonEntry {
+    name: string;
+    cleanName: string | null;
+}
+
+/**
+ * Lecture du **même** fichier, côté donjons (lot 6 — souveraineté boss).
+ *
+ * Mesure du 18/10/2026 : **207** donjons en base pour **187** dans ce catalogue ⇒ 20 fiches
+ * n'ont aucune donnée locale. La lecture est unique (`OUTPUT_PATH`) : aucune 2ᵉ vérité.
+ */
+export function readLocalDungeonCatalogue(): { dungeons: LocalDungeonEntry[]; updatedAt?: string } | null {
+    try {
+        if (!fs.existsSync(OUTPUT_PATH)) return null;
+        const parsed = JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf-8")) as {
+            dungeons?: Array<Record<string, unknown>>;
+            updatedAt?: string;
+        };
+        const asText = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+        const dungeons: LocalDungeonEntry[] = [];
+        for (const raw of parsed.dungeons ?? []) {
+            const name = asText(raw?.name);
+            if (!name) continue;
+            dungeons.push({ name, cleanName: asText(raw?.cleanName) });
+        }
+        return { dungeons, updatedAt: parsed.updatedAt };
+    } catch (e) {
+        logger.warn("[dungeon-monsters] Catalogue local des donjons illisible", e);
         return null;
     }
 }

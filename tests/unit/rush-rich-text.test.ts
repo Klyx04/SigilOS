@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RushRichText, RushTipLines, splitRichText, bareLinkLabel, splitTipLines, RUSH_RICH_TEXT_SYNTAX, RUSH_RICH_TEXT_NOT_ACCEPTED } from "@/components/dofus-quests/rush/RushRichText";
+import { RushRichText, splitRichText, bareLinkLabel, splitTipLines, RUSH_RICH_TEXT_SYNTAX, RUSH_RICH_TEXT_NOT_ACCEPTED } from "@/components/dofus-quests/rush/RushRichText";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 
 /**
  * RushRichText — le texte des encarts CONSEIL / TIPS, rendu UNE fois pour le dashboard,

@@ -17,6 +17,8 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 > **Statut 01/10/2026** : **livrés** — §1 classes (PR #815), §3 rappel de clôture 24 h (PR #816), §24 Qilby (#817),
 > §25 overlay raid `/travel` (#819). **Restent côté raid** : R0 (P0 sécu), R1 clôture/no-show, R2 strat + guides,
 > R3 agenda miroir, R4 overlay Simulation, R5 rangs 1-5, R6 maps multi-donjons, R7 vignettes, R8/R9/R10 (déslop).
+> **Audit du 30/10/2026** : **13 constats mesurés (B1→B13)** + sous-lot **R1-P0** « correctifs critiques, aucune
+> migration » — tout est en §2, plus bas. R0 : volet calendrier livré (mesuré le 30/10), voir §1.
 
 ## 0. Déjà livré — ne pas refaire
 
@@ -38,6 +40,12 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 **⚠️ Hors raid** : `bounties` et `relance` relèvent du volet God/admin de §23 — les traiter **dans le même P0** (même PR ou PR sœur), sinon le P0 reste à moitié fait.
 
 **Vigilance** : c'est le **premier** lot de l'ordre officiel ⇒ **aucune décision ni migration** à attendre pour le démarrer.
+
+**Statut mesuré le 30/10/2026 — volet calendrier LIVRÉ** : `src/app/dashboard/[guildId]/calendar/page.tsx`
+fait `await auth()` (redirection `/login`), `getUserContext(guildId)` (redirection `/dashboard/<id>`) **puis**
+`canViewCalendar` — rien à refaire ici. **Volets restants** : `bounties` (le dossier
+`dashboard/[guildId]/bounties` **n'existe plus** : mesurer où vit l'écran avant de conclure) et `relance`
+(`src/app/dashboard/[guildId]/admin/relance/page.tsx`).
 
 ## 2. R1 — Clôture raid + no-show (consigne §14) — **le cœur du chantier**
 
@@ -62,13 +70,84 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 **Tests attendus** : motif obligatoire (on ne valide pas sans statuer sur chacun), `undo` **restaure tout**, compteur 90 j juste, RBAC (un membre lambda est **refusé**).
 **Vigilance** : **aucune sanction automatique** au départ d'un membre (mesurer d'abord — une règle « 2 no-shows / 30 j » pourra venir plus tard).
 
-**2 arbitrages à trancher AVANT de coder**
-- **Facteur Kamas Violets** : `*10` (`calendar-actions.ts:1203`) vs `*10 000` (seuil d'inscription) — incohérence signalée par la consigne ;
-- **Stocker `raidPurpleKamasCost`** au moment de la clôture (sinon l'`undo` rembourse une valeur de repli).
+**2 arbitrages à trancher AVANT de coder** — ✅ **tranchés le 30/10/2026** (PR #1171) : voir **D1/D2** au
+tableau de R1-P0. La conversion est **1 tranche de 10 000 kamas = 10 🟣** ; l'undo ne rembourse que le coût
+enregistré. Ne pas les redécrire ici.
 
 **Risque / migration** : **1 migration additive** (table de présences) ⇒ **ARRÊT + accord explicite** (AGENTS §7.7) ; l'écrire idempotente, jamais destructive.
 
 **DoD** : statuts privés (aucune fuite publique), `undo` = état **exactement** d'avant clôture (test sur les 4 dimensions), audit présent sur clôture **et** correction, compteur visible officier seulement, non-régression : un participant **actif** garde ses droits actuels.
+
+### R1-P0 — audit du 30/10/2026 : constats B1→B13, ancres **re-mesurées** sur `dev`
+
+> ✅ **Livré le 30/10/2026 — PR #1170** : **F1 → F5 + B13**. Règle pure `src/lib/raid-closure-rules.ts`
+> (`assertRaidClosureRoute`, `validateRaidClosureInput` borné, `shouldRepublishAfterUndo`,
+> `buildRaidUndoMetadata`), verrou `tests/unit/raid-closure-rules.test.ts` (**10 cas**), **aucune migration**.
+> **Restent** : ~~**B11/B12**~~ ⇒ ✅ **mesurés et corrigés le 31/10/2026** — **41** `font-black`, **4**
+> italiques, **2** glows colorés et un **second accent rose** retirés ; le **responsive** était **déjà
+> conforme** (`w-[95vw]` + `sm:max-w-*`) — verrou `tests/unit/raid-modal-charte.test.ts` (**9 cas**).
+> ~~le no-show de **R1**~~ ⇒ ✅ **livré le 31/10/2026** (migration 290 `20270123000000_raid_presence`,
+> règle `src/lib/raid-presence.ts`) · **D3 → D6** sont **tranchées** (tableau plus bas) · **D7 livré le
+> 31/10/2026** (notification **dashboard** aux inscrits, aucun DM ni message Discord).
+
+> **Source** : audit « Opus 4.6 » du 30/10/2026 (fichier volatile `src/temp/debug.md`, **écrasé depuis** par un
+> log de déploiement bêta — le contenu utile est **reconstitué ici**, il n'existe nulle part ailleurs).
+> **Numérotation** : le « R2 » de l'audit **est** ce R1 ; le R2 du plan reste la modale strat. Aucun second plan.
+> Les numéros de ligne de l'audit étaient périmés : ceux ci-dessous sont ceux de `df04a01d`.
+
+| # | Constat | Statut | Ancre mesurée (`src/server/actions/calendar-actions.ts`) |
+|---|---|---|---|
+| **B1** | L'undo laisse un raid « fantôme » : il re-patche un embed **supprimé** | ✅ confirmé | clôture : `deleteEventDiscordMessage` **1449-1450** · undo : `updateDiscordEventEmbed` **1554-1555** |
+| **B2** | Les rappels ne sont **pas recréés** après l'undo | ✅ confirmé | `deleteReminderMessageRefs` à la clôture **1449** ; rien au undo (**1481-1558**) |
+| **B3** | L'annulation est **muette** (aucun inscrit notifié) | ✅ confirmé | `cancelCalendarEvent` **1060-1109** : supprime les messages, ne notifie personne |
+| **B4** | Le score n'est **pas obligatoire** | ✅ confirmé | `const score = data.score?.trim() \|\| null` **1393** ; `completeRaidEvent` renvoie `{ score: null }` |
+| **B5** | Aucun **motif d'absence** | ✅ confirmé | la modale n'envoie que `{ score, presentUserIds }` (**1388**) |
+| **B6** | Aucun audit de **clôture** | ✅ confirmé | aucun `createAuditLog` dans `completeRaidEvent` (**1385-1471**) ni dans l'undo |
+| **B7** | Aucun audit d'**annulation** | ✅ confirmé | `cancelCalendarEvent` (**1060-1109**) : zéro `createAuditLog` |
+| **B8** | Aucun audit de **suppression** | ✅ confirmé | `deleteCalendarEvent` (**1220-1260**) : zéro `createAuditLog` |
+| **B9** | `completeEvent` accepte un **raid** (contourne la sélection des présents) | ✅ confirmé | **1311-1379** : pas de garde `RAID_OFFICIAL` ; `xpReward = … ? 50 : 20` **1341** crédite **tous** les inscrits |
+| **B10** | La présence vit en JSON, **non requêtable** | ✅ confirmé | `metadata.raidPresentUserIds` **1437** ; aucune table de présence |
+| **B11** | Modale non chartée | ⚠️ **à re-mesurer** | constat **visuel**, aucune capture : vérifier `event-detail-modal.tsx` **avant** d'y toucher |
+| **B12** | Responsive cassé | ⚠️ **à re-mesurer** | tester 390 / 768 / 1024 / 1440 sur `event-detail-modal.tsx` **avant** d'y toucher |
+| **B13** | `revalidatePath` appelé **deux fois** | ✅ confirmé | **795-796** (même chemin, même ligne dupliquée) |
+
+**Ce que l'audit oublie / corrige** : ① l'undo a bien une fenêtre de **24 h** et un remboursement (**1517-1531**) —
+ce n'est pas un bug ; ② `completeRaidEvent` **stocke déjà** `raidPurpleKamasCost` (**1436-1438**) : le repli
+`?? 30` de l'undo ne concerne que les anciens raids, ce n'est pas une perte systématique ; ③ le facteur Kamas
+`*10` vs `*10 000` reste **D1** ci-dessous — il ne se tranche pas dans le lot documentaire.
+
+#### Sous-lot **R1-P0** — correctifs critiques, **aucune migration**
+
+| # | Correctif | Ancre |
+|---|---|---|
+| **F1** | L'undo **republie** au lieu de patcher : `publishDiscordEvent` (déjà utilisé à la publication, **1284-1285**) crée un **nouveau** message et stocke le nouveau `discordMessageId` — ne jamais patcher un message supprimé | `undoCompleteRaidEvent` **1481-1558** (aujourd'hui `updateDiscordEventEmbed` **1554-1555**) |
+| **F2** | Rappels **recréés** après le republish (H-24 / H-1 / clôture), **uniquement** si l'événement est encore futur ; aucun doublon (la purge de clôture a déjà eu lieu) | idem |
+| **F3** | `completeEvent` **refuse** un raid — règle pure `assertRaidClosureRoute` ⇒ « Utilisez la clôture raid (score + présents) » | `completeEvent` **1311-1379** (+50 XP à **tous** les inscrits, **1341**) |
+| **F4** | `createAuditLog` (**avant → après**) sur clôture, undo, annulation et suppression — même patron que bonus/marché, **jamais** de token/e-mail | **1385** · **1481** · **1060** · **1220** |
+| **F5** | Score **obligatoire** : règle pure `isValidRaidClosureInput({ score, presentUserIds })`, refus explicite si vide | **1393** |
+| **B13** | Doublon `revalidatePath` supprimé | **795-796** |
+
+**Tests** : `tests/unit/raid-closure-rules.test.ts` (pur) — raid refusé par `completeEvent`, score vide refusé,
+`shouldRepublishAfterUndo` ; un test de **source** vérifie `publishDiscordEvent` dans l'undo, l'absence de
+`updateDiscordEventEmbed` dans l'undo et la disparition du doublon `revalidatePath`.
+**DoD** : plus de raid fantôme (embed **et** rappels), clôture impossible sans score, un raid ne peut plus passer par
+le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arrêt AGENTS §7.7.
+
+#### Décisions — D1/D2 du plan + celles de l'audit (**D3 → D7**)
+
+| # | Décision | État |
+|---|---|---|
+| **D1** | Facteur Kamas Violets : `*10` (**1426**) vs `*10 000` (**733**) | ✅ **tranché le 30/10/2026** — **1 tranche de 10 000 kamas = 10 🟣** : don hebdomadaire `tranches × 10 000 k`, bourse et coût de clôture `tranches × 10 🟣`. Aucun calcul à changer : seul le **libellé** de trésorerie était faux (PR #1171). |
+| **D2** | Stocker `raidPurpleKamasCost` à la clôture (déjà fait **1438**) | ✅ **tranché le 30/10/2026** — l'undo ne rend **que** le coût réellement enregistré, sinon **0** (`resolveUndoRefundPurpleKamas` ; plus de repli `?? 30` inventé). PR #1171. |
+| **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | ✅ **tranché le 31/10/2026** — **staff seul**, et **lu depuis la fiche membre** (onglet « Présences », `getMemberRaidPresence` gardé par `canManageMembers` / `canManageRaid` / admin) ; la modale de clôture ne garde que le **motif par inscrit**. Correction réservée à l'**officier de raid** / admin. Verrous : `raid-presence` + `member-raid-presence`. |
+| **D4** | Note libre du joueur sur sa présence | ✅ **tranché le 31/10/2026** — **pas de note libre en V1** : texte utilisateur à borner, à modérer et à afficher nulle part pour aucun besoin exprimé. Si le besoin apparaît : colonne bornée, visible staff seul. |
+| **D5** | Rétention des présences (index 90 j) | ✅ **tranché le 31/10/2026** — **90 jours** (`RAID_PRESENCE_RETENTION_DAYS`), index `(guildId, createdAt)` pour le compteur glissant et la purge (`raidPresenceRetentionCutoff`). |
+| **D6** | Résumé Discord de clôture | ✅ **tranché le 31/10/2026** — **aucun message Discord supplémentaire** : la clôture supprime déjà l'embed (F1) ; le résumé chiffré vit dans l'**attestation de la modale** et dans l'**audit** (`RAID_CLOSED` porte présents / absents / no-shows). |
+| **D7** | Notification d'annulation aux inscrits (B3) | ✅ **tranché et livré le 31/10/2026** — **notification dans le tableau de bord** pour les inscrits `REGISTERED` (`createNotification`, catégorie `EVENT`) : **aucun DM, aucun message Discord** (l'embed du salon reste supprimé). Fail-soft journalisé ; l'audit `EVENT_CANCELLED` porte `notified`. Verrou : `tests/unit/calendar-cancel-notification.test.ts`. |
+
+> ✅ **D3 → D7 tranchées le 31/10/2026** (accord mainteneur « go r1 one shot ») : D3 **staff seul**, D4
+> **aucune note libre**, D5 **90 jours**, D6 **aucun message Discord supplémentaire**, D7 **reportée**
+> dans son propre lot. Elles s'écrivent ici, jamais ailleurs.
 
 ## 3. R2 — Modale raid « strat » + guides internes (consigne §20, `[S/M]`)
 
@@ -104,7 +183,8 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 
 ### R7 — Dashboard vie : vignettes raid/event (consigne §15)
 - Agenda fade (`upcoming-events-widget.tsx`) : 7 j / 6 events **sans image** alors que le référentiel `calendar-event-images.ts` + `calendar-event-theme.ts` existe ⇒ brancher `resolveEventImagePath` + picto de type.
-- `RaidHeroBanner` : **texte seul** aujourd'hui ⇒ visuel.
+- `RaidHeroBanner` : ✅ **visuel réel** depuis le 31/10/2026 (`resolveEventImagePath` par `metadata.raidType`,
+  repli `calendar_raid_official.png`) — la carte ne montre plus de glyphe générique.
 - Activité guilde : la source actuelle ignore DJ, marché, succès ⇒ ajouter 3 requêtes (DJ `CLOSED`, marché `SOLD`, succès `VALIDATED`) + mapping (labels morts `ACHIEVEMENT/DJ_POST/STUFF` jamais émis).
 
 ## 5. Effleurent le raid (R8 → R10)

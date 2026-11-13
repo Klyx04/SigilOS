@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { logServiceActivity } from "./activity-log-actions";
+import { logServiceActivity } from "@/server/service-activity-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { VaultAction } from "@prisma/client";
@@ -62,6 +62,7 @@ const createVaultEntrySchema = z.object({
 // ---------------------------------------------------------------------------
 
 import { VAULT_ACTION_LABELS } from "./services-constants";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const profileSelect = {
     id: true,
@@ -123,7 +124,7 @@ export async function createVaultEntry(
 
         const parsed = createVaultEntrySchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         const guildConfig = await db.guildConfig.findUnique({
@@ -224,7 +225,7 @@ export async function createVaultEntry(
                         const color = isDeposit ? 0x22c55e : 0xf97316;
                         const emoji = isDeposit ? "📥" : "📤";
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
-                        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                        const appUrl = getAppBaseUrl();
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
                         // Discord needs an absolute URL with access token
                         const publicProofUrl = getDiscordPublicUrl(proofUrl);

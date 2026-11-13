@@ -780,14 +780,29 @@ export const RAIDS_DATA: Record<string, RaidData> = {
           keySpells: "Volcan Terre/Feu, Cycle Élémentaire (baisse rési)"
         },
         {
-          classId: "roublard",
+          classId: "forgelance",
+          category: "Clean & Farm monstres (Étages -1 à -5)",
+          keySpells: "Fente, Lance du Lac, Éclipse, Moulin Rouge (clean et farm AoE rapide des monstres aux étages -1 à -5)"
+        },
+        {
+          classId: "ecaflip",
           category: "Top DPS monocible",
-          keySpells: "Mur de bombes, Poudre & Rebours T3 sous portails"
+          keySpells: "Destin d'Écaflip, Griffe Joueuse, Mésaventure, burst critique T3"
+        },
+        {
+          classId: "sacrieur",
+          category: "Top DPS monocible",
+          keySpells: "Supplice, Punition sous Souffrance 10, Déchaînement, gros finisher monocible"
         },
         {
           classId: "cra",
           category: "Top DPS monocible",
           keySpells: "Balise, Flèches Destructrice & Emplie"
+        },
+        {
+          classId: "enutrof",
+          category: "Amplificateurs & Boosts",
+          keySpells: "Corruption (skip tour), Décadence (+puissance/PA), Maladresse (-PM), Retraite Anticipée"
         },
         {
           classId: "sram",
@@ -1692,8 +1707,11 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         { classId: "iop", category: "Core Staple", keySpells: "Wrath T3 synced with Nebulous, Slaughter, Power" },
         { classId: "eliotrope", category: "Core Staple", keySpells: "4-portal network, Mutual Aid, Focus" },
         { classId: "huppermage", category: "Top Single-Target DPS", keySpells: "Volcano Earth/Fire, Elemental Cycle" },
-        { classId: "roublard", category: "Top Single-Target DPS", keySpells: "Bomb wall under portals, Powder, Countdown" },
+        { classId: "forgelance", category: "Clean & Farm Mobs (Floors -1 to -5)", keySpells: "Lunge, Lake Spear, Eclipse, Red Windmill (fast AoE mob clearing across floors -1 to -5)" },
+        { classId: "ecaflip", category: "Top Single-Target DPS", keySpells: "Fate of Ecaflip, Playful Claw, Misfortune, high critical burst on Turn 3" },
+        { classId: "sacrieur", category: "Top Single-Target DPS", keySpells: "Torment, Punishment under Suffering 10, Outburst, single-target finisher" },
         { classId: "cra", category: "Top Single-Target DPS", keySpells: "Tactical beacon, Destructive & Loaded Arrow" },
+        { classId: "enutrof", category: "Amplifiers & MP Red", keySpells: "Corruption, Decadence (+power/AP), Clumsiness (-MP), Pull Out" },
         { classId: "sram", category: "Amplifiers", keySpells: "Death Mark (+20% damage taken), Cut-Throat" },
         { classId: "zobal", category: "Amplifiers", keySpells: "Transfiguration, Psychopath Mask, Furia" },
         { classId: "ouginak", category: "Amplifiers", keySpells: "Quarry, Relentlessness, Prey" },
@@ -2095,6 +2113,8 @@ export interface RaidBestiaryEntry {
   floors: string;
   /** Valeur coffre de la relique (boss uniquement). */
   scorePts?: number;
+  /** ID officiel du monstre Unity (assets /api/assets-dofus/monsters/${monsterId}). */
+  monsterId?: number;
 }
 
 /**
@@ -2104,17 +2124,17 @@ export interface RaidBestiaryEntry {
  */
 export const RAID_BESTIARY: Record<string, RaidBestiaryEntry[]> = {
   gigalodon: [
-    { slug: "mureine", name: "Mureine", role: "boss", floors: "-2", scorePts: 1000 },
-    { slug: "execrabe", name: "Exécrabe", role: "boss", floors: "-4", scorePts: 5000 },
-    { slug: "willorque", name: "Willorque", role: "boss", floors: "-6", scorePts: 10000 },
-    { slug: "gigalodon", name: "Gigalodon", role: "boss", floors: "Hub -1" },
-    { slug: "madrepire", name: "Madrépire", role: "monstre", floors: "-1, -2" },
-    { slug: "kokayou", name: "Kokayou", role: "monstre", floors: "-1, -2, -4" },
-    { slug: "leviatank", name: "Léviatank", role: "monstre", floors: "-2, -4" },
-    { slug: "calarmure", name: "Calarmure", role: "monstre", floors: "-3, -4" },
-    { slug: "ecaillon", name: "Écaillon", role: "monstre", floors: "-4" },
-    { slug: "krak-haine", name: "Krak'Haine", role: "monstre", floors: "-5" },
-    { slug: "murare", name: "Murare", role: "invocation", floors: "-2 (Mureine)" },
+    { slug: "mureine", name: "Mureine", role: "boss", floors: "-2", scorePts: 1000, monsterId: 8333 },
+    { slug: "execrabe", name: "Exécrabe", role: "boss", floors: "-4", scorePts: 5000, monsterId: 8332 },
+    { slug: "willorque", name: "Willorque", role: "boss", floors: "-6", scorePts: 10000, monsterId: 8252 },
+    { slug: "gigalodon", name: "Gigalodon", role: "boss", floors: "Hub -1", monsterId: 8314 },
+    { slug: "madrepire", name: "Madrépire", role: "monstre", floors: "-1, -2", monsterId: 8324 },
+    { slug: "kokayou", name: "Kokayou", role: "monstre", floors: "-1, -2, -4", monsterId: 8365 },
+    { slug: "leviatank", name: "Léviatank", role: "monstre", floors: "-2, -4", monsterId: 8325 },
+    { slug: "calarmure", name: "Calarmure", role: "monstre", floors: "-3, -4", monsterId: 8326 },
+    { slug: "ecaillon", name: "Écaillon", role: "monstre", floors: "-4", monsterId: 8327 },
+    { slug: "krak-haine", name: "Krak'Haine", role: "monstre", floors: "-5", monsterId: 8328 },
+    { slug: "murare", name: "Murare", role: "invocation", floors: "-2 (Mureine)", monsterId: 8334 },
   ],
 };
 

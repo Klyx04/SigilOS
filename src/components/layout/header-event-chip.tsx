@@ -6,21 +6,38 @@ import { cn } from "@/lib/utils";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { getCalendarEventDetails } from "@/server/actions/calendar-actions";
 import { EventDetailModal } from "@/components/calendar/event-detail-modal";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { format, differenceInMinutes, differenceInHours, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useSession } from "next-auth/react";
 
-// ─── Type color mapping ───────────────────────────────────────────────────────
-const TYPE_COLOR: Record<string, { dot: string; badge: string; label: string }> = {
-    RAID_OFFICIAL:    { dot: "bg-danger",    badge: "text-danger",    label: "Raid" },
-    EVENT_GUILD:      { dot: "bg-info", badge: "text-info", label: "Event" },
-    SESSION_MISSIONS: { dot: "bg-warning",  badge: "text-warning",  label: "Missions" },
-    SORTIE_FARM:      { dot: "bg-success",badge: "text-success",label: "Farm" },
-    KRALAMOURE:       { dot: "bg-pink-500",   badge: "text-pink-400",   label: "Krala" },
-};
+/**
+ * Vignette d'un événement : **l'illustration réelle** servie par le serveur
+ * (`imageUrl` : donjon, titan, Kralamoure), sinon le picto Dofus du type
+ * (`calendar-event-theme`, source unique). Un asset absent (404) retombe sur
+ * le picto — jamais une image cassée.
+ */
+function EventThumb({ event, size = 20 }: { event: UpcomingEvent; size?: number }) {
+    const [failed, setFailed] = useState(false);
+    const theme = calendarEventTheme(event.type);
 
-function getTypeConfig(type: string) {
-    return TYPE_COLOR[type] ?? { dot: "bg-muted", badge: "text-muted-foreground", label: "Event" };
+    if (failed || !event.imageUrl) {
+        return <DofusUiIcon name={theme.picto} size={size} />;
+    }
+
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={event.imageUrl}
+            alt=""
+            width={size}
+            height={size}
+            onError={() => setFailed(true)}
+            className="object-contain shrink-0 select-none"
+            style={{ width: size, height: size }}
+        />
+    );
 }
 
 // ─── Relative time label ──────────────────────────────────────────────────────
@@ -69,7 +86,7 @@ function EventsPopover({
             {/* Event list */}
             <div className="py-1">
                 {events.map((ev) => {
-                    const cfg = getTypeConfig(ev.type);
+                    const theme = calendarEventTheme(ev.type);
                     const isLoading = loadingId === ev.id;
                     return (
                         <button
@@ -87,11 +104,8 @@ function EventsPopover({
                         >
                             {isLoading ? (
                                 <Loader2 className="w-3.5 h-3.5 text-success animate-spin shrink-0" />
-                            ) : ev.type === "KRALAMOURE" ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src="/assets/calendar/kralamoure-head.png" alt="Krala" className="w-5 h-5 object-contain shrink-0" />
                             ) : (
-                                <span className={cn("w-2 h-2 rounded-full shrink-0 mt-0.5", cfg.dot)} />
+                                <EventThumb event={ev} size={22} />
                             )}
 
                             {/* Info */}
@@ -100,8 +114,8 @@ function EventsPopover({
                                     {ev.title}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                    <span className={cn("text-caption font-bold uppercase tracking-wider", cfg.badge)}>
-                                        {cfg.label}
+                                    <span className={cn("text-caption font-bold uppercase tracking-wider", theme.color)}>
+                                        {theme.shortLabel}
                                     </span>
                                     <span className="text-caption text-muted-foreground">·</span>
                                     <span className="text-caption text-muted-foreground flex items-center gap-1">
@@ -167,7 +181,7 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
     if (events.length === 0) return null;
 
     const first = events[0];
-    const cfg = getTypeConfig(first.type);
+    const theme = calendarEventTheme(first.type);
     const multi = events.length > 1;
 
     // Fetch full event detail then open modal
@@ -205,42 +219,30 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                     disabled={!canViewCalendar || !!loadingId}
                     title={multi ? `${events.length} événements à venir` : first.title}
                     className={cn(
-                        "hidden lg:flex items-center gap-2 h-9 px-3 transition-colors shrink-0",
-                        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]",
+                        "hidden lg:flex items-center gap-2 h-9 px-3 rounded-xl border border-border bg-surface/40 transition-colors shrink-0",
+                        "text-muted-foreground hover:text-foreground hover:bg-surface",
                         "disabled:opacity-50 disabled:cursor-not-allowed",
-                        popoverOpen && "bg-foreground/[0.04] text-foreground"
+                        popoverOpen && "bg-surface text-foreground"
                     )}
                 >
                     {/* Icon — spinner when loading single event */}
-                    <span className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
+                    <span className="relative flex items-center justify-center w-5 h-5 shrink-0">
                         {isChipLoading ? (
                             <Loader2 className="w-3.5 h-3.5 text-success animate-spin" />
-                        ) : first.type === "KRALAMOURE" ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src="/assets/calendar/kralamoure-head.png" alt="Krala" className="w-5 h-5 object-contain" />
                         ) : (
-                            <>
-                                <span className={cn(
-                                    "absolute w-full h-full rounded-full opacity-25 animate-ping",
-                                    cfg.dot
-                                )} />
-                                <Calendar className="relative w-3.5 h-3.5 text-success" />
-                            </>
+                            <EventThumb event={first} size={20} />
                         )}
                     </span>
 
                     {/* Label */}
-                    <span className="text-xs font-medium truncate max-w-[120px]">
+                    <span className="text-xs font-medium truncate max-w-[92px] xl:max-w-[120px]">
                         {multi ? `${events.length} événements` : first.title}
                     </span>
 
-                    {/* Relative time badge (single event only) — monté après hydration (#87/#88) */}
+                    {/* Relative time badge (single event only) — monté après hydration (#87/#88).
+                        Texte coloré seul : pas de seconde boîte dans le bouton. */}
                     {!multi && (
-                        <span className={cn(
-                            "hidden xl:inline-flex items-center text-caption font-bold px-1.5 py-0.5 rounded-md",
-                            "bg-surface border border-border",
-                            cfg.badge
-                        )}>
+                        <span className={cn("hidden xl:inline text-caption font-bold tabular-nums", theme.color)}>
                             {mounted ? relativeTime(first.startDate) : "…"}
                         </span>
                     )}

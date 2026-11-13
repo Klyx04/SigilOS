@@ -274,21 +274,48 @@ export type DungeonInfo = {
   bossName: string | undefined;
   imageUrl: string | undefined;
   isOcre: boolean;
+  /**
+   * V-H — drapeau **fiable** de la table `Dungeon` (le donjon fait partie de la Quête Ocre).
+   * Le tag `ocre_dungeon` reste un **repli** : il peut manquer sur une séquence (mesure du
+   * 10/11 : Meulou avait `isOcreQuest: true` et aucun tag), et il peut être posé à la main
+   * dans le studio God.
+   */
+  isOcreQuest?: boolean;
+  /** Optionnel : ne bloque pas la validation de la quête (verrou `rush-dungeons`). */
+  isOptional?: boolean;
 };
 
 export function getDungeons(seq: RushSequence): DungeonInfo[] {
   const seqAny = seq as any;
   const result: DungeonInfo[] = [];
 
+  // V-H — un tag `ocre_dungeon` désigne UN donjon (`name` = id, slug ou nom selon la
+  // source God). L'ancien test marquait TOUS les donjons de la séquence dès qu'un tag
+  // existait : un donjon ocre voisin rendait les autres « ocre » à tort.
+  const isOcreTagged = (dungeon: {
+    id?: string | null;
+    slug?: string | null;
+    name?: string | null;
+  }) =>
+    (seq.activityTags ?? []).some(
+      (tag) =>
+        tag.type === "ocre_dungeon" &&
+        !!tag.name &&
+        (tag.name === dungeon.id || tag.name === dungeon.slug || tag.name === dungeon.name)
+    );
+
   // Donjon singulier
   if (seq.dungeon) {
+    const isOcreQuest = (seq.dungeon as any).isOcreQuest === true;
     result.push({
       id: (seq.dungeon as any).id,
       slug: (seq.dungeon as any).slug,
       name: seq.dungeon.name,
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
-      isOcre: false,
+      isOcre: isOcreQuest || isOcreTagged(seq.dungeon as any),
+      isOcreQuest,
+      isOptional: seq.dungeon.isOptional === true,
     });
   }
 
@@ -296,13 +323,16 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
   if (Array.isArray(seqAny.dungeons)) {
     for (const d of seqAny.dungeons) {
       if (!result.find((r) => r.name === d.name)) {
+        const isOcreQuest = (d as any).isOcreQuest === true;
         result.push({
           id: (d as any).id,
           slug: (d as any).slug,
           name: d.name,
           bossName: d.bossName,
           imageUrl: d.imageUrl,
-          isOcre: !!(seq.activityTags?.some((t) => t.type === "ocre_dungeon")),
+          isOcre: isOcreQuest || isOcreTagged(d),
+          isOcreQuest,
+          isOptional: (d as any).isOptional === true,
         });
       }
     }
@@ -314,7 +344,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
       name: undefined,
       bossName: undefined,
       imageUrl: undefined,
-      isOcre: !!(seq.activityTags?.some((t) => t.type === "ocre_dungeon")),
+      isOcre: (seq.activityTags ?? []).some((tag) => tag.type === "ocre_dungeon"),
     });
   }
 

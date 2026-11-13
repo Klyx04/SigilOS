@@ -27,6 +27,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { sendChannelMessage } from "@/server/discord";
 import { createNotification } from "@/server/actions/notification-actions";
+import { itemImageProxyUrl } from "@/lib/market/item-image";
 import {
     buildMarketNotificationCopy,
     buildMarketNotificationLink,
@@ -53,6 +54,30 @@ export type MarketNotificationTarget = {
 };
 
 /**
+ * Icône de l'objet annoncé, résolue **ici** et pas par les appelants : la notification Marché
+ * reçoit déjà le `listingId`, et chacun devrait sinon relire l'annonce pour la même image
+ * (duplication pour un seul besoin).
+ *
+ * Cascade : le **proxy auto-siphon** depuis l'identifiant Ankama (jamais de 404 — c'est la règle
+ * du module, `src/lib/market/item-image.ts`), puis l'URL d'icône stockée. Une annonce sans
+ * visuel rend `null` : la notification retombe sur l'avatar puis sur le picto de catégorie.
+ * **Ne lève jamais** — une image manquante ne doit pas priver d'une notification métier.
+ */
+async function resolveListingImage(listingId: string): Promise<string | null> {
+    try {
+        const listing = await db.marketListing.findUnique({
+            where: { id: listingId },
+            select: { itemIconUrl: true, dofusDbItemId: true },
+        });
+        if (!listing) return null;
+        return itemImageProxyUrl(listing.dofusDbItemId) ?? listing.itemIconUrl ?? null;
+    } catch (error) {
+        logger.warn("[notifyMarketUser] icône d'annonce indisponible", { error: String(error) });
+        return null;
+    }
+}
+
+/**
  * Crée **une** notification Marché pour un membre.
  *
  * Le réglage utilisateur est lu par `createNotification` (fail-closed §11.9) :
@@ -76,7 +101,9 @@ export async function notifyMarketUser(
             message,
             buildMarketNotificationLink(target.discordGuildId, target.listingId),
             target.discordGuildId,
-            "MARKET"
+            "MARKET",
+            await resolveListingImage(target.listingId),
+            "ITEM"
         );
 
         return true;

@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { Sun, Moon, ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
-import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
-
-import { toast } from "sonner";
+import { useDaTheme } from "@/components/da/da-theme";
 
 interface RushOverlayHeaderProps {
   guideName: string;
@@ -16,14 +14,16 @@ interface RushOverlayHeaderProps {
   totalSteps: number;
   completedSteps: number;
   overallPct: number;
-  isLightMode: boolean;
   onToggleTheme: () => void;
-  onOpenResources: () => void;
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
   onOpenTutorial: () => void;
-  /** Étape courante (ex: "Chapitre 3 · Quête X") pré-remplie dans le retour bug */
-  bugContext?: string;
+  /**
+   * Ouvre le panneau de retour (F11). Le panneau est monté par l'**hôte**, en fin
+   * de racine : dans l'en-tête il était enfermé par `.da-hero`
+   * (`position: relative; overflow: hidden`) et passait sous le contenu.
+   */
+  onOpenFeedback?: () => void;
   /** Personnage courant affiché (pseudo + classe + main/mule) */
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   /** Réinitialise toute la progression du guide */
@@ -31,6 +31,11 @@ interface RushOverlayHeaderProps {
   className?: string;
   /** Overlay réduit (largeur/hauteur) : masque le contenu secondaire et groupe les actions. */
   isNarrow?: boolean;
+  /**
+   * Palier de densité calculé par l'hôte (`ResizeObserver` de la racine) :
+   * `wide` ≥ 820 px de haut (hero 276 px + pips), `tight` = fenêtre de jeu.
+   */
+  density?: "wide" | "normal" | "tight";
   /** Mode invité sans guilde ni compte */
   isGuest?: boolean;
   /**
@@ -40,6 +45,23 @@ interface RushOverlayHeaderProps {
   ocre?: { missing: number; percent: number } | null;
   /** Ouvre le panneau Quête Ocre. Sans ce callback, le bouton n'est jamais rendu. */
   onOpenOcre?: () => void;
+  /**
+   * Metamob sur la surface **publique connectée** (demande du 08/11/2026 : « ajouter en
+   * public connecté dans l'overlay le bouton Metamob et sa gestion, iso interne »).
+   *
+   * Même emplacement et même habillage que le bouton Ocre de l'interne, mais il n'ouvre pas
+   * la Quête Ocre (aucune progression Ocre sans guilde) : il ouvre la liaison Metamob.
+   */
+  onOpenMetamob?: () => void;
+  /** Compte Metamob déjà vérifié (pastille verte) — sinon la pastille dit « à lier ». */
+  metamobVerified?: boolean;
+  /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
+  onOpenAlignment?: () => void;
+  /**
+   * Bloc actif de la DA « Gouache Wakfu » : donne l'image d'ambiance de l'en-tête
+   * et la teinte de l'accent (`data-block`). Absent ⇒ Émeraude.
+   */
+  block?: "emeraude" | "cauchemar" | "ocre" | "custom";
 }
 
 /**
@@ -57,25 +79,30 @@ export function RushOverlayHeader({
   totalSteps,
   completedSteps,
   overallPct,
-  isLightMode,
   onToggleTheme,
-  onOpenResources,
   hideCompleted,
   onToggleHideCompleted,
   onOpenTutorial,
-  bugContext,
+  onOpenFeedback,
   character,
   onResetGuide,
   className,
   isNarrow: isNarrowProp,
+  density,
   isGuest = false,
   ocre,
   onOpenOcre,
+  onOpenMetamob,
+  metamobVerified = false,
+  onOpenAlignment,
+  block = "emeraude",
 }: RushOverlayHeaderProps) {
+  // Thème de la DA : une seule source (`data-theme` de la racine, exposé par le
+  // contexte) — plus aucune prop de thème à faire descendre.
+  const da = useDaTheme();
+  const light = da?.theme === "light";
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
-  // Panneau de retour intégré à l'overlay (jamais la modale dashboard).
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
   const [moreOpen, setMoreOpen] = useState(false);
   // Détection de largeur étroite → on groupe les actions secondaires dans un menu ⋯.
@@ -90,77 +117,92 @@ export function RushOverlayHeader({
   }, []);
   // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
   const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
+  // Palier de densité : `wide` dès 820 px de haut (hero 276 px), `tight` en PiP.
+  const level = density ?? (narrow ? "tight" : "normal");
+  const compact = level === "tight";
+  const roomy = level !== "tight";
+  const blockLabel =
+    block === "emeraude"
+      ? "Dofus Émeraude"
+      : block === "cauchemar"
+      ? "Dofus Cauchemar"
+      : block === "ocre"
+      ? "Dofus Ocre"
+      : "Bloc";
 
   // Retour / bug : le bouton vit dans le menu « ⋯ » (place libérée pour l'archimonstre),
-  // et reste un bouton direct quand l'overlay est large.
+  // et reste un bouton direct quand l'overlay est large. Le panneau lui-même est monté
+  // par l'hôte (F11) — il s'ouvre pour **tout le monde**, invité compris : c'est là que
+  // vivent les catégories, le lien du Discord et la consigne « captures d'écran ».
   const openFeedback = () => {
-    if (isGuest) {
-      toast.info("Une remarque ou un bug ? Rejoignez notre Discord !", { duration: 2500 });
-      return;
-    }
-    setFeedbackOpen(true);
+    onOpenFeedback?.();
   };
 
-  // Style commun des entrées du menu « plus » (dropdown).
+  // Style commun des entrées du menu « plus » (dropdown) — DA « Grimoire ».
   const menuItemCls = cn(
-    "flex items-center gap-2 w-full px-3 py-2 text-left text-[11px] font-semibold transition-colors",
-    isLightMode ? "text-slate-700 hover:bg-slate-100" : "text-[#c4cad2] hover:bg-[#1f2733]"
+    "flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground motion-reduce:transition-none"
   );
+
+  // Une seule anatomie de bouton d'action, dans les deux thèmes.
+  const actionBtn =
+    "p-1.5 rounded-[4px] border border-border bg-elevated text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface hover:text-foreground motion-reduce:transition-none";
+  const actionBtnGold =
+    "p-1.5 rounded-[4px] border border-border bg-elevated text-gold transition-colors hover:border-border-strong hover:bg-surface motion-reduce:transition-none";
 
   return (
     <header
       className={cn(
-        "shrink-0 flex flex-col gap-2 border-b",
-        narrow ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
-        isLightMode
-          ? "bg-gradient-to-b from-white to-slate-50 border-slate-200"
-          : "bg-gradient-to-b from-[#131820] to-[#0b0d10] border-[#1e2530]",
+        // DA « Gouache Wakfu » : en-tête illustré — image du bloc actif, voile de
+        // lisibilité, surtitre. La structure et les 12 actions restent EXACTEMENT
+        // où elles étaient (habillage seul).
+        "da-hero shrink-0",
+        compact ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
         className
       )}
+      data-density={level}
     >
+      <div className="da-hero-img" data-block={block ?? "emeraude"} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         {/* Gauche : branding + titre + compteur */}
         <div className="flex-1 min-w-0">
-          {/* Label discret (masqué en overlay réduit pour gagner de la hauteur) */}
-          {!narrow && (
-            <span
-              className={cn(
-                "block text-[9px] font-black uppercase tracking-[0.15em] mb-0.5",
-                isLightMode ? "text-[#d5a94e]" : "text-[#d5a94e]/80"
-              )}
-            >
-              Guide de progression
+          {/* Surtitre de la DA (masqué en overlay réduit pour gagner de la hauteur) */}
+          {roomy && (
+            <span className="da-kicker">
+              Guide de progression <b>· {blockLabel}</b>
             </span>
           )}
 
-          {/* Nom du guide */}
-          <h1
-            className={cn(
-              "text-sm font-bold leading-tight truncate",
-              isLightMode ? "text-slate-900" : "text-[#f2f0e9]"
-            )}
-          >
-            {guideName}
-          </h1>
+          {/* F8 : plus de titre visible. « Rush Sylvestre » répétait le nom du guide
+              déjà porté par le dock, et le surtitre dit le bloc. Le titre reste dans
+              l'arbre pour les lecteurs d'écran — un en-tête sans `h1` n'en est plus un. */}
+          <h1 className="sr-only">{guideName}</h1>
 
           {/* Progression explicite */}
-          <p
-            className={cn(
-              "text-[10px] mt-0.5 tabular-nums",
-              isLightMode ? "text-slate-500" : "text-[#6e7784]"
-            )}
-          >
-            <span className={cn("font-bold", isLightMode ? "text-slate-700" : "text-[#969daa]")}>
-              {completedSteps} / {totalSteps}
-            </span>{" "}
-            étapes ·{" "}
-            <span className="font-bold text-[#39bc95]">{overallPct}%</span>
+          <p className="da-meta mt-1">
+            <span>
+              <strong>{completedSteps}</strong> / {totalSteps} quêtes
+            </span>
+            <span>{overallPct} %</span>
           </p>
+          <div
+            className="da-track"
+            role="progressbar"
+            aria-valuenow={overallPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progression du guide"
+          >
+            <i style={{ width: `${Math.max(overallPct, 2)}%` }} />
+          </div>
+
+          {/* F8 : la frise de stades (5 losanges + nom du palier, « Graine » à 0 %)
+              est retirée — le pourcentage et la jauge disent la même chose, en plus
+              court. Un `wide` gagne la hauteur utile qu'elle occupait. */}
 
           {/* Personnage courant (masqué en overlay réduit) */}
-          {character && !narrow && (
+          {character && roomy && (
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-md bg-[#181d23] border border-[#2a3646]">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border border-border bg-elevated">
                 {character.classe ? (
                   (() => {
                     const d = getClass(character.classe);
@@ -168,19 +210,19 @@ export function RushOverlayHeader({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={d.icon} alt={d.name} className="w-3.5 h-3.5 object-contain" />
                     ) : (
-                      <Users className="w-3 h-3 text-blue-400" />
+                      <Users className="w-3 h-3 text-muted-foreground" />
                     );
                   })()
                 ) : character.isMain ? (
-                  <Crown className="w-3 h-3 text-amber-500" />
+                  <Crown className="w-3 h-3 text-gold" />
                 ) : (
-                  <Users className="w-3 h-3 text-blue-400" />
+                  <Users className="w-3 h-3 text-muted-foreground" />
                 )}
               </span>
-              <span className={cn("text-[10px] font-semibold truncate", isLightMode ? "text-slate-700" : "text-[#c4cad2]")}>
+              <span className="truncate text-[10px] font-semibold text-foreground/90">
                 {character.pseudo}
               </span>
-              <span className={cn("text-[9px] font-mono uppercase font-bold", isGuest ? "text-emerald-400" : character.isMain ? "text-amber-500" : "text-blue-400")}>
+              <span className={cn("font-mono text-[9px] font-semibold uppercase", isGuest ? "text-success" : character.isMain ? "text-gold" : "text-muted-foreground")}>
                 {isGuest ? "Invité" : character.isMain ? "Main" : "Mule"}
               </span>
             </div>
@@ -193,58 +235,35 @@ export function RushOverlayHeader({
           <button
             type="button"
             onClick={onToggleTheme}
-            aria-label={isLightMode ? "Passer en mode sombre" : "Passer en mode clair"}
-            title={isLightMode ? "Mode Sombre" : "Mode Clair"}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-            )}
+            aria-label={light ? "Passer en mode sombre" : "Passer en mode clair"}
+            title={light ? "Mode Sombre" : "Mode Clair"}
+            className={actionBtnGold}
           >
-            {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            {light ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Ressources (toutes étapes) */}
-          <button
-            type="button"
-            onClick={onOpenResources}
-            aria-label="Voir toutes les ressources à prévoir"
-            title="Ressources à prévoir"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-            )}
-          >
-            {/* Picto du jeu pour « Ressources à prévoir » : l'asset Dofus de l'icône du
-                module Ressources (`/assets/dofus/modules/resources.png`, celui que
-                `module-catalog` associe à `resources`) — mesuré coloré (RGB 47,50,21,
-                alpha 94), donc lisible en thème clair ET sombre, contrairement au picto
-                blanc de la barre de navigation (`nav/resources.png`, RGB 255). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/assets/dofus/modules/resources.png"
-              alt=""
-              className="h-3.5 w-3.5 object-contain"
-              loading="lazy"
-            />
-          </button>
+          {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
+          {onOpenAlignment && (
+            <button
+              type="button"
+              onClick={onOpenAlignment}
+              aria-label="Alignement de la guilde"
+              title="Qui est bontarien ou brâkmarien, par Ordre"
+              className={actionBtn}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" />
+            </button>
+          )}
 
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
-          {onOpenOcre && ocre && (
+          {onOpenOcre && (
             <button
               type="button"
               onClick={onOpenOcre}
-              aria-label={`Quête Ocre : ${ocre.missing} cibles restantes`}
-              title={`Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%`}
-              className={cn(
-                "relative p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                  : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-              )}
+              aria-label={ocre ? `Quête Ocre : ${ocre.missing} cibles restantes` : "Ouvrir la Quête Ocre (compte Metamob non lié)"}
+              title={ocre ? `Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%` : "Quête Ocre — lier mon compte Metamob"}
+              className={cn(actionBtnGold, "relative")}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -252,15 +271,47 @@ export function RushOverlayHeader({
                 alt=""
                 className="w-3.5 h-3.5 object-contain"
               />
-              {ocre.missing > 0 ? (
-                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#e2726f] text-black text-[9px] font-black tabular-nums leading-[15px] text-center">
+              {ocre && (ocre.missing > 0 ? (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-danger text-background text-[9px] font-semibold tabular-nums leading-[15px] text-center">
                   {ocre.missing > 99 ? "99+" : ocre.missing}
                 </span>
               ) : (
-                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
+                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-success text-background grid place-items-center">
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
-              )}
+              ))}
+            </button>
+          )}
+
+          {/* Metamob — surface PUBLIQUE connectée (demande du 08/11/2026). Même place et même
+              habillage que le bouton Ocre de l'interne ; il ouvre la liaison Metamob, pas la
+              Quête Ocre (sans guilde, il n'y a aucune progression Ocre à montrer). */}
+          {onOpenMetamob && (
+            <button
+              type="button"
+              onClick={onOpenMetamob}
+              aria-label={metamobVerified ? "Mon compte Metamob (vérifié)" : "Lier mon compte Metamob"}
+              title={metamobVerified ? "Compte Metamob lié et vérifié" : "Lier mon compte Metamob"}
+              className={cn(actionBtnGold, "relative")}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/dofus/icons/archimonster.png"
+                alt=""
+                className="w-3.5 h-3.5 object-contain"
+              />
+              <span
+                className={cn(
+                  "absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full grid place-items-center",
+                  metamobVerified ? "bg-success text-background" : "bg-warning text-background"
+                )}
+              >
+                {metamobVerified ? (
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                ) : (
+                  <span className="text-[9px] font-bold leading-none">!</span>
+                )}
+              </span>
             </button>
           )}
 
@@ -270,28 +321,13 @@ export function RushOverlayHeader({
             onClick={onToggleHideCompleted}
             aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
             title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              hideCompleted
-                ? "bg-[#39bc95]/20 text-[#2b9f7d] border border-[#39bc95]/40"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:bg-[#1f2733]",
-              isLightMode && !hideCompleted && "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-            )}
+            className={cn(actionBtn, hideCompleted && "border-success/40 bg-success/10 text-success")}
           >
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Signaler un bug / retour — déplacé dans le menu « ⋯ » (place rendue à l'archimonstre) */}
-          {!isGuest && feedbackOpen && (
-            <RushOverlayFeedbackPanel
-              guildId={guildId}
-              sourcePage={`guide:overlay:${guideSlug}`}
-              targetSlug={guideSlug}
-              context={bugContext}
-              isLightMode={isLightMode}
-              onClose={() => setFeedbackOpen(false)}
-            />
-          )}
+          {/* Signaler un bug / retour : le panneau est monté par l'hôte, en fin de
+              racine (F11) — dans ce header, `.da-hero` l'enfermait sous le contenu. */}
 
           {narrow ? (
             <>
@@ -300,12 +336,7 @@ export function RushOverlayHeader({
                 onClick={() => setMoreOpen((o) => !o)}
                 aria-label="Plus d'options"
                 title="Plus d'options"
-                className={cn(
-                  "p-1.5 rounded-lg border transition-colors",
-                  isLightMode
-                    ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                    : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-                )}
+                className={actionBtn}
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
@@ -313,10 +344,7 @@ export function RushOverlayHeader({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
                   <div
-                    className={cn(
-                      "absolute top-full right-0 mt-1 z-50 w-48 rounded-xl border py-1 shadow-2xl overflow-hidden",
-                      isLightMode ? "bg-white border-slate-200" : "bg-[#14181f] border-[#2a3646]"
-                    )}
+                    className="absolute top-full right-0 mt-1 z-50 w-48 overflow-hidden rounded-[6px] border border-border-strong bg-elevated py-1"
                   >
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
                       <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
@@ -333,7 +361,7 @@ export function RushOverlayHeader({
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Guide complet
                     </a>
-                    <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-[#e2726f]")}>
+                    <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-danger")}>
                       <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser
                     </button>
                   </div>
@@ -348,12 +376,7 @@ export function RushOverlayHeader({
             onClick={onOpenTutorial}
             aria-label="Aide / tutoriel de l'overlay"
             title="Comment utiliser l'overlay"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
@@ -364,12 +387,7 @@ export function RushOverlayHeader({
             onClick={openFeedback}
             aria-label="Signaler un bug ou faire un retour"
             title="Signaler un bug, proposer une amélioration ou un ajout"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <Bug className="w-3.5 h-3.5" />
           </button>
@@ -381,19 +399,14 @@ export function RushOverlayHeader({
             rel="noopener noreferrer"
             aria-label="Ouvrir le guide complet"
             title="Ouvrir le guide complet"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
           {/* Réinitialiser le guide (confirmation en 2 temps) */}
           {confirmReset ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-[#e2726f]/50 bg-[#e2726f]/10 text-[#e2726f]">
+            <span className="inline-flex items-center gap-1 rounded-[4px] border border-danger/50 bg-danger/10 px-2 py-1.5 text-danger">
               <span className="text-[10px] font-bold">Reset ?</span>
               <button
                 type="button"
@@ -402,7 +415,7 @@ export function RushOverlayHeader({
                   setConfirmReset(false);
                 }}
                 aria-label="Confirmer la réinitialisation du guide"
-                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+              className="p-0.5 rounded hover:bg-danger/20 transition-colors motion-reduce:transition-none"
               >
                 <Check className="w-3 h-3" />
               </button>
@@ -410,7 +423,7 @@ export function RushOverlayHeader({
                 type="button"
                 onClick={() => setConfirmReset(false)}
                 aria-label="Annuler la réinitialisation"
-                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+                className="p-0.5 rounded hover:bg-danger/20 transition-colors motion-reduce:transition-none"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -421,12 +434,7 @@ export function RushOverlayHeader({
               onClick={() => setConfirmReset(true)}
               aria-label="Réinitialiser le guide"
               title="Réinitialiser toute la progression du guide"
-              className={cn(
-                "p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#e2726f] hover:bg-[#1f2733]"
-              )}
+              className={cn(actionBtn, "hover:text-danger")}
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -439,32 +447,15 @@ export function RushOverlayHeader({
           <img
             src={dofusImageUrl}
             alt="Dofus"
-            className="w-9 h-9 object-contain drop-shadow-md transition-transform hover:scale-105"
+            className="h-9 w-9 object-contain transition-transform duration-150 ease-out hover:scale-[1.03] motion-reduce:transition-none"
           />
 
         </div>
       </div>
 
-      {/* Barre de progression globale */}
-      <div
-        className={cn(
-          "w-full h-1 rounded-full overflow-hidden",
-          isLightMode ? "bg-slate-200" : "bg-[#1e2530]"
-        )}
-        role="progressbar"
-        aria-valuenow={overallPct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Progression globale : ${overallPct}%`}
-      >
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${overallPct}%`,
-            background: "linear-gradient(90deg, #2b9f7d, #39bc95)",
-          }}
-        />
-      </div>
+      {/* F8 — l'ancienne jauge « Grimoire » (trait pleine largeur + losange en bout)
+          faisait DOUBLON avec `.da-track`, la jauge de la DA Gouache Wakfu juste
+          au-dessus : deux barres identiques empilées. Une seule jauge désormais. */}
     </header>
   );
 }

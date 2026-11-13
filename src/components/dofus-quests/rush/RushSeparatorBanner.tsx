@@ -29,6 +29,7 @@ export function RushSeparatorBanner({
   imageUrl,
   accentColor,
   className,
+  surface = "pip",
 }: {
   title: string;
   description?: string | null;
@@ -36,6 +37,12 @@ export function RushSeparatorBanner({
   accentColor?: string | null;
   /** Réglage contextuel (l'overlay PiP resserre ses marges). */
   className?: string;
+  /**
+   * Surface qui l'affiche. `page` = guide plein écran : 140 px de haut (brief E2 ⑥).
+   * Défaut `pip` : 84 px sur mobile, 116 px au-delà — la PiP n'a pas la place, et
+   * le dashboard garde exactement le rendu qu'il avait.
+   */
+  surface?: "pip" | "page";
 }) {
   const accent = accentColor || "#e6b96b";
   const src = imageUrl ? safeImageUrl(imageUrl) : "";
@@ -45,7 +52,8 @@ export function RushSeparatorBanner({
       className={cn(
         // Bandeau NU et sans barre latérale. Hauteur MINIMALE pour que le décor de droite
         // ait une vraie surface ; le texte reste centré dans le bandeau ENTIER.
-        "relative my-7 flex min-h-[84px] select-none items-center overflow-hidden sm:min-h-[116px]",
+        "relative my-7 flex select-none items-center overflow-hidden",
+        surface === "page" ? "min-h-[140px]" : "min-h-[84px] sm:min-h-[116px]",
         className
       )}
     >

@@ -4,8 +4,6 @@ import React, { useEffect } from "react";
 import { X, HelpCircle, MousePointerClick, MousePointer2, Flag, Users, Package, ChevronsRight, Info, Handshake } from "lucide-react";
 
 interface RushOverlayTutorialModalProps {
-  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
-  isLightMode: boolean;
   onClose: () => void;
 }
 

@@ -25,15 +25,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { ChangelogContent } from '@/components/changelog/changelog-content';
+import { CHANGELOG_CATEGORY_LABELS, CHANGELOG_CATEGORY_ORDER } from '@/lib/changelog-meta';
 import { cn } from '@/lib/utils';
 
-const categoryLabels: Record<ChangelogCategory, string> = {
-    FEATURE: 'Fonctionnalité',
-    BUGFIX: 'Correction',
-    SECURITY: 'Sécurité',
-    PERFORMANCE: 'Performance',
-    DOCUMENTATION: 'Documentation',
-};
+const categoryLabels = CHANGELOG_CATEGORY_LABELS;
 
 const categoryColors: Record<ChangelogCategory, string> = {
     FEATURE: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
@@ -43,15 +38,30 @@ const categoryColors: Record<ChangelogCategory, string> = {
     DOCUMENTATION: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
 };
 
-const CATEGORY_ORDER: ChangelogCategory[] = ['FEATURE', 'BUGFIX', 'SECURITY', 'PERFORMANCE', 'DOCUMENTATION'];
+const CATEGORY_ORDER = CHANGELOG_CATEGORY_ORDER;
+
+interface ChangelogListEntry {
+    id: string;
+    version: string;
+    title: string;
+    summary: string | null;
+    content: string;
+    category: ChangelogCategory;
+    isInternal: boolean;
+    publishedAt: string;
+    titleEn?: string | null;
+    summaryEn?: string | null;
+    contentEn?: string | null;
+}
 
 export default function GODChangelogPage() {
-    const [entries, setEntries] = useState<any[]>([]);
+    const [entries, setEntries] = useState<ChangelogListEntry[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [previewMode, setPreviewMode] = useState(false);
     const [loading, setLoading] = useState(false);
     const [filterCategory, setFilterCategory] = useState<ChangelogCategory | undefined>(undefined);
+    const [search, setSearch] = useState('');
     const [publishingId, setPublishingId] = useState<string | null>(null);
     const [broadcastingId, setBroadcastingId] = useState<string | null>(null);
 
@@ -122,7 +132,7 @@ export default function GODChangelogPage() {
         setEntries(data);
     }
 
-    const handleChange = (field: string, value: any) => {
+    const handleChange = (field: string, value: string | boolean | ChangelogCategory) => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
@@ -191,12 +201,12 @@ export default function GODChangelogPage() {
         }).finally(() => setBroadcastingId(null));
     }
 
-    function handleEdit(entry: any) {
+    function handleEdit(entry: ChangelogListEntry) {
         setEditingId(entry.id);
         setForm({
             version: entry.version,
             title: entry.title,
-            summary: entry.summary,
+            summary: entry.summary ?? '',
             content: entry.content,
             category: entry.category,
             isInternal: entry.isInternal ?? false,
@@ -225,8 +235,17 @@ export default function GODChangelogPage() {
         setPreviewMode(false);
     }
 
-    const filteredEntries = filterCategory ? entries.filter(e => e.category === filterCategory) : entries;
-    const grouped = filteredEntries.reduce<Record<string, any[]>>((acc, e) => {
+    const filteredEntries = entries.filter((e) => {
+        if (filterCategory && e.category !== filterCategory) return false;
+        const q = search.trim().toLowerCase();
+        if (!q) return true;
+        return (
+            e.title.toLowerCase().includes(q) ||
+            e.version.toLowerCase().includes(q) ||
+            (e.summary ?? '').toLowerCase().includes(q)
+        );
+    });
+    const grouped = filteredEntries.reduce<Record<string, ChangelogListEntry[]>>((acc, e) => {
         const key = new Date(e.publishedAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
         (acc[key] = acc[key] || []).push(e);
         return acc;
@@ -313,9 +332,17 @@ export default function GODChangelogPage() {
             </div>
 
             {/* MAIN : FILTRE + LISTE */}
-            <div className="flex-1 flex min-h-0">
-                <div className="w-48 shrink-0 border-r border-white/5 p-3 space-y-1 overflow-y-auto">
+            <div className="flex-1 flex flex-col md:flex-row min-h-0">
+                <div className="md:w-48 shrink-0 border-b md:border-b-0 md:border-r border-white/5 p-3 space-y-1 md:overflow-y-auto">
                     <p className="text-caption font-black text-zinc-600 uppercase tracking-widest px-2 pb-2">Catégories</p>
+                    <div className="px-2 pb-2">
+                        <Input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Version, titre…"
+                            className="h-9 bg-zinc-900/50 border-white/10 rounded-lg text-xs"
+                        />
+                    </div>
                     <button
                         onClick={() => setFilterCategory(undefined)}
                         className={cn("w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors", !filterCategory ? "bg-amber-500/10 text-amber-400" : "text-zinc-500 hover:bg-white/5 hover:text-white")}
@@ -393,7 +420,7 @@ export default function GODChangelogPage() {
                                                             )}
                                                         </div>
 
-                                                        <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
+                                                        <div className="flex gap-1.5 shrink-0 opacity-100 translate-x-0 md:opacity-0 md:group-hover:opacity-100 transition-all md:translate-x-1 md:group-hover:translate-x-0">
                                                             <Button size="icon" variant="ghost" onClick={() => handlePublishDiscord(entry.id)} disabled={publishingId === entry.id || broadcastingId === entry.id} title="Publier sur le Hub (Webhook)" className="h-8 w-8 rounded-xl bg-white/5 hover:bg-indigo-500/10 text-zinc-400 hover:text-indigo-400">
                                                                 {publishingId === entry.id ? <Activity className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                                             </Button>

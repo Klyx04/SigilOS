@@ -17,6 +17,15 @@
  * ④ `purger-challenges-speciaux` — supprime les challenges **orphelins** laissés par l'ancienne
  *    passe (elle créait un challenge par boss) : sans effet sur l'affichage, mais ils polluaient
  *    l'onglet God « Succès ». À lancer **après** un siphon complet.
+ * ⑤ `reparer-butins` — répare les fiches monstres dont le payload n'a **aucun butin**
+ *    (`drops: []`, repli Unity persisté). C'est la même passe que la phase 5 ter du cron, mais
+ *    **sans borne** (le cron est limité à 25 par nuit). Dry-run par défaut ; `--limit=N` borne.
+ *    `--nom="Kanigroula"` (répétable) cible **une fiche précise** — la réparer tout de suite sans
+ *    consommer le budget sur toute la file.
+ *
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins --apply --limit=200
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins --apply --nom="Kanigroula"
  *
  * ⚠️ Le budget DofusDB partagé (`30 req/min`) peut fermer la fenêtre en cours de route : la passe
  *    s'arrête alors **proprement** (`⏳ …`) au lieu de compter des dizaines de faux « introuvables ».
@@ -144,7 +153,162 @@ async function runPurgeSpecialChallenges(db: PrismaClient, apply: boolean) {
     console.log(`\n${deleted.count} challenge(s) supprimé(s). Jamais recréés (le code ne crée plus de challenge).`);
 }
 
+/**
+ * ⑤ Réparation des fiches **sans butin** (mesure du 30/10/2026 : 106 fiches beta / 146).
+ *
+ * Même passe que la phase 5 ter du cron `sync-monster-stats`, mais **sans borne de 25** : ici on
+ * répare tout d'un coup, en une seule exécution. Dry-run par défaut (aucune écriture) ;
+ * `--limit=N` borne le nombre de monstres interrogés (défaut : 500).
+ */
+async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) {
+    const limitArg = args.find((a) => a.startsWith("--limit="));
+    const limit = Number(limitArg?.split("=")[1] ?? 500);
+    // `--nom="Kanigroula"` (répétable) : répare une fiche **précise** sans balayer la file
+    // (le budget DofusDB partagé est de 30 req/min — une passe large finit en « sans source »).
+    const onlyNames = args
+        .filter((a) => a.startsWith("--nom="))
+        .map((a) => a.slice("--nom=".length).replace(/^["']|["']$/g, "").trim())
+        .filter(Boolean);
+    // Chargés ici : les autres commandes n'ont pas besoin de la couche fiche monstre.
+    const { repairMonsterDrops } = await import("@/lib/monster-drops-repair");
+    const { getMonsterStats } = await import("@/lib/monster-stats-core");
+    const { persistMonsterStat } = await import("@/lib/dofensive-sync");
+
+    // 🔁 Convergence : quand le budget DofusDB partagé se ferme, la passe s'arrête proprement
+    // (`deferred`) au lieu de compter des faux « sans source ». On patiente le reste de fenêtre
+    // et on reprend, jusqu'à ce que la file soit vide (ou le plafond de tours atteint).
+    const { throttleWaitMs } = await import("@/lib/dofusdb-throttle");
+    const maxRounds = apply ? 30 : 1;
+    const totals = { scanned: 0, repaired: 0, skippedUnity: 0, failed: 0 };
+    const details: string[] = [];
+    let rounds = 0;
+    let deferred = false;
+
+    for (let round = 1; round <= maxRounds; round++) {
+        rounds = round;
+        const report = await repairMonsterDrops({
+            db: db as unknown as Parameters<typeof repairMonsterDrops>[0]["db"],
+            limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
+            ...(onlyNames.length > 0 ? { onlyNames } : {}),
+            // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
+            // `persist: apply` — un dry-run ne doit **rien** écrire, pas même via l'auto-réparation
+            // de `getMonsterStats` (mesure du 31/10/2026 : le dry-run réparait déjà la fiche).
+            fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true, undefined, "fr", { persist: apply }),
+            // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
+            persist: apply ? persistMonsterStat : async () => {},
+        });
+        totals.scanned += report.scanned;
+        totals.repaired += report.repaired;
+        totals.skippedUnity += report.skippedUnity;
+        totals.failed += report.failed;
+        deferred = report.deferred;
+        // Une seule fois chaque cause (sinon 12 lignes identiques « budget épuisé »).
+        for (const line of report.details) {
+            if (details.length < 20 && !details.includes(line)) details.push(line);
+        }
+        // Plus rien à faire, ou dernier tour : on rend la main sans pause inutile.
+        if (!report.deferred || report.scanned === 0 || round === maxRounds) break;
+
+        const waitMs = throttleWaitMs() + 1_000;
+        console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
+    console.log(
+        `\n${onlyNames.length > 0 ? `Cible : ${onlyNames.join(", ")} · ` : ""}`
+            + `${totals.scanned} fiche(s) analysée(s) · ${totals.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
+            + `${totals.skippedUnity} sans source DofusDB (repli Unity, non écrasé) · ${totals.failed} en échec`
+            + (rounds > 1 ? ` · ${rounds} tours` : "")
+            + (deferred ? "\n⏳ Budget toujours fermé : relancer la même commande, elle reprend où elle s'est arrêtée." : "")
+            + (apply ? "" : totals.repaired > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
+    );
+    for (const line of details) console.log(`  · ${line}`);
+    if (!apply && totals.repaired > 0) {
+        console.log("⚠️ Les fiches déjà complètes ne sont ni lues ni touchées (passe idempotente).");
+    }
+}
+
+/** Supprime les **doublons vides** (même nom, ligne morte à côté d'une fiche saine). */
+async function runDedupe(db: PrismaClient, apply: boolean) {
+    const { removeEmptyDuplicateRows } = await import("@/lib/monster-drops-repair");
+    const report = await removeEmptyDuplicateRows({
+        db: db as unknown as Parameters<typeof removeEmptyDuplicateRows>[0]["db"],
+        dryRun: !apply,
+    });
+    console.log(
+        `\n${report.names} nom(s) avec doublon vide · ${report.removed} ligne(s) ${apply ? "supprimée(s)" : "à supprimer"}`
+            + (apply ? "" : report.removed > 0 ? "\n👉 relancer avec --apply pour supprimer" : "")
+    );
+    for (const line of report.details) console.log(`  · ${line}`);
+}
+
+/**
+ * **Découverte** : crée la fiche des monstres jamais siphonnés (bestiaire public), par lots
+ * reprenables (`--lot`, `--apres`) et dans le même budget DofusDB.
+ */
+async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
+    const lotArg = args.find((a) => a.startsWith("--lot="));
+    const lot = Number(lotArg?.split("=")[1] ?? 200);
+    const apresArg = args.find((a) => a.startsWith("--apres="));
+    // `Monster.id` est un cuid (String) : le curseur est **texte**, jamais un nombre.
+    let afterCursor = (apresArg?.slice("--apres=".length) ?? "").trim();
+
+    const { discoverMonsterFiches } = await import("@/lib/monster-drops-repair");
+    const { getMonsterStats } = await import("@/lib/monster-stats-core");
+    const { persistMonsterStat } = await import("@/lib/dofensive-sync");
+    const { isCompleteMonsterPayload } = await import("@/lib/data-health");
+    const { throttleWaitMs } = await import("@/lib/dofusdb-throttle");
+
+    // Noms déjà servis par une fiche **complète** : la découverte les saute.
+    const rows = await db.monsterStat.findMany({ select: { monsterName: true, stats: true } });
+    const knownNames = new Set(
+        rows.filter((r) => isCompleteMonsterPayload(r.stats)).map((r) => r.monsterName.trim().toLowerCase()),
+    );
+
+    const maxRounds = apply ? 30 : 1;
+    const totals = { scanned: 0, created: 0, skippedUnity: 0, failed: 0 };
+    const details: string[] = [];
+    let deferred = false;
+    let rounds = 0;
+
+    for (let round = 1; round <= maxRounds; round++) {
+        rounds = round;
+        const report = await discoverMonsterFiches({
+            db: db as unknown as Parameters<typeof discoverMonsterFiches>[0]["db"],
+            knownNames,
+            limit: Number.isFinite(lot) && lot > 0 ? lot : 200,
+            afterCursor: afterCursor || undefined,
+            fetchStats: (name) => getMonsterStats(name, undefined, true, undefined, "fr", { persist: apply }),
+            persist: apply ? persistMonsterStat : async () => {},
+        });
+        totals.scanned += report.scanned;
+        totals.created += report.created;
+        totals.skippedUnity += report.skippedUnity;
+        totals.failed += report.failed;
+        deferred = report.deferred;
+        afterCursor = report.lastCursor;
+        for (const line of report.details) {
+            if (details.length < 20 && !details.includes(line)) details.push(line);
+        }
+        if (!report.deferred || round === maxRounds) break;
+        const waitMs = throttleWaitMs() + 1_000;
+        console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
+    console.log(
+        `\n${totals.scanned} monstre(s) interrogé(s) · ${totals.created} ${apply ? "fiche(s) créée(s)" : "à créer"} · `
+            + `${totals.skippedUnity} sans source DofusDB · ${totals.failed} en échec`
+            + (rounds > 1 ? ` · ${rounds} tours` : "")
+            + (deferred ? "\n⏳ Budget toujours fermé : relancer la même commande." : "")
+    );
+    for (const line of details) console.log(`  · ${line}`);
+    console.log(`👉 reprise : --apres=${afterCursor || "(fin)"}${apply ? "" : " --apply"}`);
+}
+
+
 async function main() {
+
     const args = process.argv.slice(2);
     const command = args[0];
     const apply = args.includes("--apply");
@@ -154,11 +318,37 @@ async function main() {
         if (command === "siphon") return await runSiphon(db, apply);
         if (command === "retirer-donjon-valide") return await runRemoval(db, apply);
         if (command === "purger-challenges-speciaux") return await runPurgeSpecialChallenges(db, apply);
-        console.log("Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux (option : --apply)");
+        if (command === "reparer-butins") return await runRepairDrops(db, apply, args);
+        if (command === "dedoublonner") return await runDedupe(db, apply);
+        if (command === "siphonner-fiches") return await runDiscover(db, apply, args);
+        console.log(
+            "Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux | reparer-butins | dedoublonner | siphonner-fiches"
+                + " (options : --apply, --limit=N, --nom=\"X\", --lot=N, --apres=ID)"
+        );
         process.exitCode = 2;
     } finally {
         await db.$disconnect();
     }
 }
 
-void main();
+/**
+ * ⚠️ Sortie **explicite** (défaut mesuré le 30/10/2026).
+ *
+ * La sous-commande `reparer-butins` importe la couche fiche monstre (`@/lib/monster-stats-core`
+ * → `@/lib/dofensive-sync` → `@/lib/prisma`) et Redis : ce sont des **singletons** dont les
+ * sockets gardent la boucle d'événements vivante. Le rapport s'imprimait, puis le process ne
+ * rendait **jamais** la main (`ps` montrait encore `node scripts/succes-speciaux.js reparer-butins`
+ * après le rapport, et la commande suivante du shell ne démarrait pas).
+ *
+ * On attend donc le vidage de `stdout` (Docker `exec` peut tronquer une sortie non vidée) avant
+ * de sortir avec le code décidé par `main()`.
+ */
+void main()
+    .then(() => {
+        const code = process.exitCode ?? 0;
+        process.stdout.write("", () => process.exit(code));
+    })
+    .catch((error) => {
+        console.error(error);
+        process.exit(1);
+    });

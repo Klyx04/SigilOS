@@ -32,7 +32,8 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
-import { damageRangeOfEffect, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
+import { damageRangeOfEffect, isCoherentCritJet, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
+import { cleanGameEffectText } from "@/lib/game-effect-text";
 import { pickMonsterGrade, pickSpellLevelForMonster } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId, pickDofensiveMonsterIdStrict } from "@/lib/dofensive-boss";
 import {
@@ -591,7 +592,13 @@ function attachCriticalDamage(
         const idx = used.get(element) ?? 0;
         const crit = queue[idx];
         if (!crit) return d;
+        // La file est **positionnelle** (premier critique de l'élément → premier normal) : on avance
+        // même quand on refuse le rattachement, sinon les lignes suivantes prendraient le mauvais jet.
         used.set(element, idx + 1);
+        // Lot R-4 (chantier Raccord DofusDB) : un critique **inférieur** au jet normal est une donnée
+        // fausse — on ne le publie pas (la ligne reste sans `critMin`/`critMax`, ce qui est le repli
+        // documenté : « jamais une fourchette inventée »).
+        if (!isCoherentCritJet({ min: dmg.min, max: dmg.max }, crit)) return d;
         return { ...d, damage: { ...dmg, critMin: crit.min, critMax: crit.max } };
     });
 }
@@ -600,8 +607,15 @@ function attachCriticalDamage(
 function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
     const lines: string[] = [];
     for (const d of details) {
-        lines.push(d.duration ? `${d.label} (${d.duration})` : d.label);
-        for (const tr of d.triggers) lines.push(tr);
+        // ⚠️ Les libellés Dofensive portent des balises de variables de jeu
+        // (`<span name="erosion">…`) : on les nettoie ICI (source unique) pour que
+        // toutes les surfaces (fiche publique, overlay, module Succès) en héritent.
+        const label = cleanGameEffectText(d.duration ? `${d.label} (${d.duration})` : d.label);
+        if (label) lines.push(label);
+        for (const tr of d.triggers) {
+            const trigger = cleanGameEffectText(tr);
+            if (trigger) lines.push(trigger);
+        }
     }
     return lines;
 }

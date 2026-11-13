@@ -54,7 +54,7 @@ const ChallengeSchema = z.object({
     description: z.string().optional(),
     iconUrl: z.string().optional().or(z.literal("")),
 
-    conditions: z.record(z.any()).optional(),
+    conditions: z.record(z.string(), z.any()).optional(),
 });
 
 const DungeonFormSchema = z.object({

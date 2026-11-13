@@ -24,12 +24,14 @@ import {
     TICKET_NO_VALUE,
     TICKET_YES_VALUE,
     buildChoiceStep,
-    buildTicketModalPage,
-    splitTicketForm,
+    buildTicketFormSteps,
+    buildTicketModalForFields,
     type DiscordActionRow,
     type TicketFormDefinition,
     type TicketMultiSelectField,
+    type TicketParagraphField,
     type TicketSelectField,
+    type TicketTextField,
     type TicketYesNoField,
 } from "./form-schema";
 
@@ -129,23 +131,28 @@ function isAnswered(answers: Record<string, unknown>, fieldId: string): boolean 
 
 /**
  * Où en est ce brouillon ? (source unique : le tunnel et l'écran lisent la même chose.)
+ * 🆕 Depuis le 16/10/2026 la lecture suit les **étapes ordonnées** (`buildTicketFormSteps`) :
+ * un choix situé après des questions texte n'est plus compté comme « à faire d'abord ».
  */
 export function ticketTunnelState(
     form: TicketFormDefinition,
     answers: Record<string, unknown> = {}
 ): TicketTunnelState {
-    const { choices, textPages } = splitTicketForm(form);
-
-    const pendingChoiceIds = choices.filter((field) => !isAnswered(answers, field.id)).map((field) => field.id);
-    const firstPendingTextPage = textPages.findIndex((fields) =>
-        fields.some((field) => !isAnswered(answers, field.id))
+    const steps = buildTicketFormSteps(form);
+    const pendingChoiceIds = steps
+        .filter((step) => step.kind === "choices")
+        .flatMap((step) => step.fieldIds)
+        .filter((fieldId) => !isAnswered(answers, fieldId));
+    const textSteps = steps.filter((step) => step.kind === "texts");
+    const firstPendingTextPage = textSteps.findIndex((step) =>
+        step.fieldIds.some((fieldId) => !isAnswered(answers, fieldId))
     );
 
     return {
         pendingChoiceIds,
-        textPages: textPages.length,
+        textPages: textSteps.length,
         firstPendingTextPage,
-        allAnswered: pendingChoiceIds.length === 0 && firstPendingTextPage === -1,
+        allAnswered: steps.every((step) => step.fieldIds.every((fieldId) => isAnswered(answers, fieldId))),
     };
 }
 
@@ -214,51 +221,91 @@ export function applyTicketChoice(input: {
 export const TICKET_MODAL_PAGE_ACTION = "modal_page";
 
 export type TicketTunnelStep =
-    | { kind: "choices"; rows: DiscordActionRow[]; fieldIds: string[]; remaining: number; step: string }
+    | {
+          kind: "choices";
+          rows: DiscordActionRow[];
+          fieldIds: string[];
+          /** Libellés des questions posées **dans l'ordre** (écrits dans le message). */
+          prompts: string[];
+          remaining: number;
+          step: string;
+      }
     | {
           kind: "modal";
           rows: DiscordActionRow[];
           fieldIds: string[];
+          /** Position de la page parmi les questions **texte** (libellé « page X/Y »). */
           page: number;
           pageCount: number;
           isLast: boolean;
+          /**
+           * 🆕 Index de l'**étape** dans le plan ordonné : c'est la clé de reprise du
+           * brouillon, et c'est elle qui part dans le `custom_id` du bouton « Continuer »
+           * (les étapes peuvent intercaler choix et textes).
+           */
+          stepIndex: number;
           step: string;
       }
     | { kind: "open"; step: string };
 
 /**
- * La **prochaine** interaction à montrer au membre.
+ * La **prochaine** interaction à montrer au membre — **dans l'ordre choisi par l'admin**.
  *
- * L'ordre du formulaire est respecté (d'abord les choix, puis les pages de modale) et une
- * page **entièrement répondue n'est jamais reposée** : c'est ce qui permet de reprendre un
- * brouillon de 20 questions là où il s'est arrêté. Plus rien à demander ⇒ `open` :
- * l'appelant peut créer le ticket.
+ * 🆕 16/10/2026 : on parcourt les étapes (`buildTicketFormSteps`) et non plus « tous les
+ * choix, puis toutes les pages ». Une étape entièrement répondue n'est **jamais** reposée
+ * (c'est ce qui permet de reprendre un brouillon de 20 questions là où il s'est arrêté) ;
+ * plus rien à demander ⇒ `open` : l'appelant peut créer le ticket.
  */
 export function nextTicketTunnelStep(input: {
     form: TicketFormDefinition;
     journeyId: string;
     answers?: Record<string, unknown>;
-    /** Page précise demandée par un bouton « Continuer » (sinon on part de la première). */
+    /** Étape précise demandée par un bouton « Continuer » (sinon on part de la première). */
     page?: number;
 }): TicketTunnelStep {
     const answers = input.answers ?? {};
-    const state = ticketTunnelState(input.form, answers);
-
-    if (state.pendingChoiceIds.length > 0) {
-        const step = buildChoiceStep(input.form, { journeyId: input.journeyId, answers });
-        return {
-            kind: "choices",
-            rows: step.rows,
-            fieldIds: step.fieldIds,
-            remaining: step.remainingFieldIds.length,
-            step: TICKET_DRAFT_STEP_CHOICES,
-        };
-    }
-
+    const steps = buildTicketFormSteps(input.form);
+    const textSteps = steps.filter((step) => step.kind === "texts");
     const from = Number.isInteger(input.page) ? Math.max(0, Math.trunc(input.page as number)) : 0;
-    for (let page = from; page < state.textPages; page += 1) {
-        const compiled = buildTicketModalPage(input.form, page);
-        if (compiled.fieldIds.every((fieldId) => isAnswered(answers, fieldId))) continue;
+
+    // Combien de questions à choix restent APRÈS cette étape (annoncé, jamais perdu).
+    const pendingChoicesAfter = (index: number): number =>
+        steps
+            .slice(index + 1)
+            .filter((step) => step.kind === "choices")
+            .flatMap((step) => step.fieldIds)
+            .filter((fieldId) => !isAnswered(answers, fieldId)).length;
+
+    for (let index = from; index < steps.length; index += 1) {
+        const step = steps[index];
+        if (step.fieldIds.every((fieldId) => isAnswered(answers, fieldId))) continue;
+
+        if (step.kind === "choices") {
+            const built = buildChoiceStep(input.form, {
+                journeyId: input.journeyId,
+                answers,
+                fieldIds: step.fieldIds,
+            });
+            return {
+                kind: "choices",
+                rows: built.rows,
+                fieldIds: built.fieldIds,
+                prompts: built.prompts,
+                remaining: pendingChoicesAfter(index),
+                step: TICKET_DRAFT_STEP_CHOICES,
+            };
+        }
+
+        const wanted = new Set(step.fieldIds);
+        const fields = input.form.fields.filter(
+            (field): field is TicketTextField | TicketParagraphField =>
+                wanted.has(field.id) && (field.kind === "text_short" || field.kind === "text_long")
+        );
+        const compiled = buildTicketModalForFields(fields, {
+            index: Math.max(0, textSteps.indexOf(step)),
+            count: textSteps.length,
+        });
+
         return {
             kind: "modal",
             rows: compiled.rows,
@@ -266,22 +313,26 @@ export function nextTicketTunnelStep(input: {
             page: compiled.page,
             pageCount: compiled.pageCount,
             isLast: compiled.isLast,
-            step: serializeTicketDraftStep({ stage: "TEXTS", page: compiled.page }),
+            stepIndex: index,
+            step: serializeTicketDraftStep({ stage: "TEXTS", page: index }),
         };
     }
 
     return {
         kind: "open",
-        step: serializeTicketDraftStep({ stage: "TEXTS", page: Math.max(0, state.textPages - 1) }),
+        step: serializeTicketDraftStep({ stage: "TEXTS", page: Math.max(0, steps.length - 1) }),
     };
 }
 
 /**
  * Bouton « Continuer » d'une page de modale : une soumission de modale ne peut pas en
- * ouvrir une autre, c'est donc un **clic de bouton** qui rouvre la modale suivante.
+ * ouvrir une autre, c'est donc un **clic de bouton** qui rouvre l'étape suivante.
+ * `stepIndex` = la clé de reprise (elle part dans le `custom_id`) ; `page`/`pageCount` ne
+ * servent qu'au libellé lisible.
  */
 export function buildTicketModalContinueRows(input: {
     journeyId: string;
+    stepIndex: number;
     page: number;
     pageCount: number;
     fieldCount: number;
@@ -295,7 +346,7 @@ export function buildTicketModalContinueRows(input: {
                     type: DISCORD_BUTTON,
                     style: 1,
                     label: label.slice(0, 80),
-                    custom_id: `tb:${TICKET_MODAL_PAGE_ACTION}:${input.journeyId}:${input.page}`,
+                    custom_id: `tb:${TICKET_MODAL_PAGE_ACTION}:${input.journeyId}:${input.stepIndex}`,
                 },
             ],
         },

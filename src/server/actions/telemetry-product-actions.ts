@@ -247,6 +247,8 @@ export async function getProductStats() {
         // (`disabledByGod`) n'est pas une activation.
         const moduleKeys = new Set<string>();
         for (const row of moduleRows) {
+            // Les clés de module sont les booléens réellement portés par la ligne `GuildModules` :
+            // aucune liste n'est recopiée ici (une colonne ajoutée apparaît seule dans la mesure).
             for (const key of moduleKeysOf(row)) moduleKeys.add(key);
         }
 

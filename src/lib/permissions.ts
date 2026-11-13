@@ -9,10 +9,14 @@ export const PERMISSIONS = {
 
     // Staff & Supervision
     STAFF_MEMBER_MGMT: "staff:member_mgmt",
+    /** Suppression DÉFINITIVE du profil d'un membre pour la guilde (B-3, action destructive). */
+    STAFF_MEMBER_DELETE: "staff:member_delete",
     STAFF_CONTENT: "staff:content",
     STAFF_AUDIT: "staff:audit",
     STAFF_REACTION_ROLES: "staff:reaction_roles",
     STAFF_TICKETS: "staff:tickets",
+    /** Module « Sondages programmés » — créneaux publiés automatiquement (staff). */
+    STAFF_SCHEDULED_POLLS: "staff:scheduled_polls",
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
@@ -88,6 +92,14 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "admin",
         modules: ["Annuaire (Admin)", "Synchronisation", "Relances", "Vacances"]
     },
+    [PERMISSIONS.STAFF_MEMBER_DELETE]: {
+        label: "Supprimer un profil de guilde",
+        description: "Supprime DÉFINITIVEMENT le profil d'un membre pour cette guilde (données de guilde purgées, sans exclusion réversible). S'il revient, il repart comme un nouvel arrivant. Action irréversible.",
+        module: "admin",
+        modules: ["Suppression de profil"],
+        sensitive: true
+    },
+
     [PERMISSIONS.STAFF_CONTENT]: { 
         label: "Communication Interne", 
         description: "Droit d'édition totale sur le contenu de la page de présentation et accès au Wiki Officier.", 
@@ -111,6 +123,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Gérer le bot de tickets, les catégories, formulaires d'intake, réclamations staff et clôtures.", 
         module: "admin",
         modules: ["Tickets Discord", "Panneaux", "SLA & Modals", "Transcripts"]
+    },
+    [PERMISSIONS.STAFF_SCHEDULED_POLLS]: {
+        label: "Sondages programmés",
+        description: "Programmer des sondages (date, heure, minute) dans le salon défini par la guilde, choisir les rôles à mentionner parmi ceux autorisés, annuler ou publier un créneau en avance.",
+        module: "admin",
+        modules: ["Sondages programmés", "Créneaux", "Publication Discord"]
     },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 
@@ -228,6 +246,74 @@ export const PERMISSION_LABELS: Record<PermissionId, string> =
         Object.entries(PERMISSION_DETAILS).map(([k, v]) => [k, v.label])
     ) as Record<PermissionId, string>;
 
+/**
+ * Un **rôle Discord** (mapping RBAC) permet-il de **voter** à un sondage ?
+ *
+ * « Voter » = la permission `community:access` (« Participation Sociale » :
+ * « … et aux sondages actifs ») — c'est exactement la garde de `castVote` — ou
+ * la permission d'administration (`system:god`), puisqu'un admin vote toujours
+ * (`canViewPolls` inclut `isAdminFinal`).
+ *
+ * Pourquoi ici : le filtre de participation ne doit proposer que des rôles dont
+ * les membres **peuvent** voter ; offrir « BOTS » ou un rôle sans accès ne filtre
+ * rien d'utile (mesure bêta du 14/10/2026).
+ *
+ * `rolesMapping` **absent ou vide** (RBAC non configuré) ⇒ `true` : on n'invente
+ * pas une restriction que la guilde n'a pas posée, le filtre reste complet.
+ */
+export function roleCanVote(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+    roleId: string,
+): boolean {
+    if (!rolesMapping || Object.keys(rolesMapping).length === 0) return true;
+    const perms = rolesMapping[roleId];
+    if (!Array.isArray(perms) || perms.length === 0) return false;
+    return perms.includes(PERMISSIONS.COMMUNITY_ACCESS) || perms.includes(PERMISSIONS.SYSTEM_GOD);
+}
+
+/**
+ * Rôle **autorisé dashboard** — le filtre de rôles du module Membres ne propose que ceux-là.
+ *
+ * Pourquoi ici : la liste proposait **tous** les rôles Discord du serveur (rôles de jeu,
+ * classes, cosmétiques : une vingtaine d'entrées dont la plupart ne filtrent rien d'utile,
+ * mesure bêta du 14/10/2026). Un rôle qui n'est mappé à **aucune** permission n'ouvre aucune
+ * page : il n'a rien à faire dans le filtre. Les lignes « hors dashboard » restent affichées et
+ * filtrables par les autres facettes (statut, inscription, recherche) — ce filtre ne les touche pas.
+ *
+ * `rolesMapping` **absent ou vide** (RBAC non configuré) ⇒ `true` : on n'invente pas une
+ * restriction que la guilde n'a pas posée, le filtre reste complet.
+ */
+export function roleHasDashboardAccess(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+    roleId: string,
+): boolean {
+    if (!rolesMapping || Object.keys(rolesMapping).length === 0) return true;
+    const perms = rolesMapping[roleId];
+    return Array.isArray(perms) && perms.length > 0;
+}
+
+/**
+ * Rôles Discord qui peuvent **gérer les membres** — donc lever une exclusion.
+ *
+ * Source unique : les **mêmes** permissions que `getUserContext` (`user-actions.ts`) —
+ * `STAFF_MEMBER_MGMT` ouvre `canManageMembers`, `SYSTEM_GOD` ouvre l'admin de guilde.
+ * Sert à l'écran « Membre exclu » : on affiche **quels rôles** contacter, jamais des personnes
+ * (décision du 25/10/2026 — pas d'annuaire exposé à un membre exclu).
+ *
+ * `rolesMapping` absent ⇒ aucune liste (l'écran retombe sur « contacte ton staff »).
+ */
+export function rolesGrantingMemberManagement(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+): string[] {
+    if (!rolesMapping) return [];
+    return Object.entries(rolesMapping)
+        .filter(([, perms]) => {
+            if (!Array.isArray(perms)) return false;
+            return perms.includes(PERMISSIONS.STAFF_MEMBER_MGMT) || perms.includes(PERMISSIONS.SYSTEM_GOD);
+        })
+        .map(([roleId]) => roleId);
+}
+
 export function getPermissionsByModule(module: PermissionModule): PermissionId[] {
     return (Object.entries(PERMISSION_DETAILS) as [PermissionId, { module: PermissionModule }][])
         .filter(([, details]) => details.module === module)
@@ -258,10 +344,12 @@ export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
     [PERMISSIONS.MARKET_MODERATE]: ["marche"],
     [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],
     [PERMISSIONS.STAFF_MEMBER_MGMT]: ["roster", "profile"],
+    [PERMISSIONS.STAFF_MEMBER_DELETE]: ["roster", "profile"],
     [PERMISSIONS.STAFF_CONTENT]: ["presentation", "docs"],
     [PERMISSIONS.STAFF_AUDIT]: ["logs"],
     [PERMISSIONS.STAFF_REACTION_ROLES]: ["reactionRoles"],
     [PERMISSIONS.STAFF_TICKETS]: ["tickets"],
+    [PERMISSIONS.STAFF_SCHEDULED_POLLS]: ["scheduledPolls"],
     [PERMISSIONS.COMMANDS_VIEW]: ["commandes"],
 };
 /**
@@ -306,9 +394,10 @@ export const GUILD_MODULE_LABELS: Record<string, string> = {
     availability: "Disponibilités",
     logs: "Audit Logs",
     polls: "Sondages",
+    scheduledPolls: "Sondages programmés",
     reactionRoles: "Reaction Roles",
     tickets: "Tickets",
-    quests: "Quêtes Dofus",
+    quests: "Objectif Dofus",
     worldmap: "Carte du Monde",
     resources: "Ressources",
     commandes: "Commandes Bot",

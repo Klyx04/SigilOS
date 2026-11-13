@@ -215,7 +215,6 @@ async function main() {
         dofuspourlesnoobsUrl: s.dofuspourlesnoobsUrl || null,
         dofusdbUrl: s.dofusdbUrl || null,
         alignReq: s.alignReq || null,
-        alignOrderReq: s.alignOrderReq || null,
         dungeonId: resolvedDungeonIds[0] ?? null,
         dungeonIds: resolvedDungeonIds,
         mapPositions: s.mapPositions || undefined,

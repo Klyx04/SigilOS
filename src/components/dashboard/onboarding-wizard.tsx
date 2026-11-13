@@ -117,7 +117,8 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                 } else {
                     toast.success("Profil configuré avec succès ! Bienvenue à bord.");
                     setIsOpen(false);
-                    router.push(`/dashboard/${guildId}/profile?tour=1`);
+                    router.push(`/dashboard/${guildId}`);
+                    router.refresh();
                 }
             } else {
                 toast.error(res.error || "Une erreur est survenue lors de la sauvegarde.");
@@ -151,7 +152,8 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
             if (res.success) {
                 toast.success("Profil configuré avec succès ! Bienvenue à bord.");
                 setIsOpen(false);
-                router.push(`/dashboard/${guildId}/profile?tour=1`);
+                router.push(`/dashboard/${guildId}`);
+                router.refresh();
             } else {
                 toast.error(res.error || "Une erreur est survenue lors de la sauvegarde.");
             }

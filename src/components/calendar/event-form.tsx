@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, addHours, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -143,9 +144,12 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     OTHERS: {
         label: "Autres activités",
         shortLabel: "Autres",
-        bg: "bg-muted/10",
-        border: "border-border/30",
-        text: "text-muted-foreground",
+        // ⚠️ Constat du 23/10/2026 : `bg-muted/10` + `text-muted-foreground` rendaient la
+        // carte sélectionnée quasi identique à l'état inactif (« Autres » semblait
+        // incliquable). On garde la sobriété, mais avec un contraste réel.
+        bg: "bg-elevated",
+        border: "border-border-strong",
+        text: "text-foreground",
         preset: { defaultDuration: 2 }
     },
 };
@@ -172,7 +176,7 @@ const eventFormSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
     description: z.string().max(2000).optional(),
     type: z.string(),
-    date: z.date({ required_error: "Date requise" }),
+    date: z.date({ message: "Date requise" }),
     startTime: z.string().min(5, "Heure requise"),
     endTime: z.string().min(5, "Heure requise"),
     maxParticipants: z.coerce.number().min(1).optional().nullable(),
@@ -221,9 +225,14 @@ interface EventFormProps {
 export function EventForm({ guildId, initialData, onSubmit, discordChannels, canManageRaid, userPseudo, discordRoles: providedRoles }: EventFormProps) {
     const [step, setStep] = useState<1 | 2>(1);
     const [submitting, setSubmitting] = useState(false);
+    // Classe du CRÉATEUR : valeur de départ = la sienne sur cet événement (édition). Elle
+    // n'est envoyée que si elle change — un membre dont la mule a été retirée du profil ne
+    // doit pas voir l'édition d'un autre champ échouer.
+    const initialCreatorClass: string | null = (initialData?.creatorClass as string | null | undefined) ?? null;
+    const [creatorClass, setCreatorClass] = useState<string | null>(initialCreatorClass);
     
     // Raid eligibility (kamas gate) for the creator
-    const [creatorRaidEligibility, setCreatorRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
+    const [creatorRaidEligibility, setCreatorRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number; raidRequireKamaDonation?: boolean } | null>(null);
     
     // Helper to normalize discord role colors
     const normalizeRoles = (roles: any[]) => roles.map(r => ({
@@ -252,6 +261,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     const [whitelistedRoleIds, setWhitelistedRoleIds] = useState<string[]>([]);
 
     const isRaid = selectedType === "RAID_OFFICIAL";
+    const isCreatorKamasBlocked = isRaid && creatorRaidEligibility !== null && creatorRaidEligibility.raidRequireKamaDonation !== false && !creatorRaidEligibility.isEligible;
 
     const [configChannels, setConfigChannels] = useState<{ 
         calendarNotifyChannelId?: string | null; 
@@ -366,14 +376,18 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
             if (res.success) {
                 setCreatorRaidEligibility({
                     isEligible: res.isEligible ?? false,
-                    totalDonated: res.totalDonated ?? 0
+                    totalDonated: res.totalDonated ?? 0,
+                    raidRequireKamaDonation: res.raidRequireKamaDonation
                 });
             }
         });
     }, [guildId]);
 
     const form = useForm<EventFormValues>({
-        resolver: zodResolver(eventFormSchema),
+        // zod 4 : `z.coerce.number()` expose un type d'ENTRÉE `unknown` (le champ HTML renvoie une
+        // chaîne), alors que la valeur validée en sortie est bien un nombre. Le resolver est donc
+        // aligné sur les valeurs du formulaire — **aucun changement de comportement**.
+        resolver: zodResolver(eventFormSchema) as Resolver<EventFormValues>,
         defaultValues: initialData ? {
             title: initialData.title || "",
             description: initialData.description || "",
@@ -481,6 +495,12 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 publishOnDiscord: values.publishOnDiscord,
                 mentionRoleIds: values.mentionRoleIds || [],
                 missionIds: values.type === "SESSION_MISSIONS" ? selectedMissions : [],
+                // Classe du créateur (il est inscrit d'office, tous types) : à la création le
+                // sélecteur a présélectionné son personnage principal ; en édition, on n'envoie
+                // que si elle a changé.
+                ...(creatorClass && (!initialData?.id || creatorClass !== initialCreatorClass)
+                    ? { creatorClass }
+                    : {}),
                 metadata: values.type === "RAID_OFFICIAL" ? {
                     raidType,
                     raidLabel: raidDef?.label,
@@ -501,7 +521,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     };
 
     const handleNextStep = async () => {
-        if (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible) {
+        if (isCreatorKamasBlocked) {
             return;
         }
         // Trigger validation for step 1 fields before proceeding
@@ -557,14 +577,18 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 <button
                                     key={type}
                                     type="button"
+                                    aria-pressed={isSelected}
                                     onClick={() => handleTypeChange(type)}
                                     className={cn(
-                                        "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors",
+                                        "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40",
                                         isSelected
                                             ? cn(config.bg, config.border)
                                             : "bg-surface/50 border-border hover:border-border hover:bg-elevated/50"
                                     )}
                                 >
+                                    {isSelected && (
+                                        <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-success" aria-hidden="true" />
+                                    )}
                                     <div className={cn(
                                         "h-10 w-10 rounded-[4px] flex items-center justify-center transition-colors",
                                         isSelected ? config.bg : "bg-elevated"
@@ -785,7 +809,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             )}
 
                             {/* Creator eligibility warning box */}
-                            {creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible && (
+                            {isCreatorKamasBlocked && (
                                 <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-danger/30 bg-danger/30 text-danger animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-start gap-2.5">
                                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-danger" />
@@ -914,6 +938,15 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     </div>
                 </div>
 
+                {/* ============ MA CLASSE (créateur) ============ */}
+                <CreatorClassSelector
+                    guildId={guildId}
+                    value={creatorClass}
+                    onChange={setCreatorClass}
+                    label="Ma classe sur cet événement"
+                    description="Tu es inscrit d'office à l'événement que tu crées. Seuls ton personnage principal et tes mules du profil SigilOS sont proposés."
+                />
+
                 {/* ============ MAX PARTICIPANTS ============ */}
                 <FormField
                     control={form.control}
@@ -991,15 +1024,15 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 <Button
                     type="button"
                     onClick={handleNextStep}
-                    disabled={isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible}
+                    disabled={isCreatorKamasBlocked}
                     className={cn(
                         "w-full h-12 font-bold text-base transition-all mt-4",
-                        isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                        isCreatorKamasBlocked
                             ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
                             : "bg-warning hover:bg-warning text-warning-foreground"
                     )}
                 >
-                    {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                    {isCreatorKamasBlocked ? (
                         <>
                             <Lock className="mr-2 h-5 w-5" />
                             Suivant (Don de Kamas requis)
@@ -1209,10 +1242,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 <div className="flex items-center gap-3 mt-4">
                     <Button
                         type="submit"
-                        disabled={submitting || (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible)}
+                        disabled={submitting || isCreatorKamasBlocked}
                         className={cn(
                             "w-full h-12 font-bold text-base transition-all",
-                            isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                            isCreatorKamasBlocked
                                 ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
                                 : "bg-warning hover:bg-warning text-warning-foreground"
                         )}
@@ -1222,7 +1255,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Création...
                             </>
-                        ) : isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                        ) : isCreatorKamasBlocked ? (
                             <>
                                 <Lock className="mr-2 h-5 w-5" />
                                 Création bloquée

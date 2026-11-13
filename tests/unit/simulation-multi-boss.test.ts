@@ -61,8 +61,12 @@ describe("simulation — monstres posables dans la salle (boss compris)", () => 
         // Même maladie que la grille : `if (m.isBoss || …) setActiveMonsterName(null)`
         // rendait Sylargh (ou les 3 autres Cavaliers) inaccessibles — le clic ramenait au
         // boss de l'en-tête. Seul CE boss doit ramener à l'état par défaut.
+        // Depuis les donjons **multi-boss**, le boss de l'en-tête est `effectiveBossName`
+        // (config du donjon) : la garde accepte cette branche, jamais le filtre `isBoss`.
         const code = readFileSync("src/components/boss-overlay/BossOverlayClient.tsx", "utf8");
         expect(code).not.toMatch(/if \(m\.isBoss \|\| m\.name === selected\?\.bossName\)/);
-        expect(code).toMatch(/setActiveMonsterName\(m\.name === selected\?\.bossName \? null : m\.name\)/);
+        expect(code).toMatch(
+            /setActiveMonsterName\(m\.name === \(isMultiBoss \? effectiveBossName : selected\?\.bossName\) \? null : m\.name\)/
+        );
     });
 });

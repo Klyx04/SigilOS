@@ -34,7 +34,7 @@ vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/server/discord", () => ({ fetchGuild: vi.fn() }));
 vi.mock("@/server/actions/guards", () => ({ requireGuildAdmin: vi.fn() }));
-vi.mock("@/server/actions/god-notif-actions", () => ({ notifyGod: vi.fn() }));
+vi.mock("@/server/god-notifications", () => ({ notifyGod: vi.fn() }));
 vi.mock("@/server/actions/audit-actions", () => ({ logAction: vi.fn(), createAuditLog: vi.fn() }));
 vi.mock("@/server/actions/user-actions", () => ({
     invalidateGuildCache: vi.fn(),
@@ -44,6 +44,12 @@ vi.mock("@/server/actions/super-admin-actions", () => ({
     invalidateAllowedGuildCache: vi.fn(),
     isSuperAdmin: vi.fn(),
 }));
+// Limite de guildes (LG-1/LG-2) : hors sujet ici — on isole le flow d'origine. Les deux portes
+// sont mockées (G2 avant `guildConfig.create`, G3 pour le batch de réactivation).
+vi.mock("@/server/guild-limit", () => ({
+    isGuildLimitReached: vi.fn().mockResolvedValue(false),
+    wouldExceedGuildLimit: vi.fn().mockResolvedValue(false),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
@@ -52,7 +58,7 @@ import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { fetchGuild } from "@/server/discord";
 import { requireGuildAdmin } from "@/server/actions/guards";
-import { notifyGod } from "@/server/actions/god-notif-actions";
+import { notifyGod } from "@/server/god-notifications";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import {
     isSelfOnboardedGuild,
@@ -124,8 +130,13 @@ describe("usage unique — aucune heuristique locale ne doit réapparaître", ()
     });
 
     it("le bot dit la même vérité en base et dans Discord (embed branché sur le kill-switch)", () => {
-        expect(BOT).toMatch(/autoOnboardingOn \? 'GUILD_CREATE_AUTO' : 'GUILD_CREATE_UNWHITELISTED'/);
-        expect(BOT).toMatch(/embeds: \[autoOnboardingOn \?/);
+        // Depuis LG-4, un **premier** discriminant s'est ajouté (plafond du propriétaire) : les deux
+        // surfaces restent calculées à partir des mêmes états, et le kill-switch reste le suivant.
+        expect(BOT).toMatch(/autoOnboardingOn\s*\?\s*'GUILD_CREATE_AUTO'\s*:\s*'GUILD_CREATE_UNWHITELISTED'/);
+        expect(BOT).toMatch(/const godTitle = overLimit/);
+        expect(BOT).toMatch(/const godEmbed = overLimit \? \{/);
+        expect(BOT).toMatch(/\} : autoOnboardingOn \? \{/);
+        expect(BOT).toMatch(/embeds: \[godEmbed\]/);
         // le vert « auto-actif » et le rouge « action requise » coexistent, sur la même condition
         expect(BOT).toContain("🟢 Nouveau serveur (auto-actif)");
         expect(BOT).toContain("🚨 Nouveau serveur non-whitelisté");

@@ -184,11 +184,19 @@ describe("tickets v2 — le branchement Discord de l'ouverture (parcours réels)
         expect(create, "le nom du salon vient du parcours").toContain("formatTicketChannelName(");
         expect(create).toContain("buildTicketWelcomeEmbed(");
         expect(create).toContain("buildActionRows(");
-        // Invariant #1 : le demandeur ne reçoit jamais les boutons de staff.
-        expect(create).toContain("viewerIsStaff: false");
+        // 🆕 Barre du salon (16/10/2026) : **deux boutons** (Prendre en charge, Fermer), et
+        // le droit est appliqué **au clic** (`guardTicketAction` + `buttonKey`) — jamais par
+        // l'affichage, puisque Discord sert les mêmes composants à tout le monde.
+        expect(create).toContain("readTicketButtonSettings(input.settingsJson)");
+        expect(actions).toContain('buttonKey: "claim"');
+        expect(actions).toContain('buttonKey: "close"');
+        // Le message d'accueil est retenu pour être **patché** en direct (prise en charge).
+        expect(create).toContain("metadataJson: { welcomeMessageId }");
         // Ping : seuls les rôles choisis, jamais `@everyone`, et un `allowed_mentions` explicite.
         expect(create).toContain("resolveTicketNotifyRoleIds(");
-        expect(actions).toContain("buildTicketNotifyContent(");
+        // 16/10/2026 — la composition « équipe + demandeur » vit dans UNE brique
+        // (`buildTicketOpeningContent`), seule appelée par la création.
+        expect(actions).toContain("buildTicketOpeningContent(");
         expect(actions).toContain("allowed_mentions:");
     });
 
@@ -213,5 +221,15 @@ describe("tickets v2 — l'acteur est normalisé (MP et salon)", () => {
         expect(actor).toContain("member?.user ?? payload.user ?? null");
         expect(actor).toContain('source: discordGuildId ? "guild" : "dm"');
         expect(actor).toContain("DISCORD_ADMINISTRATOR_BIT");
+    });
+});
+
+describe("tickets v2 — ouverture sans compte SigilOS préalable", () => {
+    it("n'exige aucun compte SigilOS pour les interactions de tickets (tb, tb_pick, ticket)", () => {
+        const route = codeOnly(read(ROUTE));
+        expect(route).toContain("isTicketCustomId(custom_id)");
+        expect(route).toMatch(
+            /if\s*\(!account\s*&&\s*!isTicketInteraction\s*&&\s*prefix\s*!==\s*"rr"\)/
+        );
     });
 });

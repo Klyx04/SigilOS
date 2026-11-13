@@ -10,7 +10,11 @@
  *  2. 🗣️ **Salon forum** : le chemin « un message par objet » envoyait toujours un
  *     message **simple** (`sendChannelMessage`) ; dans un forum Discord refuse
  *     (message sans `thread_name`) ⇒ refus définitif rejoué 8× par l'outbox
- *     (« écriture abandonnée », incident 01:19). Attendu : un **post** par objet.
+ *     (« écriture abandonnée », incident 01:19). Attendu : les objets vivent dans
+ *     **le fil du lot** (`postChannelMessage`), jamais dans le salon forum.
+ *     Correctif du 16/10/2026 (constat user « un post multi lot génère un post forum
+ *     par lot, c'est pénible ») : **UN seul post par annonce** — créé une fois, son
+ *     message d'ouverture devient le chapeau du lot, puis réutilisé à chaque passe.
  *  3. 🗑️ **Suppression** : l'action vendeur passait par `syncListingMessage`, qui
  *     court-circuite (`deletedAt`) ⇒ le post de forum restait à vie. Attendu :
  *     `deleteListingDiscordMessage` (désormais câblé) supprime messages d'objets
@@ -30,6 +34,7 @@ const mockComponentUpdate = vi.fn();
 const mockDiscordMessageFindUnique = vi.fn();
 const mockDiscordMessageUpdate = vi.fn();
 const mockDiscordMessageUpdateMany = vi.fn();
+const mockDiscordMessageUpsert = vi.fn();
 const mockGuildConfigUpdate = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
@@ -43,6 +48,7 @@ vi.mock("@/lib/prisma", () => ({
             findUnique: (...a: any[]) => mockDiscordMessageFindUnique(...a),
             update: (...a: any[]) => mockDiscordMessageUpdate(...a),
             updateMany: (...a: any[]) => mockDiscordMessageUpdateMany(...a),
+            upsert: (...a: any[]) => mockDiscordMessageUpsert(...a),
         },
         guildConfig: { update: (...a: any[]) => mockGuildConfigUpdate(...a) },
     },
@@ -57,17 +63,21 @@ const mockRedisGet = vi.fn();
 vi.mock("@/lib/redis", () => ({ redis: { get: (...a: any[]) => mockRedisGet(...a) } }));
 
 const mockSendChannelMessage = vi.fn();
+const mockPostChannelMessage = vi.fn();
 const mockCreateForumPost = vi.fn();
 const mockUpdateChannelMessage = vi.fn();
 const mockDeleteChannelMessage = vi.fn();
 const mockDeleteChannel = vi.fn();
+const mockFetchChannel = vi.fn();
 vi.mock("@/server/discord", () => ({
     sendChannelMessage: (...a: any[]) => mockSendChannelMessage(...a),
+    /** Message **dans le fil** du lot (format « un post, N messages »). */
+    postChannelMessage: (...a: any[]) => mockPostChannelMessage(...a),
     createForumPost: (...a: any[]) => mockCreateForumPost(...a),
     updateChannelMessage: (...a: any[]) => mockUpdateChannelMessage(...a),
     deleteChannelMessage: (...a: any[]) => mockDeleteChannelMessage(...a),
     deleteChannel: (...a: any[]) => mockDeleteChannel(...a),
-    fetchChannel: vi.fn().mockResolvedValue({ id: "chan", type: 0 }),
+    fetchChannel: (...a: any[]) => mockFetchChannel(...a),
     updateForumThreadTags: vi.fn().mockResolvedValue(true),
 }));
 
@@ -152,6 +162,11 @@ beforeEach(() => {
     mockSendChannelMessage.mockResolvedValue(REAL_MESSAGE_ID);
     mockCreateForumPost.mockResolvedValue({ id: THREAD_ID_1, messageId: REAL_MESSAGE_ID });
     mockUpdateChannelMessage.mockResolvedValue(true);
+    mockPostChannelMessage.mockResolvedValue(REAL_MESSAGE_ID);
+    // `fetchChannel` : le post du lot est un **fil du salon forum** configuré
+    // (`type 11` = PUBLIC_THREAD, `parent_id` = salon forum) — cas de la réutilisation.
+    mockFetchChannel.mockResolvedValue({ id: THREAD_ID_1, type: 11, parent_id: "1550186337674731712" });
+    mockDiscordMessageUpsert.mockResolvedValue({});
     mockDeleteChannelMessage.mockResolvedValue(true);
     mockDeleteChannel.mockResolvedValue(true);
     mockDiscordMessageUpdateMany.mockResolvedValue({ count: 1 });
@@ -188,7 +203,7 @@ describe("publishListingToDiscord — lot multiple (option A)", () => {
         expect(mockSendChannelMessage.mock.calls[1][2].mentionContent).toBeUndefined();
     });
 
-    it("en salon FORUM publie un POST par objet (jamais un message simple)", async () => {
+    it("en salon FORUM publie UN post de lot, puis UN message par objet DANS ce post", async () => {
         mockListingFindUnique.mockResolvedValue(
             bundleListing({ guild: { ...bundleListing().guild, marketChannelKind: "FORUM" } })
         );
@@ -196,12 +211,24 @@ describe("publishListingToDiscord — lot multiple (option A)", () => {
         const result = await publishListingToDiscord("listing-1");
 
         expect(result.ok).toBe(true);
-        expect(mockCreateForumPost).toHaveBeenCalledTimes(2);
-        expect(mockSendChannelMessage).not.toHaveBeenCalled();
-        // Les tags du forum (D20/S3.13) sont appliqués à chaque post.
+        // **UN SEUL** post par annonce (constat user du 16/10/2026 : « un post multi lot
+        // génère un post forum par lot, c'est pénible »).
+        expect(mockCreateForumPost).toHaveBeenCalledTimes(1);
+        // Les tags du forum (D20/S3.13) sont appliqués au post du lot.
         expect(mockCreateForumPost.mock.calls[0][3].appliedTags).toEqual(["tag-1"]);
-        // La trace pointe le **fil** (et non le salon forum).
+        // Le ping part avec le message d'ouverture (chapeau du lot).
+        expect(mockCreateForumPost.mock.calls[0][2]).toContain("999999999999999999");
+        // Les objets sont des **messages du fil** — ni messages simples, ni posts.
+        expect(mockPostChannelMessage).toHaveBeenCalledTimes(2);
+        expect(mockSendChannelMessage).not.toHaveBeenCalled();
+        // La trace de chaque objet pointe le **fil** (et non le salon forum).
         expect(mockComponentUpdate.mock.calls[0][0].data.discordChannelId).toBe(THREAD_ID_1);
+        // Le post est mémorisé pour être **réutilisé** à la synchronisation suivante.
+        expect(mockDiscordMessageUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({ discordChannelId: THREAD_ID_1 }),
+            })
+        );
     });
 
     it("une annonce supprimée n'est jamais republiée", async () => {
@@ -214,7 +241,7 @@ describe("publishListingToDiscord — lot multiple (option A)", () => {
         expect(mockCreateForumPost).not.toHaveBeenCalled();
     });
 
-    it("efface le message d'annonce « hérité » (lot publié avant le correctif)", async () => {
+    it("réutilise le post existant du lot (aucun doublon, aucune suppression)", async () => {
         mockListingFindUnique.mockResolvedValue(
             bundleListing({
                 // Cas réel mesuré en beta : lot publié dans le forum 『🛒』𝐓𝐑𝐎𝐂-𝐙𝐎𝐍𝐄.
@@ -228,18 +255,20 @@ describe("publishListingToDiscord — lot multiple (option A)", () => {
 
         await publishListingToDiscord("listing-1");
 
-        // Le message unique du lot (ancien comportement) est retiré du salon…
-        expect(mockDeleteChannelMessage).toHaveBeenCalledWith(THREAD_ID_2, "666666666666666666");
-        expect(mockDeleteChannel).toHaveBeenCalledWith(THREAD_ID_2);
-        // …et sa trace est vidée pour ne jamais le « ressusciter ».
-        expect(mockDiscordMessageUpdateMany).toHaveBeenCalledWith(
-            expect.objectContaining({
-                data: expect.objectContaining({ discordMessageId: "", discordChannelId: "" }),
-            })
+        // Le post existant est **réutilisé** : son message d'ouverture devient le chapeau.
+        expect(mockCreateForumPost).not.toHaveBeenCalled();
+        expect(mockUpdateChannelMessage).toHaveBeenCalledWith(
+            THREAD_ID_2,
+            "666666666666666666",
+            "",
+            expect.any(Object)
         );
-        // Les objets sont bien publiés séparément (un post par objet en forum).
-        expect(mockCreateForumPost).toHaveBeenCalledTimes(2);
-        expect(mockSendChannelMessage).not.toHaveBeenCalled();
+        // Jamais de suppression du post du lot (§13.7).
+        expect(mockDeleteChannelMessage).not.toHaveBeenCalled();
+        expect(mockDeleteChannel).not.toHaveBeenCalled();
+        // Les objets sont publiés **dans** le fil existant.
+        expect(mockPostChannelMessage).toHaveBeenCalledTimes(2);
+        expect(mockPostChannelMessage.mock.calls[0][0]).toBe(THREAD_ID_2);
     });
 });
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Megaphone, Calendar } from "lucide-react";
+import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Calendar } from "lucide-react";
+import { DiscordIcon } from "@/components/shared/icons";
 import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -328,7 +329,20 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col justify-between gap-2">
-                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} guildId={guildId} />
+                            <DofusbookPreview
+                                url={link.url}
+                                title={link.name}
+                                tags={link.tags}
+                                classId={link.classId}
+                                initialData={(link as any).previewData}
+                                guildId={guildId}
+                                savedVariants={(link as any).variants}
+                                itemSets={(link as any).itemSets}
+                                variantBuildId={link.id}
+                                // Écriture réservée au propriétaire : un profil consulté en
+                                // lecture seule ne propose ni édition ni publication de variante.
+                                canPersistVariant={!readOnly}
+                            />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}
                             <div className="flex items-center justify-between px-2 pt-1 text-caption text-muted-foreground border-t border-border">
@@ -381,7 +395,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             className="p-2 bg-surface/80 hover:bg-info text-info hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                             title="Partager sur Discord"
                                         >
-                                            <Megaphone className="w-3.5 h-3.5" />
+                                            <DiscordIcon className="w-3.5 h-3.5" />
                                         </button>
                                     )}
                                     {!readOnly && (

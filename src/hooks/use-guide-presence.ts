@@ -9,6 +9,10 @@ export type GuidePresenceMember = {
   userName: string;
   userAvatar?: string;
   milestoneId: string;
+  /** Alignement du personnage — lu côté SERVEUR au join, jamais envoyé par le client. */
+  alignment?: string | null;
+  alignmentOrder?: string | null;
+  alignmentLevel?: number | null;
 };
 
 export type GuideConnectionStatus = "connected" | "degraded" | "offline";

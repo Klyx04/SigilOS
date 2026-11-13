@@ -729,7 +729,19 @@ async function runAssetWebp(
         if (!inv.success || !inv.data) {
             throw new Error(inv.error || "Inventaire des images indisponible");
         }
-        targets = inv.data.items.filter((i) => !i.hasLocalImage);
+        /**
+         * ⚠️ Une cible de siphon n'existe que si l'on connaît l'**id DofusDB** du monstre : les
+         * lignes sans id (donjon sans correspondance, cf. `SiphonInventoryItem.id`) sont écartées
+         * — on ne fabrique jamais d'URL à partir d'un cuid interne.
+         */
+        targets = inv.data.items
+            .filter((i) => typeof i.id === "number" && !i.hasLocalImage)
+            .map((i) => ({
+                id: i.id as number,
+                name: i.resolvedMonsterName || i.name,
+                dungeonName: i.dungeonName,
+                remoteUrl: i.remoteImageUrl || undefined,
+            }));
     }
     if (targets.length === 0) {
         const summary = "Images WebP : rien à faire, tout est déjà en cache local.";

@@ -249,7 +249,7 @@ export async function updateMarketSettings(
 
         const parsed = marketSettingsSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
         const data = parsed.data;
 

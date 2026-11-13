@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Clock, Loader2, CheckSquare, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Search, X } from "lucide-react";
+import { Clock, Loader2, CheckSquare, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, Heart, Tv, Search, X } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -42,7 +42,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord" | "raids">(
         vitrineMode ? "discord" : "activity"
     );
-    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
+    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "reactions" | "stream" | "replies">("messages");
     // Profil de présence (onglet Discord) : qui vit sur le serveur, jamais un blâme.
     const [presenceFilter, setPresenceFilter] = useState<DiscordPresenceFilter>("all");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
@@ -185,13 +185,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             </div>
                         </div>
                     );
-                } else if (discordMetric === "characters") {
-                    return (
-                        <div className="flex items-center gap-2 font-black text-success">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>{entry.value.toLocaleString()} caractères</span>
-                        </div>
-                    );
                 } else if (discordMetric === "reactions") {
                     return (
                         <div className="flex items-center gap-2 font-black text-warning">
@@ -320,9 +313,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                         ? "Volume de discussion sur Discord."
                                         : discordMetric === "voice"
                                             ? "Temps passé en vocal."
-                                            : discordMetric === "characters"
-                                                ? "Volume de caractères écrits."
-                                                : discordMetric === "reactions"
+                                            : discordMetric === "reactions"
                                                     ? "Réactions reçues sur Discord."
                                                     : discordMetric === "stream"
                                                         ? "Temps passé en stream."
@@ -344,7 +335,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             <SelectItem value="voice">Vocal</SelectItem>
                                             <SelectItem value="messages">Messages</SelectItem>
                                             <SelectItem value="stream">Streams</SelectItem>
-                                            <SelectItem value="characters">Caractères</SelectItem>
                                             <SelectItem value="reactions">Réactions</SelectItem>
                                             <SelectItem value="replies">Réponses</SelectItem>
                                         </SelectContent>

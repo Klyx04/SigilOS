@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 (suite 2) — **RGPD · Ladder sur les messages, intent `MessageContent` retiré** — branche `feat/ladder-messages`
+
+> **Décision user (verbatim)** : « oui je veux faire la modif, du coup la modif ladder UI module à faire aussi et tout le code autour ».
+> **Mesure** : la métrique « caractères » était la seule raison de demander l'intent privilégié `MessageContent` ; le bot ne lisait que `message.content.length` (jamais le texte, jamais stocké). Les compteurs `discordCharacters*` restent en base (historique, `@default(0)`) mais ne sont plus alimentés.
+> **Fait** : `ladder-client.tsx` (option + affichage + description retirés), `ladder-actions.ts` (union + branche `characters` retirées), `member-discord-activity.tsx` (carte « Caractères » retirée), bot (`MessageContent` retiré, `message.content` plus lu, reset hebdo/mensuel sans caractères, 4 logs sans snowflake Discord).
+> **Preuves** : verrou `ladder-messages-only` (6) · suite **669 fichiers ✓** · `tsc` 0 · aucune migration (colonnes conservées).
+> **Reste / ops** : déployer le bot **puis** désactiver `Message Content Intent` dans le portail Discord (l'ordre inverse ferait refuser le démarrage) ; vérifier que le Ladder affiche bien « Messages » par défaut.
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 6) — **Rang 64 · Conditions de quête : éditeur structuré, combat et donjon au choix** — branche `feat/rush-conditions-combat`
 
 > **Demande user (verbatim)** : « LES CONDITION c pas vraiment des condition de blocage mais ce sont des infos qui seront dans le détails d'une quête à dispo, overlay et navigateur, donc peut-être un nouvelle étape dans la modale quete god aussi , des vrai assets dofus pour les icones etc » · « Enchaine les lots un par un, une PR globale, un commit par lot ».
@@ -57,13 +67,3 @@
 > **Preuves** : `rush-editor-problems` **22** (+9) · voisins `rush-class-branches` 10 · `rush-branches-cockpit` 8 · `rush-route-tooling` 19 ✓ · suite **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée, aucune lecture base depuis le studio (la règle reste pure).
 > **Reste** : contrôle visuel de l'onglet avec les deux nouvelles familles ; en prod le compte peut différer du local — c'est l'écran qui dit la vérité. Lots suivants : **3** (reset auto) → **13** (flaky).
 > **Rotation** : bloc « 11/11/2026 — Chantier 1/5 · Hub Communauté SigilOS » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite) — **Rang 59 · Numérotation des blocs : une seule règle pour les deux guides et l'overlay** — branche `feat/rush-numerotation-blocs`
-
-> **Demande user (verbatim)** : « Numérotation des blocs dans les 2 guides navigateur (même règle que l'overlay) » — décision actée le 12/11 : « **OUI** — même règle que l'overlay (`rushChapterPosition`) ».
-> **Mesures** : ① le guide **membre** numérotait avec `msIdx + 1` alors que sa liste ne porte **que les blocs d'un chapitre** (`milestoneList`) : chaque page repartait à 1 ; ② le guide **public** numérotait avec `milestones.indexOf(ms) + 1`, **bandeaux compris** : les numéros sautaient dès qu'un séparateur ou un encart s'intercalait ; ③ l'overlay suivait déjà la bonne règle (`rushChapterPosition`, bandeaux exclus) — trois surfaces, deux numérotations.
-> **Fait** : règle pure `rushChapterNumbers(blocks)` (`src/lib/rush-guide-utils.ts`) — table `id → rang` en O(n), construite sur `isNonCheckableBlock` ; `rushChapterPosition` **en dérive** (une seule source). Chaque parent calcule la table **une fois sur le guide complet** et la passe aux lignes : `blockNumbers` dans `RushTimelineClient` (prop `blockNumber` de `MilestoneRow`, fin de `blockIndex = msIdx + 1`) et dans `PublicRushGuideClient` (fin de `milestones.indexOf(ms)`). Un bloc non numéroté affiche une chaîne vide, jamais « 0 ».
-> **Preuves** : verrou neuf `rush-block-numbering` **5** (les deux guides et l'overlay sur la même règle, absence des deux anciens calculs) · `rush-guide-utils` **+4** (table, bandeaux absents, rang identique à `rushChapterPosition`, guide vide) · suite **664 fichiers / 7 110 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (un guide avec séparateurs : la suite des numéros ne doit plus sauter) ; puis **2** (deux contrôles « Problèmes ») → **3** (reset auto) → **13** (flaky), selon l'amorce.
-> **Rotation** : bloc « 10/11/2026 (suite 3) — V-H corrigé par la mesure » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

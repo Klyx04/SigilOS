@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { getUserContext, type ActionResponse } from "./user-actions";
@@ -1067,6 +1068,13 @@ export async function recordMemberDeparture(
                     }
                 });
             }
+        });
+        // Révocation temps réel (lot 4f) : le socket du membre est coupé côté WS.
+        // Best-effort — le sweep d'appartenance révoque à la passe suivante si Redis est muet.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: profile.userId,
+            reason: data.isBan ? "BANNED" : "ARCHIVED",
         });
 
         await createAuditLog({

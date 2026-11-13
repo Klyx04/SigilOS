@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket-utils";
 import { emitDashboardPresence } from "@/lib/dashboard-presence-bus";
@@ -25,6 +26,7 @@ export type DashboardPresenceEvent = {
  */
 export function useDashboardPresence({ guildId, enabled = true }: { guildId?: string; enabled?: boolean }) {
   const socketRef = useRef<Socket | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!guildId || !enabled) return;
@@ -42,15 +44,24 @@ export function useDashboardPresence({ guildId, enabled = true }: { guildId?: st
       emitDashboardPresence(e);
     };
 
+    // Révocation d'accès (lot 4f) : le serveur WS a déjà coupé le socket. On
+    // rafraîchit la page pour que le layout serveur affiche l'accès refusé.
+    const onAccessRevoked = (payload: { guildId?: string }) => {
+      if (!payload || payload.guildId !== guildId) return;
+      router.refresh();
+    };
+
     socket.on("connect", onConnect);
     socket.on("dashboard:presence:event", onEvent);
+    socket.on("guild:access-revoked", onAccessRevoked);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("dashboard:presence:event", onEvent);
+      socket.off("guild:access-revoked", onAccessRevoked);
       socket.emit("dashboard:leave", { guildId });
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [guildId, enabled]);
+  }, [guildId, enabled, router]);
 }

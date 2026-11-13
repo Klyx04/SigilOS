@@ -21,6 +21,7 @@
 'use server';
 
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 
 import { db } from '@/lib/prisma';
 import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-actions';
@@ -257,7 +258,15 @@ export async function softDeleteProfile(
                 archivedAt: new Date(),
                 archiveReason: reason,
                 scheduledDeletion
-            }
+            },
+            include: { guild: { select: { discordGuildId: true } } }
+        });
+
+        // Révocation temps réel (lot 4f) : le socket du membre est coupé côté WS.
+        void publishGuildMemberRevoked({
+            discordGuildId: profile.guild.discordGuildId,
+            userId: profile.userId,
+            reason: "ARCHIVED",
         });
 
         // 🔔 NOTIFY GOD
@@ -331,7 +340,11 @@ export async function hardDeleteProfile(profileId: string) {
         // Get profile data BEFORE delete
         const profile = await db.userProfile.findUnique({
             where: { id: profileId },
-            select: { guildId: true }
+            select: {
+                guildId: true,
+                userId: true,
+                guild: { select: { discordGuildId: true } },
+            }
         });
 
         if (!profile) {
@@ -347,6 +360,16 @@ export async function hardDeleteProfile(profileId: string) {
         await db.userProfile.delete({
             where: { id: profileId }
         });
+
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        const discordGuildId = profile.guild?.discordGuildId;
+        if (discordGuildId) {
+            void publishGuildMemberRevoked({
+                discordGuildId,
+                userId: profile.userId,
+                reason: "KICKED",
+            });
+        }
 
         // 🔔 NOTIFY GOD
         const { notifyGod } = await import("@/server/god-notifications");
@@ -745,6 +768,13 @@ export async function godPurgeMemberFromGuild(
 
         // Profil de la guilde (cascade sur les données guilde).
         await db.userProfile.delete({ where: { id: profileId } });
+
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        void publishGuildMemberRevoked({
+            discordGuildId: guild.discordGuildId,
+            userId: target.userId,
+            reason: "KICKED",
+        });
 
         // Purge du compte plateforme : seulement si demandée ET s'il ne reste aucun autre profil.
         let accountDeleted = false;

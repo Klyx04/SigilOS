@@ -5,6 +5,19 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 — **Blocs Combat + liens + markdown + modale de bloc** — branche `feat/rush-studio-masse-da-block` (PR #1360)
+
+> **Demande user (verbatim)** : « mets aussi tous les autres type de bloc stp en modale éditable et les champ libre c imbuvable la zone est mini pas possible de l'agrandir » · « ajoute un nouveau type de bloc : Combat tactique / Combat semi tactique » · « pouvoir ajouter un ou plusieurs liens vers des sites… donner un nom à la vidéo + afficher sa favicon automatiquement… pouvoir ajouter un champ libre aussi d'édition pour expliquer brièvement la strat, markdown couleur etc » · « pouvoir importer une image aussi du combat / du monstre etc comme d'hab ».
+> **Schéma** : migration additive `20270131000000_add_rush_combat_blocks` — enum `GuideMilestoneType` + `COMBAT_TACTIQUE` / `COMBAT_SEMI_TACTIQUE`, colonne `GuideMilestone.links Json?` (liens nommés, 10 max). Appliquée en local.
+> **Images** : les deux fichiers fournis étaient des **PNG déguisés en `.webp`** (585×427 et 541×461) ; convertis en vrai WebP (25 Ko / 18 Ko) dans `public/assets/rush/blocks/`, métadonnées retirées.
+> **Règles pures** : `rush-block-types` (`isRushInfoBlock`, `isRushNonQuestBlock`, méta des deux types), `rush-block-links` (`safeExternalUrl`, 10 max, 120 car., dédoublonnage), `rush-markdown` (gras, italique, titres, listes, liens http(s), couleurs `{or}/{vert}/{danger}/{ambre}/{info}` ; HTML brut jamais interprété) — **26 tests**.
+> **Rendu** : `RushCombatBanner` partagé (dashboard, guide public, overlay `page`/`pip`), `RushMarkdown`, `SiteFavicon` (DuckDuckGo + repli `Globe`, CSP `img-src` mise à jour) ; les blocs Combat sont **non cochables** et exclus des compteurs par `isRushNonQuestBlock`.
+> **Studio** : palette +2 (image en icône), formulaire de bloc en **modale 1 100 px** pour tous les types (`blockForm` monté une seule fois), champ libre `resize-y` (min-h 160 px), barre d'outils markdown, aperçu du texte, éditeur de liens (nom + URL + favicon), aperçu membre réel ; l'image du bloc reste importable (`BlockImageField`).
+> **Preuves** : suite complète **678 fichiers / 7 295 tests ✓** · `tsc` 0 · ESLint **0 erreur** · migration appliquée en local · verrou `rush-combat-blocks` **14**.
+> **Reste / ops** : **jouer la migration `20270131000000` en bêta puis en prod** · G7 (hero) et composition G9 (captures) · E5 · V-C · backfill contraintes Tougli.
+> **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 12/11/2026 (suite 7) — **Rush : E3c + E4 + T-4a + bloc B, une seule PR** — branche `feat/rush-studio-masse-da-block`
 
 > **Demande user (verbatim)** : « on fais 1 2 4 5, 3 plus tard, une seule PR, un commit par chantier ».
@@ -59,23 +72,3 @@
 > **Preuves** : `rush-block-navigation` **13** (neuf, dont 4 pour le rail et l'ancre) · `da-wakfu` **54** · `rush-public-parity` **48** · suite **664 fichiers / 7 126 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
 > **Reste** : contrôle visuel 390/768/1024/1440 (sommaire 54 blocs, pager, rail sur le bloc).
 > **Rotation** : bloc « 11/11/2026 (suite) — Chantier 2/5 · Échanges Metamob » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite 2) — **Rang 59 · « Problèmes » : deux incohérences de route** — branche `feat/rush-problemes-route`
-
-> **Demande user (verbatim)** : « 2 contrôles "Problèmes" (quête de classe sans classe, quête d'alignement sans cité) » — puis, sur la mesure : « c du bolulot qui marchera que en local non ? sur le vps c différent ».
-> **Mesure (base locale 5433, 715 séquences — seed, **PAS** la prod)** : les **19** quêtes de classe portent **toutes** `classReq = cra` → 18 sortent pour la mauvaise classe. Une recherche par sous-chaîne est inutilisable (« Cania » → cra, « Srambad » → sram, « Ecaflipus » → ecaflip) ; en **mot entier**, seules **4** quêtes citent une classe (« Iop et hop », « Braquage à la Roublard », « Zobal Hibaba… » déclarées `cra`, « Sram d'Égoutant » sans classe). `alignOrderCode`/`alignLevelReq` sans `alignReq` = **0**. Corriger le seed local serait du travail jetable (le VPS a ses éditions God) ⇒ **aucune correction de données** : seul le contrôle est livré, et il lit les données de l'environnement où God ouvre l'onglet.
-> **Fait** : `rush-editor-problems` passe de **5** à **7** familles — `class-quest-misrouted` (le nom cite une classe, en **mot entier**, et `classReq` en déclare une autre ou aucune ; détail « dit iop · route cra ») via `classMentionedInName` (mot entier, sans casse ni accent, source unique `DOFUS_CLASSES`) et `alignment-quest-without-camp` (un Ordre ou un palier sans cité sort dans les deux camps) ; `detail` optionnel sur la cible, affiché à droite de la ligne.
-> **Preuves** : `rush-editor-problems` **22** (+9) · voisins `rush-class-branches` 10 · `rush-branches-cockpit` 8 · `rush-route-tooling` 19 ✓ · suite **664 fichiers / 7 119 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée, aucune lecture base depuis le studio (la règle reste pure).
-> **Reste** : contrôle visuel de l'onglet avec les deux nouvelles familles ; en prod le compte peut différer du local — c'est l'écran qui dit la vérité. Lots suivants : **3** (reset auto) → **13** (flaky).
-> **Rotation** : bloc « 11/11/2026 — Chantier 1/5 · Hub Communauté SigilOS » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite) — **Rang 59 · Numérotation des blocs : une seule règle pour les deux guides et l'overlay** — branche `feat/rush-numerotation-blocs`
-
-> **Demande user (verbatim)** : « Numérotation des blocs dans les 2 guides navigateur (même règle que l'overlay) » — décision actée le 12/11 : « **OUI** — même règle que l'overlay (`rushChapterPosition`) ».
-> **Mesures** : ① le guide **membre** numérotait avec `msIdx + 1` alors que sa liste ne porte **que les blocs d'un chapitre** (`milestoneList`) : chaque page repartait à 1 ; ② le guide **public** numérotait avec `milestones.indexOf(ms) + 1`, **bandeaux compris** : les numéros sautaient dès qu'un séparateur ou un encart s'intercalait ; ③ l'overlay suivait déjà la bonne règle (`rushChapterPosition`, bandeaux exclus) — trois surfaces, deux numérotations.
-> **Fait** : règle pure `rushChapterNumbers(blocks)` (`src/lib/rush-guide-utils.ts`) — table `id → rang` en O(n), construite sur `isNonCheckableBlock` ; `rushChapterPosition` **en dérive** (une seule source). Chaque parent calcule la table **une fois sur le guide complet** et la passe aux lignes : `blockNumbers` dans `RushTimelineClient` (prop `blockNumber` de `MilestoneRow`, fin de `blockIndex = msIdx + 1`) et dans `PublicRushGuideClient` (fin de `milestones.indexOf(ms)`). Un bloc non numéroté affiche une chaîne vide, jamais « 0 ».
-> **Preuves** : verrou neuf `rush-block-numbering` **5** (les deux guides et l'overlay sur la même règle, absence des deux anciens calculs) · `rush-guide-utils` **+4** (table, bandeaux absents, rang identique à `rushChapterPosition`, guide vide) · suite **664 fichiers / 7 110 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**, aucune server action modifiée.
-> **Reste** : contrôle visuel 390/768/1024/1440 (un guide avec séparateurs : la suite des numéros ne doit plus sauter) ; puis **2** (deux contrôles « Problèmes ») → **3** (reset auto) → **13** (flaky), selon l'amorce.
-> **Rotation** : bloc « 10/11/2026 (suite 3) — V-H corrigé par la mesure » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

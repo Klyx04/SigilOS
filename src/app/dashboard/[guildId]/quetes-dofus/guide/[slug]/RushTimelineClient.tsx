@@ -31,6 +31,8 @@ import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock } from "@/lib/rush-block-types";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -924,6 +926,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
+  if(isRushCombatBlock(ms.type))return <RushCombatBanner type={ms.type} title={ms.title} bodyText={ms.tips} imageUrl={ms.imageUrl} links={ms.links} surface="page"/>;
   useEffect(()=>{if(isBookmarked)setExpanded(true);},[isBookmarked]);
   useEffect(()=>{if(focusedSeqId&&ms.sequences.some((s:any)=>s.id===focusedSeqId))setExpanded(true);},[focusedSeqId,ms.sequences]);
   if(hideDone&&isCompleted&&!isSearching)return null;
@@ -1521,7 +1524,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
 // lignes. `ChapterBlock` ne reçoit que les blocs d'un chapitre : s'il numérotait lui-même,
 // chaque page repartirait à 1 (défaut mesuré le 12/11/2026).
 const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
-const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
+const contentMilestones=useMemo(()=>milestones.filter(ms=>!isRushNonQuestBlock(ms.type)),[milestones]);
 /**
  * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
  * Le serveur ne transmet que des **clés d'étapes** (`<subGuideRef>-<n>` / `-all`) :
@@ -1564,7 +1567,7 @@ const timelineItems=useMemo(()=>{
   const f=()=>{if(b.length){r.push({key:`ch-${bc}-${r.length}`,kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};
   for(const ms of s){
     if(ms.type==="SEPARATEUR"){f();r.push({key:`ms-${ms.id}`,kind:"separator",ms});continue;}
-    if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({key:`ms-${ms.id}`,kind:"info",ms});continue;}
+    if(isRushInfoBlock(ms.type)||ms.type==="DOFUS_OBTAINED"){f();r.push({key:`ms-${ms.id}`,kind:"info",ms});continue;}
     if(dofusFilter&&ms.dofusId!==dofusFilter)continue;
     const nh=ms.chapter!==lch;
     if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}
@@ -1707,7 +1710,7 @@ const timelineItems=useMemo(()=>{
   const blockedSeqIds = useMemo(() => {
     const out = new Set<string>();
     for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      if (isRushNonQuestBlock(ms.type)) continue;
       for (const seq of ms.sequences) {
         if (isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, milestones as any)) {
           out.add(seq.id);
@@ -1748,7 +1751,7 @@ const timelineItems=useMemo(()=>{
       const cascade=collectCascadeUncheck(seqId,milestones as any,allCompletedSeqIds);
       for(const cid of cascade){
         if(cid===seqId)continue;
-        const owner=milestones.find((m:any)=>m.type!=="SEPARATEUR"&&m.type!=="INFO"&&m.type!=="DOFUS_OBTAINED"&&m.sequences.some((s:any)=>s.id===cid));
+        const owner=milestones.find((m:any)=>!isRushNonQuestBlock(m.type)&&m.sequences.some((s:any)=>s.id===cid));
         if(!owner)continue;
         cascadeSeqIds.add(cid);
         if(!cascadeMsIds.has(owner.id))cascadeMsIds.set(owner.id,new Set<string>());
@@ -1922,7 +1925,7 @@ const timelineItems=useMemo(()=>{
   const findNextActionableSequence = useCallback(() => {
     // First non-completed, non-blocked sequence (le repère par bloc ne force plus l'« active »)
     for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      if (isRushNonQuestBlock(ms.type)) continue;
       for (const seq of ms.sequences) {
         if (isInfoSequence(seq)) continue;
         if (!allCompletedSeqIds.has(seq.id) && !isActuallyBlocked(seq)) {
@@ -1936,7 +1939,7 @@ const timelineItems=useMemo(()=>{
   const findNextSequenceAfter = useCallback((currentMsId: string, currentSeqId: string) => {
     let foundCurrent = false;
     for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      if (isRushNonQuestBlock(ms.type)) continue;
       for (const seq of ms.sequences) {
         if (isInfoSequence(seq)) continue;
         if (!foundCurrent) {
@@ -2128,7 +2131,7 @@ const timelineItems=useMemo(()=>{
     const q = normalizeSearch(searchQuery);
     const matchingSeqIds = new Set<string>();
     for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      if (isRushNonQuestBlock(ms.type)) continue;
       for (const seq of ms.sequences) {
         const fields = [
           seq.subGuideName, seq.subGuideRef, seq.tips, seq.note,
@@ -2624,7 +2627,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {blockPages.length} blocs sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les blocs sans remonter. */}
         {blockPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

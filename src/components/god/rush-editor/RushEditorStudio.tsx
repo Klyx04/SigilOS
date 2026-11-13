@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode
+  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode, type RefObject
 } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -82,6 +82,12 @@ import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { RushMarkdown } from "@/components/dofus-quests/rush/RushMarkdown";
+import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
+import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
+import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
+import { parseRushMarkdown } from "@/lib/rush-markdown";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -186,7 +192,7 @@ type RushBlockRouteValues = {
   classReq: string | null;
 };
 
-type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED";
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED" | "COMBAT_TACTIQUE" | "COMBAT_SEMI_TACTIQUE";
 
 type Milestone = {
   id: string;
@@ -200,6 +206,8 @@ type Milestone = {
   isOptional: boolean;
   order: number;
   tips?: string | null;
+  /** Liens externes nommés (blocs Combat / Conseils) — stockés sur le bloc. */
+  links?: RushBlockLink[] | null;
   dofusId?: string | null;
   type?: MilestoneType;
   sequences: Sequence[];
@@ -241,6 +249,18 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
   { value: "SEPARATEUR", label: "Séparateur", icon: <Sparkles className="w-3 h-3" />, color: "#f59e0b" },
   { value: "DOFUS_OBTAINED", label: "Obtention Dofus", icon: <Gem className="w-3 h-3" />, color: "#d4a853" },
+  {
+    value: "COMBAT_TACTIQUE",
+    label: "Combat tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE.accent,
+  },
+  {
+    value: "COMBAT_SEMI_TACTIQUE",
+    label: "Combat semi-tactique",
+    icon: <img src={RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.image} alt="" className="h-3 w-3 rounded-[2px] object-cover" />,
+    color: RUSH_COMBAT_BLOCK_META.COMBAT_SEMI_TACTIQUE.accent,
+  },
 ];
 
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`) partagée avec le
@@ -437,6 +457,9 @@ export function RushSylvestreAdminClient({
   const [questFullscreen, setQuestFullscreen] = useState(false);
   // Changer de quête referme la modale : on ne garde jamais une fiche fantôme à l'écran.
   useEffect(() => { setQuestFullscreen(false); }, [editingSeqId]);
+  /** E5 — le formulaire de bloc (TOUS les types) dans la modale large. */
+  const [blockFullscreen, setBlockFullscreen] = useState(false);
+  useEffect(() => { setBlockFullscreen(false); }, [editingMilestone?.id]);
   /** Action retenue tant que l'utilisateur n'a pas tranché (saisie non enregistrée). */
   const [pendingSwitch, setPendingSwitch] = useState<null | (() => void)>(null);
 
@@ -692,6 +715,7 @@ export function RushSylvestreAdminClient({
           dofusId: m.dofusId,
           type: m.type,
           imageUrl: m.imageUrl ?? null,
+          links: m.links ?? undefined,
         });
         toast.success("Étape sauvegardée ✓");
         // Le bloc enregistré devient la **nouvelle référence** : `localMilestones` est mis à
@@ -1120,18 +1144,11 @@ export function RushSylvestreAdminClient({
     />
   ) : null;
 
-  const inspectorBody = addingSequenceTo ? (
-    <AddSequenceForm
-      // E2c — la clé force un **remontage** quand la cible change : sans elle, React
-      // réutilisait le formulaire déjà monté et les valeurs pré-remplies d'un second
-      // emplacement (autre bloc, autre palier) n'étaient jamais appliquées.
-      key={`${addingSequenceTo}:${sequenceRouteDefaults?.alignReq ?? ""}:${sequenceRouteDefaults?.alignOrderCode ?? ""}:${sequenceRouteDefaults?.alignLevelReq ?? ""}:${sequenceRouteDefaults?.classReq ?? ""}`}
-      milestoneId={addingSequenceTo}
-      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
-      isPending={isPending}
-      defaultRoute={sequenceRouteDefaults}
-    />
-  ) : blockBeingEdited ? (
+  /**
+   * E5 — le formulaire de bloc est construit **une seule fois** : le studio choisit
+   * seulement son conteneur (inspecteur ou modale large), jamais deux instances.
+   */
+  const blockForm = blockBeingEdited ? (
     <BlockInspectorForm
       milestone={blockBeingEdited}
       editingData={blockBeingEdited}
@@ -1147,7 +1164,38 @@ export function RushSylvestreAdminClient({
       onBulkMove={handleBulkMove}
       onBulkDelete={handleBulkDelete}
       onPublishQuest={handlePublishQuest}
+      isFullscreen={blockFullscreen}
+      onToggleFullscreen={() => setBlockFullscreen((v) => !v)}
     />
+  ) : null;
+
+  const inspectorBody = addingSequenceTo ? (
+    <AddSequenceForm
+      // E2c — la clé force un **remontage** quand la cible change : sans elle, React
+      // réutilisait le formulaire déjà monté et les valeurs pré-remplies d'un second
+      // emplacement (autre bloc, autre palier) n'étaient jamais appliquées.
+      key={`${addingSequenceTo}:${sequenceRouteDefaults?.alignReq ?? ""}:${sequenceRouteDefaults?.alignOrderCode ?? ""}:${sequenceRouteDefaults?.alignLevelReq ?? ""}:${sequenceRouteDefaults?.classReq ?? ""}`}
+      milestoneId={addingSequenceTo}
+      onAdd={(data) => handleSaveSequence({ ...data, milestoneId: addingSequenceTo })}
+      isPending={isPending}
+      defaultRoute={sequenceRouteDefaults}
+    />
+  ) : blockBeingEdited ? (
+    blockFullscreen ? (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Édition en plein écran</p>
+        <p className="text-xs text-muted-foreground">
+          Le formulaire est ouvert dans la modale large.
+        </p>
+        <button
+          type="button"
+          onClick={() => setBlockFullscreen(false)}
+          className="mt-3 rounded-lg border border-border px-3 py-1.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          Revenir au panneau
+        </button>
+      </div>
+    ) : blockForm
   ) : selectedQuest && selectedQuestBlock ? (
     questFullscreen ? (
       <div className="rounded-xl border border-dashed border-border p-6 text-center">
@@ -1219,6 +1267,23 @@ export function RushSylvestreAdminClient({
             </DialogDescription>
           </DialogHeader>
           <div className="p-3">{questForm}</div>
+        </DialogContent>
+      </Dialog>
+
+      {/* E5 — la même modale large pour TOUS les types de bloc (Conseils, Combat, Séparateur…). */}
+      <Dialog open={blockFullscreen && !!blockForm} onOpenChange={(open) => { if (!open) setBlockFullscreen(false); }}>
+        <DialogContent className="max-h-[90vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto p-0">
+          <DialogHeader className="border-b border-border px-4 py-3 text-left">
+            <DialogTitle className="text-sm font-semibold text-foreground">
+              {blockBeingEdited ? blockBeingEdited.title : "Bloc"}
+            </DialogTitle>
+            <DialogDescription className="text-caption text-muted-foreground">
+              {blockBeingEdited
+                ? `Bloc · ${blockBeingEdited.chapterLabel || "hors chapitre"} · ${blockBeingEdited.sequences.length} quête(s)`
+                : "Édition du bloc"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3">{blockForm}</div>
         </DialogContent>
       </Dialog>
 
@@ -2228,6 +2293,65 @@ function SortableMilestoneRow(props: {
 }
 
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
+// ─── E5 — markdown et liens des blocs Combat / Conseils ──────────────────────
+
+const RUSH_MARKDOWN_TOOLS = [
+  { label: "G", title: "Gras", before: "**", after: "**" },
+  { label: "I", title: "Italique", before: "*", after: "*" },
+  { label: "H", title: "Titre", before: "## ", after: "" },
+  { label: "•", title: "Liste", before: "- ", after: "" },
+  { label: "or", title: "Texte or", before: "{or}", after: "{/or}" },
+  { label: "vert", title: "Texte vert", before: "{vert}", after: "{/vert}" },
+  { label: "danger", title: "Texte danger", before: "{danger}", after: "{/danger}" },
+  { label: "ambre", title: "Texte ambre", before: "{ambre}", after: "{/ambre}" },
+  { label: "info", title: "Texte info", before: "{info}", after: "{/info}" },
+] as const;
+
+function RushMarkdownToolbar({
+  textareaRef,
+  value,
+  onChange,
+}: {
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const apply = (before: string, after: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onChange(`${value}${before}${after}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = value.slice(start, end) || "texte";
+    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1" role="toolbar" aria-label="Mise en forme du conseil">
+      {RUSH_MARKDOWN_TOOLS.map((tool) => (
+        <button
+          key={tool.label}
+          type="button"
+          onClick={() => apply(tool.before, tool.after)}
+          title={tool.title}
+          aria-label={tool.title}
+          className="rounded border border-border px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
 // ─── BlockInspectorForm (E1) ─────────────────────────────────────────────────
 /**
  * Formulaire d'édition d'un bloc, **extrait tel quel** de `MilestoneRow` (E1).
@@ -2235,10 +2359,77 @@ function SortableMilestoneRow(props: {
  * La liste ne porte plus aucun formulaire : ce panneau est monté par l'inspecteur.
  * Le JSX est celui du studio d'origine (aucune réécriture) — la DA sera reprise en E4.
  */
+function RushBlockLinksEditor({
+  links,
+  onChange,
+}: {
+  links: RushBlockLink[];
+  onChange: (links: RushBlockLink[]) => void;
+}) {
+  const update = (index: number, patch: Partial<RushBlockLink>) => {
+    onChange(links.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+  };
+  const remove = (index: number) => onChange(links.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border p-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+          Liens ({links.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => onChange([...links, { label: "", url: "" }])}
+          disabled={links.length >= 10}
+          className="rounded-md border border-border px-2 py-0.5 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-40"
+        >
+          + Lien
+        </button>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-caption text-muted-foreground">Aucun lien : vidéo YouTube, guide écrit…</p>
+      ) : (
+        <ul className="space-y-1">
+          {links.map((link, index) => (
+            <li key={index} className="flex flex-wrap items-center gap-1.5">
+              <input
+                value={link.label}
+                onChange={(e) => update(index, { label: e.target.value })}
+                placeholder="Nom (ex. Vidéo : le donjon)"
+                className="min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              <input
+                value={link.url}
+                onChange={(e) => update(index, { url: e.target.value })}
+                placeholder="https://…"
+                className="min-w-0 flex-[2] rounded-md border border-border bg-background/80 px-2 py-1 text-xs text-foreground"
+              />
+              {link.url && <SiteFavicon url={link.url} className="h-4 w-4" />}
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                aria-label="Supprimer ce lien"
+                className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-caption text-muted-foreground">
+        10 liens max · http(s) uniquement · la favicon est automatique.
+      </p>
+    </div>
+  );
+}
+
+
 function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
   onApplyBlockRoute, onSelectQuest, onAddSequence,
   milestones, onBulkRoute, onBulkMove, onBulkDelete, onPublishQuest,
+  isFullscreen, onToggleFullscreen,
 }: {
   milestone: Milestone;
   editingData: Milestone;
@@ -2262,6 +2453,9 @@ function BlockInspectorForm({
   onBulkDelete: (sequenceIds: string[]) => void;
   /** Bloc B — publier / dépublier la page publique d'une quête. */
   onPublishQuest: (sequenceId: string, publish: boolean) => void;
+  /** Tous les types de bloc : même instance, montée dans l'inspecteur ou en modale. */
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const color = milestone.accentColor || "#10b981";
   const type = editingData?.type ?? milestone.type;
@@ -2269,11 +2463,15 @@ function BlockInspectorForm({
   // Le séparateur porte ses métadonnées dans `description` (position, lien, note) : on ne
   // montre donc pas le champ « description » brut, qui les corromprait.
   const isSeparator = type === "SEPARATEUR";
+  const isCombat = isRushCombatBlock(type);
   const sequences = milestone.sequences ?? [];
   // E3c — la sélection est locale au bloc inspecté : changer de bloc repart à zéro.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTarget, setBulkTarget] = useState("");
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  /** E5 — markdown : la barre d'outils insère au curseur, pas à la fin. */
+  const tipsRef = useRef<HTMLTextAreaElement>(null);
+  const draftLinks = parseRushBlockLinks(editingData?.links);
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkTarget("");
@@ -2301,6 +2499,16 @@ function BlockInspectorForm({
             {t.icon}{t.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          aria-label={isFullscreen ? "Revenir au panneau" : "Ouvrir le bloc en grand"}
+          className="ml-auto rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {isFullscreen
+            ? <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+            : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+        </button>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <input value={editingData?.title ?? ""} onChange={e => onEditChange({ title: e.target.value })}
@@ -2316,7 +2524,7 @@ function BlockInspectorForm({
       </div>
 
       {/* E3a — route du bloc ; E3c — la même barre vise la sélection dès qu'il y en a une. */}
-      {!isTips && !isSeparator && (
+      {!isTips && !isSeparator && !isCombat && (
         <RushRouteBlockBar
           milestoneId={milestone.id}
           count={bulk.count > 0 ? bulk.count : sequences.length}
@@ -2357,11 +2565,32 @@ function BlockInspectorForm({
         />
       ) : (
         <>
-          <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
-            className="w-full bg-background/80 border border-border rounded-lg px-2 py-1.5 text-xs text-warning/80 focus:outline-none focus:border-warning/30 resize-none"
-            placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
+          <textarea
+            ref={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={e => onEditChange({ tips: e.target.value })}
+            className="min-h-[160px] w-full resize-y rounded-lg border border-border bg-background/80 px-2 py-1.5 text-xs text-warning/80 focus:border-warning/30 focus:outline-none"
+            placeholder="💡 Stratégie / conseils — markdown : **gras**, *italique*, ## titre, - liste, {or}…{/or}"
+            rows={6}
+          />
+          <RushMarkdownToolbar
+            textareaRef={tipsRef}
+            value={editingData?.tips ?? ""}
+            onChange={(tips) => onEditChange({ tips })}
           />
           <RichTextSyntaxHint />
+          <div className="rounded-lg border border-border bg-background/40 p-2">
+            <p className="mb-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Aperçu du texte
+            </p>
+            <RushMarkdown blocks={parseRushMarkdown(editingData?.tips)} />
+          </div>
+          {isCombat && (
+            <RushBlockLinksEditor
+              links={draftLinks}
+              onChange={(links) => onEditChange({ links })}
+            />
+          )}
         </>
       )}
       {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
@@ -2371,6 +2600,21 @@ function BlockInspectorForm({
         value={editingData?.imageUrl ?? ""}
         onChange={(url) => onEditChange({ imageUrl: url })}
       />
+      {isCombat && (
+        <div className="space-y-1 rounded-xl border border-dashed border-border p-2">
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+            Aperçu membre
+          </p>
+          <RushCombatBanner
+            type={type}
+            title={editingData?.title}
+            bodyText={editingData?.tips}
+            imageUrl={editingData?.imageUrl}
+            links={editingData?.links}
+            surface="page"
+          />
+        </div>
+      )}
       {/* Dofus selector si type DOFUS */}
       {editingData?.type === "DOFUS" && (
         <div className="flex flex-wrap gap-1.5">
@@ -2402,7 +2646,7 @@ function BlockInspectorForm({
       </div>
 
       {/* E3a — les quêtes du bloc, cliquables ; E3c — cochables pour agir en masse. */}
-      {!isTips && !isSeparator && (
+      {!isTips && !isSeparator && !isCombat && (
         <div className="space-y-1.5 rounded-xl border border-border p-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">

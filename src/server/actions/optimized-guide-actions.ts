@@ -29,6 +29,7 @@ import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
 import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
+import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
@@ -3697,6 +3698,8 @@ export async function upsertRushMilestone(data: {
   order?: number;
   type?: any; // GuideMilestoneType enum
   tips?: string;
+  /** Liens externes nommés des blocs Combat / Conseils (bornés par `rush-block-links`). */
+  links?: unknown;
   dofusId?: string | null;
 }) {
   await requireRushAccess();
@@ -3732,6 +3735,8 @@ export async function upsertRushMilestone(data: {
         order: data.order ?? 0,
         type: data.type ?? undefined,
         tips: data.tips,
+        // Un update qui n'envoie pas `links` ne doit pas effacer les liens existants.
+        ...(data.links !== undefined ? { links: normalizeRushBlockLinks(data.links) } : {}),
         dofusId,
       },
       include: {
@@ -3776,6 +3781,7 @@ export async function upsertRushMilestone(data: {
           isOptional: data.isOptional ?? false,
           order: targetOrder,
           tips: data.tips,
+          links: normalizeRushBlockLinks(data.links),
           dofusId,
         },
         include: {

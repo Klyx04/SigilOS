@@ -46,6 +46,8 @@ import { RushOverlayFeedbackPanel } from "./components/RushOverlayFeedbackPanel"
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
+import { isRushCombatBlock } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
@@ -1364,6 +1366,20 @@ export default function GuideOverlayClient({
         >
           <RushRichText text={infoText} normalizeMeta />
         </RushInfoBanner>
+      );
+    }
+    if (isRushCombatBlock(ms.type)) {
+      return (
+        <RushCombatBanner
+          key={ms.id}
+          type={ms.type}
+          title={ms.title}
+          bodyText={ms.tips || ms.description || ms.title || ""}
+          imageUrl={ms.imageUrl}
+          links={ms.links}
+          surface="pip"
+          className="my-3"
+        />
       );
     }
     const dofus = getMsDofus(ms);

@@ -13,6 +13,7 @@ import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 // UNE SEULE agrégation des ressources pour tout le module (V-A) : ce rail appelle la
 // MÊME source que l'overlay, la modale, les guides public/interne et le pré-chauffage.
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { isRushNonQuestBlock } from "@/lib/rush-block-types";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 type Sequence = {
@@ -91,7 +92,7 @@ export function RushChapterSidebar({
   const chapters = useMemo(() => {
     const map = new Map<number, { chapter: number; label: string; milestones: Milestone[] }>();
     for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      if (isRushNonQuestBlock(ms.type)) continue;
       if (!map.has(ms.chapter)) {
         map.set(ms.chapter, {
           chapter: ms.chapter,
@@ -137,9 +138,9 @@ export function RushChapterSidebar({
       return milestones.filter((m) => m.id === selectedMilestoneId);
     }
     if (selectedChapter === "ALL") {
-      return milestones.filter((m) => m.type !== "SEPARATEUR" && m.type !== "INFO");
+      return milestones.filter((m) => !isRushNonQuestBlock(m.type));
     }
-    return milestones.filter((m) => m.chapter === selectedChapter && m.type !== "SEPARATEUR" && m.type !== "INFO");
+    return milestones.filter((m) => m.chapter === selectedChapter && !isRushNonQuestBlock(m.type));
   }, [milestones, selectedChapter, selectedMilestoneId]);
 
   // Calcul des métriques du chapitre

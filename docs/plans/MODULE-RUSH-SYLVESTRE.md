@@ -339,8 +339,9 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 7. **Bloc B — livré le 12/11/2026** : page publique par quête (`/guides/rush-sylvestre/q/[slug]`,
    `publicSlug` figé à la publication, `isPublished`, 404 si non publiée, `noindex` tant que le
    guide est en construction, sitemap conditionnel) + bouton publier/dépublier dans l'inspecteur
-   de bloc. Le prochain lot demandé est **blocs Combat tactique / semi-tactique** (liens nommés,
-   favicon, markdown couleur, modale de bloc).
+   de bloc. **Blocs Combat tactique / semi-tactique livrés le 13/11/2026** : types d'information
+   non cochables, image fournie convertie en WebP, `RushCombatBanner` partagé, liens nommés
+   (favicon, 10 max) et markdown borné (gras, italique, titres, listes, couleurs sémantiques).
 
 ### G — Liaison Metamob **dans l'overlay** (fin du cul-de-sac)
 - **État mesuré (avant V-G)** : l'overlay ocre affichait « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.

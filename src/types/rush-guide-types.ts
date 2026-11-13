@@ -107,7 +107,9 @@ export type RushMilestoneType =
   | "DONJON"
   | "INFO"
   | "SEPARATEUR"
-  | "DOFUS_OBTAINED";
+  | "DOFUS_OBTAINED"
+  | "COMBAT_TACTIQUE"
+  | "COMBAT_SEMI_TACTIQUE";
 
 export type RushMilestone = {
   id: string;
@@ -121,6 +123,8 @@ export type RushMilestone = {
   isOptional: boolean;
   order: number;
   tips?: string | null;
+  /** Liens externes nommés des blocs Combat / Conseils (JSON borné). */
+  links?: unknown;
   dofusId?: string | null;
   type?: RushMilestoneType | string;
   sequences: RushSequence[];

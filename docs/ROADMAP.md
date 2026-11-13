@@ -44,6 +44,21 @@
 | 6 | `caddy-post-503` | Pendant une maintenance, un POST reçoit du HTML au lieu d'un `503 text/plain` | cause racine du 16/10 | durcir le `Caddyfile` (POST → 503) | `docs/MAINTENANCE.md` | — |
 | 7 | `csp-enforce` (F10) | CSP en Report-Only : la protection XSS ne bloque rien | `CSP_ENFORCE` présent dans `src/proxy.ts` | poser `CSP_ENFORCE=true` après 48 h de rapports | `docs/SECURITY.md` | — |
 | 8 | `presentation-access` | `presentation:view` existe mais n'est pas ouverte au rôle Membre ; l'ancienne page `/presentation` rend encore le règlement | 1 occurrence dans `src/` | ouvrir la permission + trancher la page | — | **D-P1** |
+### 1bis. Reste de l'audit sécurité (13/11/2026)
+
+| Sujet | État | Action |
+|---|---|---|
+| **#4 WebSocket membre exclu** | **réel, ouvert** | lot `ws-revocation-membres` (4f) : canal Redis + éditeurs web/bot + déconnexion ciblée |
+| #3 TOCTOU DNS (rebinding) | résiduel | fetch avec DNS épinglé (lot de durcissement) |
+| #2 `/api/og/build` — scan complet | mitigé (cache 60 s + rate-limit) | index/table dédié si la volumétrie l'exige |
+| AUD-04 — vieux liens de preuves | code prêt, **inerte** | poser `STORAGE_LEGACY_TOKENS_UNTIL` (+30 j) puis supprimer la branche legacy |
+| SEC-05 — `next-auth` bêta | accepté | migrer vers une stable dès disponibilité, surveiller les avis |
+| AUD-12 — 2 dépendances modérées | build-time | attendre le correctif amont |
+| Ops — sauvegardes | non prouvé | jouer une restauration et noter le RTO |
+| Ops — protections de branches | non vérifié | require PR + checks + no force push |
+| Ops — workers Cloudflare | non vérifié | relire les routes dans le dashboard |
+| Ops — token Discord | à vérifier | rotation si le token complet a été exposé |
+
 ## 2. P1 — Chantiers produit (ordre proposé)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |

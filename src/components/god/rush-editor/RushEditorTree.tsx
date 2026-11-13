@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Gem, Layers, Minus, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Gem, Layers, Minus, SlidersHorizontal, Sparkles, Swords, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
@@ -27,6 +27,7 @@ const ALL = "all";
 
 function BlockIcon({ block }: { block: RushEditorBlockNode }) {
   if (isRushSeparator({ type: block.type })) return <Minus className="h-3 w-3 shrink-0" aria-hidden />;
+  if (block.isCombat) return <Swords className="h-3 w-3 shrink-0" aria-hidden />;
   if (block.type === "INFO") return <Sparkles className="h-3 w-3 shrink-0" aria-hidden />;
   if (block.type === "DOFUS" || block.type === "DOFUS_OBTAINED") return <Gem className="h-3 w-3 shrink-0" aria-hidden />;
   return <Layers className="h-3 w-3 shrink-0" aria-hidden />;

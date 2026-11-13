@@ -116,6 +116,8 @@ export type RushEditorBlockNode = {
   chapterLabel: string;
   isSeparator: boolean;
   isTips: boolean;
+  /** Bloc d'information Combat tactique / semi-tactique (non cochable). */
+  isCombat: boolean;
   quests: RushEditorQuestNode[];
 };
 
@@ -192,6 +194,7 @@ export function buildRushEditorTree(milestones: RushEditorMilestoneInput[]): Rus
       chapterLabel: label,
       isSeparator: isRushSeparator(milestone),
       isTips: milestone.type === "INFO",
+      isCombat: milestone.type === "COMBAT_TACTIQUE" || milestone.type === "COMBAT_SEMI_TACTIQUE",
       quests: sequences.map((seq) => questNodeOf(seq, milestone, chapter, label)),
     };
     node.blocks.push(block);

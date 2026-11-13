@@ -12,6 +12,7 @@
  */
 
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { isRushNonQuestBlock } from "@/lib/rush-block-types";
 
 export type RushProblemSequence = {
     id: string;
@@ -64,9 +65,9 @@ export type RushEditorProblem = {
     targets: ReadonlyArray<RushEditorProblemTarget>;
 };
 
-/** Blocs qui **accueillent** des quêtes : ni bandeau, ni bloc d'info. */
+/** Blocs qui **accueillent** des quêtes : ni bandeau, ni bloc d'info (dont Combat). */
 function hostsQuests(block: RushProblemMilestone): boolean {
-    return block.type !== "SEPARATEUR" && block.type !== "INFO";
+    return !isRushNonQuestBlock(block.type);
 }
 
 const nameOf = (seq: RushProblemSequence) => seq.subGuideName || seq.subGuideRef || "(sans nom)";

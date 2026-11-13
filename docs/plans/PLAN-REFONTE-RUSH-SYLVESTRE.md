@@ -56,8 +56,10 @@
 > Verrouillées » (règle pure, ordre des quêtes conservé) ; **Ressources à prévoir** passée
 > au carnet (panneau, bascule Restantes/Toutes à l'or, lignes et quantités tokenisées).
 >
-> **Reste.** G7 (emblème / feuillage), G8 (dépli `grid-template-rows`), G9 (célébration, à
-> arbitrer), application des accents Dofus écran par écran, O15 sur les animations restantes.
+> **T-4a livré le 12/11/2026** : G8 (dépli `grid-template-rows`, `inert`, `motion-reduce`),
+> O15 (rotation infinie et éclats coupés si `useReducedMotion`), G9 tokenisée (`--da-amber`,
+> `bg-background`, plus de `zinc`/`blur`). **Reste** : G7 (emblème / feuillage), composition
+> G9 (arbitrage aux captures), application des accents Dofus écran par écran.
 >
 > **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (23 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 651 tests.
 >

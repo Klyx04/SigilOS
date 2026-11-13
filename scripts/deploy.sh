@@ -144,8 +144,8 @@ rm -rf "$CURATED_DIR"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)
 info "📊 Mise à jour de l'infrastructure de monitoring..."
-sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus grafana node-exporter cadvisor postgres-exporter
-sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus grafana node-exporter cadvisor postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus node-exporter postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus node-exporter postgres-exporter
 
 # -----------------------------------------------------------------------------
 # 🔁 Fonction : seeding conditionnel des données de jeu

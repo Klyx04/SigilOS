@@ -832,8 +832,8 @@ salon de notification est un **forum** (un post de forum est un thread).
 ## 📊 Supervision — God « Système & Infra »
 
 - **Aucune exposition publique** : `monitor.sigilos.fr` a été retiré le 19/10/2026 et le service **Grafana supprimé** du compose de prod.
-- **Prometheus reste interne** (`prometheus:9090`, non publié) : node-exporter, cAdvisor et postgres-exporter.
-- **Accès** : God → **Système & Infra** (`?tab=infrastructure`) : CPU, RAM, disque, Redis, PostgreSQL (taille/connexions), conteneurs/redémarrages, sauvegarde, worker et les 8 crons les plus critiques.
+- **Prometheus reste interne** (`prometheus:9090`, non publié) : node-exporter et postgres-exporter. cAdvisor a été **supprimé le 13/11/2026** (SEC-04) : plus aucun conteneur ne monte `/var/run/docker.sock`.
+- **Accès** : God → **Système & Infra** (`?tab=infrastructure`) : CPU, RAM, disque, Redis, PostgreSQL (taille/connexions), sauvegarde, worker et les 8 crons les plus critiques.
 - **Pas d'Alertmanager** : Prometheus ne pousse aucune alerte. L'alerte disque >85 % reste le webhook Discord (`DISCORD_ADMIN_WEBHOOK`).
 - **Volume `grafana_data`** : conservé sur le VPS, plus monté. Ne le supprimer qu'après accord explicite (données de dashboards).
 - **Diagnostic ponctuel** : `sudo docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f prometheus` (jamais de port public).
@@ -842,7 +842,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 
 - Bêta déployée en **`5b31ad0`** : 6 conteneurs `Healthy`, base à jour, `/`, `/guides`, `/guides/rush-sylvestre`, `/boss`, `robots.txt`, `sitemap.xml`, `/api/health` → **200**.
 - `sigilos-grafana` **supprimé** ; `monitor.sigilos.fr` → **000 / TLS coupé** (voulu).
-- **Limites connues** : carte « Conteneurs » vide (requête cAdvisor à corriger), pas de détail par conteneur, règles d'alerte Grafana non auditées (volume `grafana_data` conservé).
+- **Limites connues** : cAdvisor supprimé (carte « Conteneurs » retirée, plus de socket Docker) ; règles d'alerte Grafana non auditées (volume `grafana_data` conservé).
 - **Prod non déployée** : `main` = `07c0500e` (12/10), `dev` = **103 commits d'avance**. Les images prod ne sont construites que depuis `main`.
 - **Convention des tags** : la CI publie **7 caractères** (`5b31ad0`). Utiliser `./scripts/deploy-cd.sh beta <sha7>` ; le script ne normalise pas encore un SHA 8/40.
 

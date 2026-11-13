@@ -17,6 +17,19 @@ describe("supervision privée", () => {
         expect(compose).not.toMatch(/GF_SECURITY_ADMIN_PASSWORD/);
     });
 
+    it("ne monte plus le socket Docker (cAdvisor supprimé)", () => {
+        const prod = read("docker-compose.prod.yml");
+        const dev = read("docker-compose.yml");
+        const prometheus = read("monitoring/prometheus/prometheus.yml");
+
+        expect(prod).not.toMatch(/^\s{2}cadvisor:\s*$/m);
+        expect(dev).not.toMatch(/^\s{2}cadvisor:\s*$/m);
+        // Cible le MONTAGE YAML (`- /var/run/docker.sock:…`), pas les commentaires.
+        expect(prod).not.toMatch(/-\s*\/var\/run\/docker\.sock:/);
+        expect(dev).not.toMatch(/-\s*\/var\/run\/docker\.sock:/);
+        expect(prometheus).not.toMatch(/job_name:\s*'cadvisor'/);
+    });
+
     it("épingle Prometheus et le garde interne", () => {
         const prod = read("docker-compose.prod.yml");
         const dev = read("docker-compose.yml");
@@ -30,5 +43,6 @@ describe("supervision privée", () => {
         const dashboard = read("src/app/god/components/system-health-dashboard.tsx");
         expect(dashboard).not.toMatch(/rounded-3xl|backdrop-blur|font-black/);
         expect(dashboard).toMatch(/getInternalSystemStatus/);
+        expect(dashboard).not.toMatch(/label="Conteneurs"/);
     });
 });

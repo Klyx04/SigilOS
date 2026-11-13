@@ -19,10 +19,8 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 
-  # cAdvisor - Docker container metrics
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
+  # cAdvisor — SUPPRIMÉ le 13/11/2026 (SEC-04) : plus de socket Docker monté.
+  # Les métriques conteneurs ne sont plus collectées.
 
   # PostgreSQL Exporter - Database metrics
   - job_name: 'postgres'

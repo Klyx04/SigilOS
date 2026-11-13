@@ -125,12 +125,11 @@ export async function getInternalSystemStatus() {
         }
 
         // 8 bis. Prometheus interne (aucune donnée exposée hors God).
-        const [cpuUsage, ramProm, diskProm, containerCount, containerRestarts, pgConnections, pgSize, nodeUptime, targetsUp, targetsTotal, diskFree, diskTotal] = await Promise.all([
+        // cAdvisor retiré (SEC-04, 13/11/2026) : plus de métriques conteneurs.
+        const [cpuUsage, ramProm, diskProm, pgConnections, pgSize, nodeUptime, targetsUp, targetsTotal, diskFree, diskTotal] = await Promise.all([
             queryPrometheus('100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'),
             queryPrometheus('100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)'),
             queryPrometheus('max(100 * (1 - node_filesystem_avail_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"}))'),
-            queryPrometheus('count(container_last_seen{name!=""})'),
-            queryPrometheus('sum(changes(container_start_time_seconds{name!=""}[1h]))'),
             queryPrometheus('sum(pg_stat_database_numbackends)'),
             queryPrometheus('sum(pg_database_size_bytes)'),
             queryPrometheus('time() - node_boot_time_seconds'),
@@ -190,8 +189,6 @@ export async function getInternalSystemStatus() {
             prometheus: {
                 ok: prometheusOk,
                 error: prometheusError,
-                containers: containerCount.value,
-                restarts: containerRestarts.value,
                 pgConnections: pgConnections.value,
                 pgSizeMb: pgSize.value === null ? null : Math.round(pgSize.value / (1024 * 1024)),
                 uptimeDays: nodeUptime.value === null ? null : Math.round((nodeUptime.value / 86400) * 10) / 10,

@@ -426,35 +426,13 @@ services:
     logging: *default-logging
 
   # ===========================================================================
-  # 📊 CADVISOR (Docker Container Metrics)
+  # 📊 CADVISOR — SUPPRIMÉ le 13/11/2026 (SEC-04)
   # ===========================================================================
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: sigilos-cadvisor
-    restart: always
-    # 🔒 E-INF-05 : plus de privileged (escalade). cAdvisor fonctionne sans, avec devices en ro.
-    # ⚡ Optimisé 15/10 : polling 30s + docker_only (était 23% CPU sans flags).
-    command:
-      - "--housekeeping_interval=30s"
-      - "--docker_only=true"
-      - "--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,resctrl,process"
-      - "--store_container_labels=false"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    networks:
-      - prod-net
-      - beta-net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-    logging: *default-logging
+  # cAdvisor montait `/var/run/docker.sock` (lecture seule) pour exposer les
+  # métriques conteneurs. La carte God « Conteneurs » était vide et n'était plus
+  # utilisée : le service est retiré, donc plus aucun conteneur ne monte le
+  # socket Docker. Pour le réintroduire un jour, passer par un
+  # `docker-socket-proxy` filtrant (jamais le socket brut).
 
   # ===========================================================================
   # 📊 POSTGRES EXPORTER (Database Metrics)

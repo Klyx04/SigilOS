@@ -10,7 +10,6 @@ import {
     HardDrive,
     MemoryStick,
     RefreshCw,
-    Server,
     ShieldCheck,
     Zap,
     type LucideIcon,
@@ -47,8 +46,6 @@ type SystemStatus = {
     prometheus?: {
         ok: boolean;
         error: string | null;
-        containers: number | null;
-        restarts: number | null;
         pgConnections: number | null;
         pgSizeMb: number | null;
         uptimeDays: number | null;
@@ -334,7 +331,6 @@ export function SystemHealthDashboard() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <MetricCard icon={Zap} label="Redis" value={status.redisDetails?.usedMemoryMb != null ? `${nf.format(status.redisDetails.usedMemoryMb)} Mo` : `${nf.format(status.cache.latency)} ms`} hint={status.redisDetails ? `${nf.format(status.redisDetails.connectedClients)} clients · ${nf.format(status.redisDetails.evictedKeys)} évictions` : "Détails indisponibles"} tone={toneForState(status.cache.status)} badge={stateLabel(status.cache.status)} />
-                        <MetricCard icon={Server} label="Conteneurs" value={status.prometheus?.containers != null ? nf.format(status.prometheus.containers) : "—"} hint={status.prometheus?.restarts != null ? `${nf.format(status.prometheus.restarts)} redémarrage(s) sur 1 h` : "Prometheus indisponible"} tone={status.prometheus?.ok ? "success" : "warning"} badge={status.prometheus?.ok ? "Prometheus" : "—"} />
                         <MetricCard icon={ShieldCheck} label="Sauvegarde" value={formatRelative(status.backup.lastAt)} hint={status.backup.status === "SUCCESS" ? "Dernière sauvegarde confirmée" : status.backup.status === "FAILED" ? "La dernière sauvegarde a échoué" : "Aucune sauvegarde enregistrée"} tone={toneForState(status.backup.status)} badge={stateLabel(status.backup.status)} />
                         <MetricCard icon={Clock} label="Files d'attente" value={nf.format(totalWaiting)} hint={`${nf.format(totalFailed)} échec(s) · worker ${stateLabel(status.worker.status).toLowerCase()}`} tone={totalFailed > 0 ? "danger" : totalWaiting > 0 ? "warning" : "success"} badge={totalFailed > 0 ? "À vérifier" : "OK"} />
                     </div>

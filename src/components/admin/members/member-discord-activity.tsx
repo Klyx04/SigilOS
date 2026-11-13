@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, BookOpen, CalendarClock, Clock, Heart, Loader2, MessageSquare, Reply, Tv } from "lucide-react";
+import { Activity, CalendarClock, Clock, Heart, Loader2, MessageSquare, Reply, Tv } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -204,7 +204,6 @@ export function MemberDiscordActivity({
                 <Stat icon={Tv} label="Stream · total" value={formatMinutes(data.streamTotal)} hint="Minutes en stream, comptées à part du vocal" />
                 <Stat icon={MessageSquare} label="Messages" value={data.messagesTotal.toLocaleString()} hint="Messages postés, cumul mesuré" />
                 <Stat icon={Reply} label="Réponses" value={data.repliesTotal.toLocaleString()} hint="Réponses apportées, cumul mesuré" />
-                <Stat icon={BookOpen} label="Caractères" value={data.charactersTotal.toLocaleString()} hint="Volume écrit, cumul mesuré" />
                 <Stat icon={Heart} label="Réactions reçues" value={data.reactionsReceivedTotal.toLocaleString()} hint="Réactions reçues uniquement — les émises ne sont pas comptées" />
             </div>
 

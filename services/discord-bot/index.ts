@@ -115,9 +115,9 @@ function executorMeta(ex: GuildExecutor | null, targetId: string) {
 
 // #223 P2 — Intents privilégiés (doc stabilité long terme) :
 //  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
-//  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
-//    (blacklist #85). Activation : 2026 — réexamen / re-apply annuel requis
-//    au-delà de 10 000 utilisateurs (review Discord).
+//  - MessageContent : RETIRÉ (13/11/2026) — le Ladder ne classe plus sur les
+//    caractères ; le nombre de messages ne nécessite PAS le contenu. Le bot ne
+//    lit donc plus le texte des messages (minimisation RGPD).
 //  - GuildMessageTyping : retiré (F-24, least privilege — pas besoin de lire
 //    les frappes clavier).
 const client = new Client({
@@ -128,7 +128,6 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.MessageContent,
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
         // #1 validé : GuildModeration (non-privilégié) requis pour GuildBanAdd/Remove
@@ -1431,7 +1430,7 @@ async function trackMemberActivity(discordId: string, discordGuildId: string, pa
         });
     } catch (e) {
         // Jamais bloquant pour l'événement Discord : on le dit, on continue.
-        console.error(`[Discord Bot] Member activity not tracked for ${discordId}:`, e);
+        console.error("[Discord Bot] Member activity not tracked:", e);
     }
 }
 
@@ -1459,15 +1458,15 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
         });
 
         if (result.count > 0) {
-            console.log(`[Discord Bot] ${activityType} tracked for ${discordId} (${result.count} profile(s))`);
+            console.log(`[Discord Bot] ${activityType} tracked (${result.count} profile(s))`);
         } else {
             // ⚠️ Aucun profil trouvé : le matching repose sur user.accounts (table Account d'Auth.js).
             // Un membre qui ne s'est JAMAIS connecté au Dashboard n'a aucun compte lié → count=0.
             // On le loggue pour ne plus échouer en silence (diagnostic du Ladder Discord).
-            console.warn(`[Discord Bot] ⚠️ ${activityType} NOT tracked for ${discordId} — aucun UserProfile correspondant (user.accounts vide ? membre jamais connecté au Dashboard ? guildId=${guildId ?? 'null'})`);
+            console.warn(`[Discord Bot] ⚠️ ${activityType} NOT tracked — aucun UserProfile correspondant (user.accounts vide ? membre jamais connecté au Dashboard ?)`);
         }
     } catch (e) {
-        console.error(`[Discord Bot] Error updating activity for ${discordId}:`, e);
+        console.error("[Discord Bot] Error updating activity:", e);
     }
 }
 
@@ -1475,7 +1474,9 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    const charCount = message.content ? message.content.length : 0;
+    // AUD-08 (13/11/2026) : plus de lecture du contenu — le Ladder classe sur le
+    // nombre de messages. `message.content` n'est plus touché, l'intent
+    // MessageContent peut être désactivé côté portail Discord.
     const isReply = message.reference && message.reference.messageId ? 1 : 0;
 
     const incrementData: any = {
@@ -1483,12 +1484,6 @@ client.on(Events.MessageCreate, async (message) => {
         discordMessageCountMonthly: { increment: 1 },
         discordMessageCountTotal: { increment: 1 }
     };
-
-    if (charCount > 0) {
-        incrementData.discordCharactersWeekly = { increment: charCount };
-        incrementData.discordCharactersMonthly = { increment: charCount };
-        incrementData.discordCharactersTotal = { increment: charCount };
-    }
 
     if (isReply) {
         incrementData.discordRepliesWeekly = { increment: 1 };
@@ -1717,7 +1712,6 @@ setInterval(async () => {
                 data: {
                     discordVoiceTimeWeekly: 0,
                     discordMessageCountWeekly: 0,
-                    discordCharactersWeekly: 0,
                     discordReactionsReceivedWeekly: 0,
                     discordVoiceStreamTimeWeekly: 0,
                     discordRepliesWeekly: 0
@@ -1743,7 +1737,6 @@ setInterval(async () => {
                 data: {
                     discordVoiceTimeMonthly: 0,
                     discordMessageCountMonthly: 0,
-                    discordCharactersMonthly: 0,
                     discordReactionsReceivedMonthly: 0,
                     discordVoiceStreamTimeMonthly: 0,
                     discordRepliesMonthly: 0

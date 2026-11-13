@@ -38,6 +38,7 @@
 | 3 | `ouverture-prod` (#57) | `robots.txt`, `sitemap.xml` et `llms.txt` renvoient la page d'attente (HTML) ; 2 apps Discord à isoler ; hardlinks ; rewrite Caddy à retirer | mesuré le 21/09/2026 | robots/sitemap statiques + `noindex` ; checklist Jour J | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` · `docs/plans/SEO_REPRISE.md` | **D7** (landing) |
 | 4 | `actions-god-auth` (audit 13/11) | Actions God sans garde (`notifyGod` publique via 2 imports client, `mark*`), `/api/storage` inter-guildes | corrigé le 13/11/2026 (AUD-01/02/03) — `notifyGod` hors `"use server"`, `hasGodPanelAccess`, appartenance exigée | PR `fix/actions-god-auth` → `dev` ; puis AUD-04/05/06 | `docs/SECURITY.md` | — |
 | 4b | `durcissements-audit` (audit 13/11) | AUD-04/05/07/09/10/11 + SEC-02/03 : jeton legacy, SVG proxy, `execFile`, limiteur fail-closed, `console.error`, endpoint maintenance, clé stricte, kill-switch WS | corrigé le 13/11/2026 — 7 tests neufs / 27 cas, suite 675 fichiers ✓ | PR `fix/durcissements-audit` → `dev` ; puis AUD-08 (décision) et SEC-04 (infra) | `docs/SECURITY.md` | — |
+| 4c | `ladder-messages` (RGPD) | Ladder : métrique « caractères » retirée au profit des messages ; intent `MessageContent` retiré du bot | livré le 13/11/2026 — UI + serveur + carte membre + bot ; 6 tests | PR `feat/ladder-messages` → `dev` ; **désactiver l'intent dans le portail Discord après déploiement** | `docs/MAINTENANCE.md` | — |
 | 4e | `audit-passe2` (audit 13/11) | `/api/uploads` (contournement de préfixe), DoS/cache `/api/og/build`, IPv6 SSRF, chemin machine `cron-status`, rate-limit god-images | corrigé le 13/11/2026 — 4 tests neufs / 16 cas (ip-safety, uploads, og-build, invariants) | PR `fix/durcissements-audit` → `dev` | — | — |
 | 4f | `ws-revocation-membres` (audit 13/11) | Un membre exclu/banni garde son WebSocket abonné à la room de guilde ; seul `god:revoked` existe | identifié le 13/11/2026 — **réel, non corrigé** | canal Redis `guild:member:revoked` + éditeurs web/bot + déconnexion ciblée | — | — |
 | 4g | `bot-prisma-chiffrement` (audit 13/11) | Le bot utilise un `PrismaClient` brut (sans extension de chiffrement) ; aucune écriture sensible aujourd'hui | verrouillé le 13/11/2026 par `bot-prisma-safety` (3 cas) | partager l'extension si le bot doit écrire Account/API keys | — | — |
@@ -47,19 +48,7 @@
 | 8 | `presentation-access` | `presentation:view` existe mais n'est pas ouverte au rôle Membre ; l'ancienne page `/presentation` rend encore le règlement | 1 occurrence dans `src/` | ouvrir la permission + trancher la page | — | **D-P1** |
 ### 1bis. Reste de l'audit sécurité (13/11/2026)
 
-| Sujet | État | Action |
-|---|---|---|
-| **#4 WebSocket membre exclu** | **réel, ouvert** | lot `ws-revocation-membres` (4f) : canal Redis + éditeurs web/bot + déconnexion ciblée |
-| #3 TOCTOU DNS (rebinding) | résiduel | fetch avec DNS épinglé (lot de durcissement) |
-| #2 `/api/og/build` — scan complet | mitigé (cache 60 s + rate-limit) | index/table dédié si la volumétrie l'exige |
-| AUD-04 — vieux liens de preuves | code prêt, **inerte** | poser `STORAGE_LEGACY_TOKENS_UNTIL` (+30 j) puis supprimer la branche legacy |
-| SEC-05 — `next-auth` bêta | accepté | migrer vers une stable dès disponibilité, surveiller les avis |
-| AUD-12 — 2 dépendances modérées | build-time | attendre le correctif amont |
-| Ops — sauvegardes | non prouvé | jouer une restauration et noter le RTO |
-| Ops — protections de branches | non vérifié | require PR + checks + no force push |
-| Ops — workers Cloudflare | non vérifié | relire les routes dans le dashboard |
-| Ops — token Discord | à vérifier | rotation si le token complet a été exposé |
-
+Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure · SEC-05 next-auth stable · AUD-12 amont · ops (sauvegardes, branches, CF, token).
 ## 2. P1 — Chantiers produit (ordre proposé)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |

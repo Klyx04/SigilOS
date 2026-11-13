@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 (suite 2) — **RGPD · Ladder sur les messages, intent `MessageContent` retiré** — branche `feat/ladder-messages`
+
+> **Décision user (verbatim)** : « oui je veux faire la modif, du coup la modif ladder UI module à faire aussi et tout le code autour ».
+> **Mesure** : la métrique « caractères » était la seule raison de demander l'intent privilégié `MessageContent` ; le bot ne lisait que `message.content.length` (jamais le texte, jamais stocké). Les compteurs `discordCharacters*` restent en base (historique, `@default(0)`) mais ne sont plus alimentés.
+> **Fait** : `ladder-client.tsx` (option + affichage + description retirés), `ladder-actions.ts` (union + branche `characters` retirées), `member-discord-activity.tsx` (carte « Caractères » retirée), bot (`MessageContent` retiré, `message.content` plus lu, reset hebdo/mensuel sans caractères, 4 logs sans snowflake Discord).
+> **Preuves** : verrou `ladder-messages-only` (6) · suite **669 fichiers ✓** · `tsc` 0 · aucune migration (colonnes conservées).
+> **Reste / ops** : déployer le bot **puis** désactiver `Message Content Intent` dans le portail Discord (l'ordre inverse ferait refuser le démarrage) ; vérifier que le Ladder affiche bien « Messages » par défaut.
+> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 13/11/2026 (suite) — **Sécurité · durcissements AUD-04/05/07/09/10/11 + SEC-02/03** — branche `fix/durcissements-audit`
 
 > **Mesures VPS (13/11, lecture seule)** : `CSP_ENFORCE=true` sur `sigilos-beta` (SEC-01 déjà clos) · `ENCRYPTION_KEY` `HEX64` sur prod **et** bêta · cAdvisor monte `/var/run/docker.sock` en `ro`, `Privileged=false` (SEC-04 confirmé, lot infra à part) · `agent-ro.sh csp` refuse en manuel car le script lit `SSH_ORIGINAL_COMMAND` (pas `$1`) — comportement normal.
@@ -56,15 +64,5 @@
 > **Reste / ops** : **jouer `20270130000000_add_rush_quest_constraints` en bêta puis en prod** (documentée dans le ROADMAP §0) ; **backfill Tougli** (1 085 contraintes → `constraints`, dry-run/apply) et données éditoriales (ex. les 4 donjons de Maïmane) ; les conseils libres restent dans `tips`.
 > **Doc** : `ROADMAP` rang 64 (V3) + op migration · `RUSH-DEVELOPPEMENT-SUITE.md` §4 (V3) · `TOUGLI-API.md` (formes `combat`/`dungeonChoice` mesurées).
 > **Rotation** : bloc « 12/11/2026 — E2b + E2c + E2d » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 12/11/2026 (suite 5) — **Rang 59 · Une seule quête, deux textes (lot 4, `routeVariants`)** — branche `feat/rush-route-variants`
-
-> **Décision user (verbatim)** : « Une quête avec deux textes (je fais la modification de la base) » — lot 4 de l'amorce, après avoir écarté « deux quêtes Jumelle » (déjà en place, mais deux lignes à cocher et une progression comptée deux fois).
-> **Fait** : colonne **`routeVariants Json?`** sur `GuideSequence` — migration **additive** `20261112170000_add_route_variants` (`prisma migrate dev` exigeait un **drop** de la base locale : refusé, SQL écrit à la main puis `migrate deploy`) ; schéma Zod borné (2 camps × 2 champs, nom ≤ 200, conseils ≤ 4000) ; résolution dans **`resolveRushRoute`** (`applyRouteVariant`) — le point par lequel passent le guide membre, le guide public **et** l'overlay : une règle, trois surfaces ; studio : section **« 🎭 Texte par camp »** (2 × nom + conseils), `isDirty` et payload ; serveur : `parseRouteVariants` + refus net d'une forme invalide, `null` efface.
-> **Preuves** : `rush-route-variants` **15** (neuf) · `rush-route` 14 · `rush-route-tooling` 19 · `rush-twin-branch` 13 · `rush-sequence-inspector` **18** (« neuf accordéons » → **dix**, justifié : la section du lot 4) · suite **666 fichiers / 7 153 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops (humain)** : **jouer la migration en bêta puis en prod** (`npx prisma migrate deploy`) et **redémarrer `npm run dev`** (client Prisma régénéré) ; contrôle visuel de la section dans le studio et d'un texte qui change avec le camp.
-> **Lot 5 — brouillon local livré le 12/11/2026** : le formulaire de quête persiste une saisie non enregistrée **par quête** (`rush-editor-draft:<id>`, Zod borné, fail-closed), l'annonce « Brouillon restauré » + « Jeter », et la jette à l'enregistrement ; `key={selectedQuest.id}` force une instance PAR quête (le formulaire gardait sinon la quête précédente). Règle pure `src/lib/rush-editor-draft.ts` · verrou `rush-editor-draft` **9** · suite **667 fichiers / 7 162 tests ✓**.
-> **Rotation** : bloc « 11/11/2026 (suite 3) — Chantier 4/5 · Finitions anonymes » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

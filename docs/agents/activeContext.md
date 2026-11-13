@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 13/11/2026 (suite 5) — **Sondages : modale responsive + embed sans doublon** — branche `fix/sondages-responsive-embed`
+
+> **Mesure** : la modale « Lancer un sondage » débordait horizontalement — le `DialogContent` est un `grid` sans `grid-cols-1` (colonne implicite `auto` qui se dilate sur un mot long), et l'aperçu Discord n'avait ni `min-w-0` ni césure (`whitespace-pre-wrap` seul). Le bas était coupé par `max-h-[90vh]`.
+> **Fait** : `grid-cols-1` sur le composant Dialog (correctif structurel, toutes modales) · `min-w-0` + `break-words` + `[overflow-wrap:anywhere]` sur l'aperçu · `max-h-[calc(100dvh-2rem)]` · règle pure `poll-embed-content` : la description identique à la question n'est plus répétée dans l'embed (casse/ponctuation/espaces ignorés), l'aperçu l'annonce.
+> **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste / ops** : PR → `dev` ; contrôle visuel bêta 390/768/1024/1440 (le code n'est pas encore déployé) ; les blocs de session #1367 et celui-ci se touchent en tête — résoudre au merge.
+
+
 ## 📝 Session 13/11/2026 (suite 3) — **SEC-04 · cAdvisor supprimé : plus de socket Docker monté** — branche `chore/monitoring-sans-cadvisor`
 
 > **Décision user (verbatim)** : « toi qui gères » — après mesure : la carte God « Conteneurs » était vide depuis le 19/10 et le socket Docker n'était monté que pour cAdvisor.
@@ -47,14 +55,3 @@
 > **Reste / ops** : **jouer la migration `20270131000000` en bêta puis en prod** · G7 (hero) et composition G9 (captures) · E5 · V-C · backfill contraintes Tougli.
 > **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 12/11/2026 (suite 7) — **Rush : E3c + E4 + T-4a + bloc B, une seule PR** — branche `feat/rush-studio-masse-da-block`
-
-> **Demande user (verbatim)** : « on fais 1 2 4 5, 3 plus tard, une seule PR, un commit par chantier ».
-> **E3c (`83f287cd`)** : sélection multiple dans l'inspecteur de bloc (cases, tout sélectionner, barre d'actions) + **3 actions serveur** bornées (route / déplacement / suppression, **200 ids max**), appartenance au guide `rush-sylvestre` vérifiée **dans une transaction** (rollback si un id manque), rate limit Redis et `logGodWrite`. Règles pures `rush-bulk-selection` + verrous `rush-bulk-actions` / `rush-bulk-selection`.
-> **E4 (`a71e0cd8`)** : **572 → 0** motif interdit dans `RushEditorStudio.tsx` (zinc 316, emerald 94, font-black 78, tracking-widest 52, purple 27, backdrop-blur 4, rounded-3xl 1) et **29 → 0** dans le kit God ; couleurs en dur (indigo/cyan/blue/violet/rose) remplacées par les tokens, rayons ≤ 12 px, overlays `bg-background/80`, boutons `text-primary-foreground` ; verrou `rush-editor-ui` (studio + kit).
-> **T-4a (`95fd3e0c`)** : `RushCollapse` (dépli `grid-template-rows` `0fr → 1fr`, `inert`, `aria-hidden`, `motion-reduce`), rotation infinie coupée si `useReducedMotion`, célébration tokenisée (`--da-amber`, `bg-background`, plus de `zinc`/`blur`, éclats coupés en reduced motion). **G7 (hero) et la composition G9 restent ouverts** (captures attendues).
-> **Bloc B (`ef8ce3d7`)** : route publique `/guides/rush-sylvestre/q/[slug]` (lecture `cache`, 404 si non publiée, `noindex` si guide en construction), slug **figé** à la première publication (collisions `-2`, `-3`), action `publishRushSequence` (rate limit, journal, appartenance au guide), bouton publier/dépublier dans l'inspecteur de bloc, sitemap conditionnel. Règles `rush-public-slug` + verrou `rush-public-quest`.
-> **Preuves** : suite complète **674 fichiers / 7 255 tests ✓** · `tsc` 0 · ESLint 0 (hook pre-commit) · `git status` propre · **aucune migration**.
-> **Reste / ops** : **G7** (hero) et **composition G9** (captures) · **E5** (finitions studio) · **V-C** (purge WebP, ops VPS) · **nouveau lot demandé** : blocs **Combat tactique / semi-tactique** + liens nommés (favicon) + markdown couleur + modale de bloc + image du monstre/combat importable (migration enum + `GuideMilestone.links` à prévoir).
-> **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

@@ -74,7 +74,7 @@ describe("Anonymisation du tracker membre", () => {
 
     it("nomme les autres guildes sans jamais révéler la pseudo", () => {
         expect(anonymousMemberLabel("Guilde Origine")).toBe("Membre de la guilde Guilde Origine");
-        expect(anonymousMemberLabel(null)).toBe("Membre d'une autre guilde");
-        expect(anonymousMemberLabel("  ")).toBe("Membre d'une autre guilde");
+        expect(anonymousMemberLabel(null)).toBe("Membre de la plateforme");
+        expect(anonymousMemberLabel("  ")).toBe("Membre de la plateforme");
     });
 });

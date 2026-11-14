@@ -10,12 +10,12 @@ import {
   buildFeedbackSubject,
   buildMemberReplyEntry,
   feedbackTypeToCategory,
+  publicRepliesFromTranscript,
+  type TrackerStatusValue,
 } from "@/lib/feedback-ticket-mapping";
-import { appendMemberReply, ensurePublicRef } from "@/server/feedback-ticket-service";
+import { appendMemberReply, ensurePublicRef, sendFeedbackEmbed } from "@/server/feedback-ticket-service";
 import { getUserContext } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
-import { sendChannelMessage } from "@/server/discord";
-import { getAppBaseUrl } from "@/lib/utils";
 
 const feedbackSchema = z.object({
   feedbackType: z.enum(FEEDBACK_TYPES),
@@ -30,6 +30,9 @@ const feedbackSchema = z.object({
 });
 
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
+
+const visitorFeedbackSchema = feedbackSchema.omit({ guildId: true });
+export type VisitorFeedbackInput = z.infer<typeof visitorFeedbackSchema>;
 
 const WINDOW_MS = 60 * 60 * 1000; // 1h
 const RATE_LIMIT = 5; // 5 feedbacks/heure/utilisateur
@@ -157,35 +160,18 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
     }).catch((e: any) => logger.error("[Feedback] notifyGod failed", { error: e?.message }));
 
     // — Embed Discord (canal dédié → fallback godNotify)
-    try {
-      const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
-      const targetChannel = (platformConfig as any)?.questFeedbackChannelId || (platformConfig as any)?.godNotifyChannelId;
-
-      if (targetChannel) {
-        const appUrl = getAppBaseUrl();
-
-        await sendChannelMessage(
-          targetChannel,
-          "",
-          {
-            embedTitle: `${label?.emoji ?? "💬"} Feedback — ${category}`,
-            embedDescription: description,
-            embedColor: isBug ? 0xef4444 : 0x10b981,
-            embedFooter: `${memberName} 🏷️ ${memberGuildName} • SigilOS`,
-            embedUrl: `${appUrl}/god/bugs?ticket=${encodeURIComponent(publicRef)}`,
-            fields: [
-              { name: "Type", value: data.feedbackType, inline: true },
-              { name: "Page", value: data.sourcePage, inline: true },
-              ...(data.targetSlug ? [{ name: "Cible", value: data.targetSlug, inline: true }] : []),
-              { name: "Ticket", value: `#${publicRef}`, inline: true },
-              { name: "Signalé par", value: `${memberName} (${memberGuildName})`, inline: false },
-            ],
-          }
-        ).catch((e: any) => logger.error("[Feedback] Discord embed failed", { error: e?.message }));
-      }
-    } catch (e: any) {
-      logger.error("[Feedback] Discord dispatch failed", { error: e?.message });
-    }
+    await sendFeedbackEmbed({
+      publicRef,
+      category,
+      description,
+      feedbackType: data.feedbackType,
+      sourcePage: data.sourcePage,
+      targetSlug: data.targetSlug || null,
+      memberName,
+      memberGuildName,
+      emoji: label?.emoji ?? "💬",
+      isBug,
+    });
 
     logger.info(`[Feedback] Créé #${publicRef} (${data.sourcePage})`);
     return { success: true, ticketId: publicRef };
@@ -194,6 +180,130 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
     return { success: false, error: "Une erreur est survenue lors de l'envoi. Réessaie." };
   } finally {
     logger.debug(`[PERF] submitQuestFeedbackAction took ${Date.now() - start}ms`);
+  }
+}
+
+/**
+ * Signalement d'un **visiteur connecté** (profil visiteur, élevage, guide public,
+ * en-tête public). Aucune appartenance à une guilde n'est exigée : le ticket est
+ * rattaché à la première guilde active du compte si elle existe (pour la
+ * notification et l'anonymisation), sinon il reste plateforme.
+ *
+ * SECURITY (fail-closed) :
+ * - auth() obligatoire (pas de retour anonyme par ce chemin)
+ * - rateLimit Redis 5/h/utilisateur
+ * - Zod borné sur toutes les entrées
+ * - jamais de `guildId` fourni par le client
+ */
+export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
+  const start = Date.now();
+
+  const parsed = visitorFeedbackSchema.safeParse(input);
+  if (!parsed.success) {
+    logger.warn("[Feedback Visiteur] Validation échouée", { errors: parsed.error.flatten().fieldErrors });
+    return { success: false, error: "Données invalides. Merci de remplir tous les champs requis." };
+  }
+  const data = parsed.data;
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Connecte-toi pour envoyer un retour." };
+  }
+
+  const rl = await rateLimit(`visitor-feedback:${session.user.id}`, RATE_LIMIT, WINDOW_MS);
+  if (!rl.success) {
+    return { success: false, error: "Trop de retours envoyés. Réessaie dans une heure." };
+  }
+
+  const description = data.context?.trim()
+    ? `📍 ${data.context.trim()}\n\n${data.description}`
+    : data.description;
+  const isBug = data.feedbackType === "BUG_TECHNIQUE" || data.feedbackType === "ERREUR_DONNEES";
+  const label = FEEDBACK_LABELS[data.feedbackType];
+  const category = label?.label ?? "Feedback";
+
+  try {
+    const discordAccount = await db.account.findFirst({
+      where: { userId: session.user.id, provider: "discord" },
+      select: { providerAccountId: true },
+    });
+
+    // Guilde d'accueil : première guilde active du compte, si elle existe.
+    const homeProfile = await db.userProfile.findFirst({
+      where: { userId: session.user.id, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: {
+        guildId: true,
+        guild: { select: { discordGuildId: true, name: true } },
+      },
+    });
+
+    const memberName = session.user.name?.trim() || "Visiteur";
+    const homeGuildName = homeProfile?.guild?.name ?? "Visiteur indépendant";
+
+    const created = await db.supportTicket.create({
+      data: {
+        origin: "FEEDBACK",
+        category: feedbackTypeToCategory(data.feedbackType),
+        status: "OPEN",
+        trackerStatus: "A_FAIRE",
+        priority: "Normal",
+        subject: buildFeedbackSubject(data.feedbackType, description),
+        description: `[${data.feedbackType}] ${description}`,
+        creatorDiscordId: discordAccount?.providerAccountId ?? "WEB",
+        creatorDiscordName: memberName,
+        creatorUserId: session.user.id,
+        // Un visiteur non membre ne doit pas exposer sa pseudo à la guilde visitée :
+        // on rattache à sa guilde d'accueil (s'il en a une), sinon à la plateforme.
+        discordGuildId: homeProfile?.guild?.discordGuildId ?? null,
+        guildId: homeProfile?.guildId ?? null,
+        targetGuildId: null,
+        targetGuildName: "Plateforme SigilOS",
+        feedbackType: data.feedbackType,
+        sourcePage: data.sourcePage,
+        targetSlug: data.targetSlug || null,
+        userAgent: data.userAgent || null,
+        memberGuildName: homeProfile?.guild?.name ?? null,
+        forumLink: null,
+      },
+    });
+    const publicRef = await ensurePublicRef(created);
+
+    await notifyGod({
+      title: "🎫 Nouveau feedback visiteur",
+      message: `#${publicRef} — ${category} — par ${memberName}`,
+      type: "USER_FEEDBACK",
+      success: true,
+      metadata: {
+        ticketId: created.id,
+        ticketRef: publicRef,
+        memberName,
+        guild: homeGuildName,
+        type: data.feedbackType,
+        source: "visitor",
+      },
+    }).catch((e: any) => logger.error("[Feedback Visiteur] notifyGod failed", { error: e?.message }));
+
+    await sendFeedbackEmbed({
+      publicRef,
+      category,
+      description,
+      feedbackType: data.feedbackType,
+      sourcePage: data.sourcePage,
+      targetSlug: data.targetSlug || null,
+      memberName,
+      memberGuildName: homeGuildName,
+      emoji: label?.emoji ?? "💬",
+      isBug,
+    });
+
+    logger.info(`[Feedback Visiteur] Créé #${publicRef} (${data.sourcePage})`);
+    return { success: true, ticketId: publicRef };
+  } catch (e: any) {
+    logger.error("[Feedback Visiteur] Create failed", { error: e?.message });
+    return { success: false, error: "Une erreur est survenue lors de l'envoi. Réessaie." };
+  } finally {
+    logger.debug(`[PERF] submitVisitorFeedbackAction took ${Date.now() - start}ms`);
   }
 }
 
@@ -298,5 +408,59 @@ export async function notifyMemberFeedbackAction(input: {
     return { success: false, error: "Erreur lors de l'envoi de la notification." };
   } finally {
     logger.debug(`[PERF] notifyMemberFeedbackAction took ${Date.now() - start}ms`);
+  }
+}
+
+export type MyVisitorFeedbackItem = {
+  ref: string;
+  description: string;
+  status: TrackerStatusValue;
+  createdAt: string;
+  replies: ReturnType<typeof publicRepliesFromTranscript>;
+};
+
+export type MyVisitorFeedbackResult =
+  | { success: true; data: MyVisitorFeedbackItem[] }
+  | { success: false; error: string };
+
+/**
+ * Historique **personnel** d'un visiteur connecté : ses propres signalements,
+ * jamais ceux d'un autre compte. Aucune guilde requise.
+ */
+export async function getMyVisitorFeedbackAction(): Promise<MyVisitorFeedbackResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+  try {
+    const tickets = await db.supportTicket.findMany({
+      where: {
+        origin: "FEEDBACK",
+        creatorUserId: session.user.id,
+        publicRef: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        publicRef: true,
+        description: true,
+        trackerStatus: true,
+        createdAt: true,
+        transcript: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: tickets.map((ticket) => ({
+        ref: ticket.publicRef ?? "",
+        description: ticket.description,
+        status: ticket.trackerStatus ?? "A_FAIRE",
+        createdAt: ticket.createdAt.toISOString(),
+        replies: publicRepliesFromTranscript(ticket.transcript),
+      })),
+    };
+  } catch (e: any) {
+    logger.error("[Feedback Visiteur] Historique impossible", { error: e?.message });
+    return { success: false, error: "Impossible de charger tes signalements." };
   }
 }

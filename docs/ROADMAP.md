@@ -166,7 +166,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `FUSION-SIGNALEMENTS` | Signalements — fusion `SystemIssue` → `SupportTicket` (`TicketOrigin`, `publicRef` `SIG-<n>`, backfill idempotent + filet SQL, tracker membre anonymisé, onglet Signalements, refonte tokens, drop `20270202000000`) — verrous **32** | 14/11/2026 |
+| `FUSION-SIGNALEMENTS` | Signalements — fusion `SystemIssue` → `SupportTicket` (`TicketOrigin`, `publicRef` `SIG-<n>`, backfill idempotent + filet SQL, tracker membre anonymisé, visiteur connecté, onglet Signalements, refonte tokens, drop `20270202000000`) — verrous **36** | 14/11/2026 |
 | `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |
 | `OVERLAY-NOTIFS` | Overlay — un seul endroit pour les notifications : `OverlayToastProvider` monté dans le portail public (Toaster dédié sous `data-da`), `portalContainer` sur `DialogContent` pour la modale Ocre publique dans la PiP, `notifyBlockDone` (bloc validé / Dofus obtenu) — verrou `overlay-notifications` **4** | 10/11/2026 |
 

@@ -4,7 +4,8 @@
 > guilde** (motifs, tunnel, CSAT). Ici il s'agit du **module d'exploitation** — ce que le
 > mainteneur voit et traite lui-même.
 > Écrit le 08/11/2026 ; **G1-G3 livrés le 14/11/2026** (fusion des signalements dans
-> `SupportTicket`, onglet « Signalements » et refonte UI). Reste **G4** (`ticket-bot`).
+> `SupportTicket`, onglet « Signalements », refonte UI et **retours visiteurs connectés**).
+> Reste **G4** (`ticket-bot`).
 
 ## 0. Demande (verbatim, 08/11/2026)
 
@@ -33,10 +34,12 @@ C'est le point ① de la demande.
 ## 2. Périmètre proposé (4 lots)
 
 ### G1 — Les retours des visiteurs sont identifiables
-- Discriminer l'**origine** d'un retour : membre de guilde · visiteur connecté · anonyme.
-- Filtre dédié + compteur dans le tracker.
-- **Décision attendue** : colonne explicite (migration) **ou** dérivation
-  (`guildId === null` + présence d'un `PublicProfile`) — zéro migration.
+**Livré le 14/11/2026** : `SupportTicket` (`origin: FEEDBACK`, `guildId` = guilde
+d'accueil du compte ou `null`), `submitVisitorFeedbackAction` (aucune appartenance
+exigée), bouton global du header public (profil visiteur, élevage, guides…),
+historique « Mes signalements » dans l'espace visiteur et panneau Rush en mode
+visiteur. Un visiteur sans guilde reste anonyme dans le tracker membre ; le God
+voit la référence et peut répondre (la réponse est journalisée dans `transcript`).
 
 ### G2 — Un seul endroit : `?tab=tickets`
 - L'onglet agrège **trois** sources : `SupportTicket` (`origin` FEEDBACK/INTERNAL), tickets

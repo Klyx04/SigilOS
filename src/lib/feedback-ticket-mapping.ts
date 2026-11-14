@@ -252,7 +252,7 @@ export function projectMemberTrackerTicket(
 /** Libellé d'anonymisation : jamais de fallback qui laisserait fuiter la pseudo. */
 export function anonymousMemberLabel(memberGuildName: string | null | undefined): string {
   const guild = memberGuildName?.trim();
-  return guild ? `Membre de la guilde ${guild}` : "Membre d'une autre guilde";
+  return guild ? `Membre de la guilde ${guild}` : "Membre de la plateforme";
 }
 
 

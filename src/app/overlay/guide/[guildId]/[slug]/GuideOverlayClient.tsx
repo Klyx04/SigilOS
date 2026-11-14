@@ -1776,6 +1776,7 @@ export default function GuideOverlayClient({
           targetSlug={guide.slug}
           context={overlayBugContext}
           onlyDiscord={isGuest && !feedbackSignedIn}
+          visitorMode={isGuest && feedbackSignedIn}
           onClose={() => setFeedbackOpen(false)}
         />
       )}

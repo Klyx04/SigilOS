@@ -11,8 +11,10 @@ import { readFileSync } from "node:fs";
 
 const COMPONENTS = [
     "src/components/feedback/feedback-tracker.tsx",
+    "src/components/feedback/visitor-feedback-button.tsx",
     "src/components/tracker/member-tracker-view.tsx",
     "src/app/god/components/ticket-dashboard.tsx",
+    "src/app/espace-visiteur/_components/visitor-feedback-history.tsx",
 ];
 
 describe("DA des écrans de signalements", () => {

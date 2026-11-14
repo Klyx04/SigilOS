@@ -5,7 +5,7 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 13/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 14/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -41,7 +41,7 @@
 | 4c | `ladder-messages` (RGPD) | Ladder : métrique « caractères » retirée au profit des messages ; intent `MessageContent` retiré du bot | livré le 13/11/2026 — UI + serveur + carte membre + bot ; 6 tests | PR `feat/ladder-messages` → `dev` ; **désactiver l'intent dans le portail Discord après déploiement** | `docs/MAINTENANCE.md` | — |
 | 4d | `monitoring-sans-cadvisor` (SEC-04) | cAdvisor montait le socket Docker ; carte God « Conteneurs » vide depuis le 19/10 | supprimé le 13/11/2026 — composes prod/dev, scrape Prometheus, requêtes + carte God, docs, test | PR `chore/monitoring-sans-cadvisor` → `dev` ; retirer le conteneur existant au déploiement | `docs/MAINTENANCE.md` | — |
 | 4e | `audit-passe2` (audit 13/11) | `/api/uploads` (contournement de préfixe), DoS/cache `/api/og/build`, IPv6 SSRF, chemin machine `cron-status`, rate-limit god-images | corrigé le 13/11/2026 — 4 tests neufs / 16 cas (ip-safety, uploads, og-build, invariants) | PR `fix/durcissements-audit` → `dev` | — | — |
-| 4f | `ws-revocation-membres` (audit 13/11) | Un membre exclu/banni garde son WebSocket abonné à la room de guilde ; seul `god:revoked` existe | identifié le 13/11/2026 — **réel, non corrigé** | canal Redis `guild:member:revoked` + éditeurs web/bot + déconnexion ciblée | — | — |
+| 4f | `ws-revocation-membres` (audit 13/11) | Un membre exclu/banni garde son WebSocket abonné à la room de guilde ; seul `god:revoked` existe | corrigé le 13/11/2026 — canal `guild:member:revoked` (6 chemins : archivage, ban, purge RGPD, God, suppressions définitives) + sweep d'appartenance 60 s (bot/God/masse) + socket coupé ; verrou 23 tests | PR `fix/ws-revocation-membres` → `dev` ; rebuild `ws-prod`/`ws-beta` au déploiement | — | — |
 | 4g | `bot-prisma-chiffrement` (audit 13/11) | Le bot utilise un `PrismaClient` brut (sans extension de chiffrement) ; aucune écriture sensible aujourd'hui | verrouillé le 13/11/2026 par `bot-prisma-safety` (3 cas) | partager l'extension si le bot doit écrire Account/API keys | — | — |
 | 5 | `migrations-ops` | 2 migrations additives + bot + crontabs non déployés | `20270112000000` (GodNotification.details), `20270113000000` (DiscordMemberActivity) | jouer bêta puis prod ; redéployer le bot ; poser les 4 crontabs | `docs/MAINTENANCE.md` | — |
 | 6 | `caddy-post-503` | Pendant une maintenance, un POST reçoit du HTML au lieu d'un `503 text/plain` | cause racine du 16/10 | durcir le `Caddyfile` (POST → 503) | `docs/MAINTENANCE.md` | — |
@@ -69,7 +69,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 | 21 | `mini-jeux` (H) | Mini-jeux & salons temps réel : solidité Redis, solo, Panthéon, HUD/UX | ouvert | H-1 → H-2 | — (à créer) | — |
 | 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse) | L-1 → L-4 | — (à créer) | — |
 | 23 | `guildes-admin` (M) | Guildes & admin : calendrier, profil, stuff, édition staff, logs | volet `membres` livré (05/10) · **inventaire des mules** et **pseudo vérifié au ladder + embed « fin d'essai »** livrés le 25/10 | M-1 reste (calendrier/profil/stuff) → M-2 → M-3 | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` | — |
-| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » : 12 chantiers, 7 lots ; **+ tickets d'exploitation** (un seul endroit `?tab=tickets`, retours visiteurs identifiables, `ticket-bot` à revoir) | plan vivant ; **tickets : brief du 08/11, rien de codé** | G1 → G12 ; **tickets : G1 → G4** | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
+| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » : 12 chantiers, 7 lots ; **+ tickets d'exploitation** (un seul endroit `?tab=tickets`, retours visiteurs identifiables, `ticket-bot` à revoir) | plan vivant ; **tickets : fusion des signalements livrée le 14/11** (voir §5) ; reste G4 (`ticket-bot`) | G1 → G12 ; **tickets : G4** | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
 | 25 | `acquisition` (E) | SEO / contenu : autorité avant volume | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
 | 26 | `demo-publique` (S) | Démo publique en lecture seule, essayable sans compte | S-0/S-1 livrés (02/10) | S-2a → S-2b → S-3 → S-4 → S-5 | `docs/plans/PLAN-DEMO-PUBLIQUE.md` · `docs/plans/AMORCE-DEMO-PUBLIQUE.md` | — |
 | 27 | `salons-vocaux` (Q) | Module « salons vocaux temporaires » (cahier V2.1) | idée neuve, **à cadrer** | cadrage → lots | `docs/plans/PLAN-SALONS-VOCAUX.md` | **D4** |
@@ -166,6 +166,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `FUSION-SIGNALEMENTS` | Signalements — fusion `SystemIssue` → `SupportTicket` (`TicketOrigin`, `publicRef` `SIG-<n>`, backfill idempotent + filet SQL, tracker membre anonymisé, visiteur connecté, onglet Signalements, refonte tokens, drop `20270202000000`) — verrous **36** | 14/11/2026 |
 | `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |
 | `OVERLAY-NOTIFS` | Overlay — un seul endroit pour les notifications : `OverlayToastProvider` monté dans le portail public (Toaster dédié sous `data-da`), `portalContainer` sur `DialogContent` pour la modale Ocre publique dans la PiP, `notifyBlockDone` (bloc validé / Dofus obtenu) — verrou `overlay-notifications` **4** | 10/11/2026 |
 

@@ -5,6 +5,7 @@
 
 "use server";
 import { logger } from "@/lib/logger";
+import { publishGuildMemberRevoked } from "@/lib/guild-access-realtime";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, invalidateUserContextCache } from "./user-actions";
@@ -120,6 +121,13 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             updatedProfile.guildId, // Internal UUID
             guildId                 // Discord ID
         );
+
+        // Révocation temps réel (lot 4f) : le socket du membre est coupé côté WS.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: updatedProfile.userId,
+            reason: "ARCHIVED",
+        });
 
         await createAuditLog({
             guildId,
@@ -353,6 +361,14 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         // 1. Delete the UserProfile — cascades to all guild-scoped data
         await db.userProfile.delete({ where: { id: profileId } });
 
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        // Publié APRÈS la suppression : un échec de la base ne révoque personne.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: targetUserId,
+            reason: "KICKED",
+        });
+
         // 2. Invalidate ALL active sessions (force re-auth immediately)
         await db.session.deleteMany({ where: { userId: targetUserId } });
 
@@ -513,6 +529,13 @@ export async function purgeMemberFromGuild(
 
         // Suppression du profil de CETTE guilde (cascade : données guilde, journal du registre…).
         await db.userProfile.delete({ where: { id: profileId } });
+
+        // Révocation temps réel (lot 4f) : le socket encore ouvert est coupé.
+        void publishGuildMemberRevoked({
+            discordGuildId: guildId,
+            userId: target.userId,
+            reason: "KICKED",
+        });
 
         // Révocation immédiate : sessions + caches (sinon le membre garde un accès résiduel).
         await db.session.deleteMany({ where: { userId: target.userId } });
@@ -913,6 +936,15 @@ export async function handleGdprDeletionRequest() {
             where: { id: userId }
         });
 
+        // Révocation temps réel (lot 4f) : tous les sockets des guildes quittées.
+        for (const profile of userProfiles) {
+            void publishGuildMemberRevoked({
+                discordGuildId: profile.guild.discordGuildId,
+                userId,
+                reason: "KICKED",
+            });
+        }
+
         return { success: true };
     } catch (e: any) {
         logger.error("[GDPR Deletion] FATAL:", e);
@@ -1013,6 +1045,14 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
                 lastActivityDesc: "Données nettoyées manuellement par un administrateur.",
             }
         });
+
+        // Révocation temps réel (lot 4f) : le socket du membre nettoyé est coupé.
+        void publishGuildMemberRevoked({
+            discordGuildId,
+            userId: profile.userId,
+            reason: "BANNED",
+        });
+
 
         // S5.11/S8.20 — un profil nettoyé (BANNED) ne garde pas d'annonces actives :
         // cascade marché best-effort, jamais bloquante pour le nettoyage RGPD.

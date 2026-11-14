@@ -5,12 +5,31 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 14/11/2026 — **Signalements · fusion dans `SupportTicket`, console God et tracker membre** — branche `feat/fusion-signalements-tickets`
+
+> **Décisions user** : option B (fusion dans `SupportTicket`, pas de vue unifiée), migration de **tout** (signalements + notes internes), tracker global visible par tous les membres, anonymisation inter-guildes (pseudo visible seulement dans sa guilde), pas de `TicketRecord` par signalement.
+> **Mesure** : `SystemIssue` n'était lu que par 2 fichiers (8 usages) ; `sendTicketReply` exige un thread Discord ; les liens de notification étaient `?bug=SIG-<id>`.
+> **Fait** : schéma additif (`TicketOrigin`, `publicRef`, `legacySystemIssueId`, champs de suivi, `discordGuildId` nullable) · script de reprise idempotent (`--dry-run` par défaut) · **filet SQL** qui copie les lignes restantes avant la migration destructive · bascule des actions · tracker membre anonymisé et paginé côté serveur · onglet « Signalements » dans la console Support · console Support (tickets Discord) réalignée sur les tokens de la landing (plus de zinc/indigo/amber, rayons ≤ 12 px) · refonte `/god/bugs` + tracker aux tokens (responsive 390→1440) · **volet visiteur connecté** (`submitVisitorFeedbackAction` sans appartenance, bouton global du header public sur profil/élevage/guides, historique « Mes signalements », panneau Rush corrigé) · suppression de `SystemIssue` (`20270202000000`).
+> **Preuves** : suite **701 fichiers / 7 419 tests ✓** · `tsc` 0 · ESLint 0 erreur · migrations `20270201000000`, `20270201500000`, `20270202000000` appliquées en local · verrous `feedback-*` + `visitor-feedback-surfaces` + `system-issue-removal`.
+> **Reste / ops** : en bêta puis prod, jouer `20270201000000` → `migrate-system-issues-to-support-tickets --dry-run` puis `--apply` (compteurs + échantillon) → `20270201500000` (filet) → `20270202000000` ; redéployer ; vérifier un ancien lien `?bug=SIG-<n>`. Lots séparés : console Support God (`ticket-bot` G4), screenshot, auto-onboarding.
+> **Rotation** : bloc « 13/11/2026 — Blocs Combat + liens + markdown + modale de bloc » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 13/11/2026 (suite 5) — **Sondages : modale responsive + embed sans doublon** — branche `fix/sondages-responsive-embed`
 
 > **Mesure** : la modale « Lancer un sondage » débordait horizontalement — le `DialogContent` est un `grid` sans `grid-cols-1` (colonne implicite `auto` qui se dilate sur un mot long), et l'aperçu Discord n'avait ni `min-w-0` ni césure (`whitespace-pre-wrap` seul). Le bas était coupé par `max-h-[90vh]`.
 > **Fait** : `grid-cols-1` sur le composant Dialog (correctif structurel, toutes modales) · `min-w-0` + `break-words` + `[overflow-wrap:anywhere]` sur l'aperçu · `max-h-[calc(100dvh-2rem)]` · règle pure `poll-embed-content` : la description identique à la question n'est plus répétée dans l'embed (casse/ponctuation/espaces ignorés), l'aperçu l'annonce.
 > **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste / ops** : PR → `dev` ; contrôle visuel bêta 390/768/1024/1440 (le code n'est pas encore déployé) ; les blocs de session #1367 et celui-ci se touchent en tête — résoudre au merge.
+> **Reste / ops** : PR #1368 → `dev` (conflit `activeContext` résolu au merge : bloc placé sous celui du 14/11) ; contrôle visuel bêta 390/768/1024/1440 (le code n'est pas encore déployé).
+> **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+## 📝 Session 13/11/2026 (suite 4) — **Sécurité · révocation WS des membres exclus** — branche `fix/ws-revocation-membres`
+
+> **Mesure** : l'appartenance n'était vérifiée qu'aux `*:join` ; les heartbeats guide/dofus ne font aucune requête DB, donc `leave()` ne suffit pas — il faut couper le socket. Le bot Discord (`GuildMemberRemove`/`GuildBanAdd`) n'a ni Redis ni HTTP : un canal web seul aurait laissé le cas principal à ≤ 30 min.
+> **Fait** : canal `guild:member:revoked` + publisher best-effort · 6 chemins publiés (départ/ban manuel, archivage, purge RGPD, God soft-delete, suppressions définitives admin/God/RGPD) · module WS (`guild-revocation.ts`) qui retire les rooms `guild:<id>*`, émet `guild:access-revoked` et coupe le socket · sweep d'appartenance 60 s borné (couvre bot, Discord, `updateMany` en masse) · garde client (`router.refresh()` → écran d'accès refusé).
+> **Preuves** : verrou `ws-guild-revocation` **23** · `tsc` 0 · ESLint 0 erreur · bundle `build:ws` ✓ · aucune migration.
+> **Reste / ops** : PR → `dev` ; rebuild `ws-prod`/`ws-beta` au déploiement ; vérifier en bêta avec un second compte (archivage admin → coupure immédiate ; exclusion Discord → ≤ 60 s). Option non retenue : publication directe depuis le bot (ioredis) — le sweep couvre le besoin.
+> **Rotation** : bloc « 12/11/2026 (suite 7) — Rush : E3c + E4 + T-4a + bloc B » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 ## 📝 Session 13/11/2026 (suite 3) — **SEC-04 · cAdvisor supprimé : plus de socket Docker monté** — branche `chore/monitoring-sans-cadvisor`
@@ -35,23 +54,4 @@
 > **Preuves** : 7 tests neufs / **27** cas · suite **675 fichiers ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration, aucun changement d'interface publique.
 > **Reste / ops** : PR `fix/actions-god-auth` puis `fix/durcissements-audit` → `dev` ; AUD-08 (garder `MessageContent` ou changer la métrique), SEC-04 (socket-proxy, fenêtre), CSP prod (vérifier `CSP_ENFORCE` avant ouverture).
 > **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 13/11/2026 — **Sécurité · AUD-01/02/03 : actions God sans garde, stockage inter-guildes** — branche `fix/actions-god-auth`
-
-> **Demande user (verbatim)** : « refais une passe d'audit avec les audits précédents dans le contexte », puis validation du plan de correction (AUD-02 → AUD-01 → AUD-03).
-> **Mesures (2ᵉ passe, statique)** : `notifyGod` était exportée d'un fichier `"use server"` et importée par **deux composants client** (`proof-upload-dialog.tsx`, `safety-client.ts`) ⇒ action publique : écriture `GodNotification` + embed Discord via le bot **multi-tenant** avec `forceChannelId`/`ping` contrôlés. `markGodNotificationRead`/`markAllGodNotificationsRead` sans garde ⇒ masquage de toutes les alertes God. `/api/storage` sautait le contrôle d'appartenance quand `getUserContext()` (sans argument, guilde d'accueil) renvoyait `isAdmin` ⇒ lecture inter-guildes des preuves.
-> **Fait** : `notifyGod` déplacé dans `src/server/god-notifications.ts` (**sans** `"use server"`, invariant commenté) ; 28 importeurs serveur recâblés ; les 2 imports client supprimés (l'alerte God est créée **côté serveur** par `reportSecurityIncident`, avec `webOnly`, sans `forceChannelId`) ; garde `hasGodPanelAccess()` sur les 4 actions du panneau ; `reportSecurityIncident` exige `ctx.isMember` (AUD-06) et borne la description ; `/api/storage` exige l'appartenance à la guilde cible (God seul exempté, CUID → discordGuildId, cible inconnue = 403).
-> **Preuves** : 3 tests neufs — `server-actions-god-guard` (5, invariants), `security-report-auth` (3, comportement), `storage-guild-isolation` (4) — + 15 fichiers impactés **147 tests ✓** · suite **671 fichiers ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**.
-> **Reste / ops** : PR `fix/actions-god-auth` → `dev` ; puis AUD-04 (jeton legacy sans expiration), AUD-05 (SVG proxy-image), AUD-07→11 (durcissements). Rapport complet : `src/temp/audit-sec-2.md` (zone volatile).
-> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 13/11/2026 — **Blocs Combat + liens + markdown + modale de bloc** — branche `feat/rush-studio-masse-da-block` (PR #1360)
-
-> **Demande user (verbatim)** : « mets aussi tous les autres type de bloc stp en modale éditable et les champ libre c imbuvable la zone est mini pas possible de l'agrandir » · « ajoute un nouveau type de bloc : Combat tactique / Combat semi tactique » · « pouvoir ajouter un ou plusieurs liens vers des sites… donner un nom à la vidéo + afficher sa favicon automatiquement… pouvoir ajouter un champ libre aussi d'édition pour expliquer brièvement la strat, markdown couleur etc » · « pouvoir importer une image aussi du combat / du monstre etc comme d'hab ».
-> **Schéma** : migration additive `20270131000000_add_rush_combat_blocks` — enum `GuideMilestoneType` + `COMBAT_TACTIQUE` / `COMBAT_SEMI_TACTIQUE`, colonne `GuideMilestone.links Json?` (liens nommés, 10 max). Appliquée en local.
-> **Images** : les deux fichiers fournis étaient des **PNG déguisés en `.webp`** (585×427 et 541×461) ; convertis en vrai WebP (25 Ko / 18 Ko) dans `public/assets/rush/blocks/`, métadonnées retirées.
-> **Règles pures** : `rush-block-types` (`isRushInfoBlock`, `isRushNonQuestBlock`, méta des deux types), `rush-block-links` (`safeExternalUrl`, 10 max, 120 car., dédoublonnage), `rush-markdown` (gras, italique, titres, listes, liens http(s), couleurs `{or}/{vert}/{danger}/{ambre}/{info}` ; HTML brut jamais interprété) — **26 tests**.
-> **Rendu** : `RushCombatBanner` partagé (dashboard, guide public, overlay `page`/`pip`), `RushMarkdown`, `SiteFavicon` (DuckDuckGo + repli `Globe`, CSP `img-src` mise à jour) ; les blocs Combat sont **non cochables** et exclus des compteurs par `isRushNonQuestBlock`.
-> **Studio** : palette +2 (image en icône), formulaire de bloc en **modale 1 100 px** pour tous les types (`blockForm` monté une seule fois), champ libre `resize-y` (min-h 160 px), barre d'outils markdown, aperçu du texte, éditeur de liens (nom + URL + favicon), aperçu membre réel ; l'image du bloc reste importable (`BlockImageField`).
-> **Preuves** : suite complète **678 fichiers / 7 295 tests ✓** · `tsc` 0 · ESLint **0 erreur** · migration appliquée en local · verrou `rush-combat-blocks` **14**.
-> **Reste / ops** : **jouer la migration `20270131000000` en bêta puis en prod** · G7 (hero) et composition G9 (captures) · E5 · V-C · backfill contraintes Tougli.
-> **Rotation** : bloc « 12/11/2026 — numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

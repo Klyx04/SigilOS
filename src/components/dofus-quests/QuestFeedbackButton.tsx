@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bug, Send } from "lucide-react";
+import { Bug, ExternalLink, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
+import { useFeedbackScreenshotChannel } from "@/hooks/use-feedback-screenshot-channel";
 
 interface QuestFeedbackButtonProps {
     guildId: string;
@@ -31,6 +32,7 @@ interface QuestFeedbackButtonProps {
  */
 export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact = false, className, context, iconOnly = false }: QuestFeedbackButtonProps) {
     const [open, setOpen] = useState(false);
+    const { url: screenshotUrl, loading: screenshotLoading } = useFeedbackScreenshotChannel();
     const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
     const [description, setDescription] = useState("");
     const [isPending, startTransition] = useTransition();
@@ -149,6 +151,24 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                             />
                             <p className="text-caption text-muted-foreground text-right">{description.length}/2000</p>
                         </div>
+
+                        {!screenshotLoading && screenshotUrl && (
+                            <div className="rounded-xl border border-border bg-surface/50 px-3 py-2">
+                                <p className="text-caption font-semibold text-foreground">Captures d&apos;écran</p>
+                                <p className="text-caption text-muted-foreground">
+                                    Ce formulaire part sans pièce jointe. Pour joindre une capture, poste-la dans le salon des captures.
+                                </p>
+                                <a
+                                    href={screenshotUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-flex items-center gap-1.5 text-caption font-semibold text-primary underline underline-offset-2"
+                                >
+                                    <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                    Ouvrir le salon des captures
+                                </a>
+                            </div>
+                        )}
                     </div>
 
                     <DialogFooter className="px-5 py-4 border-t border-border bg-surface/30 flex gap-3 sm:justify-end">

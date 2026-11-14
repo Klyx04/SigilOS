@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 14/11/2026 (suite) — **Support · salon des captures paramétrable, doc produit, cadrage G4 et notifications** — branche `feat/support-canal-captures`
+
+> **Décisions user** : capture d'écran = **aucun upload**, on renvoie vers un **salon configurable côté God** (page `/god/bugs`) ; un admin de guilde **ne répond pas** (seul le God répond) ; G4 = **module ticket God paramétrable bout en bout, aucun ID en dur** ; pas d'auto-onboarding dans ce chantier ; notifications = **espace de notifications du compte** (changelog, news, réponses ; Rush en v2).
+> **Fait** : PR #1368 réparée (conflit `activeContext` uniquement, merge `dev` + rotation) · salon des captures : règle pure + service **fail-closed** (salon → serveur via `fetchChannel`, cache Redis) + réglage God sur `/god/bugs` (validation réelle + rate limit) + lien cliquable dans l'overlay Rush, le bouton visiteur et le formulaire dashboard, **plus d'invitation en dur** · doc produit `signalements` (bouton sur le tracker, route `/tracker`, fiche locale volatile) · `PLAN-TICKETS-GOD.md` (G4 mesuré, architecture à trancher) et `PLAN-NOTIFICATIONS.md` (N1→N4) · ROADMAP rang 65 + prod mis à jour (`main` = `c190f2c7`).
+> **Preuves** : verrou neuf `feedback-screenshot-channel` **10** · ciblé **55 tests** · `tsc` 0 · ESLint 0 erreur · aucune migration · PR #1370.
+> **Reste / ops** : renseigner le salon dans `/god/bugs` (bêta puis prod) · **G4-0** (mesurer un `GuildConfig` plateforme) avant toute migration · notifications : trancher news / opt-out / rétention · ops signalements inchangées (`20270201000000` → script → filet → drop).
+> **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 14/11/2026 — **Signalements · fusion dans `SupportTicket`, console God et tracker membre** — branche `feat/fusion-signalements-tickets`
 
 > **Décisions user** : option B (fusion dans `SupportTicket`, pas de vue unifiée), migration de **tout** (signalements + notes internes), tracker global visible par tous les membres, anonymisation inter-guildes (pseudo visible seulement dans sa guilde), pas de `TicketRecord` par signalement.
@@ -19,7 +28,7 @@
 > **Mesure** : la modale « Lancer un sondage » débordait horizontalement — le `DialogContent` est un `grid` sans `grid-cols-1` (colonne implicite `auto` qui se dilate sur un mot long), et l'aperçu Discord n'avait ni `min-w-0` ni césure (`whitespace-pre-wrap` seul). Le bas était coupé par `max-h-[90vh]`.
 > **Fait** : `grid-cols-1` sur le composant Dialog (correctif structurel, toutes modales) · `min-w-0` + `break-words` + `[overflow-wrap:anywhere]` sur l'aperçu · `max-h-[calc(100dvh-2rem)]` · règle pure `poll-embed-content` : la description identique à la question n'est plus répétée dans l'embed (casse/ponctuation/espaces ignorés), l'aperçu l'annonce.
 > **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste / ops** : PR #1368 → `dev` (conflit `activeContext` résolu au merge : bloc placé sous celui du 14/11) ; contrôle visuel bêta 390/768/1024/1440 (le code n'est pas encore déployé).
+> **Reste / ops** : PR #1368 **mergée** (`ece727ce`) ; contrôle visuel bêta 390/768/1024/1440 après déploiement.
 > **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
@@ -47,11 +56,5 @@
 > **Preuves** : verrou `ladder-messages-only` (6) · suite **669 fichiers ✓** · `tsc` 0 · aucune migration (colonnes conservées).
 > **Reste / ops** : déployer le bot **puis** désactiver `Message Content Intent` dans le portail Discord (l'ordre inverse ferait refuser le démarrage) ; vérifier que le Ladder affiche bien « Messages » par défaut.
 > **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 13/11/2026 (suite) — **Sécurité · durcissements AUD-04/05/07/09/10/11 + SEC-02/03** — branche `fix/durcissements-audit`
 
-> **Mesures VPS (13/11, lecture seule)** : `CSP_ENFORCE=true` sur `sigilos-beta` (SEC-01 déjà clos) · `ENCRYPTION_KEY` `HEX64` sur prod **et** bêta · cAdvisor monte `/var/run/docker.sock` en `ro`, `Privileged=false` (SEC-04 confirmé, lot infra à part) · `agent-ro.sh csp` refuse en manuel car le script lit `SSH_ORIGINAL_COMMAND` (pas `$1`) — comportement normal.
-> **Fait** : SEC-03 (clé strictement 64 hex, fallback scrypt à sel fixe supprimé) · SEC-02 (le process WS refuse `WS_AUTH_ENABLED=false` en prod via `ws-auth-policy`) · AUD-04 (`STORAGE_LEGACY_TOKENS_UNTIL`, inerte sans date, date invalide = fail-closed) · AUD-05 (SVG/XML refusés dans `proxy-image`, `nosniff`, cache `.svg` retiré) · AUD-07 (`execFile` pour les deux `curl`) · AUD-09 (limiteur IP borné partagé, fail-closed à saturation) · AUD-10 (`console.error` → `logger`) · AUD-11 (cache 5 s + rate-limit sur `/api/health/maintenance`).
-> **Preuves** : 7 tests neufs / **27** cas · suite **675 fichiers ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration, aucun changement d'interface publique.
-> **Reste / ops** : PR `fix/actions-god-auth` puis `fix/durcissements-audit` → `dev` ; AUD-08 (garder `MessageContent` ou changer la métrique), SEC-04 (socket-proxy, fenêtre), CSP prod (vérifier `CSP_ENFORCE` avant ouverture).
-> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

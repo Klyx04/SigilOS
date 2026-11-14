@@ -1,5 +1,6 @@
 import { getMemberTrackerTickets } from "@/server/actions/god-bugs-actions";
 import { MemberTrackerView } from "@/components/tracker/member-tracker-view";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Bug, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -67,9 +68,15 @@ export default async function MemberTrackerPage({ params, searchParams }: Tracke
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-caption text-muted-foreground">
-                        <ShieldCheck className="h-4 w-4 text-success" />
-                        Accès membre vérifié
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ModuleHelpActions
+                            docSlug="signalements"
+                            docTitle="Signaler un problème et suivre sa résolution"
+                        />
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-caption text-muted-foreground">
+                            <ShieldCheck className="h-4 w-4 text-success" />
+                            Accès membre vérifié
+                        </div>
                     </div>
                 </header>
 

@@ -6,13 +6,7 @@ import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { submitQuestFeedbackAction, submitVisitorFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
-
-/**
- * Serveur d'entraide (F11) — **même** variable publique que le pied de page et la
- * landing. Aucun secret : c'est une invitation publique, inlinée au build.
- */
-const DISCORD_INVITE_URL =
-  process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
+import { useFeedbackScreenshotChannel } from "@/hooks/use-feedback-screenshot-channel";
 
 interface RushOverlayFeedbackPanelProps {
   guildId: string;
@@ -58,6 +52,8 @@ export function RushOverlayFeedbackPanel({
 }: RushOverlayFeedbackPanelProps) {
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
   const toast = useOverlayToast();
+  // Salon des captures : réglé côté God (`/god/bugs`), jamais une invitation en dur.
+  const { url: screenshotUrl, loading: screenshotLoading } = useFeedbackScreenshotChannel();
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [description, setDescription] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -134,25 +130,34 @@ export function RushOverlayFeedbackPanel({
         <div className="flex-1 space-y-3 overflow-y-auto px-3.5 py-3">
           {/* F11 — le support vit DANS la modale (et non dans un toast qui affichait
               l'URL brute). Une capture d'écran ne passe pas par ce formulaire : elle
-              demande un **post sur le Discord**, seul canal qui accepte un fichier et
-              garde le fil de la discussion. */}
-          <div className="space-y-1.5 rounded-[4px] border border-border bg-surface px-3 py-2.5">
-            <p className="text-[11px] font-semibold text-foreground">Discord Sigilos</p>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              {onlyDiscord
-                ? "Pour signaler un bug, ouvre un post dans le canal associé : décris le problème et joins ta capture d'écran."
-                : "Pour joindre une capture d'écran, ouvre un post dans le canal associé : ce formulaire-ci part sans pièce jointe."}
-            </p>
-            <a
-              href={DISCORD_INVITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-accent motion-reduce:transition-none"
-            >
-              <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-              Rejoindre le Discord Sigilos
-            </a>
-          </div>
+              se poste dans le **salon configuré côté God** (`/god/bugs`), seul endroit
+              qui accepte un fichier et garde le fil. Aucun repli en dur : si le salon
+              n'est pas configuré, on n'affiche aucun lien. */}
+          {!screenshotLoading && (
+            screenshotUrl ? (
+              <div className="space-y-1.5 rounded-[4px] border border-border bg-surface px-3 py-2.5">
+                <p className="text-[11px] font-semibold text-foreground">Captures d&apos;écran</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {onlyDiscord
+                    ? "Pour signaler un bug, ouvre le salon des captures : décris le problème et joins ta capture."
+                    : "Pour joindre une capture, ouvre le salon des captures : ce formulaire-ci part sans pièce jointe."}
+                </p>
+                <a
+                  href={screenshotUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-accent motion-reduce:transition-none"
+                >
+                  <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  Ouvrir le salon des captures
+                </a>
+              </div>
+            ) : onlyDiscord ? (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Les captures ne sont pas encore ouvertes. Réessaie plus tard.
+              </p>
+            ) : null
+          )}
 
           {/* Visiteur **non connecté** : le Discord, rien d'autre.
               Les deux actions exigent une session — afficher des catégories

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "cheerio";
+import { getModuleRoute } from "@/lib/docs-modules";
 
 /** Dossier volatile des docs produit (absent en CI : les tests de contenu sont alors sautés). */
 const DOCS_DIR = join("src", "temp", "docs");
@@ -42,6 +43,14 @@ describe("documentation produit", () => {
         const page = readFileSync("src/app/dashboard/[guildId]/services/page.tsx", "utf8");
         expect(page).toContain("ModuleHelpActions");
         expect(page).toContain('docSlug="services"');
+    });
+
+    it("le tracker des signalements expose un bouton Documentation sur le slug `signalements`", () => {
+        const page = readFileSync("src/app/dashboard/[guildId]/tracker/page.tsx", "utf8");
+        expect(page).toContain("ModuleHelpActions");
+        expect(page).toContain('docSlug="signalements"');
+        // La fiche est reliée à la route du module (bibliothèque de documentation).
+        expect(getModuleRoute("signalements")?.href).toBe("/tracker");
     });
 
     it("la règle « doc produit locale, jamais commitée » est écrite dans le harnais", () => {

@@ -2787,7 +2787,7 @@ model SupportTicket {
   targetGuildId          String?
   targetGuildMemberCount Int?
   targetGuildName        String?
-  // ── Signalements (fusion SystemIssue) ───────────────────────────────
+  // ── Signalements membres et notes internes ──────────────────────────
   feedbackType           String?
   sourcePage             String?
   targetSlug             String?
@@ -2795,7 +2795,7 @@ model SupportTicket {
   userAgent              String?
   memberGuildName        String?
   priority               String?
-  trackerStatus          SystemIssueStatus?
+  trackerStatus          TrackerStatus?
   forumLink              String?
 
   @@index([origin])
@@ -2969,33 +2969,6 @@ model OcreMonsterTemplate {
 
   @@index([type])
   @@index([name])
-}
-
-model SystemIssue {
-  id          Int               @id @default(autoincrement())
-  type        SystemIssueType   @default(BUG)
-  category    String            @default("Divers")
-  priority    String            @default("Normal")
-  description String
-  status      SystemIssueStatus @default(A_FAIRE)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  forumLink   String?
-  creatorId   String
-  // ── Feedback Dofus (membres) ─────────────────────────────────────────
-  feedbackType String?   // "BUG_TECHNIQUE" | "ERREUR_DONNEES" | "AMELIORATION" | "NOUVELLE_FONCTIONNALITE" | "COQUILLE" | "AFFICHAGE" | "AUTRE"
-  sourcePage   String?   // ex: "hub-dofus", "dofus:ocre", "guide:rush-sylvestre"
-  targetSlug   String?   // slug du Dofus ou du guide (ex: "ocre", "rush-sylvestre")
-  guildId      String?   // guilde d'origine (isolation multi-tenant)
-  userAgent    String?   // device/navigateur pour les bugs techniques
-  memberName   String?   // pseudo Discord (nickname) du membre qui a signalé
-  memberGuildName String? // nom de la guilde du membre (affiché avec tag)
-
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-  @@index([guildId])
-  @@index([feedbackType])
 }
 
 model Relance {
@@ -3850,12 +3823,7 @@ enum GeoguesserSessionStatus {
   FINISHED
 }
 
-enum SystemIssueType {
-  BUG
-  AMELIORATION
-}
-
-enum SystemIssueStatus {
+enum TrackerStatus {
   A_FAIRE
   A_INVESTIGUER
   EN_COURS

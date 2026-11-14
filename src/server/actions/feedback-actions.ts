@@ -44,7 +44,7 @@ const RATE_LIMIT = 5; // 5 feedbacks/heure/utilisateur
  * - Zod sur toutes les entrées
  * - logger (jamais de console.log en prod)
  *
- * Stockage : SystemIssue (tracker god) + notif web God + (optionnel) embed Discord.
+ * Stockage : SupportTicket (origin FEEDBACK) + notif web God + (optionnel) embed Discord.
  * Du pseudo Discord (nickname) et du nom de guilde du signaleur dans le bug + l'embed.
  */
 export async function submitQuestFeedbackAction(input: FeedbackInput) {

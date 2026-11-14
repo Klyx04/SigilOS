@@ -3,7 +3,8 @@
 > **Sujet distinct** de `PLAN-REFONTE-TICKETS-V2.md` : ce dernier décrit le module **de
 > guilde** (motifs, tunnel, CSAT). Ici il s'agit du **module d'exploitation** — ce que le
 > mainteneur voit et traite lui-même.
-> Écrit le 08/11/2026 sur demande du mainteneur ; **rien n'est encore codé**.
+> Écrit le 08/11/2026 ; **G1-G3 livrés le 14/11/2026** (fusion des signalements dans
+> `SupportTicket`, onglet « Signalements » et refonte UI). Reste **G4** (`ticket-bot`).
 
 ## 0. Demande (verbatim, 08/11/2026)
 
@@ -20,9 +21,9 @@
 |---|---|
 | `mng-FL5nO4Yl6s4w` | **Ce n'est pas une route en dur** : c'est `GOD_ROUTE` (`src/lib/god-route.ts`), réécrite vers `/god/*` par `src/proxy.ts` l.150. Le secret vit dans `.env`, jamais dans le dépôt. |
 | `?tab=tickets` | **Existe déjà** : `src/app/god/page.tsx` l.75 (`TAB_TO_BRICK`), et sert de cible de redirection aux sous-gods (l.85, l.99). |
-| Retours (bugs / features) | `/god/bugs` — tracker `SystemIssue`, client de **43 Ko** (`bugs-client.tsx`). |
+| Retours (bugs / features) | `/god/bugs` — tracker `SupportTicket` (`origin` FEEDBACK/INTERNAL), composant partagé `feedback-tracker.tsx`. |
 | Tickets Discord | `/god/ticket-bot` — `page.tsx` de **1,3 Ko** : module réduit, dit « obsolète ». |
-| Destination d'un retour | `submitQuestFeedbackAction` → `SystemIssue` + `notifyGod(USER_FEEDBACK)` + embed Discord (`PlatformConfig.questFeedbackChannelId`, repli `godNotifyChannelId`). |
+| Destination d'un retour | `submitQuestFeedbackAction` → `SupportTicket` (`origin: FEEDBACK`) + `notifyGod(USER_FEEDBACK)` + embed Discord (`PlatformConfig.questFeedbackChannelId`, repli `godNotifyChannelId`). |
 | Overlay du guide public | `isGuest={true}` **en dur** (`PublicRushGuideClient`) : un membre connecté y lit le même overlay, il envoie donc sous le même chemin. |
 
 **Conséquence mesurée** : un retour de **visiteur connecté** arrive bien en base, mais
@@ -38,8 +39,8 @@ C'est le point ① de la demande.
   (`guildId === null` + présence d'un `PublicProfile`) — zéro migration.
 
 ### G2 — Un seul endroit : `?tab=tickets`
-- L'onglet agrège **trois** sources : `SystemIssue` (bugs/features), tickets Discord
-  (`ticket-bot`), retours visiteurs.
+- L'onglet agrège **trois** sources : `SupportTicket` (`origin` FEEDBACK/INTERNAL), tickets
+  Discord (`ticket-bot`), retours visiteurs.
 - `/god/bugs` et `/god/ticket-bot` deviennent des **vues** de cet onglet, ou redirigent.
 - **Une seule règle de lecture**, plusieurs vues — aucune liste dupliquée.
 
@@ -55,7 +56,8 @@ C'est le point ① de la demande.
 
 ## 3. Décisions à trancher (bloquantes pour G1 et G4)
 
-1. **Origine** : colonne `SystemIssue.origin` (migration) ou dérivation (zéro migration) ?
+1. **Origine** : tranché le 13/11/2026 — colonne `SupportTicket.origin`
+   (`TicketOrigin`: SUPPORT/FEEDBACK/INTERNAL), migration additive livrée le 14/11.
 2. **`ticket-bot`** : on le garde comme **récepteur Discord**, ou on le remplace par un
    motif du module de guilde appliqué au serveur SigilOS ?
 3. **Ancien tracker `/god/bugs`** : redirection vers `?tab=tickets&view=bugs`, ou

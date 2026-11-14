@@ -52,7 +52,7 @@ export function feedbackTypeToCategory(feedbackType: string): TrackerCategoryVal
   return BUG_FEEDBACK_TYPES.has(feedbackType) ? "BUG_REPORT" : "FEATURE_REQUEST";
 }
 
-/** Ancien `SystemIssue.type` → catégorie de ticket (script de reprise). */
+/** Ancien type BUG/AMELIORATION → catégorie de ticket (script de reprise). */
 export function legacyTypeToCategory(type: string): TrackerCategoryValue {
   return type === "BUG" ? "BUG_REPORT" : "FEATURE_REQUEST";
 }

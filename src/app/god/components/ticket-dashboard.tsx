@@ -91,17 +91,17 @@ interface TicketDashboardProps {
 // =============================================================================
 
 const CATEGORY_CONFIG: Record<SupportTicket["category"], { label: string; color: string; chip: string; dot: string; emoji: string }> = {
-    ACCESS_REQUEST: { label: "Accès", color: "text-emerald-400", chip: "bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400", emoji: "🔑" },
-    BUG_REPORT: { label: "Bug", color: "text-red-400", chip: "bg-red-500/10 border-red-500/20", dot: "bg-red-400", emoji: "🐛" },
-    FEATURE_REQUEST: { label: "Feature", color: "text-purple-400", chip: "bg-purple-500/10 border-purple-500/20", dot: "bg-purple-400", emoji: "💡" },
-    OTHER: { label: "Autre", color: "text-zinc-400", chip: "bg-zinc-500/10 border-zinc-500/20", dot: "bg-zinc-400", emoji: "📩" },
+    ACCESS_REQUEST: { label: "Accès", color: "text-success", chip: "bg-success/10 border-success/20", dot: "bg-success", emoji: "🔑" },
+    BUG_REPORT: { label: "Bug", color: "text-danger", chip: "bg-danger/10 border-danger/20", dot: "bg-danger", emoji: "🐛" },
+    FEATURE_REQUEST: { label: "Feature", color: "text-info", chip: "bg-info/10 border-info/20", dot: "bg-info", emoji: "💡" },
+    OTHER: { label: "Autre", color: "text-muted-foreground", chip: "bg-muted/10 border-border", dot: "bg-muted-foreground", emoji: "📩" },
 };
 
 const STATUS_CONFIG: Record<SupportTicket["status"], { label: string; color: string; chip: string; icon: any }> = {
-    OPEN: { label: "Nouveau", color: "text-amber-400", chip: "bg-amber-500/10 border-amber-500/20", icon: AlertCircle },
-    IN_PROGRESS: { label: "En cours", color: "text-blue-400", chip: "bg-blue-500/10 border-blue-500/20", icon: Clock },
-    WAITING_RESPONSE: { label: "En attente", color: "text-violet-400", chip: "bg-violet-500/10 border-violet-500/20", icon: MessageSquare },
-    CLOSED: { label: "Fermé", color: "text-zinc-500", chip: "bg-zinc-500/10 border-zinc-500/20", icon: CheckCircle2 },
+    OPEN: { label: "Nouveau", color: "text-warning", chip: "bg-warning/10 border-warning/20", icon: AlertCircle },
+    IN_PROGRESS: { label: "En cours", color: "text-info", chip: "bg-info/10 border-info/20", icon: Clock },
+    WAITING_RESPONSE: { label: "En attente", color: "text-primary", chip: "bg-primary/10 border-primary/20", icon: MessageSquare },
+    CLOSED: { label: "Fermé", color: "text-muted-foreground", chip: "bg-muted/10 border-border", icon: CheckCircle2 },
 };
 
 const STATUS_ORDER: Record<SupportTicket["status"], number> = {
@@ -385,15 +385,15 @@ export function TicketDashboard({
             <div className="flex items-end justify-between flex-wrap gap-4">
                 <div>
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-                            <Ticket className="w-5 h-5 text-indigo-400" />
+                        <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+                            <Ticket className="w-5 h-5 text-primary" />
                         </div>
-                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Console Support</span>
+                        <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Console Support</span>
                     </div>
-                    <h2 className="text-3xl font-black text-white tracking-tight">Tickets</h2>
+                    <h2 className="text-xl font-semibold text-foreground tracking-tight">Tickets</h2>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                     {total} ticket{total > 1 ? "s" : ""} au total
                 </div>
             </div>
@@ -410,26 +410,26 @@ export function TicketDashboard({
             {/* ── Toolbar unifiée ── */}
             <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && refreshTickets()}
                         placeholder="Rechercher par sujet, auteur ou #numéro..."
-                        className="w-full pl-11 pr-14 py-3.5 bg-zinc-900/50 border border-white/5 rounded-2xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-all shadow-xl shadow-black/20"
+                        className="w-full pl-11 pr-14 py-3.5 bg-surface/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/40 transition-all shadow-sm"
                     />
                     <button
                         onClick={() => refreshTickets()}
                         disabled={isPending}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-xs font-black text-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-xl text-xs font-semibold text-primary-foreground uppercase tracking-wide transition-all disabled:opacity-50"
                     >
                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Filtrer"}
                     </button>
                 </div>
 
                 <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-                    <SelectTrigger className="w-full md:w-[200px] h-[54px] bg-zinc-900/50 border-white/5 rounded-2xl text-zinc-300 data-[placeholder]:text-zinc-600">
+                    <SelectTrigger className="w-full md:w-[200px] h-[54px] bg-surface/50 border-border rounded-xl text-foreground data-[placeholder]:text-muted-foreground">
                         <SelectValue placeholder="Tous les statuts" />
                     </SelectTrigger>
                     <SelectContent>
@@ -442,7 +442,7 @@ export function TicketDashboard({
                 </Select>
 
                 <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
-                    <SelectTrigger className="w-full md:w-[200px] h-[54px] bg-zinc-900/50 border-white/5 rounded-2xl text-zinc-300 data-[placeholder]:text-zinc-600">
+                    <SelectTrigger className="w-full md:w-[200px] h-[54px] bg-surface/50 border-border rounded-xl text-foreground data-[placeholder]:text-muted-foreground">
                         <SelectValue placeholder="Toutes catégories" />
                     </SelectTrigger>
                     <SelectContent>
@@ -456,17 +456,17 @@ export function TicketDashboard({
             </div>
 
             {/* ── Table ── */}
-            <div className="bg-zinc-900/30 border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b border-white/5 bg-white/[0.02]">
-                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em] w-24">Ticket</th>
-                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Auteur</th>
-                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Objet</th>
-                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Catégorie</th>
-                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Statut</th>
-                                <th className="text-right px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Ouvert</th>
+                            <tr className="border-b border-border bg-elevated/50">
+                                <th className="text-left px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide w-24">Ticket</th>
+                                <th className="text-left px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide">Auteur</th>
+                                <th className="text-left px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide">Objet</th>
+                                <th className="text-left px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide">Catégorie</th>
+                                <th className="text-left px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide">Statut</th>
+                                <th className="text-right px-6 py-4 text-caption font-semibold text-muted-foreground uppercase tracking-wide">Ouvert</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -474,10 +474,10 @@ export function TicketDashboard({
                                 <tr>
                                     <td colSpan={6} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center gap-4 opacity-40">
-                                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center">
-                                                <Inbox className="w-6 h-6 text-zinc-500" />
+                                            <div className="w-14 h-14 rounded-xl bg-elevated border border-border flex items-center justify-center">
+                                                <Inbox className="w-6 h-6 text-muted-foreground" />
                                             </div>
-                                            <p className="text-sm font-bold uppercase tracking-widest">Aucun ticket</p>
+                                            <p className="text-sm font-semibold uppercase tracking-wide">Aucun ticket</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -489,42 +489,42 @@ export function TicketDashboard({
                                 return (
                                     <tr
                                         key={ticket.id}
-                                        className="border-b border-white/[0.03] hover:bg-white/[0.04] transition-all cursor-pointer group"
+                                        className="border-b border-border hover:bg-elevated transition-all cursor-pointer group"
                                         onClick={() => setSelectedTicket(ticket)}
                                     >
                                         <td className="px-6 py-4">
-                                            <span className="text-amber-500 font-mono font-black text-xs">#{ticket.ticketNumber}</span>
+                                            <span className="text-warning font-mono font-semibold text-xs">#{ticket.ticketNumber}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-xs font-black text-zinc-300 shrink-0">
+                                                <div className="w-9 h-9 rounded-xl bg-elevated border border-border flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
                                                     {ticket.creatorDiscordName?.[0]?.toUpperCase() || "?"}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-white font-bold text-xs leading-tight">{ticket.creatorDiscordName}</span>
-                                                    <span className="text-caption text-zinc-600 font-mono">{ticket.creatorDiscordId}</span>
+                                                    <span className="text-foreground font-semibold text-xs leading-tight">{ticket.creatorDiscordName}</span>
+                                                    <span className="text-caption text-muted-foreground font-mono">{ticket.creatorDiscordId}</span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-zinc-300 font-medium truncate max-w-[260px] block group-hover:text-white transition-colors">
+                                            <span className="text-foreground font-medium truncate max-w-[260px] block group-hover:text-foreground transition-colors">
                                                 {ticket.subject}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-2.5 py-1 rounded-lg border", cat.chip, cat.color)}>
+                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold uppercase px-2.5 py-1 rounded-lg border", cat.chip, cat.color)}>
                                                 <span className={cn("w-1.5 h-1.5 rounded-full", cat.dot)} />
                                                 {cat.label}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black px-2.5 py-1 rounded-lg border uppercase", status.chip, status.color)}>
+                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold px-2.5 py-1 rounded-lg border uppercase", status.chip, status.color)}>
                                                 <StatusIcon className="w-3.5 h-3.5" />
                                                 {status.label}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className="text-zinc-500 text-caption font-medium">
+                                            <span className="text-muted-foreground text-caption font-medium">
                                                 {new Date(ticket.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
                                             </span>
                                         </td>
@@ -539,19 +539,19 @@ export function TicketDashboard({
             {/* ── Tools : Panel Discord + Info ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Manual Post Panel */}
-                <div className="lg:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 space-y-5">
+                <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6 space-y-5">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                            <Send className="w-4 h-4 text-indigo-400" />
+                        <div className="p-2 rounded-xl bg-info/10 border border-info/20">
+                            <Send className="w-4 h-4 text-info" />
                         </div>
                         <div>
-                            <h3 className="text-xs font-black text-white uppercase tracking-widest">Panel de Tickets Discord</h3>
-                            <p className="text-caption text-zinc-600 font-medium mt-0.5">Publie le bouton « Ouvrir un ticket » dans un salon support.</p>
+                            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Panel de Tickets Discord</h3>
+                            <p className="text-caption text-muted-foreground font-medium mt-0.5">Publie le bouton « Ouvrir un ticket » dans un salon support.</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <Select value={panelGuildId} onValueChange={(val) => { setPanelGuildId(val); setPanelChannelId(""); }}>
-                            <SelectTrigger className="h-[52px] bg-zinc-950 border-white/10 rounded-xl text-xs text-white">
+                            <SelectTrigger className="h-[52px] bg-background border-border rounded-xl text-xs text-foreground">
                                 <SelectValue placeholder="Sélectionner le serveur" />
                             </SelectTrigger>
                             <SelectContent>
@@ -561,7 +561,7 @@ export function TicketDashboard({
                             </SelectContent>
                         </Select>
                         <Select value={panelChannelId} onValueChange={setPanelChannelId} disabled={!panelGuildId}>
-                            <SelectTrigger className="h-[52px] bg-zinc-950 border-white/10 rounded-xl text-xs text-white disabled:opacity-50">
+                            <SelectTrigger className="h-[52px] bg-background border-border rounded-xl text-xs text-foreground disabled:opacity-50">
                                 <SelectValue placeholder="Sélectionner le salon" />
                             </SelectTrigger>
                             <SelectContent>
@@ -574,21 +574,21 @@ export function TicketDashboard({
                     <button
                         onClick={handlePostPanel}
                         disabled={isPending || !panelChannelId || !panelGuildId}
-                        className="w-full py-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-2xl text-xs font-black text-emerald-400 uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-full py-3.5 bg-elevated hover:bg-elevated/80 border border-border rounded-xl text-xs font-semibold text-foreground uppercase tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "Poster le panel (Discord)"}
                     </button>
                 </div>
 
                 {/* Automation Info */}
-                <div className="bg-gradient-to-br from-amber-500/5 to-transparent border border-amber-500/10 rounded-3xl p-6 flex flex-col justify-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                        <ShieldCheck className="w-6 h-6 text-amber-500" />
+                <div className="bg-surface border border-border rounded-xl p-6 flex flex-col justify-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                        <ShieldCheck className="w-6 h-6 text-warning" />
                     </div>
                     <div>
-                        <h4 className="text-white font-black uppercase text-xs tracking-widest mb-1">SigilOS Guard</h4>
-                        <p className="text-xs text-zinc-500 leading-relaxed font-medium">
-                            Les demandes d'accès (<span className="text-amber-500 font-bold">ACCESS_REQUEST</span>) peuvent être validées ici. Le client est notifié sur Discord et whitelisté automatiquement.
+                        <h4 className="text-foreground font-semibold uppercase text-xs tracking-wide mb-1">SigilOS Guard</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                            Les demandes d'accès (<span className="text-warning font-semibold">ACCESS_REQUEST</span>) peuvent être validées ici. Le client est notifié sur Discord et whitelisté automatiquement.
                         </p>
                     </div>
                 </div>
@@ -637,21 +637,21 @@ function StatCard({ icon: Icon, label, value, tone }: {
     icon: any; label: string; value: number; tone: "amber" | "blue" | "violet" | "emerald" | "zinc";
 }) {
     const toneMap: Record<string, { text: string; bg: string; border: string; icon: string }> = {
-        amber: { text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: "text-amber-400" },
-        blue: { text: "text-blue-300", bg: "bg-blue-500/10", border: "border-blue-500/20", icon: "text-blue-400" },
-        violet: { text: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/20", icon: "text-violet-400" },
-        emerald: { text: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: "text-emerald-400" },
-        zinc: { text: "text-zinc-300", bg: "bg-zinc-500/10", border: "border-zinc-500/20", icon: "text-zinc-400" },
+        amber: { text: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: "text-warning" },
+        blue: { text: "text-info", bg: "bg-info/10", border: "border-info/20", icon: "text-info" },
+        violet: { text: "text-primary", bg: "bg-primary/10", border: "border-primary/20", icon: "text-primary" },
+        emerald: { text: "text-success", bg: "bg-success/10", border: "border-success/20", icon: "text-success" },
+        zinc: { text: "text-foreground", bg: "bg-muted/10", border: "border-border", icon: "text-muted-foreground" },
     };
     const t = toneMap[tone];
     return (
-        <div className={cn("rounded-3xl border p-5 flex items-center gap-4 transition-colors hover:bg-white/[0.02]", t.bg, t.border)}>
-            <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border", t.bg, t.border)}>
+        <div className="rounded-xl border border-border bg-surface p-5 flex items-center gap-4 transition-colors hover:bg-elevated/50">
+            <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border", t.bg, t.border)}>
                 <Icon className={cn("w-5 h-5", t.icon)} />
             </div>
             <div className="min-w-0">
-                <div className={cn("text-2xl font-black tracking-tighter leading-none", t.text)}>{value}</div>
-                <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600 mt-1 truncate">{label}</div>
+                <div className={cn("text-2xl font-semibold tracking-tight leading-none", t.text)}>{value}</div>
+                <div className="text-caption font-semibold uppercase tracking-wide text-muted-foreground mt-1 truncate">{label}</div>
             </div>
         </div>
     );
@@ -704,26 +704,26 @@ function TicketDetailModal({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-            <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" onClick={onClose} />
+            <div className="absolute inset-0 bg-background/90 " onClick={onClose} />
 
-            <div className="relative w-full max-w-5xl h-[92vh] bg-zinc-900 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col">
+            <div className="relative w-full max-w-5xl h-[92vh] bg-surface border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
                 {/* Header */}
-                <div className="px-6 sm:px-8 py-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between gap-4">
+                <div className="px-6 sm:px-8 py-5 border-b border-border bg-elevated/50 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
                         <button
                             onClick={onClose}
-                            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all"
+                            className="p-2.5 rounded-xl bg-elevated hover:bg-elevated/80 border border-border text-muted-foreground hover:text-foreground transition-all"
                         >
                             <ArrowLeft className="w-4 h-4" />
                         </button>
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-amber-500 font-mono font-black text-sm">#{ticket.ticketNumber}</span>
-                                <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-2.5 py-1 rounded-full border", cat.chip, cat.color)}>
+                                <span className="text-warning font-mono font-semibold text-sm">#{ticket.ticketNumber}</span>
+                                <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold uppercase px-2.5 py-1 rounded-full border", cat.chip, cat.color)}>
                                     {cat.emoji} {cat.label}
                                 </span>
                             </div>
-                            <h3 className="text-lg sm:text-xl font-black text-white tracking-tight truncate mt-1">{ticket.subject}</h3>
+                            <h3 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight truncate mt-1">{ticket.subject}</h3>
                         </div>
                     </div>
 
@@ -733,7 +733,7 @@ function TicketDetailModal({
                             {/* Statut : CLOSED exclu — la fermeture passe par le bouton "Fermer"
                                 (→ closeSupportTicket qui archive le fil Discord). */}
                             <Select value={ticket.status} onValueChange={(val) => onStatusChange(ticket.id, val)}>
-                                <SelectTrigger className={cn("h-9 text-caption font-black uppercase px-3 py-1 rounded-full border bg-zinc-950 outline-none w-fit gap-2", status.color, status.chip)}>
+                                <SelectTrigger className={cn("h-9 text-caption font-semibold uppercase px-3 py-1 rounded-full border bg-background outline-none w-fit gap-2", status.color, status.chip)}>
                                     <StatusIcon className="w-3.5 h-3.5" />
                                     <SelectValue />
                                 </SelectTrigger>
@@ -746,7 +746,7 @@ function TicketDetailModal({
                             <button
                                 onClick={() => onCloseTicket(ticket.id)}
                                 disabled={isPending}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-caption font-black text-red-500 uppercase tracking-widest transition-all disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-danger/10 hover:bg-danger/20 border border-danger/20 rounded-xl text-caption font-semibold text-danger uppercase tracking-wide transition-all disabled:opacity-50"
                             >
                                 <Lock className="w-3.5 h-3.5" />
                                 Fermer
@@ -754,7 +754,7 @@ function TicketDetailModal({
                         </div>
                     ) : (
                         <div className="flex items-center gap-3 shrink-0">
-                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-3 py-1.5 rounded-full border", status.chip, status.color)}>
+                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold uppercase px-3 py-1.5 rounded-full border", status.chip, status.color)}>
                                 <StatusIcon className="w-3.5 h-3.5" />
                                 {status.label}
                             </span>
@@ -765,29 +765,29 @@ function TicketDetailModal({
                 {/* Body — 2 panneaux */}
                 <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-5">
                     {/* ── Panneau gauche : détails & actions ── */}
-                    <div className="lg:col-span-2 border-r border-white/5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 p-6 sm:p-8 space-y-8">
+                    <div className="lg:col-span-2 border-r border-border overflow-y-auto scrollbar-thin scrollbar-thumb-border p-6 sm:p-8 space-y-8">
                         {/* Auteur */}
                         <section>
-                            <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">
+                            <h4 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                                 <User className="w-3.5 h-3.5" /> Auteur
                             </h4>
-                            <div className="flex items-center gap-3 bg-zinc-950/50 border border-white/5 rounded-2xl p-4">
-                                <div className="w-11 h-11 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-base font-black text-white shrink-0">
+                            <div className="flex items-center gap-3 bg-surface border border-border rounded-xl p-4">
+                                <div className="w-11 h-11 rounded-xl bg-elevated border border-border flex items-center justify-center text-base font-semibold text-foreground shrink-0">
                                     {ticket.creatorDiscordName?.[0]?.toUpperCase() || "?"}
                                 </div>
                                 <div className="min-w-0">
-                                    <div className="text-white font-bold text-sm truncate">{ticket.creatorDiscordName}</div>
-                                    <div className="text-caption text-zinc-600 font-mono truncate">{ticket.creatorDiscordId}</div>
+                                    <div className="text-foreground font-semibold text-sm truncate">{ticket.creatorDiscordName}</div>
+                                    <div className="text-caption text-muted-foreground font-mono truncate">{ticket.creatorDiscordId}</div>
                                 </div>
                             </div>
                         </section>
 
                         {/* Métadonnées */}
                         <section>
-                            <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">
+                            <h4 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                                 <Tag className="w-3.5 h-3.5" /> Détails
                             </h4>
-                            <div className="bg-zinc-950/50 border border-white/5 rounded-2xl p-4 space-y-3">
+                            <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
                                 <MetaRow icon={Calendar} label="Créé le" value={new Date(ticket.createdAt).toLocaleString("fr-FR")} />
                                 {ticket.targetGuildName && (
                                     <MetaRow icon={ShieldCheck} label="Guilde cible" value={ticket.targetGuildName} />
@@ -801,7 +801,7 @@ function TicketDetailModal({
                                             href={`https://discord.com/channels/${ticket.discordGuildId}/${ticket.discordThreadId}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl text-caption font-black text-indigo-400 uppercase tracking-widest transition-all"
+                                            className="inline-flex items-center gap-2 px-3 py-2 bg-info/10 hover:bg-info/20 border border-info/20 rounded-xl text-caption font-semibold text-info uppercase tracking-wide transition-all"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
                                             Ouvrir le fil
@@ -809,11 +809,11 @@ function TicketDetailModal({
                                     </div>
                                 )}
                                 {isClosed && (
-                                    <div className="pt-2 border-t border-white/5 space-y-1">
+                                    <div className="pt-2 border-t border-border space-y-1">
                                         <MetaRow icon={CheckCircle2} label="Fermé le" value={ticket.closedAt ? new Date(ticket.closedAt).toLocaleString("fr-FR") : "—"} />
                                         <MetaRow icon={Lock} label="Fermé par" value={ticket.closedBy || "Anonyme"} />
                                         {ticket.closedReason && (
-                                            <div className="pt-1 text-caption text-zinc-500 italic">{ticket.closedReason}</div>
+                                            <div className="pt-1 text-caption text-muted-foreground ">{ticket.closedReason}</div>
                                         )}
                                     </div>
                                 )}
@@ -822,39 +822,39 @@ function TicketDetailModal({
 
                         {/* Description */}
                         <section>
-                            <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">Demande</h4>
-                            <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap bg-zinc-950/50 p-5 rounded-2xl border border-white/5 font-medium">
+                            <h4 className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-3">Demande</h4>
+                            <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap bg-surface p-5 rounded-xl border border-border font-medium">
                                 {ticket.description}
                             </div>
                         </section>
 
                         {/* Zone d'action : Décision d'accès */}
                         {isAccessRequest && !isClosed && (
-                            <section className="border-t border-white/5 pt-6">
+                            <section className="border-t border-border pt-6">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                    <div className="p-2 rounded-xl bg-success/10 border border-success/20">
+                                        <ShieldCheck className="w-4 h-4 text-success" />
                                     </div>
                                     <div>
-                                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Décision d'accès</h4>
-                                        <p className="text-caption text-zinc-600 font-medium mt-0.5">
-                                            Whitelist la guilde <span className="text-emerald-400/80 font-bold">{ticket.targetGuildName || ticket.targetGuildId || "cible"}</span> et notifie le client.
+                                        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">Décision d'accès</h4>
+                                        <p className="text-caption text-muted-foreground font-medium mt-0.5">
+                                            Whitelist la guilde <span className="text-success/80 font-semibold">{ticket.targetGuildName || ticket.targetGuildId || "cible"}</span> et notifie le client.
                                         </p>
                                     </div>
                                 </div>
 
                                 {!rejectionMode ? (
-                                    <div className="space-y-4 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-2xl p-4">
+                                    <div className="space-y-4 bg-success/[0.03] border border-success/10 rounded-xl p-4">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Rôle sur le serveur cible</label>
+                                            <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide ml-1">Rôle sur le serveur cible</label>
                                             <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                                                <SelectTrigger className="w-full h-12 bg-zinc-950 border-white/5 rounded-xl text-caption font-black uppercase text-zinc-300 focus:ring-1 focus:ring-emerald-500/30">
+                                                <SelectTrigger className="w-full h-12 bg-background border-border rounded-xl text-caption font-semibold uppercase text-foreground focus:ring-1 focus:ring-success/30">
                                                     <SelectValue placeholder="Aucun rôle sélectionné" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-zinc-900 border-white/10 text-white z-[200]">
+                                                <SelectContent className="bg-surface border-border text-foreground z-[200]">
                                                     <SelectItem value="SKIP">❌ Aucun rôle</SelectItem>
                                                     {guildRoles.map((role) => (
-                                                        <SelectItem key={role.id} value={role.id} className="text-xs font-bold font-mono">
+                                                        <SelectItem key={role.id} value={role.id} className="text-xs font-semibold font-mono">
                                                             {role.name}
                                                         </SelectItem>
                                                     ))}
@@ -863,13 +863,13 @@ function TicketDetailModal({
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Message additionnel (optionnel)</label>
+                                            <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide ml-1">Message additionnel (optionnel)</label>
                                             <input
                                                 type="text"
                                                 value={validationNotes}
                                                 onChange={(e) => setValidationNotes(e.target.value)}
                                                 placeholder="Bienvenue, contraintes particulières..."
-                                                className="w-full h-12 px-4 bg-zinc-950 border border-white/5 rounded-xl text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/30 transition-all font-medium"
+                                                className="w-full h-12 px-4 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-success/30 transition-all font-medium"
                                             />
                                         </div>
 
@@ -877,42 +877,42 @@ function TicketDetailModal({
                                             <button
                                                 onClick={() => onValidateGuild(ticket.id, ticket.targetGuildId!, validationNotes)}
                                                 disabled={isPending || !ticket.targetGuildId}
-                                                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2"
+                                                className="w-full py-3.5 bg-success hover:bg-success/90 text-success-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all disabled:opacity-50 shadow-sm shadow-success/10 flex items-center justify-center gap-2"
                                             >
                                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                                                 Valider & Whitelister
                                             </button>
                                             <button
                                                 onClick={() => setRejectionMode(true)}
-                                                className="w-full py-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-2xl text-caption font-black text-red-500 uppercase tracking-widest transition-all"
+                                                className="w-full py-3 bg-danger/5 hover:bg-danger/10 border border-danger/20 rounded-xl text-caption font-semibold text-danger uppercase tracking-wide transition-all"
                                             >
                                                 Refuser la demande
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="bg-rose-500/5 p-4 rounded-[2rem] border border-rose-500/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                    <div className="bg-danger/5 p-4 rounded-xl border border-danger/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black text-rose-500 uppercase tracking-widest ml-1">Motif du refus (envoyé au client)</label>
+                                            <label className="text-caption font-semibold text-danger uppercase tracking-wide ml-1">Motif du refus (envoyé au client)</label>
                                             <textarea
                                                 value={rejectionReason}
                                                 onChange={(e) => setRejectionReason(e.target.value)}
                                                 placeholder="Ex: Guilde trop petite, leader absent..."
                                                 rows={3}
-                                                className="w-full p-4 bg-zinc-950 border border-rose-500/20 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-rose-500/40 transition-all resize-none font-medium"
+                                                className="w-full p-4 bg-background border border-danger/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-danger/40 transition-all resize-none font-medium"
                                             />
                                         </div>
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => onRejectGuild(ticket.id, rejectionReason)}
                                                 disabled={isPending || !rejectionReason.trim()}
-                                                className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                                className="flex-1 py-3.5 bg-danger hover:bg-danger/90 text-danger-foreground rounded-xl text-xs font-semibold uppercase tracking-wide transition-all disabled:opacity-50"
                                             >
                                                 {isPending ? "Refus en cours..." : "Confirmer le refus"}
                                             </button>
                                             <button
                                                 onClick={() => setRejectionMode(false)}
-                                                className="px-6 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-black text-zinc-400 uppercase tracking-widest transition-all"
+                                                className="px-6 py-3.5 bg-elevated hover:bg-elevated/80 rounded-xl text-xs font-semibold text-muted-foreground uppercase tracking-wide transition-all"
                                             >
                                                 Annuler
                                             </button>
@@ -924,32 +924,32 @@ function TicketDetailModal({
                     </div>
 
                     {/* ── Panneau droit : conversation & réponse ── */}
-                    <div className="lg:col-span-3 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                    <div className="lg:col-span-3 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-border">
                         <div className="flex-1 p-6 sm:p-8">
                             {/* Fil de discussion (placeholder structuré) */}
                             <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest">
+                                <h4 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground uppercase tracking-wide">
                                     <MessageSquare className="w-3.5 h-3.5" /> Fil de discussion
                                 </h4>
-                                <div className="bg-amber-500/[0.04] border border-amber-500/10 rounded-2xl p-4">
-                                    <p className="text-xs text-zinc-400 leading-relaxed font-medium">
+                                <div className="bg-warning/5 border border-warning/10 rounded-xl p-4">
+                                    <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                                         La conversation se déroule dans le fil Discord privé associé. Saisis ta réponse ci-dessous pour l'y envoyer directement.
                                         {!isClosed && (
-                                            <span className="text-violet-400/80 font-bold"> Le ticket passera en « en attente de réponse ».</span>
+                                            <span className="text-primary/80 font-semibold"> Le ticket passera en « en attente de réponse ».</span>
                                         )}
                                     </p>
                                 </div>
 
                                 {/* Archive info si fermé */}
                                 {isClosed && (
-                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                                        <h4 className="text-caption font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <div className="bg-elevated border border-border rounded-xl p-4 space-y-3">
+                                        <h4 className="text-caption font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                                             <Hash className="w-3.5 h-3.5" /> Métadonnées de fermeture
                                         </h4>
-                                        <div className="grid grid-cols-2 gap-3 text-caption font-medium text-zinc-500">
-                                            <div>📅 Fermé le : <span className="text-zinc-300 font-mono">{ticket.closedAt ? new Date(ticket.closedAt).toLocaleString() : "N/A"}</span></div>
-                                            <div>👤 Par : <span className="text-zinc-300">{ticket.closedBy || "Anonyme"}</span></div>
-                                            <div className="col-span-2 mt-1">💬 Raison : <span className="text-zinc-300 italic">"{ticket.closedReason || "Aucune"}"</span></div>
+                                        <div className="grid grid-cols-2 gap-3 text-caption font-medium text-muted-foreground">
+                                            <div>📅 Fermé le : <span className="text-foreground font-mono">{ticket.closedAt ? new Date(ticket.closedAt).toLocaleString() : "N/A"}</span></div>
+                                            <div>👤 Par : <span className="text-foreground">{ticket.closedBy || "Anonyme"}</span></div>
+                                            <div className="col-span-2 mt-1">💬 Raison : <span className="text-foreground ">"{ticket.closedReason || "Aucune"}"</span></div>
                                         </div>
                                     </div>
                                 )}
@@ -958,27 +958,27 @@ function TicketDetailModal({
 
                         {/* Réponse directe */}
                         {!isClosed && (
-                            <div className="border-t border-white/5 bg-zinc-950/40 p-4 sm:p-6">
+                            <div className="border-t border-border bg-surface p-4 sm:p-6">
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-                                            <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest">Réponse directe</h4>
+                                            <Pencil className="w-3.5 h-3.5 text-primary" />
+                                            <h4 className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Réponse directe</h4>
                                         </div>
-                                        <span className="text-caption text-zinc-600 font-bold uppercase">Le bot répondra en ton nom</span>
+                                        <span className="text-caption text-muted-foreground font-semibold uppercase">Le bot répondra en ton nom</span>
                                     </div>
                                     <textarea
                                         value={replyText}
                                         onChange={(e) => setReplyText(e.target.value)}
                                         placeholder="Tape ta réponse — elle sera envoyée dans le fil Discord..."
                                         rows={3}
-                                        className="w-full px-5 py-4 bg-zinc-900 border border-white/10 rounded-2xl text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40 transition-all resize-none font-medium"
+                                        className="w-full px-5 py-4 bg-surface border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/40 transition-all resize-none font-medium"
                                     />
                                     <div className="flex justify-end">
                                         <button
                                             onClick={() => onReply(ticket.id)}
                                             disabled={isPending || !replyText.trim()}
-                                            className="px-6 py-3 bg-indigo-500 hover:bg-indigo-400 rounded-2xl text-xs font-black text-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+                                            className="px-6 py-3 bg-primary hover:bg-primary/90 rounded-xl text-xs font-semibold text-primary-foreground uppercase tracking-wide transition-all disabled:opacity-50 flex items-center gap-2"
                                         >
                                             {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                             Envoyer
@@ -990,12 +990,12 @@ function TicketDetailModal({
 
                         {/* Footer d'action si non fermé */}
                         {!isClosed && (
-                            <div className="border-t border-white/5 bg-zinc-950/40 px-4 sm:px-6 py-3 flex items-center justify-between group/footer">
-                                <span className="text-caption text-zinc-600 font-black uppercase tracking-widest">SigilOS Support Engine v2.7</span>
+                            <div className="border-t border-border bg-surface px-4 sm:px-6 py-3 flex items-center justify-between group/footer">
+                                <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wide">SigilOS Support Engine v2.7</span>
                                 <button
                                     onClick={() => onDeleteTicket(ticket.id)}
                                     disabled={isPending}
-                                    className="opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-caption font-black text-red-500/60 hover:text-red-500 uppercase tracking-widest"
+                                    className="opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-caption font-semibold text-danger/60 hover:text-danger uppercase tracking-wide"
                                 >
                                     <Trash2 className="w-3 h-3" />
                                     Supprimer définitivement
@@ -1016,10 +1016,10 @@ function TicketDetailModal({
 function MetaRow({ icon: Icon, label, value, mono }: { icon: any; label: string; value: string; mono?: boolean }) {
     return (
         <div className="flex items-start gap-3">
-            <Icon className="w-3.5 h-3.5 text-zinc-600 mt-0.5 shrink-0" />
+            <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
             <div className="min-w-0">
-                <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">{label}</div>
-                <div className={cn("text-caption text-zinc-300 font-medium mt-0.5 break-words", mono && "font-mono text-caption")}>{value}</div>
+                <div className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">{label}</div>
+                <div className={cn("text-caption text-foreground font-medium mt-0.5 break-words", mono && "font-mono text-caption")}>{value}</div>
             </div>
         </div>
     );

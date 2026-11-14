@@ -297,12 +297,12 @@ export default async function SuperAdminPage(props: {
                         monter ici : garder un second panneau recréerait le doublon supprimé. */}
 
                     {tab === "tickets" && (
-                        <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Support</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Gestion centralisée des tickets discord et retours utilisateurs.</p>
+                        <div className="space-y-6">
+                            <div className="space-y-2 border-b border-border pb-5">
+                                <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Support</h1>
+                                <p className="text-sm text-muted-foreground md:text-base">Gestion centralisée des tickets Discord et retours utilisateurs.</p>
                             </div>
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                            <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-surface/50" />}>
                                 <TicketsServer />
                             </Suspense>
                         </div>
@@ -495,9 +495,9 @@ async function PlatformModulesServer() {
     }
 }
 
-function StatsLoading() { return <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-pulse">{[...Array(5)].map((_, i) => <div key={i} className="bg-zinc-900/50 h-32 rounded-3xl" />)}</div>; }
-function ChartLoading() { return <div className="animate-pulse bg-zinc-900/50 h-64 rounded-3xl" />; }
-function TableLoading() { return <div className="animate-pulse bg-zinc-900/50 h-96 rounded-3xl" />; }
+function StatsLoading() { return <div className="grid grid-cols-2 gap-4 animate-pulse lg:grid-cols-5">{[...Array(5)].map((_, i) => <div key={i} className="h-32 rounded-xl bg-surface/50" />)}</div>; }
+function ChartLoading() { return <div className="h-64 animate-pulse rounded-xl bg-surface/50" />; }
+function TableLoading() { return <div className="h-96 animate-pulse rounded-xl bg-surface/50" />; }
 
 async function AnnouncementServer() {
     const currentAnnouncement = await getSystemAnnouncement();

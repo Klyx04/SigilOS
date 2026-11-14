@@ -12,15 +12,19 @@ import { readFileSync } from "node:fs";
 const COMPONENTS = [
     "src/components/feedback/feedback-tracker.tsx",
     "src/components/tracker/member-tracker-view.tsx",
+    "src/app/god/components/ticket-dashboard.tsx",
 ];
 
 describe("DA des écrans de signalements", () => {
     it("n'utilise aucune couleur en dur ni graisse décorative", () => {
         for (const file of COMPONENTS) {
             const source = readFileSync(file, "utf8");
-            expect(source, file).not.toMatch(/\b(zinc|amber|indigo|emerald|slate|violet|purple)-\d{2,3}\b/);
-            expect(source, file).not.toMatch(/\bfont-black\b/);
+            expect(source, file).not.toMatch(/\b(zinc|amber|indigo|emerald|slate|violet|purple|rose|blue|red|green|orange|sky|teal|cyan|pink|fuchsia)-\d{2,3}\b/);
+            expect(source, file).not.toMatch(/\b(text|bg|border|ring|shadow)-(white|black)\b/);
+            expect(source, file).not.toMatch(/\bfont-(black|bold)\b/);
             expect(source, file).not.toMatch(/\bitalic\b/);
+            expect(source, file).not.toMatch(/\bbackdrop-blur/);
+            expect(source, file).not.toMatch(/\bshadow-(2xl|xl|lg)\b/);
         }
     });
 

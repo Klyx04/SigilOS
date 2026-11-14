@@ -9,15 +9,10 @@
 
 ## 0. Reprise immédiate
 
-- ⏳ **En attente de prod (26/10/2026)** — la **bêta** tourne `dev` `2a06ef26` (**287 migrations**, `sigilos-beta`) ; la
-  **prod** reste sur `main` `66040052` (**267 migrations** ⇒ **20 en attente**). Lots non déployés : calendrier/membres/
-  blacklist/succès (25/10) **puis stuff & variantes** (panoplies recalculées, pods, plafonds, veille auto-entretenue).
-  Bascule : PR `dev` → `main` → CI verte → `./scripts/deploy-cd.sh prod` → **puis, dans cet ordre** :
-  ① `backfill-dungeon-completion` (`docs/MAINTENANCE.md` § Rattrapage) ; ② `siphon-item-sets?apply=1` — **en premier**,
-  le référentiel prod est **vide** et sans lui les variantes à panoplie sont refusées (fail-closed) ; ③
-  `siphon-item-conditions?apply=1` (264) ; ④ un `data-watch` manuel (pose le filigrane des panoplies) ; ⑤ les lignes de
-  crontab prod (`docs/MAINTENANCE.md` § Tâches planifiées — **une seule** `data-watch`, elle existe déjà sur le VPS).
-  ⚠️ La crontab du VPS vise `beta.sigilos.fr` (`APP_URL`). Détail ordonné : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1.
+- 📌 **Prod** : release du 13/11/2026 mergée dans `main` (`c190f2c7`, PR #1366) ; le déploiement reste un geste
+  humain (`./scripts/deploy-cd.sh prod`). Ops stuff/variantes : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1 ;
+  signalements : migrations `20270201000000` → script → `20270201500000` → `20270202000000`, bêta puis prod
+  (`docs/plans/PLAN-TICKETS-GOD.md` §4).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`) · migration `20261112170000_add_route_variants` (Rush — à jouer bêta puis prod, `docs/plans/MODULE-RUSH-SYLVESTRE.md` §38) · migration `20270130000000_add_rush_quest_constraints` (Rush — conditions structurées, à jouer bêta puis prod).
@@ -69,7 +64,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 | 21 | `mini-jeux` (H) | Mini-jeux & salons temps réel : solidité Redis, solo, Panthéon, HUD/UX | ouvert | H-1 → H-2 | — (à créer) | — |
 | 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse) | L-1 → L-4 | — (à créer) | — |
 | 23 | `guildes-admin` (M) | Guildes & admin : calendrier, profil, stuff, édition staff, logs | volet `membres` livré (05/10) · **inventaire des mules** et **pseudo vérifié au ladder + embed « fin d'essai »** livrés le 25/10 | M-1 reste (calendrier/profil/stuff) → M-2 → M-3 | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` | — |
-| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » : 12 chantiers, 7 lots ; **+ tickets d'exploitation** (un seul endroit `?tab=tickets`, retours visiteurs identifiables, `ticket-bot` à revoir) | plan vivant ; **tickets : fusion des signalements livrée le 14/11** (voir §5) ; reste G4 (`ticket-bot`) | G1 → G12 ; **tickets : G4** | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
+| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » ; tickets d'exploitation : signalements fusionnés le 14/11, **G4 = module ticket God paramétrable (aucun ID en dur)** | plan vivant ; tickets : G4 | G1 → G12 ; **tickets : G4** | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
 | 25 | `acquisition` (E) | SEO / contenu : autorité avant volume | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
 | 26 | `demo-publique` (S) | Démo publique en lecture seule, essayable sans compte | S-0/S-1 livrés (02/10) | S-2a → S-2b → S-3 → S-4 → S-5 | `docs/plans/PLAN-DEMO-PUBLIQUE.md` · `docs/plans/AMORCE-DEMO-PUBLIQUE.md` | — |
 | 27 | `salons-vocaux` (Q) | Module « salons vocaux temporaires » (cahier V2.1) | idée neuve, **à cadrer** | cadrage → lots | `docs/plans/PLAN-SALONS-VOCAUX.md` | **D4** |
@@ -82,6 +77,8 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Rush — conditions de quête en **infos** (jamais blocage) : joueurs (38), métier (37), horaire (7), sort (3), note (4), combat (726), donjon au choix (7), monstres à tuer (81) | **V3 livrée le 12/11/2026** : colonne **`constraints Json?`** (migration additive `20270130000000_add_rush_quest_constraints`), Zod borné ; horaire (créneau/attente), joueurs + rôles, métiers + niveau, sorts, notes ; **combat** (5 modes, monstres ×N + niveau + PV), **donjon au choix** (8 max), **monstres à tuer** ; portraits réels (`RushPortrait`) et cartes dans les 3 surfaces ; éditeur avec recherches locales (`searchMonstersForDefi`, `searchDungeonsLocal`) — `rush-constraints` **43** · `rush-sequence-inspector` **18** | reste **backfill Tougli** (1 085 contraintes → `constraints`, dry-run/apply) et données éditoriales (ex. les 4 donjons de Maïmane) ; les conseils libres restent dans `tips` | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
+| 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | cadré le 14/11 | N1 → N4 | `docs/plans/PLAN-NOTIFICATIONS.md` | — |
+
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : plus aucun appel réseau pour servir une image, cache complet siphonné, `?url=` retiré du DOM | **S1 + S1b + S2 livrés** · 2 294 apparences siphonnées (`remaining: 0`) · **mode hybride** : `ASSETS_REMOTE_FETCH` (défaut `false`) coupe le réseau pour l'espace apparence, rallumable sans redéployer · reste **S3** (couverture) et **S4** (cron + alerte) | **S3** → **S4** | `docs/plans/AMORCE-SOUVERAINETE-IMAGES.md` | — |
 
 

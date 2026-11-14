@@ -52,17 +52,35 @@ voit la référence et peut répondre (la réponse est journalisée dans `transc
 - Liste dense + détail latéral, filtres (source, type, état, guilde), recherche.
 - Règles UI du dépôt : rayons ≤ 12 px, aucune couleur en dur, états vides honnêtes.
 
-### G4 — Le module `ticket-bot` revu
-- À l'image du module de guilde (motif → salon → équipe → fermeture → CSAT) mais
-  **adapté à l'exploitation** : un seul serveur (celui de SigilOS), pas de multi-tenant.
-- Supprimer ce qui n'a plus d'écrivain, garder la réception des tickets Discord.
+### G4 — Le module ticket God, paramétrable bout en bout
+**Décision user (14/11/2026)** : « module ticket côté god parametrable bout en bout, pas codé en dur ».
+Les admins de guilde **ne répondent pas** aux signalements : un admin de guilde est un membre comme un autre, seul le God répond.
+
+**Mesures (14/11/2026, code + base locale)** :
+- `/god/ticket-bot` = 2 fichiers, **supervision de flotte** seulement (`toggleGodTicketBotModuleAction`, `setTicketPlatformLimitsAction`) : il ne configure rien du flux support.
+- Le flux support (`createSupportTicket`) reçoit `channelId`/`discordGuildId` de l'interaction Discord ; les catégories, libellés et couleurs sont des **constantes de code** (`TICKET_CATEGORY_LABELS`, `TICKET_STATUS_COLORS`).
+- `PlatformConfig` porte déjà `ticketSupportGuildId` et `ticketAutoRoleId` — aucun ID à coder.
+- Le moteur complet existe côté guilde (`TicketGuildConfig`, catégories, panneaux, parcours, formulaires, équipes, transcripts, CSAT) mais exige un `GuildConfig` interne.
+- Base locale : **7** `GuildConfig`, **3** `TicketGuildConfig`, **10** `SupportTicket`, **0** `TicketRecord` ; le serveur SigilOS n'est **pas** un `GuildConfig` et `ticketSupportGuildId` y est NULL.
+
+**Architecture à trancher (bloquante avant toute migration)** :
+1. **Réutiliser le moteur** : donner au serveur SigilOS un `GuildConfig` + `TicketGuildConfig`, puis une UI God des mêmes réglages. Avantage : zéro duplication. À mesurer : effets de bord d'une guilde plateforme (listes, quotas, synchro, RBAC).
+2. **Configuration dédiée au support** : garder `SupportTicket` et ajouter une configuration God propre (catégories, salon, rôles, fermeture, CSAT). Avantage : pas de pollution multi-tenant. Coût : duplication partielle.
+
+**Lots** :
+- **G4-0** — mesurer la route 1 (effets d'un `GuildConfig` plateforme) ; aucun code.
+- **G4-1** — configuration persistée (catégories, salon, rôles, fermeture, CSAT) ; migration additive si route 2.
+- **G4-2** — console God (réglages + aperçu) branchée sur la configuration.
+- **G4-3** — runtime Discord (panneau, création, fermeture) lisant la configuration : plus aucune constante de catégorie/libellé.
+- **G4-4** — nettoyage de ce qui n'a plus d'écrivain.
 
 ## 3. Décisions à trancher (bloquantes pour G1 et G4)
 
 1. **Origine** : tranché le 13/11/2026 — colonne `SupportTicket.origin`
    (`TicketOrigin`: SUPPORT/FEEDBACK/INTERNAL), migration additive livrée le 14/11.
-2. **`ticket-bot`** : on le garde comme **récepteur Discord**, ou on le remplace par un
-   motif du module de guilde appliqué au serveur SigilOS ?
+2. **`ticket-bot`** : tranché le 14/11/2026 — **module God paramétrable bout en bout**, aucun ID en dur.
+   Reste à mesurer l'architecture : moteur de guilde partagé (route 1) ou configuration
+   dédiée (route 2) — **G4-0**.
 3. **Ancien tracker `/god/bugs`** : redirection vers `?tab=tickets&view=bugs`, ou
    conservation en vue secondaire ?
 

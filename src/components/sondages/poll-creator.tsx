@@ -48,6 +48,7 @@ import { EmojiPicker } from "@/components/editor/emoji-picker";
 // Le plafond de durée d'un vote (30 jours) appartient aux règles du module
 // Sondages : on le tient d'ici plutôt que de recopier « 720 » une 2ᵉ fois.
 import { MAX_DURATION_HOURS } from "@/lib/polls/scheduling";
+import { isPollDescriptionRedundant } from "@/lib/polls/embed-content";
 
 interface PollCreatorProps {
     guildId: string;
@@ -360,7 +361,7 @@ export function PollCreator({
                     )}
                 </DialogTrigger>
 
-                <DialogContent className="w-[95vw] max-w-xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
+                <DialogContent className="w-[95vw] max-w-xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[calc(100dvh-2rem)] overflow-y-auto p-0 gap-0 premium-scrollbar">
                     <div className="p-6 pb-4 border-b border-border bg-surface/40 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-info/5 blur-3xl rounded-full -mr-16 -mt-16" />
                         <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">
@@ -379,7 +380,7 @@ export function PollCreator({
                     </div>
 
                     {/* Content Area */}
-                    <div className="p-6">
+                    <div className="p-6 min-w-0">
                         {!microStatus?.isMicroHolder && !microStatus?.isSuperAdmin && (
                             <div className="mb-6 rounded-3xl bg-surface/60 border border-info/10 p-5 space-y-4">
                                 <div className="flex items-start gap-4">
@@ -518,16 +519,23 @@ export function PollCreator({
                                         />
                                         {/* Aperçu Discord temps réel */}
                                         {description.trim() && (
-                                            <div className="rounded-xl border border-[#5865F2]/20 bg-[#2b2d31]/80 p-4 space-y-2">
+                                            <div className="min-w-0 rounded-xl border border-[#5865F2]/20 bg-[#2b2d31]/80 p-4 space-y-2">
                                                 <p className="text-caption font-black text-[#5865F2] uppercase tracking-widest flex items-center gap-2">
                                                     <span className="w-2 h-2 rounded-full bg-[#5865F2] inline-block" />
                                                     Aperçu Discord
                                                 </p>
-                                                <div className="border-l-4 border-[#5865F2] pl-3">
+                                                <div className="min-w-0 border-l-4 border-[#5865F2] pl-3">
                                                     <p className="text-sm font-bold text-white/90 truncate">{title || "Titre du sondage..."}</p>
-                                                    <p className="text-xs text-white/60 mt-1 whitespace-pre-wrap leading-relaxed">{description}</p>
+                                                    {!isPollDescriptionRedundant(title, description) && (
+                                                        <p className="text-xs text-white/60 mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">{description}</p>
+                                                    )}
                                                 </div>
                                             </div>
+                                        )}
+                                        {isPollDescriptionRedundant(title, description) && (
+                                            <p className="text-caption text-muted-foreground">
+                                                Description identique à la question : elle ne sera pas répétée dans l&apos;embed Discord.
+                                            </p>
                                         )}
                                     </div>
 

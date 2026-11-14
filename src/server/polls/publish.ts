@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage } from "@/server/discord";
 import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
+import { isPollDescriptionRedundant } from "@/lib/polls/embed-content";
 import { POLL_EMBED_DESCRIPTION_MAX_LENGTH } from "@/lib/polls/limits";
 
 /**
@@ -217,7 +218,7 @@ export async function publishPollToDiscord(
             descriptionParts.push(`> 🗳️ **${SCHEDULED_POLL_TAG}** — publié automatiquement`);
         }
 
-        if (poll.description) {
+        if (poll.description && !isPollDescriptionRedundant(poll.title, poll.description)) {
             const block = embedDescriptionBlock(poll.description);
             if (block) descriptionParts.push(block);
         }

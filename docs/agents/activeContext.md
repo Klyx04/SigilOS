@@ -14,6 +14,15 @@
 > **Reste / ops** : en bêta puis prod, jouer `20270201000000` → `migrate-system-issues-to-support-tickets --dry-run` puis `--apply` (compteurs + échantillon) → `20270201500000` (filet) → `20270202000000` ; redéployer ; vérifier un ancien lien `?bug=SIG-<n>`. Lots séparés : console Support God (`ticket-bot` G4), screenshot, auto-onboarding.
 > **Rotation** : bloc « 13/11/2026 — Blocs Combat + liens + markdown + modale de bloc » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
+## 📝 Session 13/11/2026 (suite 5) — **Sondages : modale responsive + embed sans doublon** — branche `fix/sondages-responsive-embed`
+
+> **Mesure** : la modale « Lancer un sondage » débordait horizontalement — le `DialogContent` est un `grid` sans `grid-cols-1` (colonne implicite `auto` qui se dilate sur un mot long), et l'aperçu Discord n'avait ni `min-w-0` ni césure (`whitespace-pre-wrap` seul). Le bas était coupé par `max-h-[90vh]`.
+> **Fait** : `grid-cols-1` sur le composant Dialog (correctif structurel, toutes modales) · `min-w-0` + `break-words` + `[overflow-wrap:anywhere]` sur l'aperçu · `max-h-[calc(100dvh-2rem)]` · règle pure `poll-embed-content` : la description identique à la question n'est plus répétée dans l'embed (casse/ponctuation/espaces ignorés), l'aperçu l'annonce.
+> **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste / ops** : PR #1368 → `dev` (conflit `activeContext` résolu au merge : bloc placé sous celui du 14/11) ; contrôle visuel bêta 390/768/1024/1440 (le code n'est pas encore déployé).
+> **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 13/11/2026 (suite 4) — **Sécurité · révocation WS des membres exclus** — branche `fix/ws-revocation-membres`
 
 > **Mesure** : l'appartenance n'était vérifiée qu'aux `*:join` ; les heartbeats guide/dofus ne font aucune requête DB, donc `leave()` ne suffit pas — il faut couper le socket. Le bot Discord (`GuildMemberRemove`/`GuildBanAdd`) n'a ni Redis ni HTTP : un canal web seul aurait laissé le cas principal à ≤ 30 min.
@@ -45,11 +54,4 @@
 > **Preuves** : 7 tests neufs / **27** cas · suite **675 fichiers ✓** · `tsc` 0 · ESLint 0 erreur · aucune migration, aucun changement d'interface publique.
 > **Reste / ops** : PR `fix/actions-god-auth` puis `fix/durcissements-audit` → `dev` ; AUD-08 (garder `MessageContent` ou changer la métrique), SEC-04 (socket-proxy, fenêtre), CSP prod (vérifier `CSP_ENFORCE` avant ouverture).
 > **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 13/11/2026 — **Sécurité · AUD-01/02/03 : actions God sans garde, stockage inter-guildes** — branche `fix/actions-god-auth`
 
-> **Demande user (verbatim)** : « refais une passe d'audit avec les audits précédents dans le contexte », puis validation du plan de correction (AUD-02 → AUD-01 → AUD-03).
-> **Mesures (2ᵉ passe, statique)** : `notifyGod` était exportée d'un fichier `"use server"` et importée par **deux composants client** (`proof-upload-dialog.tsx`, `safety-client.ts`) ⇒ action publique : écriture `GodNotification` + embed Discord via le bot **multi-tenant** avec `forceChannelId`/`ping` contrôlés. `markGodNotificationRead`/`markAllGodNotificationsRead` sans garde ⇒ masquage de toutes les alertes God. `/api/storage` sautait le contrôle d'appartenance quand `getUserContext()` (sans argument, guilde d'accueil) renvoyait `isAdmin` ⇒ lecture inter-guildes des preuves.
-> **Fait** : `notifyGod` déplacé dans `src/server/god-notifications.ts` (**sans** `"use server"`, invariant commenté) ; 28 importeurs serveur recâblés ; les 2 imports client supprimés (l'alerte God est créée **côté serveur** par `reportSecurityIncident`, avec `webOnly`, sans `forceChannelId`) ; garde `hasGodPanelAccess()` sur les 4 actions du panneau ; `reportSecurityIncident` exige `ctx.isMember` (AUD-06) et borne la description ; `/api/storage` exige l'appartenance à la guilde cible (God seul exempté, CUID → discordGuildId, cible inconnue = 403).
-> **Preuves** : 3 tests neufs — `server-actions-god-guard` (5, invariants), `security-report-auth` (3, comportement), `storage-guild-isolation` (4) — + 15 fichiers impactés **147 tests ✓** · suite **671 fichiers ✓** · `tsc` 0 · ESLint **0 erreur** · **aucune migration**.
-> **Reste / ops** : PR `fix/actions-god-auth` → `dev` ; puis AUD-04 (jeton legacy sans expiration), AUD-05 (SVG proxy-image), AUD-07→11 (durcissements). Rapport complet : `src/temp/audit-sec-2.md` (zone volatile).
-> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

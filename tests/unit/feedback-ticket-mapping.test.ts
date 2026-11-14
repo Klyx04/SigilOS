@@ -8,9 +8,11 @@
 
 import { describe, it, expect } from "vitest";
 import {
+    appendMemberReplyToTranscript,
     buildFeedbackSubject,
     buildLegacyPublicRef,
     buildLegacySubject,
+    buildMemberReplyEntry,
     buildTicketPublicRef,
     feedbackTypeToCategory,
     legacyIssueOrigin,
@@ -91,5 +93,16 @@ describe("Réponses publiques du tracker", () => {
         });
         expect(replies).toHaveLength(20);
         expect(replies[0]?.message).toBe("réponse 5");
+    });
+
+    it("journalise une réponse sans écraser un transcript support", () => {
+        const entry = buildMemberReplyEntry("Bien reçu", "🎉", "god-1", new Date("2026-01-01T00:00:00.000Z"));
+
+        expect(appendMemberReplyToTranscript(null, entry)).toEqual([entry]);
+        expect(appendMemberReplyToTranscript([{ kind: "old" }], entry)).toEqual([{ kind: "old" }, entry]);
+        expect(appendMemberReplyToTranscript({ channel: "discord", replies: [{ kind: "old" }] }, entry)).toEqual({
+            channel: "discord",
+            replies: [{ kind: "old" }, entry],
+        });
     });
 });

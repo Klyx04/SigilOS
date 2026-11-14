@@ -6,6 +6,12 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS } from "@/lib/feedback-types";
+import {
+  buildFeedbackSubject,
+  buildMemberReplyEntry,
+  feedbackTypeToCategory,
+} from "@/lib/feedback-ticket-mapping";
+import { appendMemberReply, ensurePublicRef } from "@/server/feedback-ticket-service";
 import { getUserContext } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
 import { sendChannelMessage } from "@/server/discord";
@@ -91,9 +97,14 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
     logger.error("[Feedback] Guild config lookup failed", { error: e?.message });
   }
 
-  // — Mapper le feedbackType → SystemIssueType
+  // — Fail-closed : sans guilde interne, ni isolation ni notification fiables
+  if (!internalGuildId) {
+    logger.error("[Feedback] Guilde interne introuvable — envoi refusé");
+    return { success: false, error: "Guilde introuvable. Réessaie dans un instant." };
+  }
+
+  // — Type de retour (couleur d'embed uniquement : le stockage est un ticket)
   const isBug = data.feedbackType === "BUG_TECHNIQUE" || data.feedbackType === "ERREUR_DONNEES";
-  const type = isBug ? "BUG" : "AMELIORATION";
 
   // — Catégorie lisible
   const label = FEEDBACK_LABELS[data.feedbackType];
@@ -104,30 +115,45 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
   const memberGuildName = userCtx.guildName || "Guilde inconnue";
 
   try {
-    const created = await db.systemIssue.create({
+    // — Compte Discord lié (facultatif) : la référence reste le user interne
+    const discordAccount = await db.account.findFirst({
+      where: { userId: session.user.id, provider: "discord" },
+      select: { providerAccountId: true },
+    });
+
+    const created = await db.supportTicket.create({
       data: {
-        type: type as any,
-        category,
+        origin: "FEEDBACK",
+        category: feedbackTypeToCategory(data.feedbackType),
+        status: "OPEN",
+        trackerStatus: "A_FAIRE",
         priority: "Normal",
+        subject: buildFeedbackSubject(data.feedbackType, description),
         description: `[${data.feedbackType}] ${description}`,
-        creatorId: session.user.id,
+        creatorDiscordId: discordAccount?.providerAccountId ?? "WEB",
+        creatorDiscordName: memberName,
+        creatorUserId: session.user.id,
+        discordGuildId: data.guildId,
+        targetGuildId: data.guildId,
+        targetGuildName: memberGuildName,
+        guildId: internalGuildId,
         feedbackType: data.feedbackType,
         sourcePage: data.sourcePage,
         targetSlug: data.targetSlug || null,
-        guildId: internalGuildId,
         userAgent: data.userAgent || null,
-        memberName,
         memberGuildName,
+        forumLink: null,
       },
     });
+    const publicRef = await ensurePublicRef(created);
 
     // — Notif web God (dashboard + tracker)
     await notifyGod({
       title: "🎫 Nouveau feedback Dofus",
-      message: `#SIG-${created.id} — ${category} — par ${memberName}`,
+      message: `#${publicRef} — ${category} — par ${memberName}`,
       type: "USER_FEEDBACK",
       success: true,
-      metadata: { ticketId: created.id, memberName, guild: memberGuildName, type: data.feedbackType },
+      metadata: { ticketId: created.id, ticketRef: publicRef, memberName, guild: memberGuildName, type: data.feedbackType },
     }).catch((e: any) => logger.error("[Feedback] notifyGod failed", { error: e?.message }));
 
     // — Embed Discord (canal dédié → fallback godNotify)
@@ -146,12 +172,12 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
             embedDescription: description,
             embedColor: isBug ? 0xef4444 : 0x10b981,
             embedFooter: `${memberName} 🏷️ ${memberGuildName} • SigilOS`,
-            embedUrl: `${appUrl}/god/bugs?ticket=${created.id}`,
+            embedUrl: `${appUrl}/god/bugs?ticket=${encodeURIComponent(publicRef)}`,
             fields: [
               { name: "Type", value: data.feedbackType, inline: true },
               { name: "Page", value: data.sourcePage, inline: true },
               ...(data.targetSlug ? [{ name: "Cible", value: data.targetSlug, inline: true }] : []),
-              { name: "Ticket", value: `#SIG-${created.id}`, inline: true },
+              { name: "Ticket", value: `#${publicRef}`, inline: true },
               { name: "Signalé par", value: `${memberName} (${memberGuildName})`, inline: false },
             ],
           }
@@ -161,8 +187,8 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
       logger.error("[Feedback] Discord dispatch failed", { error: e?.message });
     }
 
-    logger.info(`[Feedback] Créé #SIG-${created.id} par ${session.user.id} (${data.sourcePage})`);
-    return { success: true, ticketId: created.id };
+    logger.info(`[Feedback] Créé #${publicRef} (${data.sourcePage})`);
+    return { success: true, ticketId: publicRef };
   } catch (e: any) {
     logger.error("[Feedback] Create failed", { error: e?.message });
     return { success: false, error: "Une erreur est survenue lors de l'envoi. Réessaie." };
@@ -178,7 +204,8 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
  * SECURITY (fail-closed) :
  * - isSuperAdmin() obligatoire
  * - Zod sur les entrées
- * - Vérifie que le SystemIssue existe
+ * - Vérifie que le signalement existe (`SupportTicket` FEEDBACK/INTERNAL)
+ * - Journalise la réponse dans `transcript` (visible par le membre)
  * - Crée une Notification scopée par guilde du membre
  */
 const notifyMemberSchema = z.object({
@@ -212,48 +239,59 @@ export async function notifyMemberFeedbackAction(input: {
   if (!isGod) return { success: false, error: "Accès réservé aux administrateurs." };
 
   try {
-    // — Trouver l'issue + son guildId (guilde d'origine du membre)
-    const issue = await db.systemIssue.findUnique({
-      where: { id: data.issueId },
-      select: { creatorId: true, guildId: true, id: true, memberName: true, memberGuildName: true, description: true, feedbackType: true },
+    // — Retrouver le signalement par sa référence publique stable
+    const ticket = await db.supportTicket.findUnique({
+      where: { publicRef: `SIG-${data.issueId}` },
+      select: {
+        id: true,
+        publicRef: true,
+        origin: true,
+        creatorUserId: true,
+        guildId: true,
+        discordGuildId: true,
+        description: true,
+        transcript: true,
+      },
     });
-    if (!issue?.creatorId) return { success: false, error: "Bug introuvable." };
+    if (!ticket?.creatorUserId || (ticket.origin !== "FEEDBACK" && ticket.origin !== "INTERNAL")) {
+      return { success: false, error: "Signalement introuvable." };
+    }
 
     // — Titre lisible du feedback (on retire le préfixe "[TYPE] " si présent)
-    const feedbackTitle = (issue.description || "Feedback")
+    const feedbackTitle = (ticket.description || "Signalement")
       .replace(/^\[[A-Z_]+\]\s*/i, "")
       .trim()
       .slice(0, 120)
-      || "Feedback";
+      || "Signalement";
 
-    // — Résoudre le discordGuildId à partir de l'ID interne (pour le lien)
-    let discordGuildId: string | undefined;
-    if (issue.guildId) {
-      const guildConfig = await db.guildConfig.findUnique({
-        where: { id: issue.guildId },
-        select: { discordGuildId: true },
-      });
-      discordGuildId = guildConfig?.discordGuildId;
-    }
+    const dashboardGuildId = ticket.discordGuildId ?? undefined;
+    // Sans guilde identifiable, `createNotification` est fail-closed et n'écrit rien.
+    const guildIdForNotif = dashboardGuildId || ticket.guildId || undefined;
+    const publicRef = ticket.publicRef ?? `SIG-${data.issueId}`;
+
+    // — Journal interne : la réponse devient visible dans le tracker du membre
+    await db.supportTicket.update({
+      where: { id: ticket.id },
+      data: {
+        transcript: appendMemberReply(
+          ticket.transcript,
+          buildMemberReplyEntry(data.message, data.emoji, session.user.id),
+        ),
+      },
+    });
 
     const { createNotification } = await import("./notification-actions");
-    // Si aucune guilde n'est identifiable (`issue.guildId` absent ⇒ un feedback plateforme), la
-    // variable reste `undefined` : `createNotification` est **fail-closed** et n'écrit rien. C'est
-    // assumé — sans guilde, le lien `/dashboard/{guildId}/tracker` serait de toute façon mort.
-    const guildIdForNotif = discordGuildId || issue.guildId || undefined;
-
-    // — Créer la notification Dashboard (scopée par guilde du membre)
     await createNotification(
-      issue.creatorId,
+      ticket.creatorUserId,
       "SYSTEM_INFO",
-      `${data.emoji} Ton feedback a été remarqué !`,
-      `📝 Feedback :  ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
-      guildIdForNotif ? `/dashboard/${guildIdForNotif}/tracker?bug=SIG-${issue.id}` : undefined,
+      `${data.emoji} Ton signalement a été remarqué !`,
+      `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
+      dashboardGuildId ? `/dashboard/${dashboardGuildId}/tracker?bug=${encodeURIComponent(publicRef)}` : undefined,
       guildIdForNotif,
       "SYSTEM"
     );
 
-    logger.info(`[Feedback Notify] God ${session.user.id} a notifié ${issue.creatorId} pour SIG-${issue.id}`);
+    logger.info(`[Feedback Notify] Réponse enregistrée pour ${publicRef}`);
     return { success: true };
   } catch (e: any) {
     logger.error("[Feedback Notify] Échec", { error: e?.message });

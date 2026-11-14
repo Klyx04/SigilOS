@@ -264,6 +264,7 @@ export async function closeSupportTicket(
 
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) return { success: false, error: "Ticket introuvable." };
+        if (ticket.origin !== "SUPPORT") return { success: false, error: "Ticket support introuvable." };
         if (ticket.status === "CLOSED") return { success: false, error: "Ticket déjà fermé." };
 
         // RESTRICTION: Super-admin (web), sous-god PIM (brique "tickets"), Discord dev,
@@ -361,6 +362,7 @@ export async function deleteSupportTicket(ticketId: string) {
     try {
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) return { success: false, error: "Ticket introuvable." };
+        if (ticket.origin !== "SUPPORT") return { success: false, error: "Ticket support introuvable." };
 
         // 1. Delete associated thread if it exists
         if (ticket.discordThreadId) {
@@ -397,6 +399,7 @@ export async function autoCloseStaleTickets(daysThreshold = 7) {
 
         const staleTickets = await db.supportTicket.findMany({
             where: {
+                origin: "SUPPORT",
                 status: "WAITING_RESPONSE",
                 updatedAt: { lt: thresholdDate }
             }
@@ -498,6 +501,9 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
         ]);
 
         if (!freshTicket) return { success: false, error: "Ticket introuvable" };
+        if (freshTicket.origin !== "SUPPORT" || freshTicket.category !== "ACCESS_REQUEST") {
+            return { success: false, error: "Demande d'accès introuvable" };
+        }
 
         // 2. Create/Update AllowedGuild record (Whitelist) - PROMOTE PENDING → ACTIVE
         await db.allowedGuild.upsert({
@@ -604,6 +610,9 @@ export async function rejectGuildAccess(ticketId: string, reason: string) {
     try {
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) return { success: false, error: "Ticket introuvable" };
+        if (ticket.origin !== "SUPPORT" || ticket.category !== "ACCESS_REQUEST") {
+            return { success: false, error: "Demande d'accès introuvable" };
+        }
 
         if (ticket.discordThreadId) {
             await sendChannelMessage(ticket.discordThreadId, `<@${ticket.creatorDiscordId}>`, {
@@ -653,7 +662,9 @@ export async function getSupportTickets(filters: TicketFilters = {}) {
     const perPage = filters.perPage || 20;
     const skip = (page - 1) * perPage;
 
-    const where: any = {};
+    // La console Support ne montre que les tickets Discord : les signalements
+    // (`FEEDBACK`) et notes internes (`INTERNAL`) ont leur propre onglet.
+    const where: any = { origin: "SUPPORT" };
     if (filters.status) where.status = filters.status;
     if (filters.category) where.category = filters.category;
     if (filters.search) {
@@ -679,7 +690,7 @@ export async function getSupportTickets(filters: TicketFilters = {}) {
 
 export async function getSupportTicketById(id: string) {
     if (!(await requireTicketAdmin())) return null;
-    return db.supportTicket.findUnique({ where: { id } });
+    return db.supportTicket.findFirst({ where: { id, origin: "SUPPORT" } });
 }
 
 export async function updateTicketStatus(
@@ -687,6 +698,12 @@ export async function updateTicketStatus(
     status: z.infer<typeof TicketStatusSchema>
 ) {
     if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
+
+    const existing = await db.supportTicket.findUnique({
+        where: { id: ticketId },
+        select: { origin: true },
+    });
+    if (existing?.origin !== "SUPPORT") return { success: false, error: "Ticket support introuvable" };
 
     await db.supportTicket.update({
         where: { id: ticketId },
@@ -705,7 +722,9 @@ export async function sendTicketReply(ticketId: string, message: string) {
 
     const session = await auth();
     const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
-    if (!ticket?.discordThreadId) return { success: false, error: "Thread introuvable" };
+    if (ticket?.origin !== "SUPPORT" || !ticket.discordThreadId) {
+        return { success: false, error: "Thread introuvable" };
+    }
 
     const messageId = await sendChannelMessage(ticket.discordThreadId, "", {
         embedTitle: "💬 Réponse de l'équipe SigilOS",
@@ -735,15 +754,22 @@ export async function getTicketStats() {
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [open, inProgress, waitingResponse, closedRecent, total] = await Promise.all([
-        db.supportTicket.count({ where: { status: "OPEN" } }),
-        db.supportTicket.count({ where: { status: "IN_PROGRESS" } }),
-        db.supportTicket.count({ where: { status: "WAITING_RESPONSE" } }),
-        db.supportTicket.count({ where: { status: "CLOSED", closedAt: { gte: sevenDaysAgo } } }),
-        db.supportTicket.count(),
+    const [open, inProgress, waitingResponse, closedRecent, total, feedbackOpen, feedbackTotal] = await Promise.all([
+        db.supportTicket.count({ where: { origin: "SUPPORT", status: "OPEN" } }),
+        db.supportTicket.count({ where: { origin: "SUPPORT", status: "IN_PROGRESS" } }),
+        db.supportTicket.count({ where: { origin: "SUPPORT", status: "WAITING_RESPONSE" } }),
+        db.supportTicket.count({ where: { origin: "SUPPORT", status: "CLOSED", closedAt: { gte: sevenDaysAgo } } }),
+        db.supportTicket.count({ where: { origin: "SUPPORT" } }),
+        db.supportTicket.count({
+            where: {
+                origin: "FEEDBACK",
+                trackerStatus: { in: ["A_FAIRE", "A_INVESTIGUER", "EN_COURS"] },
+            },
+        }),
+        db.supportTicket.count({ where: { origin: "FEEDBACK" } }),
     ]);
 
-    return { open, inProgress, waitingResponse, closedRecent, total };
+    return { open, inProgress, waitingResponse, closedRecent, total, feedbackOpen, feedbackTotal };
 }
 
 export async function postTicketPanel(channelId: string, guildId: string) {

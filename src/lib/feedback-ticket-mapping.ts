@@ -255,6 +255,22 @@ export function buildMemberReplyEntry(
   };
 }
 
+/** Journalise une réponse sans écraser un transcript support existant. */
+export function appendMemberReplyToTranscript(
+  transcript: unknown,
+  entry: ReturnType<typeof buildMemberReplyEntry>,
+): unknown[] | Record<string, unknown> {
+  if (Array.isArray(transcript)) {
+    return [...transcript, entry].slice(-50);
+  }
+  if (transcript && typeof transcript === "object") {
+    const record = transcript as Record<string, unknown>;
+    const replies = Array.isArray(record.replies) ? record.replies : [];
+    return { ...record, replies: [...replies, entry].slice(-50) };
+  }
+  return [entry];
+}
+
 
 export function buildLegacySubject(issue: { type: string; feedbackType?: string | null; description: string }): string {
   const prefix = issue.feedbackType?.trim() || issue.type;

@@ -45,6 +45,7 @@ export const MODULE_ROUTES: Record<string, ModuleRoute> = {
     "worldmap":                        { label: "Carte du Monde HD",           href: "/worldmap" },
     "mini-jeux":                       { label: "Mini-Jeux Dofus",             href: "/mini-jeux" },
     "ressources":                      { label: "Ressources Dofus",            href: "/ressources" },
+    "signalements":                    { label: "Tracker des signalements",    href: "/tracker" },
 
     // Administration & Staff
     "admin-getting-started":           { label: "Centre de Contrôle Admin",   href: "/admin" },

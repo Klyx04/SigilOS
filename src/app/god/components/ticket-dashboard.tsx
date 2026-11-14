@@ -2,7 +2,10 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { FeedbackTracker, type TrackerStats as FeedbackTrackerStats } from "@/components/feedback/feedback-tracker";
+import type { TrackerTicketRow } from "@/server/actions/god-bugs-actions";
 import {
+    Bug,
     Ticket,
     Search,
     Send,
@@ -68,12 +71,19 @@ interface TicketStats {
     waitingResponse: number;
     closedRecent: number;
     total: number;
+    feedbackOpen?: number;
+    feedbackTotal?: number;
 }
 
 interface TicketDashboardProps {
     initialTickets: SupportTicket[];
     initialTotal: number;
     initialStats: TicketStats | null;
+    initialFeedback: TrackerTicketRow[];
+    initialFeedbackTotal: number;
+    initialFeedbackPage: number;
+    initialFeedbackTotalPages: number;
+    initialFeedbackStats: FeedbackTrackerStats;
 }
 
 // =============================================================================
@@ -102,7 +112,17 @@ const STATUS_ORDER: Record<SupportTicket["status"], number> = {
 // MAIN COMPONENT
 // =============================================================================
 
-export function TicketDashboard({ initialTickets, initialTotal, initialStats }: TicketDashboardProps) {
+export function TicketDashboard({
+    initialTickets,
+    initialTotal,
+    initialStats,
+    initialFeedback,
+    initialFeedbackTotal,
+    initialFeedbackPage,
+    initialFeedbackTotalPages,
+    initialFeedbackStats,
+}: TicketDashboardProps) {
+    const [activeTab, setActiveTab] = useState<"support" | "feedback">("support");
     const [tickets, setTickets] = useState(initialTickets);
     const [total, setTotal] = useState(initialTotal);
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -327,6 +347,40 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
 
     return (
         <div className="space-y-8">
+            <nav className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-1" aria-label="Sections support">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab("support")}
+                    aria-pressed={activeTab === "support"}
+                    className={cn(
+                        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        activeTab === "support" ? "bg-elevated text-foreground" : "text-muted-foreground hover:bg-elevated hover:text-foreground",
+                    )}
+                >
+                    <Ticket className="h-4 w-4" />
+                    Tickets Discord
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab("feedback")}
+                    aria-pressed={activeTab === "feedback"}
+                    className={cn(
+                        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        activeTab === "feedback" ? "bg-elevated text-foreground" : "text-muted-foreground hover:bg-elevated hover:text-foreground",
+                    )}
+                >
+                    <Bug className="h-4 w-4" />
+                    Signalements
+                    {(initialStats?.feedbackOpen ?? 0) > 0 && (
+                        <span className="rounded-lg bg-warning/10 px-1.5 py-0.5 text-caption text-warning">
+                            {initialStats?.feedbackOpen}
+                        </span>
+                    )}
+                </button>
+            </nav>
+
+            {activeTab === "support" && (
+            <>
             {/* ── En-tête du module (à l'intérieur du composant, cohérent) ── */}
             <div className="flex items-end justify-between flex-wrap gap-4">
                 <div>
@@ -557,6 +611,18 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                     guildRoles={supportGuildRoles}
                     selectedRoleId={selectedRoleId}
                     setSelectedRoleId={setSelectedRoleId}
+                />
+            )}
+            </>
+            )}
+
+            {activeTab === "feedback" && (
+                <FeedbackTracker
+                    initialData={initialFeedback}
+                    initialTotal={initialFeedbackTotal}
+                    initialPage={initialFeedbackPage}
+                    initialTotalPages={initialFeedbackTotalPages}
+                    initialStats={initialFeedbackStats}
                 />
             )}
         </div>

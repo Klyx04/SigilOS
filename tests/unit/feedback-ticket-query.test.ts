@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildTrackerWhere, normalizePagination } from "@/lib/feedback-ticket-mapping";
+import { buildMemberTrackerWhere, buildTrackerWhere, normalizePagination } from "@/lib/feedback-ticket-mapping";
 
 describe("Pagination du tracker", () => {
     it("applique des valeurs par défaut sûres", () => {
@@ -81,5 +81,17 @@ describe("Filtres du tracker", () => {
 
     it("une recherche vide ne crée pas de OR permissif", () => {
         expect(buildTrackerWhere({ search: "   " }, "FEEDBACK")).toEqual({ origin: "FEEDBACK" });
+    });
+
+    it("la recherche membre ne peut pas cibler une pseudo d'une autre guilde", () => {
+        const where = buildMemberTrackerWhere({ search: "Pseudo" });
+        const or = where.OR as Record<string, unknown>[];
+        expect(or.some((entry) => "creatorDiscordName" in entry)).toBe(false);
+        expect(where.publicRef).toEqual({ not: null });
+    });
+
+    it("une référence ciblée reste la seule clé publique demandée", () => {
+        const where = buildMemberTrackerWhere({ ref: "SIG-42" });
+        expect(where.publicRef).toBe("SIG-42");
     });
 });

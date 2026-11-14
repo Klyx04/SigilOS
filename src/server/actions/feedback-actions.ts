@@ -209,14 +209,14 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
  * - Crée une Notification scopée par guilde du membre
  */
 const notifyMemberSchema = z.object({
-  issueId: z.number().int().positive(),
+  ticketRef: z.string().trim().min(3).max(32).regex(/^SIG-[0-9A-Za-z-]+$/),
   memberName: z.string().trim().min(1).max(100),
   emoji: z.string().trim().min(1).max(8),
   message: z.string().trim().min(1).max(1000),
 });
 
 export async function notifyMemberFeedbackAction(input: {
-  issueId: number;
+  ticketRef: string;
   memberName: string;
   emoji: string;
   message: string;
@@ -241,7 +241,7 @@ export async function notifyMemberFeedbackAction(input: {
   try {
     // — Retrouver le signalement par sa référence publique stable
     const ticket = await db.supportTicket.findUnique({
-      where: { publicRef: `SIG-${data.issueId}` },
+      where: { publicRef: data.ticketRef },
       select: {
         id: true,
         publicRef: true,
@@ -267,7 +267,7 @@ export async function notifyMemberFeedbackAction(input: {
     const dashboardGuildId = ticket.discordGuildId ?? undefined;
     // Sans guilde identifiable, `createNotification` est fail-closed et n'écrit rien.
     const guildIdForNotif = dashboardGuildId || ticket.guildId || undefined;
-    const publicRef = ticket.publicRef ?? `SIG-${data.issueId}`;
+    const publicRef = ticket.publicRef ?? data.ticketRef;
 
     // — Journal interne : la réponse devient visible dans le tracker du membre
     await db.supportTicket.update({

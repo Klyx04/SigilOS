@@ -507,8 +507,27 @@ async function AnnouncementServer() {
 async function TicketsServer() {
     try {
         const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
-        const [ticketData, stats] = await Promise.all([getSupportTickets({ perPage: 50 }), getTicketStats()]);
-        return <TicketDashboard initialTickets={JSON.parse(JSON.stringify(ticketData.tickets, (k, v) => typeof v === 'bigint' ? v.toString() : v))} initialTotal={ticketData.total} initialStats={stats} />;
+        const { getTrackerTickets, getTrackerStats } = await import("@/server/actions/god-bugs-actions");
+        const [ticketData, stats, trackerData, trackerStats] = await Promise.all([
+            getSupportTickets({ perPage: 50 }),
+            getTicketStats(),
+            getTrackerTickets({ page: 1, perPage: 20 }),
+            getTrackerStats(),
+        ]);
+        return (
+            <TicketDashboard
+                initialTickets={JSON.parse(JSON.stringify(ticketData.tickets, (k, v) => typeof v === 'bigint' ? v.toString() : v))}
+                initialTotal={ticketData.total}
+                initialStats={stats}
+                initialFeedback={trackerData.success && "data" in trackerData ? trackerData.data : []}
+                initialFeedbackTotal={trackerData.success && "total" in trackerData ? trackerData.total : 0}
+                initialFeedbackPage={trackerData.success && "page" in trackerData ? trackerData.page : 1}
+                initialFeedbackTotalPages={trackerData.success && "totalPages" in trackerData ? trackerData.totalPages : 1}
+                initialFeedbackStats={trackerStats.success && "data" in trackerStats
+                    ? trackerStats.data
+                    : { total: 0, open: 0, resolved: 0, ignored: 0, internal: 0, feedback: 0 }}
+            />
+        );
     } catch { return <div>Error tickets</div> }
 }
 

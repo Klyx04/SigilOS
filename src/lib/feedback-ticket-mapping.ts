@@ -149,6 +149,22 @@ export function buildTrackerWhere(
   return where;
 }
 
+/**
+ * Variante membre : interdit la recherche par pseudo (elle révélerait qu'un
+ * membre d'une autre guilde a signalé quelque chose) et exige une référence
+ * publique, seule clé exposée au client.
+ */
+export function buildMemberTrackerWhere(
+  filters: TrackerFilters | null | undefined,
+): Record<string, unknown> {
+  const where = buildTrackerWhere(filters, "FEEDBACK");
+  if (Array.isArray(where.OR)) {
+    where.OR = (where.OR as Record<string, unknown>[]).filter((entry) => !("creatorDiscordName" in entry));
+  }
+  if (!filters?.ref) where.publicRef = { not: null };
+  return where;
+}
+
 export interface TrackerTicketRecord {
   publicRef: string | null;
   category: string;

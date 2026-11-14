@@ -1,5 +1,10 @@
 import { getTrackerStats, getTrackerTickets } from "@/server/actions/god-bugs-actions";
 import { FeedbackTracker } from "@/components/feedback/feedback-tracker";
+import { FeedbackChannelConfig } from "@/components/feedback/feedback-channel-config";
+import {
+    getConfiguredFeedbackChannelId,
+    resolveFeedbackScreenshotChannel,
+} from "@/server/feedback-screenshot-channel";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 
@@ -27,6 +32,13 @@ export default async function GodBugsPage({ searchParams }: Props) {
         getTrackerStats(),
     ]);
 
+    // Salon des captures : réglé ici (God), jamais en dur. Les deux appels sont
+    // indépendants : l'un rend la valeur brute, l'autre le lien résolu.
+    const [screenshotChannelId, screenshotChannel] = await Promise.all([
+        getConfiguredFeedbackChannelId(),
+        resolveFeedbackScreenshotChannel(),
+    ]);
+
     const initialData = ticketsResponse.success && "data" in ticketsResponse ? ticketsResponse.data : [];
     const initialTotal = ticketsResponse.success && "total" in ticketsResponse ? ticketsResponse.total : 0;
     const initialPage = ticketsResponse.success && "page" in ticketsResponse ? ticketsResponse.page : 1;
@@ -43,6 +55,11 @@ export default async function GodBugsPage({ searchParams }: Props) {
                     Suivez les bugs et améliorations signalés par les membres, répondez-leur et tenez vos notes internes.
                 </p>
             </div>
+
+            <FeedbackChannelConfig
+                initialChannelId={screenshotChannelId}
+                initialUrl={screenshotChannel?.url ?? null}
+            />
 
             <FeedbackTracker
                 initialData={initialData}

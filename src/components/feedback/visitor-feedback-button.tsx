@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { Bug, Send } from "lucide-react";
+import { Bug, ExternalLink, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { FEEDBACK_LABELS, FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback-types";
 import { submitVisitorFeedbackAction } from "@/server/actions/feedback-actions";
+import { useFeedbackScreenshotChannel } from "@/hooks/use-feedback-screenshot-channel";
 import { cn } from "@/lib/utils";
 
 interface VisitorFeedbackButtonProps {
@@ -37,6 +38,7 @@ export function VisitorFeedbackButton({
 }: VisitorFeedbackButtonProps) {
     const pathname = usePathname();
     const page = (sourcePage ?? `public:${pathname || "inconnu"}`).slice(0, 100);
+    const { url: screenshotUrl, loading: screenshotLoading } = useFeedbackScreenshotChannel();
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
     const [description, setDescription] = useState("");
@@ -146,6 +148,24 @@ export function VisitorFeedbackButton({
                             />
                             <p className="text-right text-caption text-muted-foreground">{description.length}/2000</p>
                         </div>
+
+                        {!screenshotLoading && screenshotUrl && (
+                            <div className="rounded-xl border border-border bg-surface px-3 py-2">
+                                <p className="text-caption font-medium text-foreground">Captures d&apos;écran</p>
+                                <p className="text-caption text-muted-foreground">
+                                    Ce formulaire part sans pièce jointe. Pour joindre une capture, poste-la dans le salon des captures.
+                                </p>
+                                <a
+                                    href={screenshotUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-flex items-center gap-1.5 text-caption font-semibold text-primary underline underline-offset-2"
+                                >
+                                    <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                    Ouvrir le salon des captures
+                                </a>
+                            </div>
+                        )}
                     </div>
 
                     <DialogFooter>

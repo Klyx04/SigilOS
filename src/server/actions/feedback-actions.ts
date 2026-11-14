@@ -14,7 +14,12 @@ import {
   type TrackerStatusValue,
 } from "@/lib/feedback-ticket-mapping";
 import { appendMemberReply, ensurePublicRef, sendFeedbackEmbed } from "@/server/feedback-ticket-service";
-import { getUserContext } from "./user-actions";
+import {
+  resolveFeedbackScreenshotChannel,
+  validateFeedbackScreenshotChannel,
+} from "@/server/feedback-screenshot-channel";
+import { isDiscordSnowflake } from "@/lib/feedback-screenshot-channel";
+import { getUserContext, type ActionResponse } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
 
 const feedbackSchema = z.object({
@@ -462,5 +467,89 @@ export async function getMyVisitorFeedbackAction(): Promise<MyVisitorFeedbackRes
   } catch (e: any) {
     logger.error("[Feedback Visiteur] Historique impossible", { error: e?.message });
     return { success: false, error: "Impossible de charger tes signalements." };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Salon des captures d'écran — paramétrable côté God (`/god/bugs`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const screenshotChannelSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .refine((value) => value === "" || isDiscordSnowflake(value), {
+    message: "Identifiant de salon invalide",
+  });
+
+/**
+ * Lien public vers le salon des captures — **lecture seule**, aucune session
+ * exigée (les surfaces publiques en ont besoin). `null` = aucun salon
+ * configuré ou Discord indisponible : l'UI n'affiche alors aucun lien.
+ */
+export async function getFeedbackScreenshotChannelAction(): Promise<
+  ActionResponse<{ url: string | null }>
+> {
+  const resolved = await resolveFeedbackScreenshotChannel();
+  return { success: true, data: { url: resolved?.url ?? null } };
+}
+
+/**
+ * Enregistre le salon des captures (God uniquement).
+ *
+ * Fail-closed : le salon doit exister, être un salon textuel et appartenir à
+ * un serveur identifiable — sinon rien n'est écrit. Une chaîne vide efface le
+ * réglage (l'UI cesse alors d'afficher un lien, jamais une invitation en dur).
+ */
+export async function setFeedbackScreenshotChannelAction(
+  channelId: string
+): Promise<ActionResponse<{ url: string | null }>> {
+  const { isSuperAdmin } = await import("./super-admin-actions");
+  if (!(await isSuperAdmin())) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Non authentifié." };
+  }
+
+  const rate = await rateLimit(`feedback:screenshot-channel:${session.user.id}`, 10, 60_000);
+  if (!rate.success) {
+    return { success: false, error: "Trop de modifications — réessaie dans une minute." };
+  }
+
+  const parsed = screenshotChannelSchema.safeParse(channelId);
+  if (!parsed.success) {
+    return { success: false, error: "Identifiant de salon invalide." };
+  }
+  const value = parsed.data;
+
+  try {
+    if (!value) {
+      await db.platformConfig.upsert({
+        where: { id: "singleton" },
+        update: { questFeedbackChannelId: null },
+        create: { id: "singleton", questFeedbackChannelId: null },
+      });
+      return { success: true, data: { url: null } };
+    }
+
+    const validation = await validateFeedbackScreenshotChannel(value);
+    if (!validation.ok) {
+      return { success: false, error: validation.error };
+    }
+
+    await db.platformConfig.upsert({
+      where: { id: "singleton" },
+      update: { questFeedbackChannelId: value },
+      create: { id: "singleton", questFeedbackChannelId: value },
+    });
+
+    logger.info("[Feedback] salon des captures enregistré", { actorId: session.user.id });
+    return { success: true, data: { url: validation.url } };
+  } catch (e: any) {
+    logger.error("[Feedback] salon des captures non enregistré", { error: e?.message });
+    return { success: false, error: "Enregistrement impossible." };
   }
 }

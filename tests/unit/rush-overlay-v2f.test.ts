@@ -135,17 +135,21 @@ describe("F11 — la fenêtre de retour passe devant et mène au support", () =>
         expect(read(HEADER)).toMatch(/top-full right-0 mt-1 z-50/);
     });
 
-    it("en visiteur non connecté, la modale ne porte QUE le Discord", () => {
+    it("en visiteur non connecté, la modale ne porte QUE le salon des captures", () => {
         const panel = read(PANEL);
-        expect(panel).toMatch(/Rejoindre le Discord Sigilos/);
-        // Une capture ne passe pas par le formulaire : elle demande un post.
-        expect(panel).toMatch(/ouvre un post dans le canal associé/);
-        // Décision du 08/11/2026 : le visiteur non connecté ne voit que la modale
-        // qui mène au Discord. Le formulaire est derrière `!onlyDiscord`
-        // (`submitQuestFeedbackAction` exige une session), et le pied n'a qu'un bouton.
+        // Décision du 14/11/2026 : plus d'invitation en dur. Le salon est réglé
+        // côté God (`/god/bugs`) et le lien affiché en découle.
+        expect(panel).not.toMatch(/discord\.gg/);
+        expect(panel).not.toContain("DISCORD_INVITE_URL");
+        expect(panel).toMatch(/useFeedbackScreenshotChannel/);
+        expect(panel).toMatch(/Ouvrir le salon des captures/);
+        // Une capture ne passe pas par le formulaire : elle se poste dans le salon.
+        expect(panel).toMatch(/Pour signaler un bug, ouvre le salon des captures/);
+        // Le visiteur non connecté ne voit pas le formulaire : il est derrière
+        // `!onlyDiscord` (`submitQuestFeedbackAction` exige une session), et le
+        // pied n'a qu'un bouton.
         expect(panel).toMatch(/onlyDiscord\?: boolean/);
         expect(panel).toMatch(/\{onlyDiscord \? null : \(/);
-        expect(panel).toMatch(/Pour signaler un bug, ouvre un post dans le canal associé/);
         expect(panel).toMatch(/Fermer/);
     });
 

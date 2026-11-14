@@ -4,7 +4,7 @@ import React, { useEffect, useState, useTransition } from "react";
 import { Bug, X, Send, MapPin, ExternalLink } from "lucide-react";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
-import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
+import { submitQuestFeedbackAction, submitVisitorFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
 
 /**
@@ -28,6 +28,12 @@ interface RushOverlayFeedbackPanelProps {
    * alors que la page connaît la session (`feedbackSignedIn`).
    */
   onlyDiscord?: boolean;
+  /**
+   * Surface publique connectée : aucune appartenance à la guilde n'est exigée.
+   * L'action visiteur rattache le retour à la guilde d'accueil du compte si elle
+   * existe, sinon à la plateforme.
+   */
+  visitorMode?: boolean;
   onClose: () => void;
 }
 
@@ -47,6 +53,7 @@ export function RushOverlayFeedbackPanel({
   targetSlug,
   context,
   onlyDiscord = false,
+  visitorMode = false,
   onClose,
 }: RushOverlayFeedbackPanelProps) {
   // Toaster de l'overlay quand il y en a un (PiP), global sinon.
@@ -69,15 +76,17 @@ export function RushOverlayFeedbackPanel({
     if (!description.trim()) return toast.error("Décris brièvement ton retour.");
 
     startTransition(async () => {
-      const res = await submitQuestFeedbackAction({
+      const commonInput = {
         feedbackType: selectedType,
         description: description.trim(),
         sourcePage,
         targetSlug: targetSlug || null,
-        guildId,
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         context: context || null,
-      });
+      };
+      const res = visitorMode
+        ? await submitVisitorFeedbackAction(commonInput)
+        : await submitQuestFeedbackAction({ ...commonInput, guildId });
 
       if (res.success) {
         toast.success("Merci ! Ton retour a bien été envoyé à l'équipe.");
@@ -146,7 +155,7 @@ export function RushOverlayFeedbackPanel({
           </div>
 
           {/* Visiteur **non connecté** : le Discord, rien d'autre.
-              `submitQuestFeedbackAction` exige une session — afficher des catégories
+              Les deux actions exigent une session — afficher des catégories
               qui ne pourraient pas partir serait un mensonge. */}
           {onlyDiscord ? null : (
             <>

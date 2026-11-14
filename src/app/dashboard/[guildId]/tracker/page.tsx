@@ -1,7 +1,7 @@
-import { getMemberSystemIssues } from "@/server/actions/god-bugs-actions";
-import { SystemTrackerView } from "@/components/tracker/system-tracker-view";
+import { getMemberTrackerTickets } from "@/server/actions/god-bugs-actions";
+import { MemberTrackerView } from "@/components/tracker/member-tracker-view";
 import { AuroraBackground } from "@/components/ui/aurora-background";
-import { BugIcon, ShieldCheck } from "lucide-react";
+import { Bug, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
@@ -9,93 +9,90 @@ interface TrackerPageProps {
     params: Promise<{
         guildId: string;
     }>;
+    searchParams: Promise<{ bug?: string | string[] }>;
 }
 
 export const metadata = {
-    title: "Tracker de Bugs & Améliorations — SigilOS",
-    description: "Suivez l'évolution technique de SigilOS, les bugs en cours de résolution et les améliorations prévues.",
+    title: "Tracker des signalements — SigilOS",
+    description: "Suivez les bugs et améliorations signalés par les membres, et les réponses de l'équipe.",
 };
 
-export default async function MemberTrackerPage({ params }: TrackerPageProps) {
+const REF_PATTERN = /^SIG-[0-9A-Za-z-]{1,28}$/;
+
+export default async function MemberTrackerPage({ params, searchParams }: TrackerPageProps) {
     const { guildId } = await params;
     const session = await auth();
+    if (!session?.user?.id) redirect("/login");
 
-    if (!session?.user?.id) {
-        redirect("/login");
-    }
+    const resolvedSearch = await searchParams;
+    const rawRef = typeof resolvedSearch.bug === "string" ? resolvedSearch.bug : undefined;
+    const initialRef = rawRef && REF_PATTERN.test(rawRef) ? rawRef : undefined;
 
-    const response = await getMemberSystemIssues(guildId);
+    const response = await getMemberTrackerTickets(guildId, {
+        page: 1,
+        perPage: 20,
+        ref: initialRef,
+    });
 
     if (!response.success) {
-        // If not a member or error, redirect to dashboard root
+        // Non-membre, guilde inconnue ou erreur : retour au dashboard, jamais un tracker vide trompeur.
         redirect(`/dashboard/${guildId}`);
     }
 
-    const issues = response.data || [];
+    const initialData = "data" in response ? response.data : [];
+    const initialTotal = "total" in response ? response.total : 0;
+    const initialPage = "page" in response ? response.page : 1;
+    const initialTotalPages = "totalPages" in response ? response.totalPages : 1;
+    const initialStats = "stats" in response
+        ? response.stats
+        : { total: 0, open: 0, resolved: 0, ignored: 0 };
 
     return (
-        <div className="flex-1 flex flex-col relative overflow-hidden">
-            <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
-            
-            {/* Header Area */}
-            <div className="relative z-10 px-8 pt-10 pb-6 border-b border-border bg-background/40 backdrop-blur-3xl">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
-                                <BugIcon className="w-5 h-5 text-warning" />
-                            </div>
-                            <span className="text-caption font-black uppercase tracking-widest text-warning/60">Système de Suivi</span>
+        <div className="relative flex-1 overflow-hidden">
+            <AuroraBackground className="pointer-events-none absolute inset-0 z-0 opacity-10" />
+
+            <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <header className="mb-6 flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
+                    <div className="min-w-0 space-y-2">
+                        <div className="flex items-center gap-2 text-caption font-medium uppercase tracking-wide text-warning">
+                            <Bug className="h-4 w-4" />
+                            Système de suivi
                         </div>
-                        <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-4">
-                            Tracker de Bugs & Améliorations
+                        <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                            Tracker des signalements
                         </h1>
-                        <p className="text-muted-foreground text-sm font-medium max-w-2xl">
-                            Transparence totale sur l&apos;état technique du projet. Suivez les correctifs en temps réel et les évolutions à venir.
+                        <p className="max-w-2xl text-sm text-muted-foreground">
+                            Consultez les bugs et améliorations signalés, leur avancement et les réponses de l&apos;équipe.
+                            La pseudo d&apos;un membre n&apos;est visible que dans sa propre guilde.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-6 px-6 py-4 rounded-3xl bg-surface border border-border backdrop-blur-xl">
-                        <div className="text-center">
-                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1">Total</p>
-                            <p className="text-xl font-black text-foreground">{issues.length}</p>
-                        </div>
-                        <div className="w-px h-8 bg-surface" />
-                        <div className="text-center">
-                            <p className="text-caption font-black text-warning uppercase tracking-widest mb-1">En cours</p>
-                            <p className="text-xl font-black text-foreground">{issues.filter(i => i.status === 'EN_COURS').length}</p>
-                        </div>
-                        <div className="w-px h-8 bg-surface" />
-                        <div className="text-center">
-                            <p className="text-caption font-black text-success uppercase tracking-widest mb-1">Résolus</p>
-                            <p className="text-xl font-black text-foreground">{issues.filter(i => i.status === 'TERMINE').length}</p>
-                        </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-caption text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4 text-success" />
+                        Accès membre vérifié
                     </div>
-                </div>
+                </header>
+
+                <MemberTrackerView
+                    guildId={guildId}
+                    initialData={initialData}
+                    initialTotal={initialTotal}
+                    initialPage={initialPage}
+                    initialTotalPages={initialTotalPages}
+                    initialStats={initialStats}
+                    initialRef={initialRef}
+                />
             </div>
 
-            {/* Content Area */}
-            <div className="relative z-10 flex-1 p-8 overflow-y-auto no-scrollbar">
-                <div className="max-w-7xl mx-auto">
-                    <SystemTrackerView initialIssues={issues as any} />
-                </div>
-            </div>
-
-            {/* Footer Status */}
-            <div className="px-8 py-3 bg-background/80 border-t border-border flex items-center justify-between text-caption font-black uppercase tracking-[0.2em] text-muted-foreground relative z-10">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-success " />
-                        <span className="text-success/60">Flux de données actif</span>
-                    </div>
-                    <div className="w-px h-3 bg-surface" />
+            <footer className="relative z-10 border-t border-border px-4 py-3 text-caption text-muted-foreground sm:px-6 lg:px-8">
+                <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
-                        <ShieldCheck className="w-3 h-3" />
-                        Accès Membre Autorisé
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        Flux de données actif
                     </span>
+                    <span>SigilOS · Tracker</span>
                 </div>
-                <span>SigilOS v4.2 Tracker Hub</span>
-            </div>
+            </footer>
         </div>
     );
 }

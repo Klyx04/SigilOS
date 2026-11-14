@@ -37,6 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ThemeToggle } from "./ThemeToggle";
 import { DashboardDrawer } from "./dashboard-drawer";
 import { LanguageToggle } from "./LanguageToggle";
+import { VisitorFeedbackButton } from "@/components/feedback/visitor-feedback-button";
 import { useI18n } from "@/lib/i18n/client";
 
 /** Serveur Discord d'entraide — seule invitation publique connue. */
@@ -577,8 +578,9 @@ export function PublicHeader({
                         </Popover>
                     </nav>
 
-                    {/* Actions : langue, thème, connexion / compte */}
+                    {/* Actions : signalement visiteur, langue, thème, connexion / compte */}
                     <div className="flex items-center gap-1.5 shrink-0">
+                        {user && <VisitorFeedbackButton iconOnly />}
                         <LanguageToggle />
                         <ThemeToggle />
 

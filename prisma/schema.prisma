@@ -2763,27 +2763,46 @@ model GlobalBlocklist {
 }
 
 model SupportTicket {
-  id                     String         @id @default(cuid())
-  ticketNumber           Int            @unique @default(autoincrement())
-  discordThreadId        String?        @unique
-  discordGuildId         String
+  id                     String            @id @default(cuid())
+  ticketNumber           Int               @unique @default(autoincrement())
+  origin                 TicketOrigin      @default(SUPPORT)
+  publicRef              String?           @unique
+  legacySystemIssueId    Int?              @unique
+  discordThreadId        String?           @unique
+  discordGuildId         String?
   category               TicketCategory
-  status                 TicketStatus   @default(OPEN)
+  status                 TicketStatus      @default(OPEN)
   subject                String
   description            String
   creatorDiscordId       String
   creatorDiscordName     String
+  creatorUserId          String?
   assignedToId           String?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
   closedAt               DateTime?
   closedBy               String?
   closedReason           String?
-  transcript             Json?          @db.Json
+  transcript             Json?             @db.Json
   targetGuildId          String?
   targetGuildMemberCount Int?
   targetGuildName        String?
+  // ── Signalements (fusion SystemIssue) ───────────────────────────────
+  feedbackType           String?
+  sourcePage             String?
+  targetSlug             String?
+  guildId                String?
+  userAgent              String?
+  memberGuildName        String?
+  priority               String?
+  trackerStatus          SystemIssueStatus?
+  forumLink              String?
 
+  @@index([origin])
+  @@index([feedbackType])
+  @@index([guildId])
+  @@index([trackerStatus])
+  @@index([createdAt])
   @@index([status])
   @@index([category])
   @@index([creatorDiscordId])
@@ -3803,6 +3822,12 @@ enum KamaDonationStatus {
   PENDING
   VALIDATED
   REJECTED
+}
+
+enum TicketOrigin {
+  SUPPORT
+  FEEDBACK
+  INTERNAL
 }
 
 enum TicketCategory {

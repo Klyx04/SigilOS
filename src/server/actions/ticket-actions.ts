@@ -530,7 +530,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                 logger.warn("[Tickets] Role (guilde cible) failed (non-blocking)", { error: roleErr, guildId: discordGuildId });
             }
         }
-        if (autoRole) {
+        if (autoRole && freshTicket.discordGuildId) {
             try {
                 await addRoleToMember(freshTicket.discordGuildId, freshTicket.creatorDiscordId, autoRole);
             } catch (roleErr) {
@@ -543,10 +543,12 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
 
         // 5. [AUDIT] Log for traceability — isolated: must NOT crash the validation
         try {
-            const auditGuildConfig = await db.guildConfig.findFirst({
-                where: { discordGuildId: freshTicket.discordGuildId },
-                select: { id: true }
-            });
+            const auditGuildConfig = freshTicket.discordGuildId
+                ? await db.guildConfig.findFirst({
+                    where: { discordGuildId: freshTicket.discordGuildId },
+                    select: { id: true }
+                })
+                : null;
             const auditGuildId = auditGuildConfig?.id || null;
 
             if (auditGuildId) {

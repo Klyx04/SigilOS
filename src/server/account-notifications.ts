@@ -131,7 +131,7 @@ export function accountNotificationScope(userId: string) {
  */
 export async function createAccountNotification(
     input: CreateAccountNotificationInput
-): Promise<{ success: boolean; id?: string }> {
+): Promise<{ success: boolean; id?: string; skipped?: boolean }> {
     const parsed = accountNotificationInputSchema.safeParse(input);
     if (!parsed.success) {
         logger.warn("[Notification compte] entrée invalide", {
@@ -141,6 +141,25 @@ export async function createAccountNotification(
     }
 
     const data = parsed.data;
+
+    // Opt-out (N2-bis) : le compte peut couper **toutes** les notifications de
+    // compte. Une préférence illisible annule l'envoi (fail-closed) : on ne veut
+    // pas écrire une notification à quelqu'un qui l'a peut-être désactivée.
+    let enabled: boolean;
+    try {
+        const user = await db.user.findUnique({
+            where: { id: data.userId },
+            select: { accountNotificationsEnabled: true },
+        });
+        enabled = user?.accountNotificationsEnabled ?? true;
+    } catch (error) {
+        logger.error("[Notification compte] préférence illisible — envoi annulé", {
+            error: (error as Error).message,
+        });
+        return { success: false };
+    }
+
+    if (!enabled) return { success: true, skipped: true };
 
     try {
         const row = await db.notification.create({
@@ -227,5 +246,30 @@ export async function countUnreadAccountNotifications(userId: string): Promise<n
             error: (error as Error).message,
         });
         return 0;
+    }
+}
+
+/**
+ * Préférence d'opt-out du compte (N2-bis).
+ *
+ * Utilisée par la page Réglages. En cas de panne de lecture, on rend `true`
+ * (défaut de la colonne) : l'écran ne doit pas afficher un opt-out qui n'existe
+ * pas. Le chemin d'**écriture** reste fail-closed (`createAccountNotification`).
+ */
+export async function getAccountNotificationsEnabled(userId: string): Promise<boolean> {
+    const owner = userId?.trim();
+    if (!owner || owner.length > 64) return true;
+
+    try {
+        const user = await db.user.findUnique({
+            where: { id: owner },
+            select: { accountNotificationsEnabled: true },
+        });
+        return user?.accountNotificationsEnabled ?? true;
+    } catch (error) {
+        logger.error("[Notification compte] lecture de la préférence impossible", {
+            error: (error as Error).message,
+        });
+        return true;
     }
 }

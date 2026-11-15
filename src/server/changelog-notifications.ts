@@ -70,6 +70,7 @@ export async function notifyChangelogPublished(
     try {
         for (let pass = 0; pass < CHANGELOG_FANOUT_MAX_BATCHES; pass += 1) {
             const users = await db.user.findMany({
+                where: { accountNotificationsEnabled: true },
                 select: { id: true },
                 orderBy: { id: "asc" },
                 take: CHANGELOG_FANOUT_BATCH_SIZE,

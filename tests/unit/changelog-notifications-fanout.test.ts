@@ -50,6 +50,9 @@ describe("fan-out changelog : une notification par compte, dans la boîte compte
         const result = await notifyChangelogPublished(entry);
 
         expect(result).toEqual({ success: true, sent: 2 });
+        expect(mockDb.user.findMany.mock.calls[0][0].where).toEqual({
+            accountNotificationsEnabled: true,
+        });
         const data = mockDb.notification.createMany.mock.calls[0][0].data;
         expect(data).toHaveLength(2);
         expect(data[0]).toMatchObject({

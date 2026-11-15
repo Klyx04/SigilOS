@@ -23,6 +23,8 @@ const notificationIdSchema = z.string().trim().min(1).max(64);
 const READ_RATE_LIMIT = 60;
 /** Tout marquer comme lu : mutation plus lourde, plafond resserré. */
 const READ_ALL_RATE_LIMIT = 10;
+/** Enregistrement de la préférence d'opt-out : geste rare. */
+const PREFERENCE_RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 export type AccountNotificationActionResult = {
@@ -121,6 +123,53 @@ export async function markAllAccountNotificationsRead(): Promise<AccountNotifica
         return { success: true, count: result.count };
     } catch (error) {
         logger.error("[Notification compte] marquage global impossible", {
+            error: (error as Error).message,
+        });
+        return { success: false, error: "Mise à jour impossible" };
+    }
+}
+
+/**
+ * Active ou coupe les notifications de **compte** (N2-bis).
+ *
+ * La préférence vit sur `User.accountNotificationsEnabled` ; elle est lue par
+ * `createAccountNotification` et par le fan-out changelog. Désactiver ne
+ * supprime pas les notifications déjà reçues.
+ */
+export async function setAccountNotificationsEnabled(
+    enabled: boolean
+): Promise<AccountNotificationActionResult> {
+    const parsed = z.boolean().safeParse(enabled);
+    if (!parsed.success) {
+        return { success: false, error: "Valeur invalide" };
+    }
+
+    const visitor = await getPublicSession();
+    if (!visitor) {
+        logger.warn("[Notification compte] préférence refusée : session absente");
+        return { success: false, error: "Authentification requise" };
+    }
+
+    const limited = await rateLimit(
+        `account-notifications:prefs:${visitor.userId}`,
+        PREFERENCE_RATE_LIMIT,
+        RATE_WINDOW_MS
+    );
+    if (!limited.success) {
+        logger.warn("[Notification compte] préférence refusée : rate limit");
+        return { success: false, error: "Trop de requêtes. Réessaie dans une minute." };
+    }
+
+    try {
+        await db.user.update({
+            where: { id: visitor.userId },
+            data: { accountNotificationsEnabled: parsed.data },
+        });
+
+        revalidatePath("/espace-visiteur", "layout");
+        return { success: true };
+    } catch (error) {
+        logger.error("[Notification compte] préférence impossible à enregistrer", {
             error: (error as Error).message,
         });
         return { success: false, error: "Mise à jour impossible" };

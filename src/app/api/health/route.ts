@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { logger } from "@/lib/logger";
+import { checkOcrHealth } from "@/lib/llm-ocr";
 
 interface HealthStatus {
     status: "healthy" | "degraded" | "unhealthy";
@@ -20,6 +21,11 @@ interface HealthStatus {
     checks?: {
         discordBot: ExternalCheck;
         metamob: ExternalCheck;
+        /**
+         * OCR des captures (profil perso). `degraded` = clé absente : l'upload
+         * fonctionne toujours, il bascule en validation manuelle.
+         */
+        ocr: ExternalCheck;
     };
     /**
      * Configuration d'authentification **présente** (fail-closed) : une app dont
@@ -162,16 +168,21 @@ export async function GET() {
     // uniquement des états + latences, déjà visibles par ailleurs.
     // Souveraineté : seuls nos services + Metamob (partenaire Ocre) sont sondés.
     // DofusDB et Dofensive ne sont PLUS consultés à l'exécution (retirés le 16/10/2026).
-    const [discordBot, metamob] = await Promise.all([
+    const [discordBot, metamob, ocrHealth] = await Promise.all([
         checkDiscordBot(),
         checkHttp("https://www.metamob.fr/api/v1/quest-types"),
+        checkOcrHealth(),
     ]);
-    health.checks = { discordBot, metamob };
+    // L'OCR n'est pas un service externe sondé ici : `checkOcrHealth` vérifie seulement
+    // que la clé est configurée (aucun appel réseau, aucun secret exposé). Clé absente
+    // ⇒ `degraded`, jamais `down` : la capture reste envoyable, elle passe en revue.
+    const ocr: ExternalCheck = { status: ocrHealth.available ? "up" : "degraded" };
+    health.checks = { discordBot, metamob, ocr };
 
     // Un service externe HS ne rend pas la plateforme "en panne" (elle reste
     // utilisable en mode dégradé), mais il doit se voir.
     if (health.status === "healthy") {
-        const anyDown = discordBot.status === "down" || metamob.status === "down";
+        const anyDown = discordBot.status === "down" || metamob.status === "down" || ocr.status !== "up";
         if (anyDown) health.status = "degraded";
     }
 

@@ -30,18 +30,32 @@ Un **espace de notifications du compte**, disponible sur le profil visiteur conn
 
 Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préférences par canal.
 
-## 2. Décisions à trancher
+## 2. Décisions (15/11/2026)
 
-1. **News** : quelle source ? (changelog uniquement, ou un flux éditorial distinct)
-2. **Opt-out** : par type, global, ou aucun en v1 ?
-3. **Rétention** : purge des notifications lues (90 j ?) ou conservation.
+1. **News** : aucune source éditoriale distincte en base ⇒ v1 = **changelog global uniquement**
+   (`ChangelogEntry`, `isInternal = false`). Pas de `NEWS_PUBLISHED` tant qu'une vraie source n'existe pas.
+2. **Audience** : **tout le monde** — membres de guilde et visiteurs avec espace — avec **une seule
+   notification par personne** (scope compte). Le coût d'un `createMany` par publication est à mesurer
+   avant N2.
+3. **Opt-out** : aucun en v1. Un interrupteur dans `/espace-visiteur/reglages` est possible, mais il
+   demande une migration (préférence plateforme) ⇒ lot **N2-bis** séparé, pas dans N1.
+4. **Rétention** : la purge quotidienne existante s'applique déjà (lues > 30 j, non lues > 90 j).
+   Aucun nouveau code en v1. Passer tout à 30 j reste possible, mais efface une notification jamais vue.
+5. **Lien du changelog** : il n'existe pas de page publique de changelog (`/dashboard/<guildId>/changelog`
+   et `/god/changelog` seulement). Une notification de compte ne peut donc pas pointer vers une page de
+   guilde pour un visiteur sans guilde ⇒ surface de destination à trancher avant N3.
 
 ## 3. Lots
 
-- **N1** — scope « plateforme » explicite : `Notification.guildId = null` autorisé par un chemin
-  dédié, **sans affaiblir** le verrou d'isolation (nouveau test couvrant les deux scopes).
-- **N2** — types `CHANGELOG_PUBLISHED` / `NEWS_PUBLISHED` (migration additive d'enum) + émission
-  à la publication.
+- **N1 — livré le 15/11/2026** : scope « plateforme » explicite (`userId` + `guildId: null`) dans
+  `src/server/account-notifications.ts` (écriture bornée, lecture ≤ 50, total/non-lues) et
+  `src/server/actions/account-notification-actions.ts` (marquage lu/tout lu, session + rate limit).
+  Le verrou `notification-guild-isolation` reste intact ; `guild-actions-rbac` a imposé de sortir le
+  littéral `guildId` de l'action (fonction de scope partagée). Test `account-notifications-scope` (14).
+- **N2** — type `CHANGELOG_PUBLISHED` (migration additive d'enum) + émission à la publication ;
+  `NEWS_PUBLISHED` attend une vraie source éditoriale.
+- **N2-bis (option)** — opt-out du compte : interrupteur dans `/espace-visiteur/reglages` + migration
+  d'une préférence plateforme, seulement si le besoin est confirmé.
 - **N3** — page `/espace-visiteur/notifications` + pastille + lecture/marquage bornés au `userId`.
 - **N4** — émission « réponse à mon signalement » (aujourd'hui `notifyMemberFeedbackAction` ne
   notifie que si une guilde est identifiable).

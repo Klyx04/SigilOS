@@ -5,7 +5,7 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 14/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 15/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -77,7 +77,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Rush — conditions de quête en **infos** (jamais blocage) : joueurs (38), métier (37), horaire (7), sort (3), note (4), combat (726), donjon au choix (7), monstres à tuer (81) | **V3 livrée le 12/11/2026** : colonne **`constraints Json?`** (migration additive `20270130000000_add_rush_quest_constraints`), Zod borné ; horaire (créneau/attente), joueurs + rôles, métiers + niveau, sorts, notes ; **combat** (5 modes, monstres ×N + niveau + PV), **donjon au choix** (8 max), **monstres à tuer** ; portraits réels (`RushPortrait`) et cartes dans les 3 surfaces ; éditeur avec recherches locales (`searchMonstersForDefi`, `searchDungeonsLocal`) — `rush-constraints` **43** · `rush-sequence-inspector` **18** | reste **backfill Tougli** (1 085 contraintes → `constraints`, dry-run/apply) et données éditoriales (ex. les 4 donjons de Maïmane) ; les conseils libres restent dans `tips` | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
-| 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | cadré le 14/11 | N1 → N4 | `docs/plans/PLAN-NOTIFICATIONS.md` | — |
+| 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | **N1 livré 15/11** (scope compte, verrou guilde intact) | N2 → N4 | `docs/plans/PLAN-NOTIFICATIONS.md` | — |
 
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : plus aucun appel réseau pour servir une image, cache complet siphonné, `?url=` retiré du DOM | **S1 + S1b + S2 livrés** · 2 294 apparences siphonnées (`remaining: 0`) · **mode hybride** : `ASSETS_REMOTE_FETCH` (défaut `false`) coupe le réseau pour l'espace apparence, rallumable sans redéployer · reste **S3** (couverture) et **S4** (cron + alerte) | **S3** → **S4** | `docs/plans/AMORCE-SOUVERAINETE-IMAGES.md` | — |
 

@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 15/11/2026 (suite) — **Notifications · N1 : boîte du compte (`userId` + `guildId: null`)** — branche `feat/notifications-compte-n1`
+
+> **Décisions user** : notifications = **espace du compte** ; audience = **tout le monde** (interne + visiteur avec espace), le scope compte garantit **une notification par personne** ; Rush en v2 ; pas d'e-mail/push ; opt-out possible mais proposé en **N2-bis** (migration) ; rétention existante **30 j lues / 90 j non lues**.
+> **Fait** : N1 sans migration — `src/server/account-notifications.ts` (scope `userId` + `guildId: null` défini **une seule fois**, écriture bornée Zod, lecture ≤ 50, total + non-lues) · `src/server/actions/account-notification-actions.ts` (marquage lu / tout lu, `getPublicSession`, rate limit Redis, `updateMany` propriétaire) · **le verrou `notification-guild-isolation` reste intact** ; `guild-actions-rbac` a révélé le littéral `guildId` dans l'action → scope extrait dans une fonction, action sans `guildId`.
+> **Preuves** : `account-notifications-scope` **14** · ciblé **32** · suite **707 fichiers / 7 501 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : N2 (émission changelog : migration additive d'enum, audience à mesurer, lien de destination à trancher), N3 (page + pastille), N4 (réponse au signalement) ; rien à déployer pour N1.
+> **Rotation** : bloc « 13/11/2026 (suite 3) — SEC-04 · cAdvisor supprimé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 15/11/2026 — **Tickets God · G4-1 → G4-4 : configuration dédiée, panneau, runtime, nettoyage** — branche `feat/tickets-god-config`
 
 > **Décisions user** : « G4-1 à 4, go, un commit par G, une PR finale » · catégories **libres** (option B : création, désactivation, jamais de suppression) · migration additive acceptée avant écriture.
@@ -48,14 +57,4 @@
 > **Preuves** : verrou `ws-guild-revocation` **23** · `tsc` 0 · ESLint 0 erreur · bundle `build:ws` ✓ · aucune migration.
 > **Reste / ops** : PR → `dev` ; rebuild `ws-prod`/`ws-beta` au déploiement ; vérifier en bêta avec un second compte (archivage admin → coupure immédiate ; exclusion Discord → ≤ 60 s). Option non retenue : publication directe depuis le bot (ioredis) — le sweep couvre le besoin.
 > **Rotation** : bloc « 12/11/2026 (suite 7) — Rush : E3c + E4 + T-4a + bloc B » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 13/11/2026 (suite 3) — **SEC-04 · cAdvisor supprimé : plus de socket Docker monté** — branche `chore/monitoring-sans-cadvisor`
-
-> **Décision user (verbatim)** : « toi qui gères » — après mesure : la carte God « Conteneurs » était vide depuis le 19/10 et le socket Docker n'était monté que pour cAdvisor.
-> **Fait** : service `cadvisor` retiré des composes prod **et** dev (`privileged: true` en dev), scrape job retiré de `monitoring/prometheus/prometheus.yml`, requêtes `container_last_seen`/`container_start_time_seconds` et champs `containers`/`restarts` retirés de `god-system-actions`, carte « Conteneurs » retirée du dashboard God, `scripts/deploy.sh` ne tire plus `grafana` (déjà supprimé) ni `cadvisor`, doc `MAINTENANCE.md` mise à jour.
-> **Preuves** : `monitor-private` **5** (dont « ne monte plus le socket Docker ») · suite **668 fichiers ✓** · `tsc` 0 · **aucune migration**.
-> **Reste / ops** : PR → `dev` ; au prochain déploiement, la stack monitoring ne recrée plus cAdvisor — supprimer le conteneur existant (`docker rm -f sigilos-cadvisor`, action humaine) et vérifier que Prometheus ne scrape plus `cadvisor:8080`.
-> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
 

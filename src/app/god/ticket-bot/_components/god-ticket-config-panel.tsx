@@ -20,6 +20,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
     loadGodTicketGuildAssetsAction,
+    publishGodTicketPanelAction,
     saveGodTicketCategoryAction,
     saveGodTicketConfigAction,
     setGodTicketCategoryEnabledAction,
@@ -153,6 +154,17 @@ export function GodTicketConfigPanel({ initial }: { initial: GodTicketConfigPane
                 );
                 toast.success(enabled ? "Catégorie réactivée" : "Catégorie désactivée");
                 router.refresh();
+            } else {
+                toast.error(result.error);
+            }
+        });
+    };
+
+    const handlePublishPanel = () => {
+        startTransition(async () => {
+            const result = await publishGodTicketPanelAction();
+            if (result.success) {
+                toast.success("Panneau publié dans le salon du support");
             } else {
                 toast.error(result.error);
             }
@@ -407,10 +419,20 @@ export function GodTicketConfigPanel({ initial }: { initial: GodTicketConfigPane
                             Un salon hors du serveur, un rôle supprimé ou Discord indisponible ⇒ refus,
                             jamais un enregistrement partiel.
                         </p>
-                        <Button onClick={handleSaveConfig} disabled={isPending || assetsLoading}>
-                            <Save className="h-4 w-4" aria-hidden="true" />
-                            Enregistrer
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={handlePublishPanel}
+                                disabled={isPending || assetsLoading || !isConfigured}
+                            >
+                                <Ticket className="h-4 w-4" aria-hidden="true" />
+                                Publier le panneau
+                            </Button>
+                            <Button onClick={handleSaveConfig} disabled={isPending || assetsLoading}>
+                                <Save className="h-4 w-4" aria-hidden="true" />
+                                Enregistrer
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

@@ -21,12 +21,21 @@ import {
     addRoleToMember,
     archiveThread,
     sendChannelMessage,
-    fetchChannel,
+    sendDirectMessage,
     fetchGuildRoles,
     fetchGuildChannels,
     fetchBotGuilds,
+    buildSafeRoleMention,
 } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
+import { loadGodTicketRuntime } from "@/server/god-ticket-config";
+import {
+    buildSupportThreadName,
+    categoryColorToInt,
+    resolveGodTicketCategory,
+    toLegacyTicketCategory,
+} from "@/lib/tickets/god-config";
+import { buildSupportPanelContent } from "@/lib/tickets/god-panel";
 
 // =============================================================================
 // SCHEMAS & CONSTANTS
@@ -38,7 +47,10 @@ const TicketStatusSchema = z.enum(["OPEN", "IN_PROGRESS", "WAITING_RESPONSE", "C
 const CreateTicketSchema = z.object({
     channelId: z.string().min(15),
     discordGuildId: z.string().min(15),
-    category: TicketCategorySchema,
+    /** Catégorie God (clé stable). Le runtime la revalide : active ou refus. */
+    categoryKey: z.string().trim().regex(/^[a-z0-9-]{2,40}$/),
+    /** Type historique facultatif : déduit de la catégorie quand absent. */
+    category: TicketCategorySchema.optional(),
     subject: z.string().min(2).max(100),
     description: z.string().min(10).max(2000),
     creatorDiscordId: z.string().min(15),
@@ -48,20 +60,6 @@ const CreateTicketSchema = z.object({
     targetGuildName: z.string().optional(),
     targetGuildMemberCount: z.number().int().min(1).max(500).optional(),
 });
-
-const TICKET_CATEGORY_LABELS: Record<string, string> = {
-    ACCESS_REQUEST: "🔑 Accès",
-    BUG_REPORT: "🐛 Bug",
-    FEATURE_REQUEST: "💡 Feature",
-    OTHER: "📩 Autre",
-};
-
-const TICKET_STATUS_COLORS: Record<string, number> = {
-    ACCESS_REQUEST: 0x10b981, // green
-    BUG_REPORT: 0xef4444,    // red
-    FEATURE_REQUEST: 0x8b5cf6, // purple
-    OTHER: 0x6366f1,         // indigo
-};
 
 // =============================================================================
 // 1. CREATE TICKET (from Discord interaction)
@@ -84,11 +82,29 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
     }
 
     try {
-        // 1. Double check for duplicate (except CLOSED)
+        // 0. Configuration God — serveur, salon et catégories sont revalidés à chaque création.
+        let runtime;
+        try {
+            runtime = await loadGodTicketRuntime();
+        } catch (configError) {
+            logger.error("[Tickets] Configuration God indisponible", { error: configError });
+            return { success: false, error: "Support momentanément indisponible." };
+        }
+
+        const category = resolveGodTicketCategory(data.categoryKey, runtime.categories);
+        if (!category) {
+            return { success: false, error: "Cette catégorie n'est plus disponible — rouvre le panneau." };
+        }
+        const legacyCategory = data.category ?? toLegacyTicketCategory(category);
+        const supportGuildId = runtime.config.supportGuildId ?? data.discordGuildId;
+        const supportChannelId = runtime.config.supportChannelId ?? data.channelId;
+        const categoryLabel = `${category.emoji} ${category.label}`;
+
+        // 1. Double check for duplicate (except CLOSED) — par catégorie God.
         const existingTicket = await db.supportTicket.findFirst({
             where: {
                 creatorDiscordId: data.creatorDiscordId,
-                category: data.category,
+                categoryKey: category.key,
                 status: { not: "CLOSED" },
             },
         });
@@ -96,15 +112,16 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
         if (existingTicket) {
             return {
                 success: false,
-                error: `⛔ ACCÈS REFUSÉ : Vous avez déjà un ticket ouvert dans la catégorie "${TICKET_CATEGORY_LABELS[data.category]}". \n\n💡 Un seul ticket par catégorie est autorisé simultanément pour éviter le spam. Veuillez fermer le ticket #${existingTicket.ticketNumber} avant d'en ouvrir un nouveau.`,
+                error: `⛔ ACCÈS REFUSÉ : Vous avez déjà un ticket ouvert dans la catégorie "${categoryLabel}". \n\n💡 Un seul ticket par catégorie est autorisé simultanément pour éviter le spam. Veuillez fermer le ticket #${existingTicket.ticketNumber} avant d'en ouvrir un nouveau.`,
             };
         }
 
         // 2. CREATE IN DATABASE (FAST)
         const ticket = await db.supportTicket.create({
             data: {
-                discordGuildId: data.discordGuildId,
-                category: data.category,
+                discordGuildId: supportGuildId,
+                category: legacyCategory,
+                categoryKey: category.key,
                 subject: data.subject,
                 description: data.description,
                 creatorDiscordId: data.creatorDiscordId,
@@ -119,8 +136,11 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
         // We do NOT await thread creation to respond to Discord interaction within 3s
         (async () => {
             try {
-                const threadName = `🎫-${ticket.ticketNumber}-${data.creatorDiscordName}`.substring(0, 100);
-                const thread = await createPrivateThread(data.channelId, threadName);
+                const threadName = buildSupportThreadName(runtime.config.namingPattern, {
+                    num: ticket.ticketNumber,
+                    author: data.creatorDiscordName,
+                });
+                const thread = await createPrivateThread(supportChannelId, threadName);
 
                 if (thread) {
                     await db.supportTicket.update({
@@ -141,10 +161,16 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                         } catch(e) {}
                     }
 
-                    const categoryLabel = TICKET_CATEGORY_LABELS[data.category] || "📩 Ticket";
-                    const embedColor = TICKET_STATUS_COLORS[data.category] || 0x6366f1;
+                    const embedColor = categoryColorToInt(category.color);
+                    const mentions = [`<@${data.creatorDiscordId}>`];
+                    for (const roleId of runtime.config.notifyRoleIds) {
+                        try {
+                            const mention = await buildSafeRoleMention(thread.id, roleId);
+                            if (mention) mentions.push(mention);
+                        } catch { /* mention best-effort */ }
+                    }
 
-                    await sendChannelMessage(thread.id, `<@${data.creatorDiscordId}>`, {
+                    await sendChannelMessage(thread.id, mentions.join(" "), {
                         embedTitle: `${categoryLabel} — Ticket #${ticket.ticketNumber}`,
                         embedColor,
                         embedDescription: [
@@ -183,9 +209,10 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                             success: true,
                             metadata: {
                                 ticketId: ticket.id,
-                                category: data.category,
+                                category: category.key,
+                                legacyCategory,
                                 creatorId: data.creatorDiscordId,
-                                guildId: data.discordGuildId
+                                guildId: supportGuildId
                             }
                         });
                     } catch (notifErr) {
@@ -195,7 +222,6 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                     // [NEW] GLOBAL GOD NOTIFICATION (Discord Ping)
                     const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
                     if ((platformConfig as any)?.godNotifyChannelId) {
-                        const { buildSafeRoleMention } = await import("@/server/discord");
                         const ping = await buildSafeRoleMention((platformConfig as any).godNotifyChannelId, (platformConfig as any).godNotifyRoleId);
                         await sendChannelMessage((platformConfig as any).godNotifyChannelId, ping, {
                             embedTitle: `🎫 Nouveau Ticket #${ticket.ticketNumber}`,
@@ -206,7 +232,7 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                                 `**Catégorie :** ${categoryLabel}`,
                                 `**Sujet :** ${data.subject}`,
                                 "",
-                                `[Voir le fil de discussion](https://discord.com/channels/${data.discordGuildId}/${thread.id})`,
+                                `[Voir le fil de discussion](https://discord.com/channels/${supportGuildId}/${thread.id})`,
                             ].join("\n"),
                             embedFooter: "SigilOS Administration",
                         });
@@ -233,7 +259,8 @@ export async function closeSupportTicket(
     ticketId: string,
     closedByDiscordId: string,
     closedByName: string,
-    reason?: string
+    reason?: string,
+    options?: { actorIsStaff?: boolean }
 ) {
     // Note: Can be called from Discord button (no session) or Dashboard (session)
     // La route Discord vérifie la signature Ed25519 en amont ; un appel direct
@@ -244,6 +271,14 @@ export async function closeSupportTicket(
     try {
         const rl = await rateLimit(`ticket:close:${closedByDiscordId}:${ticketId}`, 5, 60_000);
         if (!rl.success) return { success: false, error: "Trop de tentatives — réessaie dans une minute." };
+
+        // La politique de fermeture et l'archivage sont réglés côté God (G4).
+        let runtime;
+        try {
+            runtime = await loadGodTicketRuntime();
+        } catch {
+            return { success: false, error: "Configuration du support indisponible." };
+        }
 
         // Anti-usurpation web : si une session existe et que l'appelant se déclare
         // créateur, la session doit porter le même compte Discord.
@@ -281,6 +316,11 @@ export async function closeSupportTicket(
             };
         }
 
+        const actorIsStaff = options?.actorIsStaff === true || isTicketAdmin || isDiscordDev || isSystem;
+        if (!actorIsStaff && runtime.config.closePolicy === "STAFF_ONLY") {
+            return { success: false, error: "🔒 Seul le staff du support peut fermer ce ticket." };
+        }
+
         await db.supportTicket.update({
             where: { id: ticketId },
             data: {
@@ -300,24 +340,56 @@ export async function closeSupportTicket(
                         `Fermé par **${closedByName}**`,
                         reason ? `**Raison :** ${reason}` : "",
                         "",
-                        "Le fil reste consultable dans les fils archivés. Pour toute autre demande, ouvrez un nouveau ticket.",
+                        runtime.config.archiveOnClose
+                            ? "Le fil reste consultable dans les fils archivés. Pour toute autre demande, ouvrez un nouveau ticket."
+                            : "Le fil reste ouvert. Pour toute autre demande, ouvrez un nouveau ticket.",
                     ].filter(Boolean).join("\n"),
                     embedFooter: `SigilOS Support · Ticket #${ticket.ticketNumber}`,
                 });
-                const archived = await archiveThread(ticket.discordThreadId);
-                if (!archived) {
-                    logger.error("[Tickets] Archive failed for thread", { threadId: ticket.discordThreadId, ticketId });
-                    return {
-                        success: false,
-                        error: "Ticket fermé dans SigilOS mais l'archivage du fil Discord a échoué — vérifier la permission 'Gérer les fils' du bot.",
-                    };
+                if (runtime.config.archiveOnClose) {
+                    const archived = await archiveThread(ticket.discordThreadId);
+                    if (!archived) {
+                        logger.error("[Tickets] Archive failed for thread", { threadId: ticket.discordThreadId, ticketId });
+                        return {
+                            success: false,
+                            error: "Ticket fermé dans SigilOS mais l'archivage du fil Discord a échoué — vérifier la permission 'Gérer les fils' du bot.",
+                        };
+                    }
                 }
             } catch (archiveErr) {
                 logger.error("[Tickets] Discord close error", { error: archiveErr, ticketId });
                 return {
                     success: false,
-                    error: "Ticket fermé dans SigilOS mais le fil Discord n'a pas pu être archivé — vérifier la permission 'Gérer les fils' du bot.",
+                    error: runtime.config.archiveOnClose
+                        ? "Ticket fermé dans SigilOS mais le fil Discord n'a pas pu être archivé — vérifier la permission 'Gérer les fils' du bot."
+                        : "Ticket fermé dans SigilOS mais le message de clôture Discord n'a pas pu être envoyé.",
                 };
+            }
+        }
+
+        // Satisfaction (G4) : message privé au créateur, best-effort.
+        if (runtime.config.csatEnabled) {
+            try {
+                await sendDirectMessage(
+                    ticket.creatorDiscordId,
+                    `Votre ticket #${ticket.ticketNumber} est fermé. Comment s'est passée la prise en charge ?`,
+                    {
+                        components: [
+                            {
+                                type: 1,
+                                components: [1, 2, 3, 4, 5].map((star) => ({
+                                    type: 2,
+                                    style: 2,
+                                    label: String(star),
+                                    emoji: { name: "⭐" },
+                                    custom_id: `support:csat:${ticket.id}:${star}`,
+                                })),
+                            },
+                        ],
+                    }
+                );
+            } catch (csatError) {
+                logger.warn("[Tickets] CSAT DM failed (non bloquant)", { error: csatError, ticketId });
             }
         }
 
@@ -650,6 +722,8 @@ export async function rejectGuildAccess(ticketId: string, reason: string) {
 interface TicketFilters {
     status?: z.infer<typeof TicketStatusSchema>;
     category?: z.infer<typeof TicketCategorySchema>;
+    /** Catégorie God (clé stable) — prioritaire sur le type historique. */
+    categoryKey?: string;
     search?: string;
     page?: number;
     perPage?: number;
@@ -666,7 +740,12 @@ export async function getSupportTickets(filters: TicketFilters = {}) {
     // (`FEEDBACK`) et notes internes (`INTERNAL`) ont leur propre onglet.
     const where: any = { origin: "SUPPORT" };
     if (filters.status) where.status = filters.status;
-    if (filters.category) where.category = filters.category;
+    const categoryKey =
+        typeof filters.categoryKey === "string" && /^[a-z0-9-]{2,40}$/.test(filters.categoryKey)
+            ? filters.categoryKey
+            : undefined;
+    if (categoryKey) where.categoryKey = categoryKey;
+    else if (filters.category) where.category = filters.category;
     if (filters.search) {
         where.OR = [
             { subject: { contains: filters.search, mode: "insensitive" } },
@@ -772,29 +851,43 @@ export async function getTicketStats() {
     return { open, inProgress, waitingResponse, closedRecent, total, feedbackOpen, feedbackTotal };
 }
 
-export async function postTicketPanel(channelId: string, guildId: string) {
+export async function postTicketPanel(channelId?: string, guildId?: string) {
     if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
+
+    // La configuration God fait autorité quand elle est renseignée ; les
+    // arguments restent un repli pour l'ancien écran (retiré en G4-4).
+    let runtime;
+    try {
+        runtime = await loadGodTicketRuntime();
+    } catch {
+        return { success: false, error: "Configuration du support indisponible." };
+    }
+
+    const targetGuildId = runtime.config.supportGuildId ?? guildId;
+    const targetChannelId = runtime.config.supportChannelId ?? channelId;
+    if (!targetGuildId || !targetChannelId) {
+        return {
+            success: false,
+            error: "Renseigne le serveur et le salon du support dans les réglages God.",
+        };
+    }
+
+    const categories = runtime.enabledCategories;
+    if (categories.length === 0) {
+        return { success: false, error: "Active au moins une catégorie avant de publier le panneau." };
+    }
 
     // SECURITY: Validate that the channel belongs to the specified guild
     const { validateChannelBelongsToGuild } = await import("@/server/discord");
-    const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+    const isValid = await validateChannelBelongsToGuild(targetChannelId, targetGuildId);
     if (!isValid) return { success: false, error: "Le salon Discord n'appartient pas au serveur spécifié." };
 
-    const messageId = await sendChannelMessage(channelId, "", {
-        embedTitle: "📬 Support SigilOS",
-        embedColor: 0x10b981,
-        embedDescription: [
-            "Besoin d'aide ? Ouvrez un ticket et notre équipe vous répondra rapidement.",
-            "",
-            "**Catégories disponibles :**",
-            "🔑 **Demande d'accès** — Rejoindre SigilOS pour votre guilde",
-            "🐛 **Bug** — Signaler un problème",
-            "💡 **Feature** — Proposer une amélioration",
-            "📩 **Autre** — Question générale",
-            "",
-            "▸ Cliquez sur le bouton ci-dessous pour créer votre ticket.",
-        ].join("\n"),
-        embedFooter: "SigilOS · Support",
+    const content = buildSupportPanelContent(categories);
+    const messageId = await sendChannelMessage(targetChannelId, "", {
+        embedTitle: content.embedTitle,
+        embedColor: content.embedColor,
+        embedDescription: content.embedDescription,
+        embedFooter: content.embedFooter,
         components: [
             {
                 type: 1,
@@ -804,7 +897,7 @@ export async function postTicketPanel(channelId: string, guildId: string) {
                         style: 1,
                         label: "Ouvrir un ticket",
                         emoji: { name: "🎫" },
-                        custom_id: `ticket:open:${guildId}`,
+                        custom_id: `ticket:open:${targetGuildId}`,
                     },
                 ],
             },
@@ -812,7 +905,7 @@ export async function postTicketPanel(channelId: string, guildId: string) {
     });
 
     if (!messageId) return { success: false, error: "Échec de l'envoi du panel." };
-    await logTicketWrite("post-ticket-panel", undefined, { channelId, guildId, messageId });
+    await logTicketWrite("post-ticket-panel", undefined, { channelId: targetChannelId, guildId: targetGuildId, messageId });
     return { success: true, messageId };
 }
 

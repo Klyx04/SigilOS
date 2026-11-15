@@ -445,3 +445,28 @@ export async function setGodTicketCategoryEnabledAction(
         return fail("Impossible de modifier la catégorie.");
     }
 }
+
+/**
+ * Publie le panneau support dans le salon réglé. Le contenu vient des
+ * catégories actives ; aucun libellé n'est fourni par l'appelant.
+ */
+export async function publishGodTicketPanelAction(): Promise<ActionResult<{ messageId: string }>> {
+    if (!(await requireGod())) return fail("Accès SuperAdmin requis");
+
+    const actor = await actorId();
+    try {
+        const allowed = await rateLimit(`god:ticket-panel:${actor}`, 3, 60_000);
+        if (!allowed.success) return fail("Trop de publications — réessaie dans une minute.");
+    } catch {
+        return fail("Service momentanément indisponible.");
+    }
+
+    const { postTicketPanel } = await import("./ticket-actions");
+    const result = await postTicketPanel();
+
+    if (!result.success) return fail(result.error || "Échec de la publication du panneau.");
+    if (!result.messageId) return fail("La publication n'a pas renvoyé de message Discord.");
+
+    revalidatePath("/god/ticket-bot");
+    return { success: true, data: { messageId: result.messageId } };
+}

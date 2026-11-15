@@ -29,6 +29,13 @@ import {
     parseTicketCustomId,
     isTicketCustomId,
 } from "@/lib/tickets/interaction-routing";
+import { loadGodTicketRuntime } from "@/server/god-ticket-config";
+import { buildSupportSelectOptions } from "@/lib/tickets/god-panel";
+import {
+    buildSupportModalComponents,
+    buildSupportModalTitle,
+} from "@/lib/tickets/god-modals";
+import { resolveGodTicketCategory, toLegacyTicketCategory } from "@/lib/tickets/god-config";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -566,7 +573,7 @@ export async function POST(request: NextRequest) {
 
             // Les tickets (v1 `ticket:`, v2 `tb:` et `tb_pick:`) et les rôles-réactions (`rr:`)
             // ne requièrent aucun compte SigilOS (un candidat ou visiteur doit pouvoir postuler/ouvrir un ticket).
-            const isTicketInteraction = isTicketCustomId(custom_id) || prefix === "ticket";
+            const isTicketInteraction = isTicketCustomId(custom_id) || prefix === "ticket" || prefix === "support";
             const account = await findUserByDiscordId(member.user.id);
             if (!account && !isTicketInteraction && prefix !== "rr") {
                 return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
@@ -1335,48 +1342,38 @@ export async function POST(request: NextRequest) {
                             data: { content: `⏳ Vous avez atteint la limite. Réessayez dans **${waitSec}s**.`, flags: 64 },
                         });
                     }
-                    // Step 1: Send ephemeral message with category Select Menu
+
+                    let runtime;
+                    try {
+                        runtime = await loadGodTicketRuntime();
+                    } catch {
+                        return ephemeralDiscordRefusal("❌ Support momentanément indisponible.");
+                    }
+                    if (!runtime.config.supportGuildId || !runtime.config.supportChannelId) {
+                        return ephemeralDiscordRefusal("❌ Le support n'est pas encore configuré.");
+                    }
+                    const options = buildSupportSelectOptions(runtime.enabledCategories);
+                    if (options.length === 0) {
+                        return ephemeralDiscordRefusal("❌ Aucune catégorie active pour le moment.");
+                    }
+
+                    // Step 1: Send ephemeral message with the categories configured in God.
                     return NextResponse.json({
                         type: 4,
                         data: {
                             content: "🎫 **Ouvrir un ticket** — Choisissez la catégorie qui correspond à votre demande :",
-                            flags: 64, // EPHEMERAL
+                            flags: 64,
                             components: [
                                 {
-                                    type: 1, // ACTION_ROW
+                                    type: 1,
                                     components: [
                                         {
-                                            type: 3, // STRING_SELECT
+                                            type: 3,
                                             custom_id: `ticket:select:${entityId}`,
                                             placeholder: "Sélectionnez une catégorie...",
                                             min_values: 1,
                                             max_values: 1,
-                                            options: [
-                                                {
-                                                    label: "Demande d'accès",
-                                                    value: "ACCESS_REQUEST",
-                                                    description: "Rejoindre SigilOS pour votre guilde",
-                                                    emoji: { name: "🔑" },
-                                                },
-                                                {
-                                                    label: "Signaler un bug",
-                                                    value: "BUG_REPORT",
-                                                    description: "Un problème sur le dashboard ou le bot",
-                                                    emoji: { name: "🐛" },
-                                                },
-                                                {
-                                                    label: "Proposer une feature",
-                                                    value: "FEATURE_REQUEST",
-                                                    description: "Suggérer une amélioration",
-                                                    emoji: { name: "💡" },
-                                                },
-                                                {
-                                                    label: "Autre / Question",
-                                                    value: "OTHER",
-                                                    description: "Question générale",
-                                                    emoji: { name: "📩" },
-                                                },
-                                            ],
+                                            options,
                                         },
                                     ],
                                 },
@@ -1384,21 +1381,25 @@ export async function POST(request: NextRequest) {
                         },
                     });
                 } else if (action === "select") {
-                    // Step 2: User selected a category from dropdown → open adapted modal
-                    const selectedCategory = payload.data?.values?.[0] || "OTHER";
+                    // Step 2: la catégorie choisie est revalidée (clé active) avant la modale.
+                    const selectedKey = payload.data?.values?.[0] || "";
 
-                    const categoryLabels: Record<string, string> = {
-                        ACCESS_REQUEST: "🔑 Demande d'accès",
-                        BUG_REPORT: "🐛 Signaler un bug",
-                        FEATURE_REQUEST: "💡 Proposer une feature",
-                        OTHER: "📩 Autre demande",
-                    };
+                    let runtime;
+                    try {
+                        runtime = await loadGodTicketRuntime();
+                    } catch {
+                        return ephemeralDiscordRefusal("❌ Support momentanément indisponible.");
+                    }
+                    const category = resolveGodTicketCategory(selectedKey, runtime.categories);
+                    if (!category) {
+                        return ephemeralDiscordRefusal("❌ Cette catégorie n'est plus disponible.");
+                    }
 
-                    // [DUP-CHECK] Verify user doesn't have an active ticket in this category
+                    // [DUP-CHECK] par catégorie God (clé stable), jamais par libellé.
                     const existingTicket = await db.supportTicket.findFirst({
                         where: {
                             creatorDiscordId: member.user.id,
-                            category: selectedCategory as any,
+                            categoryKey: category.key,
                             status: { not: "CLOSED" },
                         },
                         select: { ticketNumber: true }
@@ -1407,152 +1408,20 @@ export async function POST(request: NextRequest) {
                     if (existingTicket) {
                         return NextResponse.json({
                             type: 4,
-                            data: { 
-                                content: `⚠️ Tu as déjà un ticket ouvert pour la catégorie **${categoryLabels[selectedCategory] || selectedCategory}**.\n\nFerme ton ticket **#${existingTicket.ticketNumber}** avant d'en ouvrir un nouveau.`, 
-                                flags: 64 
+                            data: {
+                                content: `⚠️ Tu as déjà un ticket ouvert pour la catégorie **${category.emoji} ${category.label}**.\n\nFerme ton ticket **#${existingTicket.ticketNumber}** avant d'en ouvrir un nouveau.`,
+                                flags: 64
                             },
                         });
                     }
 
-                    // Build modal fields based on category
-                    const modalComponents: any[] = [];
-
-                    if (selectedCategory === "ACCESS_REQUEST") {
-                        // Discord modals allow max 5 action rows
-                        modalComponents.push(
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "discord_guild_id",
-                                    label: "ID de votre serveur Discord",
-                                    style: 1, placeholder: "Ex: 1234567890123456789 (17-20 chiffres)",
-                                    required: true, min_length: 17, max_length: 20,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "guild_name",
-                                    label: "Nom de votre guilde Dofus",
-                                    style: 1, placeholder: "Uniquement des lettres (Ex: Les Gardiens)",
-                                    required: true, min_length: 2, max_length: 50,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "pseudo_dofus",
-                                    label: "Votre pseudo Dofus",
-                                    style: 1, placeholder: "Uniquement des lettres (Ex: Klyx)",
-                                    required: true, min_length: 2, max_length: 30,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "member_count",
-                                    label: "Nombre de membres",
-                                    style: 1, placeholder: "Entre 1 et 350 (chiffres uniquement)",
-                                    required: true, min_length: 1, max_length: 3,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "description",
-                                    label: "Pourquoi souhaitez-vous utiliser SigilOS ?",
-                                    style: 2, placeholder: "Décrivez brièvement votre guilde et vos besoins...",
-                                    required: true, min_length: 10, max_length: 1000,
-                                }],
-                            },
-                        );
-                    } else if (selectedCategory === "BUG_REPORT") {
-                        modalComponents.push(
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "subject",
-                                    label: "Description courte du bug",
-                                    style: 1, placeholder: "Ex: Les missions ne s'affichent plus",
-                                    required: true, min_length: 5, max_length: 100,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "page",
-                                    label: "Page / Fonctionnalité concernée",
-                                    style: 1, placeholder: "Ex: Dashboard > Missions, Bot Discord, Landing page...",
-                                    required: true, min_length: 3, max_length: 100,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "description",
-                                    label: "Étapes pour reproduire + détails",
-                                    style: 2, placeholder: "1. Je clique sur...\n2. Je vois...\n3. Comportement attendu vs réel",
-                                    required: true, min_length: 10, max_length: 1500,
-                                }],
-                            },
-                        );
-                    } else if (selectedCategory === "FEATURE_REQUEST") {
-                        modalComponents.push(
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "subject",
-                                    label: "Titre de la fonctionnalité",
-                                    style: 1, placeholder: "Ex: Système de classement PvP",
-                                    required: true, min_length: 5, max_length: 100,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "description",
-                                    label: "Description détaillée de votre idée",
-                                    style: 2, placeholder: "Décrivez la fonctionnalité, son utilité, et comment vous l'imaginez...",
-                                    required: true, min_length: 10, max_length: 1500,
-                                }],
-                            },
-                        );
-                    } else {
-                        // OTHER
-                        modalComponents.push(
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "subject",
-                                    label: "Sujet",
-                                    style: 1, placeholder: "De quoi s'agit-il ?",
-                                    required: true, min_length: 3, max_length: 100,
-                                }],
-                            },
-                            {
-                                type: 1,
-                                components: [{
-                                    type: 4, custom_id: "description",
-                                    label: "Votre message",
-                                    style: 2, placeholder: "Détaillez votre demande...",
-                                    required: true, min_length: 10, max_length: 1500,
-                                }],
-                            },
-                        );
-                    }
-
-                    const categoryTitles: Record<string, string> = {
-                        ACCESS_REQUEST: "🔑 Demande d'accès",
-                        BUG_REPORT: "🐛 Signaler un bug",
-                        FEATURE_REQUEST: "💡 Proposer une feature",
-                        OTHER: "📩 Autre demande",
-                    };
+                    const modalComponents = buildSupportModalComponents(category);
 
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
-                            custom_id: `ticket:create:${entityId}:${selectedCategory}`,
-                            title: categoryTitles[selectedCategory] || "📩 Ticket",
+                            custom_id: `ticket:create:${entityId}:${category.key}`,
+                            title: buildSupportModalTitle(category),
                             components: modalComponents,
                         },
                     });
@@ -1565,14 +1434,30 @@ export async function POST(request: NextRequest) {
 
                     // Exécution en arrière-plan MAIS avec follow-up : l'échec n'est plus silencieux,
                     // le cliqueur voit le résultat (fermé et archivé, ou l'erreur).
+                    // Rôles staff lus dans la configuration God (G4), puis fermeture.
+                    const actorRoles = Array.isArray((member as { roles?: string[] }).roles)
+                        ? (member as { roles?: string[] }).roles ?? []
+                        : [];
+                    let runtime;
+                    try {
+                        runtime = await loadGodTicketRuntime();
+                    } catch {
+                        return ephemeralDiscordRefusal("❌ Support momentanément indisponible.");
+                    }
+                    const actorIsStaff = runtime.config.staffRoleIds.some((roleId) =>
+                        actorRoles.includes(roleId)
+                    );
+
                     closeSupportTicket(
                         entityId,
                         member.user.id,
-                        member.user.global_name || member.user.username
+                        member.user.global_name || member.user.username,
+                        undefined,
+                        { actorIsStaff }
                     )
                         .then((result) => {
                             const content = result?.success
-                                ? "✅ Ticket fermé — fil Discord archivé."
+                                ? "✅ Ticket fermé."
                                 : `❌ ${result?.error || "Échec de la fermeture du ticket."}`;
                             return editInteractionMessage(payload.application_id, payload.token, content);
                         })
@@ -1588,6 +1473,60 @@ export async function POST(request: NextRequest) {
 
                     return response;
                 }
+            } else if (prefix === "support" && action === "csat") {
+                // G4 — satisfaction d'un ticket support fermé (DM, 5 étoiles).
+                const ticketId = entityId;
+                const rating = Number(extra);
+                if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+                    return ephemeralDiscordRefusal("❌ Note invalide.");
+                }
+
+                const waitSec = await consumeRateLimit(
+                    `support:csat:${member.user.id}:${ticketId}`,
+                    5,
+                    60_000
+                );
+                if (waitSec > 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `⏳ Réessaie dans ${waitSec}s.`, flags: 64 },
+                    });
+                }
+
+                const ticket = await db.supportTicket.findUnique({
+                    where: { id: ticketId },
+                    select: {
+                        id: true,
+                        creatorDiscordId: true,
+                        status: true,
+                        csatRating: true,
+                        ticketNumber: true,
+                    },
+                });
+                if (
+                    !ticket ||
+                    ticket.creatorDiscordId !== member.user.id ||
+                    ticket.status !== "CLOSED"
+                ) {
+                    return ephemeralDiscordRefusal("❌ Ce ticket ne permet pas cette note.");
+                }
+
+                // Garde d'état dans le WHERE : une seule note par ticket.
+                const updated = await db.supportTicket.updateMany({
+                    where: { id: ticketId, csatRating: null },
+                    data: { csatRating: rating },
+                });
+                if (updated.count === 0) {
+                    return ephemeralDiscordRefusal("✅ Cette note a déjà été enregistrée.");
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        content: `✅ Merci ! Note enregistrée : ${rating}/5 pour le ticket #${ticket.ticketNumber}.`,
+                        flags: 64,
+                    },
+                });
             } else if (prefix === "rr") {
                 // =========================================================
                 // REACTION ROLES INTERACTION (Buttons or Select Menu)
@@ -2902,13 +2841,25 @@ export async function POST(request: NextRequest) {
 
             // =========================================================
             // TICKET CREATION V2 (from category-adapted modal submit)
-            // custom_id format: ticket:create:{guildId}:{category}
+            // custom_id format: ticket:create:{guildId}:{categoryKey}
             // =========================================================
             if (prefix === "ticket" && action === "create") {
-                // V2: Category is in the 4th part of custom_id
+                // La clé stable est revalidée contre la configuration God (G4).
                 const parts = custom_id.split(":");
                 const ticketGuildId = parts[2] || guild_id;
-                const ticketCategory = (parts[3] || "OTHER") as "ACCESS_REQUEST" | "BUG_REPORT" | "FEATURE_REQUEST" | "OTHER";
+                const categoryKey = parts[3] || "";
+
+                let runtime;
+                try {
+                    runtime = await loadGodTicketRuntime();
+                } catch {
+                    return ephemeralDiscordRefusal("❌ Support momentanément indisponible.");
+                }
+                const category = resolveGodTicketCategory(categoryKey, runtime.categories);
+                if (!category) {
+                    return ephemeralDiscordRefusal("❌ Cette catégorie n'est plus disponible.");
+                }
+                const legacyCategory = toLegacyTicketCategory(category);
 
                 // Extract all possible fields from modal
                 const fields: Record<string, string> = {};
@@ -2925,7 +2876,7 @@ export async function POST(request: NextRequest) {
                 let subject = "";
                 let description = "";
 
-                if (ticketCategory === "ACCESS_REQUEST") {
+                if (legacyCategory === "ACCESS_REQUEST") {
                     // 1. Validate Discord Guild ID
                     const discordGuildIdInput = fields.discord_guild_id || "";
                     if (!/^\d{17,20}$/.test(discordGuildIdInput)) {
@@ -2982,7 +2933,7 @@ export async function POST(request: NextRequest) {
                         `📝 **Message :**`,
                         fields.description || "Aucune description",
                     ].join("\n");
-                } else if (ticketCategory === "BUG_REPORT") {
+                } else if (legacyCategory === "BUG_REPORT") {
                     subject = fields.subject || "Bug sans titre";
                     description = [
                         `📍 **Page/Feature :** ${fields.page || "Non précisé"}`,
@@ -3008,7 +2959,8 @@ export async function POST(request: NextRequest) {
                 const ticketResult = await createSupportTicket({
                     channelId,
                     discordGuildId: ticketGuildId,
-                    category: ticketCategory,
+                    categoryKey: category.key,
+                    category: legacyCategory,
                     subject,
                     description,
                     creatorDiscordId: member.user.id,
@@ -3018,7 +2970,7 @@ export async function POST(request: NextRequest) {
 
                 if (ticketResult.success) {
                     // AUTO-PROVISION: For ACCESS_REQUEST, auto-create AllowedGuild as PENDING
-                    if (ticketCategory === "ACCESS_REQUEST" && fields.discord_guild_id) {
+                    if (legacyCategory === "ACCESS_REQUEST" && fields.discord_guild_id) {
                         try {
                             const existingGuild = await db.allowedGuild.findUnique({
                                 where: { discordGuildId: fields.discord_guild_id },

@@ -29,7 +29,7 @@ Un **espace de notifications du compte**, disponible sur le profil visiteur conn
 - events v1 : ① réponse à mon signalement, ② changelog publié, ③ news publiée ;
 - marquage lu/non-lu, lien vers la cible, pagination serveur bornée.
 
-Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préférences par canal.
+Hors v1 : Rush live (les toasts existent déjà ; **v2 reportée** le 15/11/2026 : aucune notification persistée), e-mail, push navigateur, préférences par canal.
 
 ## 2. Décisions (15/11/2026)
 
@@ -42,9 +42,10 @@ Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préf
    demande une migration (préférence plateforme) ⇒ lot **N2-bis** séparé, pas dans N1.
 4. **Rétention** : la purge quotidienne existante s'applique déjà (lues > 30 j, non lues > 90 j).
    Aucun nouveau code en v1. Passer tout à 30 j reste possible, mais efface une notification jamais vue.
-5. **Lien du changelog** : il n'existe pas de page publique de changelog (`/dashboard/<guildId>/changelog`
-   et `/god/changelog` seulement). Une notification de compte ne peut donc pas pointer vers une page de
-   guilde pour un visiteur sans guilde ⇒ surface de destination à trancher avant N3.
+5. **Lien du changelog** : la notification mène à `/espace-visiteur/notifications` (N3) ; il n'existe
+   pas de page changelog publique — le contenu est résumé dans la notification.
+6. **Rush v2** : **reporté** — les toasts live restent la seule surface Rush ; aucune notification
+   persistée (décision du 15/11/2026).
 
 ## 3. Lots
 

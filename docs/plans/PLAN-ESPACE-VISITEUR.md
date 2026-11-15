@@ -375,7 +375,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   carte Ocre compacte (étape, progression, Gardiens/Archimonstres, synchro 5 min + bouton) et
   **Registre Metamob** compact (pseudo, statut, menu vérifier/remplacer/délier) ; fiche lecture
   seule allégée (un bandeau de chiffres, Présentation/Objectifs en un panneau, métiers en chips).
-  Reste l'affinage assets/hiérarchie, sans règle métier.
+  **Affinage validé par le user le 15/11/2026** : plus rien à faire (assets et hiérarchie acceptés).
   **Metamob Ocre (11/11)** : onglet et titre renommés, icône archimonstre, filtre Tous / Boss /
   Archimonstres (`?type=`), monstres rangés par type avec icônes (types du template Metamob,
   images `Archimonstre` par nom, repli bestiaire), en-tête allégé.

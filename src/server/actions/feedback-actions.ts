@@ -21,10 +21,11 @@ import {
   validateFeedbackScreenshotChannel,
 } from "@/server/feedback-screenshot-channel";
 import { isDiscordSnowflake } from "@/lib/feedback-screenshot-channel";
-import { Prisma } from "@prisma/client";
+import { NotificationCategory, NotificationType, Prisma } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
 import { getPublicSession } from "@/server/public-account";
+import { createAccountNotification } from "@/server/account-notifications";
 
 const feedbackSchema = z.object({
   feedbackType: z.enum(FEEDBACK_TYPES),
@@ -414,16 +415,30 @@ export async function notifyMemberFeedbackAction(input: {
       },
     });
 
-    const { createNotification } = await import("./notification-actions");
-    await createNotification(
-      ticket.creatorUserId,
-      "SYSTEM_INFO",
-      `${data.emoji} Ton signalement a été remarqué !`,
-      `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
-      dashboardGuildId ? `/dashboard/${dashboardGuildId}/tracker?bug=${encodeURIComponent(publicRef)}` : undefined,
-      guildIdForNotif,
-      "SYSTEM"
-    );
+    if (guildIdForNotif) {
+      const { createNotification } = await import("./notification-actions");
+      await createNotification(
+        ticket.creatorUserId,
+        "SYSTEM_INFO",
+        `${data.emoji} Ton signalement a été remarqué !`,
+        `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
+        dashboardGuildId ? `/dashboard/${dashboardGuildId}/tracker?bug=${encodeURIComponent(publicRef)}` : undefined,
+        guildIdForNotif,
+        "SYSTEM"
+      );
+    } else {
+      // Visiteur sans guilde : `createNotification` est fail-closed et n'écrit rien.
+      // La boîte **compte** est le seul chemin qui le prévient. Un membre avec guilde
+      // garde la cloche de guilde : pas de doublon dans les deux boîtes.
+      await createAccountNotification({
+        userId: ticket.creatorUserId,
+        type: NotificationType.SYSTEM_INFO,
+        category: NotificationCategory.SYSTEM,
+        title: `${data.emoji} Ton signalement a été remarqué !`,
+        message: `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`.slice(0, 1_000),
+        link: "/espace-visiteur/general",
+      });
+    }
 
     logger.info(`[Feedback Notify] Réponse enregistrée pour ${publicRef}`);
     return { success: true };

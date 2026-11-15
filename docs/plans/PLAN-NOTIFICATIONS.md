@@ -4,7 +4,7 @@
 > Décision user (14/11/2026, verbatim) : « il faut un espace notif réel finalement, qui envoie aussi les
 > changelog, les news et tout ce qui peut être nécessaire en notif user profil visiteur connecté,
 > (notif rush etc? idk) ».
-> Écrit le 14/11/2026. **Aucun code livré** : ce fichier est le cadrage.
+> Écrit le 14/11/2026. **Cadrage** ; N1 → N4 livrés le 15/11/2026 (voir §3).
 
 ## 0. Ce qui existe (mesuré dans le code)
 
@@ -13,12 +13,13 @@
 | Modèle `Notification` | `guildId String?` (nullable en base), `type`, `category`, `read`, `link`, `imageUrl` |
 | Garde applicative | `createNotification` **refuse** une notification sans guilde (verrou `notification-guild-isolation`) ; la cloche filtre `where.guildId` |
 | Types | `NotificationType` : 26 valeurs, **aucune** pour changelog / news / rush |
-| Surfaces | cloche du dashboard (par guilde), `/espace-visiteur/general` (« Mes signalements »), **aucune page de notifications** |
+| Surfaces | cloche du dashboard (par guilde), `/espace-visiteur/general` (« Mes signalements »), **page compte `/espace-visiteur/notifications`** (N3) |
 | Changelog | page par guilde `/dashboard/<guildId>/changelog` + moteur God ; publication existante |
 | Rush live | toasts + PiP (temps réel), **aucune trace persistée** |
 
-**Conséquence mesurée** : un visiteur sans guilde ne reçoit **rien** quand le God répond à son
-signalement ; il doit rouvrir « Mes signalements » pour découvrir la réponse.
+**Conséquence mesurée (avant N4)** : un visiteur sans guilde ne recevait **rien** quand le God
+répondait à son signalement ; il devait rouvrir « Mes signalements ». **Corrigé** : la réponse crée
+une notification de compte quand aucune guilde n'est identifiable (N4).
 
 ## 1. Périmètre v1
 
@@ -52,13 +53,18 @@ Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préf
   `src/server/actions/account-notification-actions.ts` (marquage lu/tout lu, session + rate limit).
   Le verrou `notification-guild-isolation` reste intact ; `guild-actions-rbac` a imposé de sortir le
   littéral `guildId` de l'action (fonction de scope partagée). Test `account-notifications-scope` (14).
-- **N2** — type `CHANGELOG_PUBLISHED` (migration additive d'enum) + émission à la publication ;
-  `NEWS_PUBLISHED` attend une vraie source éditoriale.
+- **N2 — livré le 15/11/2026** : type `CHANGELOG_PUBLISHED` (migration additive
+  `20270205000000_add_changelog_notification_type`) ; fan-out `src/server/changelog-notifications.ts`
+  (une notification par `User`, lots de 500, `after()` après la réponse God, entrées internes exclues,
+  lien vers la page compte). `NEWS_PUBLISHED` attend une vraie source éditoriale.
 - **N2-bis (option)** — opt-out du compte : interrupteur dans `/espace-visiteur/reglages` + migration
   d'une préférence plateforme, seulement si le besoin est confirmé.
-- **N3** — page `/espace-visiteur/notifications` + pastille + lecture/marquage bornés au `userId`.
-- **N4** — émission « réponse à mon signalement » (aujourd'hui `notifyMemberFeedbackAction` ne
-  notifie que si une guilde est identifiable).
+- **N3 — livré le 15/11/2026** : page `/espace-visiteur/notifications` (page + loading + error), liste
+  bornée, marquage lu / tout lu, 8ᵉ onglet + pastille de non-lues dans la nav visiteur. Garde
+  `requirePublicSession` : aucun `UserProfile` requis.
+- **N4 — livré le 15/11/2026** : `notifyMemberFeedbackAction` crée une notification de **compte** quand
+  aucune guilde n'est identifiable ; un membre avec guilde garde la cloche de guilde (pas de doublon).
+  Lien vers `/espace-visiteur/general` (« Mes signalements »).
 
 ## 4. Invariants
 

@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 15/11/2026 (suite 2) — **Notifications · N1→N4 + garde bannissement du feedback** — branches `feat/notifications-*` et `fix/visitor-feedback-ban-guard`
+
+> **Décisions user** : bouton bug **inchangé** (icône globale du header public pour les connectés, cachée pour les anonymes) ; audience du changelog = **tout le monde**, une notification par personne ; news = changelog uniquement ; opt-out = **N2-bis** optionnel ; rétention existante 30/90.
+> **Fait** : N1 boîte compte (`userId` + `guildId: null`, écriture bornée, lecture ≤ 50, marquage lu/tout lu) · N2 migration additive `20270205000000_add_changelog_notification_type` + fan-out `changelog-notifications` (lots de 500, `after()`, entrées internes exclues, lien page compte) · N3 page `/espace-visiteur/notifications` + 8ᵉ onglet + pastille de non-lues · N4 réponse God : notification de compte quand **aucune guilde** n'est identifiable, cloche de guilde sinon (pas de doublon) · **garde bannissement** de `submitVisitorFeedbackAction` alignée sur `getPublicSession`.
+> **Preuves** : `account-notifications-scope` **14** · `changelog-notifications-fanout` **5** · `feedback-account-notification` **2** · `visitor-feedback-ban-guard` **3** · suite **710 fichiers / 7 514 tests ✓** · `tsc` 0 · ESLint 0 erreur · migration appliquée en local · PR **#1376, #1377, #1378, #1379 mergées**, N4 à merger.
+> **Reste / ops** : N2-bis (opt-out, option) ; migration `20270205000000` à jouer **bêta puis prod** ; vérifier en bêta : publier un changelog public (une notification par compte) et répondre à un signalement d'un visiteur sans guilde (notification de compte).
+> **Rotation** : bloc « 13/11/2026 (suite 4) — Sécurité · révocation WS des membres exclus » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 15/11/2026 (suite) — **Notifications · N1 : boîte du compte (`userId` + `guildId: null`)** — branche `feat/notifications-compte-n1`
 
 > **Décisions user** : notifications = **espace du compte** ; audience = **tout le monde** (interne + visiteur avec espace), le scope compte garantit **une notification par personne** ; Rush en v2 ; pas d'e-mail/push ; opt-out possible mais proposé en **N2-bis** (migration) ; rétention existante **30 j lues / 90 j non lues**.
@@ -48,13 +57,3 @@
 > **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
 > **Reste / ops** : PR #1368 **mergée** (`ece727ce`) ; contrôle visuel bêta 390/768/1024/1440 après déploiement.
 > **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 13/11/2026 (suite 4) — **Sécurité · révocation WS des membres exclus** — branche `fix/ws-revocation-membres`
-
-> **Mesure** : l'appartenance n'était vérifiée qu'aux `*:join` ; les heartbeats guide/dofus ne font aucune requête DB, donc `leave()` ne suffit pas — il faut couper le socket. Le bot Discord (`GuildMemberRemove`/`GuildBanAdd`) n'a ni Redis ni HTTP : un canal web seul aurait laissé le cas principal à ≤ 30 min.
-> **Fait** : canal `guild:member:revoked` + publisher best-effort · 6 chemins publiés (départ/ban manuel, archivage, purge RGPD, God soft-delete, suppressions définitives admin/God/RGPD) · module WS (`guild-revocation.ts`) qui retire les rooms `guild:<id>*`, émet `guild:access-revoked` et coupe le socket · sweep d'appartenance 60 s borné (couvre bot, Discord, `updateMany` en masse) · garde client (`router.refresh()` → écran d'accès refusé).
-> **Preuves** : verrou `ws-guild-revocation` **23** · `tsc` 0 · ESLint 0 erreur · bundle `build:ws` ✓ · aucune migration.
-> **Reste / ops** : PR → `dev` ; rebuild `ws-prod`/`ws-beta` au déploiement ; vérifier en bêta avec un second compte (archivage admin → coupure immédiate ; exclusion Discord → ≤ 60 s). Option non retenue : publication directe depuis le bot (ioredis) — le sweep couvre le besoin.
-> **Rotation** : bloc « 12/11/2026 (suite 7) — Rush : E3c + E4 + T-4a + bloc B » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-

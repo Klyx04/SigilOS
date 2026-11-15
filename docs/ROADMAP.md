@@ -16,7 +16,7 @@
   **Réglages** : `CSP_ENFORCE=true` · `STORAGE_LEGACY_TOKENS_UNTIL=<date>` · `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
-- **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) · stuff lot D et succès spéciaux (ci-dessus) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
+- **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
   - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes F1→F7 ✅ 11/11 · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
   - [ ] **mar** — F1 · F2 · F5+F6

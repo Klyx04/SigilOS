@@ -1,6 +1,6 @@
 # Amorce — Cycle de vie d'une guilde (création → sortie → purge)
 
-> **Statut** : **document de travail** (amorce), pas une source d'ordre. L'ordre des chantiers vit
+> **Statut** : **référence du module** (décisions, preuves, glossaire), pas une source d'ordre. L'ordre des chantiers vit
 > dans `docs/ROADMAP.md` ; les décisions non prises sont listées ici **et** dans `ROADMAP` §4.
 > **Public** : le mainteneur — ce texte est volontairement **vulgarisé** ; l'annexe A donne la
 > preuve de chaque affirmation (fichier:ligne), pour qu'aucune ligne ne repose sur un souvenir.

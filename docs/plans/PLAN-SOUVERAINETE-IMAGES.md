@@ -1,7 +1,7 @@
-# AMORCE — Souveraineté 100 % des visuels (images de jeu)
+# PLAN — Souveraineté 100 % des visuels (images de jeu)
 
 > **Ce fichier n'est pas la source d'ordre** : l'ordre vit dans `../ROADMAP.md` (rang 61).
-> Il sert d'**amorce de reprise** : ce qui est mesuré, ce qui reste, dans quels fichiers, avec
+> Il sert de **référence du chantier** : ce qui est mesuré, ce qui reste, dans quels fichiers, avec
 > quels verrous et quels pièges. Un point soldé se **retire d'ici** et se note au `ROADMAP`.
 
 ## 0. Ce que « souverain » veut dire (critères vérifiables)

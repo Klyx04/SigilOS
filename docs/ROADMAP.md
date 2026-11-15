@@ -13,7 +13,7 @@
 - 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
   **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
-  **Réglages** : `CSP_ENFORCE=true` · `STORAGE_LEGACY_TOKENS_UNTIL=<date>` · `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
+  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
@@ -45,7 +45,7 @@
 | 8 | `presentation-access` | `presentation:view` existe mais n'est pas ouverte au rôle Membre ; l'ancienne page `/presentation` rend encore le règlement | 1 occurrence dans `src/` | ouvrir la permission + trancher la page | — | **D-P1** |
 ### 1bis. Reste de l'audit sécurité (13/11/2026)
 
-Reste **réel** : **TOCTOU DNS** · **Caddy** (POST en maintenance → `503`) · **CSP** à activer (`CSP_ENFORCE=true`) · **date de coupure du jeton legacy** (`STORAGE_LEGACY_TOKENS_UNTIL`) · **next-auth stable** (indisponible : `5.0.0-beta.32`) · **AUD-12** (amont) · **AUD-06/AUD-08** non décrits dans la doc (à clarifier) · ops (sauvegardes, branches, CF, token).
+Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (commits `6bbb1c1f`, `5db4598b` ; branche + PR à ouvrir) · **next-auth stable** (indisponible : `5.0.0-beta.32`) · **AUD-12** (amont) · **AUD-06/AUD-08** non décrits dans la doc (à clarifier) · ops **prod** (sauvegardes, branches, CF, token). **Soldé et vérifié le 15/11/2026** : CSP actif en bêta (`CSP_ENFORCE=true`), jeton legacy coupé au **13/12/2026** (bêta + prod), intent `MessageContent` **OFF** (bêta + prod), cAdvisor absent en bêta, migrations notifications appliquées le 15/11 à 22:20.
 ## 2. P1 — Chantiers produit (ordre proposé)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |

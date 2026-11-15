@@ -224,11 +224,11 @@ describe("Verrou de source — le hub ne lit pas hors périmètre", () => {
         expect(profile).toContain("VisitorsShell");
     });
 
-    it("l'entrée est visible dans l'espace visiteur (7ᵉ onglet)", () => {
+    it("l'entrée est visible dans l'espace visiteur (8ᵉ onglet)", () => {
         const nav = stripComments(read(NAV));
         expect(nav).toContain('href: "/visiteurs"');
         expect(nav).toContain("Communauté");
-        expect((nav.match(/href: "/g) ?? []).length).toBe(7);
+        expect((nav.match(/href: "/g) ?? []).length).toBe(8);
     });
 });
 

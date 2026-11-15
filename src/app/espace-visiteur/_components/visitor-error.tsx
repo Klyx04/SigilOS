@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 
-/** Erreur commune aux six segments : une phrase, une action, aucun code technique. */
+/** Erreur commune aux sept segments : une phrase, une action, aucun code technique. */
 export function VisitorError({ reset }: { error: Error; reset: () => void }) {
     return (
         <div className="rounded-xl border border-border bg-surface p-5">

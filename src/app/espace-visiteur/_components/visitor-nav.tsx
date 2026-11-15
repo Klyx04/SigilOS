@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
  */
 const SEGMENTS = [
     { href: "/espace-visiteur/general", label: "Général", icon: "party.png" },
+    { href: "/espace-visiteur/notifications", label: "Notifications", icon: "bell-on.png" },
     { href: "/espace-visiteur/mules", label: "Mules", icon: "guilde-et-mules.png" },
     { href: "/espace-visiteur/presentation", label: "Présentation", icon: "parchment.png" },
     { href: "/espace-visiteur/succes", label: "Succès", icon: "trophy-1.png" },
@@ -25,7 +26,7 @@ const SEGMENTS = [
     { href: "/espace-visiteur/reglages", label: "Réglages", icon: "/assets/nav/cog.png" },
 ] as const;
 
-export function VisitorNav() {
+export function VisitorNav({ unreadCount = 0 }: { unreadCount?: number }) {
     const pathname = usePathname();
 
     return (
@@ -40,6 +41,11 @@ export function VisitorNav() {
                             <Link
                                 href={segment.href}
                                 aria-current={active ? "page" : undefined}
+                                aria-label={
+                                    segment.href === "/espace-visiteur/notifications" && unreadCount > 0
+                                        ? `Notifications (${unreadCount} non lues)`
+                                        : undefined
+                                }
                                 className={cn(
                                     "inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                     active && "bg-elevated font-medium text-foreground"
@@ -47,6 +53,11 @@ export function VisitorNav() {
                             >
                                 <GameIcon src={segment.icon} className="h-4 w-4" />
                                 {segment.label}
+                                {segment.href === "/espace-visiteur/notifications" && unreadCount > 0 && (
+                                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-medium leading-5 text-primary-foreground">
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                    </span>
+                                )}
                             </Link>
                         </li>
                     );

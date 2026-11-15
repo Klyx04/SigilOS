@@ -53,6 +53,9 @@ model User {
   scheduledDeletion    DateTime?
   lastSeenChangelogId  String?
   lastFeedViewedAt     DateTime?          @default(now())
+  /// Opt-out des notifications de **compte** (changelog, réponses aux signalements).
+  /// `true` par défaut : les comptes existants continuent de recevoir les notifications.
+  accountNotificationsEnabled Boolean     @default(true)
   /**
    * Dernière **activité authentifiée** connue (D-A, décision du 02/11/2026).
    *

@@ -22,6 +22,7 @@ vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn() }));
 
 const { mockDb } = vi.hoisted(() => ({
     mockDb: {
+        user: { findUnique: vi.fn(), update: vi.fn() },
         notification: {
             create: vi.fn(),
             findMany: vi.fn(),
@@ -39,11 +40,13 @@ import {
     ACCOUNT_NOTIFICATION_MAX_TAKE,
     countUnreadAccountNotifications,
     createAccountNotification,
+    getAccountNotificationsEnabled,
     listAccountNotifications,
 } from "@/server/account-notifications";
 import {
     markAccountNotificationRead,
     markAllAccountNotificationsRead,
+    setAccountNotificationsEnabled,
 } from "@/server/actions/account-notification-actions";
 
 const mockedSession = getPublicSession as unknown as ReturnType<typeof vi.fn>;
@@ -65,6 +68,8 @@ beforeEach(() => {
         remaining: 59,
         reset: Date.now() + 60_000,
     });
+    mockDb.user.findUnique.mockResolvedValue({ accountNotificationsEnabled: true });
+    mockDb.user.update.mockResolvedValue({});
     mockDb.notification.create.mockResolvedValue({ id: "notif-1" });
     mockDb.notification.findMany.mockResolvedValue([]);
     mockDb.notification.count.mockResolvedValue(0);
@@ -112,6 +117,60 @@ describe("écriture : une notification de compte est explicitement sans guilde",
 
         expect(result.success).toBe(false);
         expect(mockDb.notification.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("opt-out : le compte peut couper ses notifications", () => {
+    it("n'écrit rien quand la préférence est désactivée", async () => {
+        mockDb.user.findUnique.mockResolvedValue({ accountNotificationsEnabled: false });
+
+        const result = await createAccountNotification(baseInput);
+
+        expect(result).toEqual({ success: true, skipped: true });
+        expect(mockDb.notification.create).not.toHaveBeenCalled();
+    });
+
+    it("annule l'envoi si la préférence est illisible (fail-closed)", async () => {
+        mockDb.user.findUnique.mockRejectedValue(new Error("db down"));
+
+        const result = await createAccountNotification(baseInput);
+
+        expect(result.success).toBe(false);
+        expect(mockDb.notification.create).not.toHaveBeenCalled();
+    });
+
+    it("lit la préférence du compte", async () => {
+        mockDb.user.findUnique.mockResolvedValue({ accountNotificationsEnabled: false });
+
+        await expect(getAccountNotificationsEnabled("user-1")).resolves.toBe(false);
+    });
+
+    it("enregistre le choix avec le userId de session", async () => {
+        const result = await setAccountNotificationsEnabled(false);
+
+        expect(result).toEqual({ success: true });
+        expect(mockDb.user.update).toHaveBeenCalledWith({
+            where: { id: "user-1" },
+            data: { accountNotificationsEnabled: false },
+        });
+    });
+
+    it("refuse le choix sans session", async () => {
+        mockedSession.mockResolvedValue(null);
+
+        const result = await setAccountNotificationsEnabled(true);
+
+        expect(result.success).toBe(false);
+        expect(mockDb.user.update).not.toHaveBeenCalled();
+    });
+
+    it("refuse le choix quand le rate limit est atteint", async () => {
+        mockedRateLimit.mockResolvedValue({ success: false, remaining: 0, reset: 0 });
+
+        const result = await setAccountNotificationsEnabled(true);
+
+        expect(result.success).toBe(false);
+        expect(mockDb.user.update).not.toHaveBeenCalled();
     });
 });
 

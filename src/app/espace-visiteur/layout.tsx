@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
+import { countUnreadAccountNotifications } from "@/server/account-notifications";
 import { requirePublicSession } from "@/server/public-account";
 import { VisitorNav } from "./_components/visitor-nav";
 
@@ -26,8 +27,11 @@ export const metadata = {
  * la sienne, car un `layout` ne protège pas une route imbriquée rendue seule.
  */
 export default async function VisitorLayout({ children }: { children: ReactNode }) {
-    await requirePublicSession();
-    const session = await auth();
+    const { userId } = await requirePublicSession();
+    const [session, unreadCount] = await Promise.all([
+        auth(),
+        countUnreadAccountNotifications(userId),
+    ]);
 
     return (
         <div className="registre flex min-h-dvh flex-col bg-background text-foreground">
@@ -38,7 +42,7 @@ export default async function VisitorLayout({ children }: { children: ReactNode 
                     <p className="text-xs text-muted-foreground">Espace perso</p>
                     <p className="text-lg font-semibold text-foreground">Espace visiteur</p>
                 </div>
-                <VisitorNav />
+                <VisitorNav unreadCount={unreadCount} />
             </div>
 
             <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-16">{children}</main>

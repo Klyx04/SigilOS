@@ -10,11 +10,11 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 
 const ROOT = "src/app/espace-visiteur";
-const SEGMENTS = ["general", "mules", "presentation", "succes", "metiers", "reglages"] as const;
+const SEGMENTS = ["general", "notifications", "mules", "presentation", "succes", "metiers", "reglages"] as const;
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-describe("Espace visiteur — les six segments existent et sont complets", () => {
+describe("Espace visiteur — les sept segments existent et sont complets", () => {
     for (const segment of SEGMENTS) {
         it(`\`${segment}\` porte page + loading + error`, () => {
             for (const file of ["page.tsx", "loading.tsx", "error.tsx"]) {
@@ -37,11 +37,18 @@ describe("Espace visiteur — la garde est dans la page, pas seulement dans le l
         }
     });
 
-    it("`general` est la seule page qui accepte l'absence de profil", () => {
+    it("`general` est la seule page avec l'écran de création de profil", () => {
         const general = read(`${ROOT}/general/page.tsx`);
         expect(general).toMatch(/requirePublicSession\(\)/);
         expect(general).toMatch(/loadPublicProfileView\(/);
         expect(general).not.toMatch(/requirePublicAccount\(\)/);
+    });
+
+    it("`notifications` est une page de session, sans profil requis", () => {
+        const notifications = read(`${ROOT}/notifications/page.tsx`);
+        expect(notifications).toMatch(/requirePublicSession\(\)/);
+        expect(notifications).not.toMatch(/requirePublicAccount\(\)/);
+        expect(notifications).not.toMatch(/loadPublicProfileView\(/);
     });
 
     it("le layout pose la garde de session (défense en profondeur)", () => {

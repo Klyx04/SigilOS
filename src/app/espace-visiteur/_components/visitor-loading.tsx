@@ -1,4 +1,4 @@
-/** Chargement commun aux six segments (aucun layout shift, aucun texte décoratif). */
+/** Chargement commun aux sept segments (aucun layout shift, aucun texte décoratif). */
 export function VisitorLoading() {
     return (
         <div className="space-y-3" role="status" aria-live="polite">

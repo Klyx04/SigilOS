@@ -160,7 +160,13 @@ export function buildSupportModalComponents(
     ];
 }
 
-/** Titre de modale Discord : 45 caractères maximum, sans couper un emoji. */
+/** Titre de modale Discord : 45 unités maximum, sans couper un emoji. */
 export function buildSupportModalTitle(category: GodTicketCategoryRow): string {
-    return Array.from(`${category.emoji} ${category.label}`).slice(0, 45).join("");
+    const full = `${category.emoji} ${category.label}`;
+    let title = "";
+    for (const char of full) {
+        if (title.length + char.length > 45) break;
+        title += char;
+    }
+    return title;
 }

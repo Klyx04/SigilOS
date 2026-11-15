@@ -24,6 +24,7 @@ import { isDiscordSnowflake } from "@/lib/feedback-screenshot-channel";
 import { Prisma } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
+import { getPublicSession } from "@/server/public-account";
 
 const feedbackSchema = z.object({
   feedbackType: z.enum(FEEDBACK_TYPES),
@@ -203,7 +204,7 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
  * notification et l'anonymisation), sinon il reste plateforme.
  *
  * SECURITY (fail-closed) :
- * - auth() obligatoire (pas de retour anonyme par ce chemin)
+ * - `getPublicSession()` obligatoire : session **et** compte non banni
  * - rateLimit Redis 5/h/utilisateur
  * - Zod borné sur toutes les entrées
  * - jamais de `guildId` fourni par le client
@@ -218,12 +219,12 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
   }
   const data = parsed.data;
 
-  const session = await auth();
-  if (!session?.user?.id) {
+  const visitor = await getPublicSession();
+  if (!visitor) {
     return { success: false, error: "Connecte-toi pour envoyer un retour." };
   }
 
-  const rl = await rateLimit(`visitor-feedback:${session.user.id}`, RATE_LIMIT, WINDOW_MS);
+  const rl = await rateLimit(`visitor-feedback:${visitor.userId}`, RATE_LIMIT, WINDOW_MS);
   if (!rl.success) {
     return { success: false, error: "Trop de retours envoyés. Réessaie dans une heure." };
   }
@@ -236,14 +237,20 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
   const category = label?.label ?? "Feedback";
 
   try {
-    const discordAccount = await db.account.findFirst({
-      where: { userId: session.user.id, provider: "discord" },
-      select: { providerAccountId: true },
-    });
+    const [discordAccount, userRow] = await Promise.all([
+      db.account.findFirst({
+        where: { userId: visitor.userId, provider: "discord" },
+        select: { providerAccountId: true },
+      }),
+      db.user.findUnique({
+        where: { id: visitor.userId },
+        select: { name: true },
+      }),
+    ]);
 
     // Guilde d'accueil : première guilde active du compte, si elle existe.
     const homeProfile = await db.userProfile.findFirst({
-      where: { userId: session.user.id, status: "ACTIVE" },
+      where: { userId: visitor.userId, status: "ACTIVE" },
       orderBy: { createdAt: "asc" },
       select: {
         guildId: true,
@@ -251,7 +258,7 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
       },
     });
 
-    const memberName = session.user.name?.trim() || "Visiteur";
+    const memberName = userRow?.name?.trim() || "Visiteur";
     const homeGuildName = homeProfile?.guild?.name ?? "Visiteur indépendant";
 
     const created = await db.supportTicket.create({
@@ -265,7 +272,7 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
         description: `[${data.feedbackType}] ${description}`,
         creatorDiscordId: discordAccount?.providerAccountId ?? "WEB",
         creatorDiscordName: memberName,
-        creatorUserId: session.user.id,
+        creatorUserId: visitor.userId,
         // Un visiteur non membre ne doit pas exposer sa pseudo à la guilde visitée :
         // on rattache à sa guilde d'accueil (s'il en a une), sinon à la plateforme.
         discordGuildId: homeProfile?.guild?.discordGuildId ?? null,

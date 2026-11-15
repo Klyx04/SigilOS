@@ -5,8 +5,6 @@ import { CreateProfileForm } from "../_components/create-profile-form";
 import { IdentityForm } from "../_components/identity-form";
 import { MetamobForm } from "../_components/metamob-form";
 import { VisitorOcreCard } from "../_components/visitor-ocre-card";
-import { VisitorFeedbackHistory } from "../_components/visitor-feedback-history";
-import { getMyVisitorFeedbackAction } from "@/server/actions/feedback-actions";
 
 export const metadata = {
     title: "Général — espace visiteur | SigilOS",
@@ -22,7 +20,6 @@ export default async function GeneralPage() {
 
     const className = profile.classe ? getClass(profile.classe)?.name ?? profile.classe : "Classe non renseignée";
     const serverName = resolveDofusServerName(null, String(profile.dofusServerId));
-    const feedback = await getMyVisitorFeedbackAction();
 
     return (
         <div className="space-y-6">
@@ -58,7 +55,6 @@ export default async function GeneralPage() {
                 />
             )}
 
-            <VisitorFeedbackHistory items={feedback.success ? feedback.data : []} />
         </div>
     );
 }

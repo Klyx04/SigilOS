@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 15/11/2026 — **Tickets God · G4-1 → G4-4 : configuration dédiée, panneau, runtime, nettoyage** — branche `feat/tickets-god-config`
+
+> **Décisions user** : « G4-1 à 4, go, un commit par G, une PR finale » · catégories **libres** (option B : création, désactivation, jamais de suppression) · migration additive acceptée avant écriture.
+> **Fait** : `GodTicketConfig` + `GodTicketCategory` (migration `20270204000000`, seed des 4 catégories, backfill `categoryKey`, `csatRating`) · panneau `/god/ticket-bot` (serveur, salon, rôles staff/mention, nom du fil, fermeture, archivage, CSAT, catégories, publication ; RBAC God, Zod borné, rate limit, validation Discord fail-closed) · runtime : menu et modales depuis les catégories, création/fermeture/archivage/CSAT depuis la configuration · nettoyage : panneau manuel retiré, console Support alimentée par les catégories, `getBotGuilds` / `getChannelsForGuild` supprimées.
+> **Preuves** : suite **706 fichiers / 7 487 tests ✓** · `tsc` 0 · ESLint 0 erreur · verrous `god-ticket-config` **14**, `god-ticket-actions-guards` **12**, `god-ticket-runtime` **15**, `discord-interaction-ratelimit` **3** · migration appliquée en local (4 catégories, 12 tickets backfillés) · 4 commits, une PR.
+> **Reste / ops** : bêta puis prod → `20270204000000` ; God → `/god/ticket-bot` (serveur + salon + rôles, vérifier les catégories, **publier le panneau**) ; un ticket de test par catégorie + une fermeture avec CSAT ; la garde `discord-interaction-ratelimit` passe de 6 à 7 (CSAT).
+> **Rotation** : bloc « 13/11/2026 (suite 2) — RGPD · Ladder sur les messages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 14/11/2026 (suite) — **Support · captures paramétrables (textuel/forum), doc produit, cadrage G4 et notifications** — branches `feat/support-canal-captures` → `fix/support-canal-captures-console` → `feat/support-tags-forum`
 
 > **Décisions user** : capture d'écran = **aucun upload**, on renvoie vers un **salon configurable côté God** (console **Support → Signalements**) ; un admin de guilde **ne répond pas** (seul le God répond) ; G4 = **panneau God dédié, paramétrable bout en bout, aucun ID en dur** (route 2) ; pas d'auto-onboarding dans ce chantier ; notifications = **espace de notifications du compte** (changelog, news, réponses ; Rush en v2).
@@ -47,14 +56,6 @@
 > **Fait** : service `cadvisor` retiré des composes prod **et** dev (`privileged: true` en dev), scrape job retiré de `monitoring/prometheus/prometheus.yml`, requêtes `container_last_seen`/`container_start_time_seconds` et champs `containers`/`restarts` retirés de `god-system-actions`, carte « Conteneurs » retirée du dashboard God, `scripts/deploy.sh` ne tire plus `grafana` (déjà supprimé) ni `cadvisor`, doc `MAINTENANCE.md` mise à jour.
 > **Preuves** : `monitor-private` **5** (dont « ne monte plus le socket Docker ») · suite **668 fichiers ✓** · `tsc` 0 · **aucune migration**.
 > **Reste / ops** : PR → `dev` ; au prochain déploiement, la stack monitoring ne recrée plus cAdvisor — supprimer le conteneur existant (`docker rm -f sigilos-cadvisor`, action humaine) et vérifier que Prometheus ne scrape plus `cadvisor:8080`.
-> **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 13/11/2026 (suite 2) — **RGPD · Ladder sur les messages, intent `MessageContent` retiré** — branche `feat/ladder-messages`
-
-> **Décision user (verbatim)** : « oui je veux faire la modif, du coup la modif ladder UI module à faire aussi et tout le code autour ».
-> **Mesure** : la métrique « caractères » était la seule raison de demander l'intent privilégié `MessageContent` ; le bot ne lisait que `message.content.length` (jamais le texte, jamais stocké). Les compteurs `discordCharacters*` restent en base (historique, `@default(0)`) mais ne sont plus alimentés.
-> **Fait** : `ladder-client.tsx` (option + affichage + description retirés), `ladder-actions.ts` (union + branche `characters` retirées), `member-discord-activity.tsx` (carte « Caractères » retirée), bot (`MessageContent` retiré, `message.content` plus lu, reset hebdo/mensuel sans caractères, 4 logs sans snowflake Discord).
-> **Preuves** : verrou `ladder-messages-only` (6) · suite **669 fichiers ✓** · `tsc` 0 · aucune migration (colonnes conservées).
-> **Reste / ops** : déployer le bot **puis** désactiver `Message Content Intent` dans le portail Discord (l'ordre inverse ferait refuser le démarrage) ; vérifier que le Ladder affiche bien « Messages » par défaut.
 > **Rotation** : bloc « 12/11/2026 (suite) — Numérotation des blocs » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

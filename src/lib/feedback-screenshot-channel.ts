@@ -15,15 +15,18 @@
 /** Snowflake Discord : 17 à 20 chiffres. */
 export const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/;
 
-/** Types de salons où un membre peut poster un fichier (texte / annonce). */
-export const FEEDBACK_SCREENSHOT_CHANNEL_TYPES = [0, 5] as const;
+/** Types de salons acceptés : texte (0), annonces (5) et forum (15). */
+export const FEEDBACK_SCREENSHOT_CHANNEL_TYPES = [0, 5, 15] as const;
 
 export function isDiscordSnowflake(value: string | null | undefined): boolean {
     if (typeof value !== "string") return false;
     return DISCORD_SNOWFLAKE_PATTERN.test(value.trim());
 }
 
-/** Un salon texte (0) ou d'annonces (5) accepte un message et une pièce jointe. */
+/**
+ * Un salon texte (0), d'annonces (5) ou un forum (15).
+ * Sur un forum, le bot crée un post titré et tagué ; le membre y joint sa capture.
+ */
 export function isWritableTextChannel(type: number | null | undefined): boolean {
     return typeof type === "number" && (FEEDBACK_SCREENSHOT_CHANNEL_TYPES as readonly number[]).includes(type);
 }

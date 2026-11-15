@@ -508,11 +508,14 @@ async function TicketsServer() {
     try {
         const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
         const { getTrackerTickets, getTrackerStats } = await import("@/server/actions/god-bugs-actions");
-        const [ticketData, stats, trackerData, trackerStats] = await Promise.all([
+        const { getConfiguredFeedbackChannelId, resolveFeedbackScreenshotChannel } = await import("@/server/feedback-screenshot-channel");
+        const [ticketData, stats, trackerData, trackerStats, screenshotChannelId, screenshotChannel] = await Promise.all([
             getSupportTickets({ perPage: 50 }),
             getTicketStats(),
             getTrackerTickets({ page: 1, perPage: 20 }),
             getTrackerStats(),
+            getConfiguredFeedbackChannelId(),
+            resolveFeedbackScreenshotChannel(),
         ]);
         return (
             <TicketDashboard
@@ -526,6 +529,8 @@ async function TicketsServer() {
                 initialFeedbackStats={trackerStats.success && "data" in trackerStats
                     ? trackerStats.data
                     : { total: 0, open: 0, resolved: 0, ignored: 0, internal: 0, feedback: 0 }}
+                screenshotChannelId={screenshotChannelId}
+                screenshotChannelUrl={screenshotChannel?.url ?? null}
             />
         );
     } catch { return <div>Error tickets</div> }

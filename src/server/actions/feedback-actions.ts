@@ -164,8 +164,9 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
       metadata: { ticketId: created.id, ticketRef: publicRef, memberName, guild: memberGuildName, type: data.feedbackType },
     }).catch((e: any) => logger.error("[Feedback] notifyGod failed", { error: e?.message }));
 
-    // — Embed Discord (canal dédié → fallback godNotify)
-    await sendFeedbackEmbed({
+    // — Embed Discord (canal dédié → fallback godNotify). Sur un forum, le bot
+    //   crée le post titré/tagué et renvoie son URL : on la garde sur le ticket.
+    const forumLink = await sendFeedbackEmbed({
       publicRef,
       category,
       description,
@@ -177,6 +178,10 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
       emoji: label?.emoji ?? "💬",
       isBug,
     });
+    if (forumLink) {
+      await db.supportTicket.update({ where: { id: created.id }, data: { forumLink } })
+        .catch((e: any) => logger.warn("[Feedback] forumLink non enregistré", { error: e?.message }));
+    }
 
     logger.info(`[Feedback] Créé #${publicRef} (${data.sourcePage})`);
     return { success: true, ticketId: publicRef };
@@ -289,7 +294,7 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
       },
     }).catch((e: any) => logger.error("[Feedback Visiteur] notifyGod failed", { error: e?.message }));
 
-    await sendFeedbackEmbed({
+    const forumLink = await sendFeedbackEmbed({
       publicRef,
       category,
       description,
@@ -301,6 +306,10 @@ export async function submitVisitorFeedbackAction(input: VisitorFeedbackInput) {
       emoji: label?.emoji ?? "💬",
       isBug,
     });
+    if (forumLink) {
+      await db.supportTicket.update({ where: { id: created.id }, data: { forumLink } })
+        .catch((e: any) => logger.warn("[Feedback Visiteur] forumLink non enregistré", { error: e?.message }));
+    }
 
     logger.info(`[Feedback Visiteur] Créé #${publicRef} (${data.sourcePage})`);
     return { success: true, ticketId: publicRef };

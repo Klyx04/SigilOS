@@ -98,6 +98,29 @@ export function buildFeedbackSubject(feedbackType: string, description: string):
   return `${prefix} ${body}`;
 }
 
+/** Limite Discord d'un nom de post de forum. */
+export const FORUM_THREAD_NAME_MAX = 100;
+
+/**
+ * Titre d'un **post de forum** pour un signalement : `[SIG-123] 🐛 Bug — extrait`.
+ *
+ * Le salon des captures peut être un salon textuel **ou** un forum. Sur un forum,
+ * le bot crée le post (Discord l'exige) : le titre porte la référence publique,
+ * le type et un extrait d'une ligne de la description, borné à 100 caractères.
+ */
+export function buildFeedbackForumThreadName(input: {
+    publicRef: string;
+    emoji: string;
+    label: string;
+    description: string;
+}): string {
+    const prefix = `[${input.publicRef}] ${input.emoji} ${input.label}`.trim();
+    const oneLine = input.description.replace(/\s+/g, " ").trim();
+    const room = FORUM_THREAD_NAME_MAX - prefix.length - 3; // " — "
+    const excerpt = room > 0 ? oneLine.slice(0, room).trimEnd() : "";
+    return (excerpt ? `${prefix} — ${excerpt}` : prefix).slice(0, FORUM_THREAD_NAME_MAX);
+}
+
 function cleanString(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();

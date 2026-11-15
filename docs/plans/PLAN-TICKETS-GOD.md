@@ -63,14 +63,14 @@ Les admins de guilde **ne répondent pas** aux signalements : un admin de guilde
 - Le moteur complet existe côté guilde (`TicketGuildConfig`, catégories, panneaux, parcours, formulaires, équipes, transcripts, CSAT) mais exige un `GuildConfig` interne.
 - Base locale : **7** `GuildConfig`, **3** `TicketGuildConfig`, **10** `SupportTicket`, **0** `TicketRecord` ; le serveur SigilOS n'est **pas** un `GuildConfig` et `ticketSupportGuildId` y est NULL.
 
-**Architecture à trancher (bloquante avant toute migration)** :
-1. **Réutiliser le moteur** : donner au serveur SigilOS un `GuildConfig` + `TicketGuildConfig`, puis une UI God des mêmes réglages. Avantage : zéro duplication. À mesurer : effets de bord d'une guilde plateforme (listes, quotas, synchro, RBAC).
-2. **Configuration dédiée au support** : garder `SupportTicket` et ajouter une configuration God propre (catégories, salon, rôles, fermeture, CSAT). Avantage : pas de pollution multi-tenant. Coût : duplication partielle.
+**Décision user (14/11/2026, soir)** : **route 2** — un **panneau dédié à la partie God**, séparé du module de guilde. Aucun identifiant en dur.
+
+1. ~~Réutiliser le moteur de guilde~~ — écarté : créer une « guilde plateforme » mélangerait l'exploitation et les guildes clientes (listes, quotas, synchro, RBAC).
+2. **Configuration dédiée au support** — retenue.
 
 **Lots** :
-- **G4-0** — mesurer la route 1 (effets d'un `GuildConfig` plateforme) ; aucun code.
-- **G4-1** — configuration persistée (catégories, salon, rôles, fermeture, CSAT) ; migration additive si route 2.
-- **G4-2** — console God (réglages + aperçu) branchée sur la configuration.
+- **G4-1** — modèle de configuration dédié (serveur/salon support, rôles staff, catégories, fermeture, CSAT) ; **migration additive à valider** avant écriture.
+- **G4-2** — panneau God dédié (`/god/ticket-bot`) branché sur cette configuration.
 - **G4-3** — runtime Discord (panneau, création, fermeture) lisant la configuration : plus aucune constante de catégorie/libellé.
 - **G4-4** — nettoyage de ce qui n'a plus d'écrivain.
 
@@ -78,9 +78,8 @@ Les admins de guilde **ne répondent pas** aux signalements : un admin de guilde
 
 1. **Origine** : tranché le 13/11/2026 — colonne `SupportTicket.origin`
    (`TicketOrigin`: SUPPORT/FEEDBACK/INTERNAL), migration additive livrée le 14/11.
-2. **`ticket-bot`** : tranché le 14/11/2026 — **module God paramétrable bout en bout**, aucun ID en dur.
-   Reste à mesurer l'architecture : moteur de guilde partagé (route 1) ou configuration
-   dédiée (route 2) — **G4-0**.
+2. **`ticket-bot`** : tranché le 14/11/2026 — **module God paramétrable bout en bout**, aucun ID en dur,
+   **panneau God dédié** (route 2). La migration additive de G4-1 doit être validée avant écriture.
 3. **Ancien tracker `/god/bugs`** : redirection vers `?tab=tickets&view=bugs`, ou
    conservation en vue secondaire ?
 

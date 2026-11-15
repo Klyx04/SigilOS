@@ -19,14 +19,15 @@ describe("rate limit des interactions Discord — store partagé", () => {
         expect(source).not.toContain("getRateLimitRemaining");
     });
 
-    it("consomme un jeton sur les 6 gardes (interaction, dj ×2, ticket, modal, commande de ticket)", () => {
+    it("consomme un jeton sur les 7 gardes (interaction, dj ×2, ticket, modal, commande de ticket, CSAT)", () => {
         const calls = source.match(/await consumeRateLimit\(/g) ?? [];
-        expect(calls).toHaveLength(6);
+        expect(calls).toHaveLength(7);
         expect(source).toContain("interaction:${discordUserId}");
         expect(source).toContain("dj:${member.user.id}:${entityId}");
         expect(source).toContain("ticket:${member.user.id}");
         expect(source).toContain("modal:${member.user.id}");
         expect(source).toContain("ticket-cmd:${discordUserId}:${channelId}");
+        expect(source).toContain("support:csat:${member.user.id}:${ticketId}");
     });
 
     it("préfixe la clé pour ne pas collisionner avec les autres limiteurs", () => {

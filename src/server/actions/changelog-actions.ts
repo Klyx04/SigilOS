@@ -15,6 +15,8 @@ import { isSuperAdmin } from './super-admin-actions';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { ChangelogCategory } from '@prisma/client';
+import { after } from 'next/server';
+import { notifyChangelogPublished } from '@/server/changelog-notifications';
 import { getAppBaseUrl } from '@/lib/utils';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/types';
 import { getServerLocale } from '@/lib/i18n/server';
@@ -94,6 +96,21 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
         });
 
         revalidatePath('/god/changelog');
+
+        // Les entrées internes ne sortent pas de la console God. Pour une entrée
+        // publique, le fan-out part APRÈS la réponse : la publication ne doit pas
+        // attendre une écriture par compte. `notifyChangelogPublished` ne lève
+        // jamais (best-effort + logger).
+        if (!entry.isInternal) {
+            after(async () => {
+                await notifyChangelogPublished({
+                    id: entry.id,
+                    version: entry.version,
+                    title: entry.title,
+                    summary: entry.summary,
+                });
+            });
+        }
 
         return { success: true, entry };
     } catch (error) {

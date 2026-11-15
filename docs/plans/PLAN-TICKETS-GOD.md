@@ -5,7 +5,7 @@
 > mainteneur voit et traite lui-même.
 > Écrit le 08/11/2026 ; **G1-G3 livrés le 14/11/2026** (fusion des signalements dans
 > `SupportTicket`, onglet « Signalements », refonte UI et **retours visiteurs connectés**).
-> Reste **G4** (`ticket-bot`).
+> Reste **G4** : panneau God dédié (route 2 actée le 14/11).
 
 ## 0. Demande (verbatim, 08/11/2026)
 

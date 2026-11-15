@@ -15,10 +15,13 @@ import {
 } from "@/lib/feedback-ticket-mapping";
 import { appendMemberReply, ensurePublicRef, sendFeedbackEmbed } from "@/server/feedback-ticket-service";
 import {
+  getFeedbackForumTagMap,
+  getFeedbackForumTags,
   resolveFeedbackScreenshotChannel,
   validateFeedbackScreenshotChannel,
 } from "@/server/feedback-screenshot-channel";
 import { isDiscordSnowflake } from "@/lib/feedback-screenshot-channel";
+import { Prisma } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { notifyGod } from "@/server/god-notifications";
 
@@ -559,6 +562,96 @@ export async function setFeedbackScreenshotChannelAction(
     return { success: true, data: { url: validation.url } };
   } catch (e: any) {
     logger.error("[Feedback] salon des captures non enregistré", { error: e?.message });
+    return { success: false, error: "Enregistrement impossible." };
+  }
+}
+
+/**
+ * Réglage God des **tags de forum** : tags disponibles sur le salon configuré
+ * et mapping actuel. God uniquement.
+ */
+export async function getFeedbackForumTagSettingsAction(): Promise<
+  ActionResponse<{
+    isForum: boolean;
+    tags: { id: string; name: string; moderated: boolean }[];
+    map: Record<string, string>;
+  }>
+> {
+  const { isSuperAdmin } = await import("./super-admin-actions");
+  if (!(await isSuperAdmin())) {
+    return { success: false, error: "Non autorisé." };
+  }
+  const [forum, map] = await Promise.all([getFeedbackForumTags(), getFeedbackForumTagMap()]);
+  const tags = forum.tags.map((tag) => ({ id: tag.id, name: tag.name, moderated: !!tag.moderated }));
+  return { success: true, data: { isForum: forum.isForum, tags, map } };
+}
+
+/**
+ * Enregistre le mapping « type de retour → tag de forum » (God uniquement).
+ *
+ * Chaque tag doit exister sur le forum configuré et ne pas être réservé aux
+ * modérateurs. Un type absent — ou un tag supprimé plus tard côté Discord —
+ * retombe sur le premier tag utilisable (jamais bloquant).
+ */
+export async function setFeedbackForumTagMapAction(
+  input: Record<string, string | null>
+): Promise<ActionResponse<{ map: Record<string, string> }>> {
+  const { isSuperAdmin } = await import("./super-admin-actions");
+  if (!(await isSuperAdmin())) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Non authentifié." };
+  }
+
+  const rate = await rateLimit(`feedback:forum-tags:${session.user.id}`, 10, 60_000);
+  if (!rate.success) {
+    return { success: false, error: "Trop de modifications — réessaie dans une minute." };
+  }
+
+  const parsed = z
+    .record(z.string().trim().max(40), z.string().trim().max(32).nullable())
+    .safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Mapping invalide." };
+  }
+
+  try {
+    const forum = await getFeedbackForumTags();
+    if (!forum.isForum) {
+      return { success: false, error: "Le salon configuré n'est pas un forum." };
+    }
+
+    const usable = new Set(forum.tags.filter((tag) => !tag.moderated).map((tag) => tag.id));
+    const sanitized: Record<string, string> = {};
+
+    for (const [type, tagId] of Object.entries(parsed.data)) {
+      if (!(FEEDBACK_TYPES as readonly string[]).includes(type)) continue;
+      if (!tagId) continue;
+      if (!usable.has(tagId)) {
+        return {
+          success: false,
+          error: "Un tag choisi n'existe plus sur ce forum ou est réservé aux modérateurs.",
+        };
+      }
+      sanitized[type] = tagId;
+    }
+
+    await db.platformConfig.upsert({
+      where: { id: "singleton" },
+      update: { feedbackForumTagMap: sanitized as Prisma.InputJsonValue },
+      create: { id: "singleton", feedbackForumTagMap: sanitized as Prisma.InputJsonValue },
+    });
+
+    logger.info("[Feedback] mapping des tags de forum enregistré", {
+      actorId: session.user.id,
+      count: Object.keys(sanitized).length,
+    });
+    return { success: true, data: { map: sanitized } };
+  } catch (e: any) {
+    logger.error("[Feedback] mapping des tags non enregistré", { error: e?.message });
     return { success: false, error: "Enregistrement impossible." };
   }
 }

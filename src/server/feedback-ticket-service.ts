@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import { appendMemberReplyToTranscript, buildFeedbackForumThreadName, buildTicketPublicRef } from "@/lib/feedback-ticket-mapping";
 import { buildDiscordChannelUrl } from "@/lib/feedback-screenshot-channel";
+import { resolveFeedbackForumTagForType } from "@/server/feedback-screenshot-channel";
 import { createForumThread, fetchChannel, sanitizeMentions, sendChannelMessage } from "@/server/discord";
 
 function isUniqueViolation(error: unknown): boolean {
@@ -107,7 +108,8 @@ export async function sendFeedbackEmbed(input: {
 
         // Forum (type 15) : Discord refuse un message sans `thread_name`.
         if (channel.type === 15) {
-            const tag = (channel.available_tags ?? []).find((candidate) => !candidate.moderated);
+            // Tag : mapping God par type de retour, sinon premier tag utilisable.
+            const tagId = await resolveFeedbackForumTagForType(input.feedbackType, channel.available_tags);
             const thread = await createForumThread(targetChannel, {
                 name: buildFeedbackForumThreadName({
                     publicRef: input.publicRef,
@@ -127,7 +129,7 @@ export async function sendFeedbackEmbed(input: {
                     }],
                 },
                 auto_archive_duration: 10080,
-                ...(tag ? { applied_tags: [tag.id] } : {}),
+                ...(tagId ? { applied_tags: [tagId] } : {}),
             });
             if (!thread?.id) return null;
             return buildDiscordChannelUrl(channel.guild_id, thread.id);

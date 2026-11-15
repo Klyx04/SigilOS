@@ -12,10 +12,14 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 import { fetchChannel } from "@/server/discord";
+import { FEEDBACK_TYPES } from "@/lib/feedback-types";
 import {
     buildDiscordChannelUrl,
     isDiscordSnowflake,
     isWritableTextChannel,
+    resolveFeedbackForumTag,
+    sanitizeFeedbackForumTagMap,
+    type FeedbackForumTag,
 } from "@/lib/feedback-screenshot-channel";
 
 const GUILD_CACHE_TTL_SECONDS = 60 * 60;
@@ -128,4 +132,54 @@ export async function validateFeedbackScreenshotChannel(
     } catch {
         return { ok: false, error: "Discord n'a pas répondu — rien n'a été enregistré." };
     }
+}
+
+/**
+ * Tags du forum configuré (vide si le salon est textuel, absent ou injoignable).
+ * Sert au réglage God du mapping ; ne lève jamais.
+ */
+export async function getFeedbackForumTags(): Promise<{
+    channelId: string | null;
+    isForum: boolean;
+    tags: FeedbackForumTag[];
+}> {
+    try {
+        const channelId = await getConfiguredFeedbackChannelId();
+        if (!channelId) return { channelId: null, isForum: false, tags: [] };
+        const channel = await fetchChannel(channelId);
+        if (!channel || channel.type !== 15) return { channelId, isForum: false, tags: [] };
+        const tags = (channel.available_tags ?? [])
+            .filter((tag) => isDiscordSnowflake(tag.id))
+            .map((tag) => ({ id: tag.id, name: tag.name, moderated: !!tag.moderated }));
+        return { channelId, isForum: true, tags };
+    } catch {
+        logger.warn("[Feedback] lecture des tags du forum impossible");
+        return { channelId: null, isForum: false, tags: [] };
+    }
+}
+
+/** Mapping « type de retour → tag de forum » enregistré côté God (borné). */
+export async function getFeedbackForumTagMap(): Promise<Record<string, string>> {
+    try {
+        const config = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { feedbackForumTagMap: true },
+        });
+        return sanitizeFeedbackForumTagMap(config?.feedbackForumTagMap, FEEDBACK_TYPES);
+    } catch {
+        logger.warn("[Feedback] lecture du mapping des tags de forum impossible");
+        return {};
+    }
+}
+
+/**
+ * Tag du post pour un type de retour, en lisant le mapping God. Le repli
+ * (premier tag utilisable) est décidé par la règle pure `resolveFeedbackForumTag`.
+ */
+export async function resolveFeedbackForumTagForType(
+    feedbackType: string,
+    tags: FeedbackForumTag[] | null | undefined
+): Promise<string | null> {
+    const map = await getFeedbackForumTagMap();
+    return resolveFeedbackForumTag(feedbackType, map, tags);
 }

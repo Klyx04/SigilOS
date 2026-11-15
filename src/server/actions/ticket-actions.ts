@@ -23,8 +23,6 @@ import {
     sendChannelMessage,
     sendDirectMessage,
     fetchGuildRoles,
-    fetchGuildChannels,
-    fetchBotGuilds,
     buildSafeRoleMention,
 } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -851,11 +849,10 @@ export async function getTicketStats() {
     return { open, inProgress, waitingResponse, closedRecent, total, feedbackOpen, feedbackTotal };
 }
 
-export async function postTicketPanel(channelId?: string, guildId?: string) {
+export async function postTicketPanel() {
     if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
-    // La configuration God fait autorité quand elle est renseignée ; les
-    // arguments restent un repli pour l'ancien écran (retiré en G4-4).
+    // Le panneau publié suit la configuration God : plus aucun salon fourni par l'appelant.
     let runtime;
     try {
         runtime = await loadGodTicketRuntime();
@@ -863,8 +860,8 @@ export async function postTicketPanel(channelId?: string, guildId?: string) {
         return { success: false, error: "Configuration du support indisponible." };
     }
 
-    const targetGuildId = runtime.config.supportGuildId ?? guildId;
-    const targetChannelId = runtime.config.supportChannelId ?? channelId;
+    const targetGuildId = runtime.config.supportGuildId;
+    const targetChannelId = runtime.config.supportChannelId;
     if (!targetGuildId || !targetChannelId) {
         return {
             success: false,
@@ -907,34 +904,6 @@ export async function postTicketPanel(channelId?: string, guildId?: string) {
     if (!messageId) return { success: false, error: "Échec de l'envoi du panel." };
     await logTicketWrite("post-ticket-panel", undefined, { channelId: targetChannelId, guildId: targetGuildId, messageId });
     return { success: true, messageId };
-}
-
-/**
- * Fetch all guilds the bot is in
- */
-export async function getBotGuilds() {
-    try {
-        const guilds = await fetchBotGuilds();
-        return { success: true, guilds };
-    } catch (error) {
-        logger.error("[Tickets] Fetch guilds error", { error });
-        return { success: false, error: "Impossible de récupérer les serveurs." };
-    }
-}
-
-/**
- * Fetch all text channels for a guild
- */
-export async function getChannelsForGuild(guildId: string) {
-    try {
-        const channels = await fetchGuildChannels(guildId);
-        // Filter only text channels (type 0) and announcement channels (type 5)
-        const filtered = channels.filter(c => c.type === 0 || c.type === 5);
-        return { success: true, channels: filtered };
-    } catch (error) {
-        logger.error("[Tickets] Fetch channels error", { error });
-        return { success: false, error: "Impossible de récupérer les salons." };
-    }
 }
 
 /**

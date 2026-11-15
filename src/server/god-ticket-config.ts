@@ -47,3 +47,14 @@ export async function loadGodTicketRuntime(): Promise<GodTicketRuntime> {
         enabledCategories: categories.filter((category) => category.isEnabled),
     };
 }
+
+/**
+ * Catégories seules, pour les écrans God (console Support, filtres) : évite de
+ * charger la configuration Discord complète sur une page qui n'en a pas besoin.
+ */
+export async function loadGodTicketCategories(): Promise<GodTicketCategoryRow[]> {
+    const rows = await db.godTicketCategory.findMany({
+        orderBy: [{ order: "asc" }, { label: "asc" }],
+    });
+    return resolveGodTicketCategories(rows);
+}

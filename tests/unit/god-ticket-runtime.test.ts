@@ -151,3 +151,28 @@ describe("gardes anti-retour — plus de catégories en dur", () => {
         expect(source).toContain("runtime.enabledCategories");
     });
 });
+
+describe("nettoyage G4-4 — un seul endroit pour régler le support", () => {
+    it("le panneau est publié depuis la configuration, sans salon fourni par l'appelant", () => {
+        const source = read("src/server/actions/ticket-actions.ts");
+        expect(source).toContain("export async function postTicketPanel()");
+        expect(source).not.toContain("export async function postTicketPanel(channelId");
+        expect(source).not.toContain("export async function getBotGuilds");
+        expect(source).not.toContain("export async function getChannelsForGuild");
+    });
+
+    it("la console God lit les catégories réglées, plus de table en dur", () => {
+        const source = read("src/app/god/components/ticket-dashboard.tsx");
+        expect(source).toContain("resolveCategoryMeta(ticket, categories)");
+        expect(source).toContain("categories.map((category)");
+        expect(source).not.toContain("CATEGORY_CONFIG");
+        expect(source).not.toContain("Poster le panel (Discord)");
+    });
+
+    it("la page God passe les catégories à la console Support", () => {
+        const source = read("src/app/god/page.tsx");
+        expect(source).toContain("loadGodTicketCategories()");
+        expect(source).toContain("categories={categories}");
+    });
+});
+

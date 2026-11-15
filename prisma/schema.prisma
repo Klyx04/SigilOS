@@ -186,6 +186,10 @@ model PlatformConfig {
   disabledModulesUpdatedAt DateTime?
   disabledModulesUpdatedBy String?
   questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
+  /// Mapping optionnel `type de retour → identifiant de tag de forum`, utilisé
+  /// quand le salon des captures est un **forum**. Clés = `FEEDBACK_TYPES`,
+  /// valeurs = ids de tags du forum configuré. Absent = premier tag utilisable.
+  feedbackForumTagMap Json?
   // Toggle God : si le ladder Ankama est indisponible, on autorise la saisie
   // manuelle du pseudo Dofus à la place de la vérification Ankama.
   ladderManualFallback  Boolean  @default(false)

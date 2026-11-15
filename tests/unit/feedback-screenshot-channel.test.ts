@@ -5,6 +5,8 @@ import {
     buildDiscordChannelUrl,
     isDiscordSnowflake,
     isWritableTextChannel,
+    resolveFeedbackForumTag,
+    sanitizeFeedbackForumTagMap,
 } from "@/lib/feedback-screenshot-channel";
 import { buildFeedbackForumThreadName } from "@/lib/feedback-ticket-mapping";
 
@@ -81,6 +83,37 @@ describe("lien du salon des captures — règle pure", () => {
     });
 });
 
+describe("tags de forum — mapping par type de retour", () => {
+    const tags = [
+        { id: "111111111111111111", name: "Bug" },
+        { id: "222222222222222222", name: "Amélioration" },
+        { id: "333333333333333333", name: "Modo", moderated: true },
+    ];
+
+    it("applique le tag mappé au type de retour", () => {
+        expect(resolveFeedbackForumTag("BUG_TECHNIQUE", { BUG_TECHNIQUE: tags[0].id }, tags)).toBe(tags[0].id);
+        expect(resolveFeedbackForumTag("AMELIORATION", { AMELIORATION: tags[1].id }, tags)).toBe(tags[1].id);
+    });
+
+    it("retombe sur le premier tag utilisable si le mapping manque ou pointe un tag disparu", () => {
+        expect(resolveFeedbackForumTag("AUTRE", {}, tags)).toBe(tags[0].id);
+        expect(resolveFeedbackForumTag("AUTRE", { AUTRE: "999999999999999999" }, tags)).toBe(tags[0].id);
+    });
+
+    it("ne choisit jamais un tag réservé aux modérateurs", () => {
+        expect(resolveFeedbackForumTag("AUTRE", { AUTRE: tags[2].id }, [tags[2]])).toBeNull();
+        expect(resolveFeedbackForumTag("AUTRE", {}, [tags[2], tags[0]])).toBe(tags[0].id);
+    });
+
+    it("borne le mapping aux types connus et aux snowflakes", () => {
+        const map = sanitizeFeedbackForumTagMap(
+            { BUG_TECHNIQUE: tags[0].id, INCONNU: tags[1].id, AUTRE: "abc" },
+            ["BUG_TECHNIQUE", "AUTRE"]
+        );
+        expect(map).toEqual({ BUG_TECHNIQUE: tags[0].id });
+    });
+});
+
 describe("surfaces — aucune invitation en dur", () => {
     it("le panneau Rush n'a plus d'invitation ni de repli discord.gg", () => {
         const panel = read(PANEL);
@@ -114,6 +147,16 @@ describe("God — le salon est paramétrable, jamais en dur", () => {
         expect(page).toContain("resolveFeedbackScreenshotChannel");
         expect(page).toContain("getConfiguredFeedbackChannelId");
         expect(read(CONFIG)).toContain("setFeedbackScreenshotChannelAction");
+    });
+
+    it("le panneau God règle le tag de chaque type de retour", () => {
+        const config = read(CONFIG);
+        expect(config).toContain("getFeedbackForumTagSettingsAction");
+        expect(config).toContain("setFeedbackForumTagMapAction");
+        expect(config).toContain("FEEDBACK_TYPES");
+        const actions = read(ACTIONS);
+        expect(actions).toContain("setFeedbackForumTagMapAction");
+        expect(actions).toContain("feedbackForumTagMap");
     });
 
     it("l'écriture est God + rate limit + salon validé", () => {

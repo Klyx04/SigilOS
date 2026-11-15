@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { ExternalLink, Link2, Save } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { ExternalLink, Link2, Save, Tags } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { setFeedbackScreenshotChannelAction } from "@/server/actions/feedback-actions";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { FEEDBACK_LABELS, FEEDBACK_TYPES } from "@/lib/feedback-types";
+import {
+    getFeedbackForumTagSettingsAction,
+    setFeedbackForumTagMapAction,
+    setFeedbackScreenshotChannelAction,
+} from "@/server/actions/feedback-actions";
 
 interface FeedbackChannelConfigProps {
     /** Salon actuellement configuré (`PlatformConfig.questFeedbackChannelId`). */
@@ -25,6 +37,31 @@ export function FeedbackChannelConfig({ initialChannelId, initialUrl }: Feedback
     const [channelId, setChannelId] = useState(initialChannelId ?? "");
     const [url, setUrl] = useState<string | null>(initialUrl);
     const [isPending, startTransition] = useTransition();
+    const [isForum, setIsForum] = useState(false);
+    const [forumTags, setForumTags] = useState<{ id: string; name: string; moderated: boolean }[]>([]);
+    const [tagMap, setTagMap] = useState<Record<string, string>>({});
+    const [tagsLoading, setTagsLoading] = useState(true);
+    const [tagsSaving, startTagsTransition] = useTransition();
+
+    const loadForumSettings = async () => {
+        setTagsLoading(true);
+        try {
+            const response = await getFeedbackForumTagSettingsAction();
+            if (response.success && response.data) {
+                setIsForum(response.data.isForum);
+                setForumTags(response.data.tags.filter((tag) => !tag.moderated));
+                setTagMap(response.data.map);
+            }
+        } finally {
+            setTagsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadForumSettings();
+        // Une seule fois au montage : le salon courant est lu côté serveur.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const save = () => {
         startTransition(async () => {
@@ -39,6 +76,29 @@ export function FeedbackChannelConfig({ initialChannelId, initialUrl }: Feedback
                     ? "Salon des captures enregistré."
                     : "Salon des captures effacé."
             );
+            // Le salon a changé : les tags disponibles aussi.
+            await loadForumSettings();
+        });
+    };
+
+    const saveTags = () => {
+        startTagsTransition(async () => {
+            const response = await setFeedbackForumTagMapAction(tagMap);
+            if (!response.success) {
+                toast.error(response.error || "Enregistrement impossible.");
+                return;
+            }
+            setTagMap(response.data?.map ?? {});
+            toast.success("Tags de forum enregistrés.");
+        });
+    };
+
+    const setTagForType = (type: string, value: string) => {
+        setTagMap((previous) => {
+            const next = { ...previous };
+            if (value === "none") delete next[type];
+            else next[type] = value;
+            return next;
         });
     };
 
@@ -98,6 +158,67 @@ export function FeedbackChannelConfig({ initialChannelId, initialUrl }: Feedback
                     ? `Lien actif : ${url}`
                     : "Aucun lien affiché tant que le salon n'est pas enregistré."}
             </p>
+
+            {!tagsLoading && isForum && forumTags.length > 0 && (
+                <div className="mt-4 space-y-3 border-t border-border pt-4">
+                    <div className="space-y-1">
+                        <h3 className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                            <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            Tag du post selon le type de retour
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground">
+                            Sans choix, le premier tag utilisable du forum est appliqué. Un tag supprimé
+                            côté Discord retombe aussi sur ce premier tag.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-2 md:grid-cols-2">
+                        {FEEDBACK_TYPES.map((type) => {
+                            const meta = FEEDBACK_LABELS[type];
+                            return (
+                                <div key={type} className="flex items-center gap-2">
+                                    <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={meta.label}>
+                                        {meta.emoji} {meta.label}
+                                    </span>
+                                    <label htmlFor={`forum-tag-${type}`} className="sr-only">
+                                        Tag du forum pour {meta.label}
+                                    </label>
+                                    <Select
+                                        value={tagMap[type] ?? "none"}
+                                        onValueChange={(value) => setTagForType(type, value)}
+                                    >
+                                        <SelectTrigger
+                                            id={`forum-tag-${type}`}
+                                            className="h-8 w-[150px] shrink-0 text-[11px]"
+                                        >
+                                            <SelectValue placeholder="Aucun" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Aucun (repli)</SelectItem>
+                                            {forumTags.map((tag) => (
+                                                <SelectItem key={tag.id} value={tag.id}>
+                                                    {tag.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={saveTags}
+                        disabled={tagsSaving}
+                        className="h-8 shrink-0 gap-2"
+                    >
+                        <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                        {tagsSaving ? "Enregistrement…" : "Enregistrer les tags"}
+                    </Button>
+                </div>
+            )}
         </section>
     );
 }

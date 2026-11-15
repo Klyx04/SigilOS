@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 15/11/2026 (suite 3) — **Docs · un seul fichier de chantiers, audit sécurité soldé, branches mortes purgées** — branche `docs/consolidation-chantiers`
+
+> **Décisions user** : « tout doit être clean à jour » ; « concentrer tous les chantiers exhaustivement dans un seul fichier » ; plus aucun fichier d'amorce ; le prototype Dark Vlad et la procédure d'extraction Unity **ne sont pas versionnés** (chemin machine + couleurs en dur).
+> **Mesure** : l'audit sécurité du 13/11 est **entièrement livré** — PR **#1361**, **#1362**, **#1363**, **#1364**, **#1367** mergées ; le ROADMAP affichait encore « PR → dev » comme prochain lot. `dev` = `origin/dev` (0/0), aucun stash ; 10 branches locales avaient une PR mergée, 1 branche morte (`feat/visiteur-quete-ocre-rush`, PR #1312 fermée, contenu déjà dans `dev` via #1313).
+> **Fait** : ROADMAP **compacté 61 031 → 46 477 octets** (récits de session retirés ; `god-rush-ux` 6 995 → ~450) et **corrigé** (8 lignes d'audit en ✅ livré ; §1bis = vrais restes ; ops consolidées en §0) · **6 fichiers supprimés** (`AMORCE-DEMO-PUBLIQUE`, `AMORCE-RAID`, `AMORCE-REFONTE-GOD-GUILDES`, `AMORCE-STUFF-VARIANTES-RESTE`, `PLAN-NOTIFICATIONS`, `PLAN-SUCCES-SPECIAUX`) · **2 renommés** `AMORCE-*` → `PLAN-*` (`GUILDES-CYCLE-DE-VIE`, `SOUVERAINETE-IMAGES`) + test `plan-guildes-cycle-de-vie` · README aligné · branche morte supprimée (locale + distante) · 7 branches locales mergées purgées · artefacts locaux déplacés en zone volatile (`src/temp/dark-vlad/`).
+> **Preuves** : `plan-guildes-cycle-de-vie` **3** · `harness-config` **9** (ROADMAP < 60 Ko) · `git status` propre · aucune citation morte hors journal/archives.
+> **Reste / ops** : vrais sujets sécurité au §1bis du ROADMAP (**TOCTOU DNS** et **Caddy POST** = seul code à écrire ; CSP, jeton legacy, intent Discord, rebuild WS = réglages/ops) · prototype Dark Vlad dans `src/temp/dark-vlad/` (non versionné).
+> **Rotation** : bloc « 13/11/2026 (suite 5) — Sondages : modale responsive + embed sans doublon » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 15/11/2026 (suite 2) — **Notifications · N1→N4 + N2-bis + hub signalements + garde bannissement** — branches `feat/notifications-*` et `fix/visitor-feedback-ban-guard`
 
 > **Décisions user** : bouton bug **inchangé** (icône globale du header public pour les connectés, cachée pour les anonymes) ; audience du changelog = **tout le monde**, une notification par personne ; news = changelog uniquement ; **les signalements vont dans Notifications** ; **opt-out dans Réglages** ; **Rush v2 reporté (toasts live, rien de persisté)** ; rétention existante 30/90.
@@ -50,10 +60,4 @@
 > **Reste / ops** : en bêta puis prod, jouer `20270201000000` → `migrate-system-issues-to-support-tickets --dry-run` puis `--apply` (compteurs + échantillon) → `20270201500000` (filet) → `20270202000000` ; redéployer ; vérifier un ancien lien `?bug=SIG-<n>`. Lots séparés : console Support God (`ticket-bot` G4), screenshot, auto-onboarding.
 > **Rotation** : bloc « 13/11/2026 — Blocs Combat + liens + markdown + modale de bloc » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 13/11/2026 (suite 5) — **Sondages : modale responsive + embed sans doublon** — branche `fix/sondages-responsive-embed`
 
-> **Mesure** : la modale « Lancer un sondage » débordait horizontalement — le `DialogContent` est un `grid` sans `grid-cols-1` (colonne implicite `auto` qui se dilate sur un mot long), et l'aperçu Discord n'avait ni `min-w-0` ni césure (`whitespace-pre-wrap` seul). Le bas était coupé par `max-h-[90vh]`.
-> **Fait** : `grid-cols-1` sur le composant Dialog (correctif structurel, toutes modales) · `min-w-0` + `break-words` + `[overflow-wrap:anywhere]` sur l'aperçu · `max-h-[calc(100dvh-2rem)]` · règle pure `poll-embed-content` : la description identique à la question n'est plus répétée dans l'embed (casse/ponctuation/espaces ignorés), l'aperçu l'annonce.
-> **Preuves** : verrou `poll-embed-content` **7** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste / ops** : PR #1368 **mergée** (`ece727ce`) ; contrôle visuel bêta 390/768/1024/1440 après déploiement.
-> **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

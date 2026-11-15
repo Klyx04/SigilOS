@@ -1,10 +1,10 @@
 /**
- * Anti-hallucination — **chaque chemin cité par l'amorce existe**.
+ * Anti-hallucination — **chaque chemin cité par le plan existe**.
  *
- * 📌 `docs/plans/AMORCE-GUILDES-CYCLE-DE-VIE.md` énumère ce qui reste à décider sur le cycle de vie
+ * 📌 `docs/plans/PLAN-GUILDES-CYCLE-DE-VIE.md` énumère ce qui reste à décider sur le cycle de vie
  * d'une guilde. Un plan qui cite un fichier renommé ou supprimé devient un pointeur mort : ce verrou
- * relit l'amorce et **vérifie l'existence** de chaque chemin `src/…`, `services/…`, `prisma/…`,
- * `tests/…`, `docs/…` qu'elle mentionne.
+ * relit le plan et **vérifie l'existence** de chaque chemin `src/…`, `services/…`, `prisma/…`,
+ * `tests/…`, `docs/…` qu'il mentionne.
  *
  * Il ne juge pas le contenu (une affirmation peut être périmée), il garantit que la **preuve
  * annexée** pointe vers quelque chose de réel — la double vérification reste dans l'Annexe A.
@@ -14,9 +14,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
-const AMORCE = "docs/plans/AMORCE-GUILDES-CYCLE-DE-VIE.md";
+const PLAN = "docs/plans/PLAN-GUILDES-CYCLE-DE-VIE.md";
 
-const markdown = fs.readFileSync(path.join(REPO_ROOT, AMORCE), "utf8");
+const markdown = fs.readFileSync(path.join(REPO_ROOT, PLAN), "utf8");
 
 /** Chemins cités, entre backticks, éventuellement suffixés d'un `:ligne`. */
 function citedPaths(): string[] {
@@ -24,7 +24,7 @@ function citedPaths(): string[] {
     return [...new Set(matches.map((raw) => raw.replace(/:\d+$/, "").replace(/[.,;:]$/, "")))];
 }
 
-describe("amorce « cycle de vie d'une guilde »", () => {
+describe("plan « cycle de vie d'une guilde »", () => {
     it("cite des chemins, et ils sont tous réels", () => {
         const paths = citedPaths();
         expect(paths.length).toBeGreaterThan(10);

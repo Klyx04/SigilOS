@@ -716,7 +716,7 @@ export async function getGuildMembersForGod(guildId: string) {
  * - le God peut, en plus, **purger le compte plateforme** (`deleteAccount: true`) — c'est-à-dire
  *   retirer l'utilisateur de **toutes** ses guildes (compte `User` + OAuth + sessions) ;
  * - **aucune trace dans le journal de la guilde** (règle « le God voit tout, mais n'écrit pas dans
- *   le journal de la guilde » — cf. AMORCE-REFONTE-GOD-GUILDES A4) : la trace est côté God/log.
+ *   le journal de la guilde » — cf. PLAN-REFONTE-GOD-GUILDES A4) : la trace est côté God/log.
  * - gardée par `isSuperAdmin()` (fail-closed).
  */
 export async function godPurgeMemberFromGuild(

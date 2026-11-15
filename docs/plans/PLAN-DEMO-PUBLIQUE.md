@@ -118,7 +118,7 @@ diffère ; le **rendu** reste celui du produit. C'est écrit ici pour ne pas le 
 | **S-4** | La landing autour : CTA « Essayer la démo » (FR+EN), hero sur l'écran réel, fuites produit (`tools.tsx:72` FR en dur ; `proof.tsx:76-88` état unique masqué) | à faire |
 | **S-5** | Perf mesurée, activée par l'audit : pages publiques prérendables, **une seule** langue au client, `framer-motion` hors du graphe public | à faire |
 
-> **Reprise de session** : `docs/plans/AMORCE-DEMO-PUBLIQUE.md` — état mesuré, ordre des lots, méthode et DoD, **bloc à coller** en tête de la nouvelle session.
+> **Reprise de session** : l'état et l'ordre vivent dans `docs/ROADMAP.md` (rang 26) ; ce plan porte le contenu.
 
 ---
 

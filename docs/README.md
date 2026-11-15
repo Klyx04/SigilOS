@@ -55,34 +55,31 @@ docs/
 │   └── GUIDE-DEPLOIEMENT-PROD-JOUR-J.md
 │
 ├── plans/                         chantiers produit (en cours / à venir)
-│   ├── (l'ordre vit dans ../ROADMAP.md — anciens fichiers : ../agents/archive/)
+│   ├── (l'ordre et l'état vivent dans ../ROADMAP.md ; aucune amorce : références de module uniquement)
 │   ├── PLAN-ROLES-ANCIENNETE.md   chantier Y : rôles automatiques par ancienneté (paliers `jours → rôles`, annonce)
 │   ├── PLAN-ROLES-SUCCES.md        chantier S : rôles par points de succès ladder (paliers `points → rôles`)
 │   ├── PLAN-MOTEUR-ROLES-MULTI-SOURCES.md  chantier Y+ : moteur unique ancienneté + vocal + contribution (garde-fous, 1 migration)
 │   ├── PLAN-COMMANDES-SLASH.md     chantier Z : commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés)
 │   ├── PLAN-ACTIVITE-GUILDE.md     chantier N : activité de guilde enrichie & notifications (aucune migration)
 │   ├── PLAN-DEMO-PUBLIQUE.md       chantier S : démo publique en lecture seule
-│   ├── AMORCE-STUFF-VARIANTES-RESTE.md  suite du chantier stuff/variantes (panoplies recalculées, Pods, veille)
-│   ├── AMORCE-DEMO-PUBLIQUE.md     amorce du chantier S (S-1 → S-5)
+│   ├── PLAN-GUILDES-CYCLE-DE-VIE.md  cycle de vie d'une guilde : décisions D-A→D-E, preuves, glossaire
+│   ├── PLAN-SOUVERAINETE-IMAGES.md  souveraineté des visuels : S1→S4, critères vérifiables
 │   ├── PLAN-DESLOP-ANNUAIRE.md     deslop de l'annuaire (volet membres de M-1)
 │   ├── PLAN-RACCORD-DOFUSDB.md     raccord DofusDB (données de combat + visuels)
 │   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
 │   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
 │   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données
 │   ├── RUSH-DEVELOPPEMENT-SUITE.md  rush : blocs de contenu S0→S6 (l'ordre vit dans ROADMAP)
-│   ├── PLAN-SUCCES-SPECIAUX.md     succès spéciaux (données + fiches)
 │   ├── PLAN-SOLVEURS-TACTIQUES.md solveurs tactiques (à cadrer)
 
 │   ├── PLAN-REFONTE-ONBOARDING.md
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
 │   ├── PLAN-REFONTE-GOD-GUILDES.md refonte God « Guildes & Users » : 12 chantiers, 7 lots
 │   ├── PLAN-TICKETS-GOD.md        module tickets d'exploitation : `?tab=tickets`, UI à refondre, `ticket-bot` à revoir (brief 08/11/2026)
-│   ├── AMORCE-REFONTE-GOD-GUILDES.md  amorce d'exécution de la refonte God
 │   ├── PLAN-RAID.md                raid : clôture/no-show, strat, overlay, données (relevé mesuré 01/10/2026)
 │   ├── MODULE-RUSH-SYLVESTRE.md    module Rush Sylvestre : carte des fichiers + chantiers (agrégateur)
 │   ├── REFONTE-EDITEUR-RUSH.md    éditeur God Rush : audit UX mesuré + lots E1→E5 (studio 3 panneaux)
 │   ├── PLAN-ESPACE-VISITEUR.md     chantier PV : compte Discord public, profil visiteur, progression en base, annuaire par serveur (RGPD)
-│   ├── AMORCE-RAID.md              amorce d'exécution des chantiers raid (lots L1→L7 + bloc à coller)
 │   ├── PLAN-SALONS-VOCAUX.md       module « salons vocaux » : cahier produit/technique V2.1 (à cadrer)
 │   ├── DECISION-OUVERTURE-LANDING.md
 │   └── SEO_REPRISE.md

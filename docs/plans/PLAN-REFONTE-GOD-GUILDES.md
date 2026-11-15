@@ -319,7 +319,7 @@ donnée) · `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `git s
 git fetch origin dev && git switch dev && git pull            # dev contient #739 → #744
 npm run test:run && npx tsc --noEmit                          # état de départ attendu : vert
 ```
-**À lire** : ce fichier + `docs/plans/AMORCE-REFONTE-GOD-GUILDES.md` + `docs/agents/activeContext.md` (bloc
+**À lire** : ce fichier + `docs/ROADMAP.md` (rang 24) + `docs/agents/activeContext.md` (bloc
 « Session 25/09/2026 (God, refonte) ») + le verbatim §0.
 **Arbitrages** : **A1-A11 tranchés** le 25/09 (§3) — **aucune** décision à redemander. Attention particulière à
 **A1** : le verrou est **côté guilde**, `bypassModules = isGod` **reste**.

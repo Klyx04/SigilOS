@@ -10,7 +10,7 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 > La consigne sera **supprimée** en fin de chantier : **ce fichier est le dossier durable de tout ce qui touche au
 > RAID** ; le reste (mini-jeux, marché, succès, services, logs, ressources, missions, guides, ladder) reste dans la
 > consigne puis au `docs/ROADMAP.md`.
-> **Amorce d'exécution** : `docs/plans/AMORCE-RAID.md` (elle cadre la session ; **ce plan porte le contenu**).
+> **Ordre d'exécution** : `docs/ROADMAP.md` (rang 16) ; **ce plan porte le contenu**.
 > **L'ordre qui fait foi** est celui de la consigne, section « **Ordre de réalisation (reste)** » :
 > **P0 sécu (RBAC `bounties`/`calendar`/`relance`, §23)** → **§4** miroir → **§14** no-show → §12 → §10 → §5 → §6 →
 > §7 → §8 → §9 → §11 → §15 → §16 → §17 → §18 → §19 → **§20** Guides + modale raid → §21 → §22 → §23 → §2 mini-jeux.

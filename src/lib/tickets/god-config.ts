@@ -231,7 +231,7 @@ export function buildSupportThreadName(
         .replace(/\s+/g, " ")
         .trim();
     const name = raw || `ticket-${input.num}`;
-    return name.slice(0, GOD_TICKET_MAX_THREAD_NAME).trim();
+    return Array.from(name).slice(0, GOD_TICKET_MAX_THREAD_NAME).join("").trim();
 }
 
 /** Type historique porté par `SupportTicket.category` (jamais vide). */

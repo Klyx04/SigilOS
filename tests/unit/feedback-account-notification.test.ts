@@ -80,7 +80,7 @@ beforeEach(() => {
     mockedGuildNotification.mockResolvedValue(undefined);
 });
 
-describe("réponse à un signalement : le bon canal, sans doublon", () => {
+describe("réponse à un signalement : toujours dans la boîte compte", () => {
     it("un visiteur sans guilde reçoit une notification de compte", async () => {
         const result = await notifyMemberFeedbackAction(input);
 
@@ -91,12 +91,12 @@ describe("réponse à un signalement : le bon canal, sans doublon", () => {
                 userId: "user-1",
                 type: NotificationType.SYSTEM_INFO,
                 category: NotificationCategory.SYSTEM,
-                link: "/espace-visiteur/general",
+                link: "/espace-visiteur/notifications",
             })
         );
     });
 
-    it("un membre avec guilde garde la cloche de guilde, sans doublon compte", async () => {
+    it("un membre avec guilde reçoit aussi la notification de compte, sans cloche de guilde", async () => {
         mockDb.supportTicket.findUnique.mockResolvedValue({
             ...baseTicket,
             guildId: "guild-1",
@@ -106,7 +106,7 @@ describe("réponse à un signalement : le bon canal, sans doublon", () => {
         const result = await notifyMemberFeedbackAction(input);
 
         expect(result).toEqual({ success: true });
-        expect(mockedGuildNotification).toHaveBeenCalledTimes(1);
-        expect(mockedAccountNotification).not.toHaveBeenCalled();
+        expect(mockedGuildNotification).not.toHaveBeenCalled();
+        expect(mockedAccountNotification).toHaveBeenCalledTimes(1);
     });
 });

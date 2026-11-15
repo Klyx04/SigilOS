@@ -19,10 +19,11 @@ describe("Signalements visiteurs connectés", () => {
         expect(header).toMatch(/\{user && <VisitorFeedbackButton/);
     });
 
-    it("l'espace visiteur affiche l'historique personnel et le bouton", () => {
-        const page = read("src/app/espace-visiteur/general/page.tsx");
+    it("l'espace visiteur affiche l'historique personnel et le bouton dans Notifications", () => {
+        const page = read("src/app/espace-visiteur/notifications/page.tsx");
         expect(page).toMatch(/getMyVisitorFeedbackAction/);
         expect(page).toMatch(/<VisitorFeedbackHistory/);
+        expect(read("src/app/espace-visiteur/general/page.tsx")).not.toMatch(/VisitorFeedbackHistory/);
         expect(read("src/app/espace-visiteur/_components/visitor-feedback-history.tsx"))
             .toMatch(/<VisitorFeedbackButton/);
     });

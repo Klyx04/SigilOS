@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { getGodTicketBotFleetAction } from "@/server/actions/ticket-bot-actions";
+import { getGodTicketConfigAction } from "@/server/actions/god-ticket-actions";
 import { GodTicketBotPanel } from "./_components/god-ticket-bot-panel";
+import { GodTicketConfigPanel } from "./_components/god-ticket-config-panel";
 
 export const metadata = {
     title: "Bot Tickets Flotte | SigilOS GOD",
@@ -15,6 +17,7 @@ export default async function GodTicketBotPage() {
     }
 
     const fleetRes = await getGodTicketBotFleetAction();
+    const configRes = await getGodTicketConfigAction();
     const initialFleet = fleetRes.success && fleetRes.data ? fleetRes.data : {
         guilds: [],
         totalOpenTickets: 0,
@@ -32,7 +35,14 @@ export default async function GodTicketBotPage() {
     };
 
     return (
-        <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <div className="container mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+            {configRes.success ? (
+                <GodTicketConfigPanel initial={configRes.data} />
+            ) : (
+                <p className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+                    {configRes.error}
+                </p>
+            )}
             <GodTicketBotPanel initialFleet={initialFleet} />
         </div>
     );

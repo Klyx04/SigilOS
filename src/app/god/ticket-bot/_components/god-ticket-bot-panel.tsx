@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Ticket,
-    Shield,
     Server,
     Activity,
     Search,
@@ -13,9 +12,7 @@ import {
     Star,
     Layers,
     FileText,
-    RefreshCw,
     Sliders,
-    Sparkles,
 } from "lucide-react";
 import { toggleGodTicketBotModuleAction, setTicketPlatformLimitsAction } from "@/server/actions/ticket-bot-actions";
 import { TICKET_PLATFORM_LIMIT_BOUNDS } from "@/lib/tickets/platform-limits";
@@ -73,8 +70,6 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
     );
 
     const activeGuildsCount = guilds.filter((g) => g.ticketConfig?.isEnabled).length;
-    const totalTicketsEver = guilds.reduce((acc, g) => acc + g._count.ticketRecords, 0);
-    const totalPanelsEver = guilds.reduce((acc, g) => acc + g._count.ticketPanels, 0);
 
     const handleSaveLimits = () => {
         startTransition(async () => {
@@ -118,17 +113,17 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
     return (
         <div className="space-y-8">
             {/* Header / Hero */}
-            <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-background to-background p-6 md:p-8">
+            <div className="relative overflow-hidden rounded-xl border border-info/20 bg-gradient-to-br from-info/10 via-background to-background p-6 md:p-8">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info border border-info/20">
                                 <Ticket className="h-6 w-6" />
                             </div>
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
                                     Tour de Contrôle — Bot Tickets Flotte
-                                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs px-2 py-0.5">
+                                    <Badge className="bg-info/10 text-info border-info/20 text-xs px-2 py-0.5">
                                         GOD Master
                                     </Badge>
                                 </h1>
@@ -140,8 +135,8 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 gap-1.5 py-1.5 px-3">
-                            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <Badge variant="outline" className="border-info/30 text-info bg-info/10 gap-1.5 py-1.5 px-3">
+                            <span className="h-2 w-2 rounded-full bg-info animate-pulse" />
                             Moteur Webhooks Discord v10 Actif
                         </Badge>
                     </div>
@@ -162,15 +157,15 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
 
                     <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                            <Activity className="h-3.5 w-3.5 text-amber-400" />
+                            <Activity className="h-3.5 w-3.5 text-info" />
                             Tickets Ouverts Live
                         </div>
-                        <div className="text-2xl font-bold text-amber-400">{initialFleet.totalOpenTickets}</div>
+                        <div className="text-2xl font-bold text-info">{initialFleet.totalOpenTickets}</div>
                     </div>
 
                     <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                            <FileText className="h-3.5 w-3.5 text-violet-400" />
+                            <FileText className="h-3.5 w-3.5 text-info" />
                             Transcripts Archivés
                         </div>
                         <div className="text-2xl font-bold text-foreground">{initialFleet.totalTranscripts}</div>
@@ -178,7 +173,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
 
                     <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                            <Star className="h-3.5 w-3.5 text-yellow-400" />
+                            <Star className="h-3.5 w-3.5 text-info" />
                             Score CSAT Global
                         </div>
                         <div className="text-2xl font-bold text-foreground">
@@ -190,10 +185,10 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
             </div>
 
             {/* Plafonds plateforme (God) : stockage VPS sous contrôle */}
-            <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <Sliders className="h-5 w-5 text-amber-400" />
+                        <Sliders className="h-5 w-5 text-info" />
                         <div>
                             <h2 className="text-base font-semibold text-foreground">Plafonds plateforme (VPS)</h2>
                             <p className="text-xs text-muted-foreground">
@@ -202,7 +197,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                             </p>
                         </div>
                     </div>
-                    <Button onClick={handleSaveLimits} disabled={isPending} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
+                    <Button onClick={handleSaveLimits} disabled={isPending} size="sm" className="text-xs">
                         Sauvegarder
                     </Button>
                 </div>
@@ -278,10 +273,10 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
             </div>
 
             {/* Guilds Fleet Table */}
-            <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
                 <div className="p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface/30">
                     <div className="flex items-center gap-3">
-                        <Layers className="h-5 w-5 text-amber-400" />
+                        <Layers className="h-5 w-5 text-info" />
                         <div>
                             <h2 className="text-base font-semibold text-foreground">Gestion de la Flotte des Serveurs</h2>
                             <p className="text-xs text-muted-foreground">
@@ -351,7 +346,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
 
                                             <td className="py-4 px-4">
                                                 {isEnabled ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-xs">
+                                                    <Badge className="bg-info/10 text-info border-info/30 gap-1 text-xs">
                                                         <CheckCircle2 className="h-3 w-3" /> Actif
                                                     </Badge>
                                                 ) : (
@@ -381,7 +376,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
 
                                             <td className="py-4 px-4 text-muted-foreground text-xs">
                                                 {limits.transcriptsEnabled ? (
-                                                    <span className="text-emerald-400 font-medium">Activé (God)</span>
+                                                    <span className="text-info font-medium">Activé (God)</span>
                                                 ) : (
                                                     <span className="text-muted-foreground">Désactivé (God)</span>
                                                 )}

@@ -74,7 +74,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (6 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop — **livrés** | **affinage fiche** (brief) → **V2a-4 reste (tour)** → **V2d** (ladder) → **V3** (God visiteurs) | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (6 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop — **livrés** | **affinage fiche** (brief) → **tour guidé** → **V3** (God visiteurs) · **V2d (classement serveur) abandonné le 15/11/2026** | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
@@ -134,7 +134,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
 | 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
 | 12 | Données Tougli / Dofusyelle (V-D2, ou acter la cible 517) | 10 | ? |
-| 13 | V2a-4 reste (tour), V2d, V3 (espace visiteur) | 57 | ? |
+| 13 | Tour guidé (reste V2a-4) + V3 (God visiteurs) — **V2d abandonné** | 57 | ? |
 
 
 

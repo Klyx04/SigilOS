@@ -28,7 +28,7 @@ export function VisitorFeedbackHistory({ items }: { items: MyVisitorFeedbackItem
                         Retrouve ici les retours que tu as envoyés et les réponses de l&apos;équipe.
                     </p>
                 </div>
-                <VisitorFeedbackButton sourcePage="espace-visiteur:general" compact />
+                <VisitorFeedbackButton sourcePage="espace-visiteur:notifications" compact />
             </div>
 
             {items.length === 0 ? (

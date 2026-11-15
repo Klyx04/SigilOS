@@ -1,5 +1,7 @@
 import { requirePublicSession } from "@/server/public-account";
 import { listAccountNotifications } from "@/server/account-notifications";
+import { getMyVisitorFeedbackAction } from "@/server/actions/feedback-actions";
+import { VisitorFeedbackHistory } from "../_components/visitor-feedback-history";
 import { AccountNotificationsClient } from "./_components/account-notifications-client";
 
 export const metadata = {
@@ -16,7 +18,10 @@ export const metadata = {
  */
 export default async function AccountNotificationsPage() {
     const { userId } = await requirePublicSession();
-    const page = await listAccountNotifications(userId);
+    const [page, feedback] = await Promise.all([
+        listAccountNotifications(userId),
+        getMyVisitorFeedbackAction(),
+    ]);
 
     return (
         <div className="space-y-6">
@@ -32,6 +37,8 @@ export default async function AccountNotificationsPage() {
                 unread={page.unread}
                 total={page.total}
             />
+
+            <VisitorFeedbackHistory items={feedback.success ? feedback.data : []} />
         </div>
     );
 }

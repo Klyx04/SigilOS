@@ -382,8 +382,6 @@ export async function notifyMemberFeedbackAction(input: {
         publicRef: true,
         origin: true,
         creatorUserId: true,
-        guildId: true,
-        discordGuildId: true,
         description: true,
         transcript: true,
       },
@@ -399,9 +397,6 @@ export async function notifyMemberFeedbackAction(input: {
       .slice(0, 120)
       || "Signalement";
 
-    const dashboardGuildId = ticket.discordGuildId ?? undefined;
-    // Sans guilde identifiable, `createNotification` est fail-closed et n'écrit rien.
-    const guildIdForNotif = dashboardGuildId || ticket.guildId || undefined;
     const publicRef = ticket.publicRef ?? data.ticketRef;
 
     // — Journal interne : la réponse devient visible dans le tracker du membre
@@ -415,30 +410,17 @@ export async function notifyMemberFeedbackAction(input: {
       },
     });
 
-    if (guildIdForNotif) {
-      const { createNotification } = await import("./notification-actions");
-      await createNotification(
-        ticket.creatorUserId,
-        "SYSTEM_INFO",
-        `${data.emoji} Ton signalement a été remarqué !`,
-        `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
-        dashboardGuildId ? `/dashboard/${dashboardGuildId}/tracker?bug=${encodeURIComponent(publicRef)}` : undefined,
-        guildIdForNotif,
-        "SYSTEM"
-      );
-    } else {
-      // Visiteur sans guilde : `createNotification` est fail-closed et n'écrit rien.
-      // La boîte **compte** est le seul chemin qui le prévient. Un membre avec guilde
-      // garde la cloche de guilde : pas de doublon dans les deux boîtes.
-      await createAccountNotification({
-        userId: ticket.creatorUserId,
-        type: NotificationType.SYSTEM_INFO,
-        category: NotificationCategory.SYSTEM,
-        title: `${data.emoji} Ton signalement a été remarqué !`,
-        message: `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`.slice(0, 1_000),
-        link: "/espace-visiteur/general",
-      });
-    }
+    // La réponse va **toujours** dans la boîte compte, y compris pour un membre
+    // avec guilde : c'est la source unique de suivi des signalements. La cloche
+    // de guilde n'est plus utilisée pour ce message (pas de doublon).
+    await createAccountNotification({
+      userId: ticket.creatorUserId,
+      type: NotificationType.SYSTEM_INFO,
+      category: NotificationCategory.SYSTEM,
+      title: `${data.emoji} Ton signalement a été remarqué !`,
+      message: `📝 Signalement : ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`.slice(0, 1_000),
+      link: "/espace-visiteur/notifications",
+    });
 
     logger.info(`[Feedback Notify] Réponse enregistrée pour ${publicRef}`);
     return { success: true };

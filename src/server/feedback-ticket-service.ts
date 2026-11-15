@@ -9,8 +9,9 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
-import { appendMemberReplyToTranscript, buildTicketPublicRef } from "@/lib/feedback-ticket-mapping";
-import { sendChannelMessage } from "@/server/discord";
+import { appendMemberReplyToTranscript, buildFeedbackForumThreadName, buildTicketPublicRef } from "@/lib/feedback-ticket-mapping";
+import { buildDiscordChannelUrl } from "@/lib/feedback-screenshot-channel";
+import { createForumThread, fetchChannel, sanitizeMentions, sendChannelMessage } from "@/server/discord";
 
 function isUniqueViolation(error: unknown): boolean {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -66,6 +67,12 @@ export function appendMemberReply(
 
 /**
  * Diffuse un signalement dans le canal Discord de retour (repli God).
+ *
+ * Le salon peut être **textuel** (embed classique) ou un **forum** : dans ce
+ * cas Discord impose un post, que le bot crée avec un titre (référence + type +
+ * extrait) et le premier tag utilisable. Renvoie l'URL du post de forum pour
+ * que le ticket garde `forumLink` ; `null` sinon.
+ *
  * Best-effort : un échec Discord ne fait jamais échouer l'écriture du ticket.
  */
 export async function sendFeedbackEmbed(input: {
@@ -79,29 +86,64 @@ export async function sendFeedbackEmbed(input: {
     memberGuildName: string;
     emoji: string;
     isBug: boolean;
-}): Promise<void> {
+}): Promise<string | null> {
     try {
         const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
         const targetChannel = (platformConfig as any)?.questFeedbackChannelId
             || (platformConfig as any)?.godNotifyChannelId;
-        if (!targetChannel) return;
+        if (!targetChannel) return null;
 
         const appUrl = getAppBaseUrl();
+        const fields = [
+            { name: "Type", value: input.feedbackType, inline: true },
+            { name: "Page", value: input.sourcePage, inline: true },
+            ...(input.targetSlug ? [{ name: "Cible", value: input.targetSlug, inline: true }] : []),
+            { name: "Ticket", value: `#${input.publicRef}`, inline: true },
+            { name: "Signalé par", value: `${input.memberName} (${input.memberGuildName})`, inline: false },
+        ];
+
+        const channel = await fetchChannel(targetChannel);
+        if (!channel) return null;
+
+        // Forum (type 15) : Discord refuse un message sans `thread_name`.
+        if (channel.type === 15) {
+            const tag = (channel.available_tags ?? []).find((candidate) => !candidate.moderated);
+            const thread = await createForumThread(targetChannel, {
+                name: buildFeedbackForumThreadName({
+                    publicRef: input.publicRef,
+                    emoji: input.emoji,
+                    label: input.category,
+                    description: input.description,
+                }),
+                message: {
+                    embeds: [{
+                        title: `${input.emoji} Feedback — ${input.category}`,
+                        description: sanitizeMentions(input.description),
+                        color: input.isBug ? 0xef4444 : 0x10b981,
+                        timestamp: new Date().toISOString(),
+                        footer: { text: `${input.memberName} 🏷️ ${input.memberGuildName} • SigilOS` },
+                        url: `${appUrl}/god/bugs?ticket=${encodeURIComponent(input.publicRef)}`,
+                        fields,
+                    }],
+                },
+                auto_archive_duration: 10080,
+                ...(tag ? { applied_tags: [tag.id] } : {}),
+            });
+            if (!thread?.id) return null;
+            return buildDiscordChannelUrl(channel.guild_id, thread.id);
+        }
+
         await sendChannelMessage(targetChannel, "", {
             embedTitle: `${input.emoji} Feedback — ${input.category}`,
             embedDescription: input.description,
             embedColor: input.isBug ? 0xef4444 : 0x10b981,
             embedFooter: `${input.memberName} 🏷️ ${input.memberGuildName} • SigilOS`,
             embedUrl: `${appUrl}/god/bugs?ticket=${encodeURIComponent(input.publicRef)}`,
-            fields: [
-                { name: "Type", value: input.feedbackType, inline: true },
-                { name: "Page", value: input.sourcePage, inline: true },
-                ...(input.targetSlug ? [{ name: "Cible", value: input.targetSlug, inline: true }] : []),
-                { name: "Ticket", value: `#${input.publicRef}`, inline: true },
-                { name: "Signalé par", value: `${input.memberName} (${input.memberGuildName})`, inline: false },
-            ],
+            fields,
         });
+        return null;
     } catch (e: any) {
         logger.error("[Feedback] Discord embed failed", { error: e?.message });
+        return null;
     }
 }

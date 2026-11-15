@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { FeedbackTracker, type TrackerStats as FeedbackTrackerStats } from "@/components/feedback/feedback-tracker";
+import { FeedbackChannelConfig } from "@/components/feedback/feedback-channel-config";
 import type { TrackerTicketRow } from "@/server/actions/god-bugs-actions";
 import {
     Bug,
@@ -84,6 +85,10 @@ interface TicketDashboardProps {
     initialFeedbackPage: number;
     initialFeedbackTotalPages: number;
     initialFeedbackStats: FeedbackTrackerStats;
+    /** Salon des captures d'écran (`PlatformConfig.questFeedbackChannelId`). */
+    screenshotChannelId: string | null;
+    /** Lien résolu côté serveur, ou `null` si le salon n'est pas configuré. */
+    screenshotChannelUrl: string | null;
 }
 
 // =============================================================================
@@ -121,6 +126,8 @@ export function TicketDashboard({
     initialFeedbackPage,
     initialFeedbackTotalPages,
     initialFeedbackStats,
+    screenshotChannelId,
+    screenshotChannelUrl,
 }: TicketDashboardProps) {
     const [activeTab, setActiveTab] = useState<"support" | "feedback">("support");
     const [tickets, setTickets] = useState(initialTickets);
@@ -617,13 +624,19 @@ export function TicketDashboard({
             )}
 
             {activeTab === "feedback" && (
-                <FeedbackTracker
-                    initialData={initialFeedback}
-                    initialTotal={initialFeedbackTotal}
-                    initialPage={initialFeedbackPage}
-                    initialTotalPages={initialFeedbackTotalPages}
-                    initialStats={initialFeedbackStats}
-                />
+                <div className="space-y-4">
+                    <FeedbackChannelConfig
+                        initialChannelId={screenshotChannelId}
+                        initialUrl={screenshotChannelUrl}
+                    />
+                    <FeedbackTracker
+                        initialData={initialFeedback}
+                        initialTotal={initialFeedbackTotal}
+                        initialPage={initialFeedbackPage}
+                        initialTotalPages={initialFeedbackTotalPages}
+                        initialStats={initialFeedbackStats}
+                    />
+                </div>
             )}
         </div>
     );

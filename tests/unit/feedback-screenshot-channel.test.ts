@@ -6,6 +6,7 @@ import {
     isDiscordSnowflake,
     isWritableTextChannel,
 } from "@/lib/feedback-screenshot-channel";
+import { buildFeedbackForumThreadName } from "@/lib/feedback-ticket-mapping";
 
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
@@ -32,12 +33,44 @@ describe("lien du salon des captures — règle pure", () => {
         expect(buildDiscordChannelUrl("123456789012345678", "12")).toBeNull();
     });
 
-    it("n'accepte que les salons textuels ou d'annonces", () => {
+    it("accepte un salon textuel, d'annonces ou un forum", () => {
         expect(isWritableTextChannel(0)).toBe(true);
         expect(isWritableTextChannel(5)).toBe(true);
+        expect(isWritableTextChannel(15)).toBe(true);
         expect(isWritableTextChannel(2)).toBe(false);
         expect(isWritableTextChannel(11)).toBe(false);
         expect(isWritableTextChannel(null)).toBe(false);
+    });
+
+    it("construit un titre de post de forum borné à 100 caractères", () => {
+        const title = buildFeedbackForumThreadName({
+            publicRef: "SIG-123",
+            emoji: "🐛",
+            label: "Bug technique",
+            description: "Le bouton\n  ferme   la modale au lieu d'envoyer le formulaire",
+        });
+        expect(title.startsWith("[SIG-123] 🐛 Bug technique — ")).toBe(true);
+        expect(title).not.toContain("\n");
+        expect(title.length).toBeLessThanOrEqual(100);
+
+        const long = buildFeedbackForumThreadName({
+            publicRef: "SIG-999",
+            emoji: "💬",
+            label: "Amélioration",
+            description: "x".repeat(500),
+        });
+        expect(long.length).toBeLessThanOrEqual(100);
+        expect(long).toContain("x");
+    });
+
+    it("un titre de forum sans description reste lisible", () => {
+        const title = buildFeedbackForumThreadName({
+            publicRef: "SIG-1",
+            emoji: "🐛",
+            label: "Bug",
+            description: "   ",
+        });
+        expect(title).toBe("[SIG-1] 🐛 Bug");
     });
 
     it("valide un snowflake, espaces compris", () => {
@@ -66,6 +99,15 @@ describe("surfaces — aucune invitation en dur", () => {
 });
 
 describe("God — le salon est paramétrable, jamais en dur", () => {
+    it("la console Support monte le réglage dans l'onglet Signalements", () => {
+        const dashboard = read("src/app/god/components/ticket-dashboard.tsx");
+        expect(dashboard).toContain("FeedbackChannelConfig");
+        expect(dashboard).toContain("screenshotChannelUrl");
+        expect(dashboard).toContain("activeTab === \"feedback\"");
+        // Les valeurs viennent du serveur (`/god`), jamais d'un identifiant en dur.
+        expect(read("src/app/god/page.tsx")).toContain("resolveFeedbackScreenshotChannel");
+    });
+
     it("la page /god/bugs monte le réglage et résout le lien", () => {
         const page = read(GOD_PAGE);
         expect(page).toContain("FeedbackChannelConfig");
@@ -101,5 +143,15 @@ describe("God — le salon est paramétrable, jamais en dur", () => {
         expect(service).toContain('redis.status !== "ready"');
         expect(service).toContain("return null");
         expect(service).not.toMatch(/discord\.gg/);
+    });
+
+    it("un forum reçoit un post titré et tagué, et le ticket garde le lien", () => {
+        const service = read("src/server/feedback-ticket-service.ts");
+        expect(service).toContain("createForumThread");
+        expect(service).toContain("channel.type === 15");
+        expect(service).toContain("applied_tags");
+        expect(service).toContain("buildFeedbackForumThreadName");
+        // Le lien du post est conservé sur le ticket (`forumLink`).
+        expect(read(ACTIONS)).toContain("forumLink");
     });
 });

@@ -115,7 +115,7 @@ export async function validateFeedbackScreenshotChannel(
         if (!isWritableTextChannel(channel.type)) {
             return {
                 ok: false,
-                error: "Choisis un salon textuel (les fils et les salons vocaux ne sont pas acceptés).",
+                error: "Choisis un salon textuel ou un forum (les fils et les salons vocaux ne sont pas acceptés).",
             };
         }
         if (!isDiscordSnowflake(channel.guild_id)) {

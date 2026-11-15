@@ -509,6 +509,8 @@ async function TicketsServer() {
         const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
         const { getTrackerTickets, getTrackerStats } = await import("@/server/actions/god-bugs-actions");
         const { getConfiguredFeedbackChannelId, resolveFeedbackScreenshotChannel } = await import("@/server/feedback-screenshot-channel");
+        const { loadGodTicketCategories } = await import("@/server/god-ticket-config");
+        const { resolveGodTicketCategories } = await import("@/lib/tickets/god-config");
         const [ticketData, stats, trackerData, trackerStats, screenshotChannelId, screenshotChannel] = await Promise.all([
             getSupportTickets({ perPage: 50 }),
             getTicketStats(),
@@ -517,6 +519,8 @@ async function TicketsServer() {
             getConfiguredFeedbackChannelId(),
             resolveFeedbackScreenshotChannel(),
         ]);
+        // Catégories réglées côté God : une base neuve retombe sur les quatre historiques.
+        const categories = await loadGodTicketCategories().catch(() => resolveGodTicketCategories([]));
         return (
             <TicketDashboard
                 initialTickets={JSON.parse(JSON.stringify(ticketData.tickets, (k, v) => typeof v === 'bigint' ? v.toString() : v))}
@@ -531,6 +535,7 @@ async function TicketsServer() {
                     : { total: 0, open: 0, resolved: 0, ignored: 0, internal: 0, feedback: 0 }}
                 screenshotChannelId={screenshotChannelId}
                 screenshotChannelUrl={screenshotChannel?.url ?? null}
+                categories={categories}
             />
         );
     } catch { return <div>Error tickets</div> }

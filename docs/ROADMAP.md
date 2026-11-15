@@ -9,10 +9,10 @@
 
 ## 0. Reprise immédiate
 
-- 📌 **Prod** : release du 13/11/2026 mergée dans `main` (`c190f2c7`, PR #1366) ; le déploiement reste un geste
-  humain (`./scripts/deploy-cd.sh prod`). Ops stuff/variantes : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1 ;
-  signalements : migrations `20270201000000` → script → `20270201500000` → `20270202000000`, puis
-  captures `20270203000000`, bêta puis prod (`docs/plans/PLAN-TICKETS-GOD.md` §4).
+- 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain
+  (`./scripts/deploy-cd.sh prod`). Ops : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1 · signalements
+  `20270201000000` → script → `20270201500000` → `20270202000000` → captures `20270203000000`
+  → **tickets God `20270204000000`**, bêta puis prod (`docs/plans/PLAN-TICKETS-GOD.md` §5).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` et bot **portés par `deploy-cd.sh`** (étape 4 — les jouer avant si le code dépend du schéma) · crontabs sondages/ancienneté/4 rappels **déjà posés** (02/11) · `live-watch` à vérifier · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`) · migration `20261112170000_add_route_variants` (Rush — à jouer bêta puis prod, `docs/plans/MODULE-RUSH-SYLVESTRE.md` §38) · migration `20270130000000_add_rush_quest_constraints` (Rush — conditions structurées, à jouer bêta puis prod).
@@ -64,7 +64,7 @@ Reste : #4 WebSocket membre exclu (4f) · TOCTOU DNS · AUD-04 date de coupure �
 | 21 | `mini-jeux` (H) | Mini-jeux & salons temps réel : solidité Redis, solo, Panthéon, HUD/UX | ouvert | H-1 → H-2 | — (à créer) | — |
 | 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse) | L-1 → L-4 | — (à créer) | — |
 | 23 | `guildes-admin` (M) | Guildes & admin : calendrier, profil, stuff, édition staff, logs | volet `membres` livré (05/10) · **inventaire des mules** et **pseudo vérifié au ladder + embed « fin d'essai »** livrés le 25/10 | M-1 reste (calendrier/profil/stuff) → M-2 → M-3 | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` | — |
-| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » ; tickets d'exploitation : signalements fusionnés le 14/11, **G4 = panneau God dédié, paramétrable (aucun ID en dur)** | plan vivant ; tickets : G4 | G1 → G12 ; **tickets : G4** | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
+| 24 | `god-refonte` (O) | Refonte God « Guildes & Users » ; tickets d'exploitation : signalements fusionnés le 14/11, **G4 livré le 15/11** (panneau dédié, catégories libres, runtime, CSAT) | plan vivant ; **tickets clos** | G1 → G12 | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
 | 25 | `acquisition` (E) | SEO / contenu : autorité avant volume | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
 | 26 | `demo-publique` (S) | Démo publique en lecture seule, essayable sans compte | S-0/S-1 livrés (02/10) | S-2a → S-2b → S-3 → S-4 → S-5 | `docs/plans/PLAN-DEMO-PUBLIQUE.md` · `docs/plans/AMORCE-DEMO-PUBLIQUE.md` | — |
 | 27 | `salons-vocaux` (Q) | Module « salons vocaux temporaires » (cahier V2.1) | idée neuve, **à cadrer** | cadrage → lots | `docs/plans/PLAN-SALONS-VOCAUX.md` | **D4** |

@@ -5,7 +5,8 @@
 > mainteneur voit et traite lui-même.
 > Écrit le 08/11/2026 ; **G1-G3 livrés le 14/11/2026** (fusion des signalements dans
 > `SupportTicket`, onglet « Signalements », refonte UI et **retours visiteurs connectés**).
-> Reste **G4** : panneau God dédié (route 2 actée le 14/11).
+> **G4-1 → G4-4 livrés le 15/11/2026** (branche `feat/tickets-god-config`, 4 commits, une PR) :
+> configuration dédiée, panneau God, runtime Discord, nettoyage.
 
 ## 0. Demande (verbatim, 08/11/2026)
 
@@ -68,11 +69,15 @@ Les admins de guilde **ne répondent pas** aux signalements : un admin de guilde
 1. ~~Réutiliser le moteur de guilde~~ — écarté : créer une « guilde plateforme » mélangerait l'exploitation et les guildes clientes (listes, quotas, synchro, RBAC).
 2. **Configuration dédiée au support** — retenue.
 
-**Lots** :
-- **G4-1** — modèle de configuration dédié (serveur/salon support, rôles staff, catégories, fermeture, CSAT) ; **migration additive à valider** avant écriture.
-- **G4-2** — panneau God dédié (`/god/ticket-bot`) branché sur cette configuration.
-- **G4-3** — runtime Discord (panneau, création, fermeture) lisant la configuration : plus aucune constante de catégorie/libellé.
-- **G4-4** — nettoyage de ce qui n'a plus d'écrivain.
+**Lots livrés le 15/11/2026** :
+- **G4-1** — `GodTicketConfig` + `GodTicketCategory`, `SupportTicket.categoryKey` / `csatRating`,
+  migration additive `20270204000000` (seed des 4 catégories + backfill), résolveur pur testé.
+- **G4-2** — panneau `/god/ticket-bot` : serveur, salon, rôles staff/mention, nom du fil, fermeture,
+  archivage, CSAT, catégories (création/édition/désactivation), publication ; actions God gardées.
+- **G4-3** — runtime : menu et modales depuis les catégories, création/fermeture/archivage/CSAT
+  depuis la configuration ; plus de libellé ni de couleur en dur.
+- **G4-4** — nettoyage : panneau posté à la main retiré, console Support alimentée par les
+  catégories réglées, actions `getBotGuilds` / `getChannelsForGuild` supprimées.
 
 ## 3. Décisions à trancher (bloquantes pour G1 et G4)
 
@@ -87,3 +92,9 @@ Les admins de guilde **ne répondent pas** aux signalements : un admin de guilde
 
 - Le module **de guilde** (`PLAN-REFONTE-TICKETS-V2.md`) : inchangé.
 - La modale de retour de l'overlay (F11) : elle vit dans `PLAN-ESPACE-VISITEUR.md`.
+
+## 5. Ops (bêta puis prod)
+
+1. Jouer `20270204000000_god_ticket_config` (additive : 2 tables, 2 colonnes, seed, backfill).
+2. God → `/god/ticket-bot` : serveur + salon + rôles, vérifier les quatre catégories, publier le panneau.
+3. Ouvrir un ticket de test par catégorie, en fermer un avec la CSAT active, vérifier la note moyenne.

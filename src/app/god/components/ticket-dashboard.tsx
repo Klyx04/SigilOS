@@ -39,6 +39,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import type { GodTicketCategoryRow } from "@/lib/tickets/god-config";
 
 // =============================================================================
 // TYPES
@@ -50,6 +51,7 @@ interface SupportTicket {
     discordThreadId: string | null;
     discordGuildId: string;
     category: "ACCESS_REQUEST" | "BUG_REPORT" | "FEATURE_REQUEST" | "OTHER";
+    categoryKey?: string | null;
     status: "OPEN" | "IN_PROGRESS" | "WAITING_RESPONSE" | "CLOSED";
     subject: string;
     description: string;
@@ -89,18 +91,30 @@ interface TicketDashboardProps {
     screenshotChannelId: string | null;
     /** Lien résolu côté serveur, ou `null` si le salon n'est pas configuré. */
     screenshotChannelUrl: string | null;
+    /** Catégories réglées côté God (`GodTicketCategory`), dans l'ordre d'affichage. */
+    categories: GodTicketCategoryRow[];
 }
 
 // =============================================================================
 // CONSTANTS — design tokens cohérents avec le God Dashboard
 // =============================================================================
 
-const CATEGORY_CONFIG: Record<SupportTicket["category"], { label: string; color: string; chip: string; dot: string; emoji: string }> = {
-    ACCESS_REQUEST: { label: "Accès", color: "text-success", chip: "bg-success/10 border-success/20", dot: "bg-success", emoji: "🔑" },
-    BUG_REPORT: { label: "Bug", color: "text-danger", chip: "bg-danger/10 border-danger/20", dot: "bg-danger", emoji: "🐛" },
-    FEATURE_REQUEST: { label: "Feature", color: "text-info", chip: "bg-info/10 border-info/20", dot: "bg-info", emoji: "💡" },
-    OTHER: { label: "Autre", color: "text-muted-foreground", chip: "bg-muted/10 border-border", dot: "bg-muted-foreground", emoji: "📩" },
-};
+/**
+ * Métadonnées d'affichage d'un ticket : la catégorie God fait foi, le type
+ * historique sert de repli pour les tickets antérieurs au backfill.
+ */
+function resolveCategoryMeta(ticket: SupportTicket, categories: GodTicketCategoryRow[]) {
+    const category =
+        (ticket.categoryKey
+            ? categories.find((item) => item.key === ticket.categoryKey)
+            : undefined) ?? categories.find((item) => item.legacyCategory === ticket.category);
+
+    return {
+        label: category?.label ?? "Autre",
+        emoji: category?.emoji ?? "📩",
+        color: category?.color ?? "#6366f1",
+    };
+}
 
 const STATUS_CONFIG: Record<SupportTicket["status"], { label: string; color: string; chip: string; icon: any }> = {
     OPEN: { label: "Nouveau", color: "text-warning", chip: "bg-warning/10 border-warning/20", icon: AlertCircle },
@@ -128,6 +142,7 @@ export function TicketDashboard({
     initialFeedbackStats,
     screenshotChannelId,
     screenshotChannelUrl,
+    categories,
 }: TicketDashboardProps) {
     const [activeTab, setActiveTab] = useState<"support" | "feedback">("support");
     const [tickets, setTickets] = useState(initialTickets);
@@ -138,10 +153,6 @@ export function TicketDashboard({
     const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
     const [replyText, setReplyText] = useState("");
     const [isPending, startTransition] = useTransition();
-    const [panelChannelId, setPanelChannelId] = useState("");
-    const [panelGuildId, setPanelGuildId] = useState("");
-    const [botGuilds, setBotGuilds] = useState<any[]>([]);
-    const [availableChannels, setAvailableChannels] = useState<any[]>([]);
     const [supportGuildRoles, setSupportGuildRoles] = useState<any[]>([]);
     const [selectedRoleId, setSelectedRoleId] = useState<string>("");
     const searchParams = useSearchParams();
@@ -157,30 +168,6 @@ export function TicketDashboard({
             refreshTickets({ status: "CLOSED" });
         }
     }, [subTab]);
-
-    // Fetch bot guilds on mount
-    useEffect(() => {
-        async function loadGuilds() {
-            const { getBotGuilds } = await import("@/server/actions/ticket-actions");
-            const res = await getBotGuilds();
-            if (res.success && res.guilds) setBotGuilds(res.guilds);
-        }
-        loadGuilds();
-    }, []);
-
-    // Fetch channels when guild changes
-    useEffect(() => {
-        if (!panelGuildId) {
-            setAvailableChannels([]);
-            return;
-        }
-        async function loadChannels() {
-            const { getChannelsForGuild } = await import("@/server/actions/ticket-actions");
-            const res = await getChannelsForGuild(panelGuildId);
-            if (res.success && res.channels) setAvailableChannels(res.channels);
-        }
-        loadChannels();
-    }, [panelGuildId]);
 
     // Fetch roles when a ticket is selected (target guild roles)
     useEffect(() => {
@@ -215,12 +202,12 @@ export function TicketDashboard({
     }, []);
 
     // Refresh tickets with filters
-    async function refreshTickets(customFilters?: { status?: string; category?: string }) {
+    async function refreshTickets(customFilters?: { status?: string; categoryKey?: string }) {
         startTransition(async () => {
             const { getSupportTickets } = await import("@/server/actions/ticket-actions");
             const result = await getSupportTickets({
                 status: (customFilters?.status || statusFilter) === "ALL" ? undefined : (customFilters?.status || statusFilter) as any,
-                category: (customFilters?.category || categoryFilter) === "ALL" ? undefined : (customFilters?.category || categoryFilter) as any,
+                categoryKey: (customFilters?.categoryKey || categoryFilter) === "ALL" ? undefined : (customFilters?.categoryKey || categoryFilter),
                 search: search || undefined,
             });
             setTickets(result.tickets as unknown as SupportTicket[]);
@@ -229,7 +216,7 @@ export function TicketDashboard({
     }
 
     const handleStatusFilterChange = (val: string) => { setStatusFilter(val); refreshTickets({ status: val }); };
-    const handleCategoryFilterChange = (val: string) => { setCategoryFilter(val); refreshTickets({ category: val }); };
+    const handleCategoryFilterChange = (val: string) => { setCategoryFilter(val); refreshTickets({ categoryKey: val }); };
 
     // Close ticket
     async function handleClose(ticketId: string) {
@@ -327,22 +314,6 @@ export function TicketDashboard({
                 await refreshTickets();
             } else {
                 toast.error(res.error || "Erreur");
-            }
-        });
-    }
-
-    // Post panel
-    async function handlePostPanel() {
-        if (!panelChannelId.trim() || !panelGuildId.trim()) return;
-        startTransition(async () => {
-            const { postTicketPanel } = await import("@/server/actions/ticket-actions");
-            const result = await postTicketPanel(panelChannelId, panelGuildId);
-            if (result.success) {
-                setPanelChannelId("");
-                setPanelGuildId("");
-                toast.success("Panel Discord posté");
-            } else {
-                toast.error(result.error);
             }
         });
     }
@@ -454,10 +425,11 @@ export function TicketDashboard({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Toutes catégories</SelectItem>
-                        <SelectItem value="ACCESS_REQUEST">🔑 Accès</SelectItem>
-                        <SelectItem value="BUG_REPORT">🐛 Bugs</SelectItem>
-                        <SelectItem value="FEATURE_REQUEST">💡 Features</SelectItem>
-                        <SelectItem value="OTHER">📩 Autres</SelectItem>
+                        {categories.map((category) => (
+                            <SelectItem key={category.key} value={category.key}>
+                                {category.emoji} {category.label}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -490,7 +462,7 @@ export function TicketDashboard({
                                 </tr>
                             )}
                             {tickets.map((ticket) => {
-                                const cat = CATEGORY_CONFIG[ticket.category];
+                                const cat = resolveCategoryMeta(ticket, categories);
                                 const status = STATUS_CONFIG[ticket.status];
                                 const StatusIcon = status.icon;
                                 return (
@@ -519,8 +491,11 @@ export function TicketDashboard({
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold uppercase px-2.5 py-1 rounded-lg border", cat.chip, cat.color)}>
-                                                <span className={cn("w-1.5 h-1.5 rounded-full", cat.dot)} />
+                                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-caption font-semibold uppercase text-foreground">
+                                                <span
+                                                    className="h-1.5 w-1.5 rounded-full"
+                                                    style={{ backgroundColor: cat.color }}
+                                                />
                                                 {cat.label}
                                             </span>
                                         </td>
@@ -545,46 +520,28 @@ export function TicketDashboard({
 
             {/* ── Tools : Panel Discord + Info ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Manual Post Panel */}
-                <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6 space-y-5">
+                {/* Réglages dédiés (G4) — le panneau n'est plus posté à la main ici */}
+                <div className="lg:col-span-2 rounded-xl border border-border bg-surface p-6 space-y-3">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-info/10 border border-info/20">
-                            <Send className="w-4 h-4 text-info" />
+                        <div className="rounded-xl border border-info/20 bg-info/10 p-2">
+                            <Send className="h-4 w-4 text-info" />
                         </div>
-                        <div>
-                            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Panel de Tickets Discord</h3>
-                            <p className="text-caption text-muted-foreground font-medium mt-0.5">Publie le bouton « Ouvrir un ticket » dans un salon support.</p>
-                        </div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                            Panneau et catégories du support
+                        </h3>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <Select value={panelGuildId} onValueChange={(val) => { setPanelGuildId(val); setPanelChannelId(""); }}>
-                            <SelectTrigger className="h-[52px] bg-background border-border rounded-xl text-xs text-foreground">
-                                <SelectValue placeholder="Sélectionner le serveur" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {botGuilds.map((g) => (
-                                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={panelChannelId} onValueChange={setPanelChannelId} disabled={!panelGuildId}>
-                            <SelectTrigger className="h-[52px] bg-background border-border rounded-xl text-xs text-foreground disabled:opacity-50">
-                                <SelectValue placeholder="Sélectionner le salon" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availableChannels.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}># {c.name ?? "Salon masqué"}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <button
-                        onClick={handlePostPanel}
-                        disabled={isPending || !panelChannelId || !panelGuildId}
-                        className="w-full py-3.5 bg-elevated hover:bg-elevated/80 border border-border rounded-xl text-xs font-semibold text-foreground uppercase tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    <p className="text-xs font-medium leading-relaxed text-muted-foreground">
+                        La destination, les rôles, la fermeture et les catégories se règlent dans
+                        l&apos;espace God dédié. Le bouton « Ouvrir un ticket » y est publié une fois
+                        pour toutes.
+                    </p>
+                    <a
+                        href="/god/ticket-bot"
+                        className="inline-flex items-center gap-2 text-xs font-semibold text-info hover:underline"
                     >
-                        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "Poster le panel (Discord)"}
-                    </button>
+                        Ouvrir les réglages du support
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
                 </div>
 
                 {/* Automation Info */}
@@ -618,6 +575,7 @@ export function TicketDashboard({
                     guildRoles={supportGuildRoles}
                     selectedRoleId={selectedRoleId}
                     setSelectedRoleId={setSelectedRoleId}
+                    categories={categories}
                 />
             )}
             </>
@@ -689,6 +647,7 @@ function TicketDetailModal({
     guildRoles,
     selectedRoleId,
     setSelectedRoleId,
+    categories,
 }: {
     ticket: SupportTicket;
     onClose: () => void;
@@ -704,12 +663,13 @@ function TicketDetailModal({
     guildRoles: any[];
     selectedRoleId: string;
     setSelectedRoleId: (v: string) => void;
+    categories: GodTicketCategoryRow[];
 }) {
     const [rejectionMode, setRejectionMode] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [validationNotes, setValidationNotes] = useState("");
 
-    const cat = CATEGORY_CONFIG[ticket.category];
+    const cat = resolveCategoryMeta(ticket, categories);
     const status = STATUS_CONFIG[ticket.status];
     const StatusIcon = status.icon;
     const isAccessRequest = ticket.category === "ACCESS_REQUEST";
@@ -732,7 +692,11 @@ function TicketDetailModal({
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-warning font-mono font-semibold text-sm">#{ticket.ticketNumber}</span>
-                                <span className={cn("inline-flex items-center gap-1.5 text-caption font-semibold uppercase px-2.5 py-1 rounded-full border", cat.chip, cat.color)}>
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-caption font-semibold uppercase text-foreground">
+                                    <span
+                                        className="h-1.5 w-1.5 rounded-full"
+                                        style={{ backgroundColor: cat.color }}
+                                    />
                                     {cat.emoji} {cat.label}
                                 </span>
                             </div>

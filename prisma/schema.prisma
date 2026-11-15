@@ -2766,6 +2766,63 @@ model GlobalBlocklist {
   baseWords      Json     @default("[]")
 }
 
+/// 🎫 God — configuration **dédiée** du module support (singleton).
+///
+/// Décision du 14/11/2026 (route 2) : le module d'exploitation a sa propre
+/// configuration, séparée du moteur de guilde (`TicketGuildConfig`). Aucun
+/// identifiant Discord n'est écrit dans le code : serveur, salon, rôles et
+/// catégories vivent ici, réglés depuis `/god/ticket-bot`.
+///
+/// Une ligne absente = défauts du resolver (`src/lib/tickets/god-config.ts`) :
+/// la lecture ne casse jamais sur une base neuve.
+model GodTicketConfig {
+  id               String            @id @default("singleton")
+  /// Serveur Discord du support (celui du bot SigilOS).
+  supportGuildId   String?
+  /// Salon où le panneau est publié et où naissent les fils privés.
+  supportChannelId String?
+  /// Rôles staff : autorisés à fermer, mentionnés à défaut de `notifyRoleIds`.
+  staffRoleIds     String[]          @default([])
+  /// Rôles mentionnés à l'ouverture (`@Support`). Vide = `staffRoleIds`.
+  notifyRoleIds    String[]          @default([])
+  /// Nom du fil : `{num}` et `{author}` sont remplacés, borné à 100 caractères.
+  namingPattern    String            @default("🎫-{num}-{author}")
+  /// Qui peut fermer un ticket (`STAFF_OR_CREATOR` conserve le comportement historique).
+  closePolicy      TicketClosePolicy @default(STAFF_OR_CREATOR)
+  /// Archive le fil Discord à la fermeture (comportement historique).
+  archiveOnClose   Boolean           @default(true)
+  /// Demande une note de satisfaction en message privé à la fermeture.
+  csatEnabled      Boolean           @default(false)
+  updatedAt        DateTime          @updatedAt
+  updatedBy        String?
+}
+
+/// 🎫 God — catégories du panneau support, éditables par le mainteneur.
+///
+/// `key` est l'identifiant **stable** porté par les `custom_id` Discord
+/// (`ticket:create:<guildId>:<key>`) : il ne change jamais après création.
+/// `legacyCategory` porte le type historique (`TicketCategory`) des quatre
+/// catégories de départ — il choisit le formulaire spécialisé ; une catégorie
+/// créée par le God retombe sur le formulaire générique.
+///
+/// « Supprimer » = `isEnabled = false` : jamais de `DELETE`, les tickets
+/// passés gardent leur référence.
+model GodTicketCategory {
+  id             String         @id @default(cuid())
+  key            String         @unique
+  label          String
+  emoji          String         @default("🎫")
+  color          String         @default("#6366f1")
+  legacyCategory TicketCategory?
+  order          Int            @default(0)
+  isEnabled      Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  tickets        SupportTicket[]
+
+  @@index([isEnabled, order])
+}
+
 model SupportTicket {
   id                     String            @id @default(cuid())
   ticketNumber           Int               @unique @default(autoincrement())
@@ -2801,6 +2858,14 @@ model SupportTicket {
   priority               String?
   trackerStatus          TrackerStatus?
   forumLink              String?
+  // ── G4 (God) — catégorie éditable et satisfaction ────────────────────
+  /// Catégorie God choisie (`GodTicketCategory.key`). `null` avant le backfill ;
+  /// `category` reste rempli pour les requêtes historiques (une catégorie créée
+  /// par le God porte `OTHER` dans l'enum).
+  categoryKey            String?
+  /// Note de satisfaction (1..5) recueillie en message privé à la fermeture.
+  csatRating             Int?
+  categoryRef            GodTicketCategory? @relation(fields: [categoryKey], references: [key], onDelete: SetNull)
 
   @@index([origin])
   @@index([feedbackType])
@@ -2809,6 +2874,7 @@ model SupportTicket {
   @@index([createdAt])
   @@index([status])
   @@index([category])
+  @@index([categoryKey])
   @@index([creatorDiscordId])
   @@index([discordGuildId])
   @@index([targetGuildId])

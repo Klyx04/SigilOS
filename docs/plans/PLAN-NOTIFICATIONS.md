@@ -57,11 +57,16 @@ Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préf
   `20270205000000_add_changelog_notification_type`) ; fan-out `src/server/changelog-notifications.ts`
   (une notification par `User`, lots de 500, `after()` après la réponse God, entrées internes exclues,
   lien vers la page compte). `NEWS_PUBLISHED` attend une vraie source éditoriale.
-- **N2-bis (option)** — opt-out du compte : interrupteur dans `/espace-visiteur/reglages` + migration
-  d'une préférence plateforme, seulement si le besoin est confirmé.
+- **N2-bis — livré le 15/11/2026** : `User.accountNotificationsEnabled` (migration additive
+  `20270206000000_add_account_notifications_opt_out`, défaut `true`), interrupteur dans Réglages,
+  action `setAccountNotificationsEnabled` (session + rate limit), fan-out changelog filtré et
+  `createAccountNotification` qui refuse d'écrire si le compte a coupé.
 - **N3 — livré le 15/11/2026** : page `/espace-visiteur/notifications` (page + loading + error), liste
   bornée, marquage lu / tout lu, 8ᵉ onglet + pastille de non-lues dans la nav visiteur. Garde
   `requirePublicSession` : aucun `UserProfile` requis.
+- **N3-bis — livré le 15/11/2026** : « Mes signalements » déplacé de Général vers l'onglet Notifications ;
+  une réponse God crée **toujours** une notification de compte (même pour un membre avec guilde), la
+  cloche de guilde n'est plus utilisée pour ce message.
 - **N4 — livré le 15/11/2026** : `notifyMemberFeedbackAction` crée une notification de **compte** quand
   aucune guilde n'est identifiable ; un membre avec guilde garde la cloche de guilde (pas de doublon).
   Lien vers `/espace-visiteur/general` (« Mes signalements »).
@@ -72,4 +77,6 @@ Hors v1 : Rush live (les toasts existent déjà), e-mail, push navigateur, préf
 - Le verrou `notification-guild-isolation` reste vert : le scope plateforme est une **branche
   explicite testée**, pas un contournement.
 - Lecture bornée (`take` ≤ 50) et marquage limité au propriétaire (`userId`).
+- Opt-out : `User.accountNotificationsEnabled` est lu à l'écriture et dans le fan-out ; une préférence
+  illisible annule l'envoi, elle ne l'autorise pas.
 - Pas de snowflake Discord dans les logs.

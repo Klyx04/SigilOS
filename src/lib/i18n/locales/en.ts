@@ -620,6 +620,7 @@ export const en: Translations = {
             level: "Level",
             successPoints: "Success points",
             achievements: "Dungeon achievements",
+            bounties: "Bounties done",
             presentation: "About",
             objectives: "Goals",
             jobs: "Professions",

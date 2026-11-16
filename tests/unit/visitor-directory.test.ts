@@ -274,14 +274,17 @@ describe("Annuaire des visiteurs — aucun champ privé ne sort", () => {
     it("la fiche ajoute la présentation sans élargir la liste blanche", () => {
         const profile = toVisitorProfile({
             ...ROW,
+            _count: { achievements: 42, bountyCompletions: 7 },
             introduction: "Salut",
             objectifs: "Finir le Sylvestre",
         });
         expect(profile.introduction).toBe("Salut");
         expect(profile.objectifs).toBe("Finir le Sylvestre");
+        expect(profile.bountiesDone).toBe(7);
         expect(profile.jobs.length).toBeGreaterThan(PUBLIC_DIRECTORY_JOBS_ON_CARD);
         expect(Object.keys(profile).sort()).toEqual([
             "achievements",
+            "bountiesDone",
             "classe",
             "guildName",
             "id",

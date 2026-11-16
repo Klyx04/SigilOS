@@ -630,6 +630,7 @@ export const fr = {
             level: "Niveau",
             successPoints: "Points de succès",
             achievements: "Succès de donjons",
+            bounties: "Avis faits",
             presentation: "Présentation",
             objectives: "Objectifs",
             jobs: "Métiers",

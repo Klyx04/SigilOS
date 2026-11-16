@@ -26,8 +26,10 @@ const ALL_JOBS = Object.values(DOFUS_JOBS).flatMap((category) => [...category]);
  * `surface` se confondait avec le panneau, l'option choisie était invisible.
  */
 const optionClass = (active: boolean) =>
-    `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
-        active ? "bg-elevated font-semibold text-foreground" : "text-foreground hover:bg-surface"
+    `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        active
+            ? "bg-elevated font-semibold text-foreground ring-1 ring-inset ring-border-strong"
+            : "text-foreground hover:bg-elevated/60"
     }`;
 
 function OptionLink({

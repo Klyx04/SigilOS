@@ -54,7 +54,7 @@ export function FilterMenu({
             onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
             className="relative"
         >
-            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:border-border-strong hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 {icon ? (
                     <Image
                         src={icon}

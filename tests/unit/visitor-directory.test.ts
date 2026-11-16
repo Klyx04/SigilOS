@@ -337,6 +337,17 @@ describe("Annuaire des visiteurs — l'option active se voit et le menu se ferme
         expect(menu).toContain('closest("a")');
         expect(menu).toContain("setOpen(false)");
     });
+
+    it("le survol et la sélection se voient (panneau en surface, hover en elevated)", () => {
+        const filters = stripComments(read("src/app/visiteurs/_components/visitor-filters.tsx"));
+        const menu = stripComments(read("src/app/visiteurs/_components/filter-menu.tsx"));
+        // Le panneau est en `surface` : un hover en `surface` serait invisible (mesure du 16/11).
+        expect(filters).toContain("hover:bg-elevated");
+        expect(filters).toContain("ring-border-strong");
+        expect(filters).not.toContain("hover:bg-surface");
+        expect(menu).toContain("hover:bg-elevated");
+        expect(menu).toContain("focus-visible:ring-2");
+    });
 });
 
 describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {

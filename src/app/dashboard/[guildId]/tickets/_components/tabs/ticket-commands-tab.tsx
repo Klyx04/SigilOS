@@ -1771,10 +1771,10 @@ export function TicketCommandsTab({
                                                         </div>
                                                     )}
                                                 </div>
+                                                {/* CodeQL 123/125 : URL validée (safeImageSrc) puis encodée avant l'attribut. */}
                                                 {safeEmbedThumbnailUrl && (
                                                     <img
-                                                        /* codeql[js/xss-through-dom] — faux positif : safeImageSrc n'accepte que http(s) ou un chemin interne, React échappe l'attribut et <img> n'exécute pas de JS. */
-                                                        src={safeEmbedThumbnailUrl}
+                                                        src={encodeURI(safeEmbedThumbnailUrl)}
                                                         alt="Thumbnail"
                                                         className="h-10 w-10 rounded object-cover shrink-0"
                                                         onError={(e) => ((e.target as HTMLElement).style.display = "none")}
@@ -1782,11 +1782,11 @@ export function TicketCommandsTab({
                                                 )}
                                             </div>
 
+                                            {/* CodeQL 123/125 : URL validée (safeImageSrc) puis encodée avant l'attribut. */}
                                             {safeEmbedImageUrl && (
                                                 <div className="overflow-hidden rounded">
                                                     <img
-                                                        /* codeql[js/xss-through-dom] — faux positif : safeImageSrc n'accepte que http(s) ou un chemin interne, React échappe l'attribut et <img> n'exécute pas de JS. */
-                                                        src={safeEmbedImageUrl}
+                                                        src={encodeURI(safeEmbedImageUrl)}
                                                         alt="Embed"
                                                         className="rounded max-h-36 w-full object-cover"
                                                         onError={(e) => ((e.target as HTMLElement).style.display = "none")}

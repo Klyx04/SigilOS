@@ -1,40 +1,88 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Activity,
     CalendarClock,
-    RefreshCw,
-    Search,
-    Globe,
+    Copy,
     Cpu,
     Download,
+    ExternalLink,
+    Globe,
     Layers,
-    Zap
+    RefreshCw,
+    Search,
+    Zap,
 } from "lucide-react";
 import { TelemetryRetentionPanel } from "@/components/telemetry/telemetry-retention-panel";
 import { TelemetryPublicPanel } from "@/components/telemetry/telemetry-public-panel";
-import { cn } from "@/lib/utils";
-import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
-import { getProductStats } from "@/server/actions/telemetry-product-actions";
-import { getPublicStats } from "@/server/actions/telemetry-public-actions";
 import { TelemetryProductOverview } from "@/components/telemetry/telemetry-product-overview";
 import { TelemetryAdoptionPanel } from "@/components/telemetry/telemetry-adoption-panel";
+import { cn } from "@/lib/utils";
+import {
+    exportTelemetryDataAction,
+    getTelemetryLiveEvents,
+    getTelemetryStats,
+} from "@/server/actions/telemetry-actions";
+import { getProductStats } from "@/server/actions/telemetry-product-actions";
+import { getPublicStats } from "@/server/actions/telemetry-public-actions";
+import { classifyTelemetrySurface, type TelemetrySurface } from "@/lib/telemetry/surface";
 import { toast } from "sonner";
 
 type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
-
-/** Mesures produit (D-2bis) — chargées à côté de la télémétrie de navigation. */
 type ProductStatsType = Awaited<ReturnType<typeof getProductStats>>;
-
-/** Compteurs anonymes du site public (la partie externe du produit). */
 type PublicStatsType = Awaited<ReturnType<typeof getPublicStats>>;
+type TelemetryTab = "live" | "adoption" | "retention" | "funnel" | "public";
 
-/**
- * Période du rafraîchissement automatique. 30 s et non 5 s : chaque tick relance 12 requêtes
- * d'agrégation (`groupBy` + `findMany`) côté serveur pour un panneau lu par un seul super-admin.
- */
+type LiveEvent = {
+    id: string;
+    userId: string;
+    userName: string;
+    guildId: string | null;
+    guildName: string;
+    path: string;
+    surface: TelemetrySurface;
+    eventType: string;
+    elementId: string | null;
+    details: Record<string, string | number | boolean>;
+    createdAt: string;
+};
+
 const AUTO_REFRESH_SECONDS = 30;
+const LIVE_PAGE_SIZE = 50;
+
+const SURFACE_LABEL: Record<TelemetrySurface, string> = {
+    ADMIN: "Admin",
+    MEMBER: "Membre",
+    GOD: "God",
+    PUBLIC: "Public",
+};
+
+const SURFACE_CLASS: Record<TelemetrySurface, string> = {
+    ADMIN: "border-warning/20 bg-warning/10 text-warning",
+    MEMBER: "border-success/20 bg-success/10 text-success",
+    GOD: "border-accent/20 bg-accent-soft text-accent",
+    PUBLIC: "border-border bg-surface text-muted-foreground",
+};
+
+function formatDateTime(iso: string): string {
+    return new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "short",
+        timeStyle: "medium",
+        timeZone: "Europe/Paris",
+    }).format(new Date(iso));
+}
+
+function isInternalPath(path: string): boolean {
+    return path.startsWith("/") && !path.startsWith("/api") && !path.startsWith("/god");
+}
+
+function toLiveEvent(event: TelemetryStatsType["liveEvents"][number]): LiveEvent {
+    return {
+        ...event,
+        surface: classifyTelemetrySurface(event.path),
+    };
+}
 
 export function TelemetryDashboard({
     initialStats,
@@ -46,59 +94,99 @@ export function TelemetryDashboard({
     initialPublic: PublicStatsType | null;
 }) {
     const [stats, setStats] = useState<TelemetryStatsType>(initialStats);
-    const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
+    const [selectedGuildId, setSelectedGuildId] = useState("all");
+    const [telemetryTab, setTelemetryTab] = useState<TelemetryTab>("live");
     const [isAutoRefresh, setIsAutoRefresh] = useState(true);
     const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS);
     const [isPending, setIsPending] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [surfaceFilter, setSurfaceFilter] = useState<"ALL" | TelemetrySurface>("ALL");
+    const [eventTypeFilter, setEventTypeFilter] = useState<"ALL" | "PAGE_VIEW" | "INTERACTION">("ALL");
     const [searchQuery, setSearchQuery] = useState("");
-    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "retention" | "funnel" | "public">("live");
-    const isRefreshingRef = useRef(false);
+    const [liveEvents, setLiveEvents] = useState<LiveEvent[]>(() =>
+        (initialStats.liveEvents ?? []).map(toLiveEvent),
+    );
+    const [liveCursor, setLiveCursor] = useState<string | null>(null);
+    const [liveLoading, setLiveLoading] = useState(false);
+    const [liveError, setLiveError] = useState<string | null>(null);
+    const [copiedPath, setCopiedPath] = useState<string | null>(null);
+    const aggregateLoadingRef = useRef(false);
+    const liveLoadingRef = useRef(false);
 
-    // Stable refresh function — accepts target guild filter
-    const refreshData = useCallback(async (overrideGuildId?: string) => {
-        if (isRefreshingRef.current) return;
-        isRefreshingRef.current = true;
+    const refreshAggregates = useCallback(async (overrideGuildId?: string) => {
+        if (aggregateLoadingRef.current) return;
+        aggregateLoadingRef.current = true;
         setIsPending(true);
         try {
-            const targetGuild = overrideGuildId !== undefined ? overrideGuildId : selectedGuildId;
-            const filterArg = targetGuild === "all" ? undefined : targetGuild;
-            const newStats = await getTelemetryStats(filterArg);
-            setStats(newStats);
-            setCountdown(AUTO_REFRESH_SECONDS);
-        } catch (err) {
-            console.error("Refresh failed", err);
+            const target = overrideGuildId !== undefined ? overrideGuildId : selectedGuildId;
+            const next = await getTelemetryStats(target === "all" ? undefined : target);
+            setStats(next);
+        } catch {
+            toast.error("Impossible de charger les agrégats de télémétrie");
         } finally {
-            isRefreshingRef.current = false;
+            aggregateLoadingRef.current = false;
             setIsPending(false);
         }
     }, [selectedGuildId]);
 
-    // Handle guild selection change
-    const handleGuildChange = (newGuildId: string) => {
-        setSelectedGuildId(newGuildId);
-        refreshData(newGuildId);
+    const fetchLive = useCallback(async (reset: boolean, cursor: string | null, overrideGuildId?: string) => {
+        if (liveLoadingRef.current) return;
+        liveLoadingRef.current = true;
+        setLiveLoading(true);
+        try {
+            const target = overrideGuildId !== undefined ? overrideGuildId : selectedGuildId;
+            const result = await getTelemetryLiveEvents({
+                guildId: target === "all" ? null : target,
+                surface: surfaceFilter === "ALL" ? undefined : surfaceFilter,
+                eventType: eventTypeFilter === "ALL" ? undefined : eventTypeFilter,
+                query: searchQuery.trim() || undefined,
+                cursor: reset ? null : cursor,
+                limit: LIVE_PAGE_SIZE,
+            });
+            if (!result.success) {
+                setLiveError(result.error ?? "Erreur de chargement du flux");
+                return;
+            }
+            const data = result.data;
+            if (!data) {
+                setLiveError("Erreur de chargement du flux");
+                return;
+            }
+            setLiveError(null);
+            setLiveEvents((previous) => (reset ? data.events : [...previous, ...data.events]));
+            setLiveCursor(data.nextCursor);
+        } catch {
+            setLiveError("Erreur de chargement du flux");
+        } finally {
+            liveLoadingRef.current = false;
+            setLiveLoading(false);
+        }
+    }, [selectedGuildId, surfaceFilter, eventTypeFilter, searchQuery]);
+
+    const handleGuildChange = (guildId: string) => {
+        setSelectedGuildId(guildId);
     };
 
-    // Export handler
     const handleExport = async (format: "json" | "csv") => {
         setIsExporting(true);
         try {
-            const filterArg = selectedGuildId === "all" ? undefined : selectedGuildId;
-            const res = await exportTelemetryDataAction(filterArg, format);
-            if (res.success && res.data) {
-                const blob = new Blob([res.data], { type: res.mimeType });
+            const result = await exportTelemetryDataAction(
+                selectedGuildId === "all" ? undefined : selectedGuildId,
+                format,
+            );
+            if (result.success && result.data) {
+                const blob = new Blob([result.data], { type: result.mimeType });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = res.fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = result.fileName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
                 URL.revokeObjectURL(url);
-                toast.success(`Export ${format.toUpperCase()} téléchargé avec succès !`);
+                toast.success(`Export ${format.toUpperCase()} téléchargé`);
             } else {
-                toast.error("Échec de l'export télémétrie");
+                toast.error("Échec de l'export de télémétrie");
             }
         } catch {
             toast.error("Erreur lors de l'export");
@@ -107,345 +195,388 @@ export function TelemetryDashboard({
         }
     };
 
-    // Auto-refresh timer — countdown only, triggers refresh outside render via ref
+    const handleCopy = async (path: string) => {
+        try {
+            await navigator.clipboard.writeText(path);
+            setCopiedPath(path);
+            setTimeout(() => setCopiedPath(null), 1500);
+            toast.success("Chemin copié");
+        } catch {
+            toast.error("Copie impossible");
+        }
+    };
+
+    // Agrégats : un seul chargement, rejoué au changement de guilde ou à la demande.
+    useEffect(() => {
+        void refreshAggregates();
+    }, [refreshAggregates]);
+
+    // Flux : filtré côté serveur (guilde, surface, type, recherche) avec un léger debounce.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            void fetchLive(true, null);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [fetchLive]);
+
+    // Compte à rebours du rafraîchissement automatique (le flux seulement).
     useEffect(() => {
         if (!isAutoRefresh) return;
-
         const interval = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    Promise.resolve().then(() => refreshData());
-                    return AUTO_REFRESH_SECONDS;
-                }
-                return prev - 1;
-            });
+            setCountdown((previous) => (previous <= 1 ? 0 : previous - 1));
         }, 1000);
-
         return () => clearInterval(interval);
-    }, [isAutoRefresh, refreshData]);
+    }, [isAutoRefresh]);
 
-    // Filter live events based on search query
-    const filteredEvents = stats.liveEvents.filter((e: any) => {
-        if (!searchQuery) return true;
-
-        const query = searchQuery.toLowerCase();
-        return (
-            e.userName.toLowerCase().includes(query) ||
-            e.path.toLowerCase().includes(query) ||
-            (e.elementId && e.elementId.toLowerCase().includes(query)) ||
-            e.eventType.toLowerCase().includes(query)
-        );
-    });
+    // À zéro, on recharge la première page du flux et on relance le compte à rebours.
+    useEffect(() => {
+        if (!isAutoRefresh || countdown > 0) return;
+        void fetchLive(true, null);
+        setCountdown(AUTO_REFRESH_SECONDS);
+    }, [countdown, isAutoRefresh, fetchLive]);
 
     return (
-        <div className="space-y-10">
-            {/* Header / Control Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 pb-6 border-b border-white/5">
-                <div className="space-y-1">
-                    <h2 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                        <Cpu className="w-6 h-6 text-accent" />
-                        Télémétrie & Analyse d'usage
+        <div className="space-y-6">
+            <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+                        <Cpu className="h-5 w-5 text-accent" />
+                        Télémétrie & usage
                     </h2>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Activité, fréquentation des modules et comportements par guilde
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Qui va où, par guilde et par surface — chemin complet, sans empreinte.
                     </p>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-4">
-                    {/* Guild Filter Dropdown */}
-                    <div className="flex items-center gap-2 bg-surface border border-border px-3 py-1.5 rounded-xl">
-                        <Globe className="w-4 h-4 text-accent shrink-0" />
+                <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                        <Globe className="h-4 w-4 shrink-0 text-accent" />
+                        <span className="sr-only">Guilde</span>
                         <select
                             value={selectedGuildId}
-                            onChange={(e) => handleGuildChange(e.target.value)}
-                            className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-2"
+                            onChange={(event) => handleGuildChange(event.target.value)}
+                            className="min-w-0 max-w-[240px] bg-transparent text-sm text-foreground focus:outline-none"
                         >
-                            <option value="all">Toutes les Guildes (Global)</option>
-                            {stats.availableGuilds?.map((g: any) => (
-                                <option key={g.id} value={g.id}>
-                                    Guilde: {g.name}
+                            <option value="all">Toutes les guildes</option>
+                            {(stats.availableGuilds ?? []).map((guild) => (
+                                <option key={guild.id} value={guild.id}>
+                                    {guild.name}{guild.discordGuildId ? ` · ${guild.discordGuildId.slice(-6)}` : ""}
                                 </option>
                             ))}
                         </select>
-                    </div>
-
-                    {/* Export Buttons */}
-                    <div className="flex items-center gap-1.5 bg-surface border border-border p-1 rounded-xl">
+                    </label>
+                    <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
                         <button
+                            type="button"
                             onClick={() => handleExport("json")}
                             disabled={isExporting}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all flex items-center gap-1.5"
+                            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-elevated hover:text-foreground disabled:opacity-50"
                         >
-                            <Download className="w-3.5 h-3.5 text-accent" />
+                            <Download className="h-3.5 w-3.5" />
                             JSON
                         </button>
                         <button
+                            type="button"
                             onClick={() => handleExport("csv")}
                             disabled={isExporting}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all flex items-center gap-1.5"
+                            className="rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-elevated hover:text-foreground disabled:opacity-50"
                         >
-                            <Download className="w-3.5 h-3.5 text-emerald-400" />
                             CSV
                         </button>
                     </div>
-
-                    {/* Auto-Refresh Toggle */}
                     <button
-                        onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+                        type="button"
+                        onClick={() => setIsAutoRefresh((previous) => !previous)}
                         className={cn(
-                            "flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border",
+                            "rounded-lg border px-3 py-2 text-sm",
                             isAutoRefresh
-                                ? "bg-accent-soft text-accent border-accent/30"
-                                : "bg-surface text-muted-foreground border-border hover:text-foreground"
+                                ? "border-accent/30 bg-accent-soft text-accent"
+                                : "border-border bg-surface text-muted-foreground hover:text-foreground",
                         )}
+                        aria-pressed={isAutoRefresh}
                     >
-                        <span className={cn(
-                            "w-2.5 h-2.5 rounded-full",
-                            isAutoRefresh ? "bg-accent" : "bg-muted-foreground/50"
-                        )} />
-                        {isAutoRefresh ? `Auto : ${countdown}s` : "Auto-Refresh Off"}
+                        {isAutoRefresh ? `Auto ${countdown} s` : "Auto désactivé"}
                     </button>
-
-                    {/* Manual Refresh Button */}
                     <button
-                        onClick={() => refreshData()}
+                        type="button"
+                        onClick={() => { void refreshAggregates(); void fetchLive(true, null); }}
                         disabled={isPending}
-                        className="p-2.5 rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="rounded-lg border border-border bg-surface p-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        aria-label="Rafraîchir les données"
                     >
-                        <RefreshCw className={cn("w-4 h-4 group-hover:rotate-180 transition-all duration-300", isPending && "animate-spin")} />
+                        <RefreshCw className={cn("h-4 w-4", isPending && "animate-spin")} />
                     </button>
                 </div>
             </div>
 
-            {/* Sub Tabs Selection */}
-            <div className="flex border-b border-border pb-1 gap-2 overflow-x-auto no-scrollbar">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
-                    { id: "live", label: "Usage du site", icon: Activity, count: filteredEvents.length },
+                    { label: "Événements", value: stats.summary.totalEvents },
+                    { label: "Pages vues (24 h)", value: stats.summary.pageViews24h },
+                    { label: "Interactions (24 h)", value: stats.summary.interactions24h },
+                    { label: "Membres (24 h)", value: stats.summary.uniqueUsers24h },
+                    { label: "Membres (7 j)", value: stats.summary.uniqueUsers7d },
+                    ...(selectedGuildId === "all"
+                        ? [{ label: "Guildes actives (7 j)", value: stats.summary.guildsActive7d }]
+                        : []),
+                    { label: "Interactions / pages vues", value: `${stats.summary.engagementRatio} %` },
+                    { label: "Actions / membre (24 h)", value: stats.summary.averageActionsPerUser },
+                ].map((card) => (
+                    <div key={card.label} className="rounded-xl border border-border bg-surface p-3">
+                        <p className="text-xs text-muted-foreground">{card.label}</p>
+                        <p className="mt-1 text-xl font-semibold text-foreground">
+                            {typeof card.value === "number" ? card.value.toLocaleString("fr-FR") : card.value}
+                        </p>
+                    </div>
+                ))}
+            </div>
+
+            <div className="flex gap-1 overflow-x-auto border-b border-border pb-1">
+                {[
+                    { id: "live", label: "Usage du site", icon: Activity, count: liveEvents.length },
                     { id: "adoption", label: "Adoption par module", icon: Layers, count: initialProduct ? initialProduct.adoption.modules.length : null },
                     { id: "retention", label: "Rétention & relances", icon: CalendarClock, count: initialProduct ? initialProduct.freshness.guilds.filter((guild) => guild.status !== "ACTIVE").length : null },
                     { id: "funnel", label: "Entonnoir d'activation", icon: Zap, count: null },
                     { id: "public", label: "Site public", icon: Globe, count: null },
-                ].map((t) => (
+                ].map((tab) => (
                     <button
-                        key={t.id}
-                        onClick={() => setTelemetryTab(t.id as any)}
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setTelemetryTab(tab.id as TelemetryTab)}
                         className={cn(
-                            "px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center gap-2 whitespace-nowrap",
-                            telemetryTab === t.id
-                                ? "bg-accent-soft text-accent border-accent/40 shadow-sm"
-                                : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
+                            "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm",
+                            telemetryTab === tab.id
+                                ? "bg-accent-soft text-accent"
+                                : "text-muted-foreground hover:bg-surface hover:text-foreground",
                         )}
                     >
-                        <t.icon className="w-3.5 h-3.5" />
-                        {t.label}
-                        {t.count !== null && (
-                            <span className={cn(
-                                "text-[10px] font-black px-1.5 py-0.5 rounded-md",
-                                telemetryTab === t.id ? "bg-accent text-accent-foreground" : "bg-elevated text-muted-foreground"
-                            )}>
-                                {t.count}
-                            </span>
+                        <tab.icon className="h-4 w-4" />
+                        {tab.label}
+                        {tab.count !== null && (
+                            <span className="rounded-md bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">{tab.count}</span>
                         )}
                     </button>
                 ))}
             </div>
 
-            {/* Vue d'ensemble produit (D-2bis) — remplace les 8 cartes « console » */}
             <TelemetryProductOverview product={initialProduct} />
-
-
-            {/* TAB CONTENT: LIVE FEED */}
             {telemetryTab === "live" && (
-                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[750px] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-zinc-950/80 to-transparent pointer-events-none z-10" />
-                    
-                    {/* Header search bar */}
-                    <div className="mb-6 space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-violet-400 animate-pulse" />
-                                Flux d'activité Live
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-border bg-surface p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <Activity className="h-4 w-4 text-accent" />
+                                Flux d'activité
                             </h3>
-                            <span className="text-caption font-black uppercase text-zinc-600 bg-zinc-900 border border-white/5 px-3 py-1 rounded-full">
-                                {filteredEvents.length} événements
-                            </span>
+                            <span className="text-xs text-muted-foreground">{liveEvents.length} événement(s)</span>
                         </div>
-                        
-                        <div className="relative">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                            <input
-                                type="text"
-                                placeholder="Rechercher par membre, route, guilde, clic..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/60 border border-white/5 rounded-xl text-xs font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition-all"
-                            />
+                        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px_170px]">
+                            <label className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <span className="sr-only">Rechercher</span>
+                                <input
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="Membre, chemin, clic, guilde…"
+                                    className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                                />
+                            </label>
+                            <select
+                                value={surfaceFilter}
+                                onChange={(event) => setSurfaceFilter(event.target.value as "ALL" | TelemetrySurface)}
+                                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                                aria-label="Filtrer par surface"
+                            >
+                                <option value="ALL">Toutes les surfaces</option>
+                                <option value="ADMIN">Admin</option>
+                                <option value="MEMBER">Membre</option>
+                                <option value="GOD">God</option>
+                                <option value="PUBLIC">Public</option>
+                            </select>
+                            <select
+                                value={eventTypeFilter}
+                                onChange={(event) => setEventTypeFilter(event.target.value as "ALL" | "PAGE_VIEW" | "INTERACTION")}
+                                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                                aria-label="Filtrer par type"
+                            >
+                                <option value="ALL">Tous les types</option>
+                                <option value="PAGE_VIEW">Pages vues</option>
+                                <option value="INTERACTION">Interactions</option>
+                            </select>
                         </div>
                     </div>
 
-                    {/* Scrollable Events list */}
-                    <div className="flex-1 overflow-y-auto space-y-3.5 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        {filteredEvents.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-zinc-600 text-xs font-bold uppercase tracking-wider py-20 gap-4">
-                                <Activity className="w-8 h-8 opacity-20" />
-                                Aucun événement trouvé
-                            </div>
+                    {liveError && (
+                        <p className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-sm text-danger">{liveError}</p>
+                    )}
+
+                    <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
+                        {liveEvents.length === 0 && !liveLoading ? (
+                            <p className="rounded-xl border border-border bg-surface p-6 text-sm text-muted-foreground">
+                                Aucun événement pour ces filtres.
+                            </p>
                         ) : (
-                            filteredEvents.map((event: any) => {
-                                const isClick = event.eventType === "INTERACTION";
-                                return (
-                                    <div 
-                                        key={event.id} 
-                                        className="p-4 rounded-2xl bg-zinc-900/20 hover:bg-zinc-900/40 border border-white/5 transition-all flex items-start gap-4"
-                                    >
-                                        {/* Colored Dot Indicator */}
-                                        <div className="mt-1 relative flex shrink-0">
-                                            <span className={cn(
-                                                "w-2.5 h-2.5 rounded-full border shadow-md",
-                                                isClick 
-                                                    ? "bg-amber-400 border-amber-500/40 shadow-amber-500/20 animate-pulse" 
-                                                    : "bg-violet-400 border-violet-500/40 shadow-violet-500/20 animate-pulse"
-                                            )} />
+                            <>
+                                {liveEvents.map((event) => (
+                                    <article key={event.id} className="rounded-xl border border-border bg-surface p-3">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm font-medium text-foreground">{event.userName}</span>
+                                            <span className="text-xs text-muted-foreground">{event.guildName}</span>
+                                            <span className={cn("rounded-md border px-1.5 py-0.5 text-xs", SURFACE_CLASS[event.surface])}>
+                                                {SURFACE_LABEL[event.surface]}
+                                            </span>
+                                            <span className="rounded-md border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
+                                                {event.eventType === "INTERACTION" ? "Interaction" : "Visite"}
+                                            </span>
+                                            <time className="ml-auto text-xs text-muted-foreground" dateTime={event.createdAt}>
+                                                {formatDateTime(event.createdAt)}
+                                            </time>
                                         </div>
-
-                                        {/* Event Details */}
-                                        <div className="flex-1 min-w-0 space-y-1">
-                                            <div className="flex justify-between items-start gap-2">
-                                                <div className="truncate max-w-[250px]">
-                                                    <span className="text-xs font-black text-white block truncate">
-                                                        {event.userName}
-                                                    </span>
-                                                    <span className="text-caption text-zinc-500 font-bold uppercase block truncate leading-none mt-0.5">
-                                                        {event.guildName}
-                                                    </span>
-                                                </div>
-                                                <span className="text-caption font-black text-zinc-500 uppercase shrink-0 font-mono">
-                                                    {new Date(event.createdAt).toLocaleTimeString("fr-FR", { 
-                                                        hour: "2-digit", 
-                                                        minute: "2-digit", 
-                                                        second: "2-digit" 
-                                                    })}
-                                                </span>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                {/* Action label */}
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className={cn(
-                                                        "text-caption font-black uppercase px-2 py-0.5 rounded-md border tracking-wider",
-                                                        isClick 
-                                                            ? "bg-amber-500/5 text-amber-400 border-amber-500/10" 
-                                                            : "bg-violet-500/5 text-violet-400 border-violet-500/10"
-                                                    )}>
-                                                        {isClick ? "CLIC" : "VISITE"}
-                                                    </span>
-
-                                                    {isClick ? (
-                                                        <span className="text-caption font-black text-zinc-400 truncate max-w-[320px]">
-                                                            Clic sur <code className="text-amber-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-caption">{event.elementId}</code>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-caption font-bold text-zinc-400 truncate max-w-[320px]">
-                                                            Navigué vers <code className="text-violet-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-caption">{event.path}</code>
-                                                        </span>
+                                        <div className="mt-2 min-w-0 space-y-1">
+                                            {event.eventType === "INTERACTION" && event.elementId && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Clic sur <code className="break-all font-mono text-foreground">{event.elementId}</code>
+                                                </p>
+                                            )}
+                                            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+                                                <code className="min-w-0 break-all rounded-md bg-background px-2 py-1 font-mono text-xs text-foreground" title={event.path}>
+                                                    {event.path}
+                                                </code>
+                                                <div className="flex shrink-0 items-center gap-1">
+                                                    {isInternalPath(event.path) && (
+                                                        <a
+                                                            href={event.path}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground"
+                                                            aria-label="Ouvrir la page"
+                                                        >
+                                                            <ExternalLink className="h-3.5 w-3.5" />
+                                                        </a>
                                                     )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleCopy(event.path)}
+                                                        className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground"
+                                                        aria-label="Copier le chemin"
+                                                    >
+                                                        <Copy className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    {copiedPath === event.path && <span className="text-xs text-success">Copié</span>}
                                                 </div>
-
-                                                {/* Meta/details rendering */}
-                                                {event.details && typeof event.details === "object" && (
-                                                    <div className="text-caption text-zinc-600 font-bold uppercase tracking-wider flex items-center gap-2 pt-1">
-                                                        {isClick ? (
-                                                            (event.details as any).label && (
-                                                                <span>Label: "{(event.details as any).label}"</span>
-                                                            )
-                                                        ) : (
-                                                            (event.details as any).userAgent && (
-                                                                <span className="truncate max-w-[300px]">
-                                                                    Agent: {(event.details as any).userAgent.split(" ").slice(-1)[0]}
-                                                                </span>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                )}
                                             </div>
+                                            {event.details && typeof event.details === "object" && typeof (event.details as Record<string, unknown>).language === "string" && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Langue : {(event.details as Record<string, string>).language}
+                                                </p>
+                                            )}
                                         </div>
-                                    </div>
-                                );
-                            })
+                                    </article>
+                                ))}
+                            </>
                         )}
                     </div>
+
+                    {liveLoading && <p className="text-sm text-muted-foreground">Chargement du flux…</p>}
+                    {liveCursor && (
+                        <button
+                            type="button"
+                            onClick={() => { void fetchLive(false, liveCursor); }}
+                            disabled={liveLoading}
+                            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground hover:bg-elevated disabled:opacity-50"
+                        >
+                            Charger plus
+                        </button>
+                    )}
+
+                    <AdminPagesTable pages={stats.adminPages ?? []} />
                 </div>
             )}
 
-            {/* TAB CONTENT: ADOPTION RÉELLE DES MODULES (D-2bis) */}
-            {telemetryTab === "adoption" && <TelemetryAdoptionPanel product={initialProduct} />}
-
-            {/* TAB CONTENT: RÉTENTION & GUILDES À RELANCER (D-2bis) */}
-            {telemetryTab === "retention" && <TelemetryRetentionPanel product={initialProduct} />}
-
-            {/* TAB CONTENT: SITE PUBLIC (partie externe, compteur anonyme) */}
-            {telemetryTab === "public" && <TelemetryPublicPanel stats={initialPublic} />}
-
-            {/* TAB CONTENT: ACTIVATION FUNNEL */}
             {telemetryTab === "funnel" && (
-                <div className="space-y-8 animate-in fade-in duration-200">
-                    <div className="p-8 rounded-[2rem] border border-border bg-surface shadow-sm">
-                        <div className="space-y-1 mb-8">
-                            <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-amber-500" />
-                                Entonnoir d'Activation des Joueurs (Funnel)
-                            </h3>
-                            <p className="text-muted-foreground text-caption font-medium">
-                                Chaque marche mesure une population différente (comptes, profils configurés, Dofus
-                                suivis, membres actifs du journal d&apos;audit) : elles ne sont pas strictement
-                                imbriquées. Un écart est donc signalé « population non incluse » au lieu d&apos;être
-                                converti en pourcentage de perte.
-                            </p>
-                        </div>
-
-                        {/* Funnel Steps Visualization */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {stats.activationFunnel?.map((step: any, index: number) => {
-                                return (
-                                    <div key={step.step} className="p-6 rounded-3xl bg-elevated/60 border border-border flex flex-col justify-between gap-4">
-                                        <div className="flex items-center justify-between">
-                                            <span className="w-7 h-7 rounded-xl bg-accent-soft text-accent flex items-center justify-center font-black text-xs">
-                                                {index + 1}
-                                            </span>
-                                            {index > 0 && step.exceedsPrevious && (
-                                                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                                    population non incluse
-                                                </span>
-                                            )}
-                                            {index > 0 && !step.exceedsPrevious && (
-                                                <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                                                    -{step.dropoffRate}% perte
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <span className="text-caption font-bold text-muted-foreground uppercase">{step.step}</span>
-                                            <div className="text-3xl font-black text-foreground">{step.count.toLocaleString()}</div>
-                                        </div>
-
-                                        <div className="space-y-1.5 pt-2 border-t border-border/60">
-                                            <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
-                                                <span>Part de la 1re marche</span>
-                                                <span className="text-foreground">{step.conversionRate}%</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-surface rounded-full overflow-hidden">
-                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, Math.max(0, step.conversionRate))}%` }} />
-                                            </div>
-                                        </div>
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-border bg-surface p-4">
+                        <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <Zap className="h-4 w-4 text-accent" />
+                            Entonnoir d'activation
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Chaque marche mesure une population différente (comptes, profils configurés, Dofus suivis,
+                            membres actifs) : un écart est signalé « population non incluse ».
+                        </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {(stats.activationFunnel ?? []).map((step, index) => (
+                            <div key={step.step} className="rounded-xl border border-border bg-surface p-4">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent">
+                                        {index + 1}
+                                    </span>
+                                    {index > 0 && (step.exceedsPrevious ? (
+                                        <span className="rounded-md border border-warning/20 bg-warning/10 px-2 py-0.5 text-xs text-warning">
+                                            Population non incluse
+                                        </span>
+                                    ) : (
+                                        <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-0.5 text-xs text-danger">
+                                            -{step.dropoffRate} % de perte
+                                        </span>
+                                    ))}
+                                </div>
+                                <p className="mt-3 text-xs text-muted-foreground">{step.step}</p>
+                                <p className="mt-1 text-2xl font-semibold text-foreground">
+                                    {step.count.toLocaleString("fr-FR")}
+                                </p>
+                                <div className="mt-3">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>Part de la 1re marche</span>
+                                        <span className="text-foreground">{step.conversionRate} %</span>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-elevated">
+                                        <div
+                                            className="h-full rounded-full bg-accent"
+                                            style={{ width: `${Math.min(100, Math.max(0, step.conversionRate))}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
+            {telemetryTab === "adoption" && <TelemetryAdoptionPanel product={initialProduct} />}
+            {telemetryTab === "retention" && <TelemetryRetentionPanel product={initialProduct} />}
+            {telemetryTab === "public" && <TelemetryPublicPanel stats={initialPublic} />}
+        </div>
+    );
+}
+
+function AdminPagesTable({ pages }: { pages: Array<{ path: string; count: number; uniqueUsers: number }> }) {
+    if (pages.length === 0) return null;
+    return (
+        <div className="rounded-xl border border-border bg-surface p-4">
+            <h3 className="text-sm font-medium text-foreground">Pages admin les plus visitées (7 j)</h3>
+            <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                    <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                            <th className="py-2 pr-3 font-medium">Page</th>
+                            <th className="py-2 pr-3 text-right font-medium">Vues</th>
+                            <th className="py-2 text-right font-medium">Membres</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {pages.map((page) => (
+                            <tr key={page.path} className="border-b border-border/60 last:border-0">
+                                <td className="py-2 pr-3">
+                                    <code className="break-all font-mono text-xs text-foreground">{page.path}</code>
+                                </td>
+                                <td className="py-2 pr-3 text-right text-muted-foreground">{page.count}</td>
+                                <td className="py-2 text-right text-muted-foreground">{page.uniqueUsers}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

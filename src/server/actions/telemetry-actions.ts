@@ -1,6 +1,8 @@
 "use server";
 import { logger } from "@/lib/logger";
-import { resolveModule, sanitizeTelemetryDetails } from "@/lib/telemetry/normalize";
+import { normalizePathPattern, resolveModule, sanitizeTelemetryDetails } from "@/lib/telemetry/normalize";
+import { resolveTelemetryGuildScope } from "@/lib/telemetry/guild-scope";
+import { buildTelemetrySurfaceWhere, classifyTelemetrySurface } from "@/lib/telemetry/surface";
 import { buildFunnel, deriveGuildHealth, splitEngagement } from "@/lib/telemetry/aggregate";
 
 import { auth } from "@/auth";
@@ -51,6 +53,46 @@ export async function logTelemetryEvent(rawInput: z.infer<typeof logTelemetrySch
     }
 }
 
+/**
+ * Résultat vide, de la même forme que `getTelemetryStats`, pour une sélection
+ * inconnue : fail-closed **sans requête**. `availableGuilds` reste renseigné pour
+ * que le sélecteur puisse revenir sur une guilde valide.
+ */
+function emptyTelemetryStats(
+    guilds: ReadonlyArray<{ id: string; name: string | null; discordGuildId: string | null }>
+) {
+    return {
+        summary: {
+            totalEvents: 0,
+            pageViews24h: 0,
+            interactions24h: 0,
+            uniqueUsers24h: 0,
+            uniqueUsers7d: 0,
+            guildsActive7d: 0,
+            engagementRatio: 0,
+            averageActionsPerUser: 0,
+        },
+        availableGuilds: guilds.map((g) => ({
+            id: g.id,
+            name: g.name || "Guilde sans nom",
+            discordGuildId: g.discordGuildId,
+        })),
+        moduleStats: [],
+        heatmapData: [],
+        activationFunnel: [],
+        guildHealthList: [],
+        liveEvents: [],
+        topPaths: [],
+        topInteractions: [],
+        engagement: { head: [], tail: null },
+        topUsers: [],
+        guildActivity: [],
+        usersLastSeen: [],
+        chartData: [],
+        adminPages: [],
+    };
+}
+
 export async function getTelemetryStats(filterGuildId?: string) {
     try {
         const isAdmin = await isSuperAdmin();
@@ -58,12 +100,27 @@ export async function getTelemetryStats(filterGuildId?: string) {
             throw new Error("Unauthorized: Super-admin access required");
         }
 
+        // Fail-closed : la sélection est résolue dans `GuildConfig` (id interne ou
+        // snowflake), jamais un `where` sur la valeur brute du client. `none` ⇒
+        // résultat vide, sans aucune requête d'agrégat.
+        const guilds = await db.guildConfig.findMany({
+            select: { id: true, name: true, discordGuildId: true },
+        });
+        const scope = resolveTelemetryGuildScope(filterGuildId ?? null, guilds);
+        if (scope.kind === "none") {
+            return emptyTelemetryStats(guilds);
+        }
+        const selectedGuild = filterGuildId
+            ? guilds.find((g) => g.id === filterGuildId || g.discordGuildId === filterGuildId) ?? null
+            : null;
+        const internalGuildId = selectedGuild?.id ?? null;
+
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        // Build optional guild-scoped where clause
-        const guildWhere = filterGuildId ? { guildId: filterGuildId } : undefined;
+        // `scope.ids` porte l'id interne ET le snowflake : les événements stockent l'un ou l'autre.
+        const guildWhere = scope.kind === "all" ? undefined : { guildId: { in: scope.ids } };
         const withGuild = (extra: object) => guildWhere ? { ...guildWhere, ...extra } : extra;
 
         const [
@@ -77,7 +134,6 @@ export async function getTelemetryStats(filterGuildId?: string) {
             topPathsRaw,
             topInteractionsRaw,
             topUsersRaw,
-            guildConfigs,
         ] = await Promise.all([
             // Total stats (guild-scoped if filter active)
             dbAny.telemetryEvent.count({ where: guildWhere }),
@@ -145,20 +201,12 @@ export async function getTelemetryStats(filterGuildId?: string) {
                 _count: true,
                 orderBy: { _count: { userId: "desc" } },
                 take: 50
-            }),
-            // Fetch all guild configs to map names
-            dbAny.guildConfig.findMany({
-                select: {
-                    id: true,
-                    name: true,
-                    discordGuildId: true,
-                }
             })
         ]);
 
         // Build guild name lookup — both by internal CUID and by Discord Guild ID
         const guildMap = new Map<string, string>();
-        guildConfigs.forEach((g: any) => {
+        guilds.forEach((g: any) => {
             if (g.id) guildMap.set(g.id, g.name);
             if (g.discordGuildId) guildMap.set(g.discordGuildId, g.name);
         });
@@ -390,7 +438,7 @@ export async function getTelemetryStats(filterGuildId?: string) {
         }));
 
         // Build availableGuilds for the selector in the dashboard
-        const availableGuilds = guildConfigs.map((g: any) => ({
+        const availableGuilds = guilds.map((g: any) => ({
             id: g.id,
             name: g.name || "Guilde sans nom",
             discordGuildId: g.discordGuildId
@@ -401,21 +449,21 @@ export async function getTelemetryStats(filterGuildId?: string) {
         // (`TelemetryEvent.userId`) ne sont **pas** imbriqués. On le signale (`exceedsPrevious`)
         // au lieu de fabriquer un pourcentage négatif (cf. `buildFunnel`, règle pure testée).
         const [totalAccountsCount, totalProfilesCount, activeQuestsUsersCount] = await Promise.all([
-            filterGuildId
+            internalGuildId
                 ? db.userProfile
-                    .groupBy({ by: ["userId"], where: { guildId: filterGuildId }, _count: true })
+                    .groupBy({ by: ["userId"], where: { guildId: internalGuildId }, _count: true })
                     .then((r: unknown[]) => r.length)
                 : db.user.count(),
-            db.userProfile.count({ where: filterGuildId ? { guildId: filterGuildId } : undefined }),
+            db.userProfile.count({ where: internalGuildId ? { guildId: internalGuildId } : undefined }),
             dbAny.playerDofusProgress.groupBy({
                 by: ["profileId"],
-                where: filterGuildId ? { guildId: filterGuildId } : undefined,
+                where: internalGuildId ? { guildId: internalGuildId } : undefined,
                 _count: true
             }).then((r: unknown[]) => r.length).catch(() => 0)
         ]);
 
         const activationFunnel = buildFunnel([
-            { step: filterGuildId ? "Comptes rattachés à la guilde" : "Comptes créés", count: totalAccountsCount },
+            { step: internalGuildId ? "Comptes rattachés à la guilde" : "Comptes créés", count: totalAccountsCount },
             { 
                 step: "Profils configurés",
                 count: totalProfilesCount,
@@ -434,7 +482,7 @@ export async function getTelemetryStats(filterGuildId?: string) {
         // Statut et score **dérivés de la distribution observée** (quartiles du classement 7 j),
         // sans seuil inventé : règle pure et testée dans `deriveGuildHealth`
         // (`tests/unit/telemetry-aggregate.test.ts`). Le score est un rang centile, pas une note.
-        const guildHealthList = deriveGuildHealth(guildConfigs.map((g: any) => ({
+        const guildHealthList = deriveGuildHealth(guilds.map((g: any) => ({
             id: g.id,
             discordGuildId: g.discordGuildId,
             name: g.name || "Guilde sans nom",
@@ -445,6 +493,25 @@ export async function getTelemetryStats(filterGuildId?: string) {
             elementId: i.elementId || "unknown",
             count: i._count
         }));
+
+        // Pages admin les plus visitées (7 j) — motif normalisé + membres distincts.
+        const adminPagesRaw = await dbAny.telemetryEvent.groupBy({
+            by: ["path", "userId"],
+            where: withGuild({ createdAt: { gte: sevenDaysAgo }, path: { contains: "/admin" } }),
+            _count: { id: true },
+        });
+        const adminPagesMap = new Map<string, { count: number; users: Set<string> }>();
+        adminPagesRaw.forEach((row: any) => {
+            const pattern = normalizePathPattern(row.path);
+            const entry = adminPagesMap.get(pattern) ?? { count: 0, users: new Set<string>() };
+            entry.count += row._count?.id ?? 0;
+            if (row.userId) entry.users.add(row.userId);
+            adminPagesMap.set(pattern, entry);
+        });
+        const adminPages = Array.from(adminPagesMap.entries())
+            .map(([path, data]) => ({ path, count: data.count, uniqueUsers: data.users.size }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
 
         return {
             summary: {
@@ -478,7 +545,7 @@ export async function getTelemetryStats(filterGuildId?: string) {
                     path: e.path,
                     eventType: e.eventType,
                     elementId: e.elementId,
-                    details: e.details,
+                    details: sanitizeTelemetryDetails(e.details),
                     createdAt: e.createdAt.toISOString()
                 };
             }),
@@ -493,11 +560,130 @@ export async function getTelemetryStats(filterGuildId?: string) {
             topUsers,
             guildActivity,
             usersLastSeen,
-            chartData
+            chartData,
+            adminPages
         };
     } catch (err) {
         logger.error("[getTelemetryStats Error]:", err);
         throw err;
+    }
+}
+
+const liveEventsSchema = z.object({
+    guildId: z.string().trim().max(64).optional().nullable(),
+    surface: z.enum(["ADMIN", "MEMBER", "GOD", "PUBLIC"]).optional(),
+    eventType: z.enum(["PAGE_VIEW", "INTERACTION"]).optional(),
+    query: z.string().trim().max(120).optional(),
+    cursor: z.string().trim().max(64).optional().nullable(),
+    limit: z.number().int().min(1).max(200).optional(),
+});
+
+/**
+ * Flux de télémétrie filtré **côté serveur** : super-admin, Zod borné, cursor.
+ *
+ * Le direct et l'agrégat sont séparés : cet appel ne recharge que des événements
+ * (une requête bornée à `limit + 1`), jamais la grappe d'agrégats. La surface est
+ * classée par la règle pure `classifyTelemetrySurface` ; les détails sont
+ * re-filtrés par `sanitizeTelemetryDetails` (aucune empreinte ne repart au client).
+ */
+export async function getTelemetryLiveEvents(input: {
+    guildId?: string | null;
+    surface?: "ADMIN" | "MEMBER" | "GOD" | "PUBLIC";
+    eventType?: "PAGE_VIEW" | "INTERACTION";
+    query?: string;
+    cursor?: string | null;
+    limit?: number;
+} = {}) {
+    try {
+        if (!(await isSuperAdmin())) {
+            return { success: false as const, error: "Super-admin requis" };
+        }
+
+        const parsed = liveEventsSchema.safeParse(input);
+        if (!parsed.success) {
+            return { success: false as const, error: "Paramètres invalides" };
+        }
+        const { guildId, surface, eventType, query, cursor, limit: rawLimit } = parsed.data;
+        const limit = rawLimit ?? 50;
+
+        const guilds = await db.guildConfig.findMany({
+            select: { id: true, name: true, discordGuildId: true },
+        });
+        const scope = resolveTelemetryGuildScope(guildId ?? null, guilds);
+        if (scope.kind === "none") {
+            return { success: true as const, data: { events: [], nextCursor: null } };
+        }
+
+        const where: Record<string, unknown> = {};
+        if (scope.kind === "guild") where.guildId = { in: scope.ids };
+        if (eventType) where.eventType = eventType;
+        if (surface) Object.assign(where, buildTelemetrySurfaceWhere(surface));
+
+        const search = query?.trim();
+        if (search) {
+            const lower = search.toLowerCase();
+            const matchingGuildIds = guilds
+                .filter((g) => (g.name || "").toLowerCase().includes(lower))
+                .flatMap((g) => [g.id, g.discordGuildId])
+                .filter((id): id is string => Boolean(id));
+            where.OR = [
+                { userName: { contains: search, mode: "insensitive" } },
+                { path: { contains: search, mode: "insensitive" } },
+                { elementId: { contains: search, mode: "insensitive" } },
+                ...(matchingGuildIds.length > 0 ? [{ guildId: { in: matchingGuildIds } }] : []),
+            ];
+        }
+
+        const rows = await dbAny.telemetryEvent.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: limit + 1, // +1 : savoir s'il reste une page
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            select: {
+                id: true,
+                userId: true,
+                userName: true,
+                guildId: true,
+                path: true,
+                eventType: true,
+                elementId: true,
+                details: true,
+                createdAt: true,
+            },
+        });
+
+        const hasMore = rows.length > limit;
+        const page = hasMore ? rows.slice(0, limit) : rows;
+        const guildMap = new Map<string, string>();
+        guilds.forEach((g) => {
+            if (g.id) guildMap.set(g.id, g.name || "Guilde sans nom");
+            if (g.discordGuildId) guildMap.set(g.discordGuildId, g.name || "Guilde sans nom");
+        });
+
+        const events = page.map((event: any) => ({
+            id: event.id,
+            userId: event.userId,
+            userName: event.userName,
+            guildId: event.guildId || null,
+            guildName: event.guildId ? guildMap.get(event.guildId) ?? "Guilde inconnue" : "Sans guilde",
+            path: event.path,
+            surface: classifyTelemetrySurface(event.path),
+            eventType: event.eventType,
+            elementId: event.elementId || null,
+            details: sanitizeTelemetryDetails(event.details),
+            createdAt: event.createdAt.toISOString(),
+        }));
+
+        return {
+            success: true as const,
+            data: {
+                events,
+                nextCursor: hasMore && events.length > 0 ? events[events.length - 1].id : null,
+            },
+        };
+    } catch (err) {
+        logger.error("[getTelemetryLiveEvents Error]:", err);
+        return { success: false as const, error: "Erreur interne" };
     }
 }
 
@@ -509,7 +695,21 @@ export async function exportTelemetryDataAction(filterGuildId?: string, format: 
         const isAdmin = await isSuperAdmin();
         if (!isAdmin) return { success: false, error: "Unauthorized" };
 
-        const where = filterGuildId ? { guildId: filterGuildId } : undefined;
+        // Même règle que la lecture : la sélection est résolue dans les deux espaces,
+        // et une guilde inconnue exporte un fichier vide (fail-closed, aucune requête).
+        const guilds = await db.guildConfig.findMany({
+            select: { id: true, discordGuildId: true },
+        });
+        const scope = resolveTelemetryGuildScope(filterGuildId ?? null, guilds);
+        if (scope.kind === "none") {
+            return {
+                success: true,
+                data: format === "json" ? "[]" : "",
+                mimeType: format === "json" ? "application/json" : "text/csv",
+                fileName: `sigilos-telemetry-${new Date().toISOString().slice(0, 10)}.${format}`,
+            };
+        }
+        const where = scope.kind === "all" ? undefined : { guildId: { in: scope.ids } };
         const events = await dbAny.telemetryEvent.findMany({
             where,
             orderBy: { createdAt: "desc" },

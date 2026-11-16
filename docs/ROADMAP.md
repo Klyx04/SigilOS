@@ -92,7 +92,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
 | A | `retention-logs` | Purge `TelemetryEvent` **90 j** + `ServiceActivityLog` **365 j**, branchée sur `cleanup-logs` **et** le janitor ; compteurs dans God « Stockage » | **livré le 16/11/2026** : policy + core, wiring `cleanup-logs`/janitor, compteurs God « Stockage » (35 tests ciblés) | — (mesure des compteurs avant/après la 1ʳᵉ passe) | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
-| B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | filtre **cassé** (0 ligne) · chemin tronqué · **72** motifs · 100 événements plafonnés · UA périmé affiché | B1 → B5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
+| B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | **livré le 16/11/2026** : portée CUID/snowflake résolue côté serveur, flux serveur filtré + paginé, chemin complet copiable, langue, **0 motif** de slop (46 mesurés) | — | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 | C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | `getPlatformActivityStats` charge **tous** les `User` + `AuditLog` 30 j ; 10 counts/5 s par onglet ; 56 + 102 + 40 motifs | C1 → C5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)

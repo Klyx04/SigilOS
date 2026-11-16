@@ -126,6 +126,18 @@ describe("payloads Discord dérivés du catalogue", () => {
         }
     });
 
+    it("/legendaire borne la saisie de l'objet (`max_length`, Discord)", () => {
+        const payload = buildDiscordCommandPayloads().find((entry) => entry.name === "legendaire");
+        expect(payload?.options).toHaveLength(1);
+        expect(payload?.options?.[0]).toMatchObject({
+            name: "item",
+            type: 3,
+            required: true,
+            autocomplete: true,
+            max_length: 100,
+        });
+    });
+
     it("valider-recrue ne garde que l'option « membre »", () => {
         const payload = buildDiscordCommandPayloads().find((entry) => entry.name === "valider-recrue");
         expect(payload?.options?.map((option) => option.name)).toEqual(["membre"]);

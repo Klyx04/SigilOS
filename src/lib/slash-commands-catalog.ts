@@ -86,6 +86,13 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
         defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
     },
     {
+        name: "legendaire",
+        description: "Trouve les artisans capables de fabriquer un objet légendaire",
+        usage: "/legendaire <item>",
+        category: "COMMUNAUTE",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
         name: "valider-recrue",
         description: "Staff — complète la ligne registre d'une recrue (pseudo Dofus, tag Ankama, recruteur, arrivée)",
         usage: "/valider-recrue @membre [pseudo-dofus] [tag-ankama] [recruteur] [arrivee] [ajouter-role] [retirer-role]",

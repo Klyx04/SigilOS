@@ -36,11 +36,28 @@ export {
     type TicketChannelNameVars,
 } from "./channel-name-format";
 
+import {
+    DISCORD_DESCRIPTION_MAX,
+    DISCORD_FIELD_NAME_MAX,
+    DISCORD_FIELD_VALUE_MAX,
+    DISCORD_TITLE_MAX,
+    truncate,
+} from "@/lib/discord/embed-limits";
+
+/**
+ * Limites Discord : **source unique** dans `src/lib/discord/embed-limits.ts`
+ * (partagée avec les commandes slash). Réexport historique pour les appelants.
+ */
+export {
+    DISCORD_DESCRIPTION_MAX,
+    DISCORD_FIELD_NAME_MAX,
+    DISCORD_FIELD_VALUE_MAX,
+    DISCORD_TITLE_MAX,
+    truncate,
+} from "@/lib/discord/embed-limits";
+
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
 export const DISCORD_MAX_ROWS = 5;
-export const DISCORD_TITLE_MAX = 256;
-export const DISCORD_DESCRIPTION_MAX = 4096;
-export const DISCORD_FIELD_VALUE_MAX = 1024;
 
 /**
  * Neutralise les mentions d'un contenu fourni par un membre : une réponse de
@@ -53,13 +70,6 @@ export function neutralizeMentions(text: string | null | undefined): string {
         .replace(/<@!?(\d{5,})>/g, "@membre")
         .replace(/<@&(\d{5,})>/g, "@rôle")
         .replace(/<#(\d{5,})>/g, "#salon");
-}
-
-/** Tronque proprement (jamais une coupe muette). */
-export function truncate(text: string, max: number): string {
-    const value = String(text ?? "");
-    if (value.length <= max) return value;
-    return `${value.slice(0, Math.max(0, max - 1))}…`;
 }
 
 /** Texte destiné à un embed : mentions neutralisées puis borné. */

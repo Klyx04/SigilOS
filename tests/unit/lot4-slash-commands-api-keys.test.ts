@@ -115,9 +115,9 @@ beforeEach(() => {
 });
 
 describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
-    it("should have the 6 kept slash commands configured in the catalog (+ staff valider-recrue)", () => {
+    it("should have the 7 kept slash commands configured in the catalog (+ staff valider-recrue)", () => {
         const names = SLASH_COMMANDS_CATALOG.map(c => c.name);
-        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "valider-recrue"]);
+        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "legendaire", "valider-recrue"]);
     });
 
     // Budget explicite : ce cas paie l'**import** du graphe serveur (user-actions, Prisma,

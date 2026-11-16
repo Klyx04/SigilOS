@@ -8,6 +8,14 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
+import {
+    DISCORD_DESCRIPTION_MAX,
+    DISCORD_FIELD_NAME_MAX,
+    DISCORD_FIELD_VALUE_MAX,
+    DISCORD_TITLE_MAX,
+    truncate,
+} from "@/lib/discord/embed-limits";
+import { formatCrafterList, type LegendaryCrafter } from "@/lib/discord/legendary-crafters";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
@@ -3496,6 +3504,37 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            if (commandName === "legendaire" && focusedOption?.name === "item") {
+                // `focusedOption.value` est une chaîne pour une option type 3 : on le
+                // vérifie quand même (un client peut envoyer un nombre), puis on borne
+                // la lecture. Le filtre reste en JS : `normSearch` ignore les accents,
+                // ce que Postgres `contains` ne sait pas faire — la table est un
+                // référentiel de jeu borné.
+                const query = normSearch(
+                    typeof focusedOption.value === "string" ? focusedOption.value : ""
+                );
+                const items = await db.legendaryItem.findMany({
+                    select: { name: true, category: true, jobRequired: true },
+                    orderBy: { name: "asc" },
+                    take: 200,
+                });
+                const choices = items
+                    .filter(
+                        (it) =>
+                            !query ||
+                            normSearch(it.name).includes(query) ||
+                            normSearch(it.category).includes(query) ||
+                            normSearch(it.jobRequired).includes(query)
+                    )
+                    .slice(0, 25)
+                    .map((it) => ({
+                        name: `${it.name} (${it.category} • ${it.jobRequired})`.slice(0, 100),
+                        value: it.name.slice(0, 100),
+                    }));
+
+                return NextResponse.json({ type: 8, data: { choices } });
+            }
+
             // Default empty autocomplete for unhandled options
             return NextResponse.json({ type: 8, data: { choices: [] } });
         }
@@ -4139,6 +4178,221 @@ export async function POST(request: NextRequest) {
                         }],
                         flags: 0
                     }
+                });
+            }
+
+            // ── /legendaire ───────────────────────────────────────────
+            if (commandName === "legendaire") {
+                // Une option texte Discord peut porter jusqu'à 6000 caractères : on borne
+                // avant de l'utiliser, car la valeur est renvoyée dans le message d'erreur.
+                const rawItemValue = payload.data?.options?.find((o: any) => o.name === "item")?.value;
+                const rawItem = typeof rawItemValue === "string" ? rawItemValue.trim().slice(0, 100) : "";
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!rawItem) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "✨ Utilise `/legendaire item:Mériana` pour trouver qui peut fabriquer un objet légendaire !",
+                            flags: 64,
+                        },
+                    });
+                }
+
+                if (!guild_id) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "❌ Cette commande doit être utilisée dans un serveur Discord.",
+                            flags: 64,
+                        },
+                    });
+                }
+
+                const guildConfig = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guild_id },
+                    select: { id: true, name: true },
+                });
+                if (!guildConfig) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "❌ Cette guilde n'est pas enregistrée sur SigilOS.",
+                            flags: 64,
+                        },
+                    });
+                }
+
+                // 1. Recherche de l'objet légendaire
+                const allItems = await db.legendaryItem.findMany({
+                    select: {
+                        id: true,
+                        name: true,
+                        level: true,
+                        category: true,
+                        jobRequired: true,
+                        passiveName: true,
+                        passiveDesc: true,
+                        imageUrl: true,
+                    },
+                });
+
+                const q = normSearch(rawItem);
+                const item =
+                    allItems.find((it) => normSearch(it.name) === q) ??
+                    allItems.find((it) => normSearch(it.name).includes(q)) ??
+                    allItems.find((it) => q.includes(normSearch(it.name)));
+
+                if (!item) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: `❌ Objet légendaire « ${rawItem} » introuvable.\n👉 Utilise l'autocomplétion pour choisir parmi les objets existants (ex: *Clairvoyance de Mériana*, *Pestilence de Corruption*…).`,
+                            flags: 64,
+                            // La valeur vient de l'utilisateur : aucune mention ne doit partir.
+                            allowed_mentions: { parse: [] },
+                        },
+                    });
+                }
+
+                // 2. Recherche des profils actifs de la guilde
+                const profiles = await db.userProfile.findMany({
+                    where: { guildId: guildConfig.id, status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        metiers: true,
+                        hasLegendaryPrerequisites: true,
+                        legendaryCrafts: {
+                            where: { id: item.id },
+                            select: { id: true },
+                        },
+                        user: {
+                            select: {
+                                accounts: {
+                                    where: { provider: "discord" },
+                                    select: { providerAccountId: true },
+                                    take: 1,
+                                },
+                            },
+                        },
+                    },
+                });
+
+                const { normalizeMetiers } = await import("@/lib/metiers");
+
+                const eligibleCrafters: LegendaryCrafter[] = [];
+                const missingQuestCrafters: LegendaryCrafter[] = [];
+                const targetJob = normSearch(item.jobRequired);
+
+                for (const p of profiles) {
+                    const normJobList = normalizeMetiers(p.metiers);
+                    const matchingJob = normJobList.find(
+                        (m) => normSearch(m.id) === targetJob || normSearch(m.name) === targetJob
+                    );
+                    const hasJob200 = Boolean(matchingJob && matchingJob.level >= 200);
+                    const hasRelationCraft = p.legendaryCrafts.length > 0;
+
+                    const isCrafter = hasJob200 || hasRelationCraft;
+                    if (!isCrafter) continue;
+
+                    const crafterName = p.pseudoDofus || p.discordNickname || "Membre";
+                    // `providerAccountId` = flocon Discord : sans lui, `<@cuid>` ne
+                    // mentionne personne (piège mesuré sur les tickets).
+                    const discordId = p.user?.accounts?.[0]?.providerAccountId;
+
+                    if (p.hasLegendaryPrerequisites) {
+                        eligibleCrafters.push({ name: crafterName, discordId });
+                    } else {
+                        missingQuestCrafters.push({ name: crafterName, discordId });
+                    }
+                }
+
+                eligibleCrafters.sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+                missingQuestCrafters.sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+
+                const fullImageUrl = item.imageUrl
+                    ? (item.imageUrl.startsWith("http://") || item.imageUrl.startsWith("https://")
+                        ? item.imageUrl
+                        : `${appBaseUrl}${item.imageUrl.startsWith("/") ? "" : "/"}${item.imageUrl}`)
+                    : undefined;
+
+                const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+                    {
+                        name: "🔨 Métier requis",
+                        value: truncate(`**${item.jobRequired}** (Niv. 200)`, DISCORD_FIELD_VALUE_MAX),
+                        inline: true,
+                    },
+                    { name: "📦 Catégorie", value: truncate(item.category, DISCORD_FIELD_VALUE_MAX), inline: true },
+                    { name: "⭐ Niveau", value: `Niv. ${item.level}`, inline: true },
+                ];
+
+                if (item.passiveName) {
+                    fields.push({
+                        name: truncate(`🔮 Effet passif — ${item.passiveName}`, DISCORD_FIELD_NAME_MAX),
+                        value: item.passiveDesc
+                            ? truncate(item.passiveDesc, DISCORD_FIELD_VALUE_MAX)
+                            : "Aucune description",
+                        inline: false,
+                    });
+                }
+
+                // Listes bornées AVANT l'envoi : un champ à 1025 caractères fait refuser
+                // l'interaction entière (Discord répond 400 → « pas de réponse »).
+                if (eligibleCrafters.length > 0) {
+                    fields.push({
+                        name: truncate(`✅ Artisans éligibles (${eligibleCrafters.length})`, DISCORD_FIELD_NAME_MAX),
+                        value: formatCrafterList(eligibleCrafters, {
+                            maxLines: 25,
+                            overflow: (remaining) => `... et ${remaining} autre(s) artisan(s)`,
+                        }),
+                        inline: false,
+                    });
+                } else {
+                    fields.push({
+                        name: "✅ Artisans éligibles",
+                        value: "Aucun membre n'est actuellement éligible (*Métier 200 + Quête Animaux Fantastiques validée*).",
+                        inline: false,
+                    });
+                }
+
+                // Mention des artisans ayant le métier 200 mais pas les prérequis de quête
+                if (missingQuestCrafters.length > 0) {
+                    fields.push({
+                        name: truncate(
+                            `⚠️ Métier 200 (quête manquante ou non cochée) (${missingQuestCrafters.length})`,
+                            DISCORD_FIELD_NAME_MAX
+                        ),
+                        value: formatCrafterList(missingQuestCrafters, {
+                            maxLines: 10,
+                            overflow: (remaining) => `... et ${remaining} autre(s)`,
+                            footer: "*👉 À valider sur le profil SigilOS une fois la quête terminée.*",
+                        }),
+                        inline: false,
+                    });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [
+                            {
+                                title: truncate(`✨ ${item.name}`, DISCORD_TITLE_MAX),
+                                description: truncate(
+                                    `Artisans disponibles sur **${guildConfig.name}** pour fabriquer cet objet.`,
+                                    DISCORD_DESCRIPTION_MAX
+                                ),
+                                color: eligibleCrafters.length > 0 ? 0xf59e0b : 0x64748b,
+                                fields,
+                                thumbnail: fullImageUrl ? { url: fullImageUrl } : undefined,
+                                url: `${appBaseUrl}/dashboard/${guild_id}/members`,
+                                footer: { text: "SigilOS • Artisanat Légendaire" },
+                                timestamp: new Date().toISOString(),
+                            },
+                        ],
+                        flags: 0,
+                    },
                 });
             }
 

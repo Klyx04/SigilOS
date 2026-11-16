@@ -49,20 +49,24 @@ ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
 ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 # ── Source maps → Sentry : c'est CE jeton qui rend les stack traces LISIBLES ────────
 # Le plugin n'uploade QUE si le jeton est présent : sans lui, le bloc `sourcemaps {}`
-# de `next.config.ts` est **inerte** et Sentry ne reçoit que des traces MINIFIÉES
-# (mesure du 11/10/2026 : `SENTRY_AUTH_TOKEN` absent du Dockerfile ET du workflow).
-# ⚠️ `ARG` (jamais `ENV`) et dans le stage `builder` uniquement : le stage `runner`
-# ne copie pas cette couche ⇒ le jeton n'existe **pas** dans l'image livrée.
-# Secret à poser : GitHub → Settings → Secrets and variables → Actions.
-ARG SENTRY_AUTH_TOKEN
-
+# de `next.config.ts` est **inerte** et Sentry ne reçoit que des traces MINIFIÉES.
+#
+# ⚠️ Le jeton n'est **jamais** une variable d'environnement de build : il est monté
+# par BuildKit **uniquement** pendant le `RUN` ci-dessous (`--mount=type=secret`).
+# Il n'apparaît donc ni dans une couche, ni dans le cache (`mode=max`), ni dans
+# l'image livrée. Un build local sans secret reste possible (`required=false`).
+# Secret GitHub : Settings → Secrets and variables → Actions → `SENTRY_AUTH_TOKEN`.
+#
 # Plafond mémoire du build Next : la phase « Running TypeScript » de `next build`
 # (type-check complet du projet + client Prisma généré) atteint ~2 Go → OOM avec le
 # heap Node par défaut (~2 Go), y compris sur le runner GitHub de deploy.yml.
 # 4 Go = marge confortable (runner/VPS ≥ 8 Go). Le stage `runner` n'en hérite pas.
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
-RUN \
+RUN --mount=type=secret,id=sentry_auth_token,required=false \
+  if [ -f /run/secrets/sentry_auth_token ]; then \
+    export SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token)"; \
+  fi; \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \

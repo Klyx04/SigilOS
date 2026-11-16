@@ -11,9 +11,11 @@ name: Build & Push Images
 # Prérequis :
 #  - Secrets GitHub : GHCR_PAT (Personal Access Token avec
 #    write:packages) ou utiliser GITHUB_TOKEN (défaut).
-#  - Secrets du build : NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
-#    SENTRY_AUTH_TOKEN (upload des source maps → stack traces LISIBLES dans Sentry ;
-#    sans lui le bloc `sourcemaps {}` de `next.config.ts` est inerte).
+#  - Secrets du build : NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN.
+#    SENTRY_AUTH_TOKEN est un **secret BuildKit** (`--secret`, jamais un build-arg) :
+#    il n'entre ni dans une couche, ni dans le cache, ni dans l'image livrée.
+#    Sans lui, le bloc `sourcemaps {}` de `next.config.ts` est inerte et Sentry
+#    ne reçoit que des traces minifiées.
 #    (définis dans Settings > Secrets and variables > Actions).
 # ─────────────────────────────────────────────────────────────
 on:
@@ -111,6 +113,10 @@ jobs:
       # → on espace les images (sleep) et on RÉESSAIE les push avec backoff.
       # ───────────────────────────────────────────────────
       - name: Build & Push images
+        env:
+          # Secret BuildKit : lu par `--secret id=sentry_auth_token,env=…` ci-dessous,
+          # monté uniquement pendant le `RUN npm run build` du Dockerfile.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           SUFFIX=${{ steps.env.outputs.suffix }}
           APP_URL=${{ steps.env.outputs.app_url }}
@@ -154,7 +160,7 @@ jobs:
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
               --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
               --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${SENTRY_ENV}" \
-              --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+              --secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
               --target runner \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:${SHA_SHORT}" \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:latest" \

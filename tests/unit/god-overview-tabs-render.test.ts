@@ -1,13 +1,10 @@
 /**
- * Garde de câblage (lecture source) — **`OverviewTabs` rend ses quatre sections**.
+ * Garde de câblage (lecture source) — **`OverviewTabs` rend ses deux sections**.
  *
- * Régression d'origine (`fbbbc8a8` → corrigée le 28/09/2026, chantier D-2) : les props
- * `stats` et `chart` étaient **déclarées, reçues, passées… et jamais rendues** — l'écran God
- * affichait « 0 » sans qu'aucun test ni aucune erreur ne le signale.
- *
- * Ici on verrouille la **donnée**, pas le style : chaque prop déclarée doit être rendue
- * **une fois et une seule**, et `god/page.tsx` doit continuer à les passer toutes les quatre.
- * Un composant qui « avale » une section casse ce test.
+ * Depuis le lot C (16/11/2026), les sections « Indicateurs plateforme » et « Activité de
+ * la plateforme » sont **supprimées** : le contrat ne porte plus que `communication` et
+ * `worker`. La garde d'origine (`fbbbc8a8`, corrigée le 28/09/2026) reste utile : une prop
+ * déclarée doit être rendue **une fois et une seule**.
  */
 
 import { describe, it, expect } from "vitest";
@@ -33,8 +30,8 @@ function declaredProps(source: string): string[] {
 describe("OverviewTabs — une prop reçue est une prop rendue", () => {
     const props = declaredProps(COMPONENT_CODE);
 
-    it("déclare les quatre sections attendues", () => {
-        expect(props).toEqual(["stats", "chart", "communication", "worker"]);
+    it("déclare les deux sections attendues", () => {
+        expect(props).toEqual(["communication", "worker"]);
     });
 
     it("rend chaque prop exactement une fois", () => {
@@ -44,7 +41,7 @@ describe("OverviewTabs — une prop reçue est une prop rendue", () => {
         }
     });
 
-    it("l'écran God passe bien les quatre props", () => {
+    it("l'écran God passe bien les deux props", () => {
         const call = /<OverviewTabs([\s\S]*?)\n\s*\/>/.exec(PAGE_CODE)?.[1] ?? "";
         expect(call, "`<OverviewTabs>` introuvable dans `god/page.tsx`").not.toBe("");
 

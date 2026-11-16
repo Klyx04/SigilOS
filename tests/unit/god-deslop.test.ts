@@ -81,7 +81,9 @@ describe("déslop God — recette de carte unique", () => {
         // (+4 le 16/11/2026, V3 « God visiteurs » : `visitors-panel`, `guild-area-switch`,
         // `god-pagination-links` et `visitor-visibility-reset` — tous consommateurs du kit.
         // Le bouton de réinitialisation est une surface neuve, pas une dette.)
-        const CEILING = 81;
+        // (−2 le 16/11/2026, lot C : `live-stats.tsx` et `activity-chart.tsx` supprimés avec
+        // le flux SSE et les sections « Indicateurs/Activité » de la vue d'ensemble.)
+        const CEILING = 79;
         const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
         expect(godFiles.length).toBeLessThanOrEqual(CEILING);
     });

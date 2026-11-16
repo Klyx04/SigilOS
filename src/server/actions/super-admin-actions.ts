@@ -571,66 +571,7 @@ export async function toggleGuildActive(discordGuildId: string) {
     return updated;
 }
 
-/**
- * Get platform-wide statistics with trends
- * 🔄 R1 — LECTURE compatible scope "guilds".
- */
-export async function getPlatformStats() {
-    if (!(await canGodAccess("guilds")) && !(await isSuperAdmin())) {
-        throw new Error("Unauthorized: God scope required: guilds");
-    }
 
-    // Get current stats
-    const [
-        totalGuildsCount,
-        activeGuildsCount,
-        totalUsersCount,
-        totalProfilesCount,
-        activeProfilesCount,
-        totalMissionsCount
-    ] = await Promise.all([
-        db.guildConfig.count(), // Count actual guilds, not whitelist
-        db.guildConfig.count({ where: { isActive: true } }),
-        db.user.count(),
-        db.userProfile.count(),
-        db.userProfile.count({ where: { status: "ACTIVE" } }),
-        db.mission.count()
-    ]);
-
-    // Get stats from 24h ago for trends
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    const [
-        guildsTrend,
-        usersTrend,
-        missionsTrend,
-        weeklyActiveUsers
-    ] = await Promise.all([
-        db.guildConfig.count({ where: { createdAt: { gte: yesterday } } }),
-        db.user.count({ where: { createdAt: { gte: yesterday } } }),
-        db.mission.count({ where: { createdAt: { gte: yesterday } } }),
-        db.userProfile.count({ where: { lastSeen: { gte: lastWeek }, status: "ACTIVE" } })
-    ]);
-
-    const retentionRate = totalUsersCount > 0 ? (totalProfilesCount / totalUsersCount) * 100 : 0;
-    const density = totalGuildsCount > 0 ? totalProfilesCount / totalGuildsCount : 0;
-
-    return {
-        allowedGuilds: totalGuildsCount, // Renamed for compatibility
-        guildsTrend,
-        activeGuilds: activeGuildsCount,
-        totalUsers: totalUsersCount,
-        usersTrend,
-        totalProfiles: totalProfilesCount,
-        activeProfiles: activeProfilesCount,
-        totalMissions: totalMissionsCount,
-        missionsTrend,
-        weeklyActiveUsers,
-        retentionRate: Math.round(retentionRate),
-        density: Number(density.toFixed(1))
-    };
-}
 
 
 import { redis } from "@/lib/redis";
@@ -996,63 +937,7 @@ export async function getUnauthorizedBotConnections() {
     }
 }
 
-/**
- * Get Platform Activity (Pulse) Stats for Charts
- * Combines new registrations and total audit log activity
- */
-export async function getPlatformActivityStats() {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-    // Fetch new users
-    const users = await db.user.findMany({
-        where: { createdAt: { gte: thirtyDaysAgo } },
-        select: { createdAt: true }
-    });
-
-    // Fetch all audit activity (engagement pulse)
-    const logs = await db.auditLog.findMany({
-        where: { createdAt: { gte: thirtyDaysAgo } },
-        select: { createdAt: true }
-    });
-
-    const statsMap = new Map<string, { users: number; pulse: number }>();
-
-    // Initialize last 30 days
-    for (let i = 0; i < 30; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        d.setHours(0, 0, 0, 0);
-        statsMap.set(d.toISOString().split("T")[0], { users: 0, pulse: 0 });
-    }
-
-    users.forEach((u) => {
-        const dateKey = u.createdAt.toISOString().split("T")[0];
-        if (statsMap.has(dateKey)) {
-            const current = statsMap.get(dateKey)!;
-            statsMap.set(dateKey, { ...current, users: current.users + 1 });
-        }
-    });
-
-    logs.forEach((l) => {
-        const dateKey = l.createdAt.toISOString().split("T")[0];
-        if (statsMap.has(dateKey)) {
-            const current = statsMap.get(dateKey)!;
-            // Normalizing pulse (diving by 10 to keep scale coherent on chart)
-            statsMap.set(dateKey, { ...current, pulse: current.pulse + 1 });
-        }
-    });
-
-    return Array.from(statsMap.entries())
-        .map(([date, data]) => ({
-            date,
-            users: data.users,
-            pulse: Number(data.pulse.toFixed(1))
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date));
-}
 
 /**
  * Force Delete User (Admin Manual Action)

@@ -162,7 +162,7 @@ function MetricCard({ icon: Icon, label, value, hint, percent, tone, badge }: {
             <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
                     <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                    <span className="truncate text-xs font-medium uppercase tracking-wide">{label}</span>
+                    <span className="truncate text-xs font-medium">{label}</span>
                 </div>
                 {badge ? (
                     <span className={cn("shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium", TONE_SOFT[resolvedTone])}>
@@ -234,8 +234,39 @@ export function SystemHealthDashboard() {
 
     useEffect(() => {
         void load("initial");
-        const interval = setInterval(() => void load("refresh"), 30_000);
-        return () => clearInterval(interval);
+
+        // Le polling s'arrête quand l'onglet est masqué : aucune requête d'infra
+        // en arrière-plan. Au retour, on rafraîchit une fois puis on reprend.
+        let interval: ReturnType<typeof setInterval> | null = null;
+
+        const start = () => {
+            if (interval) return;
+            interval = setInterval(() => {
+                if (document.visibilityState === "visible") void load("refresh");
+            }, 30_000);
+        };
+
+        const stop = () => {
+            if (!interval) return;
+            clearInterval(interval);
+            interval = null;
+        };
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void load("refresh");
+                start();
+            } else {
+                stop();
+            }
+        };
+
+        start();
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            stop();
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
     }, [load]);
 
     const cpuPercent = clampPercent(status?.cpu?.usagePercent);
@@ -291,7 +322,7 @@ export function SystemHealthDashboard() {
             {loading && !status ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-hidden>
                     {[0, 1, 2, 3].map((index) => (
-                        <div key={index} className="h-36 animate-pulse rounded-xl border border-border bg-surface" />
+                        <div key={index} className="h-36 rounded-xl border border-border bg-surface" />
                     ))}
                 </div>
             ) : null}
@@ -341,7 +372,7 @@ export function SystemHealthDashboard() {
                                 <table className="w-full text-left text-sm">
                                     <caption className="sr-only">État des services</caption>
                                     <thead>
-                                        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                                        <tr className="border-b border-border text-xs text-muted-foreground">
                                             <th scope="col" className="py-2 pr-3 font-medium">Service</th>
                                             <th scope="col" className="py-2 pr-3 font-medium">État</th>
                                             <th scope="col" className="py-2 font-medium">Détail</th>

@@ -89,7 +89,7 @@ import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonPro
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
-import { toOcrePanelData } from "@/lib/ocre-soul-stones";
+import { OCRE_TOTAL_STEPS, toOcrePanelData } from "@/lib/ocre-soul-stones";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
@@ -1305,9 +1305,9 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
               monsters: ocreMonsters || [],
               questInfo: {
                 currentStep: ocreStats.currentStep ?? 0,
-                // Même constante que `getMyOcreProgress` (questInfo.totalSteps) : la quête
-                // de l'Éternelle Moisson compte 34 étapes côté Metamob.
-                totalSteps: 34,
+                // Même constante que `getMyOcreProgress` (questInfo.totalSteps) et la carte
+                // visiteur : la quête de l'Éternelle Moisson compte 34 étapes.
+                totalSteps: OCRE_TOTAL_STEPS,
                 serverName: ocreStats.serverName,
                 parallelQuests: ocreStats.parallelQuests,
               },

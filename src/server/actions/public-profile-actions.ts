@@ -14,19 +14,19 @@
  *  · aucun secret dans les logs (pas de clé Metamob, pas de snowflake, pas de pseudo).
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z, type ZodError } from "zod";
 import { invalidateCache } from "@/lib/cache";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getPublicAccount, getPublicSession } from "@/server/public-account";
-import { getMetamobMe, verifyMetamobUser, MetamobApiError, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters } from "@/lib/metamob-client";
+import { getMetamobMe, verifyMetamobUser, MetamobApiError, getSelfQuestDetails, getQuestTemplateMonsters, bulkUpdateMonsters, normalizeQuestMonster, type QuestMonster } from "@/lib/metamob-client";
 import { readVisitorMetamob, resolveVisitorOcreSlug } from "@/server/public-metamob";
 import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { publicTradesMatchesCacheKey, publicTradesQuestCacheKey } from "@/lib/public-trades";
 import { redis } from "@/lib/redis";
-import { classifyOcreType } from "@/lib/ocre-soul-stones";
+import { OCRE_TOTAL_STEPS, classifyOcreType, isOcreMonsterNeeded } from "@/lib/ocre-soul-stones";
 import { ORDERS } from "@/lib/dofus-assets";
 import { checkPseudoExistsOnLadder } from "@/server/ladder-pseudo";
 import { fetchLadderSnapshot, type LadderSnapshot } from "@/server/ladder-snapshot";
@@ -1097,6 +1097,12 @@ export async function exportPublicProfile(): Promise<ExportResult> {
  */
 const PUBLIC_OCRE_MONSTERS_MAX = 400;
 
+/**
+ * TTL du cache Next pour une lecture **normale** de la quête : 5 min, le rythme de
+ * rafraîchissement annoncé par la carte visiteur. « Forcer la synchro » passe `revalidate: 0`.
+ */
+const PUBLIC_OCRE_CACHE_SECONDS = 5 * 60;
+
 export type PublicOcreMonster = {
     id: number;
     name: string;
@@ -1221,8 +1227,17 @@ async function loadPublicOcreZones(
     return out;
 }
 
+/**
+ * Traduit une cible Metamob en DTO public.
+ *
+ * `owned` vient de `normalizeQuestMonster` — **jamais** du champ brut : la réponse de quête
+ * de Metamob expose souvent `status` / `want` / `offer` sans `owned`, et l'inférence est la
+ * règle partagée avec l'interne. La lire brute affichait 0 capture au visiteur alors que la
+ * carte interne était à 69 % (mesure du 16/11/2026).
+ */
 function toPublicOcreMonster(
     monster: MetamobQuestMonsterLike,
+    owned: number,
     meta?: ReadonlyMap<string, { type: "boss" | "archimonstre"; zone?: string; subzone?: string }>
 ): PublicOcreMonster | null {
     const id = Number(monster.monster_id ?? monster.id ?? 0);
@@ -1236,7 +1251,7 @@ function toPublicOcreMonster(
     return {
         id,
         name: label.slice(0, 120),
-        owned: Number(monster.owned ?? 0),
+        owned,
         quantity: Number(monster.quantity ?? monster.amount ?? 1),
         levelMin: Number(monster.level_min ?? 0),
         levelMax: Number(monster.level_max ?? 0),
@@ -1248,8 +1263,19 @@ function toPublicOcreMonster(
     };
 }
 
+const publicOcreReadSchema = z
+    .object({
+        /** Vrai = « Forcer la synchro » : lecture réseau, sans cache Next ni Redis. */
+        force: z.boolean().optional(),
+    })
+    .strict();
+
 /** Progression Ocre du visiteur — lecture seule, bornée, sans clé dans la réponse. */
-export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
+export async function getPublicOcreProgress(raw?: unknown): Promise<PublicOcreProgress> {
+    const parsed = publicOcreReadSchema.safeParse(raw ?? {});
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+    const force = parsed.data.force === true;
+
     const account = await getPublicAccount();
     if (!account) return { success: false, error: SESSION_EXPIRED };
 
@@ -1262,10 +1288,17 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
     if (!name) return { success: false, error: "Renseigne ton pseudo Metamob." };
 
     try {
-        const slug = await resolveVisitorOcreSlug(name, key);
+        const slug = await resolveVisitorOcreSlug(name, key, force ? { skipCache: true } : undefined);
         if (!slug) return { success: false, error: "Aucune quête trouvée sur ce compte Metamob." };
 
-        const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
+        const details = await getSelfQuestDetails(name, slug, key, {
+            limit: PUBLIC_OCRE_MONSTERS_MAX,
+            // Sans ces options, « Forcer la synchro » relisait la réponse Next en
+            // cache (`revalidate` par défaut 3600) : le bouton ne forçait rien.
+            ...(force
+                ? { skipCache: true, revalidate: 0 }
+                : { revalidate: PUBLIC_OCRE_CACHE_SECONDS }),
+        });
 
         /**
          * **ISO avec le guide interne** : la nature des cibles vient du template Metamob et les
@@ -1297,15 +1330,34 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
             meta.set(label, { type: meta.get(label)?.type ?? "archimonstre", ...value });
         }
 
-        const monsters = (details.monsters as unknown as MetamobQuestMonsterLike[])
-            .map((monster) => toPublicOcreMonster(monster, meta))
-            .filter((monster): monster is PublicOcreMonster => monster !== null)
+        /**
+         * **Même lecture que l'interne** : `normalizeQuestMonster` déduit `owned` de
+         * `status`/`want`/`offer` et de `parallel_quests`, puis `isOcreMonsterNeeded`
+         * applique la règle commune (possédé ou étape passée). Sans ces deux appels, la
+         * carte visiteur restait à 0 % (mesure du 16/11/2026 : 0/51 et 0/286 à l'externe
+         * contre 42/51 et 191/286 à l'interne).
+         */
+        const mapped = (details.monsters as unknown as MetamobQuestMonsterLike[])
+            .map((monster) => {
+                const normalized = normalizeQuestMonster(
+                    monster as unknown as QuestMonster,
+                    details.parallel_quests ?? 1
+                );
+                const dto = toPublicOcreMonster(monster, normalized.owned, meta);
+                return dto
+                    ? { dto, needed: isOcreMonsterNeeded(normalized, details.current_step) }
+                    : null;
+            })
+            .filter(
+                (entry): entry is { dto: PublicOcreMonster; needed: boolean } => entry !== null
+            )
             .slice(0, PUBLIC_OCRE_MONSTERS_MAX);
 
+        const monsters = mapped.map((entry) => entry.dto);
         const total = details.pagination?.total ?? monsters.length;
-        const captured = monsters.filter((monster) => monster.owned > 0).length;
-        const bosses = monsters.filter((monster) => monster.type === "boss");
-        const archis = monsters.filter((monster) => monster.type === "archimonstre");
+        const captured = mapped.filter((entry) => !entry.needed).length;
+        const bosses = mapped.filter((entry) => entry.dto.type === "boss");
+        const archis = mapped.filter((entry) => entry.dto.type === "archimonstre");
 
         return {
             success: true,
@@ -1314,16 +1366,17 @@ export async function getPublicOcreProgress(): Promise<PublicOcreProgress> {
             serverName: details.server?.name ?? null,
             gameVersion: details.server?.game_version?.name ?? null,
             currentStep: details.current_step ?? 0,
-            stepCount: details.quest_template?.step_count ?? null,
+            // Même total que l'interne (OCRE_TOTAL_STEPS), jamais `step_count` (18).
+            stepCount: OCRE_TOTAL_STEPS,
             total,
             captured,
             progress: total > 0 ? Math.round((captured / total) * 100) : 0,
             bosses: {
-                gathered: bosses.filter((monster) => monster.owned > 0).length,
+                gathered: bosses.filter((entry) => !entry.needed).length,
                 total: bosses.length,
             },
             archis: {
-                gathered: archis.filter((monster) => monster.owned > 0).length,
+                gathered: archis.filter((entry) => !entry.needed).length,
                 total: archis.length,
             },
             monsters,
@@ -1374,7 +1427,7 @@ export async function patchPublicOcreMonster(raw: unknown): Promise<PublicOcrePa
     if (!name) return { success: false, error: "Renseigne ton pseudo Metamob." };
 
     try {
-        const slug = await resolveVisitorOcreSlug(name, key);
+        const slug = await resolveVisitorOcreSlug(name, key, { skipCache: true });
         if (!slug) return { success: false, error: "Quête Metamob introuvable." };
 
         await bulkUpdateMonsters(
@@ -1383,13 +1436,27 @@ export async function patchPublicOcreMonster(raw: unknown): Promise<PublicOcrePa
             { guildApiKey: key }
         );
 
-        // Double cross-check : relecture, et c'est l'API qui fait foi.
-        const details = await getSelfQuestDetails(name, slug, key, { limit: PUBLIC_OCRE_MONSTERS_MAX });
+        // Double cross-check : relecture RÉSEAU (sans cache), et c'est l'API qui fait foi.
+        // Une relecture servie par le cache Next rendrait l'ancienne valeur.
+        const details = await getSelfQuestDetails(name, slug, key, {
+            limit: PUBLIC_OCRE_MONSTERS_MAX,
+            skipCache: true,
+            revalidate: 0,
+        });
         const updated =
             (details.monsters as unknown as MetamobQuestMonsterLike[])
-                .map((monster) => toPublicOcreMonster(monster))
+                .map((monster) => {
+                    const normalized = normalizeQuestMonster(
+                        monster as unknown as QuestMonster,
+                        details.parallel_quests ?? 1
+                    );
+                    return toPublicOcreMonster(monster, normalized.owned);
+                })
                 .find((monster) => monster?.id === parsed.data.monsterId) ?? null;
 
+        // Le cache Next de la quête est tagué par pseudo : on le jette pour que la carte
+        // principale ne relise pas l'état d'avant l'écriture (TTL de lecture : 5 min).
+        revalidateTag(`metamob-user-${name.toLowerCase()}`, "max");
         revalidatePath(PATHS.general);
         return { success: true, monster: updated };
     } catch (error) {

@@ -31,10 +31,12 @@ export function VisitorOcreCard() {
 
     useEffect(() => setMounted(true), []);
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (force = false) => {
         setLoading(true);
         try {
-            const result = await getPublicOcreProgress();
+            // `force` = lecture réseau : le bouton « Forcer la synchro » ne doit pas
+            // relire le cache Next (sinon les chiffres restent figés).
+            const result = await getPublicOcreProgress(force ? { force: true } : undefined);
             setData(result);
             if (result.success) setLastSync(new Date());
         } catch {
@@ -75,7 +77,7 @@ export function VisitorOcreCard() {
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => void refresh()}
+                        onClick={() => void refresh(true)}
                         disabled={loading}
                         aria-label="Forcer la synchronisation"
                     >
@@ -165,7 +167,7 @@ export function VisitorOcreCard() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => void refresh()}
+                            onClick={() => void refresh(true)}
                             disabled={loading}
                             className="h-7 px-2 text-xs text-muted-foreground"
                         >

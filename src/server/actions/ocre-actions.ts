@@ -54,6 +54,7 @@ import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dof
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
 import { getAppBaseUrl } from "@/lib/utils";
+import { OCRE_TOTAL_STEPS, isOcreMonsterNeeded } from "@/lib/ocre-soul-stones";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -744,8 +745,8 @@ export async function getMyOcreProgress(
 
                     finalMonsters.push(norm);
                     cT++;
-                    const isPoss = norm.state !== "MANQUANT";
-                    const isGath = isPoss || (norm.step && firstPage.current_step && norm.step < firstPage.current_step);
+                    // Règle PARTAGÉE avec la carte visiteur : possédé, ou étape déjà passée.
+                    const isGath = !isOcreMonsterNeeded(norm, firstPage.current_step);
                     if (norm.state === "MANQUANT") cM++;
                     else { cP++; if (norm.state === "DOUBLON") cD++; }
                     const tk = norm.type as keyof typeof statsByType;
@@ -753,7 +754,7 @@ export async function getMyOcreProgress(
                 }
 
 
-                const gathered = finalMonsters.filter(m => (m.state !== "MANQUANT") || (m.step && firstPage.current_step && m.step < firstPage.current_step)).length;
+                const gathered = finalMonsters.filter((m) => !isOcreMonsterNeeded(m, firstPage.current_step)).length;
                 const resData: OcreProgressData = {
                     monsters: finalMonsters,
                     stats: { total: cT, manquants: cM, possedes: cP, doublons: cD, progressPercent: cT > 0 ? Math.round((gathered / cT) * 100) : 0, monsters: statsByType.monstre, bosses: statsByType.boss, archis: statsByType.archimonstre, acquired: gathered, remaining: cT - gathered },
@@ -761,7 +762,7 @@ export async function getMyOcreProgress(
                         slug: questSlug!, 
                         characterName: firstPage.character_name || "Dofusien", 
                         currentStep: firstPage.current_step || 0, 
-                        totalSteps: 34, 
+                        totalSteps: OCRE_TOTAL_STEPS,
                         parallelQuests: PQ, 
                         serverName: firstPage.server?.name || "Serveur",
                         trade_mode: firstPage.trade_mode,

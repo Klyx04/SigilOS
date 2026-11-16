@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import * as cheerio from "cheerio";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { safeFetch } from "@/lib/safe-fetch";
+import { hostMatches } from "@/lib/dofusbook-utils";
 
 const SkinSchema = z.object({
     guildId: z.string(),
@@ -33,10 +34,17 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
     // 🔒 SSRF : les trois fetch passent par `safeFetch` (http(s) uniquement, IP privées
     // refusées **pendant** la connexion, redirections revalidées). L'ancien contrôle par
     // sous-chaîne ("barbofus.com") est remplacé par une règle fail-closed.
-    const lowerUrl = url.toLowerCase();
-    
+    // ⚠️ Le choix du provider se fait sur le **hostname parsé** (CodeQL 127/128/129) :
+    // `https://evil.example/?x=barbofus.com` ne doit jamais déclencher le scraper.
+    let host = "";
+    try {
+        host = new URL(url).hostname.toLowerCase();
+    } catch {
+        host = "";
+    }
+
     // 1. Barbofus (Extraction avancée: Couleurs + Items)
-    if (lowerUrl.includes("barbofus.com")) {
+    if (hostMatches(host, "barbofus.com")) {
         const res = await safeFetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" } });
         const html = await res.text();
         const $ = cheerio.load(html);
@@ -172,7 +180,7 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
     }
 
     // 2. DofusSkinManga (Nouveau standard)
-    if (lowerUrl.includes("dofusskinmanga.com")) {
+    if (hostMatches(host, "dofusskinmanga.com")) {
         const res = await safeFetch(url, { 
             headers: { 
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",

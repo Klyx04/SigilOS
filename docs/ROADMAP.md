@@ -111,6 +111,14 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 **Ordre** : **D1 → D2 → D3 livrés le 16/11/2026** ; reste D4 → D5 → D6 → D7. **D8/D9** sont des vérifications humaines, à faire dès que possible.
 
+## 2 quater. Visiteurs — avis, personnages et personnalisation (livré le 16/11/2026)
+
+| Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
+|---|---|---|---|---|---|
+| V4 | `avis-recherche` | Avis de recherche cochables (visiteur + interne), **par personnage**, et filtres communs « fait / cherchent encore » | **livré le 16/11/2026** : deux migrations **additives** (`PublicBountyCompletion`, `UserBountyCompletion`, `characterSlot` sur les coches), `togglePublicBounty` / `toggleUserBounty`, fiche interne `BountyFicheView` partagée, section Avis dans `/visiteurs?vue=succes`, carte « Avis de recherche » dans Mes Succès | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
+| V5 | `visiteur-page-perso` | Page perso et fiche lecture seule personnalisées | **livré le 16/11/2026** : hero classe/serveur/guilde, compteurs réels (succès et avis distincts, tous personnages), visibilité, raccourcis ; fiche `/visiteurs/[id]` avec `bountiesDone` | — | idem |
+| V6 | `visiteur-filtres-hover` | Survol et sélection des filtres `/visiteurs` | **livré le 16/11/2026** : `hover:bg-surface` invisible sur `.reg-panel` corrigé en `elevated/60`, ring actif, focus visible | — | idem |
+
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |

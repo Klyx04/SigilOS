@@ -10,6 +10,8 @@ import {
     FileText,
     BarChart3,
     Terminal,
+    MessageCircle,
+    ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TicketInboxTab } from "./tabs/ticket-inbox-tab";
@@ -21,6 +23,7 @@ import { TicketAnalyticsTab } from "./tabs/ticket-analytics-tab";
 import { TicketCommandsTab } from "./tabs/ticket-commands-tab";
 import { readTicketCustomCommands } from "@/lib/tickets/custom-commands";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+import { DISCORD_INVITE_URL } from "@/lib/discord-invite";
 
 interface TicketBotManagerProps {
     guildId: string;
@@ -138,7 +141,19 @@ export function TicketBotManager({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {/* Point d'entrée d'aide : le membre qui cherche du support humain
+                        rejoint le Discord SigilOS (jamais le nom interne du serveur). */}
+                    <a
+                        href={DISCORD_INVITE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground transition-colors hover:bg-elevated"
+                    >
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        Rejoindre le Discord
+                        <ExternalLink className="h-3 w-3 opacity-60" aria-hidden="true" />
+                    </a>
                     <ModuleHelpActions docSlug="admin-tickets" docTitle="Bot Tickets & Support" tourPhase="tickets" />
                 </div>
             </div>

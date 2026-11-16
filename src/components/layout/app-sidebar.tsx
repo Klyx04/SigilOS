@@ -46,6 +46,8 @@ import {
     Ticket,
     Terminal,
     Store,
+    MessageCircle,
+    ExternalLink,
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,6 +70,7 @@ import { toast } from "sonner";
 import { getUnreadNotifications } from "@/server/actions/notification-actions";
 import { isNavLockedDuringOnboarding } from "@/lib/onboarding-gating";
 import { navTelemetryId } from "@/lib/telemetry/normalize";
+import { DISCORD_INVITE_LABEL, DISCORD_INVITE_URL } from "@/lib/discord-invite";
 
 interface AppSidebarProps {
     guildId: string;
@@ -889,12 +892,24 @@ export function AppSidebar({
                             <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-border-strong rounded-tr-[2px]" />
                         </div>
 
-                        {/* Quick Access Grid */}
-                        <div className="flex items-center gap-1">
+                        {/* Quick Access Grid — `flex-wrap` : à 232 px (largeur mini de la sidebar),
+                            un 4ᵉ lien déborderait s'il restait sur une seule ligne. */}
+                        <div className="flex flex-wrap items-center gap-1">
                             <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Documentation">
                                 <BookOpen className="w-4 h-4" />
                                 <span className="text-caption font-medium">Docs</span>
                             </Link>
+                            <a
+                                href={DISCORD_INVITE_URL}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150"
+                                title={DISCORD_INVITE_LABEL}
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                <span className="text-caption font-medium">Discord</span>
+                                <ExternalLink className="w-3 h-3 opacity-60" aria-hidden="true" />
+                            </a>
                             <Link href={`/dashboard/${guildId}/changelog`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
                                 <History className="w-4 h-4" />
                                 <span className="text-caption font-medium">Maj</span>

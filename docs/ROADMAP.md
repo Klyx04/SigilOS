@@ -87,11 +87,11 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : aucun appel réseau pour servir une image | **S1 + S1b + S2 livrés** · 2 294 apparences (`remaining: 0`) · hybride `ASSETS_REMOTE_FETCH` (défaut `false`) | **S3** (couverture) → **S4** (cron + alerte) | `docs/plans/PLAN-SOUVERAINETE-IMAGES.md` | — |
 
 
-## 2 bis. God — rétention, télémétrie, vue d'ensemble (cadré 16/11/2026)
+## 2 bis. God — rétention, télémétrie, vue d'ensemble (cadré le 16/11/2026 — lot A livré)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
-| A | `retention-logs` | Purge `TelemetryEvent` **90 j** + `ServiceActivityLog` **365 j**, branchée sur `cleanup-logs` **et** le janitor ; compteurs dans God « Stockage » | **aucune purge** (16/11) — go-ahead explicite attendu (suppression de données) | policy + core + wiring + compteurs | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
+| A | `retention-logs` | Purge `TelemetryEvent` **90 j** + `ServiceActivityLog` **365 j**, branchée sur `cleanup-logs` **et** le janitor ; compteurs dans God « Stockage » | **livré le 16/11/2026** : policy + core, wiring `cleanup-logs`/janitor, compteurs God « Stockage » (35 tests ciblés) | — (mesure des compteurs avant/après la 1ʳᵉ passe) | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
 | B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | filtre **cassé** (0 ligne) · chemin tronqué · **72** motifs · 100 événements plafonnés · UA périmé affiché | B1 → B5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 | C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | `getPlatformActivityStats` charge **tous** les `User` + `AuditLog` 30 j ; 10 counts/5 s par onglet ; 56 + 102 + 40 motifs | C1 → C5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 
@@ -103,7 +103,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 35 | `hygiene-logs` (F5/F6) | **155** `console.*` hors tests ; masquage des logs à vérifier | mesuré le 19/10 | remplacer par `logger`, masquer snowflakes/e-mails | `docs/RULES.md` |
 | 36 | `docs-arbo` | `AUDIT-ARBO-2026-09.md` + `ARCHIVES-TEMP-2026-09.md` : historique pur | 30 Ko | conserver ou supprimer après extraction | `docs/arbo/` |
 | 37 | `references` | 3 références possiblement orphelines : `FACTS_GUILDE_2026.md`, `OCR_STRATEGY_2026.md`, `REDIS-OCR-SETUP.md` | 1 à 2 citations chacune | vérifier puis fusionner/supprimer | `docs/reference/` |
-| 38 | `service-activity-log` | Table non bornée (preuves de litige) | ≈ 232 ko, hors top 30 | borner ou assumer le coût | `docs/MAINTENANCE.md` |
+| 38 | ~~`service-activity-log`~~ | **Résolu le 16/11/2026 par le lot A** (`retention-logs`) : purge à **365 j**, par guilde, branchée sur `cleanup-logs` et le janitor | ≈ 232 ko, hors top 30 | — | `docs/MAINTENANCE.md` |
 | 39 | `harebourg-solver` | `harebourg-solver.ts` : brancher ou retirer ? | 1 occurrence | trancher | — |
 | 40 | `admin-members-doc` | Doc vivante `admin-members` à mettre à jour | `docs-catalog.ts` figé | éditer dans `/god/docs` | — |
 | 41 | `captures-a3` | 3 captures 1440 / 1024 / 390 manquantes | session navigateur connectée | les prendre | — |
@@ -112,7 +112,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 44 | ~~`god-system-polish`~~ | **Résolu le 13/11/2026** : cAdvisor supprimé (SEC-04), carte « Conteneurs » retirée ; les autres métriques God restent | — | — | — | — |
 | 45 | `grafana-alerts-audit` | Règles d'alerte Grafana éventuelles dans `grafana_data` : plus exécutées | volume conservé, non audité | lister et recréer dans Sentry/webhook si nécessaire | `docs/MAINTENANCE.md` |
 | 46 | `deploy-sha-normalize` | `deploy-cd.sh` refuse un SHA 8/40 alors que la CI publie 7 caractères | `5b31ad0f` refusé, `5b31ad0` accepté | normaliser le SHA à 7 dans `deploy-cd.sh` et `rollback.sh` | `docs/agents/deploy-vps.md` |
-| 47 | `telemetrie-retention` | `TelemetryEvent` n'a **aucune purge** : la table grossit sans fin | mesuré sur le VPS le 20/10/2026 : **24 Mo**, 2ᵉ plus grosse table applicative ; aucun `deleteMany` dans `src/` | cadrer une rétention (90-180 j) + cron de purge idempotent, testé | `docs/MAINTENANCE.md` |
+| 47 | ~~`telemetrie-retention`~~ | **Résolu le 16/11/2026 par le lot A** (`retention-logs`) : purge à **90 j**, par lot, branchée sur `cleanup-logs` et le janitor | mesuré sur le VPS le 20/10/2026 : **24 Mo**, 2ᵉ plus grosse table applicative | — | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
 | 48 | `crits-incoherents` | Effets **critiques inférieurs** aux dégâts de base publiés sur les fiches boss (ex. Phossile : base 426-480, crit 71-80) | mesuré le 20/10/2026 sur **Comte Harebourg** : base 639-810, crit **71-90** (même symptôme) ; `isCoherentCritJet` existe (lot R-4) mais le chemin Dofensive formate les crits en **chaînes** (`criticalEffects?: string[]`) **avant** le contrôle → la règle ne s'applique pas | garder `{min,max}` jusqu'après le contrôle, puis formater ; test de non-régression sur un sort réel | — (à créer) |
 | 49 | `donjons-sans-donnees` | **25** donjons de la base sans entrée au catalogue local ⇒ fiche « partielle » (ni résistances, ni butin) | mesuré le 20/10/2026 : **34/151** bandeaux, **9 corrigés par alias** (#1051) ; fichier déployé **identique au dépôt** (187 entrées) ⇒ pas un fichier périmé | vérifier la couverture de `siphon-dungeon-monsters.mjs`, relancer le siphon, puis `sync-assets.sh` (bind mount) | — (à créer) |
 | 50 | `simulation-refonte` | Simulation tactique (fiche boss + overlay) : doc développeur, état dans l'URL, page outil | S-1 mesuré | S-2 (doc repliable) → S-3 (`/simulateur`), après **D-SIM1** | — | — |

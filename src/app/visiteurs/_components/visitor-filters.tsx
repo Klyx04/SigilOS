@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DOFUS_CLASSES, DOFUS_JOBS, getClass, getJob } from "@/lib/dofus-assets";
+import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
 import {
+    PUBLIC_DIRECTORY_ALL_SERVERS_PARAM,
     PUBLIC_DIRECTORY_JOB_LEVELS,
     PUBLIC_DIRECTORY_SEARCH_MAX,
     buildVisitorDirectoryHref,
@@ -61,17 +63,42 @@ function OptionLink({
 export function VisitorFilters({
     filters,
     labels,
+    viewerServerId,
 }: {
     filters: VisitorDirectoryFilters;
     labels: Translations["visitorsPage"];
+    /** Serveur du lecteur : défaut du menu tant que l'URL ne demande rien. */
+    viewerServerId: number;
 }) {
     const activeClass = filters.classe ? getClass(filters.classe) : undefined;
     const activeJob = filters.metier ? getJob(filters.metier) : undefined;
-    const hasFilters = Boolean(filters.q || filters.classe || filters.metier || filters.niveau);
+    // Sans `serverId` ni `allServers`, l'annuaire montre le serveur du lecteur : le menu doit
+    // afficher ce serveur, pas un « Tous les serveurs » qui mentirait sur le contenu.
+    const activeServer = filters.allServers
+        ? undefined
+        : ALL_DOFUS_SERVER_ENTRIES.find(
+              (server) => server.id === (filters.serverId ?? viewerServerId)
+          );
+    const hasFilters = Boolean(
+        filters.q ||
+            filters.classe ||
+            filters.metier ||
+            filters.niveau ||
+            filters.serverId ||
+            filters.allServers
+    );
 
     return (
         <div className="mt-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <form method="get" action="/visiteurs" className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                {filters.serverId && <input type="hidden" name="serverId" value={filters.serverId} />}
+                {filters.allServers && (
+                    <input
+                        type="hidden"
+                        name="serverId"
+                        value={PUBLIC_DIRECTORY_ALL_SERVERS_PARAM}
+                    />
+                )}
                 {filters.classe && <input type="hidden" name="classe" value={filters.classe} />}
                 {filters.metier && <input type="hidden" name="metier" value={filters.metier} />}
                 {filters.niveau && (
@@ -98,6 +125,51 @@ export function VisitorFilters({
             </form>
 
             <div className="flex flex-wrap items-center gap-2">
+                {/* D3 — le serveur est un filtre : le défaut reste celui du lecteur, et
+                    « Tous les serveurs » est une exploration explicite. */}
+                <FilterMenu
+                    icon={activeServer?.icon}
+                    label={
+                        filters.allServers
+                            ? labels.allServers
+                            : (activeServer?.name ?? labels.allServers)
+                    }
+                >
+                    <OptionLink
+                        href={buildVisitorDirectoryHref({
+                            q: filters.q,
+                            classe: filters.classe,
+                            metier: filters.metier,
+                            niveau: filters.niveau,
+                            allServers: true,
+                        })}
+                        active={Boolean(filters.allServers)}
+                    >
+                        {labels.allServers}
+                    </OptionLink>
+                    {ALL_DOFUS_SERVER_ENTRIES.map((server) => (
+                        <OptionLink
+                            key={server.id}
+                            href={buildVisitorDirectoryHref({
+                                q: filters.q,
+                                classe: filters.classe,
+                                metier: filters.metier,
+                                niveau: filters.niveau,
+                                serverId: server.id,
+                            })}
+                            active={
+                                filters.serverId === server.id ||
+                                (!filters.serverId &&
+                                    !filters.allServers &&
+                                    server.id === viewerServerId)
+                            }
+                        >
+                            <GameIcon src={server.icon} className="size-5" />
+                            {server.name}
+                        </OptionLink>
+                    ))}
+                </FilterMenu>
+
                 <FilterMenu icon={activeClass?.icon} label={activeClass?.name ?? labels.allClasses}>
                     <OptionLink
                         href={buildVisitorDirectoryHref({

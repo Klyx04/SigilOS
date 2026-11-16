@@ -10,15 +10,17 @@ import { VisitorProfileCard } from "../_components/visitor-profile-card";
 import { VisitorsShell, VisitorsTitle } from "../_components/visitors-shell";
 
 /**
- * Fiche d'un visiteur du même serveur (V2e) — **privée**, comme la liste.
+ * Fiche d'un visiteur **consentant** (V2e, révisé le 16/11/2026) — **privée**, comme la liste.
  *
- * `notFound()` couvre les trois refus d'un seul geste : profil inexistant, consentement
- * retiré, ou profil d'un autre serveur. Un 404 ne dit pas lequel — c'est voulu : distinguer
- * « existe mais caché » de « n'existe pas » serait déjà une fuite.
+ * `notFound()` couvre deux refus d'un seul geste : profil inexistant ou consentement retiré.
+ * Le consentement `showOnDirectory` est **global** (D3) : la fiche n'est plus bornée au serveur
+ * du lecteur, sinon explorer un autre serveur depuis l'annuaire mènerait à un 404. Un 404 ne
+ * dit pas lequel des deux refus s'applique — c'est voulu : distinguer « existe mais caché » de
+ * « n'existe pas » serait déjà une fuite.
  */
 export const metadata: Metadata = {
     title: "Fiche visiteur | SigilOS",
-    description: "Fiche d'un visiteur Dofus de ton serveur, dans l'annuaire privé de SigilOS.",
+    description: "Fiche d'un visiteur Dofus dans l'annuaire privé de SigilOS.",
     robots: { index: false, follow: false },
 };
 

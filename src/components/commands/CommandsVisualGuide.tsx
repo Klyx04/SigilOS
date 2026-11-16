@@ -125,17 +125,6 @@ const EMBED_PREVIEWS: Record<string, {
         ],
         footer: "SigilOS • Bestiaire & Monstres"
     },
-    stats: {
-        color: "#FEE75C",
-        title: "📊 Statistiques de Guilde",
-        description: "Vue d'ensemble de l'activité récente et des succès débloqués collectivement.",
-        fields: [
-            { name: "Membres Actifs", value: "48 / 55", inline: true },
-            { name: "Missions Réussies", value: "142 cette semaine", inline: true },
-            { name: "Niveau Moyen", value: "198", inline: true }
-        ],
-        footer: "SigilOS • Statistiques • Données en direct"
-    },
     legendaire: {
         color: "#F59E0B",
         title: "✨ Clairvoyance de Mériana",

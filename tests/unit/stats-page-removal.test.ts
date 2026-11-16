@@ -6,6 +6,10 @@
  * du Zod, de `module-actions` et de `user-actions` ; `canViewStats` retiré.
  * Phase 2b : **colonne `GuildModules.stats` supprimée** (migration `20270125000300`), restes de
  * compatibilité retirés (`RETIRED_MODULE_KEYS`, libellé legacy) et asset orphelin supprimé.
+ * Phase 3a (Lot A) : les **4 derniers restes morts** (rafraîchissement `/stats`, « Stats Guilde »
+ * dans la carte RBAC, libellé `GUILD_MODULE_LABELS.stats`, aperçu d'embed `stats`) et la
+ * **redirection permanente** `/dashboard/:guildId/stats` → accueil de la guilde.
+ * Phase 3b (Lot B) : `getGuildStats` vérifie l'autorisation **avant** de lire le cache Redis.
  * Ce qui reste **volontairement** : `getGuildStats` + `QuickStatsRow` (accueil du dashboard).
  */
 import { describe, expect, it } from "vitest";
@@ -13,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { MODULE_GROUPS, moduleLabel } from "@/lib/module-catalog";
 import { DEFAULT_MODULES } from "@/lib/module-types";
+import { GUILD_MODULE_LABELS } from "@/lib/permissions";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -97,5 +102,27 @@ describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
 
     it("la couverture documentaire ne référence plus stats", () => {
         expect(read("src/lib/docs-modules.ts")).not.toContain('stats: { member: "stats" }');
+    });
+
+    // ── Phase 3a (Lot A) — les 4 derniers restes morts ────────────────────────
+
+    it("ne reste aucun rafraîchissement vers l'ancienne page /stats", () => {
+        expect(read("src/server/actions/mission-actions.ts")).not.toContain("/stats");
+    });
+
+    it("la carte de permission ne promet plus « Stats Guilde »", () => {
+        expect(read("src/lib/permissions.ts")).not.toContain("Stats Guilde");
+        expect(GUILD_MODULE_LABELS).not.toHaveProperty("stats");
+    });
+
+    it("aucun aperçu d'embed pour une commande `stats` inexistante", () => {
+        expect(read("src/components/commands/CommandsVisualGuide.tsx")).not.toMatch(/^\s{4}stats:\s*\{/m);
+    });
+
+    it("/stats redirige en permanent (308) vers l'accueil de la guilde", () => {
+        const config = read("next.config.ts");
+        expect(config).toContain('source: "/dashboard/:guildId/stats"');
+        expect(config).toContain('destination: "/dashboard/:guildId"');
+        expect(config).toMatch(/permanent:\s*true/);
     });
 });

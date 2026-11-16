@@ -7,6 +7,7 @@
  *   1. Quelles cibles me restent-elles à capturer ? (`isOcreMonsterNeeded`)
  *   2. Quelle pierre d'âme faut-il pour chacune ? (`soulStoneForLevel`)
  *   3. Combien de pierres de chaque palier faut-il prévoir ? (`buildOcrePlan`)
+ *   4. Combien d'étapes compte la quête ? (`OCRE_TOTAL_STEPS`)
  *
  * SOURCES DES SEUILS DE PIERRES (mesurés, jamais inventés — API DofusDB, articles
  * 9686 → 9690, effet « capture d'âme » : 50 / 100 / 150 / 190 / 1000) :
@@ -23,6 +24,16 @@
  */
 
 import { isSafeDofusImageSrc } from "@/lib/dofus-image-url";
+
+/**
+ * Nombre d'étapes de la quête de l'Éternelle Moisson.
+ *
+ * **34**, et non `quest_template.step_count` renvoyé par Metamob (mesuré à 18 le
+ * 16/11/2026 sur la carte visiteur) : l'interne affiche 34 depuis l'origine et les deux
+ * surfaces doivent montrer le MÊME total. Source unique pour le guide, la PiP et la carte
+ * du visiteur — plus aucun `34` recopié.
+ */
+export const OCRE_TOTAL_STEPS = 34;
 
 // -----------------------------------------------------------------------------
 // TYPES (shape « lite » : ce qui voyage de la page vers l'overlay, sérialisable)

@@ -12,7 +12,7 @@
  */
 
 import { db } from "@/lib/prisma";
-import { listSelfQuests, matchesOcreQuest, type UserQuest } from "@/lib/metamob-client";
+import { listSelfQuests, matchesOcreQuest, type FetchOptions, type UserQuest } from "@/lib/metamob-client";
 
 /** La clé du visiteur : lue (déchiffrée par le hook Prisma), **jamais** renvoyée au client. */
 export async function readVisitorMetamob(userId: string) {
@@ -40,8 +40,9 @@ export function pickVisitorOcreQuest(
  */
 export async function resolveVisitorOcreSlug(
     pseudo: string,
-    key: string
+    key: string,
+    options?: FetchOptions
 ): Promise<string | null> {
-    const quests = await listSelfQuests(pseudo, key);
+    const quests = await listSelfQuests(pseudo, key, options);
     return pickVisitorOcreQuest(quests)?.slug ?? quests[0]?.slug ?? null;
 }

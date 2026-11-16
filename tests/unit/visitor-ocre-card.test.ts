@@ -28,6 +28,12 @@ describe("Carte Ocre du visiteur — comme l'interne", () => {
         expect(card).toContain("Synchronisé");
     });
 
+    it("le bouton « Forcer la synchro » demande une lecture réseau", () => {
+        // `revalidate` par défaut = 3600 : sans `force`, le bouton relisait le cache Next.
+        expect(CARD).toContain("getPublicOcreProgress(force ? { force: true } : undefined)");
+        expect(CARD).toContain("refresh(true)");
+    });
+
     it("ne manipule aucune clé et n'est montée qu'avec une clé", () => {
         const card = stripComments(CARD);
         expect(card).not.toContain("metamobApiKey");

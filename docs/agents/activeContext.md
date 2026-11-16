@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 12) — **Visiteurs · carte Ocre alignée sur l'interne (possession + vraie synchro)** — branche `fix/ocre-visiteur-parite`
+
+> **Demande user (verbatim)** : « la quete ocre se sync pas en externe comme l'interne c bizarre » (+ captures : externe 1/18, 0 %, 0/51, 0/286 ; interne 1/34, 69 %, 42/51, 191/286).
+> **Mesure** : la route de quête Metamob renvoie `status` / `want` / `offer` sans `owned` ; l'interne passait par `normalizeQuestMonster`, le visiteur lisait `owned ?? 0` ⇒ 0 capture partout. `stepCount` venait de `quest_template.step_count` (18) alors que l'interne affiche 34. Enfin, « Forcer la synchro » relisait le cache Next (`revalidate` 3600) et le patch relisait sans `skipCache` (double cross-check factice).
+> **Fait** : `toPublicOcreMonster` reçoit l'`owned` normalisé (`normalizeQuestMonster`, `parallel_quests`) ; comptage des deux côtés par `isOcreMonsterNeeded` (possédé **ou** étape passée) ; `OCRE_TOTAL_STEPS = 34` source unique (guide, PiP, carte visiteur) ; `getPublicOcreProgress({ force })` borné par Zod, `skipCache`/`revalidate: 0` sur la lecture forcée (TTL normal 5 min) ; relecture du patch sans cache + `revalidateTag` par pseudo ; tests `ocre-possession-parity`.
+> **Preuves** : `npm run test:run` **744 fichiers / 7 786 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés **108 ✅**.
+> **Reste / ops** : contrôle visuel 390/768/1024/1440 de la carte Ocre visiteur (valeurs identiques à l'interne, bouton « Forcer la synchro ») ; les migrations V4 restent à jouer en bêta puis prod.
+> **Rotation** : bloc « Session 16/11/2026 (suite 6) — God · V3 visiteurs + fiche guilde » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 11) — **Visiteurs · avis de recherche, coches par personnage, page perso et fiche lecture seule** — branches `fix/visiteurs-filtres-hover`, `feat/avis-et-personnages`, `feat/visiteur-page-perso`
 
 > **Demande user (verbatim)** : « on s'était dit aussi qu'on referait la page perso plus personnalisé à la duffus sans copier duffus évidemment et aussi les pages en lecture seule laide actuellement » · « ajoute les avis de recherche dans /espace-visiteur/succes à cocher simplement, validé ou non, même fiche que l'interne, et que ça se voit côté filtre commun, avis fait non fait » · « oui cree la table et enchaine visiteur filtre commun mais idem coté profil de guilde interne : pouvoir cocher les avis de recherche + filtre commun et évidemment on doit pouvoir changer de mule aussi pour les coches des succès, interne et visiteurs » · « ya aucune hover ou survrillance a la selection c penible ».
@@ -53,38 +63,5 @@
 > **Preuves** : **35 tests ciblés verts** (`telemetry-retention-policy` 6, `log-retention` 13, `cleanup-logs` 8, `janitor-logs-retention` 5, `storage-retention-stats` 3) · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · `git status --short` propre · **`npm run test:run` à passer avant la PR**.
 > **Reste / ops (humain)** : première passe réelle — dry-run du janitor puis `cleanup-logs`, mesure des compteurs God avant/après ; si `hasMore` reste vrai plusieurs jours, augmenter `LOG_PURGE_MAX_BATCHES` **avec la mesure** ; image applicative pour le cron, `git pull` sur le VPS pour le janitor ; exporter (`exportTelemetryDataAction`) **avant** la première passe si des tendances > 90 j doivent être conservées.
 > **Rotation** : bloc « Session 16/11/2026 (suite) — Visiteur · tours publics (profil + guide Rush) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 16/11/2026 (suite 6) — **God · V3 visiteurs (liste + reset) + fiche guilde refondue** — branche `feat/god-visiteurs`
-
-> **Décisions user (verbatim)** : « V3 god des visiteurs : à dev coté guilde oui avec la refonte UI de toute la partie guilde complete en meme temps , raz le q de tous ces IA slop » · « le jour de l'ouverture on aura la meme chose que la landing actuel de la beta » (**D7 tranché**) · « la démo est loin d'être fini » · acquisition = outils publics déjà en ligne · V2d abandonné · affinage fiche soldé.
-> **Mesure** : aucun écran God « visiteurs » (`src/app/god/` sans dossier dédié) ; `/god?tab=guilds` ne rend que `GuildTable` + `BlacklistSection` ; `guild-table.tsx` portait **89** motifs de slop (palettes `zinc`/`violet`/`emerald`/`amber`, `font-black`, `rounded-2xl/3xl`, gradients, emoji, `animate-pulse`), `blacklist-section.tsx` **≈ 12** ; la fiche guilde en portait **104** de plus (`page.tsx` 34, `access-panel` 27, `target-purge-panel` 31, `user-list` 6, `guild-tabs` 4, `modules-client` 2), avec les colonnes vides du roster partagé (`ANKAMA ID` = « AJOUTER ID », `SUPPRESSION` = `-`) ; `PublicProfile` porte les 3 consentements et `banEntity`/`unbanEntity` existent déjà.
-> **Fait** : **V3-a** — sous-vue `?tab=guilds&vue=visiteurs` (super-admin seulement), règle pure `src/lib/god-visitors.ts` (bornes d'URL, `where` consentement/recherche/serveur, DTO sans mule/Metamob/`userId`, pagination), lecture serveur `src/server/god-visitors.ts` (garde `isSuperAdmin` **avant** toute requête), `visitors-panel` + `guild-area-switch` + `god-pagination-links` (kit God). **V3-b** — `resetGodVisitorVisibility` : les 3 consentements repassent à `false`, idempotent, garde d'état dans le `WHERE`, rate limit Redis, journal `GOD_CONFIG_OVERRIDE` (cible `PROFILE`, sans `discordId`) ; bouton `visitor-visibility-reset`. **V3-c** — `deleteGodVisitorUser` : ban `PlatformBan` **avant** suppression du `User` (cascade), refus fail-closed si propriétaire d'une guilde, confirmation `SUPPRIMER`, rate limit 3/min, journal sans `discordId` ; **fiche détail** `?visiteur=` (identité, Discord, guildes, consentements) + boutons `Bannir` / `Bannir + supprimer`. **Fiche guilde** — en-tête refait (icône, nom, ID, phrase d'origine, statut, 3 chiffres mesurés), **4 onglets** (`Vue d'ensemble` / Modules / Journal / Accès & RBAC), **bloc propriétaire** (avatar, pseudo Dofus, classe, niveau, points, **lien ladder Ankama**) résolu depuis `ownerId` (snowflake **ou** UUID) par `src/lib/god-guild-owner.ts`, roster `showIds={false}`, modules avec **libellés humains + assets `nav/*`**, RBAC avec **libellés de permissions** (plus de slug brut) et compteur de sensibles. **Membres** — le **pseudo Dofus ladder** est enfin lisible sous le nom Discord (`pseudoDofus` → repli `dofusPseudo`, niveau calculé depuis `totalXp`, points `achievementPoints`, **lien ladder Ankama**), badge « Pseudo manquant » remplacé par un texte normal, menu membre regroupé (`Actions` / `Fiche Dofus` / `Danger`), libellés clarifiés (« Bannir de la guilde (profil conservé) » vs « Exclure (profil supprimé) »), statuts traduits (Actif/Archivé/Banni), `font-black`/uppercase/`rounded-2xl` retirés de **toute la table** (ligne, menu, filtres, tableau, pagination, modales). **Modules (pilotage guilde)** — carte désactivée refaite : **un seul statut** (badge dupliqué supprimé), plus d’`opacity-50`/`grayscale`, pages et RBAC **masqués quand le module est OFF**, `rounded-2xl`/`font-black`/uppercase retirés, grille resserrée (16 → 4 px) et barre de résumé tokenisée. **Rétention (audit 16/11)** — **bug critique corrigé** : le janitor VPS supprimait tout `User` sans `UserProfile` depuis 7 j, donc **tout visiteur** (qui n'a qu'un `PublicProfile`) ; le filtre exclut désormais `publicProfile: { is: null }` (règle pure `buildOrphanUserWhere`, verrou `janitor-orphan-visitors` **7**), et l'e-mail n'est plus journalisé. **Même faille dans le panneau God « Comptes sans profil »** : `getGhostUsers` et `cleanupGhostUsers` excluent les profils publics, `deleteGhostUser` refuse explicitement un visiteur, et le log de purge ne porte plus pseudo/discordId. **Panneau + `user-list`** tokenisés (0 motif de slop : `rounded-[2.5rem]`, `backdrop-blur`, glow, `font-black`, uppercase, `animate-pulse`, palettes zinc/rose/amber/emerald/blue). **Mesure** : `TelemetryEvent` et `ServiceActivityLog` restent **sans purge** (voir ROADMAP §0). **Liste guildes** — menu d'état redondant retiré (les 5 cartes sont le filtre), **légende en clair**, menu d'actions réduit à 5 entrées (« Archiver 30 jours (réversible) », « Supprimer définitivement (irréversible) »). **Refonte UI** : `guild-table.tsx` et `blacklist-section.tsx` passés aux tokens (0 motif de slop mesuré sur les deux fichiers), boutons/ordre/libellés conservés — seuls les emoji décoratifs et « Bot Seul » → « Bot seul » changent.
-> **Amorces cadrées le 16/11 (aucun code)** : `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` (lot A, go-ahead attendu) et `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` (lots B/C) — ordre dans `ROADMAP.md` §2 bis.
-
-> **Preuves** : `npm run test:run` **728 fichiers ✅** · `tsc` 0 · ESLint **0 erreur** · verrou `god-visitors` **26** + `god-guild-owner` **7** · plafonds God ajustés **77 → 81** (4 fichiers neufs, tous consommateurs du kit) avec justification dans `god-deslop` et `rush-editor-shell`.
-> **Reste / ops** : `target-purge-panel` et `user-list` — **tokenisés** (0 motif de slop mesuré) · **contact propriétaire à l'onboarding** (debug2.md) bloqué par **D5** · normalisation `ownerId` (UUID seul) encore ouverte · **D7 levé** mais bloc Caddy `sigilos.fr` à réécrire depuis le bloc bêta (`/game-data/*`, `/socket.io/*`, en-têtes, rate limit) · contrôle visuel 390/768/1024/1440 de l'écran God · rebuild bêta/prod.
-> **Rotation** : bloc « Sentry · un log n'est pas une exception… » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

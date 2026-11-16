@@ -223,10 +223,34 @@ describe("Quête Ocre du visiteur — lecture et patch", () => {
 
     it("la lecture renvoie l'étape, la progression et les deux barres", () => {
         expect(progress).toContain("currentStep: details.current_step");
-        expect(progress).toContain("stepCount: details.quest_template?.step_count");
+        // Même total que l'interne : 34, jamais `step_count` (18) renvoyé par Metamob.
+        expect(progress).toContain("stepCount: OCRE_TOTAL_STEPS");
+        expect(progress).not.toContain("stepCount: details.quest_template");
         expect(progress).toContain("bosses: {");
         expect(progress).toContain("archis: {");
         expect(progress).toContain("progress: total > 0");
+    });
+
+    it("compte les captures avec la MÊME règle que l'interne, jamais `owned` brut", () => {
+        // La réponse de quête Metamob expose `status`/`want`/`offer` sans `owned` :
+        // le lire brut affichait 0 capture au visiteur (mesure du 16/11/2026).
+        expect(progress).toContain("normalizeQuestMonster(");
+        expect(progress).toContain("isOcreMonsterNeeded(normalized, details.current_step)");
+        expect(progress).not.toContain("monster.owned > 0");
+        expect(ACTIONS).toContain("toPublicOcreMonster(monster, normalized.owned, meta)");
+    });
+
+    it("« Forcer la synchro » bypasse vraiment le cache", () => {
+        // Sans `skipCache` + `revalidate: 0`, la lecture relisait la réponse Next (1 h).
+        expect(progress).toContain("publicOcreReadSchema.safeParse(raw ?? {})");
+        expect(progress).toContain("skipCache: true");
+        expect(progress).toContain("revalidate: 0");
+        expect(progress).toContain("revalidate: PUBLIC_OCRE_CACHE_SECONDS");
+        // Le patch RELIT sans cache : sinon le « double cross-check » rend l'ancienne valeur.
+        expect(patch).toContain("skipCache: true");
+        expect(patch).toContain("revalidate: 0");
+        // Et jette le cache tagué du pseudo : la carte ne doit pas relire l'avant-écriture.
+        expect(patch).toContain("revalidateTag(`metamob-user-${name.toLowerCase()}`, \"max\")");
     });
 
     it("le patch écrit par `bulkUpdateMonsters`, puis RELIT (double cross-check)", () => {

@@ -799,7 +799,10 @@ export async function cleanupGhostUsers(isTestMode = false) {
     const candidates = await db.user.findMany({
         where: {
             createdAt: { lt: cutoffDate },
-            profiles: { none: {} } // No UserProfile
+            profiles: { none: {} }, // No UserProfile
+            // ⚠️ Un VISITEUR n'a aucun UserProfile : sans cette condition il était
+            // « fantôme » et purgé après 24 h (audit 16/11/2026 ; D-V5 = 365 j).
+            publicProfile: { is: null },
         },
         include: {
             accounts: true // To check Discord ID for Super Admin protection
@@ -852,7 +855,10 @@ export async function getGhostUsers(params?: { search?: string; limit?: number }
 
     const users = await db.user.findMany({
         where: {
+            // Un visiteur n'a aucun UserProfile : sans `publicProfile`, il serait listé
+            // comme « fantôme » puis purgeable (D-V5 = 365 j via account-retention).
             profiles: { none: {} },
+            publicProfile: { is: null },
             ...(search ? {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
@@ -927,10 +933,11 @@ export async function deleteGhostUser(userId: string) {
     
     const user = await db.user.findUnique({
         where: { id: userId },
-        include: { accounts: true, _count: { select: { profiles: true } } }
+        include: { accounts: true, publicProfile: { select: { id: true } }, _count: { select: { profiles: true } } }
     });
 
     if (!user) throw new Error("Utilisateur introuvable.");
+    if (user.publicProfile) throw new Error("Ce compte est un visiteur (profil public), pas un fantôme.");
     if (user._count.profiles > 0) throw new Error("Cet utilisateur n'est pas un fantôme (profil détecté).");
 
     const discordId = user.accounts[0]?.providerAccountId;
@@ -952,7 +959,7 @@ export async function deleteGhostUser(userId: string) {
             action: "GOD_USER_PLATFORM_BAN",
             targetType: "USER",
             targetId: userId,
-            metadata: { operation: "MANUAL_GHOST_DELETE", userName: user.name, discordId }
+            metadata: { operation: "MANUAL_GHOST_DELETE" }
         });
     }
 

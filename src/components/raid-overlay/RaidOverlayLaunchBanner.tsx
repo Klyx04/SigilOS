@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tv2, ChevronRight, Loader2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
@@ -31,7 +31,17 @@ export function RaidOverlayLaunchBanner({
   const [loading, setLoading] = useState(false);
   const { locale } = useI18n();
   const isEn = locale === "en";
-  const pipSupported = isDocumentPipSupported();
+
+  // 🐛 Mesure du 16/11/2026 (`JAVASCRIPT-NEXTJS-1M`, React #418 reproduit sur
+  // `/guides/raid-gigalodon-dofus-guide`) : `isDocumentPipSupported()` était lu PENDANT
+  // le rendu ⇒ le serveur rendait « Mini-fenêtre flottante » alors que Chrome rendait
+  // « Fenêtre PiP détachable » + badge « PiP ✓ » ⇒ hydratation en échec. La capacité est
+  // une donnée **client** : on la pose après le montage, `false` au premier rendu (donc
+  // identique au serveur), puis l'état bascule sans toucher à l'hydratation.
+  const [pipSupported, setPipSupported] = useState(false);
+  useEffect(() => {
+    setPipSupported(isDocumentPipSupported());
+  }, []);
 
   const defaultEnName = raidSlug === "jardin-eternel" ? "Eternal Gardens Sanctuary" : "The Gigalodon Abyss";
   const displayRaidName = isEn

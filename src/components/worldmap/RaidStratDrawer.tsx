@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -153,7 +153,14 @@ export function RaidStratDrawer({
   const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
   const [launchLoading, setLaunchLoading] = useState(false);
 
-  const pipSupported = isDocumentPipSupported();
+  // 🐛 Même famille que `RaidOverlayLaunchBanner` (`JAVASCRIPT-NEXTJS-1M`, mesure du
+  // 16/11/2026, React #418) : une capacité **client** lue pendant le rendu produit un
+  // HTML serveur différent du premier rendu navigateur. On la pose après le montage
+  // (`false` au premier rendu).
+  const [pipSupported, setPipSupported] = useState(false);
+  useEffect(() => {
+    setPipSupported(isDocumentPipSupported());
+  }, []);
   const isGigalodon = worldId === 37;
   const raidSlug = isGigalodon ? "gigalodon" : "jardin-eternel";
   const raidName = isGigalodon ? "Gouffre du Gigalodon" : "Sanctuaire des Jardins Éternels";

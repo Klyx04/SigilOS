@@ -12,6 +12,13 @@ import Link from "next/link";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import { getClass } from "@/lib/dofus-assets";
 import { getDofusServerImage } from "@/lib/dofus-assets";
+import {
+    INTERNAL_RANK_HINT,
+    INTERNAL_RANK_LABEL,
+    SUCCESS_RANK_HINT,
+    SUCCESS_RANK_LABEL,
+    formatRankOrdinal,
+} from "@/lib/ladder-rank";
 
 interface SuccessSyncProps {
     guildId: string;
@@ -398,7 +405,7 @@ export function SuccessSync({
                                     {previewData && (() => {
                                         const dofusClass = previewData.className ? getClass(previewData.className.trim()) : null;
                                         return (
-                                        <div className="flex items-center justify-between mt-1 px-1">
+                                        <div className="flex flex-wrap items-center justify-between gap-y-2 mt-1 px-1">
                                             <div className="flex items-center gap-3">
                                                 {/* Class Icon */}
                                                 <div className="relative group/icon">
@@ -455,7 +462,7 @@ export function SuccessSync({
                                                 <div className="border-b border-dashed border-border flex-1" />
                                             </div>
 
-                                            <div className="flex items-center gap-6 text-right shrink-0">
+                                            <div className="ml-auto flex items-center gap-6 text-right">
                                                 <div className="flex flex-col items-end">
                                                     <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1">Points</span>
                                                     <span className="text-sm font-black text-warning tabular-nums">{previewData.points.toLocaleString()}</span>
@@ -463,18 +470,18 @@ export function SuccessSync({
                                                 
                                                 <div className="flex gap-3">
                                                     <div className="flex flex-col items-end border-l border-border pl-3">
-                                                        <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1">Monde</span>
-                                                        <span className="text-caption font-black text-foreground/90 tabular-nums">
-                                                            {previewData.rank ? `#${previewData.rank.toLocaleString()}` : '—'}
+                                                        <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1" title={SUCCESS_RANK_HINT}>{SUCCESS_RANK_LABEL}</span>
+                                                        <span className="text-caption font-black text-foreground/90 tabular-nums" title={SUCCESS_RANK_HINT}>
+                                                            {formatRankOrdinal(previewData.rank)}
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col items-end border-l border-border pl-3">
-                                                        <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1">Guilde</span>
+                                                        <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1" title={INTERNAL_RANK_HINT}>{INTERNAL_RANK_LABEL}</span>
                                                         <span className={cn(
                                                             "text-sm font-black tabular-nums",
                                                             previewData.guildRank === 1 ? "text-warning drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" : "text-foreground/90"
-                                                        )}>
-                                                            #{previewData.guildRank || '—'}
+                                                        )} title={INTERNAL_RANK_HINT}>
+                                                            {formatRankOrdinal(previewData.guildRank)}
                                                         </span>
                                                     </div>
                                                 </div>

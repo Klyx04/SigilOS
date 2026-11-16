@@ -13,14 +13,14 @@
 - 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
   **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
-  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
+  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` ✅ **posé le 16/11/2026** · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
-  - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes F1→F7 ✅ 11/11 · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1`
+  - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes F1→F7 ✅ 11/11 · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1` ✅ 16/11
   - [ ] **mar** — F1 · F2 · F5+F6
-  - [ ] **mer** — F16 hub + succès en commun ✅ 11/11 · V2a-4 reste (tour spotlight)
+  - [ ] **mer** — F16 hub + succès en commun ✅ 11/11 · V2a-4 reste (tour spotlight) ✅ 16/11
   - [ ] **jeu** — T-4 (O14 · O15 · G7/G8/G9) · transverses + 4 `prompt()` · V-C · V-D2 · drop `alignOrderReq`
   - [ ] **ven** — studio E2 (inspecteur quête) · V2c (Rush Live visiteurs) ✅ 11/11
   - [ ] **sam** — V2d (ladder serveur) · E3 (bloc/masse/problèmes) · V3 (God visiteurs)
@@ -74,7 +74,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (6 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop — **livrés** | **tour guidé** → **V3** (God visiteurs) · **V2d abandonné** · **affinage fiche validé le 15/11/2026** | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (8 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop, **tour guidé public (profil + guide Rush, 16/11)** — **livrés** | **V3** (God visiteurs) · **V2d abandonné** · affinage fiche validé | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
@@ -134,7 +134,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
 | 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
 | 12 | Données Tougli / Dofusyelle (V-D2, ou acter la cible 517) | 10 | ? |
-| 13 | Tour guidé (reste V2a-4) + V3 (God visiteurs) — **V2d abandonné** | 57 | ? |
+| 13 | ~~Tour guidé (reste V2a-4)~~ ✅ **livré le 16/11/2026** (profil + guide Rush, connecté/anonyme) · V3 (God visiteurs) — **V2d abandonné** | 57 | ? |
 
 
 
@@ -164,6 +164,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `TOUR-PUBLIC` | Tours publics — moteur unique (`TourProvider` étendu : `scope="public"`, `storageScope`, phases `rushPublic`/`visitorSpace` rejouables) · règle pure `public-tour` (tronc commun + étapes `visitor`/`anonymous` + drapeau de première arrivée) · **15 ancres** `data-tour` sur le guide Rush, **11** sur l'espace visiteur · visite du profil **une seule fois** + bouton de rejeu dans Réglages, visite du guide rejouable (barre d'outils + Options) · bulle déslopée (plus de violet/glass/font-black) — verrous `public-tour` **19** + `tour-overlay-viewport` **7** | 16/11/2026 |
 | `FUSION-SIGNALEMENTS` | Signalements — fusion `SystemIssue` → `SupportTicket` (`TicketOrigin`, `publicRef` `SIG-<n>`, backfill idempotent + filet SQL, tracker membre anonymisé, visiteur connecté, onglet Signalements, refonte tokens, drop `20270202000000`) — verrous **36** | 14/11/2026 |
 | `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |
 | `OVERLAY-NOTIFS` | Overlay — un seul endroit pour les notifications : `OverlayToastProvider` monté dans le portail public (Toaster dédié sous `data-da`), `portalContainer` sur `DialogContent` pour la modale Ocre publique dans la PiP, `notifyBlockDone` (bloc validé / Dofus obtenu) — verrou `overlay-notifications` **4** | 10/11/2026 |

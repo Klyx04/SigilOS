@@ -4,6 +4,8 @@ import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { countUnreadAccountNotifications } from "@/server/account-notifications";
 import { requirePublicSession } from "@/server/public-account";
+import { TourOverlay } from "@/components/tour/tour-overlay";
+import { TourProvider } from "@/components/tour/tour-provider";
 import { VisitorNav } from "./_components/visitor-nav";
 
 export const metadata = {
@@ -34,6 +36,7 @@ export default async function VisitorLayout({ children }: { children: ReactNode 
     ]);
 
     return (
+        <TourProvider scope="public" visitorConnected>
         <div className="registre flex min-h-dvh flex-col bg-background text-foreground">
             <PublicHeader user={session?.user} dashboardHref="/espace-visiteur/general" />
 
@@ -47,7 +50,10 @@ export default async function VisitorLayout({ children }: { children: ReactNode 
 
             <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-16">{children}</main>
 
+            <TourOverlay />
+
             <GalacticFooter />
         </div>
+        </TourProvider>
     );
 }

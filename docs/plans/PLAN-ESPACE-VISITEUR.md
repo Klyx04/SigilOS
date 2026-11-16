@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 11/11/2026** — V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11).
+> **Dernière MAJ : 16/11/2026** — **tour guidé public livré** (profil visiteurs une seule fois + guide Rush connecté/anonyme, rejouables) · V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11).
 
 ## 1. Décisions verrouillées
 
@@ -285,6 +285,21 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   identifiants `metamob*`, clé non recopiable, `metamobState` ×3).
 
 **V2a-4 — première arrivée (non connecté et connecté)** *— livré partiellement : 07/11 (alignement, mules) puis 08/11 (accueil en 3 étapes)*
+- **Tour guidé — livré le 16/11/2026** : deux visites, un seul moteur. La règle pure
+  `src/lib/public-tour.ts` porte les étapes ; le `TourProvider` accepte `scope="public"`
+  (`storageScope = guildId ?? "public"`, phases `rushPublic` / `visitorSpace` **rejouables**).
+  - **Profil perso** : première arrivée sur `/espace-visiteur/general`, **une seule fois par
+    navigateur** (`sigilos:visitor-tour-seen`), fermable (Passer / Échap), rejouable depuis
+    Réglages (`/espace-visiteur/general?tour=1`). 11 étapes : la nav (8 onglets) puis identité
+    et Metamob.
+  - **Guide Rush** : visite complète des briques, **connecté ou non**. Le tronc commun couvre
+    bandeau, personnage, alignement, overlay, recherche, Options, progression, progression par
+    Dofus, chapitres, bloc de quêtes, rail des donjons et ressources ; un compte ajoute
+    **Metamob** et **Rush Live**, un anonyme termine sur l'invitation au profil. Rejouable par
+    le bouton « Visite guidée » et l'entrée des Options.
+  - Aucun second système : même `TourOverlay`, même bulle (déslopée : plus de violet, de
+    `glass-premium` ni de `font-black`). Verrou `tests/unit/public-tour.test.ts` **19**,
+    `tour-overlay-viewport` **7** adapté au scope public.
 - **Alignement réglable — fait**, pour **tout le monde**. Connecté : action `updatePublicAlignment`
   (`src/server/actions/public-profile-actions.ts` + schéma `publicAlignmentSchema`), appelée par
   l'action colocalisée `_actions/public-alignment.ts` (le client public n'importe toujours aucun

@@ -63,7 +63,8 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
             // Le verrou porte sur la **branche** rendue (guide interactif, pas l'avis de
             // chantier) et sur les props historiques ; `[^>]*` tolère les props ajoutées
             // depuis (V1d : `isConnected`, V2a-1 : `visitor`), sans relâcher l'assertion.
-            /\) : \(\s*<>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\}[^>]*\/>/
+            // Le provider du tour public enveloppe le client : il reste dans la branche else.
+            /\) : \(\s*<>\s*<TourProvider[^>]*>\s*<PublicRushGuideClient guide=\{guide\} milestones=\{milestones\}[^>]*\/>/
         );
         expect(PAGE).not.toMatch(/heroArt/);
         expect(PAGE).toMatch(/t\.rushGuide\.underConstructionTitle/);

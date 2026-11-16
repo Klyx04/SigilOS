@@ -14,6 +14,7 @@ import { getPublicAccount } from "@/server/public-account";
 import { toPublicGuideVisitor } from "@/lib/public-guide-visitor";
 import { PublicRushGuideClient } from "./_components/PublicRushGuideClient";
 import { DaWakfuFilters } from "@/components/da/DaWakfuFilters";
+import { TourProvider } from "@/components/tour/tour-provider";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
@@ -210,7 +211,13 @@ export default async function PublicRushSylvestrePage() {
         </div>
         ) : (
           <>
-            <PublicRushGuideClient guide={guide} milestones={milestones} isConnected={!!session?.user} visitor={guideVisitor} />
+            <TourProvider
+              scope="public"
+              visitorConnected={!!session?.user}
+              locale={locale === "en" ? "en" : "fr"}
+            >
+              <PublicRushGuideClient guide={guide} milestones={milestones} isConnected={!!session?.user} visitor={guideVisitor} />
+            </TourProvider>
 
             {/* La FAQ reste hors du guide interactif : c'est du contenu de page,
                 pas une brique de la fenêtre (elle garde la DA « Carnet » du site). */}

@@ -121,15 +121,18 @@ describe("BUG-7 — la bulle du tutoriel reste dans la fenêtre", () => {
 
         const start = provider.indexOf("const skipTour = useCallback(");
         expect(start).toBeGreaterThan(-1);
-        const end = provider.indexOf("}, [guildId, tourPhase]);", start);
+        const end = provider.indexOf("}, [storageScope, tourPhase]);", start);
         expect(end).toBeGreaterThan(start);
         const body = provider.slice(start, end);
 
         // Passer masque la bulle, nettoie la progression et marque le tour fait
         // (sinon l'auto-start relancerait le tour en boucle)…
         expect(body).toMatch(/setIsActive\(false\)/);
-        expect(body).toMatch(/sigilos-tour-done-\$\{guildId\}`,\s*"true"/);
-        expect(body).toMatch(/localStorage\.removeItem\(`sigilos-tour-step-\$\{guildId\}`\)/);
+        // La clé est **scopée** : la guilde pour un tour de guilde, `public` pour les
+        // tours du guide Rush et de l'espace visiteur (aucune clé `undefined`).
+        expect(provider).toContain('const storageScope = guildId ?? "public";');
+        expect(body).toMatch(/sigilos-tour-done-\$\{storageScope\}`,\s*"true"/);
+        expect(body).toMatch(/localStorage\.removeItem\(`sigilos-tour-step-\$\{storageScope\}`\)/);
         // …sans confettis : passer n'est pas terminer.
         expect(body).not.toMatch(/setCelebrationActive/);
     });

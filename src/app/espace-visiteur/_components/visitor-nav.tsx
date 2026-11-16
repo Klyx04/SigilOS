@@ -14,23 +14,23 @@ import { cn } from "@/lib/utils";
  * `visitor-shell` vérifie que chaque chemin existe sur disque (piège du 404 documenté).
  */
 const SEGMENTS = [
-    { href: "/espace-visiteur/general", label: "Général", icon: "party.png" },
-    { href: "/espace-visiteur/notifications", label: "Notifications", icon: "bell-on.png" },
-    { href: "/espace-visiteur/mules", label: "Mules", icon: "guilde-et-mules.png" },
-    { href: "/espace-visiteur/presentation", label: "Présentation", icon: "parchment.png" },
-    { href: "/espace-visiteur/succes", label: "Succès", icon: "trophy-1.png" },
-    { href: "/espace-visiteur/metiers", label: "Métiers", icon: "hammer.png" },
+    { href: "/espace-visiteur/general", label: "Général", icon: "party.png", tour: "visitor-nav-general" },
+    { href: "/espace-visiteur/notifications", label: "Notifications", icon: "bell-on.png", tour: "visitor-nav-notifications" },
+    { href: "/espace-visiteur/mules", label: "Mules", icon: "guilde-et-mules.png", tour: "visitor-nav-mules" },
+    { href: "/espace-visiteur/presentation", label: "Présentation", icon: "parchment.png", tour: "visitor-nav-presentation" },
+    { href: "/espace-visiteur/succes", label: "Succès", icon: "trophy-1.png", tour: "visitor-nav-succes" },
+    { href: "/espace-visiteur/metiers", label: "Métiers", icon: "hammer.png", tour: "visitor-nav-metiers" },
     // Hub « Communauté SigilOS » : la porte visible de `/visiteurs`, à côté de l'espace
     // personnel. Le lien reste aussi dans « Explorer » pour les visiteurs connectés.
-    { href: "/visiteurs", label: "Communauté SigilOS", icon: "/assets/dofus/modules/character.png" },
-    { href: "/espace-visiteur/reglages", label: "Réglages", icon: "/assets/nav/cog.png" },
+    { href: "/visiteurs", label: "Communauté SigilOS", icon: "/assets/dofus/modules/character.png", tour: "visitor-nav-community" },
+    { href: "/espace-visiteur/reglages", label: "Réglages", icon: "/assets/nav/cog.png", tour: "visitor-nav-settings" },
 ] as const;
 
 export function VisitorNav({ unreadCount = 0 }: { unreadCount?: number }) {
     const pathname = usePathname();
 
     return (
-        <nav aria-label="Sections de l'espace visiteur" className="mx-auto w-full max-w-6xl overflow-x-auto px-2">
+        <nav aria-label="Sections de l'espace visiteur" data-tour="visitor-nav" className="mx-auto w-full max-w-6xl overflow-x-auto px-2">
             <ul className="flex min-w-max gap-1 pb-2">
                 {SEGMENTS.map((segment) => {
                     const active =
@@ -40,6 +40,7 @@ export function VisitorNav({ unreadCount = 0 }: { unreadCount?: number }) {
                         <li key={segment.href}>
                             <Link
                                 href={segment.href}
+                                data-tour={segment.tour}
                                 aria-current={active ? "page" : undefined}
                                 aria-label={
                                     segment.href === "/espace-visiteur/notifications" && unreadCount > 0

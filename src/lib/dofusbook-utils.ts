@@ -192,8 +192,10 @@ export function extractDofusbookBuildId(url: string): string | null {
 }
 
 /** `hostname` appartient-il au domaine (lui-même ou un de ses sous-domaines) ? */
-function hostMatches(hostname: string, domain: string): boolean {
-    return hostname === domain || hostname.endsWith(`.${domain}`);
+export function hostMatches(hostname: string, domain: string): boolean {
+    const host = String(hostname).toLowerCase();
+    const base = String(domain).toLowerCase();
+    return host === base || host.endsWith(`.${base}`);
 }
 
 /**

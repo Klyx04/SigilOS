@@ -38,6 +38,7 @@ import {
     type TicketCustomCommand,
     interpolateTicketCommandTokens,
 } from "@/lib/tickets/custom-commands";
+import { safeImageSrc } from "@/lib/safe-image-url";
 import {
     saveTicketCustomCommandAction,
     deleteTicketCustomCommandAction,
@@ -734,6 +735,10 @@ export function TicketCommandsTab({
     const renderedEmbedTitle = interpolateTicketCommandTokens(embedTitle, previewContext);
     const renderedEmbedDesc = interpolateTicketCommandTokens(embedDescription, previewContext);
     const renderedEmbedFooter = interpolateTicketCommandTokens(embedFooter, previewContext);
+    // CodeQL 123/125 : une URL d'image saisie n'atteint le `src` que si elle est
+    // `http(s)` ou un chemin interne. `javascript:` / `data:` sont donc impossibles.
+    const safeEmbedThumbnailUrl = safeImageSrc(embedThumbnailUrl);
+    const safeEmbedImageUrl = safeImageSrc(embedImageUrl);
 
     return (
         <div className="space-y-6">
@@ -1766,9 +1771,10 @@ export function TicketCommandsTab({
                                                         </div>
                                                     )}
                                                 </div>
-                                                {embedThumbnailUrl && (
+                                                {/* CodeQL 123/125 : URL validée (safeImageSrc) puis encodée avant l'attribut. */}
+                                                {safeEmbedThumbnailUrl && (
                                                     <img
-                                                        src={embedThumbnailUrl}
+                                                        src={encodeURI(safeEmbedThumbnailUrl)}
                                                         alt="Thumbnail"
                                                         className="h-10 w-10 rounded object-cover shrink-0"
                                                         onError={(e) => ((e.target as HTMLElement).style.display = "none")}
@@ -1776,10 +1782,11 @@ export function TicketCommandsTab({
                                                 )}
                                             </div>
 
-                                            {embedImageUrl && (
+                                            {/* CodeQL 123/125 : URL validée (safeImageSrc) puis encodée avant l'attribut. */}
+                                            {safeEmbedImageUrl && (
                                                 <div className="overflow-hidden rounded">
                                                     <img
-                                                        src={embedImageUrl}
+                                                        src={encodeURI(safeEmbedImageUrl)}
                                                         alt="Embed"
                                                         className="rounded max-h-36 w-full object-cover"
                                                         onError={(e) => ((e.target as HTMLElement).style.display = "none")}

@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { buildDofusbookClientFetchUrl } from "@/lib/dofusbook-sign";
 
 import redis from "@/lib/redis";
-import { processDofusbookRawData, extractDofusbookBuildId, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { processDofusbookRawData, extractDofusbookBuildId, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, hostMatches, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { isDofusbookBreakerOpen, openDofusbookBreaker } from "@/lib/dofusbook-guard";
 import { safeFetch } from "@/lib/safe-fetch";
 
@@ -57,9 +57,7 @@ function resetDofusbookFailures(): void {
  */
 /** Hôtes Dofusbook autorisés — la **destination finale** d'un raccourci est revalidée ici. */
 function isDofusbookHost(hostname: string): boolean {
-    const host = hostname.toLowerCase();
-    return host === "d-bk.net" || host.endsWith(".d-bk.net") ||
-        host === "dofusbook.net" || host === "www.dofusbook.net" || host.endsWith(".dofusbook.net");
+    return hostMatches(hostname, "d-bk.net") || hostMatches(hostname, "dofusbook.net");
 }
 
 export async function getDofusbookId(url: string): Promise<string | null> {
@@ -70,8 +68,15 @@ export async function getDofusbookId(url: string): Promise<string | null> {
         const buildId = extractDofusbookBuildId(url);
         if (buildId) return buildId;
 
-        // 2. Short URL resolution (d-bk.net)
-        if (url.includes("d-bk.net")) {
+        // 2. Short URL resolution (d-bk.net) — hostname **parsé**, jamais une sous-chaîne
+        // (CodeQL 127 : `https://evil.example/?x=d-bk.net` ne doit pas être suivi).
+        let shortHost = "";
+        try {
+            shortHost = new URL(url).hostname.toLowerCase();
+        } catch {
+            return null;
+        }
+        if (hostMatches(shortHost, "d-bk.net")) {
             // 🔐 SSRF : `safeFetch` vérifie l'IP pendant la connexion (plus de fenêtre
             // TOCTOU) et revalide l'hôte à **chaque** redirection — un raccourci d-bk.net
             // ne peut plus mener à un service interne.

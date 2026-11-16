@@ -78,7 +78,10 @@ describe("déslop God — recette de carte unique", () => {
         // (−8 le 28/09/2026, chantier « purge des onglets morts » : Studio Badges (2),
         // Icônes Modules (1), Packs Reaction Roles (2), Roadmap Pro (2) et Onboarding
         // B2B (1) sont supprimés — 85 → 77.)
-        const CEILING = 77;
+        // (+4 le 16/11/2026, V3 « God visiteurs » : `visitors-panel`, `guild-area-switch`,
+        // `god-pagination-links` et `visitor-visibility-reset` — tous consommateurs du kit.
+        // Le bouton de réinitialisation est une surface neuve, pas une dette.)
+        const CEILING = 81;
         const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
         expect(godFiles.length).toBeLessThanOrEqual(CEILING);
     });

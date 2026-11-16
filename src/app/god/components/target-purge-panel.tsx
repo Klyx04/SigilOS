@@ -65,31 +65,33 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
     };
 
     return (
-        <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl h-full flex flex-col gap-6 shadow-2xl relative overflow-hidden">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="flex h-full flex-col gap-5">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                 <div className="space-y-1">
-                    <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-3">
-                        <AlertTriangle className="w-4 h-4" />
-                        Target Purge Zone
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                        Comptes sans profil
                     </h3>
-                    <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Identification & Nettoyage des Ghost Users</p>
+                    <p className="text-xs text-muted-foreground">
+                        Comptes créés mais jamais reliés à une guilde ni à un profil visiteur.
+                    </p>
                 </div>
-                
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="relative group flex-1 min-w-[200px]">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-amber-500 transition-colors" />
-                        <Input 
-                            placeholder="Rechercher (Nom, ID, Discord)..." 
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[200px] flex-1">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                        <Input
+                            placeholder="Rechercher (nom, ID, Discord)…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-12 h-12 bg-black/40 border-white/5 focus:border-amber-500/50 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all"
+                            className="h-10 pl-9 text-sm"
                         />
                     </div>
 
-                    <div className="flex items-center gap-6 bg-black/40 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
+                    <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/10 px-4 py-2">
                         <div className="flex flex-col items-center">
-                            <span className="text-3xl font-black text-rose-500 leading-none">{ghostUsers.length}</span>
-                            <span className="text-caption font-black text-rose-500/50 uppercase tracking-tighter mt-1">Total</span>
+                            <span className="text-2xl font-semibold tabular-nums text-warning">{ghostUsers.length}</span>
+                            <span className="text-xs text-muted-foreground">Total</span>
                         </div>
                         {ghostUsers.length > 0 && (
                             <Button
@@ -97,39 +99,35 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                 size="sm"
                                 disabled={isPurgingAll}
                                 onClick={handlePurgeAll}
-                                className="bg-rose-500 text-white hover:bg-rose-600 font-black uppercase tracking-widest text-caption h-10 px-5 "
+                                className="h-9 gap-2"
                             >
-                                {isPurgingAll ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Trash2 className="w-3 h-3 mr-2" />}
-                                Purge Globale
+                                {isPurgingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                                Purger tout
                             </Button>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Explanatory Banner */}
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 flex gap-4 items-start relative z-10">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
-                    <UserX className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                    <h4 className="text-caption font-black text-amber-500 uppercase tracking-widest leading-none">Aide au Diagnostic</h4>
-                    <p className="text-caption text-zinc-500 leading-relaxed font-bold uppercase tracking-tight">
-                        Ces utilisateurs ont un compte mais **aucun** profil de guilde. 
-                        Vérifie l'activité (sessions) avant de purger. Un utilisateur avec 0 session est probablement un robot ou une erreur de connexion.
-                    </p>
-                </div>
+            {/* Aide au diagnostic */}
+            <div className="flex items-start gap-3 rounded-xl border border-warning/20 bg-warning/5 p-4">
+                <UserX className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    Ces comptes n&apos;ont <strong className="text-foreground">ni profil de guilde ni profil visiteur</strong>.
+                    Vérifie l&apos;activité (sessions) avant de purger : un compte sans session est probablement
+                    un robot ou une connexion interrompue.
+                </p>
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
                 {filteredUsers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 border border-dashed border-white/5 rounded-[2.5rem] bg-black/20 text-zinc-600 mt-2">
+                    <div className="mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/10 py-14 text-muted-foreground">
                         {search ? (
-                            <p className="font-black uppercase tracking-widest text-xs">Aucun résultat pour "{search}"</p>
+                            <p className="text-xs font-medium">Aucun résultat pour « {search} »</p>
                         ) : (
                             <>
-                                <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
-                                <p className="font-black uppercase tracking-widest text-xs">Aucune cible détectée</p>
+                                <CheckCircle2 className="mb-3 h-10 w-10 opacity-30" aria-hidden="true" />
+                                <p className="text-xs font-medium">Aucune cible détectée</p>
                             </>
                         )}
                     </div>
@@ -139,29 +137,30 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                         const lastActivity = user.sessions?.[0]?.expires;
                         
                         return (
-                            <div key={user.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-black/40 border border-white/5 rounded-2xl hover:bg-black/60 hover:border-white/10 transition-all group gap-4">
+                            <div key={user.id} className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-surface/10 p-4 transition-colors hover:border-border-strong sm:flex-row sm:items-center">
                                 <div className="flex items-center gap-4">
                                     <div className="relative shrink-0">
                                         {user.image ? (
                                             <img src={user.image} alt="" className="w-12 h-12 rounded-xl opacity-80 group-hover:opacity-100 transition-opacity" />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center border border-white/5">
-                                                <UserX className="w-5 h-5 text-zinc-600" />
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-elevated">
+                                                <UserX className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                                             </div>
                                         )}
                                         {user._count?.sessions > 0 && (
-                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-black animate-pulse" title="Session active" />
+                                            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success" title="Session active" />
                                         )}
                                     </div>
                                     
                                     <div className="space-y-1.5 overflow-hidden">
                                         <div className="flex items-center gap-3">
-                                            <h4 className="font-black text-sm text-white tracking-tight truncate uppercase italic">{user.name || "Utilisateur"}</h4>
+                                            <h4 className="truncate text-sm font-medium text-foreground">{user.name || "Utilisateur"}</h4>
                                             {discordId && (
                                                 <button 
                                                     onClick={() => copyToClipboard(discordId)}
-                                                    className="p-1.5 rounded-md hover:bg-white/5 text-zinc-600 hover:text-white transition-all"
-                                                    title="Copier Discord ID"
+                                                    className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                                                    title="Copier l'ID Discord"
+                                                    aria-label="Copier l'ID Discord"
                                                 >
                                                     <Copy className="w-3 h-3" />
                                                 </button>
@@ -169,27 +168,27 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                         </div>
                                         
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                            <div className="flex items-center gap-1.5 text-zinc-500">
-                                                <Calendar className="w-3 h-3" />
-                                                <span className="text-caption font-bold uppercase tracking-tighter">Créé: {new Date(user.createdAt).toLocaleDateString()}</span>
+                                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                <Calendar className="h-3 w-3" aria-hidden="true" />
+                                                <span className="text-xs">Créé le {new Date(user.createdAt).toLocaleDateString("fr-FR")}</span>
                                             </div>
                                             
-                                            <div className="flex items-center gap-1.5 text-zinc-500">
-                                                <MousePointer2 className="w-3 h-3" />
-                                                <span className="text-caption font-bold uppercase tracking-tighter">{user._count?.sessions} sessions</span>
+                                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                <MousePointer2 className="h-3 w-3" aria-hidden="true" />
+                                                <span className="text-xs">{user._count?.sessions ?? 0} session{(user._count?.sessions ?? 0) > 1 ? "s" : ""}</span>
                                             </div>
 
                                             {user._count?.guildEvents > 0 && (
-                                                <div className="flex items-center gap-1.5 text-amber-500">
-                                                    <CalendarCheck className="w-3 h-3" />
-                                                    <span className="text-caption font-bold uppercase tracking-tighter text-amber-500/80">{user._count.guildEvents} events</span>
+                                                <div className="flex items-center gap-1.5 text-warning">
+                                                    <CalendarCheck className="h-3 w-3" aria-hidden="true" />
+                                                    <span className="text-xs">{user._count.guildEvents} événement{(user._count.guildEvents ?? 0) > 1 ? "s" : ""}</span>
                                                 </div>
                                             )}
 
                                             {lastActivity && (
-                                                <div className="flex items-center gap-1.5 text-blue-400/70 italic">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span className="text-caption font-bold uppercase tracking-tighter">Actif: {new Date(lastActivity).toLocaleDateString()}</span>
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <Clock className="h-3 w-3" aria-hidden="true" />
+                                                    <span className="text-xs">Actif le {new Date(lastActivity).toLocaleDateString("fr-FR")}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -199,21 +198,21 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                 <div className="flex items-center gap-2 justify-end shrink-0">
                                     <div className="flex flex-col items-end mr-4 hidden md:flex gap-1.5">
                                          <span className={cn(
-                                             "text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
-                                             user._count?.sessions > 0 ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : "text-zinc-600 border-white/5 bg-white/5"
+                                             "rounded-full border px-2 py-0.5 text-xs font-medium",
+                                             user._count?.sessions > 0 ? "border-success/30 bg-success/10 text-success" : "border-border bg-surface/10 text-muted-foreground"
                                          )}>
-                                             {user._count?.sessions > 0 ? "Interactif" : "Visiteur"}
+                                             {user._count?.sessions > 0 ? "Interactif" : "Sans session"}
                                          </span>
                                          
                                          {/* New indicator for Whitelist membership */}
                                          {user.memberInWhitelists && user.memberInWhitelists.length > 0 && (
                                              <div className="flex flex-col items-end gap-1">
-                                                 <span className="text-caption font-black uppercase tracking-tighter text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-1.5 rounded-sm">
-                                                     Sur Whitelist
+                                                 <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                                                     Sur whitelist
                                                  </span>
-                                                 <div className="flex flex-wrap gap-1 justify-end max-w-[150px]">
+                                                 <div className="flex max-w-[150px] flex-wrap justify-end gap-1">
                                                      {user.memberInWhitelists.map((gName: string, idx: number) => (
-                                                         <span key={idx} className="text-caption text-zinc-500 whitespace-nowrap">{gName}</span>
+                                                         <span key={idx} className="whitespace-nowrap text-xs text-muted-foreground">{gName}</span>
                                                      ))}
                                                  </div>
                                              </div>
@@ -225,9 +224,10 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                         size="icon"
                                         onClick={() => handleDeleteUser(user)}
                                         disabled={purgingId === user.id || isPurgingAll}
-                                        className="h-10 w-10 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                                        className="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                        aria-label={`Purger ${user.name || "ce compte"}`}
                                     >
-                                        {purgingId === user.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" /> : <Trash2 className="w-4 h-4" />}
+                                        {purgingId === user.id ? <Loader2 className="h-4 w-4 animate-spin text-destructive" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
                                     </Button>
                                 </div>
                             </div>
@@ -235,8 +235,6 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                     })
                 )}
             </div>
-            
-            <div className="absolute bottom-0 right-0 w-64 h-64 bg-rose-500/5 blur-[120px] rounded-full -mr-32 -mb-32 pointer-events-none" />
         </div>
     );
 }

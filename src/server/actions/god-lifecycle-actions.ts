@@ -665,6 +665,11 @@ export async function getGuildMembersForGod(guildId: string) {
                 archivedAt: true,
                 archiveReason: true,
                 pseudoDofus: true,
+                dofusPseudo: true,
+                achievementPoints: true,
+                successPoints: true,
+                dofusLevel: true,
+                totalXp: true,
                 discordNickname: true,
                 scheduledDeletion: true,
                 user: {
@@ -698,6 +703,12 @@ export async function getGuildMembersForGod(guildId: string) {
             archivedAt: m.archivedAt?.toISOString() || null,
             archiveReason: m.archiveReason,
             pseudoDofus: m.pseudoDofus,
+            dofusPseudo: m.dofusPseudo,
+            achievementPoints: m.achievementPoints,
+            successPoints: m.successPoints,
+            dofusLevel: m.dofusLevel,
+            // BigInt n'est pas sérialisable tel quel vers un composant client.
+            totalXp: m.totalXp?.toString() ?? null,
             discordNickname: m.discordNickname,
             scheduledDeletion: m.scheduledDeletion?.toISOString() || null,
             user: {

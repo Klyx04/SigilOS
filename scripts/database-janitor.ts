@@ -20,6 +20,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { AUDIT_RETENTION_DAYS, MS_PER_DAY } from '../src/lib/audit-retention-policy';
+import { buildOrphanUserWhere } from '../src/lib/account-retention-policy';
 import { readTicketPlatformLimits } from '../src/lib/tickets/platform-limits';
 
 const GRACE_PERIOD_DAYS = 7;
@@ -59,18 +60,18 @@ async function main() {
         orphanCutoff.setDate(orphanCutoff.getDate() - GRACE_PERIOD_DAYS);
 
         const orphans = await db.user.findMany({
-            where: {
-                createdAt: { lt: orphanCutoff },
-                profiles: { none: {} },
-            },
-            select: { id: true, name: true, email: true }
+            // ⚠️ `publicProfile: { is: null }` — un VISITEUR n'a aucun UserProfile :
+            // sans cette condition, il était supprimé au bout de 7 jours (D-V5 = 365 j).
+            where: buildOrphanUserWhere(orphanCutoff),
+            select: { id: true, name: true }
         });
 
         console.log(`[GDPR] Found ${orphans.length} orphan user(s) (no profile, > ${GRACE_PERIOD_DAYS}d old)`);
 
         if (orphans.length > 0) {
             if (isDryRun) {
-                orphans.forEach(u => console.log(`  [DRY] Would delete user: ${u.name || u.email || u.id}`));
+                // Jamais d'e-mail dans les logs (règle : rien de sensible dans les logs).
+                orphans.forEach(u => console.log(`  [DRY] Would delete user: ${u.name || u.id}`));
             } else {
                 const result = await db.user.deleteMany({
                     where: { id: { in: orphans.map(u => u.id) } }

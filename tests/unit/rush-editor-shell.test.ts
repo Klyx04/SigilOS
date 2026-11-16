@@ -147,9 +147,12 @@ describe("E1 — plafond God et coquille mince", () => {
     });
   }
 
-  it("aucun fichier neuf dans src/app/god (plafond 77)", () => {
+  // +4 le 16/11/2026 (V3 « God visiteurs ») : `visitors-panel`, `guild-area-switch`,
+  // `god-pagination-links` et `visitor-visibility-reset`. Tous consomment le kit God ;
+  // le plafond suit un nombre de fichiers, pas la qualité (même règle que `god-deslop`).
+  it("aucun fichier neuf dans src/app/god (plafond 81)", () => {
     const godFiles = walk("src/app/god").filter((file) => /\.tsx?$/.test(file));
-    expect(godFiles.length).toBeLessThanOrEqual(77);
+    expect(godFiles.length).toBeLessThanOrEqual(81);
   });
 
   it("l'app file n'est plus qu'un ré-export", () => {

@@ -12,11 +12,23 @@
 
 import { ShieldCheck, KeyRound, UserCog, Crown, Users } from "lucide-react";
 import { DASHBOARD_ACCESS_ROLE_NAME, DASHBOARD_LOGIN } from "@/lib/onboarding-gating";
+import { PERMISSION_DETAILS, type PermissionId } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { GOD_CARD_BASE } from "../../ui";
 
 /** Résout un id de rôle Discord en nom lisible (nom connu > rôle de la guilde > id). */
 type RoleLabeler = (roleId: string) => string;
+
+/**
+ * Libellé humain d'une permission (G5) : on ne montre **jamais** un slug brut.
+ * Une permission inconnue est dite telle quelle, sans exposer son identifiant technique.
+ */
+function permissionLabel(id: string): { label: string; sensitive: boolean } {
+    const detail = PERMISSION_DETAILS[id as PermissionId];
+    return detail
+        ? { label: detail.label, sensitive: !!detail.sensitive }
+        : { label: "Permission non répertoriée", sensitive: false };
+}
 
 export function GodsGuildAccessPanel({
     ownerId,
@@ -49,10 +61,10 @@ export function GodsGuildAccessPanel({
 
     return (
         <div className="space-y-6">
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
-                <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
-                    <span className="font-black uppercase tracking-widest mr-2">Lecture seule :</span>
-                    consulter les accès d&apos;une guilde ne les modifie jamais. Les mappings se règlent par la
+            <div className="rounded-xl border border-border bg-surface/10 p-5">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    <span className="mr-2 font-semibold text-foreground">Lecture seule.</span>
+                    Consulter les accès d&apos;une guilde ne les modifie jamais. Les mappings se règlent par la
                     guilde (<code>/dashboard/[guildId]/admin/permissions</code>) ou par une action God explicite.
                 </p>
             </div>
@@ -87,26 +99,26 @@ function AccessBaseCard({
 }) {
     return (
         <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
-            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                <Crown className="w-4 h-4 text-violet-500" />
+            <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                <Crown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 Propriétaire & accès de base
             </h3>
             <div className="space-y-3 text-sm">
                 <Row label="Propriétaire Discord">
-                    <span className="font-mono text-xs text-zinc-300">{ownerId ?? "inconnu"}</span>
+                    <span className="font-mono text-xs text-foreground">{ownerId ?? "inconnu"}</span>
                 </Row>
                 <Row label={`Rôle « ${DASHBOARD_ACCESS_ROLE_NAME} »`}>
-                    <span className={hasAccessRole ? "text-xs text-emerald-400" : "text-xs text-amber-400"}>
+                    <span className={hasAccessRole ? "text-xs text-success" : "text-xs text-warning"}>
                         {hasAccessRole ? "présent" : "absent — créé au déploiement"}
                     </span>
                 </Row>
                 <Row label="Mapping individuel (God)">
-                    <span className={rbacUsersMappingEnabled ? "text-xs text-emerald-400" : "text-xs text-rose-400"}>
+                    <span className={rbacUsersMappingEnabled ? "text-xs text-success" : "text-xs text-destructive"}>
                         {rbacUsersMappingEnabled ? "activé" : "désactivé (kill-switch)"}
                     </span>
                 </Row>
                 <Row label="Rôles Discord">
-                    <span className="text-xs text-zinc-300">{discordRolesCount}</span>
+                    <span className="text-xs text-foreground">{discordRolesCount}</span>
                 </Row>
             </div>
         </div>
@@ -116,7 +128,7 @@ function AccessBaseCard({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4">
-            <span className="text-zinc-500">{label}</span>
+            <span className="text-muted-foreground">{label}</span>
             {children}
         </div>
     );
@@ -125,21 +137,21 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function DashboardLoginRolesCard({ roles, roleLabel }: { roles: [string, string[]][]; roleLabel: RoleLabeler }) {
     return (
         <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
-            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                <KeyRound className="w-4 h-4 text-violet-500" />
-                Rôles avec <code className="text-zinc-400">{DASHBOARD_LOGIN}</code>
+            <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                <KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                Rôles avec <code className="text-muted-foreground">{DASHBOARD_LOGIN}</code>
             </h3>
             {roles.length === 0 ? (
-                <p className="text-xs text-zinc-500 italic">
-                    Aucun rôle explicite : le dashboard est fermé (RBAC non configuré → onboarding incomplet).
+                <p className="text-xs text-muted-foreground">
+                    Aucun rôle explicite : le dashboard est fermé (droits non configurés → mise en route incomplète).
                 </p>
             ) : (
                 <ul className="space-y-2 text-sm">
                     {roles.map(([roleId, perms]) => (
                         <li key={roleId} className="flex items-center justify-between gap-4">
-                            <span className="text-zinc-300 truncate">{roleLabel(roleId)}</span>
-                            <span className="text-caption text-zinc-500 tabular-nums shrink-0">
-                                {perms.length} permission(s)
+                            <span className="truncate text-foreground">{roleLabel(roleId)}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                                {perms.length} permission{perms.length > 1 ? "s" : ""}
                             </span>
                         </li>
                     ))}
@@ -153,21 +165,21 @@ function DashboardLoginRolesCard({ roles, roleLabel }: { roles: [string, string[
 function IndividualOverridesCard({ entries }: { entries: [string, string[]][] }) {
     return (
         <div className={cn(GOD_CARD_BASE, "p-6 space-y-4 lg:col-span-2")}>
-            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                <UserCog className="w-4 h-4 text-violet-500" />
+            <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                <UserCog className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 Dérivations individuelles ({entries.length})
             </h3>
             {entries.length === 0 ? (
-                <p className="text-xs text-zinc-500 italic">
+                <p className="text-xs text-muted-foreground">
                     Aucune dérivation : tous les droits passent par les rôles Discord.
                 </p>
             ) : (
                 <ul className="space-y-2 text-sm">
                     {entries.map(([discordId, perms]) => (
                         <li key={discordId} className="flex items-center justify-between gap-4">
-                            <span className="font-mono text-xs text-zinc-300 truncate">{discordId}</span>
-                            <span className="text-caption text-zinc-500 tabular-nums shrink-0">
-                                {perms.length} permission(s)
+                            <span className="truncate font-mono text-xs text-foreground">{discordId}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                                {perms.length} permission{perms.length > 1 ? "s" : ""}
                             </span>
                         </li>
                     ))}
@@ -187,25 +199,50 @@ function MappedRolesCard({
     const entries = Object.entries(rolesMapping);
     return (
         <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
-            <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                <Users className="w-4 h-4 text-violet-500" />
+            <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 Tous les rôles mappés ({entries.length})
             </h3>
             {entries.length === 0 ? (
-                <p className="text-xs text-zinc-500 italic">Aucun rôle mappé.</p>
+                <p className="text-xs text-muted-foreground">Aucun rôle mappé.</p>
             ) : (
-                <div className="space-y-3">
-                    {entries.map(([roleId, perms]) => (
-                        <div key={roleId} className="flex flex-col gap-1 border-b border-white/5 pb-2 last:border-0">
-                            <span className="text-sm text-zinc-300 flex items-center gap-2">
-                                <ShieldCheck className="w-3.5 h-3.5 text-zinc-600" />
-                                {roleLabel(roleId)}
-                            </span>
-                            <span className="text-caption font-mono text-zinc-500 break-all">
-                                {Array.isArray(perms) && perms.length > 0 ? perms.join(", ") : "—"}
-                            </span>
-                        </div>
-                    ))}
+                <div className="space-y-4">
+                    {entries.map(([roleId, perms]) => {
+                        const details = (Array.isArray(perms) ? perms : []).map(permissionLabel);
+                        const sensitiveCount = details.filter((d) => d.sensitive).length;
+                        return (
+                            <div key={roleId} className="space-y-2 border-b border-border pb-3 last:border-0 last:pb-0">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="flex items-center gap-2 text-sm text-foreground">
+                                        <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                        {roleLabel(roleId)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                        {details.length} permission{details.length > 1 ? "s" : ""}
+                                        {sensitiveCount > 0 ? ` · ${sensitiveCount} sensible${sensitiveCount > 1 ? "s" : ""}` : ""}
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {details.length === 0 ? (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                    ) : (
+                                        details.map((detail, index) => (
+                                            <span
+                                                key={`${roleId}-${index}`}
+                                                className={
+                                                    detail.sensitive
+                                                        ? "rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs text-warning"
+                                                        : "rounded-full border border-border bg-surface/10 px-2 py-0.5 text-xs text-muted-foreground"
+                                                }
+                                            >
+                                                {detail.label}
+                                            </span>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>

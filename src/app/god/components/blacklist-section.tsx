@@ -53,56 +53,56 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
     };
 
     return (
-        <div className="p-8 rounded-[2.5rem] bg-zinc-950/40 border border-white/5 space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/5 pb-4 gap-4">
+        <div className="rounded-xl border border-border bg-surface/10 p-5 space-y-4">
+            <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-rose-400" />
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Shield className="h-4 w-4 text-danger" aria-hidden="true" />
                         Blacklist & Restriction Plateforme
                     </h3>
-                    <p className="text-zinc-500 text-xs font-medium">
+                    <p className="text-xs text-muted-foreground">
                         Bannissements plateforme (accès bot et plateforme bloqués pour les IDs spécifiés).
                     </p>
                 </div>
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 font-black uppercase tracking-widest text-caption px-4 py-2 rounded-xl gap-2">
+                        <Button variant="outline" className="gap-2">
                             + Nouveau Ban
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-md rounded-3xl p-6 backdrop-blur-2xl">
+                    <DialogContent className="max-w-md rounded-xl border border-border bg-background p-6 text-foreground">
                         <DialogHeader>
-                            <DialogTitle className="text-lg font-black uppercase tracking-tight text-rose-400">Ajouter un Bannissement</DialogTitle>
-                            <DialogDescription className="text-zinc-400 text-xs">
+                            <DialogTitle className="text-base font-semibold text-foreground">Ajouter un Bannissement</DialogTitle>
+                            <DialogDescription className="text-xs text-muted-foreground">
                                 Bloque immédiatement l'accès au bot et au dashboard pour la guilde ou l'utilisateur.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 mt-4">
+                        <div className="mt-4 space-y-4">
                             <select
                                 value={banType}
                                 onChange={(e) => setBanType(e.target.value as any)}
-                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none"
+                                className="h-10 w-full rounded-lg border border-border bg-elevated px-3 text-sm text-foreground focus:border-border-strong focus:outline-none"
                             >
-                                <option value="GUILD">🏰 Guilde Discord ID</option>
-                                <option value="USER">👤 Utilisateur Discord ID</option>
+                                <option value="GUILD">Guilde Discord ID</option>
+                                <option value="USER">Utilisateur Discord ID</option>
                             </select>
                             <Input
                                 placeholder="ID Discord (ex: 123456789...)"
                                 value={banDiscordId}
                                 onChange={(e) => setBanDiscordId(e.target.value)}
-                                className="bg-zinc-900 border-white/10 text-xs font-mono"
+                                className="font-mono text-xs"
                             />
                             <Input
                                 placeholder="Raison du bannissement..."
                                 value={banReason}
                                 onChange={(e) => setBanReason(e.target.value)}
-                                className="bg-zinc-900 border-white/10 text-xs font-medium"
+                                className="text-xs"
                             />
                             <Button
                                 onClick={handleAddBan}
                                 disabled={isPending || !banDiscordId.trim() || !banReason.trim()}
-                                className="w-full bg-rose-600 hover:bg-rose-500 text-white font-black uppercase tracking-wider text-xs h-12 rounded-xl"
+                                className="h-11 w-full rounded-lg"
                             >
                                 {isPending ? "Enregistrement..." : "Appliquer le ban"}
                             </Button>
@@ -112,26 +112,26 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
             </div>
 
             {bans.length === 0 ? (
-                <div className="p-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-wider bg-zinc-900/20 rounded-2xl border border-white/5">
-                    ✅ Aucun bannissement actif
+                <div className="rounded-xl border border-dashed border-border bg-surface/5 p-6 text-center text-xs text-muted-foreground">
+                    Aucun bannissement actif
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {bans.map((ban: any) => (
-                        <div key={ban.id} className="p-4 rounded-2xl bg-zinc-900/30 border border-rose-500/10 flex items-center justify-between">
-                            <div>
-                                <span className="text-caption font-black uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                                    {ban.entityType === 'GUILD' ? '🏰 Guilde' : '👤 User'}
+                        <div key={ban.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/10 p-4">
+                            <div className="min-w-0">
+                                <span className="rounded-full border border-destructive/30 bg-destructive/15 px-2 py-0.5 text-caption font-semibold uppercase text-destructive">
+                                    {ban.entityType === 'GUILD' ? 'Guilde' : 'Utilisateur'}
                                 </span>
-                                <div className="text-xs font-mono font-bold text-white mt-1">{ban.discordId}</div>
-                                <div className="text-caption text-zinc-500 font-medium">{ban.reason}</div>
+                                <div className="mt-1 truncate font-mono text-xs text-foreground">{ban.discordId}</div>
+                                <div className="text-xs text-muted-foreground">{ban.reason}</div>
                             </div>
                             <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleUnban(ban.id)}
                                 disabled={isPending}
-                                className="text-xs font-bold text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                className="shrink-0 text-muted-foreground hover:text-foreground"
                             >
                                 Lever
                             </Button>

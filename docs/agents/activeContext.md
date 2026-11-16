@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 10) — **Reprise D1/D2/D3 : Discord SigilOS, rangs explicites, annuaire multi-serveurs** — branches `feat/discord-sigilos`, `fix/ladder-libelles`, `feat/visiteurs-filtre-serveur`
+
+> **Demande user (verbatim)** : « Commence par D1 et D2 (XS), puis D3. »
+> **Mesure** : `discord.gg/uX7G6SUDgN` résout la guilde **SigilOS** ; `/discord` (`BMVvXpYHEt`) résout **STELLIUM** (nom interne). `#364` = rang du worker Ladder **Ankama** ; `#13` = `getLadderPreview` (membres ACTIFs avec plus de points + 1), pas un rang Ankama. `/visiteurs` figeait `dofusServerId: viewer.serverId` dans la liste **et** la fiche : explorer un autre serveur aurait rendu un 404 par profil.
+> **Fait** : **D1** — `src/lib/discord-invite.ts` (env + repli), lien « Discord » à côté de Documentation (rangée en `flex-wrap` pour la sidebar à 232 px), bouton « Rejoindre le Discord » sur Tickets (cible 44 px), verrou `discord-sigilos-links` 3 tests. **D2** — `src/lib/ladder-rank.ts` (`formatRankOrdinal` déterministe U+202F : `364ᵉ`, `1ᵉʳ`, `—`), libellés « Rang succès » / « Rang interne » + info-bulles, carte en `flex-wrap` (390 px), verrou 3 tests. **D3** — `serverId` borné 1..9999 + `all`, serveur du lecteur en défaut, consentement `showOnDirectory` **global** (liste **et** fiche), menu serveur avec icônes `ALL_DOFUS_SERVER_ENTRIES`, colonne Serveur (sous le pseudo en mobile), pagination qui préserve `serverId`, i18n FR/EN, texte de consentement explicite, plan D-V18 révisé, 81 ciblés.
+> **Preuves** : suite **739 fichiers / 7 752 tests ✅** · `tsc` 0 · ESLint 0 erreur · PR **#1405**, **#1406**, **#1407** mergées · aucune migration, aucun secret, aucun cron.
+> **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de la sidebar, de la page Tickets et de `/visiteurs` (menu serveur + colonne) ; vérifier le post-merge `Build & Push` bêta ; D4→D7 inchangés.
+> **Rotation** : bloc « Session 16/11/2026 (suite 4) — Visiteur · guide Rush » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 9) — **God · lot C : vue d'ensemble allégée, SSE supprimé, cartes tokenisées** — branche `feat/god-overview`
 
 > **Décision user (verbatim)** : « GO LOT B ET C l'un après l'autre enchaine 2 pr ».
@@ -56,16 +66,6 @@
 > **Essai (demandé en cours de route, hors lot stats/404)** : vérifié que la notification ne s'appuie que sur `trialValidated: false` + `trialEndsAt` non nul (essai de base posé à l'arrivée, reprogrammation via `setMemberTrialState`, sources profil + registre) et que `postServiceMessage` renvoie `null` en échec. **Trou permanent corrigé** : la clé Redis d'idempotence (90 j) était posée **avant** l'envoi — un crash pendant l'envoi supprimait la notification pour cette échéance ⇒ verrou court **5 min** + clé durable écrite **après** un envoi réussi. Embed enrichi : `Dashboard : 🟢 Présent sur le dashboard` / `🔴 Pas de compte dashboard` (`buildTrialEndNotice`, règle pure testée).
 > **Reste / ops** : PR à merger · la mesure `next start` exige `STORAGE_SIGNING_SECRET` (≥ 32) et `GOD_ROUTE` (`/mng-…`) · `/visiteurs/<id>` anonyme répond **200** (porte d'accès `noindex`) : `notFound()` ne couvre que le viewer authentifié — comportement existant, non modifié · une URL non reconnue rend les 404 imbriquées **sans** le layout du segment (mesuré) · `/god/guilds/<id>` inconnu rend la 404 publique (aucun écran dans `/god`, pas de fuite).
 > **Rotation** : bloc « Session 15/11/2026 (suite 3) — Docs · un seul fichier de chantiers » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 16/11/2026 (suite 4) — **Visiteur · guide Rush : l'accueil ne redemande plus un profil** — branche `feat/rush-accueil-connecte`
-
-> **Demande user (verbatim)** : « on doit forcer la creation de son profil / mules optionnel non sur le rush en connecté ? on est d'accord ? c'est tout ? ».
-> **Mesure** : l'accueil du guide Rush (3 étapes, 1×/navigateur, « Passer ») partait **toujours** de l'étape 1 et ouvrait le formulaire **anonyme** (`GuestCharacterModal`, localStorage), même pour un compte connecté. Un visiteur sans `PublicProfile` a `visitor = null` (`getPublicAccount`) : il était traité comme un anonyme, avec un texte qui promettait « dans ton espace visiteur dès que tu te connectes » alors qu'il l'était déjà. « Enregistrer » ne passait pas par `onClose` : l'accueil restait bloqué après le personnage.
-> **Fait** : règle pure `src/lib/rush-onboarding.ts` (`resolveRushOnboardingStart` : anonyme/profil partiel ⇒ étape 1 ; profil complet sans alignement ⇒ étape 2 ; tout déclaré ⇒ aucun accueil) · `PublicOnboardingModal` distingue 4 audiences (`anonymous`, `connectedWithoutProfile`, `connectedPartial`, `connected`) + lien « Mon espace visiteur » + bouton « Choisir » masqué quand le compte a déjà son personnage · `handleOnboardingPickCharacter` route vers la **bascule de compte** (mules) ou le formulaire local, jamais un formulaire de création pour un compte complet · formulaire local prérempli depuis le profil (pseudo/classe/serveur) · `advanceOnboardingAfterCharacter` fait avancer l'accueil après « Enregistrer », « Annuler » et la bascule · **aucun profil n'est requis**, les mules restent optionnelles.
-> **Preuves** : suite **724 fichiers / 7 616 tests ✅** · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · ciblés : `rush-onboarding-start` 6, `rush-public-onboarding` 6, `guest-character-modal` 11.
-> **Reste / ops** : rien à déployer (client seul, aucun schéma). Contrôle bêta : compte sans profil → guide Rush → accueil « personnage local » ; compte complet → pas d'étape personnage.
-> **Rotation** : bloc « Session 15/11/2026 (suite 2) — Notifications · N1→N4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

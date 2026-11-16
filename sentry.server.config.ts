@@ -2,7 +2,12 @@
 // This file configures Sentry on the server side
 
 import * as Sentry from "@sentry/nextjs";
-import { COMMON_IGNORE_ERRORS, SERVER_IGNORE_ERRORS } from "./src/lib/sentry-ignores";
+import {
+    COMMON_IGNORE_ERRORS,
+    SERVER_IGNORE_ERRORS,
+    isExpectedRefusalEvent,
+    isSentryTunnelEvent,
+} from "./src/lib/sentry-ignores";
 import { SENTRY_DATA_COLLECTION } from "./src/lib/sentry-data-collection";
 
 Sentry.init({
@@ -33,6 +38,12 @@ Sentry.init({
 
     // Before sending, add extra context
     beforeSend(event) {
+        // 🧹 Bruit mesuré qui ne peut pas passer par `ignoreErrors` (le filtre du SDK ne
+        // regarde que le **premier argument** d'un `console.error`, or Next écrit `⨯` en
+        // premier). Mesures dans `src/lib/sentry-ignores.ts`.
+        if (isSentryTunnelEvent(event)) return null; // 2D — boucle de rétroaction du tunnel
+        if (isExpectedRefusalEvent(event)) return null; // 2A — refus de garde, fail-closed
+
         // Remove sensitive data
         if (event.request?.headers) {
             delete event.request.headers["authorization"];

@@ -60,7 +60,7 @@ describe("Action Auth.js inconnue — classée en warn, jamais en Issue", () => 
         expect(code).toContain("isUnknownAuthAction(error)");
 
         const garde = code.indexOf("if (isUnknownAuthAction(error))");
-        const erreur = code.indexOf('logger.error(`[auth] ${error.name}');
+        const erreur = code.indexOf('logger.error(`[auth] ${description.type}');
         expect(garde).toBeGreaterThanOrEqual(0);
         expect(erreur).toBeGreaterThan(garde);
         // Le cas filtré reste visible dans `docker logs` (warn), il ne disparaît pas.

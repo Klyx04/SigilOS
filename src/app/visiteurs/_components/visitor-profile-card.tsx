@@ -1,22 +1,40 @@
-import { Hammer, Sparkles, Target, Trophy } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { enUS, fr } from "date-fns/locale";
+import {
+    Compass,
+    Crosshair,
+    ExternalLink,
+    Hammer,
+    Sparkles,
+    Swords,
+    Target,
+    Trophy,
+    User,
+    Users,
+} from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
 import { formatDofusLevel } from "@/lib/dofus-level";
 import type { VisitorProfile } from "@/lib/public-directory";
+import { MAIN_CHARACTER_SLOT } from "@/lib/succes-characters";
 import type { Translations } from "@/lib/i18n/locales/fr";
+import type { Locale } from "@/lib/i18n/types";
 
 /**
- * Corps de la fiche visiteur (V2e, refonte visuelle du 16/11/2026). Composant **serveur
- * pur** : il ne reçoit qu'un `VisitorProfile` déjà filtré par la couche serveur, donc il ne
- * peut rien exposer d'autre (pas de mules, pas de Metamob — ces champs n'existent pas dans
- * le DTO). Aucun contrôle : la fiche est en lecture seule par conception.
+ * Corps de la fiche visiteur (V2e, enrichi V5 bis le 16/11/2026). Composant **serveur pur** :
+ * il ne reçoit qu'un `VisitorProfile` déjà filtré par la couche serveur. La fiche est en
+ * lecture seule par conception ; les sections Rush et Metamob ne sont rendues que si le DTO
+ * les porte (consentement `showRushProgress`, `metamobVerified`). Aucune clé ne transite.
  */
 export function VisitorProfileCard({
     profile,
     labels,
+    locale,
 }: {
     profile: VisitorProfile;
     labels: Translations["visitorsPage"];
+    locale: Locale;
 }) {
+    const dateLocale = locale === "en" ? enUS : fr;
     const summary = [
         { label: labels.profile.level, value: formatDofusLevel(profile.level) },
         { label: labels.profile.successPoints, value: profile.successPoints ?? "—" },
@@ -58,6 +76,13 @@ export function VisitorProfileCard({
                                 </span>
                             ) : null}
                         </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {labels.profile.updated}{" "}
+                            {formatDistanceToNow(profile.updatedAt, {
+                                addSuffix: true,
+                                locale: dateLocale,
+                            })}
+                        </p>
                     </div>
                 </div>
 
@@ -77,6 +102,70 @@ export function VisitorProfileCard({
                     ))}
                 </dl>
             </header>
+
+            {profile.mules.length > 0 || profile.activities.length > 0 ? (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {profile.mules.length > 0 ? (
+                        <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+                            <h2 className="reg-eyebrow flex items-center gap-2">
+                                <Users className="size-3.5" aria-hidden="true" />
+                                {labels.profile.characters}
+                            </h2>
+                            <ul className="mt-3 space-y-2">
+                                {profile.mules.map((mule) => (
+                                    <li
+                                        key={mule.pseudo}
+                                        className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                                    >
+                                        {mule.classe ? (
+                                            <GameIcon
+                                                src={mule.classe.icon}
+                                                className="size-6 shrink-0"
+                                            />
+                                        ) : (
+                                            <User
+                                                className="size-5 shrink-0 text-muted-foreground"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium text-foreground">
+                                                {mule.pseudo}
+                                            </p>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {mule.classe?.name ?? labels.profile.unknownClass}
+                                                {mule.level
+                                                    ? ` · ${labels.profile.level} ${formatDofusLevel(mule.level)}`
+                                                    : ""}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    ) : null}
+
+                    {profile.activities.length > 0 ? (
+                        <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+                            <h2 className="reg-eyebrow flex items-center gap-2">
+                                <Compass className="size-3.5" aria-hidden="true" />
+                                {labels.profile.activities}
+                            </h2>
+                            <ul className="mt-3 flex flex-wrap gap-2">
+                                {profile.activities.map((activity) => (
+                                    <li
+                                        key={activity.id}
+                                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                                    >
+                                        <GameIcon src={activity.icon} className="size-4" />
+                                        {activity.label}
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    ) : null}
+                </div>
+            ) : null}
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
@@ -121,6 +210,216 @@ export function VisitorProfileCard({
                     </ul>
                 )}
             </section>
+
+            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="reg-eyebrow flex items-center gap-2">
+                        <Trophy className="size-3.5" aria-hidden="true" />
+                        {labels.profile.achievements}
+                    </h2>
+                    <span className="text-xs text-muted-foreground">
+                        {profile.achievementList.length} / {profile.achievements}
+                    </span>
+                </div>
+                {profile.achievementList.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {labels.profile.noAchievements}
+                    </p>
+                ) : (
+                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {profile.achievementList.map((achievement) => (
+                            <li
+                                key={`${achievement.id}:${achievement.characterSlot}`}
+                                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                            >
+                                {achievement.iconUrl ? (
+                                    <GameIcon
+                                        src={achievement.iconUrl}
+                                        className="size-6 shrink-0"
+                                    />
+                                ) : (
+                                    <Trophy
+                                        className="size-5 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-foreground">
+                                        {achievement.name}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                        {achievement.dungeonName} · {achievement.points}{" "}
+                                        {labels.profile.points}
+                                    </p>
+                                </div>
+                                <CharacterBadge
+                                    slot={achievement.characterSlot}
+                                    labels={labels}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {profile.achievementList.length < profile.achievements ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        {labels.profile.cappedAchievements.replace(
+                            "{n}",
+                            String(profile.achievementList.length)
+                        )}
+                    </p>
+                ) : null}
+            </section>
+
+            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="reg-eyebrow flex items-center gap-2">
+                        <Crosshair className="size-3.5" aria-hidden="true" />
+                        {labels.profile.bountiesSection}
+                    </h2>
+                    <span className="text-xs text-muted-foreground">
+                        {profile.bountyList.length} / {profile.bountiesDone}
+                    </span>
+                </div>
+                {profile.bountyList.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {labels.profile.noBounties}
+                    </p>
+                ) : (
+                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {profile.bountyList.map((bounty) => (
+                            <li
+                                key={`${bounty.id}:${bounty.characterSlot}`}
+                                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                            >
+                                {bounty.imageUrl ? (
+                                    <GameIcon src={bounty.imageUrl} className="size-6 shrink-0" />
+                                ) : (
+                                    <Crosshair
+                                        className="size-5 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-foreground">
+                                        {bounty.name}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                        {labels.profile.level} {bounty.level}
+                                        {bounty.zoneName ? ` · ${bounty.zoneName}` : ""}
+                                    </p>
+                                </div>
+                                <CharacterBadge slot={bounty.characterSlot} labels={labels} />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {profile.bountyList.length < profile.bountiesDone ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        {labels.profile.cappedBounties.replace(
+                            "{n}",
+                            String(profile.bountyList.length)
+                        )}
+                    </p>
+                ) : null}
+            </section>
+
+            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+                <h2 className="reg-eyebrow flex items-center gap-2">
+                    <Swords className="size-3.5" aria-hidden="true" />
+                    {labels.profile.rush}
+                </h2>
+                {profile.rush === null ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {labels.profile.rushNotShared}
+                    </p>
+                ) : profile.rush.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">{labels.profile.noRush}</p>
+                ) : (
+                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {profile.rush.map((character) => (
+                            <li
+                                key={character.characterSlot}
+                                className="rounded-lg border border-border bg-background p-3"
+                            >
+                                <div className="flex items-center gap-2">
+                                    {character.classe ? (
+                                        <GameIcon
+                                            src={character.classe.icon}
+                                            className="size-6 shrink-0"
+                                        />
+                                    ) : (
+                                        <User
+                                            className="size-5 shrink-0 text-muted-foreground"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                                        {character.characterName ?? character.characterSlot}
+                                    </p>
+                                    <CharacterBadge
+                                        slot={character.characterSlot}
+                                        labels={labels}
+                                    />
+                                </div>
+                                <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                    <span>
+                                        {character.completedMilestones}{" "}
+                                        {labels.profile.rushBlocks}
+                                    </span>
+                                    <span>
+                                        {character.completedSteps} {labels.profile.rushSteps}
+                                    </span>
+                                    <span>
+                                        {character.dungeonChecks} {labels.profile.rushDungeons}
+                                    </span>
+                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    {labels.profile.rushUpdated}{" "}
+                                    {formatDistanceToNow(character.updatedAt, {
+                                        addSuffix: true,
+                                        locale: dateLocale,
+                                    })}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            {profile.metamob ? (
+                <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+                    <h2 className="reg-eyebrow flex items-center gap-2">
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                        {labels.profile.metamob}
+                    </h2>
+                    <a
+                        href={profile.metamob.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="reg-link mt-2 inline-flex items-center gap-1.5 text-sm font-medium"
+                    >
+                        {labels.profile.metamobOpen.replace("{pseudo}", profile.metamob.pseudo)}
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                    </a>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {labels.profile.metamobVerified}
+                    </p>
+                </section>
+            ) : null}
         </>
+    );
+}
+
+function CharacterBadge({
+    slot,
+    labels,
+}: {
+    slot: string;
+    labels: Translations["visitorsPage"];
+}) {
+    return (
+        <span className="shrink-0 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            {slot === MAIN_CHARACTER_SLOT ? labels.profile.mainCharacter : slot}
+        </span>
     );
 }

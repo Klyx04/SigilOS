@@ -5,6 +5,17 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 13) — **Visiteurs · fiche V5 bis complète (succès, avis, mules, activités, Rush, Metamob)** — branche `feat/visiteur-fiche-complete`
+
+> **Demande user (verbatim)** : « c ca que t'appelle fait sur v5 fche lecture seule ? » puis choix « V5 bis complet : succès + avis + mules + activités + Rush/Metamob (en respectant les consentements) ».
+> **Mesure** : la fiche V5 ne rendait que le hero, 4 compteurs, présentation/objectifs/métiers ; le DTO `VisitorProfile` ne portait ni mules, ni activités, ni listes de succès/avis, ni Rush, ni Metamob. Les données existaient en base (`altPseudos`, `preferredActivities`, `PublicDungeonAchievement`, `PublicBountyCompletion`, `PublicRushProgress`, `metamobPseudo/Verified`).
+> **Fait** : `VisitorProfile` enrichi (mules normalisées, activités filtrées par liste blanche, succès/avis plafonnés à 60 avec totaux `_count`, Rush résumé par personnage, Metamob vérifié) ; `PROFILE_SELECT` + `hydrateProfile` lisent le Rush **seulement** si `showRushProgress` ; `VisitorProfileCard` rend les sections (aucune palette en dur, assets du jeu) ; i18n FR/EN ; décision `D-V9 bis` ; verrous `visitor-directory` + `visiteur-page-perso`.
+> **Preuves** : suite **744 fichiers / 7 790 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés **141 ✅** (8 fichiers).
+> **Reste / ops** : contrôle visuel 390/768/1024/1440 de la fiche (listes longues, Rush non partagé, Metamob vérifié) ; aucune migration.
+> **Rotation** : bloc « Session 16/11/2026 (suite 7) — Rétention · lot A » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 16/11/2026 (suite 12) — **Visiteurs · carte Ocre alignée sur l'interne (possession + vraie synchro)** — branche `fix/ocre-visiteur-parite`
 
 > **Demande user (verbatim)** : « la quete ocre se sync pas en externe comme l'interne c bizarre » (+ captures : externe 1/18, 0 %, 0/51, 0/286 ; interne 1/34, 69 %, 42/51, 191/286).
@@ -53,15 +64,5 @@
 > **Preuves** : **738 fichiers / 7 742 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés : `telemetry-guild-scope` 6, `telemetry-surface` 8, `telemetry-stats-guild-scope` 3, `telemetry-live-events` 3, `telemetry-dashboard-deslop` 3 (**23 neufs**, 89 avec les gardes existantes).
 > **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de `?tab=telemetry` ; la preuve de perf est structurelle (un appel `limit + 1` par page au lieu de la grappe d'agrégats à chaque frappe/30 s).
 > **Rotation** : bloc « Session 16/11/2026 (suite 2) — Discord · Commande slash `/legendaire` » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 16/11/2026 (suite 7) — **Rétention · lot A : purge télémétrie 90 j + journal d'activité 365 j** — branche `feat/retention-logs`
-
-> **Décision user (verbatim)** : « A complet » — go explicite pour le lot A du cadrage `PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` (suppression de données) ; durées **90 j** / **365 j** inchangées.
-> **Mesure** : `cleanup-logs` ne connaissait que l'audit (90/30 j), les notifs God et le marché ; `scripts/database-janitor.ts` ne citait ni `TelemetryEvent` ni `ServiceActivityLog` ⇒ **aucune purge** sur les deux tables. `TelemetryEvent` porte **6 index** dont `[createdAt]` ; `ServiceActivityLog` **3 index**, aucun sur `createdAt` seul.
-> **Fait** : **policy** `src/lib/telemetry-retention-policy.ts` (90/365, lots de 500, budget de 10 lots) · **core** `src/server/log-retention.ts` (hors `"use server"`, suppression conditionnelle par ids, télémétrie par `createdAt`, activité **guilde par guilde** sur `GuildConfig.id` interne, `hasMore`/`failed` isolés, compteurs seulement) · **`cleanup-logs`** : deux purges isolées, compteurs dans `recordCronExecution`, `console.error` → `logger` · **janitor** : même politique en import relatif, `DRY_RUN` conservé · **God Stockage** : `getGuildLogsStats` expose `retention` (`count` + `aggregate _min.createdAt`), onglet « Logs par guilde » avec deux tuiles en lecture seule (Télémétrie 90 j / Journal d'activité 365 j, plus ancienne ligne, « purge au prochain cron »).
-> **Preuves** : **35 tests ciblés verts** (`telemetry-retention-policy` 6, `log-retention` 13, `cleanup-logs` 8, `janitor-logs-retention` 5, `storage-retention-stats` 3) · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · `git status --short` propre · **`npm run test:run` à passer avant la PR**.
-> **Reste / ops (humain)** : première passe réelle — dry-run du janitor puis `cleanup-logs`, mesure des compteurs God avant/après ; si `hasMore` reste vrai plusieurs jours, augmenter `LOG_PURGE_MAX_BATCHES` **avec la mesure** ; image applicative pour le cron, `git pull` sur le VPS pour le janitor ; exporter (`exportTelemetryDataAction`) **avant** la première passe si des tendances > 90 j doivent être conservées.
-> **Rotation** : bloc « Session 16/11/2026 (suite) — Visiteur · tours publics (profil + guide Rush) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

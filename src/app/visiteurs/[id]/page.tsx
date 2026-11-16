@@ -29,7 +29,7 @@ export default async function VisitorProfilePage({
 }: {
     params: Promise<{ id: string }>;
 }) {
-    const [{ id }, session, access, { t }] = await Promise.all([
+    const [{ id }, session, access, { t, locale }] = await Promise.all([
         params,
         auth(),
         resolveDirectoryViewer(),
@@ -103,7 +103,7 @@ export default async function VisitorProfilePage({
             <Link href="/visiteurs" className="reg-link text-sm">
                 {labels.profile.backToList}
             </Link>
-            <VisitorProfileCard profile={profile} labels={labels} />
+            <VisitorProfileCard profile={profile} labels={labels} locale={locale} />
         </VisitorsShell>
     );
 }

@@ -12,8 +12,10 @@
  * verrouille.
  *
  * Invariants :
- *  · **jamais** de mule (`altPseudos`), de clé Metamob, ni de `userId` dans un DTO : la fiche
- *    publique ne montre que ce que le visiteur a déclaré pour l'annuaire ;
+ *  · la **liste** ne porte jamais de mule (`altPseudos`), de Metamob ni de `userId` ; la
+ *    **fiche** expose les données déclarées (mules, activités, succès, avis, Metamob vérifié)
+ *    et le Rush **seulement** si `showRushProgress` ; la clé Metamob et `userId` ne sortent
+ *    **jamais** ;
  *  · un filtre inconnu est **ignoré** (jamais une exception, jamais une page blanche) ;
  *  · le **serveur est un filtre fail-soft** : absent ⇒ serveur du lecteur (résolu côté
  *    serveur) ; `serverId` borné à un serveur connu, `serverId=all` ⇒ aucun filtre serveur.
@@ -21,10 +23,20 @@
 
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { getClass, getJob } from "@/lib/dofus-assets";
-import { ALL_DOFUS_SERVER_ENTRIES } from "@/lib/presentation-constants";
+import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
+import {
+    ACTIVITY_ASSETS,
+    ALL_DOFUS_SERVER_ENTRIES,
+    AVAILABLE_ACTIVITIES,
+} from "@/lib/presentation-constants";
 import { ALLOWED_JOB_IDS } from "@/lib/public-profile-input";
+import {
+    normalizeDeclaredMules,
+    normalizePreferredActivities,
+} from "@/lib/public-profile-dto";
 
 /** Taille d'une page d'annuaire — dite à l'écran et bornée côté serveur. */
 export const PUBLIC_DIRECTORY_PAGE_SIZE = 24;
@@ -34,6 +46,14 @@ export const PUBLIC_DIRECTORY_SEARCH_MAX = 40;
 
 /** Métiers affichés sur une ligne de liste (la fiche les montre tous). */
 export const PUBLIC_DIRECTORY_JOBS_ON_CARD = 4;
+
+/**
+ * Bornes de la **fiche** : les listes sont plafonnées et le total reste affiché
+ * (`_count`), pour ne jamais charger un profil de 500 succès d'un seul coup.
+ */
+export const PUBLIC_PROFILE_ACHIEVEMENTS_TAKE = 60;
+export const PUBLIC_PROFILE_BOUNTIES_TAKE = 60;
+export const PUBLIC_PROFILE_RUSH_TAKE = 12;
 
 /**
  * Paliers proposés par le filtre « métier + niveau » (F17b). Le niveau d'un métier
@@ -248,7 +268,52 @@ export type VisitorDirectoryRow = {
 export type VisitorProfileRow = Omit<VisitorDirectoryRow, "_count"> & {
     introduction: string | null;
     objectifs: string | null;
+    /** Mules déclarées (JSON borné) — normalisées par `normalizeDeclaredMules`. */
+    altPseudos: unknown;
+    /** Activités préférées (JSON borné) — normalisées par `normalizePreferredActivities`. */
+    preferredActivities: unknown;
+    /** Pseudo Metamob : affiché **uniquement** si `metamobVerified` est vrai. */
+    metamobPseudo: string | null;
+    metamobVerified: boolean;
+    /** Consentement Rush : gate la lecture séparée de `PublicRushProgress`. */
+    showRushProgress: boolean;
+    /** Succès cochés, bornés par `PUBLIC_PROFILE_ACHIEVEMENTS_TAKE`. */
+    achievements: ReadonlyArray<{
+        dungeonAchievementId: string;
+        characterSlot: string;
+        completedAt: Date;
+        dungeonAchievement: {
+            points: number;
+            imageUrl: string | null;
+            challenge: { name: string; slug: string | null; iconUrl: string | null };
+            dungeon: { name: string };
+        };
+    }>;
+    /** Avis cochés, bornés par `PUBLIC_PROFILE_BOUNTIES_TAKE`. */
+    bountyCompletions: ReadonlyArray<{
+        bountyId: string;
+        characterSlot: string;
+        completedAt: Date;
+        bounty: {
+            name: string;
+            level: number;
+            zoneName: string | null;
+            imageUrl: string | null;
+        };
+    }>;
     _count: { achievements: number; bountyCompletions: number };
+};
+
+/** Ligne de progression Rush lue **séparément** et seulement avec consentement. */
+export type VisitorRushRow = {
+    characterSlot: string;
+    characterName: string | null;
+    classe: string | null;
+    completedMilestones: unknown;
+    completedSteps: unknown;
+    dungeonChecks: unknown;
+    currentStep: string | null;
+    updatedAt: Date;
 };
 
 export type VisitorJob = { id: string; name: string; icon: string; level: number };
@@ -272,6 +337,48 @@ export type VisitorDirectoryEntry = {
     achievements: number;
 };
 
+/** Personnage secondaire déclaré par le visiteur. */
+export type VisitorMule = {
+    pseudo: string;
+    classe: VisitorClass | null;
+    level: number | null;
+};
+
+/** Activité préférée déclarée — libellé et asset viennent des référentiels du produit. */
+export type VisitorActivity = { id: string; label: string; icon: string };
+
+/** Succès de donjon coché, avec le personnage qui l'a validé. */
+export type VisitorAchievement = {
+    id: string;
+    name: string;
+    points: number;
+    iconUrl: string | null;
+    dungeonName: string;
+    characterSlot: string;
+};
+
+/** Avis de recherche coché, avec le personnage qui l'a validé. */
+export type VisitorBounty = {
+    id: string;
+    name: string;
+    level: number;
+    zoneName: string | null;
+    imageUrl: string | null;
+    characterSlot: string;
+};
+
+/** Résumé de progression Rush d'un personnage (jamais l'identifiant du compte). */
+export type VisitorRushCharacter = {
+    characterSlot: string;
+    characterName: string | null;
+    classe: VisitorClass | null;
+    completedMilestones: number;
+    completedSteps: number;
+    dungeonChecks: number;
+    currentStep: string | null;
+    updatedAt: Date;
+};
+
 /** Fiche : l'entrée de liste + la présentation et **tous** les métiers déclarés. */
 export type VisitorProfile = VisitorDirectoryEntry & {
     introduction: string | null;
@@ -279,6 +386,21 @@ export type VisitorProfile = VisitorDirectoryEntry & {
     /** Avis de recherche cochés, tous personnages confondus. */
     bountiesDone: number;
     updatedAt: Date;
+    /** Mules déclarées (bornées par `normalizeDeclaredMules`). */
+    mules: VisitorMule[];
+    /** Activités déclarées, filtrées par la liste blanche du produit. */
+    activities: VisitorActivity[];
+    /** Liste plafonnée ; `achievements` (hérité) porte le total. */
+    achievementList: VisitorAchievement[];
+    /** Liste plafonnée ; `bountiesDone` porte le total. */
+    bountyList: VisitorBounty[];
+    /**
+     * `null` = consentement `showRushProgress` fermé : aucune ligne n'a été lue.
+     * `[]` = consentement ouvert mais aucune progression enregistrée.
+     */
+    rush: VisitorRushCharacter[] | null;
+    /** `null` si le compte n'a pas de profil Metamob **vérifié**. Jamais la clé. */
+    metamob: { pseudo: string; url: string } | null;
 };
 
 function resolveServer(serverId: number): VisitorServer | null {
@@ -319,8 +441,65 @@ export function toVisitorDirectoryEntry(row: VisitorDirectoryRow): VisitorDirect
     };
 }
 
-/** Ligne → fiche. Même liste blanche, plus la présentation et **tous** les métiers (max 50). */
-export function toVisitorProfile(row: VisitorProfileRow): VisitorProfile {
+/** Compte les entrées d'un JSON de progression (`[]`, objet ou valeur abîmée). */
+export function countJsonEntries(value: unknown): number {
+    if (Array.isArray(value)) return value.length;
+    if (value && typeof value === "object") {
+        return Object.keys(value as Record<string, unknown>).length;
+    }
+    return 0;
+}
+
+function toVisitorClass(id: string | null | undefined): VisitorClass | null {
+    const found = id ? getClass(id) : undefined;
+    return found ? { id: found.id, name: found.name, icon: found.icon } : null;
+}
+
+function resolveMules(raw: unknown): VisitorMule[] {
+    return normalizeDeclaredMules(raw).map((mule) => ({
+        pseudo: mule.pseudo,
+        classe: toVisitorClass(mule.classe),
+        level: mule.level ?? null,
+    }));
+}
+
+function resolveActivities(raw: unknown): VisitorActivity[] {
+    const labels = new Map<string, string>(
+        AVAILABLE_ACTIVITIES.map((activity) => [activity.id, activity.label])
+    );
+    const allowed: string[] = AVAILABLE_ACTIVITIES.map((activity) => activity.id);
+    const out: VisitorActivity[] = [];
+    for (const id of normalizePreferredActivities(raw, allowed)) {
+        const label = labels.get(id);
+        const icon = ACTIVITY_ASSETS[id];
+        if (!label || !icon) continue;
+        out.push({ id, label, icon });
+    }
+    return out;
+}
+
+/**
+ * Une image d'avis ne devient une URL du DOM que si elle est **locale** ou passe par le
+ * proxy interne DofusDB. Un hôte tiers reste dehors, comme pour les succès.
+ */
+function resolveBountyImage(url: string | null): string | null {
+    if (!url) return null;
+    const proxied = internalDofusDbImageUrl(url);
+    if (proxied) return proxied;
+    return url.startsWith("/") ? url : null;
+}
+
+/**
+ * Ligne → fiche. La **liste** garde sa liste blanche stricte (pas de mule, pas de Metamob) ;
+ * la **fiche** ajoute les données déclarées par le visiteur, le Rush **seulement** si
+ * `showRushProgress` est ouvert, et le pseudo Metamob **seulement** s'il est vérifié.
+ * La clé Metamob et `userId` ne sont jamais lus ici.
+ */
+export function toVisitorProfile(
+    row: VisitorProfileRow,
+    rushRows: ReadonlyArray<VisitorRushRow> = []
+): VisitorProfile {
+    const metamobPseudo = row.metamobVerified ? row.metamobPseudo?.trim() || null : null;
     return {
         ...toVisitorDirectoryEntry(row),
         jobs: resolveJobs(row.professions, 50),
@@ -328,5 +507,41 @@ export function toVisitorProfile(row: VisitorProfileRow): VisitorProfile {
         objectifs: row.objectifs,
         bountiesDone: row._count.bountyCompletions,
         updatedAt: row.updatedAt,
+        mules: resolveMules(row.altPseudos),
+        activities: resolveActivities(row.preferredActivities),
+        achievementList: row.achievements.map((entry) => ({
+            id: entry.dungeonAchievementId,
+            name: entry.dungeonAchievement.challenge.name,
+            points: entry.dungeonAchievement.points,
+            iconUrl: getDungeonAchievementIconUrl(entry.dungeonAchievement),
+            dungeonName: entry.dungeonAchievement.dungeon.name,
+            characterSlot: entry.characterSlot,
+        })),
+        bountyList: row.bountyCompletions.map((entry) => ({
+            id: entry.bountyId,
+            name: entry.bounty.name,
+            level: entry.bounty.level,
+            zoneName: entry.bounty.zoneName,
+            imageUrl: resolveBountyImage(entry.bounty.imageUrl),
+            characterSlot: entry.characterSlot,
+        })),
+        rush: row.showRushProgress
+            ? rushRows.map((entry) => ({
+                  characterSlot: entry.characterSlot,
+                  characterName: entry.characterName,
+                  classe: toVisitorClass(entry.classe),
+                  completedMilestones: countJsonEntries(entry.completedMilestones),
+                  completedSteps: countJsonEntries(entry.completedSteps),
+                  dungeonChecks: countJsonEntries(entry.dungeonChecks),
+                  currentStep: entry.currentStep,
+                  updatedAt: entry.updatedAt,
+              }))
+            : null,
+        metamob: metamobPseudo
+            ? {
+                  pseudo: metamobPseudo,
+                  url: `https://www.metamob.fr/profile/${encodeURIComponent(metamobPseudo)}`,
+              }
+            : null,
     };
 }

@@ -20,6 +20,9 @@ import { toTotalDofusLevel } from "@/lib/dofus-level";
 import { getPublicSession } from "@/server/public-account";
 import {
     PUBLIC_DIRECTORY_PAGE_SIZE,
+    PUBLIC_PROFILE_ACHIEVEMENTS_TAKE,
+    PUBLIC_PROFILE_BOUNTIES_TAKE,
+    PUBLIC_PROFILE_RUSH_TAKE,
     buildVisitorDirectoryWhere,
     isPublicProfileId,
     toVisitorDirectoryEntry,
@@ -27,6 +30,7 @@ import {
     type VisitorDirectoryEntry,
     type VisitorDirectoryFilters,
     type VisitorProfile,
+    type VisitorProfileRow,
 } from "@/lib/public-directory";
 
 export type DirectoryViewer = {
@@ -156,13 +160,49 @@ function listSelect(jobFilter?: string) {
     };
 }
 
-/** Liste blanche de la **fiche** : la même, plus la présentation et tous les métiers. */
+/** Liste blanche de la **fiche** : la même, plus les données déclarées et les listes bornées. */
 const PROFILE_SELECT = {
     ...LIST_SELECT_BASE,
     introduction: true,
     objectifs: true,
+    // Données déclarées par le visiteur (la liste ne les lit pas).
+    altPseudos: true,
+    preferredActivities: true,
+    // Metamob : le pseudo n'est exposé que si `metamobVerified` est vrai (jamais la clé).
+    metamobPseudo: true,
+    metamobVerified: true,
+    // Consentement Rush : la lecture de `PublicRushProgress` est faite séparément, et seulement
+    // si ce booléen est vrai (`hydrateProfile`).
+    showRushProgress: true,
     // La fiche affiche « Avis faits » : compteur dédié, tous personnages.
     _count: { select: { achievements: true, bountyCompletions: true } },
+    achievements: {
+        select: {
+            dungeonAchievementId: true,
+            characterSlot: true,
+            completedAt: true,
+            dungeonAchievement: {
+                select: {
+                    points: true,
+                    imageUrl: true,
+                    challenge: { select: { name: true, slug: true, iconUrl: true } },
+                    dungeon: { select: { name: true } },
+                },
+            },
+        },
+        orderBy: { completedAt: "desc" },
+        take: PUBLIC_PROFILE_ACHIEVEMENTS_TAKE,
+    },
+    bountyCompletions: {
+        select: {
+            bountyId: true,
+            characterSlot: true,
+            completedAt: true,
+            bounty: { select: { name: true, level: true, zoneName: true, imageUrl: true } },
+        },
+        orderBy: { completedAt: "desc" },
+        take: PUBLIC_PROFILE_BOUNTIES_TAKE,
+    },
     professions: {
         where: { level: { gte: 1 } },
         select: { metierId: true, level: true },
@@ -170,6 +210,34 @@ const PROFILE_SELECT = {
         take: 50,
     },
 } satisfies Prisma.PublicProfileSelect;
+
+/** Colonnes strictement nécessaires au résumé Rush — aucun identifiant de compte. */
+const RUSH_SELECT = {
+    characterSlot: true,
+    characterName: true,
+    classe: true,
+    completedMilestones: true,
+    completedSteps: true,
+    dungeonChecks: true,
+    currentStep: true,
+    updatedAt: true,
+} satisfies Prisma.PublicRushProgressSelect;
+
+/**
+ * Complète une ligne de fiche avec la progression Rush **si et seulement si** le visiteur a
+ * ouvert `showRushProgress`. Le reste de la fiche est déjà borné par `PROFILE_SELECT`.
+ */
+async function hydrateProfile(row: VisitorProfileRow): Promise<VisitorProfile> {
+    const rushRows = row.showRushProgress
+        ? await db.publicRushProgress.findMany({
+              where: { publicProfileId: row.id },
+              select: RUSH_SELECT,
+              orderBy: { updatedAt: "desc" },
+              take: PUBLIC_PROFILE_RUSH_TAKE,
+          })
+        : [];
+    return toVisitorProfile(row, rushRows);
+}
 
 /**
  * Une page d'annuaire, du plus récent au plus ancien (`id` décroissant = ordre stable et
@@ -235,7 +303,7 @@ export async function getPublicVisitor(
             },
             select: PROFILE_SELECT,
         });
-        if (row) return toVisitorProfile(row);
+        if (row) return hydrateProfile(row);
     }
 
     const rows = await db.publicProfile.findMany({
@@ -247,8 +315,8 @@ export async function getPublicVisitor(
         take: 2,
     });
     if (rows.length === 0) return null;
-    if (rows.length === 1) return toVisitorProfile(rows[0]);
-    return rows.map(toVisitorProfile);
+    if (rows.length === 1) return hydrateProfile(rows[0]);
+    return Promise.all(rows.map((row) => hydrateProfile(row)));
 }
 
 /** Compteur affiché à l'écran (le seul agrégat autorisé — D-V8 interdit les stats agrégées). */

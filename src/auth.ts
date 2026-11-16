@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
 import { fetchGuildMember } from "@/server/discord"
 import { logger } from "@/lib/logger"
-import { isUnknownAuthAction } from "@/lib/auth-log-filter"
+import { describeAuthError, isBenignAuthCallbackError, isUnknownAuthAction } from "@/lib/auth-log-filter"
 import { decideSignInAccess, isVisitorEntryEnabled } from "@/lib/sign-in-policy"
 
 import Discord from "next-auth/providers/discord"
@@ -41,7 +41,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 logger.warn(`[auth] Action inconnue ignorée: ${error.message}`);
                 return;
             }
-            logger.error(`[auth] ${error.name}: ${error.message}`, { authError: error.name });
+            // Cookie PKCE/state absent ou expiré (autre navigateur, callback rejoué) : cas
+            // utilisateur, pas une panne produit ⇒ `warn`, hors Sentry. Mesures 2F/2S du
+            // 05→15/11/2026 et règle : `src/lib/auth-log-filter.ts`.
+            const description = describeAuthError(error);
+            if (isBenignAuthCallbackError(error)) {
+                logger.warn(`[auth] ${description.type} (cas utilisateur): ${error.message}`);
+                return;
+            }
+            // ⚠️ `error.name` est minifié en production (`"y"` dans JAVASCRIPT-NEXTJS-2S) :
+            // on journalise le `type` Auth.js, jamais minifié, et la cause réelle.
+            logger.error(`[auth] ${description.type}: ${error.message}`, description);
         },
         warn(code: string) {
             logger.warn(`[auth] ${code}`);

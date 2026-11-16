@@ -23,6 +23,16 @@ export const COMMON_IGNORE_ERRORS: (string | RegExp)[] = [
     // Réseau coupé (mobile, onglet en veille) : cas utilisateur, pas un bug produit.
     "NetworkError",
     "Failed to fetch",
+    // ⚠️ Mesure du 05/11/2026 (`JAVASCRIPT-NEXTJS-2J`, 2 événements, 0 utilisateur,
+    // culprit `/dashboard/:guildId/services`) : `TypeError: Load failed` est le message
+    // exact d'un `fetch` coupé dans **Safari/WebKit** — l'équivalent de « Failed to fetch »
+    // (Chrome) déjà filtré. Même famille, même cause : réseau, pas code.
+    "Load failed",
+    // ⚠️ Mesure du 07/11/2026 (`JAVASCRIPT-NEXTJS-2K`, 1 événement, `/bestiaire`) :
+    // `NotFoundError: Failed to execute 'removeChild' on 'Node'` — un nœud DOM retiré par
+    // une **extension du navigateur** (traduction, bloqueur) entre deux rendus React.
+    // Aucun de nos composants ne manipule le DOM hors React (`git grep` : zéro `removeChild`).
+    /Failed to execute 'removeChild' on 'Node'/,
     // ⚠️ Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-2E`, 2 événements en 7 min) : `TypeError:
     // network error` est le message exact d'un `fetch` coupé au niveau réseau. Les deux
     // événements tombent **pendant la recréation de `db-beta`** (déploiement bêta) sur
@@ -70,6 +80,14 @@ export const SERVER_IGNORE_ERRORS: (string | RegExp)[] = [
     // en 24 h pour 4 utilisateurs**. C'est Next qui se plaint quand le **client coupe le
     // flux HTML** qu'il reçoit : fermeture d'onglet, navigation pendant un rendu en flux.
     // Aucune de nos routes ne ferme ce flux nous-mêmes ⇒ ce n'est pas un défaut du produit.
+    // ⚠️ Mesure du 18/10/2026, confirmée le 07/11 (`JAVASCRIPT-NEXTJS-D`, 5 événements,
+    // culprit `POST /dashboard/[guildId]/donjons-et-quetes`) : `DeprecationWarning` de
+    // `pg` — « Calling client.query() when the client is already executing a query ».
+    // C'est un **avertissement de dépendance**, pas un échec : aucune requête n'a été
+    // perdue. Instruit le 12/10/2026 (7 formes d'appel testées, non reproduit côté code) ;
+    // la montée en `pg@9` est suivie dans le ROADMAP, pas dans Sentry. Node continue de
+    // l'écrire sur `stderr` (visible dans `docker logs`).
+    /Calling client\.query\(\) when the client is already executing a query/,
     /The destination stream closed early/,
     // 🐛 Mesure du 11/10/2026 — 12 issues distinctes, **~64 événements chacune** :
     // `⨯ The requested resource isn't a valid image for /game-data/monsters/<slug>.webp
@@ -83,3 +101,50 @@ export const SERVER_IGNORE_ERRORS: (string | RegExp)[] = [
     // ROADMAP : filtrer le bruit ne remplace pas le pré-chauffage.
     /isn't a valid image/,
 ];
+
+/**
+ * Forme **structurelle** minimale d'un événement Sentry. Aucun import du SDK ici : ce module
+ * est chargé par les trois runtimes (navigateur compris) et doit rester sans dépendance.
+ */
+export type SentryEventLike = {
+    transaction?: string | null;
+    request?: { url?: string | null } | null;
+    exception?: { values?: Array<{ value?: string | null } | null> | null } | null;
+};
+
+/**
+ * Événement émis par le **tunnel Sentry** lui-même (`tunnelRoute: "/monitoring"`,
+ * `next.config.ts`).
+ *
+ * 🐛 Mesure du 12/11/2026 (`JAVASCRIPT-NEXTJS-2D`, 1 événement, statut « regressed ») :
+ * `AggregateError` sur `POST /monitoring`, 0 utilisateur. Le tunnel ne sert qu'à relayer
+ * les événements du navigateur : une erreur **dedans** ne peut produire qu'une boucle de
+ * rétroaction (l'erreur du tunnel envoyée au tunnel), jamais une information produit.
+ * On compare le **chemin exact** : une page métier dont l'URL contiendrait « monitoring »
+ * n'est pas concernée.
+ */
+export function isSentryTunnelEvent(event: SentryEventLike): boolean {
+    if (event.transaction === "POST /monitoring") return true;
+    const url = event.request?.url;
+    if (!url) return false;
+    try {
+        return new URL(url, "http://localhost").pathname === "/monitoring";
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Refus **attendu** d'une Server Action (garde d'authentification), pas un défaut produit.
+ *
+ * 🐛 Mesure du 08/11/2026 (`JAVASCRIPT-NEXTJS-2A`, 2 événements, 0 utilisateur) :
+ * `Error: Non autorisé` levée par `getRushDungeonStates` (`optimized-guide-actions.ts`)
+ * quand la session a expiré sur le guide public. Next journalise le `throw` en
+ * `console.error` ⇒ Issue Sentry, alors que la réponse est un refus **voulu**
+ * (fail-closed). Le message est **ancré** (`^Non autorisé\.?$`) : un message plus long
+ * qui contiendrait ces mots reste remonté.
+ */
+export function isExpectedRefusalEvent(event: SentryEventLike): boolean {
+    const value = event.exception?.values?.[0]?.value ?? "";
+    return /^Non autorisé\.?$/.test(value);
+}

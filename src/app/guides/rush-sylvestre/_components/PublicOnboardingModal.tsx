@@ -1,8 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export type OnboardingStep = 1 | 2 | 3;
+
+/** Ce que le compte sait déjà : l'accueil ne redemande jamais la même chose. */
+export type OnboardingAudience =
+    | "anonymous"
+    | "connectedWithoutProfile"
+    | "connectedPartial"
+    | "connected";
 
 /**
  * Accueil du guide public (V2a-4) — trois étapes, **une seule fois par navigateur**.
@@ -13,11 +21,15 @@ export type OnboardingStep = 1 | 2 | 3;
  * maintenir, et le visiteur retrouve exactement les mêmes gestes que dans les tuiles.
  *
  * Elle n'est jamais forcée : « Passer » ferme et pose le drapeau, la lecture reste libre.
+ * Le texte de l'étape 1 dépend de l'**audience** : un compte connecté n'est pas un anonyme
+ * (pas de promesse « à la connexion », pas de personnage à recréer).
  */
 export function PublicOnboardingModal({
     open,
     step,
     locale = "fr",
+    audience = "anonymous",
+    canPickCharacter = true,
     onPickCharacter,
     onPickAlignment,
     onNext,
@@ -28,6 +40,9 @@ export function PublicOnboardingModal({
     open: boolean;
     step: OnboardingStep;
     locale?: "fr" | "en";
+    audience?: OnboardingAudience;
+    /** Un compte complet n'a pas de personnage à (re)créer : le bouton disparaît. */
+    canPickCharacter?: boolean;
     onPickCharacter: () => void;
     onPickAlignment: () => void;
     onNext: () => void;
@@ -36,15 +51,38 @@ export function PublicOnboardingModal({
     onBack: () => void;
 }) {
     const en = locale === "en";
+    const stepOneBody = (() => {
+        if (en) {
+            switch (audience) {
+                case "connected":
+                    return "Your visitor profile already provides your character. You can switch characters from the Active character tile.";
+                case "connectedPartial":
+                    return "Your visitor profile is missing a class or a nickname. Pick a character for this browser, or complete your profile.";
+                case "connectedWithoutProfile":
+                    return "Pick a character for this browser: local progress belongs to it. Your visitor profile (server + nickname) is separate — you can create it whenever you like.";
+                default:
+                    return "Pick your character class. Progress is saved for this browser, and in your visitor space once you sign in.";
+            }
+        }
+        switch (audience) {
+            case "connected":
+                return "Ton profil visiteur fournit déjà ton personnage. Tu peux en changer depuis la tuile « Personnage actif ».";
+            case "connectedPartial":
+                return "Ton profil visiteur n'a pas encore de classe ou de pseudo. Choisis un personnage pour ce navigateur, ou complète ton profil.";
+            case "connectedWithoutProfile":
+                return "Choisis un personnage pour ce navigateur : la progression locale lui appartient. Ton profil visiteur (serveur + pseudo) est séparé — tu peux le créer quand tu veux.";
+            default:
+                return "Choisis la classe de ton personnage. La progression est enregistrée pour ce navigateur, et dans ton espace visiteur dès que tu te connectes.";
+        }
+    })();
+
     const titles: Record<OnboardingStep, string> = {
         1: en ? "1 · Your character" : "1 · Ton personnage",
         2: en ? "2 · Your alignment" : "2 · Ton alignement",
         3: en ? "3 · Start the rush" : "3 · Lance le rush",
     };
     const bodies: Record<OnboardingStep, string> = {
-        1: en
-            ? "Pick your character class. Progress is saved for this browser, and in your visitor space once you sign in."
-            : "Choisis la classe de ton personnage. La progression est enregistrée pour ce navigateur, et dans ton espace visiteur dès que tu te connectes.",
+        1: stepOneBody,
         2: en
             ? "Bontarian, Neutral or Brakmarian? The city drives the quest route."
             : "Bontarien, Neutre ou Brâkmarien ? La cité pilote la route des quêtes.",
@@ -58,6 +96,17 @@ export function PublicOnboardingModal({
             <DialogContent className="max-w-md">
                 <DialogTitle>{titles[step]}</DialogTitle>
                 <DialogDescription>{bodies[step]}</DialogDescription>
+
+                {audience !== "anonymous" ? (
+                    <p className="mt-2 text-[11px]">
+                        <Link
+                            href="/espace-visiteur/general"
+                            className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        >
+                            {en ? "My visitor space →" : "Mon espace visiteur →"}
+                        </Link>
+                    </p>
+                ) : null}
 
                 <ol className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground" aria-label={en ? "Steps" : "Étapes"}>
                     {([1, 2, 3] as const).map((value) => (
@@ -92,7 +141,7 @@ export function PublicOnboardingModal({
                             {en ? "Back" : "Retour"}
                         </button>
                     ) : null}
-                    {step === 1 ? (
+                    {step === 1 && canPickCharacter ? (
                         <button
                             type="button"
                             onClick={onPickCharacter}

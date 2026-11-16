@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 4) — **Visiteur · guide Rush : l'accueil ne redemande plus un profil** — branche `feat/rush-accueil-connecte`
+
+> **Demande user (verbatim)** : « on doit forcer la creation de son profil / mules optionnel non sur le rush en connecté ? on est d'accord ? c'est tout ? ».
+> **Mesure** : l'accueil du guide Rush (3 étapes, 1×/navigateur, « Passer ») partait **toujours** de l'étape 1 et ouvrait le formulaire **anonyme** (`GuestCharacterModal`, localStorage), même pour un compte connecté. Un visiteur sans `PublicProfile` a `visitor = null` (`getPublicAccount`) : il était traité comme un anonyme, avec un texte qui promettait « dans ton espace visiteur dès que tu te connectes » alors qu'il l'était déjà. « Enregistrer » ne passait pas par `onClose` : l'accueil restait bloqué après le personnage.
+> **Fait** : règle pure `src/lib/rush-onboarding.ts` (`resolveRushOnboardingStart` : anonyme/profil partiel ⇒ étape 1 ; profil complet sans alignement ⇒ étape 2 ; tout déclaré ⇒ aucun accueil) · `PublicOnboardingModal` distingue 4 audiences (`anonymous`, `connectedWithoutProfile`, `connectedPartial`, `connected`) + lien « Mon espace visiteur » + bouton « Choisir » masqué quand le compte a déjà son personnage · `handleOnboardingPickCharacter` route vers la **bascule de compte** (mules) ou le formulaire local, jamais un formulaire de création pour un compte complet · formulaire local prérempli depuis le profil (pseudo/classe/serveur) · `advanceOnboardingAfterCharacter` fait avancer l'accueil après « Enregistrer », « Annuler » et la bascule · **aucun profil n'est requis**, les mules restent optionnelles.
+> **Preuves** : suite **724 fichiers / 7 616 tests ✅** · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · ciblés : `rush-onboarding-start` 6, `rush-public-onboarding` 6, `guest-character-modal` 11.
+> **Reste / ops** : rien à déployer (client seul, aucun schéma). Contrôle bêta : compte sans profil → guide Rush → accueil « personnage local » ; compte complet → pas d'étape personnage.
+> **Rotation** : bloc « Session 15/11/2026 (suite 2) — Notifications · N1→N4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 3) — **Visiteur · entrée guidée : attente neutre, fail-closed 5xx, cache 60 s, accueil de création** — branche `feat/visiteur-entree`
 
 > **Demande user (verbatim)** : « on devrait pas plutôt le guider en arrivant que lui prompter une page brut pas de guilde etc ? ça donne pas franchement envie ».
@@ -53,13 +63,6 @@
 > **Rotation** : bloc « 13/11/2026 (suite 5) — Sondages : modale responsive + embed sans doublon » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 15/11/2026 (suite 2) — **Notifications · N1→N4 + N2-bis + hub signalements + garde bannissement** — branches `feat/notifications-*` et `fix/visitor-feedback-ban-guard`
-
-> **Décisions user** : bouton bug **inchangé** (icône globale du header public pour les connectés, cachée pour les anonymes) ; audience du changelog = **tout le monde**, une notification par personne ; news = changelog uniquement ; **les signalements vont dans Notifications** ; **opt-out dans Réglages** ; **Rush v2 reporté (toasts live, rien de persisté)** ; rétention existante 30/90.
-> **Fait** : N1 boîte compte (`userId` + `guildId: null`, écriture bornée, lecture ≤ 50, marquage lu/tout lu) · N2 migration additive `20270205000000_add_changelog_notification_type` + fan-out `changelog-notifications` (lots de 500, `after()`, entrées internes exclues, lien page compte) · N3 page `/espace-visiteur/notifications` + 8ᵉ onglet + pastille de non-lues · **N3-bis** « Mes signalements » déplacé de Général vers Notifications, réponse God **toujours** en notification de compte (la cloche de guilde n'est plus utilisée pour ce message) · **N2-bis** `User.accountNotificationsEnabled` (migration `20270206000000`, défaut `true`), interrupteur dans Réglages, fan-out filtré et écriture qui respecte l'opt-out · **garde bannissement** de `submitVisitorFeedbackAction` alignée sur `getPublicSession`.
-> **Preuves** : `account-notifications-scope` **20** · `changelog-notifications-fanout` **5** · `feedback-account-notification` **2** · `visitor-feedback-ban-guard` **3** · suite **710 fichiers / 7 520 tests ✓** · `tsc` 0 · ESLint 0 erreur · migrations `20270205000000` et `20270206000000` appliquées en local · PR **#1376 → #1381 mergées**, N2-bis à merger.
-> **Reste / ops** : migrations `20270205000000` (changelog) et `20270206000000` (opt-out) à jouer **bêta puis prod** ; vérifier en bêta : publier un changelog, répondre à un signalement, couper l'opt-out et vérifier qu'aucune nouvelle notification n'arrive ; **Rush v2 reporté (toasts live, rien de persisté)**.
-> **Rotation** : bloc « 13/11/2026 (suite 4) — Sécurité · révocation WS des membres exclus » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

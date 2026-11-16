@@ -106,7 +106,10 @@ describe("Guide public — la modale remplace le panneau inline", () => {
     const pub = codeOf(PUBLIC);
     expect(pub).toMatch(/import \{ GuestCharacterModal \}/);
     expect(pub).toMatch(/<GuestCharacterModal/);
-    expect(pub).toMatch(/onSubmit=\{\(next\) => applyGuestCharacter\(next\)\}/);
+    expect(pub).toMatch(/onSubmit=\{\(next\) => \{/);
+    expect(pub).toContain("applyGuestCharacter(next);");
+    // « Enregistrer » ne passe pas par `onClose` : l'accueil doit avancer quand même.
+    expect(pub).toContain("advanceOnboardingAfterCharacter();");
   });
 
   it("n'a plus les trois `<select>` de classe / serveur / pseudo", () => {

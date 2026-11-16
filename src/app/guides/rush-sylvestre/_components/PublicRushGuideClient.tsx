@@ -94,6 +94,7 @@ import { PublicDofusProgressPanel } from "./PublicDofusProgressPanel";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
 import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
+import { resolveRushOnboardingStart } from "@/lib/rush-onboarding";
 import { formatDofusLevel } from "@/lib/dofus-level";
 import {
   adoptMyRushProgress,
@@ -157,7 +158,7 @@ import { PublicRushLiveModal } from "./PublicRushLiveModal";
 import { PublicRushLiveToast } from "./PublicRushLiveToast";
 import { usePublicRushLive } from "@/hooks/use-public-rush-live";
 import { RushOverlayPrereqModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal";
-import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
+import { PublicOnboardingModal, type OnboardingAudience, type OnboardingStep } from "./PublicOnboardingModal";
 import { useTour } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
@@ -597,16 +598,31 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(null);
   const [onboardingFlow, setOnboardingFlow] = useState<"character" | "alignment" | null>(null);
 
+  // Ce que le compte sait déjà décide de l'étape — et de l'absence d'accueil.
+  // Un profil complet et aligné n'a rien à déclarer ; un compte connecté n'est
+  // jamais traité comme un anonyme (règle pure : `src/lib/rush-onboarding.ts`).
+  const onboardingStart = resolveRushOnboardingStart(visitor);
+  const onboardingAudience: OnboardingAudience = !isConnected
+    ? "anonymous"
+    : !visitor
+      ? "connectedWithoutProfile"
+      : visitor.pseudo && visitor.classe
+        ? "connected"
+        : "connectedPartial";
+  const canPickCharacterInOnboarding =
+    !visitor || !visitor.pseudo || !visitor.classe || (visitor.mules?.length ?? 0) > 0;
+
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (onboardingStart === null) return;
     try {
       if (window.localStorage.getItem(ONBOARDING_FLAG)) return;
     } catch {
       return; // stockage indisponible : pas d accueil, jamais un blocage
     }
-    const timer = setTimeout(() => setOnboardingStep(1), 600);
+    const timer = setTimeout(() => setOnboardingStep(onboardingStart), 600);
     return () => clearTimeout(timer);
-  }, []);
+  }, [onboardingStart]);
 
   const finishOnboarding = () => {
     try {
@@ -618,12 +634,26 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     setOnboardingFlow(null);
   };
 
+  /**
+   * Fin de l'étape « personnage » de l'accueil : on avance à l'alignement, que la
+   * modale ait été validée, annulée ou fermée. Sans ça, l'accueil restait bloqué
+   * après un « Enregistrer » (l'étape suivante n'était jamais rouverte).
+   */
+  const advanceOnboardingAfterCharacter = () => {
+    if (onboardingFlow !== "character") return;
+    setOnboardingFlow(null);
+    setOnboardingStep(2);
+  };
+
   const closeCharacterModal = () => {
     setCharacterOpen(false);
-    if (onboardingFlow === "character") {
-      setOnboardingFlow(null);
-      setOnboardingStep(2);
-    }
+    advanceOnboardingAfterCharacter();
+  };
+
+  /** Même enchaînement pour la bascule de compte (mules déclarées). */
+  const closeSwitchModal = () => {
+    setSwitchOpen(false);
+    advanceOnboardingAfterCharacter();
   };
 
   const closeAlignmentModal = () => {
@@ -1392,6 +1422,27 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     setCharacterOpen(true);
   }, [visitor]);
 
+  /**
+   * Accueil → personnage. Un compte **complet** n'a rien à recréer : la bascule
+   * s'ouvre s'il a des mules, sinon on passe à l'alignement — jamais un
+   * formulaire de création pour un personnage déjà en base. Le formulaire local
+   * reste la porte de l'anonyme et du profil incomplet.
+   */
+  const handleOnboardingPickCharacter = useCallback(() => {
+    setOnboardingFlow("character");
+    setOnboardingStep(null);
+    if (visitor && (visitor.mules?.length ?? 0) > 0) {
+      setSwitchOpen(true);
+      return;
+    }
+    if (!visitor || !visitor.pseudo || !visitor.classe) {
+      setCharacterOpen(true);
+      return;
+    }
+    setOnboardingFlow(null);
+    setOnboardingStep(2);
+  }, [visitor]);
+
   // Toggle chapter expansion
   const toggleChapter = (msId: string) => {
     setExpandedMs((prev) => {
@@ -1792,9 +1843,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           <GuestCharacterModal
             open={characterOpen}
             onClose={closeCharacterModal}
-            initial={character}
+            // Un compte partiel repart de ce qu'il a déjà déclaré : aucune double saisie.
+            initial={
+              hasGuestCharacter(character)
+                ? character
+                : visitor
+                  ? { classId: visitor.classe, pseudo: visitor.pseudo, serverId: visitor.serverId }
+                  : null
+            }
             locale={locale}
-            onSubmit={(next) => applyGuestCharacter(next)}
+            onSubmit={(next) => {
+              applyGuestCharacter(next);
+              // « Enregistrer » ne passe pas par `onClose` : sans cet appel,
+              // l'accueil s'arrêtait après le personnage.
+              advanceOnboardingAfterCharacter();
+            }}
             mules={visitor?.mules ?? []}
             defaultServerId={visitor?.serverId ?? null}
           />
@@ -1803,7 +1866,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               existe déjà en base. */}
           <CharacterSwitchModal
             open={switchOpen}
-            onClose={() => setSwitchOpen(false)}
+            onClose={closeSwitchModal}
             locale={locale}
             mainCharacter={
               visitor?.pseudo ? { pseudo: visitor.pseudo, classe: visitor.classe ?? null } : null
@@ -1813,6 +1876,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             onPickMain={() => {
               setSwitchOpen(false);
               applyGuestCharacter(null);
+              advanceOnboardingAfterCharacter();
             }}
             onPickMule={(mule) => {
               setSwitchOpen(false);
@@ -1821,6 +1885,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                 pseudo: mule.pseudo,
                 serverId: visitor?.serverId ?? null,
               });
+              advanceOnboardingAfterCharacter();
             }}
           />
           <PublicOcreDungeonBridge
@@ -1874,11 +1939,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             open={onboardingStep !== null}
             step={onboardingStep ?? 1}
             locale={locale}
-            onPickCharacter={() => {
-              setOnboardingFlow("character");
-              setOnboardingStep(null);
-              setCharacterOpen(true);
-            }}
+            audience={onboardingAudience}
+            canPickCharacter={canPickCharacterInOnboarding}
+            onPickCharacter={handleOnboardingPickCharacter}
             onPickAlignment={() => {
               setOnboardingFlow("alignment");
               setOnboardingStep(null);

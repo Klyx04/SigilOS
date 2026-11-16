@@ -95,6 +95,22 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | **livré le 16/11/2026** : portée CUID/snowflake résolue côté serveur, flux serveur filtré + paginé, chemin complet copiable, langue, **0 motif** de slop (46 mesurés) | — | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 | C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | **livré le 16/11/2026** : sections KPI/activité retirées, SSE supprimé, bandeau compact, cartes tokenisées, santé sans polling caché (−1 161 lignes) | — | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 
+## 2 ter. God — guildes, annuaire visiteurs et reprise (cadré le 16/11/2026)
+
+| Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
+|---|---|---|---|---|---|
+| D1 | `discord-stellium` | Bouton « Discord SigilOS » en interne guilde (sidebar + page Tickets) | aucun point d'entrée ; `NEXT_PUBLIC_DISCORD_INVITE_URL` et `/discord` existent | 2 liens + test de source | amorce locale `src/temp/amorce-reprise-2026-11-16-god-chantiers.md` (non versionnée) |
+| D2 | `ladder-libelles` | `#364` / `#13` : rangs explicites | `#364` = rang **Ankama** (worker) ; `#13` = rang **interne SigilOS** (`getLadderPreview`) ; libellés « Monde »/« Guilde » trompeurs | « Rang succès » / « Rang interne » | idem |
+| D3 | `visiteurs-filtre-serveur` | `/visiteurs` : serveur du lecteur par défaut + dropdown pour explorer (option 2) ; consentement global | annuaire **mono-serveur** par conception (`public-directory.ts:16`) ; pas de filtre serveur | `serverId` + dropdown + colonne Serveur + doc + tests | idem |
+| D4 | `god-lot4` | Lot 4 « Le God voit tout » (G7/A4/A5) | plan God vivant ; G4 livré, fiche guilde refondue | lot 4 | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` |
+| D5 | `god-lot5` | Lot 5 : langage, tour de contrôle, roster, RBAC, users (G1/G2/G3/G5/G9) | roster/RBAC faits dans la fiche ; reste `/god` et `/god/users` | lot 5 | idem |
+| D6 | `god-lot6` | Lot 6 : déslop God, tokens, plafond `god-deslop.test.ts` | plafond **79** (81 → 79 au lot C) ; écrans restants | lot 6 | idem |
+| D7 | `owner-id-uuid` | Normaliser `GuildConfig.ownerId` en UUID interne | lecture gère snowflake **ou** UUID (`god-guild-owner.ts`) ; donnée mixte | mesure + backfill + écriture unique | amorce locale (non versionnée) |
+| D8 | `ops-retention` | Première passe de rétention (lot A) | code livré (#1401), aucune passe réelle | dry-run janitor → `cleanup-logs` → compteurs | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
+| D9 | `ops-visuel` | Contrôle visuel 390/768/1024/1440 de `?tab=telemetry` et `?tab=overview` | non fait (humain) | captures + validation | `docs/ROADMAP.md` §2 bis |
+
+**Ordre** : D1 → D2 → D3 → D4 → D5 → D6 → D7. **D8/D9** sont des vérifications humaines, à faire dès que possible.
+
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |

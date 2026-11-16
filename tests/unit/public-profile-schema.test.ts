@@ -187,6 +187,30 @@ describe("Avis de recherche + coches par personnage (16/11/2026)", () => {
         expect(modelBody("UserDungeonAchievement")).toMatch(
             /characterSlot\s+String\s+@default\("PRINCIPAL"\)/
         );
+        expect(modelBody("UserDungeonProgress")).toMatch(
+            /characterSlot\s+String\s+@default\("PRINCIPAL"\)/
+        );
+        expect(modelBody("UserDungeonProgress")).toMatch(
+            /@@unique\(\[profileId, achievementId, characterSlot\]\)/
+        );
+    });
+
+    it("la migration du tracker est additive et idempotente", () => {
+        const dir = readdirSync("prisma/migrations").find((name) =>
+            name.endsWith("_user_dungeon_progress_character_slot")
+        );
+        expect(dir, "migration `*_user_dungeon_progress_character_slot` introuvable").toBeTruthy();
+        const code = readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8").replace(
+            /--[^\n]*/g,
+            ""
+        );
+        expect(code).toMatch(
+            /ADD COLUMN IF NOT EXISTS "characterSlot" TEXT NOT NULL DEFAULT 'PRINCIPAL'/
+        );
+        expect(code).toMatch(
+            /CREATE UNIQUE INDEX IF NOT EXISTS "UserDungeonProgress_profileId_achievementId_characterSlot_key"/
+        );
+        expect(code).not.toMatch(/DROP\s+(TABLE|COLUMN)\b/i);
     });
 
     it("la migration est additive et idempotente", () => {

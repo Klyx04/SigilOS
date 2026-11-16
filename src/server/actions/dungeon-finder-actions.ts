@@ -32,6 +32,10 @@ import { classEmojiName } from "@/lib/discord-emoji-catalog";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import {
+    readSuccesCharacters,
+    resolveSuccesCharacterSlotOrNull,
+} from "@/lib/succes-characters";
+import {
     buildStandBy,
     canToggleStandBy,
     isStandByActive,
@@ -3942,17 +3946,27 @@ export async function rejectDjParticipant(
  * Get user dungeon progress for the tracker.
  */
 export async function getUserDungeonProgress(
-    guildId: string
-): Promise<ActionResponse<{ achievementId: string; dungeonId: string; source: string; completedAt: string | null }[]>> {
+    guildId: string,
+    characterSlot?: string
+): Promise<ActionResponse<{ achievementId: string; dungeonId: string; source: string; characterSlot: string; completedAt: string | null }[]>> {
     const user = await getUserContext(guildId);
     // #138 — le progrès succès appartient au module Succès (plus au finder DJ).
     if (!user.canViewSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
+    const slot = await resolveTrackerCharacterSlot(user.profileId, characterSlot);
+    if (!slot) return { success: false, error: "Personnage inconnu." };
+
     try {
         const progress = await (db as any).userDungeonProgress.findMany({
-            where: { profileId: user.profileId },
-            select: { achievementId: true, dungeonId: true, source: true, completedAt: true },
+            where: { profileId: user.profileId, characterSlot: slot },
+            select: {
+                achievementId: true,
+                dungeonId: true,
+                source: true,
+                characterSlot: true,
+                completedAt: true,
+            },
         });
 
         return {
@@ -3961,6 +3975,7 @@ export async function getUserDungeonProgress(
                 achievementId: p.achievementId,
                 dungeonId: p.dungeonId,
                 source: p.source ?? "MANUAL",
+                characterSlot: p.characterSlot ?? "PRINCIPAL",
                 completedAt: p.completedAt?.toISOString?.() ?? null,
             })),
         };
@@ -3970,25 +3985,42 @@ export async function getUserDungeonProgress(
     }
 }
 
+/** Personnages du profil interne (principal + mules) et slot demandé, fail-closed. */
+async function resolveTrackerCharacterSlot(
+    profileId: string,
+    raw?: string
+): Promise<string | null> {
+    const profile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        select: { pseudoDofus: true, classe: true, altPseudos: true },
+    });
+    return resolveSuccesCharacterSlotOrNull(raw, readSuccesCharacters(profile ?? {}));
+}
+
 /**
  * Toggle an achievement as completed/uncompleted.
  */
 export async function toggleAchievementCompleted(
     guildId: string,
     dungeonId: string,
-    achievementId: string
+    achievementId: string,
+    characterSlot?: string
 ): Promise<ActionResponse<{ completed: boolean }>> {
     const user = await getUserContext(guildId);
     // #138 — cocher son progrès = module Succès (canEditOwnSucces), plus le finder DJ.
     if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
+    const slot = await resolveTrackerCharacterSlot(user.profileId, characterSlot);
+    if (!slot) return { success: false, error: "Personnage inconnu." };
+
     try {
         const existing = await (db as any).userDungeonProgress.findUnique({
             where: {
-                profileId_achievementId: {
+                profileId_achievementId_characterSlot: {
                     profileId: user.profileId,
                     achievementId,
+                    characterSlot: slot,
                 },
             },
         });
@@ -4004,6 +4036,7 @@ export async function toggleAchievementCompleted(
                     profileId: user.profileId,
                     dungeonId,
                     achievementId,
+                    characterSlot: slot,
                     source: "MANUAL",
                 },
             });
@@ -4023,11 +4056,15 @@ export async function toggleAchievementCompleted(
 export async function toggleDungeonAchievements(
     guildId: string,
     dungeonId: string,
-    payload: { mode: "all" } | { mode: "none" } | { mode: "ids"; ids: string[] }
+    payload: { mode: "all" } | { mode: "none" } | { mode: "ids"; ids: string[] },
+    characterSlot?: string
 ): Promise<ActionResponse<{ toggled: number }>> {
     const user = await getUserContext(guildId);
     if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+    const slot = await resolveTrackerCharacterSlot(user.profileId, characterSlot);
+    if (!slot) return { success: false, error: "Personnage inconnu." };
 
     try {
         // 1. Autorité = catalogue game-data : les succès du donjon.
@@ -4047,7 +4084,7 @@ export async function toggleDungeonAchievements(
 
         // 2. État actuel du membre sur ce donjon.
         const existing = await (db as any).userDungeonProgress.findMany({
-            where: { profileId: user.profileId, dungeonId },
+            where: { profileId: user.profileId, dungeonId, characterSlot: slot },
             select: { achievementId: true },
         });
         const existingSet = new Set<string>(existing.map((p: any) => String(p.achievementId)));
@@ -4057,7 +4094,7 @@ export async function toggleDungeonAchievements(
 
         if (toDelete.length > 0) {
             await (db as any).userDungeonProgress.deleteMany({
-                where: { profileId: user.profileId, achievementId: { in: toDelete } },
+                where: { profileId: user.profileId, achievementId: { in: toDelete }, characterSlot: slot },
             });
         }
         let created = 0;
@@ -4067,6 +4104,7 @@ export async function toggleDungeonAchievements(
                     profileId: user.profileId,
                     dungeonId,
                     achievementId,
+                    characterSlot: slot,
                     source: "MANUAL",
                 })),
                 skipDuplicates: true,
@@ -4088,11 +4126,15 @@ export async function toggleLevelBracketAchievements(
     guildId: string,
     minLevel: number,
     maxLevel: number,
-    action: "validate" | "unvalidate"
+    action: "validate" | "unvalidate",
+    characterSlot?: string
 ): Promise<ActionResponse<{ count: number; achievementIds: string[] }>> {
     const user = await getUserContext(guildId);
     if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+    const slot = await resolveTrackerCharacterSlot(user.profileId, characterSlot);
+    if (!slot) return { success: false, error: "Personnage inconnu." };
 
     try {
         const dungeons = await (db as any).dungeon.findMany({
@@ -4127,6 +4169,7 @@ export async function toggleLevelBracketAchievements(
                 where: {
                     profileId: user.profileId,
                     achievementId: { in: allAchievementIds },
+                    characterSlot: slot,
                 },
             });
             return { success: true, data: { count: allAchievementIds.length, achievementIds: allAchievementIds } };
@@ -4137,6 +4180,7 @@ export async function toggleLevelBracketAchievements(
                 profileId: user.profileId,
                 dungeonId: p.dungeonId,
                 achievementId: p.achievementId,
+                characterSlot: slot,
                 source: "MANUAL",
             })),
             skipDuplicates: true,

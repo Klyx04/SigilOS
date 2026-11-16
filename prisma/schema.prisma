@@ -2304,6 +2304,8 @@ model UserDungeonProgress {
   profileId     String
   dungeonId     String
   achievementId String
+  /// `"PRINCIPAL"` ou le pseudo d'une mule déclarée — coche **par personnage** (16/11/2026).
+  characterSlot String             @default("PRINCIPAL")
   completedAt   DateTime           @default(now())
   /**
    * #138 — provenance de la validation :
@@ -2316,8 +2318,8 @@ model UserDungeonProgress {
   dungeon       Dungeon            @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
   profile       UserProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@unique([profileId, achievementId])
-  @@index([profileId])
+  @@unique([profileId, achievementId, characterSlot])
+  @@index([profileId, characterSlot])
   @@index([dungeonId])
   @@index([achievementId])
 }

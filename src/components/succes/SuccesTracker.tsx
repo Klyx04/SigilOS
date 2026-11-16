@@ -23,6 +23,8 @@ import {
     getUserDungeonProgress,
     findMissingAchievements,
 } from "@/server/actions/dungeon-finder-actions";
+import { getMySuccesCharacters } from "@/server/actions/dungeon-achievement-actions";
+import type { SuccesCharacter } from "@/lib/succes-characters";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { toast } from "sonner";
@@ -106,17 +108,46 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
     const [loadingPartners, setLoadingPartners] = useState(false);
     const [bracketLoading, setBracketLoading] = useState(false);
+    const [characters, setCharacters] = useState<SuccesCharacter[]>([]);
+    const [characterSlot, setCharacterSlot] = useState("PRINCIPAL");
     const toastFired = useRef(false);
     const autoSelectedRef = useRef(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
+
+    // Personnages sélectionnables : principal + mules déclarées (coche par personnage).
+    useEffect(() => {
+        let cancelled = false;
+        getMySuccesCharacters(guildId)
+            .then((res) => {
+                if (cancelled || !res.success || !res.characters || res.characters.length === 0) {
+                    return;
+                }
+                setCharacters(res.characters);
+                setCharacterSlot((current) =>
+                    res.characters!.some((character) => character.slot === current)
+                        ? current
+                        : res.characters![0].slot
+                );
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId]);
 
     const handleToggleLevelBracket = useCallback(
         async (action: "validate" | "unvalidate") => {
             if (!canEdit || bracketLoading) return;
             setBracketLoading(true);
             try {
-                const res = await toggleLevelBracketAchievements(guildId, minLevel, maxLevel, action);
+                const res = await toggleLevelBracketAchievements(
+                    guildId,
+                    minLevel,
+                    maxLevel,
+                    action,
+                    characterSlot
+                );
                 if (res.success && res.data) {
                     const affectedIds = res.data.achievementIds;
                     setCompletedIds((prev) => {
@@ -142,7 +173,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 setBracketLoading(false);
             }
         },
-        [canEdit, bracketLoading, guildId, levelBracket, minLevel, maxLevel]
+        [canEdit, bracketLoading, guildId, levelBracket, minLevel, maxLevel, characterSlot]
     );
 
     const updateParam = useCallback(
@@ -155,13 +186,14 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         [router, searchParams]
     );
 
-    // Charge le catalogue (statique) + le progrès perso (court).
+    // Charge le catalogue (statique) + le progrès perso du **personnage sélectionné**.
     useEffect(() => {
         let cancelled = false;
         async function load() {
+            setLoading(true);
             const [dungeonsRes, progressRes] = await Promise.all([
                 getDungeonsWithAchievements(),
-                getUserDungeonProgress(guildId),
+                getUserDungeonProgress(guildId, characterSlot),
             ]);
             if (cancelled) return;
             if (dungeonsRes.success && dungeonsRes.data) {
@@ -181,7 +213,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         return () => {
             cancelled = true;
         };
-    }, [guildId]);
+    }, [guildId, characterSlot]);
 
     // #138 — Toast participant : des succès ont été validés par un groupe depuis la dernière visite.
     useEffect(() => {
@@ -251,7 +283,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             const target = !prev.has(achievementId);
             target ? next.add(achievementId) : next.delete(achievementId);
             setCompletedIds(next);
-            toggleAchievementCompleted(guildId, dungeon.id, achievementId)
+            toggleAchievementCompleted(guildId, dungeon.id, achievementId, characterSlot)
                 .then((res) => {
                     if (!res.success) {
                         setCompletedIds(prev);
@@ -260,7 +292,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 })
                 .catch(() => setCompletedIds(prev));
         },
-        [canEdit, completedIds, dungeons, guildId]
+        [canEdit, completedIds, dungeons, guildId, characterSlot]
     );
 
     const toggleAll = useCallback(
@@ -272,7 +304,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 checkAll ? next.add(a.id) : next.delete(a.id);
             }
             setCompletedIds(next);
-            toggleDungeonAchievements(guildId, selectedDungeon.id, { mode: checkAll ? "all" : "none" })
+            toggleDungeonAchievements(guildId, selectedDungeon.id, { mode: checkAll ? "all" : "none" }, characterSlot)
                 .then((res) => {
                     if (!res.success) {
                         setCompletedIds(prev);
@@ -281,7 +313,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 })
                 .catch(() => setCompletedIds(prev));
         },
-        [canEdit, selectedDungeon, completedIds, guildId]
+        [canEdit, selectedDungeon, completedIds, guildId, characterSlot]
     );
 
     // ── Une seule bascule par contexte : l'état décide du sens du bouton ────────
@@ -365,7 +397,29 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 sm:border-l sm:border-border sm:pl-3.5">
+                <div className="flex flex-wrap items-center gap-2 shrink-0 sm:border-l sm:border-border sm:pl-3.5">
+                    {characters.length > 1 ? (
+                        <Select value={characterSlot} onValueChange={setCharacterSlot}>
+                            <SelectTrigger
+                                aria-label="Choisir le personnage"
+                                className="h-9 w-[9.5rem] shrink-0 rounded-xl border-border bg-surface/70 text-xs font-bold text-foreground"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-surface border-border">
+                                {characters.map((character) => (
+                                    <SelectItem
+                                        key={character.slot}
+                                        value={character.slot}
+                                        className="text-xs font-bold"
+                                    >
+                                        {character.name}
+                                        {character.isMain ? " (principal)" : ""}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : null}
                     <div className="px-3 py-1.5 rounded-xl bg-background/60 border border-border text-center">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Donjons</p>
                         <p className="text-sm font-black text-foreground tabular-nums">{dungeons.length}</p>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { purgeAuditLogsCore } from '@/server/audit-retention';
+import { purgeServiceActivityCore, purgeTelemetryEventsCore } from "@/server/log-retention";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
             });
             godNotifDeleted = r.count ?? 0;
         } catch (e) {
-            console.error('[CRON Cleanup Logs] Purge godNotification impossible:', e);
+            logger.error('[CRON Cleanup Logs] Purge godNotification impossible', { err: e });
         }
 
         // Purge des logs d'audit **du marché** (S5.6, §15.2). La rétention est un
@@ -68,11 +69,40 @@ export async function GET(req: Request) {
             logger.error('[CRON Cleanup Logs] Purge des logs du marché impossible', { err: e });
         }
 
+        // Rétention de la télémétrie (90 j) et du journal d'activité (365 j).
+        // Chaque core est isolé : un échec ne casse ni l'audit, ni le marché,
+        // ni l'autre purge. Le compteur d'échec est remonté pour être rejoué.
+        let telemetryDeleted = 0;
+        let telemetryHasMore = false;
+        let telemetryFailed = 0;
+        try {
+            const telemetry = await purgeTelemetryEventsCore();
+            telemetryDeleted = telemetry.deleted;
+            telemetryHasMore = telemetry.hasMore;
+            telemetryFailed = telemetry.failed;
+        } catch (e) {
+            telemetryFailed = 1;
+            logger.error('[CRON Cleanup Logs] Purge de la télémétrie impossible', { err: e });
+        }
+
+        let serviceActivityDeleted = 0;
+        let serviceActivityHasMore = false;
+        let serviceActivityFailed = 0;
+        try {
+            const activity = await purgeServiceActivityCore();
+            serviceActivityDeleted = activity.deleted;
+            serviceActivityHasMore = activity.hasMore;
+            serviceActivityFailed = activity.failed;
+        } catch (e) {
+            serviceActivityFailed = 1;
+            logger.error("[CRON Cleanup Logs] Purge du journal d'activité impossible", { err: e });
+        }
+
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("cleanup_logs", {
-            success: marketLogsFailed === 0 && result.failed === 0,
+            success: marketLogsFailed === 0 && result.failed === 0 && telemetryFailed === 0 && serviceActivityFailed === 0,
             durationMs,
-            summary: `Purge logs : ${result.godDeleted} God (> 90j) + ${result.guildDeleted} guilde (> 30j) + ${godNotifDeleted} notifs God (> 90j) + ${marketLogsDeleted} logs marché (> rétention de guilde)`,
+            summary: `Purge logs : ${result.godDeleted} God (> 90j) + ${result.guildDeleted} guilde (> 30j) + ${godNotifDeleted} notifs God (> 90j) + ${marketLogsDeleted} logs marché (> rétention de guilde) + ${telemetryDeleted} événements de télémétrie (> 90j) + ${serviceActivityDeleted} lignes d'activité (> 365j)`,
             details: {
                 deletedCount,
                 godDeleted: result.godDeleted,
@@ -83,6 +113,12 @@ export async function GET(req: Request) {
                 marketLogsDeleted,
                 marketLogsHasMore,
                 marketLogsFailed,
+                telemetryDeleted,
+                telemetryHasMore,
+                telemetryFailed,
+                serviceActivityDeleted,
+                serviceActivityHasMore,
+                serviceActivityFailed,
             },
         });
 
@@ -92,10 +128,14 @@ export async function GET(req: Request) {
             godNotifDeleted,
             marketLogsDeleted,
             marketLogsHasMore,
-            message: `${deletedCount} logs supprimés (90 j God / 30 j guilde), ${marketLogsDeleted} logs du marché purgés`
+            telemetryDeleted,
+            telemetryHasMore,
+            serviceActivityDeleted,
+            serviceActivityHasMore,
+            message: `${deletedCount} logs supprimés (90 j God / 30 j guilde), ${marketLogsDeleted} logs du marché purgés, ${telemetryDeleted} événements de télémétrie purgés, ${serviceActivityDeleted} lignes d'activité purgées`
         });
     } catch (e: any) {
-        console.error('[CRON Cleanup Logs] Error:', e);
+        logger.error('[CRON Cleanup Logs] Erreur interne', { err: e });
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("cleanup_logs", {
             success: false,

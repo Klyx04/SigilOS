@@ -20,6 +20,13 @@ vi.mock("@/server/market/retention", () => ({
     purgeMarketAuditLogsCore: (...args: any[]) => mockPurgeMarketAuditLogs(...args),
 }));
 
+const mockPurgeTelemetry = vi.fn();
+const mockPurgeServiceActivity = vi.fn();
+vi.mock("@/server/log-retention", () => ({
+    purgeTelemetryEventsCore: (...args: any[]) => mockPurgeTelemetry(...args),
+    purgeServiceActivityCore: (...args: any[]) => mockPurgeServiceActivity(...args),
+}));
+
 const mockRecordCronExecution = vi.fn();
 vi.mock("@/lib/cron-telemetry", () => ({
     recordCronExecution: (...args: any[]) => mockRecordCronExecution(...args),
@@ -47,6 +54,8 @@ beforeEach(() => {
     mockPurgeAuditLogs.mockResolvedValue(auditOutcome({ scanned: 5, deleted: 5, godDeleted: 4, guildDeleted: 1 }));
     mockGodNotifDeleteMany.mockResolvedValue({ count: 12 });
     mockPurgeMarketAuditLogs.mockResolvedValue(emptyMarketOutcome);
+    mockPurgeTelemetry.mockResolvedValue({ scanned: 0, deleted: 0, hasMore: false, failed: 0 });
+    mockPurgeServiceActivity.mockResolvedValue({ guilds: 0, scanned: 0, deleted: 0, hasMore: false, failed: 0 });
     mockRecordCronExecution.mockResolvedValue(true);
     vi.unstubAllGlobals();
 });
@@ -165,6 +174,80 @@ describe("GET /api/cron/cleanup-logs", () => {
         expect(mockRecordCronExecution).toHaveBeenCalledWith(
             "cleanup_logs",
             expect.objectContaining({ success: false })
+        );
+    });
+
+    it("purge la télémétrie (90 j) et le journal d'activité (365 j), et les comptabilise", async () => {
+        mockPurgeTelemetry.mockResolvedValue({ scanned: 10, deleted: 10, hasMore: false, failed: 0 });
+        mockPurgeServiceActivity.mockResolvedValue({ guilds: 2, scanned: 4, deleted: 4, hasMore: true, failed: 0 });
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        // Les deux cores décident eux-mêmes de leur rétention : appel sans argument.
+        expect(mockPurgeTelemetry).toHaveBeenCalledWith();
+        expect(mockPurgeServiceActivity).toHaveBeenCalledWith();
+        expect(data.telemetryDeleted).toBe(10);
+        expect(data.serviceActivityDeleted).toBe(4);
+        expect(data.serviceActivityHasMore).toBe(true);
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({
+                success: true,
+                details: expect.objectContaining({
+                    telemetryDeleted: 10,
+                    serviceActivityDeleted: 4,
+                    serviceActivityHasMore: true,
+                }),
+            })
+        );
+    });
+
+    it("un échec de la télémétrie n'empêche ni l'audit ni le journal d'activité", async () => {
+        mockPurgeTelemetry.mockRejectedValue(new Error("db down"));
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.deletedCount).toBe(5); // l'audit a bien tourné
+        expect(data.telemetryDeleted).toBe(0);
+        expect(mockPurgeServiceActivity).toHaveBeenCalledWith(); // l'autre purge tourne
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({
+                success: false,
+                details: expect.objectContaining({ telemetryFailed: 1 }),
+            })
+        );
+    });
+
+    it("un échec du journal d'activité n'empêche pas la télémétrie", async () => {
+        mockPurgeServiceActivity.mockRejectedValue(new Error("db down"));
+        mockPurgeTelemetry.mockResolvedValue({ scanned: 3, deleted: 3, hasMore: false, failed: 0 });
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.telemetryDeleted).toBe(3);
+        expect(data.serviceActivityDeleted).toBe(0);
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({
+                success: false,
+                details: expect.objectContaining({ serviceActivityFailed: 1 }),
+            })
         );
     });
 

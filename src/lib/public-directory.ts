@@ -245,9 +245,10 @@ export type VisitorDirectoryRow = {
 };
 
 /** Ligne de fiche : la liste + la présentation (jamais lue sur la liste — poids inutile). */
-export type VisitorProfileRow = VisitorDirectoryRow & {
+export type VisitorProfileRow = Omit<VisitorDirectoryRow, "_count"> & {
     introduction: string | null;
     objectifs: string | null;
+    _count: { achievements: number; bountyCompletions: number };
 };
 
 export type VisitorJob = { id: string; name: string; icon: string; level: number };
@@ -275,6 +276,8 @@ export type VisitorDirectoryEntry = {
 export type VisitorProfile = VisitorDirectoryEntry & {
     introduction: string | null;
     objectifs: string | null;
+    /** Avis de recherche cochés, tous personnages confondus. */
+    bountiesDone: number;
     updatedAt: Date;
 };
 
@@ -323,6 +326,7 @@ export function toVisitorProfile(row: VisitorProfileRow): VisitorProfile {
         jobs: resolveJobs(row.professions, 50),
         introduction: row.introduction,
         objectifs: row.objectifs,
+        bountiesDone: row._count.bountyCompletions,
         updatedAt: row.updatedAt,
     };
 }

@@ -161,6 +161,8 @@ const PROFILE_SELECT = {
     ...LIST_SELECT_BASE,
     introduction: true,
     objectifs: true,
+    // La fiche affiche « Avis faits » : compteur dédié, tous personnages.
+    _count: { select: { achievements: true, bountyCompletions: true } },
     professions: {
         where: { level: { gte: 1 } },
         select: { metierId: true, level: true },

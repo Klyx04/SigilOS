@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 — **Sentry · un log n'est pas une exception, bruit mesuré filtré, impact par utilisateur** — branche `fix/sentry-bruit`
+
+> **Décisions user (verbatim)** : « pousse déjà tout ce qui doit être en local vers git et on repart là-dessus » ; les issues déjà résolues sont clôturées ; priorité au tri du bruit avant 1M/2R.
+> **Mesure** : 16 issues non résolues / 124 occurrences (14 j) ; `usersImpacted = 0` partout. 2H/2G clôturées par le user ; **2G/2N/2M déjà couverts par #1331** (429 Metamob passé en `warn`, clé Krala déchiffrée — dernières occurrences le 09/11, avant le déploiement du correctif). **1M n'a aucun message** : le filtre d'entrée Sentry `react-hydration-errors` jette **16 événements/14 j** (`find_dropped_events`) — l'issue ne vit que par le replay. **26** = script inline injecté (`app:///elevage:3`, « global code ») : aucune source n'appelle `toLowerCase` sur `@context`.
+> **Fait** : lot local de 10 commits poussé et **PR #1385 mergée** (`c780da22`, source maps incluses) ; **PR #1386** : `InvalidCheck` Auth.js en `warn` + `type`/cause réels au log (2F/2S), motifs 2J/2K/D dans `sentry-ignores`, `beforeSend` pour 2A (refus ancré) et 2D (chemin exact du tunnel), `Sentry.setUser({ id })` avec l'id interne opaque (jamais Discord) — verrou `sentry-bruit-mesure` **10**.
+> **Preuves** : `test:run` **711 fichiers / 7 530 tests ✓** (base `origin/dev`) · `tsc` 0 · ESLint 0 erreur · `gh pr checks 1385` vert puis mergée.
+> **Reste / ops** : désactiver **temporairement** le filtre d'entrée « React hydration errors » (Sentry › Projet › Inbound Filters) pour obtenir le message React (#418/#423) de 1M, puis le réactiver · fermer 2F/2J/2K/2A/D/2D après déploiement de #1386 · 2S à classer au prochain événement (cause désormais loggée) · impact **serveur** encore nul (point d'entrée requête-scopé à prévoir) · `sudo reboot` pour passer sur le noyau 6.8.0-149.
+> **Rotation** : bloc « Session 14/11/2026 — Signalements · fusion dans `SupportTicket` » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 15/11/2026 (suite 3) — **Docs · un seul fichier de chantiers, audit sécurité soldé, branches mortes purgées** — branche `docs/consolidation-chantiers`
 
 > **Décisions user** : « tout doit être clean à jour » ; « concentrer tous les chantiers exhaustivement dans un seul fichier » ; plus aucun fichier d'amorce ; le prototype Dark Vlad et la procédure d'extraction Unity **ne sont pas versionnés** (chemin machine + couleurs en dur).
@@ -51,13 +60,8 @@
 > **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 14/11/2026 — **Signalements · fusion dans `SupportTicket`, console God et tracker membre** — branche `feat/fusion-signalements-tickets`
 
-> **Décisions user** : option B (fusion dans `SupportTicket`, pas de vue unifiée), migration de **tout** (signalements + notes internes), tracker global visible par tous les membres, anonymisation inter-guildes (pseudo visible seulement dans sa guilde), pas de `TicketRecord` par signalement.
-> **Mesure** : `SystemIssue` n'était lu que par 2 fichiers (8 usages) ; `sendTicketReply` exige un thread Discord ; les liens de notification étaient `?bug=SIG-<id>`.
-> **Fait** : schéma additif (`TicketOrigin`, `publicRef`, `legacySystemIssueId`, champs de suivi, `discordGuildId` nullable) · script de reprise idempotent (`--dry-run` par défaut) · **filet SQL** qui copie les lignes restantes avant la migration destructive · bascule des actions · tracker membre anonymisé et paginé côté serveur · onglet « Signalements » dans la console Support · console Support (tickets Discord) réalignée sur les tokens de la landing (plus de zinc/indigo/amber, rayons ≤ 12 px) · refonte `/god/bugs` + tracker aux tokens (responsive 390→1440) · **volet visiteur connecté** (`submitVisitorFeedbackAction` sans appartenance, bouton global du header public sur profil/élevage/guides, historique « Mes signalements », panneau Rush corrigé) · suppression de `SystemIssue` (`20270202000000`).
-> **Preuves** : suite **701 fichiers / 7 419 tests ✓** · `tsc` 0 · ESLint 0 erreur · migrations `20270201000000`, `20270201500000`, `20270202000000` appliquées en local · verrous `feedback-*` + `visitor-feedback-surfaces` + `system-issue-removal`.
-> **Reste / ops** : en bêta puis prod, jouer `20270201000000` → `migrate-system-issues-to-support-tickets --dry-run` puis `--apply` (compteurs + échantillon) → `20270201500000` (filet) → `20270202000000` ; redéployer ; vérifier un ancien lien `?bug=SIG-<n>`. Lots séparés : console Support God (`ticket-bot` G4), screenshot, auto-onboarding.
-> **Rotation** : bloc « 13/11/2026 — Blocs Combat + liens + markdown + modale de bloc » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 
 

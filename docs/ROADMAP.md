@@ -15,7 +15,11 @@
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
   **Réglages** : `PUBLIC_VISITOR_ENTRY=1` ✅ **posé le 16/11/2026** · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
 
-- **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
+- **Mesuré 16/11/2026 — rétention** : `TelemetryEvent` et `ServiceActivityLog` **n'ont aucune purge** (croissance illimitée ; `TelemetryEvent` porte `userName` + UA/OS). Le reste est borné (audit 30/90 j, God 90 j, notifications 30/90 j, tickets par limites plateforme, comptes 365 j, `DiscordMemberActivity` 365 j, Docker 10 Mo×3, logs app > 10 Mo, journalctl 7 j, Redis 512 Mo). **Cadré le 16/11/2026** : 90 j pour `TelemetryEvent`, 365 j pour `ServiceActivityLog`, compteurs Stockage, branchement `cleanup-logs` + janitor — `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md`. **Go-ahead explicite attendu** (suppression de données), lot A du §2 bis.
+- **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D8` (Cloudflare).
+  **`D7` tranché le 16/11/2026** : à l'ouverture, `sigilos.fr` servira **la même landing React que la bêta**
+  (retrait du rewrite `maintenance.html`) ; une **nouvelle refonte de la landing** est prévue « un de ces
+  quatre », **sans cadrage pour l'instant** (décision user, aucun détail).
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
 - 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
   - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes F1→F7 ✅ 11/11 · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1` ✅ 16/11
@@ -31,7 +35,7 @@
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
-| 3 | `ouverture-prod` (#57) | `robots.txt`, `sitemap.xml` et `llms.txt` renvoient la page d'attente (HTML) ; 2 apps Discord à isoler ; hardlinks ; rewrite Caddy à retirer | mesuré le 21/09/2026 | robots/sitemap statiques + `noindex` ; checklist Jour J | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` · `docs/plans/SEO_REPRISE.md` | **D7** (landing) |
+| 3 | `ouverture-prod` (#57) | **D7 tranché (16/11)** : la prod servira la landing React. **Mesuré le 16/11** : `robots.txt` (statique) et `sitemap.xml` (404 franc) sont déjà gérés par Caddy ; restent `/llms.txt` (avalé par le rewrite), le `noindex` (Caddy + `maintenance.html`), et surtout **le bloc Caddy `sigilos.fr` ne sait pas proxifier l'app** (ni `/game-data/*` worldmap, ni `/socket.io/*`) | réécrire le bloc `sigilos.fr` à partir du bloc bêta + checklist Jour J | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` · `docs/plans/SEO_REPRISE.md` | — (D7 levé) |
 | 4 | `actions-god-auth` (audit 13/11) | Actions God sans garde, `/api/storage` inter-guildes | ✅ **livré 13/11** — PR **#1361** (AUD-01/02/03) | — (rien) | `docs/SECURITY.md` | — |
 | 4b | `durcissements-audit` (audit 13/11) | AUD-04/05/07/09/10/11 + SEC-02/03 : jeton legacy, SVG, `execFile`, limiteur, endpoint maintenance, clé stricte, kill-switch WS | ✅ **livré 13/11** — PR **#1362** | — (rien) | `docs/SECURITY.md` | — |
 | 4c | `ladder-messages` (RGPD) | Métrique « caractères » → messages ; intent `MessageContent` retiré | ✅ **livré 13/11** — PR **#1363** | **ops** : couper l'intent dans le portail Discord | `docs/MAINTENANCE.md` | — |
@@ -63,18 +67,18 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 19 | `services` (J) | Services : clôture, inactivité, feedback, images, forum ; `valider-recrue` en ticket | ouvert · **25/10 — un salon par flux** (PR #1113 + branche empilée) : annonces en **forum obligatoire** (tags par catégorie), demandes en forum **ou** texte ; **anti-doublon** (édition = PATCH, jamais un 2ᵉ sujet) ; statut de publication remonté à l'écran (badge + bouton Publier) · **bouton Documentation `services` ajouté** (contenu écrit en local, à uploader) | J-1 → J-2 | — (à créer) | — |
 | 20 | `succes` (K) | Succès & encyclopédie : onglet Monstres, succès imbriqués | ouvert | K-1 → K-2 | — (à créer) | — |
 | 21 | `mini-jeux` (H) | Mini-jeux & salons temps réel : solidité Redis, solo, Panthéon, HUD/UX | ouvert | H-1 → H-2 | — (à créer) | — |
-| 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse) | L-1 → L-4 | — (à créer) | — |
+| 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse). **Landing (mesuré 16/11)** : 3 résidus hors maquettes — `hero.tsx:84` (`text-zinc-400`), `workflow.tsx:62` (`text-emerald-400`), `workflow.tsx:69` (`rounded-2xl` + `bg-[#0e1017]`) | L-1 → L-4 | — (à créer) | — |
 | 23 | `guildes-admin` (M) | Guildes & admin : calendrier, profil, stuff, édition staff, logs | volet `membres` livré (05/10) · **inventaire des mules** et **pseudo vérifié au ladder + embed « fin d'essai »** livrés le 25/10 | M-1 reste (calendrier/profil/stuff) → M-2 → M-3 | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` | — |
 | 24 | `god-refonte` (O) | Refonte God « Guildes & Users » ; tickets d'exploitation : signalements fusionnés le 14/11, **G4 livré le 15/11** (panneau dédié, catégories libres, runtime, CSAT) | plan vivant ; **tickets clos** | G1 → G12 | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/PLAN-TICKETS-GOD.md` | — |
-| 25 | `acquisition` (E) | SEO / contenu : autorité avant volume | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
-| 26 | `demo-publique` (S) | Démo publique en lecture seule, essayable sans compte | S-0/S-1 livrés (02/10) | S-2a → S-2b → S-3 → S-4 → S-5 | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | — |
+| 25 | `acquisition` (E) | SEO / contenu : autorité avant volume — **les outils publics sont déjà en ligne** (landing « Outils ouverts » : Rush Sylvestre, Encyclopédie Boss, Almanax, Carte du Monde HD) | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
+| 26 | `demo-publique` (S) | Démo publique en lecture seule, essayable sans compte | **S-0/S-1 livrés (02/10) — chantier loin d'être fini** (16/11) | S-2a → S-2b → S-3 → S-4 → S-5 | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | — |
 | 27 | `salons-vocaux` (Q) | Module « salons vocaux temporaires » (cahier V2.1) | idée neuve, **à cadrer** | cadrage → lots | `docs/plans/PLAN-SALONS-VOCAUX.md` | **D4** |
 | 28 | `onboarding` (ONB) | Onboarding & acquisition (prospect → guilde) | proposition du 06/09 | valider la proposition + migration | `docs/plans/PLAN-REFONTE-ONBOARDING.md` | **D5** |
 | 29 | `reseau` (NET) | Durcissement réseau : Cloudflare/WAF devant `sigilos.fr` ? | à décider | décision + DPA + pages RGPD | — | **D8** |
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (8 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop, **tour guidé public (profil + guide Rush, 16/11)**, **entrée guidée (attente neutre, fail-closed 5xx, cache 60 s, accueil + visite de création, onglets progressifs, 16/11)**, **accueil Rush adapté au compte (profil jamais redemandé, 16/11)** — **livrés** | **V3** (God visiteurs) · **V2d abandonné** · affinage fiche validé | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (8 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop, **tour guidé public (profil + guide Rush, 16/11)**, **entrée guidée (attente neutre, fail-closed 5xx, cache 60 s, accueil + visite de création, onglets progressifs, 16/11)**, **accueil Rush adapté au compte (profil jamais redemandé, 16/11)**, **V3-a/V3-b/V3-c God visiteurs (liste + reset + suppression, 16/11)** — **livrés** | — (détail et suppression livrés) · **V2d abandonné** · affinage fiche soldé | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
@@ -82,6 +86,14 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : aucun appel réseau pour servir une image | **S1 + S1b + S2 livrés** · 2 294 apparences (`remaining: 0`) · hybride `ASSETS_REMOTE_FETCH` (défaut `false`) | **S3** (couverture) → **S4** (cron + alerte) | `docs/plans/PLAN-SOUVERAINETE-IMAGES.md` | — |
 
+
+## 2 bis. God — rétention, télémétrie, vue d'ensemble (cadré 16/11/2026)
+
+| Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
+|---|---|---|---|---|---|
+| A | `retention-logs` | Purge `TelemetryEvent` **90 j** + `ServiceActivityLog` **365 j**, branchée sur `cleanup-logs` **et** le janitor ; compteurs dans God « Stockage » | **aucune purge** (16/11) — go-ahead explicite attendu (suppression de données) | policy + core + wiring + compteurs | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
+| B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | filtre **cassé** (0 ligne) · chemin tronqué · **72** motifs · 100 événements plafonnés · UA périmé affiché | B1 → B5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
+| C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | `getPlatformActivityStats` charge **tous** les `User` + `AuditLog` 30 j ; 10 counts/5 s par onglet ; 56 + 102 + 40 motifs | C1 → C5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
@@ -123,7 +135,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 |---|---|---|---|
 | 1 | ~~Test flaky `lot4-slash-commands-api-keys` (timeout 5 s)~~ ✅ **livré le 12/11** | — | S |
 | 2 | ~~Brouillon local du formulaire de quête (E2b-suite 2/2)~~ ✅ **livré le 12/11** | 59 | M |
-| 3 | Fiche visiteur — affinage (assets, hiérarchie) | 57 | M |
+| 3 | ~~Fiche visiteur — affinage (assets, hiérarchie)~~ ✅ **soldé le 15/11/2026** (validé user, rien à faire) | 57 | — |
 | 4 | ~~Dette DA du studio (577 motifs → 0, E4)~~ ✅ **livré le 12/11/2026** — 572 → 0, verrou `rush-editor-ui` | 59 | M |
 | 5 | ~~Restes T-4 : G8 (dépli), O15 (motion), G9 (tokens)~~ ✅ **livré le 12/11/2026 (T-4a)** — G7 (hero) et composition G9 restent (captures) | 9 · 55 | M |
 | 6 | Images : purge WebP / nettoyage (V-C, ops VPS) | 10 | M |
@@ -134,7 +146,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
 | 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
 | 12 | Données Tougli / Dofusyelle (V-D2, ou acter la cible 517) | 10 | ? |
-| 13 | ~~Tour guidé (reste V2a-4)~~ ✅ **livré le 16/11/2026** (profil + guide Rush, connecté/anonyme) · V3 (God visiteurs) — **V2d abandonné** | 57 | ? |
+| 13 | ~~Tour guidé (reste V2a-4)~~ ✅ **livré le 16/11/2026** (profil + guide Rush, connecté/anonyme) · V3 (God visiteurs) — **V2d abandonné** · **reste** : contrôle visuel 390/768/1024/1440 (bulle + parcours anonyme/connecté) | 57 | ? |
 
 
 
@@ -149,7 +161,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | **D4** | `PLAN-SALONS-VOCAUX` : retenir et cadrer, ou archiver ? | rang 27 |
 | **D5** | Onboarding 06/09 : proposition validée ? (migration à appliquer) | rang 28 |
 | **D6** | Acquisition : ordre des lots + une page n'entre au sitemap que si elle porte de la donnée réelle | rang 25 |
-| **D7** | Landing : `maintenance.html` vs `page.tsx` | rang 3 |
+| **D7** | ~~Landing : `maintenance.html` vs `page.tsx`~~ **Tranché le 16/11/2026** : à l'ouverture, `sigilos.fr` sert la **landing React** (même page que la bêta) ; refonte ultérieure de la landing **sans cadrage** pour l'instant | — (soldé) |
 | **D8** | Cloudflare devant `sigilos.fr` : oui (DPA + cookie `__cf_bm`) ou non (Caddy seul) ? | rang 29 |
 | **D-R1** | Moteur de rôles : voie A (vocal **total** universel, recommandée) ou voie B (fenêtres + reset bot, 1 migration) ? | rang 12 |
 | **D-M1** | Marché lot multiple : valeur d'`enum` (migration additive ?) + une `MarketDiscordMessage` par objet (migration ?) | rang 18 |

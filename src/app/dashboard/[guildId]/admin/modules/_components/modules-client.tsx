@@ -116,44 +116,44 @@ export function ModulesClient({ guildId, initialModules, moduleStates }: Props) 
     }
 
     return (
-        <div className="space-y-12 max-w-[1600px] mx-auto">
+        <div className="mx-auto max-w-[1600px] space-y-6">
             {/* Summary bar - Technical Stats Style */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 py-4 border-b border-border bg-surface rounded-2xl">
+            <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-border bg-surface/40 px-4 py-3 md:flex-row md:items-center">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Système de Capacités</span>
+                        <span className="text-xs font-medium text-muted-foreground">Modules actifs</span>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-foreground">{enabledCount}</span>
-                            <span className="text-muted-foreground font-medium text-xs">/ {totalCount} modules</span>
+                            <span className="text-2xl font-semibold tabular-nums text-foreground">{enabledCount}</span>
+                            <span className="text-xs font-medium text-muted-foreground">/ {totalCount}</span>
                         </div>
                     </div>
-                    <div className="h-10 w-px bg-surface mx-2 hidden md:block" />
-                    <div className="flex h-2 w-32 bg-surface rounded-full overflow-hidden">
+                    <div className="mx-2 hidden h-8 w-px bg-border md:block" />
+                    <div className="flex h-2 w-32 overflow-hidden rounded-full bg-border">
                         <div 
                             className="h-full bg-success transition-all duration-200 ease-out"
                             style={{ width: `${(enabledCount / totalCount) * 100}%` }} 
                         />
                     </div>
                 </div>
-                <Badge variant="outline" className="bg-surface border-border text-muted-foreground font-medium text-xs py-1 px-3 rounded-lg">
+                <Badge variant="outline" className="rounded-lg border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
                     Modifications appliquées instantanément
                 </Badge>
             </div>
 
             {/* Search Bar */}
-            <div className="relative px-2 mt-4 max-w-md">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <input
                     type="text"
                     placeholder="Rechercher un module (ex: chat, missions...)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-surface border border-border rounded-xl pl-11 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50 hover:border-border-strong transition-all font-medium"
+                    className="w-full rounded-xl border border-border bg-surface py-2.5 pl-9 pr-4 text-sm font-medium text-foreground placeholder:text-muted-foreground transition-colors hover:border-border-strong focus:border-success/50 focus:outline-none"
                 />
             </div>
 
             {/* Groups */}
-            <div className="space-y-16">
+            <div className="space-y-10">
                 {MODULE_GROUPS.map((group) => {
                     const filteredModules = group.modules.filter(mod => 
                         mod.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -164,15 +164,14 @@ export function ModulesClient({ guildId, initialModules, moduleStates }: Props) 
                     if (filteredModules.length === 0) return null;
 
                     return (
-                        <div key={group.label} className="space-y-8">
-                        <div className="flex items-center gap-4 px-2">
-                             <div className="h-0.5 w-8 bg-elevated" />
-                            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        <div key={group.label} className="space-y-4">
+                        <div className="flex items-center gap-3 px-1">
+                            <h3 className="text-sm font-semibold text-foreground">
                                 {group.label}
                             </h3>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                             {filteredModules.map((mod) => {
                                 const state = moduleStates[mod.key];
                                 const isLocked = Boolean(state?.lockedBy);
@@ -187,147 +186,139 @@ export function ModulesClient({ guildId, initialModules, moduleStates }: Props) 
                                     <div
                                         key={mod.key}
                                         className={cn(
-                                            "group relative rounded-2xl border transition-all duration-200 overflow-hidden",
-                                            isEnabled
-                                                ? "bg-surface/60 border-border shadow-sm"
-                                                : "bg-black/40 border-border opacity-50 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 hover:border-border"
+                                            "flex h-full flex-col rounded-xl border p-4 transition-colors",
+                                            isEnabled ? "border-border bg-surface/40" : "border-border bg-surface/10",
                                         )}
                                     >
-                                        <div className="relative z-10 p-6 flex flex-col h-full">
-                                            {/* Top Row: Icon & Toggle */}
-                                            <div className="flex items-start justify-between gap-4 mb-6">
-                                                <div className="flex items-center gap-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex min-w-0 items-start gap-3">
                                                     <div className={cn(
-                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-colors duration-200",
-                                                        isEnabled 
-                                                            ? "bg-success/[0.06] border-success/30"
-                                                            : "bg-surface border-border"
+                                                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border",
+                                                        isEnabled
+                                                            ? "border-success/30 bg-success/10"
+                                                            : "border-border bg-elevated"
                                                     )}>
                                                         {MODULE_DOFUS_ASSETS[mod.key] ? (
                                                             // eslint-disable-next-line @next/next/no-img-element
                                                             <img
                                                                 src={`/assets/dofus/modules/${MODULE_DOFUS_ASSETS[mod.key]}`}
-                                                                alt={mod.label}
+                                                                alt=""
                                                                 className={cn(
-                                                                    "w-8 h-8 object-contain transition-all duration-200",
-                                                                    !isEnabled && "opacity-50 grayscale"
+                                                                    "h-6 w-6 object-contain",
+                                                                    !isEnabled && "opacity-60"
                                                                 )}
                                                             />
                                                         ) : (
                                                             <Icon className={cn(
-                                                                "w-7 h-7 transition-colors duration-200",
+                                                                "h-6 w-6",
                                                                 isEnabled ? "text-success" : "text-muted-foreground"
-                                                            )} strokeWidth={1.5} />
+                                                            )} strokeWidth={1.5} aria-hidden="true" />
                                                         )}
                                                     </div>
 
-                                                    <div className="flex flex-col">
-                                                         <div className="flex items-center gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
                                                             <h3 className={cn(
-                                                                "font-semibold text-base tracking-tight",
+                                                                "text-sm font-semibold leading-snug",
                                                                 isEnabled ? "text-foreground" : "text-muted-foreground"
                                                             )}>
                                                                 {mod.label}
                                                             </h3>
                                                             {mod.comingSoon && (
-                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-warning/10 border-warning/20 text-warning font-medium">
+                                                                <Badge variant="outline" className="h-5 border-warning/20 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                                                                     WIP
                                                                 </Badge>
                                                             )}
-                                                            {isLocked && (
-                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-info/10 border-info/30 text-info font-medium" title={state?.notice || MAINTENANCE_LABEL}>
-                                                                    {MAINTENANCE_LABEL}
-                                                                </Badge>
-                                                            )}
                                                         </div>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-medium">
                                                             {isLocked ? (
-                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-info">
-                                                                    <span className="h-1.5 w-1.5 rounded-full bg-info" />
-                                                                    {MAINTENANCE_LABEL}
-                                                                </span>
+                                                                <>
+                                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-info" />
+                                                                    <span className="text-info" title={state?.notice || MAINTENANCE_LABEL}>{MAINTENANCE_LABEL}</span>
+                                                                </>
                                                             ) : isEnabled ? (
-                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-success">
-                                                                    <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                                                                    Actif
-                                                                </span>
+                                                                <>
+                                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+                                                                    <span className="text-success">Actif</span>
+                                                                </>
                                                             ) : (
-                                                                <span className="text-xs font-medium text-muted-foreground">{GUILD_DISABLED_LABEL}</span>
+                                                                <span className="text-muted-foreground">{GUILD_DISABLED_LABEL}</span>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center shrink-0">
+                                                <div className="shrink-0">
                                                     {isLoading ? (
-                                                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                     ) : (
                                                         <Switch
                                                             checked={isEnabled}
                                                             onCheckedChange={(val) => handleToggle(mod.key, val)}
                                                             disabled={isPending || isLocked}
-                                                            className="data-[state=checked]:bg-success scale-125"
+                                                            className="scale-110 data-[state=checked]:bg-success"
                                                             aria-label={`Toggle module ${mod.label}`}
                                                         />
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {/* Description Card */}
-                                            <div className="flex-1 space-y-4">
-                                                <p className={cn(
-                                                    "text-sm leading-relaxed transition-colors duration-200",
-                                                    isEnabled ? "text-muted-foreground" : "text-muted-foreground"
-                                                )}>
-                                                    {mod.description}
-                                                </p>
-                                                {state?.notice && (
-                                                    <p className="flex items-start gap-2 text-xs font-medium text-info bg-info/10 border border-info/20 rounded-lg px-3 py-2">
-                                                        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
-                                                        <span>{state.notice}</span>
-                                                    </p>
-                                                )}
-                                            </div>
+                                            <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                                                {mod.description}
+                                            </p>
 
-                                            {/* Pages concernées (#66) */}
-                                            <div className="mt-6 pt-5 border-t border-border space-y-3">
-                                                {routes && routes.length > 0 ? (
-                                                    <div className="flex flex-wrap items-center gap-1.5">
-                                                        <span className="text-xs font-medium text-muted-foreground">Pages :</span>
-                                                        {routes.map((r) => (
-                                                            <Link
-                                                                key={r.href}
-                                                                href={r.href.replace("{guildId}", guildId)}
-                                                                className="px-2.5 py-1 rounded-lg bg-surface border border-border text-xs font-medium text-foreground hover:text-foreground hover:bg-surface hover:border-border-strong transition-colors"
-                                                            >
-                                                                {r.label}
-                                                            </Link>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">Page dédiée à venir</span>
-                                                )}
-                                                {(() => {
-                                                    const linked = getPermissionsForGuildModule(mod.key);
-                                                    if (linked.length === 0) return null;
-                                                    return (
+                                            {isLocked && state?.notice ? (
+                                                <p className="mt-2 flex items-start gap-2 rounded-lg border border-info/20 bg-info/10 px-2.5 py-1.5 text-xs text-info">
+                                                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                    <span>{state.notice}</span>
+                                                </p>
+                                            ) : null}
+
+                                            {isEnabled ? (
+                                                <div className="mt-3 space-y-2 border-t border-border pt-3">
+                                                    {routes && routes.length > 0 ? (
                                                         <div className="flex flex-wrap items-center gap-1.5">
-                                                            <span className="text-xs font-medium text-muted-foreground">RBAC :</span>
-                                                            {linked.map((permId) => (
+                                                            <span className="text-xs font-medium text-muted-foreground">Pages :</span>
+                                                            {routes.map((r) => (
                                                                 <Link
-                                                                    key={permId}
-                                                                    href={`/dashboard/${guildId}/admin/permissions`}
-                                                                    title="Voir dans la matrice RBAC"
-                                                                    className="px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/25 text-xs font-bold text-warning hover:bg-warning/20 transition-colors"
+                                                                    key={r.href}
+                                                                    href={r.href.replace("{guildId}", guildId)}
+                                                                    className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-border-strong"
                                                                 >
-                                                                    {PERMISSION_LABELS[permId] || permId}
+                                                                    {r.label}
                                                                 </Link>
                                                             ))}
                                                         </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">Page dédiée à venir</span>
+                                                    )}
+                                                    {(() => {
+                                                        const linked = getPermissionsForGuildModule(mod.key);
+                                                        if (linked.length === 0) return null;
+                                                        return (
+                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                <span className="text-xs font-medium text-muted-foreground">RBAC :</span>
+                                                                {linked.map((permId) => (
+                                                                    <Link
+                                                                        key={permId}
+                                                                        href={`/dashboard/${guildId}/admin/permissions`}
+                                                                        title="Voir dans la matrice RBAC"
+                                                                        className="rounded-lg border border-warning/25 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/20"
+                                                                    >
+                                                                        {PERMISSION_LABELS[permId] || permId}
+                                                                    </Link>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                                                    {isLocked
+                                                        ? "Pages et droits associés masqués pendant la maintenance."
+                                                        : "Pages et droits associés masqués tant que le module est désactivé."}
+                                                </p>
+                                            )}
                                     </div>
                                 );
                             })}
@@ -336,13 +327,6 @@ export function ModulesClient({ guildId, initialModules, moduleStates }: Props) 
                 )})}
             </div>
 
-            {/* Support Note */}
-            <div className="pt-16 pb-10 text-center space-y-4">
-                <div className="h-px w-32 bg-surface mx-auto" />
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                    Modules de la guilde
-                </p>
-            </div>
         </div>
     );
 }

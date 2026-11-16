@@ -30,7 +30,7 @@ export function UserList({ users }: UserListProps) {
 
         const result = await forceDeleteUser(userId);
         if (result.success) {
-            toast.success("Utilisateur supprimé (Fantôme exorcisé).");
+            toast.success("Compte supprimé.");
             router.refresh();
         } else {
             toast.error("Erreur lors de la suppression.");
@@ -38,37 +38,37 @@ export function UserList({ users }: UserListProps) {
     };
 
     if (users.length === 0) {
-        return <div className="text-zinc-500 text-sm italic">Aucun fantôme détecté. La base est propre.</div>;
+        return <div className="text-sm text-muted-foreground">Aucun compte sans profil détecté. La base est propre.</div>;
     }
 
     return (
-        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="max-h-[500px] space-y-3 overflow-y-auto pr-2 custom-scrollbar">
             {users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between border p-3 rounded-lg group transition-colors bg-red-950/10 border-red-900/20 hover:border-red-900/40">
-                    <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border border-zinc-700">
+                <div key={user.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/10 p-3 transition-colors hover:border-border-strong">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="h-10 w-10 rounded-xl border border-border">
                             <AvatarImage src={user.image || undefined} />
-                            <AvatarFallback>{user.name?.[0] || "?"}</AvatarFallback>
+                            <AvatarFallback className="rounded-xl bg-elevated text-xs font-semibold text-muted-foreground">
+                                {user.name?.[0] || "?"}
+                            </AvatarFallback>
                         </Avatar>
-                        <div>
-                            <div className="font-medium text-white flex items-center gap-2">
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
                                 {user.name}
-                                <Badge variant="outline" className="text-caption py-0 h-5 border-zinc-500/30 text-zinc-400 bg-zinc-500/10">
-                                    Sans Profil
+                                <Badge variant="outline" className="h-5 border-border bg-surface/10 px-2 py-0 text-xs font-medium text-muted-foreground">
+                                    Sans profil
                                 </Badge>
                             </div>
-                            <div className="text-xs text-zinc-500">
+                            <div className="text-xs text-muted-foreground">
                                 Inscrit {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true, locale: fr })}
                             </div>
                         </div>
                     </div>
-                    <div className="text-right flex items-center gap-4">
-                        <div>
-                            <div className="text-xs font-medium text-red-400">
-                                Cible Janitor
-                            </div>
-                            <div className="text-caption text-zinc-600 font-mono mt-1">
-                                {user.id.slice(0, 8)}...
+                    <div className="flex shrink-0 items-center gap-3">
+                        <div className="hidden text-right sm:block">
+                            <div className="text-xs font-medium text-warning">Cible du nettoyage</div>
+                            <div className="mt-1 font-mono text-xs text-muted-foreground">
+                                {user.id.slice(0, 8)}…
                             </div>
                         </div>
 
@@ -76,10 +76,11 @@ export function UserList({ users }: UserListProps) {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(user.id, user.name || "?")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-500 hover:text-red-400 hover:bg-red-400/10"
-                            title="Exorciser manuellement"
+                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Supprimer ce compte"
+                            aria-label={`Supprimer ${user.name || "ce compte"}`}
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                     </div>
                 </div>

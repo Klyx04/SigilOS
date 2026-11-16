@@ -76,6 +76,9 @@ docs/
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
 │   ├── PLAN-REFONTE-GOD-GUILDES.md refonte God « Guildes & Users » : 12 chantiers, 7 lots
 │   ├── PLAN-TICKETS-GOD.md        module tickets d'exploitation : `?tab=tickets`, UI à refondre, `ticket-bot` à revoir (brief 08/11/2026)
+│   ├── PLAN-RETENTION-TELEMETRIE-JOURNAUX.md  rétention : télémétrie 90 j + activité 365 j, `cleanup-logs` + janitor (go-ahead attendu)
+│   ├── PLAN-GOD-TELEMETRIE-OVERVIEW.md  God : télémétrie lisible (filtre guilde, chemins complets) + vue d'ensemble allégée
+
 │   ├── PLAN-RAID.md                raid : clôture/no-show, strat, overlay, données (relevé mesuré 01/10/2026)
 │   ├── MODULE-RUSH-SYLVESTRE.md    module Rush Sylvestre : carte des fichiers + chantiers (agrégateur)
 │   ├── REFONTE-EDITEUR-RUSH.md    éditeur God Rush : audit UX mesuré + lots E1→E5 (studio 3 panneaux)

@@ -413,6 +413,17 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 
 ### V3 — God des visiteurs
 
+> **Décision du 16/11/2026** : V3 vit **dans la partie guildes** — sous-vue
+> `/god?tab=guilds&vue=visiteurs`, pas un nouvel onglet (le God en a déjà trop). Le lot est
+> mené **avec la refonte UI de la partie guildes** (retrait du slop : cartes violettes,
+> `font-black`, rayons > 12 px, couleurs en dur). **V3-a (16/11)** : liste en **lecture seule**
+> (pseudo, serveur, personnage, consentements, pagination URL) gardée `isSuperAdmin`, DTO sans
+> mule / Metamob / `userId`. **V3-b (16/11)** : réinitialisation des 3 consentements (réversible,
+> idempotente, garde d'état, rate limit, journal `GOD_CONFIG_OVERRIDE` sans `discordId`).
+> **V3-c (16/11)** : **ban `PlatformBan` puis suppression complète du `User`** (cascade), refus
+> fail-closed si le compte possède une guilde, confirmation `SUPPRIMER`, rate limit 3/min ; fiche
+> détail `?visiteur=` et boutons `Bannir` / `Bannir + supprimer`. Verrou `god-visitors` **26**.
+
 - Liste, détail, modification, suppression, bannissement (`PlatformBan`), réinitialisation de la visibilité.
 - Aucune donnée personnelle dans les logs ; volumes uniquement.
 

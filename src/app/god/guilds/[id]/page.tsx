@@ -2,15 +2,28 @@ import { redirect, notFound } from "next/navigation";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getGuildMembersForGod } from "@/server/actions/god-lifecycle-actions";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
-import { Shield, ChevronLeft, Users } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/prisma";
-import { GodCard } from "@/app/god/ui";
-import { logger } from "@/lib/logger";
+import { GodBadge, GodCard } from "@/app/god/ui";
+import { getGodRoute } from "@/lib/god-route";
+import { formatDofusLevel, toTotalDofusLevel } from "@/lib/dofus-level";
+import { buildAnkamaLadderUrl, resolveGuildOwnerLookup } from "@/lib/god-guild-owner";
+import { resolveOnboardingOrigin } from "@/lib/onboarding-gating";
 import { GodGuildTabs } from "./god-guild-tabs";
 
 interface GodGuildDetailsPageProps {
     params: Promise<{ id: string }>;
+}
+
+/** Chiffre mesuré de la fiche : un libellé, une valeur, aucun faux pourcentage. */
+function GodGuildStat({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="min-w-[110px] rounded-xl border border-border bg-surface/10 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</p>
+        </div>
+    );
 }
 
 export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPageProps) {
@@ -32,6 +45,12 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             name: true,
             discordGuildId: true,
             iconUrl: true,
+            isActive: true,
+            deletedAt: true,
+            createdAt: true,
+            dofusServerId: true,
+            dofusServerName: true,
+            ownerId: true,
             welcomeBadgeName: true,
             rolesMapping: true,
             usersMapping: true,
@@ -41,6 +60,55 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     if (!guild) {
         return notFound();
     }
+
+    // Origine de la guilde : une phrase complète (G1), jamais un badge « Autonome » nu.
+    const allowedGuild = await db.allowedGuild.findUnique({
+        where: { discordGuildId: guild.discordGuildId },
+        select: { addedBy: true, tier: true, notes: true },
+    });
+    const origin = resolveOnboardingOrigin(allowedGuild ?? null);
+
+    // ── Propriétaire (debug2.md) : ownerId peut être un snowflake ou un UUID.
+    const ownerLookup = resolveGuildOwnerLookup(guild.ownerId);
+    const ownerSelect = {
+        name: true,
+        image: true,
+        profiles: {
+            where: { guildId },
+            select: { pseudoDofus: true, classe: true, dofusLevel: true, achievementPoints: true, totalXp: true },
+            take: 1,
+        },
+        publicProfile: {
+            select: { pseudoDofus: true, classe: true, dofusLevel: true, successPoints: true, dofusServerId: true, totalXp: true },
+        },
+    } as const;
+    const ownerUser = ownerLookup
+        ? ownerLookup.by === "user"
+            ? await db.user.findUnique({ where: { id: ownerLookup.value }, select: ownerSelect })
+            : await db.user.findFirst({
+                  where: { accounts: { some: { provider: "discord", providerAccountId: ownerLookup.value } } },
+                  select: ownerSelect,
+              })
+        : null;
+    const ownerProfile = ownerUser?.profiles[0] ?? null;
+    const ownerPublic = ownerUser?.publicProfile ?? null;
+    const ownerPseudo = ownerProfile?.pseudoDofus ?? ownerPublic?.pseudoDofus ?? null;
+    const ownerServerId =
+        Number.parseInt(guild.dofusServerId ?? "", 10) || ownerPublic?.dofusServerId || null;
+    const owner = ownerUser
+        ? {
+              name: ownerUser.name,
+              image: ownerUser.image,
+              pseudo: ownerPseudo,
+              classe: ownerProfile?.classe ?? ownerPublic?.classe ?? null,
+              level: toTotalDofusLevel(
+                  ownerProfile?.dofusLevel ?? ownerPublic?.dofusLevel ?? null,
+                  ownerProfile?.totalXp ?? ownerPublic?.totalXp ?? null,
+              ),
+              successPoints: ownerProfile?.achievementPoints ?? ownerPublic?.successPoints ?? null,
+              ladderUrl: buildAnkamaLadderUrl(ownerPseudo, ownerServerId),
+          }
+        : null;
 
     const members = await getGuildMembersForGod(guildId);
 
@@ -52,18 +120,16 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             <div className="space-y-6 py-20">
                 <div
                     role="alert"
-                    className="mx-auto max-w-xl rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 text-center"
+                    className="mx-auto max-w-xl rounded-xl border border-warning/30 bg-warning/5 p-6 text-center"
                 >
-                    <p className="text-sm font-black uppercase tracking-widest text-amber-400">
-                        Roster masqué
-                    </p>
-                    <p className="mt-2 text-xs leading-relaxed text-amber-200/80">{members.error}</p>
+                    <p className="text-sm font-semibold text-warning">Roster masqué</p>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{members.error}</p>
                 </div>
                 <Link
-                    href="/god"
-                    className="mx-auto block w-fit text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                    href={`${getGodRoute()}?tab=guilds`}
+                    className="mx-auto block w-fit text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                    Retour au Panthéon
+                    Retour aux guildes
                 </Link>
             </div>
         );
@@ -94,97 +160,144 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
         logsStats = row ? { serviceLogs: row.serviceLogs, auditLogs: row.auditLogs } : null;
     }
 
+    const godRoute = getGodRoute();
+    const guildActive = guild.isActive && !guild.deletedAt;
+
     return (
-        <div className="space-y-8 py-8">
-            {/* Header */}
-            <div className="flex flex-col gap-6">
-                <Link
-                    href="/god"
-                    className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-xs font-black uppercase tracking-widest group"
-                >
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    Retour au Panneau de Contrôle
-                </Link>
+        <div className="space-y-6 py-8">
+            <Link
+                href={`${godRoute}?tab=guilds`}
+                className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                Guildes
+            </Link>
 
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <div className="relative group/icon">
-                            <div className="absolute -inset-4 bg-violet-500/20 blur-2xl rounded-full opacity-0 group-hover/icon:opacity-100 transition-opacity" />
-                            {guild.iconUrl && guild.iconUrl.length > 5 ? (
-                                <div className="relative w-24 h-24 rounded-3xl overflow-hidden border-2 border-white/10 bg-zinc-900 shadow-2xl">
-                                    <img
-                                        src={`https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconUrl}.png?size=256`}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                                </div>
-                            ) : (
-                                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-4xl font-black text-white border-2 border-white/10 shadow-2xl relative z-10 uppercase">
-                                    {guild.name[0]}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-caption font-black text-violet-400 uppercase tracking-widest">
-                                <Shield className="w-3 h-3" />
-                                Inspection God Mode
+            <GodCard className="p-6">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4">
+                        {guild.iconUrl && guild.iconUrl.length > 5 ? (
+                            <img
+                                src={`https://cdn.discordapp.com/icons/${guild.discordGuildId}/${guild.iconUrl}.png?size=128`}
+                                alt=""
+                                className="h-16 w-16 shrink-0 rounded-xl border border-border bg-elevated object-cover"
+                            />
+                        ) : (
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-elevated text-xl font-semibold uppercase text-foreground">
+                                {guild.name[0]}
                             </div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter">
-                                {guild.name}
-                            </h1>
-                            <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">
-                                {guild.discordGuildId}
+                        )}
+
+                        <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{guild.name}</h1>
+                                <GodBadge variant={guildActive ? "success" : "danger"}>
+                                    {guild.deletedAt ? "Supprimée" : guild.isActive ? "Active" : "Gelée"}
+                                </GodBadge>
+                                {!isAdmin ? <GodBadge variant="info">Lecture seule</GodBadge> : null}
+                            </div>
+                            <p className="font-mono text-xs text-muted-foreground">{guild.discordGuildId}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {origin.kind === "AUTONOME"
+                                    ? "Installée en autonomie — aucune approbation humaine."
+                                    : "Installée via ticket ou whitelist du staff."}
+                                {guild.dofusServerName ? ` Serveur ${guild.dofusServerName}.` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Créée le {new Date(guild.createdAt).toLocaleDateString("fr-FR")}
                             </p>
                         </div>
                     </div>
 
-                    <div className="px-6 py-4 bg-zinc-900/50 border border-white/5 rounded-2xl text-center min-w-[140px]">
-                        <div className="text-2xl font-black text-white tracking-tighter">{members.members.length}</div>
-                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Membres Totaux</div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <GodGuildStat label="Membres" value={members.members.length} />
+                        <GodGuildStat label="Audit 30 j" value={logsStats?.auditLogs ?? 0} />
+                        <GodGuildStat label="Services 30 j" value={logsStats?.serviceLogs ?? 0} />
                     </div>
-                </div>
-            </div>
-
-            {/* Roster Table - Reusing the Admin component for consistency */}
-            <GodCard className="p-1 shadow-2xl overflow-hidden">
-                <div className="p-8 border-b border-white/5 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                        <Users className="w-4 h-4 text-violet-500" />
-                        Registre des Citoyens
-                    </h3>
-                </div>
-                <div className="p-6">
-                    <MemberManagementTable
-                        initialMembers={members.members as any}
-                        guildId={guild.discordGuildId}
-                        welcomeBadgeName={guild.welcomeBadgeName}
-                        isSuperAdmin={isAdmin}
-                        ownerId={members.ownerId}
-                    />
                 </div>
             </GodCard>
 
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
-                <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
-                    <span className="font-black uppercase tracking-widest mr-2">Note :</span>
-                    {isAdmin
-                        ? "En tant que Super-Admin, vous pouvez modifier les statuts des membres directement. Toute action effectuée ici sera enregistrée dans le journal d'audit de la guilde avec votre identité."
-                        : "Vous consultez ce roster en lecture seule (accès sous-god). Toute action destructrice est masquée."}
-                </p>
-            </div>
-
-            {/* Super-gestion des modules (§9) + journaux + accès : ONGLETS (audit 24/09) */}
             <GodGuildTabs
+                overview={
+                    <div className="space-y-4">
+                        <GodCard className="p-5">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    {owner?.image ? (
+                                        <img
+                                            src={owner.image}
+                                            alt=""
+                                            className="h-10 w-10 rounded-full border border-border bg-elevated object-cover"
+                                        />
+                                    ) : (
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-elevated text-sm font-semibold text-muted-foreground">
+                                            {guild.name[0]}
+                                        </div>
+                                    )}
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-foreground">
+                                            {owner?.name ?? "Propriétaire non résolu"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {owner?.pseudo
+                                                ? `${owner.pseudo} · ${owner.classe ?? "classe inconnue"} · ${owner.level !== null ? formatDofusLevel(owner.level) : "niveau non synchronisé"}`
+                                                : "Aucun profil Dofus lié"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    {typeof owner?.successPoints === "number" ? (
+                                        <span className="tabular-nums">{owner.successPoints} points de succès</span>
+                                    ) : null}
+                                    {owner?.ladderUrl ? (
+                                        <a
+                                            href={owner.ladderUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-accent"
+                                        >
+                                            Profil ladder
+                                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                                        </a>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </GodCard>
+
+                        <GodCard className="overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
+                            <div>
+                                <h2 className="text-sm font-semibold text-foreground">Registre des membres</h2>
+                                <p className="text-xs text-muted-foreground">
+                                    {isAdmin
+                                        ? "Les actions sont journalisées avec ton identité."
+                                        : "Consultation en lecture seule."}
+                                </p>
+                            </div>
+                            <GodBadge variant="info">{members.members.length}</GodBadge>
+                        </div>
+                        <div className="p-4">
+                            <MemberManagementTable
+                                initialMembers={members.members as any}
+                                guildId={guild.discordGuildId}
+                                welcomeBadgeName={guild.welcomeBadgeName}
+                                isSuperAdmin={isAdmin}
+                                ownerId={members.ownerId}
+                                showIds={false}
+                                dofusServerId={Number.parseInt(guild.dofusServerId ?? "", 10) || null}
+                            />
+                        </div>
+                        </GodCard>
+                    </div>
+                }
                 logsBadge={logsStats?.auditLogs ?? 0}
                 modules={isAdmin ? (
                     <GodGuildModulesSection discordGuildId={guild.discordGuildId} />
                 ) : (
-                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
-                        <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
-                            <span className="font-black uppercase tracking-widest mr-2">Lecture seule :</span>
-                            les verrous de modules sont réservés au staff plateforme. Un sous-god voit ici
+                    <div className="rounded-xl border border-border bg-surface/10 p-5">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            <span className="mr-2 font-semibold text-foreground">Lecture seule.</span>
+                            Les verrous de modules sont réservés au staff plateforme. Un sous-god voit ici
                             l&apos;état des accès et des journaux, jamais les actions.
                         </p>
                     </div>
@@ -291,18 +404,18 @@ async function GodGuildLogsSection({
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
-                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Audit (30 j)</p>
-                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.auditLogs ?? 0}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-xl border border-border bg-surface/10 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audit (30 j)</p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{stats?.auditLogs ?? 0}</p>
                 </div>
-                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
-                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Activité services (30 j)</p>
-                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.serviceLogs ?? 0}</p>
+                <div className="rounded-xl border border-border bg-surface/10 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Activité services (30 j)</p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{stats?.serviceLogs ?? 0}</p>
                 </div>
-                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
-                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Guilde</p>
-                    <p className="text-sm font-bold text-zinc-300 mt-2 truncate" title={guildName}>{guildName}</p>
+                <div className="rounded-xl border border-border bg-surface/10 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guilde</p>
+                    <p className="mt-2 truncate text-sm font-medium text-foreground" title={guildName}>{guildName}</p>
                 </div>
             </div>
 

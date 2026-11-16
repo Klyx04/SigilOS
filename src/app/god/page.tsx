@@ -43,6 +43,9 @@ import { OverviewTabs } from "./components/overview-tabs";
 import { GodLoadingSkeleton } from "./ui";
 import { SystemHealthDashboard } from "./components/system-health-dashboard";
 import { BlacklistSection } from "./components/blacklist-section";
+import { GuildAreaSwitch } from "./components/guild-area-switch";
+import { VisitorsPanel } from "./components/visitors-panel";
+import { parseGodVisitorsQuery, type GodVisitorsRawQuery } from "@/lib/god-visitors";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 import { WorkerTester } from "./components/worker-tester";
@@ -56,7 +59,15 @@ import { toGodLiveStats } from "@/lib/god-live-stats";
 
 
 export default async function SuperAdminPage(props: {
-    searchParams: Promise<{ tab?: string }>;
+    searchParams: Promise<{
+        tab?: string;
+        vue?: string;
+        q?: string;
+        page?: string;
+        consent?: string;
+        serverId?: string;
+        visiteur?: string;
+    }>;
 }) {
     // 🔄 P2 — Correspondance tab → brickId (registre `god-bricks.ts`), pour
     // vérifier l'accès d'un sous-god via `getAccessibleBricks` (source de vérité).
@@ -129,6 +140,17 @@ export default async function SuperAdminPage(props: {
 
     const resolvedSearchParams = await props.searchParams;
     const requestedTab = resolvedSearchParams.tab || "overview";
+    // Sous-vue « Visiteurs » (V3, 16/11/2026) : **super-admin seulement**. La brique
+    // `guilds` reste ouverte aux sous-gods ; la liste des visiteurs, non. Un sous-god
+    // qui force `?vue=visiteurs` retombe sur la vue Guildes (fail-closed, pas d'erreur).
+    const guildArea = resolvedSearchParams.vue === "visiteurs" && isAdmin ? "visiteurs" : "guilds";
+    const visitorsRaw: GodVisitorsRawQuery = {
+        q: resolvedSearchParams.q,
+        page: resolvedSearchParams.page,
+        consent: resolvedSearchParams.consent,
+        serverId: resolvedSearchParams.serverId,
+        visiteur: resolvedSearchParams.visiteur,
+    };
     // 🧭 G11 — **une seule porte** pour les journaux : l'ancien onglet `security`
     // affichait le même `AuditLog` que `/god/logs`. Des liens existent (menu God,
     // favoris du staff) ⇒ on **redirige**, on ne supprime jamais la route à sec.
@@ -243,12 +265,22 @@ export default async function SuperAdminPage(props: {
                     )}
 
                     {tab === "guilds" && (
-                        <div className="space-y-10">
-                            <Suspense fallback={<div className="h-96 bg-zinc-900/10 rounded-[3rem] animate-pulse border border-white/5" />}>
-                                <GuildsServer isReadOnly={!isAdmin} />
-                            </Suspense>
+                        <div className="space-y-6">
+                            <GuildAreaSwitch active={guildArea} godRoute={godRoute} />
 
-                            <BlacklistSection bans={resolvedData.platformBans as any} />
+                            {guildArea === "visiteurs" ? (
+                                <Suspense fallback={<TableLoading />}>
+                                    <VisitorsServer raw={visitorsRaw} />
+                                </Suspense>
+                            ) : (
+                                <div className="space-y-10">
+                                    <Suspense fallback={<TableLoading />}>
+                                        <GuildsServer isReadOnly={!isAdmin} />
+                                    </Suspense>
+
+                                    <BlacklistSection bans={resolvedData.platformBans as any} />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -477,6 +509,21 @@ async function GuildsServer({ isReadOnly = false }: { isReadOnly?: boolean }) {
         };
     });
     return <GuildTable guilds={mergedGuilds} isReadOnly={isReadOnly} />;
+}
+
+/**
+ * Vue « Visiteurs » (V3-a) — lecture serveur gardée super-admin.
+ * La sous-vue est déjà fermée aux sous-gods dans `SuperAdminPage` ; la garde de
+ * `getGodVisitors` est la seconde barrière (défense en profondeur).
+ */
+async function VisitorsServer({ raw }: { raw: GodVisitorsRawQuery }) {
+    const { getGodVisitors, getGodVisitorDetail } = await import("@/server/god-visitors");
+    const visitorId = typeof raw.visiteur === "string" ? raw.visiteur : Array.isArray(raw.visiteur) ? raw.visiteur[0] : undefined;
+    const [result, detail] = await Promise.all([
+        getGodVisitors(raw),
+        visitorId ? getGodVisitorDetail(visitorId) : Promise.resolve(null),
+    ]);
+    return <VisitorsPanel result={result} detail={detail} query={parseGodVisitorsQuery(raw)} godRoute={getGodRoute()} />;
 }
 
 /**

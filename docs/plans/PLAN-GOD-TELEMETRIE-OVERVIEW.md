@@ -1,6 +1,6 @@
 # 🔭 God — télémétrie lisible + vue d'ensemble allégée
 
-> **Statut** : lot B **livré le 16/11/2026** ; lot C en cours. **Ordre** : `docs/ROADMAP.md` §2 bis,
+> **Statut** : lots B et C **livrés le 16/11/2026**. **Ordre** : `docs/ROADMAP.md` §2 bis,
 > lots B (`god-telemetrie`) puis C (`god-overview`). Mesures faites dans l'arbre, pas à l'écran.
 
 ## 1. Mesures (16/11/2026)
@@ -166,6 +166,11 @@ Tests neufs : `telemetry-guild-scope` (6), `telemetry-surface` (8), `telemetry-s
 
 À 390 px : une colonne, bandeau non collant, cartes sans largeur fixe (`w-[min(…,calc(100vw-2rem))]`).
 
+**Livré le 16/11/2026** : sections « Indicateurs plateforme » et « Activité de la plateforme »
+supprimées ; `LiveStats`, `ActivityChart`, `god-live-stats.ts`, le flux SSE et les deux actions de
+stats supprimés ; bandeau compact ; `AnnouncementPanel` en deux cartes tokenisées ; `WorkerTester`
+en carte compacte ; `SystemHealthDashboard` tokenisé et polling en pause quand l'onglet est masqué.
+
 ## 5. Tests et preuves
 
 1. `tests/unit/telemetry-guild-scope.test.ts` — CUID + snowflake, sélection inconnue ⇒ `none`
@@ -182,15 +187,19 @@ Tests neufs : `telemetry-guild-scope` (6), `telemetry-surface` (8), `telemetry-s
    `AuditLog` 30 j ; après : 0 pour ces deux lectures) + mesure de durée de la page, consignée en PR.
 6. Contrôle visuel **humain** 390 / 768 / 1024 / 1440 des deux onglets.
 
+**Lot C livré** : `god-overview` (4), `god-overview-tabs-render` (3), `god-overview-deslop` (4),
+`god-deslop` (4) — plafond de fichiers 81 → **79** (deux composants supprimés). Suite complète :
+**739 fichiers / 7 744 tests**.
+
 ## 6. Critères d'acceptation
 
 - [x] Sélectionner une guilde dans `?tab=telemetry` retourne **ses** événements (snowflake et CUID).
 - [x] Le chemin affiché est complet, copiable, cliquable quand il est interne.
 - [x] Les filtres surface/type/recherche fonctionnent sans recharger les agrégats.
-- [ ] « Indicateurs plateforme » et « Activité de la plateforme » ne sont plus rendus ni importés.
-- [ ] Plus aucune requête SSE toutes les 5 s depuis l'overview.
+- [x] « Indicateurs plateforme » et « Activité de la plateforme » ne sont plus rendus ni importés.
+- [x] Plus aucune requête SSE toutes les 5 s depuis l'overview.
 - [x] 0 motif de slop sur les fichiers touchés ; `test:run`, `tsc`, `lint` verts ; `git status` propre.
-- [ ] Aucune server action métier modifiée par le lot C (diff limité à l'UI et aux imports).
+- [x] Aucune server action métier modifiée par le lot C — **exception prévue par C1** : suppression de `getPlatformStats` et `getPlatformActivityStats` (stats de l'overview) ; aucune action métier touchée.
 
 ## 7. Découpage
 

@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 9) — **God · lot C : vue d'ensemble allégée, SSE supprimé, cartes tokenisées** — branche `feat/god-overview`
+
+> **Décision user (verbatim)** : « GO LOT B ET C l'un après l'autre enchaine 2 pr ».
+> **Mesure** : `getPlatformActivityStats` chargeait **tous les `User`** + **tous les `AuditLog`** des 30 j en mémoire ; `getPlatformStats` = 10 `count()` repoussés toutes les 5 s par onglet ouvert (172 800 comptages/jour/onglet) ; `announcement-panel` **102 motifs**, `worker-tester` **40**, `page.tsx` 56.
+> **Fait** : **C1** — « Indicateurs plateforme » et « Activité de la plateforme » supprimées, `LiveStats`/`ActivityChart`/`god-live-stats.ts`/SSE/`getPlatformStats`/`getPlatformActivityStats` supprimés (−1 161 lignes), `SystemHealthDashboard` conservée. **C2** — bandeau compact « Pilotage » (phrase, horodatage Europe/Paris, lien Journaux via `godRoute`), fallback tokenisé sans `animate-pulse`. **C3** — `AnnouncementPanel` en deux cartes (« Bandeau du dashboard » / « Broadcast Discord ») et `WorkerTester` en carte compacte « Synchronisation & diagnostic », mêmes actions et champs. **C4** — santé tokenisée (0 motif) et polling **en pause** quand `document.visibilityState === "hidden"`, reprise + refresh au retour.
+> **Preuves** : **739 fichiers / 7 744 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés : `god-overview` 4, `god-overview-tabs-render` 3, `god-overview-deslop` 4, `god-deslop` 4 · plafond de fichiers God **81 → 79**.
+> **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de `?tab=overview` ; aucune migration, aucun secret. Le SSE disparaît : plus aucune requête de stats toutes les 5 s depuis l'overview.
+> **Rotation** : bloc « Session 16/11/2026 (suite 3) — Visiteur · entrée guidée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 8) — **Télémétrie · lot B : filtre guilde réparé, flux serveur, écran God déslopé** — branche `feat/god-telemetrie`
 
 > **Décision user (verbatim)** : « GO LOT B ET C l'un après l'autre enchaine 2 pr ».
@@ -57,15 +67,6 @@
 > **Reste / ops** : rien à déployer (client seul, aucun schéma). Contrôle bêta : compte sans profil → guide Rush → accueil « personnage local » ; compte complet → pas d'étape personnage.
 > **Rotation** : bloc « Session 15/11/2026 (suite 2) — Notifications · N1→N4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 16/11/2026 (suite 3) — **Visiteur · entrée guidée : attente neutre, fail-closed 5xx, cache 60 s, accueil de création** — branche `feat/visiteur-entree`
-
-> **Demande user (verbatim)** : « on devrait pas plutôt le guider en arrivant que lui prompter une page brut pas de guilde etc ? ça donne pas franchement envie ».
-> **Mesure** : le 1er écran était un **verdict** (« Accès restreint / Aucune guilde ») affiché pendant que Discord répondait **429** ; le 429 venait du **double appel** `GET /users/@me/guilds` (callback `signIn` puis portail, même seconde). L'auto-reload était un `window.location.reload()` à **10 s fixes** (plafond 6 ⇒ 60 s). Second défaut fail-closed : un **5xx/réseau** (`TRANSIENT`) n'était ni `rateLimited` ni `needsReconnect` ⇒ `guildLookupFailed = false` ⇒ redirection visiteur alors que Discord n'avait pas répondu.
-> **Fait** : ① **fail-closed** — `getGuildsSeparated` expose `lookupFailed` (429, scope, 5xx, réseau, jeton absent) ; `/dashboard` et `/` le lisent tel quel. ② **écran d'attente neutre** `guild-check-pending.tsx` (« Ton espace se prépare. », jalons, note « ton espace visiteur s'ouvrira tout seul »), reprise **2/4/8/16 s** via `router.refresh()` (`guildLookupRetryDelayMs`, `MAX_PORTAL_AUTO_RELOAD = 4`), navigation complète au dernier recours ; `NoGuildMessage` ne porte plus que le **verdict**. ③ **cause racine** — snapshot **60 s** des serveurs (`src/lib/discord-guilds-snapshot.ts` Zod borné + `src/server/discord-guilds-cache.ts` Redis), écrit par `signIn` et après un fetch réussi, lu avant tout appel Discord. ④ **accueil visiteur** — « Bienvenue {pseudo} » + 3 bénéfices (icônes Dofus réelles) + formulaire requalifié « Étape 1 — Ton personnage », lien « Installer SigilOS » ; **visite de création** 3 pas (`visitorOnboarding`, 2 ancres posées) ; nav limitée aux 3 onglets franchissables (`filterVisitorNav`) tant que le profil n'existe pas.
-> **Preuves** : `npm run test:run` **723 fichiers / 7 610 tests ✅** · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · ciblés : `onboarding-portal` 11, `visitor-entry` 11, `public-tour` 22, `discord-guilds-snapshot` 7, `visitor-nav-filter` 3, `visitor-shell` 7.
-> **Reste / ops** : aucune migration, aucun env ; le cache s'active au redéploiement (Redis requis, repli = appel Discord).
-> **Rotation** : bloc « Session 15/11/2026 (suite) — Notifications · N1 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

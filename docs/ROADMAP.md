@@ -87,13 +87,13 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : aucun appel réseau pour servir une image | **S1 + S1b + S2 livrés** · 2 294 apparences (`remaining: 0`) · hybride `ASSETS_REMOTE_FETCH` (défaut `false`) | **S3** (couverture) → **S4** (cron + alerte) | `docs/plans/PLAN-SOUVERAINETE-IMAGES.md` | — |
 
 
-## 2 bis. God — rétention, télémétrie, vue d'ensemble (cadré le 16/11/2026 — lot A livré)
+## 2 bis. God — rétention, télémétrie, vue d'ensemble (cadré le 16/11/2026 — lots A, B et C livrés)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
 | A | `retention-logs` | Purge `TelemetryEvent` **90 j** + `ServiceActivityLog` **365 j**, branchée sur `cleanup-logs` **et** le janitor ; compteurs dans God « Stockage » | **livré le 16/11/2026** : policy + core, wiring `cleanup-logs`/janitor, compteurs God « Stockage » (35 tests ciblés) | — (mesure des compteurs avant/après la 1ʳᵉ passe) | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
 | B | `god-telemetrie` | `?tab=telemetry` : filtre guilde (CUID vs snowflake), chemins complets, détails admin, filtres serveur, pagination, déslop | **livré le 16/11/2026** : portée CUID/snowflake résolue côté serveur, flux serveur filtré + paginé, chemin complet copiable, langue, **0 motif** de slop (46 mesurés) | — | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
-| C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | `getPlatformActivityStats` charge **tous** les `User` + `AuditLog` 30 j ; 10 counts/5 s par onglet ; 56 + 102 + 40 motifs | C1 → C5 | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
+| C | `god-overview` | `?tab=overview` : retirer « Indicateurs plateforme » + « Activité de la plateforme », refonte bandeau / Worker / Broadcast / santé | **livré le 16/11/2026** : sections KPI/activité retirées, SSE supprimé, bandeau compact, cartes tokenisées, santé sans polling caché (−1 161 lignes) | — | `docs/plans/PLAN-GOD-TELEMETRIE-OVERVIEW.md` |
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 

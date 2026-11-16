@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -25,10 +25,14 @@ import {
     succesLevelBracketLabel,
 } from "@/lib/succes-level-brackets";
 import {
+    togglePublicBounty,
     togglePublicDungeonAchievement,
     togglePublicDungeonAchievementsBracket,
     togglePublicDungeonAchievementsGroup,
 } from "@/server/actions/public-profile-actions";
+import { getBountyFiche, type BountyFichePayload } from "@/server/actions/bounty-actions";
+import { BountyFicheView } from "@/components/succes/BountyFicheView";
+import type { SuccesCharacter } from "@/lib/succes-characters";
 import { VisitorSection } from "./visitor-section";
 
 export type DungeonAchievementGroup = {
@@ -160,13 +164,24 @@ export function AchievementsChecklist({
     dungeons,
     checkedIds,
     bounties,
+    checkedBountyIds = [],
+    characters,
+    selectedSlot,
 }: {
     dungeons: DungeonAchievementGroup[];
     checkedIds: string[];
     bounties: BountyTarget[];
+    /** Avis cochés pour le personnage sélectionné (`?perso=`). */
+    checkedBountyIds?: string[];
+    /** Personnage principal + mules déclarées : la coche est **par personnage**. */
+    characters: SuccesCharacter[];
+    selectedSlot: string;
 }) {
     const router = useRouter();
     const [checked, setChecked] = useState<Set<string>>(() => new Set(checkedIds));
+    const [checkedBounties, setCheckedBounties] = useState<Set<string>>(
+        () => new Set(checkedBountyIds)
+    );
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [scope, setScope] = useState<SuccesScope>("dungeons");
     const [search, setSearch] = useState("");
@@ -176,6 +191,19 @@ export function AchievementsChecklist({
     const [pendingId, setPendingId] = useState<string | null>(null);
     const [pendingBracket, setPendingBracket] = useState(false);
     const [pendingDungeon, setPendingDungeon] = useState(false);
+    const [pendingBounty, setPendingBounty] = useState<string | null>(null);
+    const [bountyFiche, setBountyFiche] = useState<BountyFichePayload | null>(null);
+    const [loadingBountyFiche, setLoadingBountyFiche] = useState(false);
+
+    // Changement de personnage (`?perso=`) ou rafraîchissement serveur : les coches lues
+    // pour le slot courant remplacent l'état local. Sans cela, l'écran garderait les coches
+    // du personnage précédent.
+    useEffect(() => {
+        setChecked(new Set(checkedIds));
+    }, [checkedIds]);
+    useEffect(() => {
+        setCheckedBounties(new Set(checkedBountyIds));
+    }, [checkedBountyIds]);
 
     const levelBracket = findSuccesLevelBracket(levelBracketId);
     const bracketLabel = succesLevelBracketLabel(levelBracket);
@@ -209,6 +237,7 @@ export function AchievementsChecklist({
     // changer de tranche, lui, referme la fiche pour ne pas valider hors du filtre affiché.
     const selected = dungeons.find((dungeon) => dungeon.id === selectedId) ?? null;
     const selectedBounty = bounties.find((bounty) => bounty.id === selectedId) ?? null;
+    const selectedBountySlug = selectedBounty?.slug ?? null;
 
     const filteredBounties = useMemo(
         () =>
@@ -273,7 +302,10 @@ export function AchievementsChecklist({
             return next;
         });
 
-        const result = await togglePublicDungeonAchievement({ dungeonAchievementId: achievementId });
+        const result = await togglePublicDungeonAchievement({
+            dungeonAchievementId: achievementId,
+            characterSlot: selectedSlot,
+        });
         setPendingId(null);
 
         if (!result.success) {
@@ -296,7 +328,11 @@ export function AchievementsChecklist({
         const action = bracketAllDone ? "unvalidate" : "validate";
 
         setPendingBracket(true);
-        const result = await togglePublicDungeonAchievementsBracket({ bracketId: levelBracketId, action });
+        const result = await togglePublicDungeonAchievementsBracket({
+            bracketId: levelBracketId,
+            action,
+            characterSlot: selectedSlot,
+        });
         setPendingBracket(false);
 
         if (!result.success) {
@@ -326,7 +362,11 @@ export function AchievementsChecklist({
         const action = selectedAllDone ? "unvalidate" : "validate";
 
         setPendingDungeon(true);
-        const result = await togglePublicDungeonAchievementsGroup({ dungeonId: selected.id, action });
+        const result = await togglePublicDungeonAchievementsGroup({
+            dungeonId: selected.id,
+            action,
+            characterSlot: selectedSlot,
+        });
         setPendingDungeon(false);
 
         if (!result.success) {
@@ -350,10 +390,64 @@ export function AchievementsChecklist({
         router.refresh();
     };
 
+    // Fiche interne partagée : la même que l'onglet « Avis » du module Succès.
+    useEffect(() => {
+        if (!selectedBountySlug) {
+            setBountyFiche(null);
+            return;
+        }
+        let cancelled = false;
+        setLoadingBountyFiche(true);
+        getBountyFiche(selectedBountySlug)
+            .then((result) => {
+                if (cancelled) return;
+                setBountyFiche(result.success && result.data ? result.data : null);
+            })
+            .catch(() => {
+                if (!cancelled) setBountyFiche(null);
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingBountyFiche(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedBountySlug]);
+
+    /** Coche / décoche un avis pour le personnage sélectionné (optimiste + rollback). */
+    const toggleBounty = async (bountyId: string) => {
+        if (pendingBounty) return;
+        const wasChecked = checkedBounties.has(bountyId);
+
+        setPendingBounty(bountyId);
+        setCheckedBounties((current) => {
+            const next = new Set(current);
+            if (wasChecked) next.delete(bountyId);
+            else next.add(bountyId);
+            return next;
+        });
+
+        const result = await togglePublicBounty({ bountyId, characterSlot: selectedSlot });
+        setPendingBounty(null);
+
+        if (!result.success) {
+            setCheckedBounties((current) => {
+                const next = new Set(current);
+                if (wasChecked) next.add(bountyId);
+                else next.delete(bountyId);
+                return next;
+            });
+            toast.error(result.error);
+            return;
+        }
+
+        router.refresh();
+    };
+
     return (
         <VisitorSection
-            title="Succès de donjon"
-            description={`Coche ce que tu as déjà validé (${checked.size} succès). Les autres visiteurs ne le verront qu'à l'étape suivante du chantier.`}
+            title="Succès et avis de recherche"
+            description={`Coche ce que tu as déjà validé (${checked.size} succès, ${checkedBounties.size} avis). Les autres visiteurs de ton serveur voient tes coches dans « Succès en commun ».`}
         >
             <div className="space-y-4">
                 {/* Résumé — même lecture que l'interne, en tokens de la DA */}
@@ -383,7 +477,38 @@ export function AchievementsChecklist({
                             </div>
                         </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2 sm:border-l sm:border-border sm:pl-3">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 sm:border-l sm:border-border sm:pl-3">
+                        {characters.length > 1 ? (
+                            <Select
+                                value={selectedSlot}
+                                onValueChange={(slot) => {
+                                    const nextParams = new URLSearchParams();
+                                    if (slot !== "PRINCIPAL") nextParams.set("perso", slot);
+                                    const query = nextParams.toString();
+                                    router.replace(
+                                        query
+                                            ? `/espace-visiteur/succes?${query}`
+                                            : "/espace-visiteur/succes",
+                                        { scroll: false }
+                                    );
+                                }}
+                            >
+                                <SelectTrigger
+                                    aria-label="Choisir le personnage"
+                                    className="h-9 w-full shrink-0 sm:w-[9.5rem]"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {characters.map((character) => (
+                                        <SelectItem key={character.slot} value={character.slot}>
+                                            {character.name}
+                                            {character.isMain ? " (principal)" : ""}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : null}
                         <div className="rounded-xl border border-border bg-background/60 px-3 py-1.5 text-center">
                             <p className="text-xs text-muted-foreground">Donjons</p>
                             <p className="text-sm font-semibold text-foreground tabular-nums">
@@ -807,6 +932,27 @@ export function AchievementsChecklist({
                                     <div className="flex flex-wrap items-center gap-2">
                                         <button
                                             type="button"
+                                            aria-pressed={checkedBounties.has(selectedBounty.id)}
+                                            onClick={() => toggleBounty(selectedBounty.id)}
+                                            disabled={pendingBounty === selectedBounty.id}
+                                            className={cn(
+                                                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+                                                checkedBounties.has(selectedBounty.id)
+                                                    ? "border-border-strong bg-elevated text-foreground"
+                                                    : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
+                                            )}
+                                        >
+                                            {checkedBounties.has(selectedBounty.id) ? (
+                                                <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                                            ) : (
+                                                <Circle className="size-3.5" aria-hidden="true" />
+                                            )}
+                                            {checkedBounties.has(selectedBounty.id)
+                                                ? "Avis fait"
+                                                : "Marquer fait"}
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() => setSelectedId(null)}
                                             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
                                         >
@@ -823,16 +969,19 @@ export function AchievementsChecklist({
                                     </div>
                                 </div>
                                 <div className="p-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        Un avis de recherche n&apos;a pas de succès de donjon à cocher : sa fiche
-                                        publique donne la zone de traque, la prime et la stratégie de capture.
-                                    </p>
+                                    <BountyFicheView
+                                        fiche={bountyFiche}
+                                        guildId=""
+                                        loading={loadingBountyFiche}
+                                        fallbackImageUrl={selectedBounty.imageUrl}
+                                        showOverlayAction={false}
+                                    />
                                 </div>
                             </div>
                         ) : (
                             <div className="hidden flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background/40 py-24 text-center text-muted-foreground lg:flex">
                                 <Trophy className="mb-3 size-10 opacity-30" aria-hidden="true" />
-                                <p className="text-sm font-medium">Sélectionne un donjon pour voir ses succès.</p>
+                                <p className="text-sm font-medium">Sélectionne un avis de recherche pour voir sa fiche.</p>
                             </div>
                         )}
                     </div>

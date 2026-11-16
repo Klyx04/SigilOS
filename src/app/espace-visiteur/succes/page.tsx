@@ -2,11 +2,16 @@ import { db } from "@/lib/prisma";
 import { requirePublicAccount } from "@/server/public-account";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { SUCCES_DUNGEONS_TAKE } from "@/lib/succes-level-brackets";
+import {
+    parseSuccesCharacterParam,
+    readSuccesCharacters,
+    resolveSuccesCharacterSlot,
+} from "@/lib/succes-characters";
 import { AchievementsChecklist } from "../_components/achievements-checklist";
 
 export const metadata = {
     title: "Succès — espace visiteur | SigilOS",
-    description: "Coche tes succès de donjon, boss par boss.",
+    description: "Coche tes succès de donjon et tes avis de recherche, personnage par personnage.",
 };
 
 /**
@@ -16,12 +21,22 @@ export const metadata = {
  *
  * Le niveau, le slug et l'icône sont lus ici : la page visiteur ne peut pas importer l'action
  * interne (`guildId`) — le DTO porte donc la tranche affichable et le lien vers `/boss/<slug>`.
- * La vue « qui a quoi entre visiteurs » est V2b — ici, on ne coche que pour soi.
+ * Depuis le 16/11/2026, les coches (succès **et** avis) sont **par personnage** : `?perso=`
+ * choisit le principal ou une mule déclarée, et la page ne lit que ce slot.
  */
-export default async function SuccesPage() {
-    const { profile } = await requirePublicAccount();
+export default async function SuccesPage({
+    searchParams,
+}: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+    const [{ profile }, params] = await Promise.all([requirePublicAccount(), searchParams]);
+    const characters = readSuccesCharacters(profile);
+    const selectedSlot = resolveSuccesCharacterSlot(
+        parseSuccesCharacterParam(params.perso),
+        characters
+    );
 
-    const [dungeons, checked, bounties] = await Promise.all([
+    const [dungeons, checked, bounties, checkedBounties] = await Promise.all([
         db.dungeon.findMany({
             where: { achievements: { some: {} } },
             select: {
@@ -47,20 +62,25 @@ export default async function SuccesPage() {
             take: SUCCES_DUNGEONS_TAKE,
         }),
         db.publicDungeonAchievement.findMany({
-            where: { publicProfileId: profile.id },
+            where: { publicProfileId: profile.id, characterSlot: selectedSlot },
             select: { dungeonAchievementId: true },
             take: 2000,
         }),
         /*
-         * Avis de recherche (96 siphonnés) : **ni donjon ni succès** — une fiche publique
-         * (`/boss/<slug|id>`) et un niveau, rien à cocher. Même borne et même tri que les
-         * donjons pour que la liste reste une seule échelle de niveaux.
+         * Avis de recherche (96 siphonnés) : une fiche publique (`/boss/<slug|id>`) et un
+         * niveau. Même borne et même tri que les donjons pour que la liste reste une seule
+         * échelle de niveaux.
          */
         db.bounty.findMany({
             where: { isBountyMonster: true },
             select: { id: true, name: true, level: true, slug: true, imageUrl: true, zoneName: true },
             orderBy: [{ level: "asc" }, { name: "asc" }],
             take: SUCCES_DUNGEONS_TAKE,
+        }),
+        db.publicBountyCompletion.findMany({
+            where: { publicProfileId: profile.id, characterSlot: selectedSlot },
+            select: { bountyId: true },
+            take: 2000,
         }),
     ]);
 
@@ -86,6 +106,9 @@ export default async function SuccesPage() {
         <AchievementsChecklist
             dungeons={groups}
             checkedIds={checked.map((row) => row.dungeonAchievementId)}
+            checkedBountyIds={checkedBounties.map((row) => row.bountyId)}
+            characters={characters}
+            selectedSlot={selectedSlot}
             bounties={bounties.map((bounty) => ({
                 id: bounty.id,
                 name: bounty.name,
@@ -98,3 +121,4 @@ export default async function SuccesPage() {
         />
     );
 }
+

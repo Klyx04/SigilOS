@@ -170,3 +170,64 @@ describe("Espace visiteur — V1c : logo retiré, mules, métiers en slug", () =
 });
 
 });
+
+describe("Avis de recherche + coches par personnage (16/11/2026)", () => {
+    it("les deux tables d'avis et les slots existent, avec leur unicité", () => {
+        expect(SCHEMA).toMatch(/model PublicBountyCompletion \{/);
+        expect(SCHEMA).toMatch(/model UserBountyCompletion \{/);
+        expect(modelBody("PublicBountyCompletion")).toMatch(
+            /@@unique\(\[publicProfileId, bountyId, characterSlot\]\)/
+        );
+        expect(modelBody("UserBountyCompletion")).toMatch(
+            /@@unique\(\[userId, bountyId, characterSlot\]\)/
+        );
+        expect(modelBody("PublicDungeonAchievement")).toMatch(
+            /characterSlot\s+String\s+@default\("PRINCIPAL"\)/
+        );
+        expect(modelBody("UserDungeonAchievement")).toMatch(
+            /characterSlot\s+String\s+@default\("PRINCIPAL"\)/
+        );
+        expect(modelBody("UserDungeonProgress")).toMatch(
+            /characterSlot\s+String\s+@default\("PRINCIPAL"\)/
+        );
+        expect(modelBody("UserDungeonProgress")).toMatch(
+            /@@unique\(\[profileId, achievementId, characterSlot\]\)/
+        );
+    });
+
+    it("la migration du tracker est additive et idempotente", () => {
+        const dir = readdirSync("prisma/migrations").find((name) =>
+            name.endsWith("_user_dungeon_progress_character_slot")
+        );
+        expect(dir, "migration `*_user_dungeon_progress_character_slot` introuvable").toBeTruthy();
+        const code = readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8").replace(
+            /--[^\n]*/g,
+            ""
+        );
+        expect(code).toMatch(
+            /ADD COLUMN IF NOT EXISTS "characterSlot" TEXT NOT NULL DEFAULT 'PRINCIPAL'/
+        );
+        expect(code).toMatch(
+            /CREATE UNIQUE INDEX IF NOT EXISTS "UserDungeonProgress_profileId_achievementId_characterSlot_key"/
+        );
+        expect(code).not.toMatch(/DROP\s+(TABLE|COLUMN)\b/i);
+    });
+
+    it("la migration est additive et idempotente", () => {
+        const dir = readdirSync("prisma/migrations").find((name) =>
+            name.endsWith("_public_bounty_and_character_slots")
+        );
+        expect(dir, "migration `*_public_bounty_and_character_slots` introuvable").toBeTruthy();
+        const code = readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8").replace(
+            /--[^\n]*/g,
+            ""
+        );
+        expect(code).toMatch(
+            /ADD COLUMN IF NOT EXISTS "characterSlot" TEXT NOT NULL DEFAULT 'PRINCIPAL'/
+        );
+        expect(code).toMatch(/CREATE TABLE IF NOT EXISTS "PublicBountyCompletion"/);
+        expect(code).toMatch(/CREATE TABLE IF NOT EXISTS "UserBountyCompletion"/);
+        expect(code).not.toMatch(/DROP\s+(TABLE|COLUMN)\b/i);
+    });
+});
+

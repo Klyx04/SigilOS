@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
     db: {
         dungeonAchievement: { findFirst: vi.fn() },
+        userProfile: { findUnique: vi.fn() },
         userDungeonAchievement: {
             findUnique: vi.fn(),
             create: vi.fn(),
@@ -47,6 +48,11 @@ beforeEach(() => {
         profileId: "profile-1",
     } as never);
     vi.mocked(rateLimit).mockResolvedValue({ success: true } as never);
+    vi.mocked(db.userProfile.findUnique).mockResolvedValue({
+        pseudoDofus: "Main",
+        classe: "iop",
+        altPseudos: [],
+    } as never);
     vi.mocked(db.dungeonAchievement.findFirst).mockResolvedValue({ id: "ach-1" } as never);
     vi.mocked(db.userDungeonAchievement.findUnique).mockResolvedValue(null as never);
     vi.mocked(db.userDungeonAchievement.create).mockResolvedValue({ id: "row-1" } as never);
@@ -92,8 +98,38 @@ describe("toggleDungeonAchievement — deux états", () => {
 
         expect(res).toEqual({ success: true, done: true });
         expect(db.userDungeonAchievement.create).toHaveBeenCalledWith({
-            data: { userId: "profile-1", dungeonAchievementId: "ach-1" },
+            data: {
+                userId: "profile-1",
+                dungeonAchievementId: "ach-1",
+                characterSlot: "PRINCIPAL",
+            },
         });
+    });
+
+    it("accepte une mule déclarée et écrit son slot", async () => {
+        vi.mocked(db.userProfile.findUnique).mockResolvedValue({
+            pseudoDofus: "Main",
+            classe: "iop",
+            altPseudos: [{ pseudo: "Mule", classe: "feca", level: 200 }],
+        } as never);
+
+        const res = await toggleDungeonAchievement({ ...baseArgs, characterSlot: "Mule" });
+
+        expect(res).toEqual({ success: true, done: true });
+        expect(db.userDungeonAchievement.create).toHaveBeenCalledWith({
+            data: {
+                userId: "profile-1",
+                dungeonAchievementId: "ach-1",
+                characterSlot: "Mule",
+            },
+        });
+    });
+
+    it("refuse un personnage qui n'est pas déclaré sur le profil", async () => {
+        const res = await toggleDungeonAchievement({ ...baseArgs, characterSlot: "Forgé" });
+
+        expect(res.success).toBe(false);
+        expect(db.userDungeonAchievement.create).not.toHaveBeenCalled();
     });
 
     it("décoche : supprime la ligne existante et renvoie done=false", async () => {
@@ -127,7 +163,11 @@ describe("getDungeonAchievementStates", () => {
         expect(res).toEqual({ success: true, doneIds: ["ach-1", "ach-2"] });
         expect(db.userDungeonAchievement.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { userId: "profile-1", dungeonAchievement: { dungeonId: "dungeon-1" } },
+                where: {
+                    userId: "profile-1",
+                    characterSlot: "PRINCIPAL",
+                    dungeonAchievement: { dungeonId: "dungeon-1" },
+                },
             }),
         );
     });

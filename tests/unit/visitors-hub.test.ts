@@ -20,6 +20,7 @@ import {
     SHARED_SUCCES_MEMBERS_SHOWN,
     SHARED_SUCCES_SEARCH_MAX,
     SHARED_SUCCES_VISITORS_TAKE,
+    buildSharedBountyBoard,
     buildSharedSuccesBoard,
     buildVisitorsHubHref,
     parseVisitorsHubSearch,
@@ -46,6 +47,7 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
         expect(parseVisitorsHubSearch(undefined)).toEqual({
             vue: "profils",
             donjon: null,
+            bounty: null,
             q: "",
             type: null,
         });
@@ -56,15 +58,36 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
         expect(parseVisitorsHubSearch({ donjon: "tournesol-affame", q: "tour" })).toEqual({
             vue: "profils",
             donjon: null,
+            bounty: null,
             q: "",
             type: null,
         });
         expect(
             parseVisitorsHubSearch({ vue: "succes", donjon: "tournesol-affame", q: "  tour  " })
-        ).toEqual({ vue: "succes", donjon: "tournesol-affame", q: "tour", type: null });
+        ).toEqual({
+            vue: "succes",
+            donjon: "tournesol-affame",
+            bounty: null,
+            q: "tour",
+            type: null,
+        });
         expect(
             parseVisitorsHubSearch({ vue: "echanges", donjon: "tournesol-affame", q: "tour" })
-        ).toEqual({ vue: "echanges", donjon: null, q: "", type: null });
+        ).toEqual({ vue: "echanges", donjon: null, bounty: null, q: "", type: null });
+    });
+
+    it("lit l'avis sélectionné dans la vue succès, et rien ailleurs", () => {
+        expect(
+            parseVisitorsHubSearch({ vue: "succes", avis: "ronce-123", q: "  ronce " })
+        ).toEqual({
+            vue: "succes",
+            donjon: null,
+            bounty: "ronce-123",
+            q: "ronce",
+            type: null,
+        });
+        expect(parseVisitorsHubSearch({ vue: "succes", avis: "../../etc" }).bounty).toBeNull();
+        expect(parseVisitorsHubSearch({ vue: "echanges", avis: "ronce-123" }).bounty).toBeNull();
     });
 
     it("ne garde le filtre de type que dans la vue échanges", () => {
@@ -104,6 +127,9 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
         expect(
             buildVisitorsHubHref({ vue: "succes", donjon: "tournesol-affame", q: "tour" })
         ).toBe("/visiteurs?vue=succes&donjon=tournesol-affame&q=tour");
+        expect(
+            buildVisitorsHubHref({ vue: "succes", bounty: "ronce-123", q: "ronce" })
+        ).toBe("/visiteurs?vue=succes&avis=ronce-123&q=ronce");
     });
 });
 
@@ -199,8 +225,8 @@ describe("Verrou de source — le hub ne lit pas hors périmètre", () => {
     it("consentement + serveur du lecteur dans chaque requête", () => {
         expect(server).toContain("showOnDirectory: true");
         expect(server).toContain("dofusServerId: viewer.serverId");
-        expect(server.match(/showOnDirectory: true/g)).toHaveLength(2);
-        expect(server.match(/dofusServerId: viewer\.serverId/g)).toHaveLength(2);
+        expect(server.match(/showOnDirectory: true/g)).toHaveLength(4);
+        expect(server.match(/dofusServerId: viewer\.serverId/g)).toHaveLength(4);
         expect(server).toContain("SHARED_SUCCES_VISITORS_TAKE + 1");
     });
 
@@ -263,6 +289,8 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
             React.createElement(SharedSuccesView, {
                 dungeons: [DUNGEON],
                 selected: { dungeon: DUNGEON, board },
+                bounties: [],
+                selectedBounty: null,
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -290,6 +318,8 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
             React.createElement(SharedSuccesView, {
                 dungeons: [DUNGEON],
                 selected: { dungeon: DUNGEON, board },
+                bounties: [],
+                selectedBounty: null,
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -308,6 +338,8 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
             React.createElement(SharedSuccesView, {
                 dungeons: [DUNGEON],
                 selected: { dungeon: DUNGEON, board },
+                bounties: [],
+                selectedBounty: null,
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -315,6 +347,72 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
         expect(html).toContain(
             fr.visitorsPage.hub.capped.replace("{n}", String(SHARED_SUCCES_VISITORS_TAKE))
         );
+    });
+
+    it("avis — dédoublonne un profil qui a coché sur deux personnages", () => {
+        const bounty = {
+            id: "b1",
+            name: "Ronce",
+            level: 100,
+            zoneName: "Amakna",
+            slug: "ronce",
+            imageUrl: null,
+        };
+        const board = buildSharedBountyBoard({
+            bounty,
+            doneRows: [{ member: MEMBERS[0] }, { member: MEMBERS[0] }],
+            visitors: MEMBERS,
+        });
+        expect(board.done).toEqual([MEMBERS[0]]);
+        expect(board.missing.map((member) => member.id)).not.toContain(MEMBERS[0].id);
+    });
+
+    it("avis — écarte une coche d'un profil sorti du périmètre", () => {
+        const bounty = {
+            id: "b1",
+            name: "Ronce",
+            level: 100,
+            zoneName: "Amakna",
+            slug: "ronce",
+            imageUrl: null,
+        };
+        const board = buildSharedBountyBoard({
+            bounty,
+            doneRows: [{ member: { id: "ghost", pseudo: "Fantôme", classe: null } }],
+            visitors: MEMBERS,
+        });
+        expect(board.done).toEqual([]);
+        expect(board.visitorCount).toBe(MEMBERS.length);
+    });
+
+    it("avis — rend le board avec les deux colonnes", () => {
+        const bounty = {
+            id: "b1",
+            name: "Ronce",
+            level: 100,
+            zoneName: "Amakna",
+            slug: "ronce",
+            imageUrl: null,
+        };
+        const board = buildSharedBountyBoard({
+            bounty,
+            doneRows: [{ member: MEMBERS[0] }],
+            visitors: MEMBERS,
+        });
+        const html = renderToStaticMarkup(
+            React.createElement(SharedSuccesView, {
+                dungeons: [],
+                selected: null,
+                bounties: [bounty],
+                selectedBounty: { bounty, board },
+                search: "",
+                labels: fr.visitorsPage,
+            })
+        );
+        expect(html).toContain(fr.visitorsPage.hub.bountyTitle);
+        expect(html).toContain("Ronce");
+        expect(html).toContain("Déjà validé");
+        expect(html).toContain("Cherchent encore");
     });
 });
 

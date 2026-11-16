@@ -10,6 +10,7 @@ import { SuccesBossGuide } from "./SuccesBossGuide";
 import { SuccesDefiTab } from "./SuccesDefiTab";
 import { SuccesTitanTab } from "./SuccesTitanTab";
 import { SuccesAvisTab } from "./SuccesAvisTab";
+import { SuccesAvisDirectory } from "./SuccesAvisDirectory";
 import { SuccesMonstresTab } from "./SuccesMonstresTab";
 
 interface SuccesClientProps {
@@ -21,7 +22,7 @@ interface SuccesClientProps {
 
 /** Les 6 types de fiches sont regroupés derrière un seul bloc « Fiches » (sous-sélecteur). */
 type FicheTab = "boss" | "anomalies" | "bounties" | "titans" | "raids" | "monstres";
-type View = "menu" | "moi" | "guilde" | "fiches" | "defi";
+type View = "menu" | "moi" | "guilde" | "avis" | "fiches" | "defi";
 
 /**
  * Assets distinctifs par type (les mêmes que partout ailleurs dans l'app :
@@ -73,6 +74,7 @@ export function SuccesClient({
     const activeFiche: FicheTab = isFicheTab(rawView) ? rawView : "boss";
     const view: View =
         rawView === "guilde" ? "guilde"
+        : rawView === "avis" ? "avis"
         : rawView === "defi" ? "defi"
         : rawView === "moi" ? "moi"
         : rawView === "fiches" || isFicheTab(rawView) || rawView === "quetes" ? "fiches"
@@ -104,6 +106,7 @@ export function SuccesClient({
         () => [
             { id: "moi" as const, label: "Mes Succès", eyebrow: "Progression", desc: "Ta progression, donjon par donjon — là où tu coches.", cta: "Ouvrir mes succès", icon: "/assets/dofus/icons/success.png", tour: "succes-menu-moi", disabled: !canEditOwnSucces },
             { id: "guilde" as const, label: "Succès Commun", eyebrow: "Guilde", desc: "Qui dans la guilde a validé quoi — pour monter ton groupe.", cta: "Voir la guilde", icon: "/assets/dofus/icons/guild.png", tour: "succes-view-commun", disabled: !canViewGuildSucces },
+            { id: "avis" as const, label: "Avis de recherche", eyebrow: "Guilde", desc: "Qui a fait quel avis — et qui le cherche encore.", cta: "Voir les avis", icon: "/assets/avis/avitons.png", tour: "succes-view-avis", disabled: !canViewGuildSucces },
             { id: "fiches" as const, label: "Fiches", eyebrow: "Encyclopédie", desc: "Boss, anomalies, avis de recherche, titans, raids et monstres — sorts, quêtes et simulation.", cta: "Ouvrir les fiches", icon: "/assets/dofus/icons/boss.png", tour: "succes-view-fiches", disabled: false },
             { id: "defi" as const, label: "Défi", eyebrow: "Communauté", desc: "Événements & one-shot communautaires.", cta: "Voir les défis", icon: "/assets/dofus/icons/challenges.png", tour: "succes-view-defi", disabled: false },
         ],
@@ -219,6 +222,8 @@ export function SuccesClient({
                 <SuccesDefiTab guildId={guildId} canEdit={canEditOwnSucces} />
             ) : view === "guilde" ? (
                 <SuccesDirectory guildId={guildId} />
+            ) : view === "avis" ? (
+                <SuccesAvisDirectory guildId={guildId} />
             ) : null}
         </div>
     );

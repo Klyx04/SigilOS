@@ -15,11 +15,19 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Search } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getBestiaireCatalog, type BestiaireEntry } from "@/server/actions/game-data-actions";
 import { getBountyFiche, type BountyFichePayload } from "@/server/actions/bounty-actions";
+import {
+    getMySuccesCharacters,
+    getUserBountyCompletions,
+    toggleUserBounty,
+} from "@/server/actions/dungeon-achievement-actions";
 import { BountyFicheView, MonsterImage } from "@/components/succes/BountyFicheView";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { SuccesCharacter } from "@/lib/succes-characters";
 
 export function SuccesAvisTab({ guildId }: { guildId: string }) {
     const [catalog, setCatalog] = useState<BestiaireEntry[]>([]);
@@ -28,9 +36,48 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [fiche, setFiche] = useState<BountyFichePayload | null>(null);
     const [loadingFiche, setLoadingFiche] = useState(false);
+    const [characters, setCharacters] = useState<SuccesCharacter[]>([]);
+    const [characterSlot, setCharacterSlot] = useState("PRINCIPAL");
+    const [checkedBounties, setCheckedBounties] = useState<Set<string>>(() => new Set());
+    const [pendingBounty, setPendingBounty] = useState(false);
     // Lien profond `?dungeon=<slug>` : « ouvre la fiche de CE monstre » (carte du monde
     // → onglet Familles → fiche du monstre).
     const dungeonParam = useSearchParams().get("dungeon");
+
+    // Personnages sélectionnables : principal + mules déclarées.
+    useEffect(() => {
+        let cancelled = false;
+        getMySuccesCharacters(guildId)
+            .then((res) => {
+                if (cancelled || !res.success || !res.characters || res.characters.length === 0) {
+                    return;
+                }
+                setCharacters(res.characters);
+                setCharacterSlot((current) =>
+                    res.characters!.some((character) => character.slot === current)
+                        ? current
+                        : res.characters![0].slot
+                );
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId]);
+
+    // Coches d'avis du personnage sélectionné.
+    useEffect(() => {
+        let cancelled = false;
+        getUserBountyCompletions(guildId, characterSlot)
+            .then((res) => {
+                if (cancelled) return;
+                if (res.success && res.bountyIds) setCheckedBounties(new Set(res.bountyIds));
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId, characterSlot]);
 
     // 1. Catalogue des avis — **uniquement** les lignes siphonnées (`isBountyMonster`).
     useEffect(() => {
@@ -102,6 +149,38 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
 
     const selected = filtered.find((e) => e.id === selectedId) ?? catalog.find((e) => e.id === selectedId) ?? null;
 
+    /** Coche / décoche l'avis ouvert pour le personnage sélectionné (optimiste + rollback). */
+    const toggleSelectedBounty = async () => {
+        if (!selectedId || pendingBounty) return;
+        const wasChecked = checkedBounties.has(selectedId);
+        setPendingBounty(true);
+        setCheckedBounties((current) => {
+            const next = new Set(current);
+            if (wasChecked) next.delete(selectedId);
+            else next.add(selectedId);
+            return next;
+        });
+
+        const result = await toggleUserBounty({
+            guildId,
+            bountyId: selectedId,
+            characterSlot,
+        });
+        setPendingBounty(false);
+
+        if (!result.success) {
+            setCheckedBounties((current) => {
+                const next = new Set(current);
+                if (wasChecked) next.add(selectedId);
+                else next.delete(selectedId);
+                return next;
+            });
+            toast.error(result.error ?? "Impossible d'enregistrer cet avis.");
+            return;
+        }
+        toast.success(result.done ? "Avis marqué comme fait." : "Avis décoché.");
+    };
+
 
     return (
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -122,6 +201,24 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                         className="w-full rounded-lg border border-border bg-background/60 py-1.5 pl-8 pr-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                 </div>
+                {characters.length > 1 ? (
+                    <Select value={characterSlot} onValueChange={setCharacterSlot}>
+                        <SelectTrigger
+                            aria-label="Choisir le personnage"
+                            className="h-8 w-full rounded-lg border-border bg-background/60 text-xs font-semibold text-foreground"
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                            {characters.map((character) => (
+                                <SelectItem key={character.slot} value={character.slot} className="text-xs">
+                                    {character.name}
+                                    {character.isMain ? " (principal)" : ""}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : null}
                 <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-0.5">
                     {loading ? (
                         <div className="flex justify-center py-8">
@@ -162,6 +259,29 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
 
             {/* ── FICHE (rendu partagé avec la carte du monde) ──────────────────── */}
             <div className="min-w-0">
+                {selectedId ? (
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <button
+                            type="button"
+                            aria-pressed={checkedBounties.has(selectedId)}
+                            onClick={toggleSelectedBounty}
+                            disabled={pendingBounty}
+                            className={cn(
+                                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+                                checkedBounties.has(selectedId)
+                                    ? "border-border-strong bg-elevated text-foreground"
+                                    : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
+                            )}
+                        >
+                            {checkedBounties.has(selectedId) ? (
+                                <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                            ) : (
+                                <Circle className="size-3.5" aria-hidden="true" />
+                            )}
+                            {checkedBounties.has(selectedId) ? "Avis fait" : "Marquer fait"}
+                        </button>
+                    </div>
+                ) : null}
                 <BountyFicheView
                     fiche={fiche}
                     guildId={guildId}

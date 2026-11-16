@@ -34,6 +34,11 @@ import { isLadderManualFallbackEnabled } from "@/server/actions/profile-actions"
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { SUCCES_DUNGEONS_TAKE, findSuccesLevelBracketStrict } from "@/lib/succes-level-brackets";
 import {
+    SUCCES_SLOT_MAX,
+    readSuccesCharacters,
+    resolveSuccesCharacterSlotOrNull,
+} from "@/lib/succes-characters";
+import {
     createPublicProfileSchema,
     deletePublicProfileSchema,
     isKnownJobId,
@@ -687,6 +692,8 @@ export async function updatePublicPresence(raw: unknown): Promise<ActionResult> 
 
 const toggleAchievementSchema = z.object({
     dungeonAchievementId: z.string().min(1).max(64),
+    /** `"PRINCIPAL"` ou le pseudo d'une mule déclarée. */
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
 });
 
 /** Coche / décoche un succès de donjon. La cible est **relue en base** avant écriture. */
@@ -696,6 +703,12 @@ export async function togglePublicDungeonAchievement(raw: unknown): Promise<Acti
 
     const account = await getPublicAccount();
     if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const characterSlot = resolveSuccesCharacterSlotOrNull(
+        parsed.data.characterSlot,
+        readSuccesCharacters(account.profile)
+    );
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
 
     const limited = await limit("achievement", account.userId, 60);
     if (limited) return limited;
@@ -710,9 +723,10 @@ export async function togglePublicDungeonAchievement(raw: unknown): Promise<Acti
 
         const existing = await db.publicDungeonAchievement.findUnique({
             where: {
-                publicProfileId_dungeonAchievementId: {
+                publicProfileId_dungeonAchievementId_characterSlot: {
                     publicProfileId,
                     dungeonAchievementId: achievement.id,
+                    characterSlot,
                 },
             },
             select: { id: true },
@@ -723,7 +737,7 @@ export async function togglePublicDungeonAchievement(raw: unknown): Promise<Acti
         } else {
             try {
                 await db.publicDungeonAchievement.create({
-                    data: { publicProfileId, dungeonAchievementId: achievement.id },
+                    data: { publicProfileId, dungeonAchievementId: achievement.id, characterSlot },
                 });
             } catch (error) {
                 // Course : deux clics rapprochés — la contrainte unique tranche, l'état reste « fait ».
@@ -743,6 +757,8 @@ const bracketToggleSchema = z.object({
     /** Id d'une tranche de `SUCCES_LEVEL_BRACKETS` — jamais une plage envoyée par le client. */
     bracketId: z.string().min(1).max(16),
     action: z.enum(["validate", "unvalidate"]),
+    /** `"PRINCIPAL"` ou le pseudo d'une mule déclarée. */
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
 });
 
 export type PublicAchievementsToggleResult =
@@ -771,6 +787,12 @@ export async function togglePublicDungeonAchievementsBracket(
     const account = await getPublicAccount();
     if (!account) return { success: false, error: SESSION_EXPIRED };
 
+    const characterSlot = resolveSuccesCharacterSlotOrNull(
+        parsed.data.characterSlot,
+        readSuccesCharacters(account.profile)
+    );
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
+
     const limited = await limit("achievement-bracket", account.userId, 5);
     if (limited) return limited;
 
@@ -796,7 +818,11 @@ export async function togglePublicDungeonAchievementsBracket(
 
         if (parsed.data.action === "unvalidate") {
             await db.publicDungeonAchievement.deleteMany({
-                where: { publicProfileId, dungeonAchievementId: { in: achievementIds } },
+                where: {
+                    publicProfileId,
+                    dungeonAchievementId: { in: achievementIds },
+                    characterSlot,
+                },
             });
             revalidatePath(PATHS.succes);
             return { success: true, data: { count: achievementIds.length, achievementIds } };
@@ -804,7 +830,11 @@ export async function togglePublicDungeonAchievementsBracket(
 
         // 2. Écriture idempotente : la contrainte unique tranche, une coche existante reste acquise.
         await db.publicDungeonAchievement.createMany({
-            data: achievementIds.map((achievementId) => ({ publicProfileId, dungeonAchievementId: achievementId })),
+            data: achievementIds.map((achievementId) => ({
+                publicProfileId,
+                dungeonAchievementId: achievementId,
+                characterSlot,
+            })),
             skipDuplicates: true,
         });
 
@@ -819,6 +849,8 @@ export async function togglePublicDungeonAchievementsBracket(
 const dungeonGroupToggleSchema = z.object({
     dungeonId: z.string().min(1).max(64),
     action: z.enum(["validate", "unvalidate"]),
+    /** `"PRINCIPAL"` ou le pseudo d'une mule déclarée. */
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
 });
 
 /**
@@ -836,6 +868,12 @@ export async function togglePublicDungeonAchievementsGroup(raw: unknown): Promis
 
     const account = await getPublicAccount();
     if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const characterSlot = resolveSuccesCharacterSlotOrNull(
+        parsed.data.characterSlot,
+        readSuccesCharacters(account.profile)
+    );
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
 
     const limited = await limit("achievement-dungeon", account.userId, 20);
     if (limited) return limited;
@@ -855,11 +893,19 @@ export async function togglePublicDungeonAchievementsGroup(raw: unknown): Promis
 
         if (parsed.data.action === "unvalidate") {
             await db.publicDungeonAchievement.deleteMany({
-                where: { publicProfileId, dungeonAchievementId: { in: achievementIds } },
+                where: {
+                    publicProfileId,
+                    dungeonAchievementId: { in: achievementIds },
+                    characterSlot,
+                },
             });
         } else {
             await db.publicDungeonAchievement.createMany({
-                data: achievementIds.map((achievementId) => ({ publicProfileId, dungeonAchievementId: achievementId })),
+                data: achievementIds.map((achievementId) => ({
+                    publicProfileId,
+                    dungeonAchievementId: achievementId,
+                    characterSlot,
+                })),
                 skipDuplicates: true,
             });
         }
@@ -871,6 +917,74 @@ export async function togglePublicDungeonAchievementsGroup(raw: unknown): Promis
         return { success: false, error: "Impossible d'enregistrer ce donjon." };
     }
 }
+
+/**
+ * Coche / décoche un **avis de recherche** pour le personnage sélectionné.
+ *
+ * Même porte que les succès de donjon : compte public, Zod borné, rate limit, cible
+ * relue en base (`isBountyMonster: true`), écriture idempotente sur le profil du compte.
+ * La coche ne sort que dans les vues « succès en commun » du même serveur.
+ */
+export async function togglePublicBounty(raw: unknown): Promise<ActionResult> {
+    const parsed = toggleBountySchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: firstIssue(parsed.error) };
+
+    const account = await getPublicAccount();
+    if (!account) return { success: false, error: SESSION_EXPIRED };
+
+    const characterSlot = resolveSuccesCharacterSlotOrNull(
+        parsed.data.characterSlot,
+        readSuccesCharacters(account.profile)
+    );
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
+
+    const limited = await limit("bounty", account.userId, 60);
+    if (limited) return limited;
+
+    const publicProfileId = account.profile.id;
+    try {
+        const bounty = await db.bounty.findFirst({
+            where: { id: parsed.data.bountyId, isBountyMonster: true },
+            select: { id: true },
+        });
+        if (!bounty) return { success: false, error: "Cet avis de recherche n'existe pas." };
+
+        const existing = await db.publicBountyCompletion.findUnique({
+            where: {
+                publicProfileId_bountyId_characterSlot: {
+                    publicProfileId,
+                    bountyId: bounty.id,
+                    characterSlot,
+                },
+            },
+            select: { id: true },
+        });
+
+        if (existing) {
+            await db.publicBountyCompletion.delete({ where: { id: existing.id } });
+        } else {
+            try {
+                await db.publicBountyCompletion.create({
+                    data: { publicProfileId, bountyId: bounty.id, characterSlot },
+                });
+            } catch (error) {
+                if ((error as { code?: string }).code !== "P2002") throw error;
+            }
+        }
+
+        revalidatePath(PATHS.succes);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Espace visiteur] Avis de recherche non enregistré", { error });
+        return { success: false, error: "Impossible d'enregistrer cet avis." };
+    }
+}
+
+const toggleBountySchema = z.object({
+    bountyId: z.string().min(1).max(64),
+    /** `"PRINCIPAL"` ou le pseudo d'une mule déclarée. */
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
+});
 
 export type PublicProfileExport = {
     exportedAt: string;

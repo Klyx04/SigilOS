@@ -139,16 +139,22 @@ describe("Les deux écrans consomment la même source", () => {
         expect(checklist).not.toContain("djSearchPosts");
     });
 
-    it("les avis de recherche sont servis comme fiches, sans succès", () => {
+    it("les avis de recherche sont servis comme fiches cochables, avec la fiche interne", () => {
         const page = read(PAGE);
         const checklist = read(CHECKLIST);
 
         expect(page).toContain("db.bounty.findMany");
         expect(page).toContain("isBountyMonster: true");
+        expect(page).toContain("db.publicBountyCompletion.findMany");
+        expect(page).toContain("characterSlot: selectedSlot");
         expect(checklist).toContain("BountyTarget");
         expect(checklist).toContain('scope === "bounties"');
         expect(checklist).toContain("/boss/${selectedBounty.slug}");
-        expect(checklist).toContain("pas de succès de donjon à cocher");
+        expect(checklist).toContain("<BountyFicheView");
+        expect(checklist).toContain("togglePublicBounty(");
+        expect(checklist).toContain("Avis fait");
+        // La promesse « rien à cocher » a disparu avec la table de complétion.
+        expect(checklist).not.toContain("pas de succès de donjon à cocher");
     });
 
     it("l'action groupée et la page partagent la même borne de donjons", () => {

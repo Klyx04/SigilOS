@@ -345,6 +345,7 @@ describe("Bascule du hub — la troisième vue a son URL", () => {
         expect(parseVisitorsHubSearch({ vue: "echanges", donjon: "x", q: "y" })).toEqual({
             vue: "echanges",
             donjon: null,
+            bounty: null,
             q: "",
             type: null,
         });

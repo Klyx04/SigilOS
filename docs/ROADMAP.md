@@ -6,7 +6,7 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 15/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 16/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -164,6 +164,8 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `ESSAI-NOTIF-DASHBOARD` | Fin d'essai — vérification des deux chemins (essai de base posé à l'arrivée, reprogrammation via `setMemberTrialState`) · **idempotence corrigée** : verrou court 5 min + clé durable 90 j écrite **après** un envoi réussi (la clé posée avant un crash supprimait la notification pour toujours) · embed enrichi `Dashboard : 🟢 Présent` / `🔴 Pas de compte dashboard` (`buildTrialEndNotice`, règle pure) — verrou `trial-end` **14** | 16/11/2026 |
+| `STATS-RESTES-404` | Stats Guilde — 4 derniers restes morts retirés (rafraîchissement `/stats`, « Stats Guilde » de la carte RBAC, libellé `GUILD_MODULE_LABELS.stats`, aperçu d'embed `stats`) · **308** `/dashboard/:guildId/stats` → accueil de la guilde · `getGuildStats` **autorise avant le cache Redis** · **404** : trois écrans chartés (public / dashboard / espace visiteur) + journal `warn` échantillonné (chemin sans query, hôte du Referer) — verrous `stats-page-removal` **15**, `not-found-log` **14**, `not-found-pages` **7** | 16/11/2026 |
 | `TOUR-PUBLIC` | Tours publics — moteur unique (`TourProvider` étendu : `scope="public"`, `storageScope`, phases `rushPublic`/`visitorSpace` rejouables) · règle pure `public-tour` (tronc commun + étapes `visitor`/`anonymous` + drapeau de première arrivée) · **15 ancres** `data-tour` sur le guide Rush, **11** sur l'espace visiteur · visite du profil **une seule fois** + bouton de rejeu dans Réglages, visite du guide rejouable (barre d'outils + Options) · bulle déslopée (plus de violet/glass/font-black) — verrous `public-tour` **19** + `tour-overlay-viewport` **7** | 16/11/2026 |
 | `FUSION-SIGNALEMENTS` | Signalements — fusion `SystemIssue` → `SupportTicket` (`TicketOrigin`, `publicRef` `SIG-<n>`, backfill idempotent + filet SQL, tracker membre anonymisé, visiteur connecté, onglet Signalements, refonte tokens, drop `20270202000000`) — verrous **36** | 14/11/2026 |
 | `RUSH-OCRE-DONJONS` | Rush — donjons ocre « capturé / à capturer » : règle pure `ocre-dungeons` (nom de boss normalisé, `unknown` sans capture), badge + bouton dans la carte partagée, ouverture de `OcreProgressModal` (dashboard) et `RushOverlayOcreModal` (overlay), `getDungeons` par donjon · **corrections 10/11** : `Dungeon.isOcreQuest` prioritaire (Meulou sans tag), `Fait / À faire` dans la fiche détail, pont `PublicOcreDungeonBridge`, modale publique portée dans la PiP, toasts d'overlay — verrou `ocre-dungeons` **19** | 10/11/2026 |

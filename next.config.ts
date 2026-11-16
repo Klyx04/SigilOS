@@ -173,6 +173,22 @@ const nextConfig: NextConfig = {
   },
   // @ts-ignore
   serverExternalPackages: ['tesseract.js', 'ioredis', 'bullmq'], // Prevent Webpack from bundling Tesseract and BullMQ
+  // ==========================================================================
+  // ↘️ REDIRECTIONS PERMANENTES
+  // `/stats` : la page « Stats Guilde » a été supprimée, son contenu vit désormais
+  // sur l'accueil de la guilde (`QuickStatsRow`). 308 (`permanent: true`) et non
+  // 410 : l'ancien favori garde un successeur utile. Aucune donnée de guilde
+  // n'est lue ici — la cible applique sa propre garde d'accès.
+  // ==========================================================================
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/:guildId/stats",
+        destination: "/dashboard/:guildId",
+        permanent: true,
+      },
+    ];
+  },
   // Security Headers
   // ⚠️ La CSP (Content-Security-Policy) est désormais gérée par le proxy
   // (src/proxy.ts) : nonce-based, injectée en Requête (pour Next) + Réponse

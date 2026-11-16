@@ -7,7 +7,14 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { validateChannelBelongsToGuild } from "@/server/discord";
 import { postServiceMessage } from "@/server/discord-services";
 import { getAppBaseUrl } from "@/lib/utils";
-import { isTrialEnded, trialEndNoticeKey } from "@/lib/trial-end";
+import {
+    buildTrialEndNotice,
+    isTrialEnded,
+    TRIAL_END_LOCK_TTL_SECONDS,
+    TRIAL_END_NOTICE_TTL_SECONDS,
+    trialEndLockKey,
+    trialEndNoticeKey,
+} from "@/lib/trial-end";
 import { DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
 import { z } from "zod";
 
@@ -196,12 +203,17 @@ export async function notifyEndedTrialsForGuild(
             displayName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
             endsAt: profile.trialEndsAt,
             scope: "Profil dashboard",
+            // Invariant : la ligne de registre est SUPPRIMÉE quand le profil dashboard est
+            // créé (`user-actions.ts`, reprise du registre) — un candidat profil est donc
+            // toujours « présent sur le dashboard », un candidat registre jamais.
+            hasDashboardProfile: true,
         })),
         ...entries.map((entry) => ({
             memberKey: entry.discordId,
             displayName: entry.pseudoDofus || entry.discordId,
             endsAt: entry.trialEndsAt,
             scope: "Registre staff",
+            hasDashboardProfile: false,
         })),
     ];
 
@@ -209,40 +221,48 @@ export async function notifyEndedTrialsForGuild(
         if (!candidate.endsAt || !isTrialEnded({ validated: false, endsAt: candidate.endsAt, now })) continue;
         result.checked += 1;
 
-        const key = trialEndNoticeKey(guild.id, candidate.memberKey, candidate.endsAt);
-        const claimed = await redis.set(key, "1", "EX", 90 * 24 * 60 * 60, "NX").catch(() => "OK");
-        if (claimed !== "OK") continue;
+        const noticeKey = trialEndNoticeKey(guild.id, candidate.memberKey, candidate.endsAt);
 
-        const sent = await postServiceMessage(
-            guild.trialEndNotifyChannelId,
-            {
-                embeds: [{
-                    title: "⏳ Fin d'essai",
-                    description: [
-                        ...(staffMentions ? [staffMentions] : []),
-                        `**Membre :** ${candidate.displayName}`,
-                        `**Échéance :** ${candidate.endsAt.toLocaleDateString("fr-FR")}`,
-                        `**Source :** ${candidate.scope}`,
-                        "",
-                        "L'essai n'est **pas** validé automatiquement : le staff tranche (valider ou reprogrammer).",
-                    ].join("\n"),
-                    color: 0xf59e0b,
-                    timestamp: now.toISOString(),
-                    footer: { text: `SigilOS • ${guild.name}` },
-                    url: `${appUrl}/dashboard/${discordGuildId}/admin/members`,
-                }],
-            },
-            `⏳ Fin d'essai — ${candidate.displayName}`
-        ).catch((error) => {
-            logger.warn("[trial-end] envoi impossible", { err: String(error) });
-            return null;
-        });
+        // Déjà notifié ? La clé durable n'est écrite qu'après un envoi **réussi**.
+        if (await redis.get(noticeKey).catch(() => null)) continue;
 
-        if (sent) {
-            result.notified += 1;
-        } else {
-            // Échec d'envoi : on relâche la clé pour retenter au prochain passage.
-            await redis.del(key).catch(() => {});
+        // Verrou court : deux passages concurrents ne doublent pas l'embed. Un crash
+        // pendant l'envoi expire en 5 min au lieu de bloquer l'échéance 90 jours.
+        const lockKey = trialEndLockKey(noticeKey);
+        const locked = await redis.set(lockKey, "1", "EX", TRIAL_END_LOCK_TTL_SECONDS, "NX").catch(() => "OK");
+        if (locked !== "OK") continue;
+
+        try {
+            const sent = await postServiceMessage(
+                guild.trialEndNotifyChannelId,
+                {
+                    embeds: [{
+                        ...buildTrialEndNotice({
+                            displayName: candidate.displayName,
+                            endsAtLabel: candidate.endsAt.toLocaleDateString("fr-FR"),
+                            hasDashboardProfile: candidate.hasDashboardProfile,
+                            scope: candidate.scope,
+                            staffMentions,
+                        }),
+                        timestamp: now.toISOString(),
+                        footer: { text: `SigilOS • ${guild.name}` },
+                        url: `${appUrl}/dashboard/${discordGuildId}/admin/members`,
+                    }],
+                },
+                `⏳ Fin d'essai — ${candidate.displayName}`
+            ).catch((error) => {
+                logger.warn("[trial-end] envoi impossible", { err: String(error) });
+                return null;
+            });
+
+            if (sent) {
+                result.notified += 1;
+                // Idempotence durable, APRÈS l'envoi : un crash avant cette ligne provoque
+                // au pire un doublon au passage suivant, jamais un oubli définitif.
+                await redis.set(noticeKey, "1", "EX", TRIAL_END_NOTICE_TTL_SECONDS).catch(() => {});
+            }
+        } finally {
+            await redis.del(lockKey).catch(() => {});
         }
     }
 

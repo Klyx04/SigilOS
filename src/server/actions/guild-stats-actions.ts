@@ -157,21 +157,26 @@ export async function getGuildStats(guildId: string): Promise<{
     error?: string;
     stats?: GuildStats;
 }> {
+    // 1. Autorisation AVANT toute lecture — y compris le cache.
+    //    Le cache est une accélération, pas une garde : servi avant l'auth, il laissait
+    //    lire les statistiques d'une guilde au cache chaud sans en être membre (l'action
+    //    est POST-able publiquement, seuls ses appelants internes sont authentifiés).
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) {
+        return { success: false, error: "Non autorisé" };
+    }
+
     const cacheKey = `guild:stats:${guildId}`;
 
-    // 1. Check Redis Cache (60s TTL)
+    // 2. Check Redis Cache (60s TTL)
     try {
         const cached = await redis.get(cacheKey).catch(() => null);
         if (cached) {
             return { success: true, stats: JSON.parse(cached) as GuildStats };
         }
     } catch (e) {
-        logger.error("[Stats] Redis error:", e);
-    }
-
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.isMember) {
-        return { success: false, error: "Non autorisé" };
+        // Cache indisponible = simple ralentissement, pas un refus : mesure en `warn`.
+        logger.warn("[Stats] Redis error:", e);
     }
 
     const guildConfig = await db.guildConfig.findUnique({

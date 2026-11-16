@@ -68,7 +68,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Accès Dashboard", 
         description: "Accès de base au Cockpit. Permet la connexion et la consultation des ressources fondamentales.", 
         module: "access",
-        modules: ["Accueil", "Docs", "Wiki Membre", "Resources", "Stats Guilde"]
+        modules: ["Accueil", "Docs", "Wiki Membre", "Resources"]
     },
     
     // Info
@@ -380,7 +380,6 @@ export function getPermissionsForGuildModule(moduleKey: string): PermissionId[] 
 export const GUILD_MODULE_LABELS: Record<string, string> = {
     presentation: "Présentation",
     roster: "Annuaire",
-    stats: "Stats",
     calendar: "Calendrier",
     missions: "Missions",
     songes: "Songes",

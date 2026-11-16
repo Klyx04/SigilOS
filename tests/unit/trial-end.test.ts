@@ -8,7 +8,14 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { isTrialEnded, trialEndNoticeKey } from "@/lib/trial-end";
+import {
+    buildTrialEndNotice,
+    isTrialEnded,
+    TRIAL_END_LOCK_TTL_SECONDS,
+    TRIAL_END_NOTICE_TTL_SECONDS,
+    trialEndLockKey,
+    trialEndNoticeKey,
+} from "@/lib/trial-end";
 
 const now = new Date("2026-10-25T12:00:00.000Z");
 
@@ -52,5 +59,64 @@ describe("notification fin d'essai — format staff uniquement", () => {
         expect(actionsSource).not.toContain("ton essai est arrivé à échéance");
         expect(actionsSource).not.toContain("content:");
         expect(actionsSource).toContain("embeds: [{");
+    });
+});
+
+describe("contenu de l'embed — le staff voit si le membre est sur le dashboard", () => {
+    const base = {
+        displayName: "Nami-Kho",
+        endsAtLabel: "16/11/2026",
+        scope: "Registre staff",
+    };
+
+    it("affiche 🟢 quand le membre a un profil dashboard", () => {
+        const notice = buildTrialEndNotice({ ...base, hasDashboardProfile: true });
+        expect(notice.description).toContain("**Dashboard :** 🟢 Présent sur le dashboard");
+    });
+
+    it("affiche 🔴 quand le membre n'a pas de compte dashboard", () => {
+        const notice = buildTrialEndNotice({ ...base, hasDashboardProfile: false });
+        expect(notice.description).toContain("**Dashboard :** 🔴 Pas de compte dashboard");
+    });
+
+    it("garde les faits utiles : membre, échéance, source, ping staff, aucune validation auto", () => {
+        const notice = buildTrialEndNotice({
+            ...base,
+            hasDashboardProfile: true,
+            staffMentions: "<@&123>",
+        });
+        expect(notice.title).toBe("⏳ Fin d'essai");
+        expect(notice.description).toContain("**Membre :** Nami-Kho");
+        expect(notice.description).toContain("**Échéance :** 16/11/2026");
+        expect(notice.description).toContain("**Source :** Registre staff");
+        expect(notice.description).toContain("<@&123>");
+        expect(notice.description).toContain("L'essai n'est **pas** validé automatiquement");
+        expect(notice.color).toBe(0xf59e0b);
+    });
+
+    it("n'invente pas de ping quand aucun rôle staff n'est configuré", () => {
+        const notice = buildTrialEndNotice({ ...base, hasDashboardProfile: false });
+        expect(notice.description).not.toContain("<@&");
+    });
+});
+
+describe("envoi — le verrou court protège l'échéance sans la bloquer", () => {
+    it("la clé de verrou est dérivée de la clé d'idempotence", () => {
+        expect(trialEndLockKey("trial-end:g1:m1:2026-11-16")).toBe("trial-end:g1:m1:2026-11-16:lock");
+    });
+
+    it("le verrou expire bien avant l'idempotence durable", () => {
+        expect(TRIAL_END_LOCK_TTL_SECONDS).toBeLessThan(TRIAL_END_NOTICE_TTL_SECONDS);
+        expect(TRIAL_END_NOTICE_TTL_SECONDS).toBe(90 * 24 * 60 * 60);
+    });
+
+    it("la clé durable n'est écrite qu'après l'envoi (jamais avant)", () => {
+        const actionsSource = readFileSync("src/server/actions/trial-end-actions.ts", "utf8");
+        const sendIndex = actionsSource.indexOf("await postServiceMessage(");
+        const durableWriteIndex = actionsSource.indexOf(
+            'redis.set(noticeKey, "1", "EX", TRIAL_END_NOTICE_TTL_SECONDS)'
+        );
+        expect(sendIndex).toBeGreaterThan(-1);
+        expect(durableWriteIndex).toBeGreaterThan(sendIndex);
     });
 });

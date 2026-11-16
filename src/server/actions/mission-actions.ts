@@ -1238,7 +1238,6 @@ export async function grantRewards(profileId: string, xp: number, guildatons: nu
             await clearCachePattern(`ladder:activity:${profile.guild.discordGuildId}:*`);
             await clearCachePattern(`ladder:guildatons:${profile.guild.discordGuildId}:*`);
             revalidatePath(`/dashboard/${profile.guild.discordGuildId}/ladder`);
-            revalidatePath(`/dashboard/${profile.guild.discordGuildId}/stats`); // Recalculate stats too
         }
     } catch (e) {
         logger.error(`[Rewards] grantRewards failed for ${profileId}:`, e);

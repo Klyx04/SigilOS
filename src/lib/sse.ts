@@ -6,7 +6,8 @@
  * route SSE ferme sur plusieurs signaux **concurrents** : `request.signal` (`abort`),
  * une erreur de la source de données, et parfois une durée de vie maximale. Sans état
  * partagé, deux signaux qui tombent dans la même passe faisaient remonter un
- * `unhandledRejection` (Sentry `JAVASCRIPT-NEXTJS-1T` / `1V`, `GET /api/god/stats/stream`).
+ * `unhandledRejection` (Sentry `JAVASCRIPT-NEXTJS-1T` / `1V`, sur l'ancien flux SSE
+ * du tableau de bord God).
  *
  * Règle : un canal est **fermé une fois**. Tout appel ultérieur (`send`, `close`,
  * `onClose`) est un no-op silencieux — jamais une exception. Le nettoyage des timers

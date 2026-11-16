@@ -1,53 +1,84 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { cn } from "@/lib/utils";
-
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
-    Megaphone,
-    Radio,
     AlertTriangle,
     Info,
-    Wrench,
-    Send,
-    X,
-    Rocket,
     Loader2,
-    CheckCircle2,
+    Megaphone,
+    Radio,
+    Send,
+    Wrench,
+    X,
 } from "lucide-react";
 import {
-    setSystemAnnouncement,
-    clearSystemAnnouncement,
     broadcastDiscordAnnouncement,
+    clearSystemAnnouncement,
     getStelliumChannels,
+    setSystemAnnouncement,
+    type SystemAnnouncement,
 } from "@/server/actions/announcement-actions";
-import { useEffect } from "react";
-import type { SystemAnnouncement } from "@/server/actions/announcement-actions";
+import { cn } from "@/lib/utils";
 
 interface AnnouncementPanelProps {
     currentAnnouncement: SystemAnnouncement | null;
 }
 
+const BANNER_TYPE_LABEL = {
+    info: "Information",
+    warning: "Avertissement",
+    maintenance: "Maintenance",
+} as const;
+
+const DISCORD_TYPE_LABEL = {
+    maintenance: "Maintenance",
+    update: "Mise à jour",
+    info: "Information",
+} as const;
+
+const BANNER_TYPE_CLASS = {
+    info: "border-info/20 bg-info/10 text-info",
+    warning: "border-warning/20 bg-warning/10 text-warning",
+    maintenance: "border-accent/20 bg-accent-soft text-accent",
+} as const;
+
+const BANNER_TYPE_ICON = {
+    info: Info,
+    warning: AlertTriangle,
+    maintenance: Wrench,
+} as const;
+
+type BannerType = keyof typeof BANNER_TYPE_ICON;
+
+function BannerIcon({ type, className }: { type: BannerType; className?: string }) {
+    const Icon = BANNER_TYPE_ICON[type];
+    return <Icon className={className} aria-hidden />;
+}
+
+function formatDate(iso: string): string {
+    return new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "short",
+        timeStyle: "short",
+        timeZone: "Europe/Paris",
+    }).format(new Date(iso));
+}
+
 export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProps) {
-    // Banner state
     const [bannerMessage, setBannerMessage] = useState("");
-    const [bannerType, setBannerType] = useState<"info" | "warning" | "maintenance">("maintenance");
-    const [bannerExpiry, setBannerExpiry] = useState<number>(60); // minutes
+    const [bannerType, setBannerType] = useState<BannerType>("maintenance");
+    const [bannerExpiry, setBannerExpiry] = useState<number>(60);
     const [bannerPending, startBannerTransition] = useTransition();
     const [bannerResult, setBannerResult] = useState<string | null>(null);
 
-    // Discord broadcast state
     const [discordMessage, setDiscordMessage] = useState("");
     const [discordType, setDiscordType] = useState<"maintenance" | "update" | "info">("maintenance");
     const [mentionEveryone, setMentionEveryone] = useState(false);
     const [discordPending, startDiscordTransition] = useTransition();
     const [discordResult, setDiscordResult] = useState<string | null>(null);
 
-    // Active announcement
     const [activeAnnouncement, setActiveAnnouncement] = useState(currentAnnouncement);
 
-    // Stellium Specific
     const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string | null }[]>([]);
     const [stelliumChannelId, setStelliumChannelId] = useState<string>("");
 
@@ -60,7 +91,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
         startBannerTransition(async () => {
             const result = await setSystemAnnouncement(bannerMessage, bannerType, bannerExpiry || undefined);
             if (result.success) {
-                setBannerResult("✅ Bandeau activé !");
+                setBannerResult("Bandeau activé");
                 setActiveAnnouncement({
                     message: bannerMessage,
                     type: bannerType,
@@ -69,7 +100,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                 });
                 setBannerMessage("");
             } else {
-                setBannerResult(`❌ ${result.error}`);
+                setBannerResult(`Erreur : ${result.error}`);
             }
             setTimeout(() => setBannerResult(null), 3000);
         });
@@ -79,10 +110,10 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
         startBannerTransition(async () => {
             const result = await clearSystemAnnouncement();
             if (result.success) {
-                setBannerResult("✅ Bandeau désactivé");
+                setBannerResult("Bandeau désactivé");
                 setActiveAnnouncement(null);
             } else {
-                setBannerResult(`❌ ${result.error}`);
+                setBannerResult(`Erreur : ${result.error}`);
             }
             setTimeout(() => setBannerResult(null), 3000);
         });
@@ -98,287 +129,228 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                 stelliumChannelId || undefined
             );
             if (result.success) {
-                setDiscordResult(`✅ Envoyé à ${result.sent} guilde(s)${result.failed ? ` (${result.failed} échec)` : ""}`);
+                setDiscordResult(`Envoyé à ${result.sent} guilde(s)${result.failed ? ` (${result.failed} échec)` : ""}`);
                 setDiscordMessage("");
             } else {
-                setDiscordResult(`❌ ${result.error}`);
+                setDiscordResult(`Erreur : ${result.error}`);
             }
             setTimeout(() => setDiscordResult(null), 5000);
         });
     };
 
-    const typeIcons = {
-        info: <Info className="w-4 h-4" />,
-        warning: <AlertTriangle className="w-4 h-4" />,
-        maintenance: <Wrench className="w-4 h-4" />,
-    };
-
-    const typeColors = {
-        info: "text-blue-400 border-blue-500/20 bg-blue-500/10",
-        warning: "text-amber-400 border-amber-500/20 bg-amber-500/10",
-        maintenance: "text-orange-400 border-orange-500/20 bg-orange-500/10",
-    };
-
     return (
-        <div className="space-y-8">
-                {/* 1. DASHBOARD BANNER SECTION */}
-                <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] p-6 md:p-10 space-y-8 overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-                                <Radio className="w-5 h-5 text-teal-400" />
-                            </div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-widest">
-                                Bandeau Dashboard
-                            </h3>
+        <div className="space-y-4">
+            <section className="rounded-xl border border-border bg-surface">
+                <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="flex items-center gap-2">
+                        <Radio className="h-4 w-4 text-accent" aria-hidden />
+                        <div>
+                            <h3 className="text-sm font-medium text-foreground">Bandeau du dashboard</h3>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                Message affiché en haut de tous les dashboards.
+                            </p>
                         </div>
-                        {activeAnnouncement && (
-                            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">
-                                    Diffusion en cours
-                                </span>
-                            </div>
-                        )}
                     </div>
-
-                    {/* Active banner preview/control */}
                     {activeAnnouncement && (
-                        <div className={cn(
-                            "p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all shadow-xl",
-                            typeColors[activeAnnouncement.type]
-                        )}>
-                            <div className="flex items-start gap-4 flex-1">
-                                <div className="p-2 rounded-lg bg-white/10">
-                                    {typeIcons[activeAnnouncement.type]}
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm md:text-base font-bold leading-tight">{activeAnnouncement.message}</p>
-                                    {activeAnnouncement.expiresAt && (
-                                        <p className="text-caption font-black uppercase tracking-widest opacity-60">
-                                            Expiration : {new Date(activeAnnouncement.expiresAt).toLocaleString("fr-FR")}
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-success/20 bg-success/10 px-2 py-0.5 text-xs text-success">
+                            <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
+                            Diffusion en cours
+                        </span>
+                    )}
+                </header>
+                <div className="space-y-4 p-4">
+                    {activeAnnouncement && (
+                        <div className={cn("rounded-lg border p-3", BANNER_TYPE_CLASS[activeAnnouncement.type])}>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-start gap-2">
+                                    <BannerIcon type={activeAnnouncement.type} className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm">{activeAnnouncement.message}</p>
+                                        <p className="mt-1 text-xs opacity-80">
+                                            {BANNER_TYPE_LABEL[activeAnnouncement.type]} · depuis le {formatDate(activeAnnouncement.createdAt)}
                                         </p>
-                                    )}
+                                    </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleClearBanner}
+                                    disabled={bannerPending}
+                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/20 bg-danger/10 px-2.5 py-1.5 text-xs text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
+                                >
+                                    <X className="h-3.5 w-3.5" aria-hidden />
+                                    Couper la diffusion
+                                </button>
                             </div>
-                            <button
-                                onClick={handleClearBanner}
-                                disabled={bannerPending}
-                                className="w-full md:w-auto px-6 py-3 bg-white/10 hover:bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn"
-                            >
-                                <X className="w-4 h-4 group-hover/btn:rotate-90 transition-transform" />
-                                Couper la diffusion
-                            </button>
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mt-4">
-                        <div className="space-y-6">
-                            <textarea
-                                value={bannerMessage}
-                                onChange={(e) => setBannerMessage(e.target.value)}
-                                placeholder="Écrivez le message qui apparaîtra sur tous les dashboards..."
-                                className="w-full bg-black/40 border border-white/5 rounded-3xl p-6 text-base text-white placeholder:text-zinc-700 resize-none h-32 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500/30 transition-all font-medium"
-                                maxLength={200}
-                            />
-                            
-                            <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                                    {(["info", "warning", "maintenance"] as const).map((t) => (
-                                        <button
-                                            key={t}
-                                            onClick={() => setBannerType(t)}
-                                            className={cn(
-                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
-                                                bannerType === t
-                                                    ? typeColors[t]
-                                                    : "border-transparent text-zinc-500 hover:text-white"
-                                            )}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
-                                </div>
+                    <textarea
+                        value={bannerMessage}
+                        onChange={(event) => setBannerMessage(event.target.value)}
+                        placeholder="Écrivez le message qui apparaîtra sur tous les dashboards…"
+                        className="h-28 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                        maxLength={200}
+                    />
 
-                                <div className="flex items-center gap-3 ml-auto">
-                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Durée :</span>
-                                    <select
-                                        value={bannerExpiry}
-                                        onChange={(e) => setBannerExpiry(Number(e.target.value))}
-                                        className="bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                                    >
-                                        <option value={30}>30 min</option>
-                                        <option value={60}>1h</option>
-                                        <option value={120}>2h</option>
-                                        <option value={360}>6h</option>
-                                        <option value={720}>12h</option>
-                                        <option value={0}>Permanent</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleSetBanner}
-                                disabled={bannerPending || !bannerMessage.trim()}
-                                className="w-full py-5 bg-teal-500 hover:bg-teal-400 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-20 disabled:grayscale"
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
+                            {(["info", "warning", "maintenance"] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setBannerType(type)}
+                                    className={cn(
+                                        "rounded-md border px-3 py-1.5 text-xs transition-colors",
+                                        bannerType === type
+                                            ? BANNER_TYPE_CLASS[type]
+                                            : "border-transparent text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    {BANNER_TYPE_LABEL[type]}
+                                </button>
+                            ))}
+                        </div>
+                        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                            Durée
+                            <select
+                                value={bannerExpiry}
+                                onChange={(event) => setBannerExpiry(Number(event.target.value))}
+                                className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                             >
-                                {bannerPending ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <Radio className="w-5 h-5" />
-                                )}
-                                <span>Activer le bandeau</span>
-                            </button>
-                        </div>
-                        
-                        <div className="bg-black/20 rounded-3xl p-6 border border-white/5 space-y-4">
-                            <h4 className="text-caption font-black text-zinc-600 uppercase tracking-widest text-center">Aperçu Dashboard</h4>
-                            <div className="flex items-center justify-center min-h-[100px]">
-                                {bannerMessage ? (
-                                    <div className={cn("w-full p-4 rounded-xl border-l-4 shadow-lg", typeColors[bannerType])}>
-                                        <div className="flex items-center gap-3">
-                                            {typeIcons[bannerType]}
-                                            <p className="text-xs font-bold line-clamp-3">{bannerMessage}</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-zinc-600 font-medium italic text-center px-8">Tapez un message pour voir l'aperçu...</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. DISCORD BROADCAST SECTION */}
-                <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] p-6 md:p-10 space-y-8 overflow-hidden relative group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                                <Send className="w-5 h-5 text-indigo-400" />
-                            </div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-widest">
-                                Broadcast Discord
-                            </h3>
-                        </div>
+                                <option value={30}>30 min</option>
+                                <option value={60}>1 h</option>
+                                <option value={120}>2 h</option>
+                                <option value={360}>6 h</option>
+                                <option value={720}>12 h</option>
+                                <option value={0}>Permanent</option>
+                            </select>
+                        </label>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-8">
-                        <div className="space-y-6">
-                            <textarea
-                                value={discordMessage}
-                                onChange={(e) => setDiscordMessage(e.target.value)}
-                                placeholder="Le message sera envoyé sur tous les salons d'annonces des guildes..."
-                                className="w-full bg-black/40 border border-white/5 rounded-3xl p-6 text-base text-white placeholder:text-zinc-700 resize-none h-48 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/30 transition-all font-medium"
-                                maxLength={500}
-                            />
-
-                            <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                                    {(["maintenance", "update", "info"] as const).map((t) => (
-                                        <button
-                                            key={t}
-                                            onClick={() => setDiscordType(t)}
-                                            className={cn(
-                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all flex items-center gap-2",
-                                                discordType === t
-                                                    ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
-                                                    : "border-transparent text-zinc-500 hover:text-white"
-                                            )}
-                                        >
-                                            <div className={cn("w-1.5 h-1.5 rounded-full", 
-                                                t === "maintenance" ? "bg-amber-500" : t === "update" ? "bg-emerald-500" : "bg-indigo-500"
-                                            )} />
-                                            {t}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <label className="flex items-center gap-3 p-3 bg-black/40 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all ml-auto">
-                                    <input
-                                        type="checkbox"
-                                        checked={mentionEveryone}
-                                        onChange={() => setMentionEveryone(!mentionEveryone)}
-                                        className="w-5 h-5 rounded-lg border-white/10 bg-zinc-900 text-indigo-500 focus:ring-indigo-500/30"
-                                    />
-                                    <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">
-                                        @everyone
-                                    </span>
-                                </label>
-                            </div>
-
-                            {stelliumChannels && stelliumChannels.length > 0 && (
-                                <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-2 backdrop-blur-md">
+                    <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Aperçu</p>
+                        <div className="mt-2">
+                            {bannerMessage ? (
+                                <div className={cn("rounded-lg border p-3", BANNER_TYPE_CLASS[bannerType])}>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-                                        <span className="text-caption font-black text-violet-300 uppercase tracking-widest">
-                                            Cibleur de Salon Spécifique (Guilde Dev)
-                                        </span>
+                                        <BannerIcon type={bannerType} className="h-4 w-4 shrink-0" />
+                                        <p className="text-sm">{bannerMessage}</p>
                                     </div>
-                                    <select
-                                        value={stelliumChannelId}
-                                        onChange={(e) => setStelliumChannelId(e.target.value)}
-                                        className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-violet-500/50 cursor-pointer"
-                                    >
-                                        <option value="" className="bg-zinc-900 text-zinc-300">Toutes les guildes (Salons d'annonces configurés)</option>
-                                        {stelliumChannels.map(c => (
-                                            <option key={c.id} value={c.id} className="bg-zinc-900 text-white"># {c.name ?? "Salon masqué"}</option>
-                                        ))}
-                                    </select>
                                 </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Tapez un message pour voir l&apos;aperçu…</p>
                             )}
-
-                            <button
-                                onClick={handleBroadcast}
-                                disabled={discordPending || !discordMessage.trim()}
-                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-20 disabled:grayscale"
-                            >
-                                {discordPending ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <Send className="w-5 h-5" />
-                                )}
-                                <span>Envoyer globalement</span>
-                            </button>
-                        </div>
-
-                        <div className="bg-[#313338] rounded-3xl p-6 md:p-10 border border-black/50 shadow-2xl relative">
-                             <div className="absolute top-4 left-6 text-caption font-black text-white/20 uppercase tracking-widest">Aperçu Discord</div>
-                             <div className="mt-8 flex gap-4">
-                                <div className="w-10 h-10 rounded-full bg-[#5865f2] flex-shrink-0 flex items-center justify-center font-bold text-white text-lg">S</div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-white font-bold text-sm">SigilBot</span>
-                                        <span className="bg-[#5865f2] text-white text-caption font-bold px-1 rounded uppercase">Bot</span>
-                                        <span className="text-white/20 text-caption font-medium">Aujourd'hui à {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
-                                    </div>
-                                    <div className={cn(
-                                        "rounded-lg overflow-hidden border-l-4 mt-2",
-                                        discordType === "maintenance" ? "border-amber-500 bg-[#2b2d31]" : 
-                                        discordType === "update" ? "border-emerald-500 bg-[#2b2d31]" : 
-                                        "border-indigo-500 bg-[#2b2d31]"
-                                    )}>
-                                        <div className="p-4 space-y-2">
-                                            <div className="text-xs text-white/40 font-bold uppercase tracking-wider">SigilOS Platform</div>
-                                            <div className="text-sm font-bold text-white">
-                                                {discordType === "maintenance" ? "🛠️ Maintenance Programmée" : 
-                                                 discordType === "update" ? "🚀 Mise à Jour SigilOS" : 
-                                                 "📢 Annonce SigilOS"}
-                                            </div>
-                                            <div className="text-sm text-zinc-300 break-words">
-                                                {discordMessage ? <ReactMarkdown>{discordMessage}</ReactMarkdown> : "Le contenu de votre message apparaîtra ici avec le formatage Markdown..."}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {mentionEveryone && <div className="text-xs text-[#00a8fc] mt-1 font-medium">@everyone</div>}
-                                </div>
-                             </div>
                         </div>
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={handleSetBanner}
+                        disabled={bannerPending || !bannerMessage.trim()}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {bannerPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Radio className="h-4 w-4" aria-hidden />}
+                        Activer le bandeau
+                    </button>
+                    {bannerResult && <p className="text-sm text-muted-foreground" role="status">{bannerResult}</p>}
                 </div>
-            </div>
+            </section>
+            <section className="rounded-xl border border-border bg-surface">
+                <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+                    <Send className="h-4 w-4 text-accent" aria-hidden />
+                    <div>
+                        <h3 className="text-sm font-medium text-foreground">Broadcast Discord</h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                            Message envoyé dans les salons d&apos;annonces des guildes.
+                        </p>
+                    </div>
+                </header>
+                <div className="space-y-4 p-4">
+                    <textarea
+                        value={discordMessage}
+                        onChange={(event) => setDiscordMessage(event.target.value)}
+                        placeholder="Le message sera envoyé sur tous les salons d'annonces des guildes…"
+                        className="h-40 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                        maxLength={500}
+                    />
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
+                            {(["maintenance", "update", "info"] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setDiscordType(type)}
+                                    className={cn(
+                                        "rounded-md border px-3 py-1.5 text-xs transition-colors",
+                                        discordType === type
+                                            ? "border-accent/20 bg-accent-soft text-accent"
+                                            : "border-transparent text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    {DISCORD_TYPE_LABEL[type]}
+                                </button>
+                            ))}
+                        </div>
+                        <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                            <input
+                                type="checkbox"
+                                checked={mentionEveryone}
+                                onChange={() => setMentionEveryone((previous) => !previous)}
+                                className="h-4 w-4 rounded border-border accent-accent"
+                            />
+                            @everyone
+                        </label>
+                    </div>
+
+                    {stelliumChannels.length > 0 && (
+                        <div className="rounded-lg border border-border bg-background p-3">
+                            <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <Megaphone className="h-3.5 w-3.5" aria-hidden />
+                                Cibleur de salon spécifique (guilde de développement)
+                                <select
+                                    value={stelliumChannelId}
+                                    onChange={(event) => setStelliumChannelId(event.target.value)}
+                                    className="ml-auto rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                                >
+                                    <option value="">Toutes les guildes (salons d&apos;annonces configurés)</option>
+                                    {stelliumChannels.map((channel) => (
+                                        <option key={channel.id} value={channel.id}>
+                                            # {channel.name ?? "Salon masqué"}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    )}
+
+                    <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Aperçu</p>
+                        <div className="mt-2 rounded-lg border-l-4 border-accent bg-surface p-3">
+                            <p className="text-sm font-medium text-foreground">{DISCORD_TYPE_LABEL[discordType]}</p>
+                            <div className="mt-1 break-words text-sm text-muted-foreground">
+                                {discordMessage ? (
+                                    <ReactMarkdown>{discordMessage}</ReactMarkdown>
+                                ) : (
+                                    "Le contenu du message apparaîtra ici…"
+                                )}
+                            </div>
+                        </div>
+                        {mentionEveryone && <p className="mt-2 text-xs text-muted-foreground">@everyone</p>}
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleBroadcast}
+                        disabled={discordPending || !discordMessage.trim()}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {discordPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+                        Envoyer globalement
+                    </button>
+                    {discordResult && <p className="text-sm text-muted-foreground" role="status">{discordResult}</p>}
+                </div>
+            </section>
+        </div>
     );
 }

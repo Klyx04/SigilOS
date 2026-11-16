@@ -1,147 +1,187 @@
 "use client";
 
 import { useState } from "react";
+import { Beaker, Download, Loader2, Play, RefreshCw, Terminal, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { triggerGlobalMetamobSync, triggerGlobalLadderSync, testLadderFetch } from "@/server/actions/super-admin-actions";
-import { Download, Trophy, Loader2, Beaker, Play, Terminal } from "lucide-react";
-import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import {
+    testLadderFetch,
+    triggerGlobalLadderSync,
+    triggerGlobalMetamobSync,
+} from "@/server/actions/super-admin-actions";
 
+type LadderTestResult = Awaited<ReturnType<typeof testLadderFetch>>;
+
+/**
+ * Synchronisation & diagnostic — forçage manuel des files et test direct de l'API.
+ * Aucune action métier n'est modifiée : la carte ne fait que les appeler.
+ */
 export function WorkerTester() {
     const [isMetamobLoading, setIsMetamobLoading] = useState(false);
     const [isLadderLoading, setIsLadderLoading] = useState(false);
-    
-    // Test API State
+
     const [testPseudo, setTestPseudo] = useState("");
-    const [testServerId, setTestServerId] = useState("295"); // Imagiro by default
+    const [testServerId, setTestServerId] = useState("295");
     const [isTestLoading, setIsTestLoading] = useState(false);
-    const [testResult, setTestResult] = useState<any>(null);
+    const [testResult, setTestResult] = useState<LadderTestResult | null>(null);
 
     const handleTestLadder = async () => {
-        if (!testPseudo) return toast.error("Entrez un pseudo.");
+        if (!testPseudo) {
+            toast.error("Entrez un pseudo.");
+            return;
+        }
         setIsTestLoading(true);
         setTestResult(null);
-        const res = await testLadderFetch(testPseudo, testServerId);
-        setTestResult(res);
-        if (!res.success) toast.error(res.error);
+        const result = await testLadderFetch(testPseudo, testServerId);
+        setTestResult(result);
+        if (!result.success) toast.error(result.error ?? "Erreur inconnue");
         else toast.success("Test terminé.");
         setIsTestLoading(false);
     };
 
+    const handleMetamob = async () => {
+        setIsMetamobLoading(true);
+        const result = await triggerGlobalMetamobSync();
+        if (result.success) toast.success(result.message);
+        else toast.error(result.error ?? "Erreur inconnue");
+        setIsMetamobLoading(false);
+    };
+
+    const handleLadder = async () => {
+        setIsLadderLoading(true);
+        const result = await triggerGlobalLadderSync();
+        if (result.success) toast.success(result.message);
+        else toast.error(result.error ?? "Erreur inconnue");
+        setIsLadderLoading(false);
+    };
+
     return (
-        <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
-            <h3 className="text-sm font-black text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                Service Workers & API
-            </h3>
-            
-            <Tabs defaultValue="api" className="w-full">
-                <TabsList className="mb-6 bg-black/40 border border-white/5">
-                    <TabsTrigger value="api" className="text-xs uppercase font-bold tracking-widest data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-                        <Beaker className="w-4 h-4 mr-2" />
-                        API Playground
-                    </TabsTrigger>
-                    <TabsTrigger value="queue" className="text-xs uppercase font-bold tracking-widest data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-                        <Terminal className="w-4 h-4 mr-2" />
-                        Queues System
-                    </TabsTrigger>
-                </TabsList>
-
-                {/* API TESTING ZONE */}
-                <TabsContent value="api" className="space-y-4">
-                    <p className="text-xs text-zinc-500 mb-4">
-                        Test direct de l'API Cloudflare (Ladder). Aucune DB impactée, aucun job créé. Permet de vérifier la validité du Token et du format Dofus.com en live.
+        <section className="rounded-xl border border-border bg-surface">
+            <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <RefreshCw className="h-4 w-4 text-accent" aria-hidden />
+                <div>
+                    <h3 className="text-sm font-medium text-foreground">Synchronisation & diagnostic</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        Forçage manuel des files et test direct de l&apos;API Ladder.
                     </p>
-                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
-                        <div className="space-y-2 flex-1">
-                            <label className="text-caption font-black uppercase tracking-widest text-zinc-400">Pseudo Dofus</label>
-                            <Input 
-                                placeholder="ex: Klyx" 
-                                value={testPseudo} 
-                                onChange={e => setTestPseudo(e.target.value)} 
-                                className="bg-black/50 border-white/10 text-white"
-                            />
-                        </div>
-                        <div className="space-y-2 w-full md:w-32">
-                            <label className="text-caption font-black uppercase tracking-widest text-zinc-400">Server ID</label>
-                            <Input 
-                                placeholder="295" 
-                                value={testServerId} 
-                                onChange={e => setTestServerId(e.target.value)} 
-                                className="bg-black/50 border-white/10 text-white"
-                            />
-                        </div>
-                        <Button 
-                            onClick={handleTestLadder} 
-                            disabled={isTestLoading}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide transition-all w-full md:w-auto"
+                </div>
+            </header>
+            <div className="p-4">
+                <Tabs defaultValue="api" className="w-full">
+                    <TabsList className="mb-4 grid w-full grid-cols-2 border border-border bg-background">
+                        <TabsTrigger
+                            value="api"
+                            className="gap-1.5 text-xs data-[state=active]:bg-accent-soft data-[state=active]:text-accent"
                         >
-                            {isTestLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                            LANCER TEST
-                        </Button>
-                    </div>
+                            <Beaker className="h-3.5 w-3.5" aria-hidden />
+                            Diagnostic API
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="queue"
+                            className="gap-1.5 text-xs data-[state=active]:bg-accent-soft data-[state=active]:text-accent"
+                        >
+                            <Terminal className="h-3.5 w-3.5" aria-hidden />
+                            Files de synchronisation
+                        </TabsTrigger>
+                    </TabsList>
 
-                    {/* API RESULT TERMINAL */}
-                    {testResult && (
-                        <div className="mt-6 bg-black/80 border border-white/10 rounded-xl p-4 font-mono text-caption overflow-auto max-h-64">
-                            <div className="flex gap-2 items-center text-xs mb-2 border-b border-white/10 pb-2">
-                                <span className={testResult.success ? "text-emerald-400" : "text-rose-400"}>
-                                    {testResult.success ? "✅ Fetch & Data OK" : `❌ Erreur (Status Code: ${testResult.statusSucces})`}
+                    <TabsContent value="api" className="space-y-4">
+                        <p className="text-xs text-muted-foreground">
+                            Test direct de l&apos;API Cloudflare (Ladder). Aucune base impactée, aucun job créé :
+                            vérifie le jeton et le format Dofus.com en direct.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px_auto] sm:items-end">
+                            <label className="space-y-1 text-xs text-muted-foreground">
+                                Pseudo Dofus
+                                <Input
+                                    value={testPseudo}
+                                    onChange={(event) => setTestPseudo(event.target.value)}
+                                    placeholder="ex : Klyx"
+                                    className="bg-background"
+                                />
+                            </label>
+                            <label className="space-y-1 text-xs text-muted-foreground">
+                                Serveur
+                                <Input
+                                    value={testServerId}
+                                    onChange={(event) => setTestServerId(event.target.value)}
+                                    placeholder="295"
+                                    className="bg-background"
+                                />
+                            </label>
+                            <Button
+                                type="button"
+                                onClick={handleTestLadder}
+                                disabled={isTestLoading}
+                                className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+                            >
+                                {isTestLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                ) : (
+                                    <Play className="h-4 w-4" aria-hidden />
+                                )}
+                                Lancer le test
+                            </Button>
+                        </div>
+                        {testResult && (
+                            <div className="rounded-lg border border-border bg-background p-3 font-mono text-xs">
+                                <p className={testResult.success ? "text-success" : "text-danger"}>
+                                    {testResult.success
+                                        ? "Fetch & données OK"
+                                        : `Erreur (code ${testResult.statusSucces ?? "—"})`}
+                                </p>
+                                <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-muted-foreground">
+                                    {JSON.stringify(testResult, null, 2)}
+                                </pre>
+                            </div>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="queue" className="space-y-4">
+                        <div className="rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-warning">
+                            <strong>Attention :</strong> injecter un job ici déclenche l&apos;opération sur
+                            tout le système. À utiliser uniquement en cas de blocage d&apos;un worker ou pour
+                            réinitialiser un cycle de test.
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleMetamob}
+                                disabled={isMetamobLoading}
+                                className="h-auto border-border bg-surface py-3 text-foreground hover:bg-elevated"
+                            >
+                                <span className="flex flex-col items-center gap-2">
+                                    {isMetamobLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                    ) : (
+                                        <Download className="h-4 w-4" aria-hidden />
+                                    )}
+                                    <span className="text-xs font-medium">Forcer la file Metamob</span>
                                 </span>
-                            </div>
-                            <pre className="text-zinc-300 whitespace-pre-wrap">
-                                {JSON.stringify(testResult, null, 2)}
-                            </pre>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleLadder}
+                                disabled={isLadderLoading}
+                                className="h-auto border-border bg-surface py-3 text-foreground hover:bg-elevated"
+                            >
+                                <span className="flex flex-col items-center gap-2">
+                                    {isLadderLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                    ) : (
+                                        <Trophy className="h-4 w-4" aria-hidden />
+                                    )}
+                                    <span className="text-xs font-medium">Forcer la file Ladder</span>
+                                </span>
+                            </Button>
                         </div>
-                    )}
-                </TabsContent>
-
-                {/* QUEUES ZONE */}
-                <TabsContent value="queue" className="space-y-6">
-                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs my-4">
-                        <strong>⚠️ ATTENTION:</strong> Injecter des jobs manuellement ici déclenchera l'opération sur tout le système. Utilisez ces boutons uniquement en cas de blocage d'un worker ou pour reset un cycle de test.
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Button 
-                            onClick={async () => {
-                                setIsMetamobLoading(true);
-                                const res = await triggerGlobalMetamobSync();
-                                if (res.success) toast.success(res.message);
-                                else toast.error(res.error);
-                                setIsMetamobLoading(false);
-                            }} 
-                            disabled={isMetamobLoading}
-                            variant="outline"
-                            className="h-auto py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/20"
-                        >
-                            <div className="flex flex-col items-center gap-2">
-                                {isMetamobLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-                                <span className="font-bold tracking-wider text-xs uppercase">Force Metamob Queue</span>
-                            </div>
-                        </Button>
-
-                        <Button 
-                            onClick={async () => {
-                                setIsLadderLoading(true);
-                                const res = await triggerGlobalLadderSync();
-                                if (res.success) toast.success(res.message);
-                                else toast.error(res.error);
-                                setIsLadderLoading(false);
-                            }} 
-                            disabled={isLadderLoading}
-                            variant="outline"
-                            className="h-auto py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/20"
-                        >
-                            <div className="flex flex-col items-center gap-2">
-                                {isLadderLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trophy className="w-5 h-5" />}
-                                <span className="font-bold tracking-wider text-xs uppercase">Force Ladder Queue</span>
-                            </div>
-                        </Button>
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </div>
+                    </TabsContent>
+                </Tabs>
+            </div>
+        </section>
     );
 }

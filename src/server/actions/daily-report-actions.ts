@@ -14,7 +14,8 @@ import { getAppBaseUrl } from "@/lib/utils";
  * celui-ci envoie un NOUVEAU message pour générer une notification.
  *
  * 🔧 FIX (session 3, chantier #77) : cette action ne dépend plus de la session
- * (`getPlatformStats`/`getMemberReconciliation` exigeaient un scope God basé sur
+ * (`getPlatformStats`, désormais supprimé, et `getMemberReconciliation` exigeaient
+ * un scope God basé sur
  * `auth()` → le worker BullMQ (aucune session) échouait avec « Unauthorized:
  * God scope required » → le rapport n'arrivait JAMAIS, sans log d'erreur).
  * Les statistiques sont désormais calculées en requêtes directes scopées guilde.

@@ -1,9 +1,8 @@
 "use client";
 
-import { Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { SystemHealthDashboard } from "./system-health-dashboard";
-import { GodSectionHeader, GodCard, GodCardHeader, GodCardBody } from "../ui";
+import { GodSectionHeader } from "../ui";
 
 const sectionFade = {
     initial: { opacity: 0, y: 12 },
@@ -12,76 +11,37 @@ const sectionFade = {
 };
 
 interface OverviewTabsProps {
-    stats: React.ReactNode;
-    chart: React.ReactNode;
     communication: React.ReactNode;
     worker: React.ReactNode;
 }
 
-export function OverviewTabs({ stats, chart, communication, worker }: OverviewTabsProps) {
+/**
+ * Vue d'ensemble du God — **deux blocs de décision, pas un tableau de bord de plus**.
+ *
+ * Décision user du 16/11/2026 : retirer « Indicateurs plateforme » et « Activité de la
+ * plateforme » (lectures massives pour une information déjà disponible ailleurs) et le
+ * flux SSE de 5 s. Restent la santé des services, les annonces et la synchronisation.
+ */
+export function OverviewTabs({ communication, worker }: OverviewTabsProps) {
     return (
-        <div className="space-y-12">
-            {/* Section 1: Platform KPIs — rendu RÉTABLI (les props `stats`/`chart` étaient reçues
-                mais jamais affichées depuis fbbbc8a8 : l'écran affichait « 0 » sans que rien ne casse). */}
+        <div className="space-y-8">
             <motion.div className="space-y-4" {...sectionFade}>
                 <GodSectionHeader
-                    title="Indicateurs plateforme"
-                    description="Guildes, aventuriers, profils, missions et activité sur 7 jours — flux temps réel."
-                />
-                {stats}
-            </motion.div>
-
-            {/* Section 2: Platform Activity Chart (30 days) */}
-            <motion.div
-                className="space-y-4"
-                {...sectionFade}
-                transition={{ ...sectionFade.transition, delay: 0.05 }}
-            >
-                <GodSectionHeader
-                    title="Activité de la plateforme"
-                    description="Nouveaux inscrits (produit) et volume du journal d'audit (technique) sur 30 jours."
-                />
-                {chart}
-            </motion.div>
-
-            {/* Section 3: System Status & Infrastructure (Immediate Full-Width Visibility) */}
-            <motion.div className="space-y-4" {...sectionFade}>
-                <GodSectionHeader
-                    title="État des Services & Infrastructures"
-                    description="Santé des services, files de jobs et infrastructure en temps réel."
+                    title="État des services"
+                    description="Santé des dépendances, files de jobs et tâches planifiées — lecture directe, aucune exposition publique."
                     badge="Live"
                     badgeVariant="success"
                 />
                 <SystemHealthDashboard />
             </motion.div>
 
-            {/* Section 2: Unified Two-Column Layout */}
             <motion.div
-                className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"
+                className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3"
                 {...sectionFade}
                 transition={{ ...sectionFade.transition, delay: 0.1 }}
             >
-                {/* Left Column (2 Cols): Communication & System Announcements */}
-                <div className="lg:col-span-2 space-y-6">
-                    {communication}
-                </div>
-
-                {/* Right Column (1 Col): Worker Controls & Quick Admin Tools */}
-                <div className="lg:col-span-1 space-y-6 sticky top-6">
-                    {/* Worker Sync Card */}
-                    <GodCard>
-                        <GodCardHeader
-                            title={
-                                <span className="flex items-center gap-2">
-                                    <Zap className="w-4 h-4 text-violet-400" />
-                                    Worker Sync & Diagnostic
-                                </span>
-                            }
-                            description="Outils de forçage manuel et réinitialisation des caches externes (Ladder, Metamob, Items Dofus)."
-                        />
-                        <GodCardBody>{worker}</GodCardBody>
-                    </GodCard>
-                </div>
+                <div className="space-y-6 lg:col-span-2">{communication}</div>
+                <div className="space-y-6 lg:col-span-1">{worker}</div>
             </motion.div>
         </div>
     );

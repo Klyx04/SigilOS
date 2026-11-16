@@ -17,8 +17,6 @@ import {
     isSuperAdmin,
     getActiveScopes,
     getAccessibleBricks,
-    getPlatformStats,
-    getPlatformActivityStats,
     getOcrApiStats,
     getAllowedGuilds
 } from "@/server/actions/super-admin-actions";
@@ -29,9 +27,7 @@ import {
     getPlatformBans,
     getActiveGuilds,
 } from "@/server/actions/god-lifecycle-actions";
-import { LiveStats } from "./components/live-stats";
 import { GuildTable } from "./components/guild-table";
-import { ActivityChart } from "./activity-chart";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
 import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
@@ -55,7 +51,6 @@ import { TelemetryDashboard } from "./components/telemetry-dashboard";
 import { CronStatusTabs } from "./components/cron-status-tabs";
 import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
-import { toGodLiveStats } from "@/lib/god-live-stats";
 
 
 export default async function SuperAdminPage(props: {
@@ -202,61 +197,54 @@ export default async function SuperAdminPage(props: {
     return (
         <div className="flex-1 flex flex-col min-h-0">
             <Suspense fallback={
-                <div className="flex-1 flex items-center justify-center bg-black py-20">
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                        <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Initializing Interface...</span>
+                <div className="flex flex-1 items-center justify-center py-20">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
+                        <span className="text-sm text-muted-foreground">Chargement du panneau…</span>
                     </div>
                 </div>
             }>
                 <GodDashboardClient activeTab={tab}>
                     {tab === "overview" && (
-                        <div className="space-y-12">
-                            {/* Header Area */}
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
-                                <div className="space-y-4 min-w-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 shrink-0">
-                                            <Activity className="w-5 h-5 text-blue-400" />
-                                        </div>
-                                        <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
-                                            Central Operations
-                                        </span>
+                        <div className="space-y-8">
+                            {/* Bandeau compact — une phrase, un horodatage, un lien. */}
+                            <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <Activity className="h-4 w-4 text-accent" aria-hidden />
+                                        <p className="text-xs text-muted-foreground">Exploitation SigilOS</p>
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">
-                                            Command Center
-                                        </h1>
-                                        <p className="text-zinc-500 text-base md:text-lg font-medium max-w-3xl leading-relaxed">
-                                            Supervision directe des services, diffusion des annonces système et déclencheurs d'infrastructures.
-                                        </p>
-                                    </div>
+                                    <h1 className="mt-1 text-xl font-semibold text-foreground">Pilotage</h1>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Santé des services, annonces et synchronisation — sans détour.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    <span>
+                                        Dernière lecture :{" "}
+                                        {new Intl.DateTimeFormat("fr-FR", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            timeZone: "Europe/Paris",
+                                        }).format(new Date())}
+                                    </span>
+                                    <a
+                                        href={`${godRoute}/logs`}
+                                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground hover:bg-elevated"
+                                    >
+                                        Journaux
+                                    </a>
                                 </div>
                             </div>
 
                             <OverviewTabs
-                                stats={
-                                    <Suspense fallback={<GodLoadingSkeleton rows={5} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6" />}>
-                                        <LiveStatsServer />
-                                    </Suspense>
-                                }
-                                chart={
-                                    <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
-                                        <ActivityChartServer />
-                                    </Suspense>
-                                }
                                 communication={
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                        <div className="lg:col-span-2">
-                                            <Suspense fallback={<GodLoadingSkeleton rows={3} />}>
-                                                <AnnouncementServer />
-                                            </Suspense>
-                                        </div>
-                                    </div>
+                                    <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
+                                        <AnnouncementServer />
+                                    </Suspense>
                                 }
                                 worker={
-                                    <Suspense fallback={<GodLoadingSkeleton rows={3} />}>
+                                    <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
                                         <WorkerTester />
                                     </Suspense>
                                 }
@@ -428,22 +416,6 @@ export default async function SuperAdminPage(props: {
             </Suspense>
         </div>
     );
-}
-
-async function LiveStatsServer() {
-    try {
-        const stats = await getPlatformStats();
-        // Même règle de forme que le flux SSE (`toGodLiveStats`) : le client remplace
-        // son état par chaque trame, les deux chemins doivent porter les mêmes champs.
-        return <LiveStats initialStats={toGodLiveStats(stats)} />;
-    } catch { return <div>Error stats</div> }
-}
-
-async function ActivityChartServer() {
-    try {
-        const chartData = await getPlatformActivityStats();
-        return <ActivityChart data={chartData} />;
-    } catch { return <div className="h-64 flex items-center justify-center">⚠ Chart Error</div>; }
 }
 
 async function OcrStatsServer() {

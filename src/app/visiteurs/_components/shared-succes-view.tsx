@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
+import { MonsterImage } from "@/components/succes/BountyFicheView";
 import { Input } from "@/components/ui/input";
 import { getClass } from "@/lib/dofus-assets";
 import { visitorProfileHref } from "@/lib/public-directory";
@@ -12,7 +13,12 @@ import {
     type SharedSuccesMember,
     type SharedSuccesRow,
 } from "@/lib/visitors-hub";
-import type { SharedSuccesDungeon, SharedSuccesDungeonBoard } from "@/server/public-succes-communs";
+import type {
+    SharedSuccesBounty,
+    SharedSuccesBountyBoard,
+    SharedSuccesDungeon,
+    SharedSuccesDungeonBoard,
+} from "@/server/public-succes-communs";
 import type { Translations } from "@/lib/i18n/locales/fr";
 
 /** Une colonne de membres — dense, plafonnée, avec le compte honnête du reste. */
@@ -132,15 +138,20 @@ function AchievementRow({
 export function SharedSuccesView({
     dungeons,
     selected,
+    bounties,
+    selectedBounty,
     search,
     labels,
 }: {
     dungeons: SharedSuccesDungeon[];
     selected: SharedSuccesDungeonBoard | null;
+    bounties: SharedSuccesBounty[];
+    selectedBounty: SharedSuccesBountyBoard | null;
     search: string;
     labels: Translations["visitorsPage"];
 }) {
     return (
+        <>
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
             <aside className="min-w-0">
                 <form method="get" action="/visiteurs" className="flex flex-col gap-2 sm:flex-row">
@@ -283,5 +294,137 @@ export function SharedSuccesView({
                 )}
             </section>
         </div>
+
+        <section className="mt-10" aria-labelledby="avis-communs">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                    <h2 id="avis-communs" className="reg-eyebrow">
+                        {labels.hub.bountyTitle}
+                    </h2>
+                    <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
+                        {labels.hub.bountyDesc}
+                    </p>
+                </div>
+                <p className="reg-mono text-xs text-muted-foreground">{bounties.length}</p>
+            </div>
+
+            <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+                <div className="reg-panel max-h-[28rem] overflow-y-auto">
+                    {bounties.length === 0 ? (
+                        <p className="p-3 text-sm text-muted-foreground">
+                            {labels.hub.noBounties}
+                        </p>
+                    ) : (
+                        <ul>
+                            {bounties.map((bounty) => {
+                                const active = selectedBounty?.bounty.id === bounty.id;
+                                const key = bounty.slug ?? bounty.id;
+                                return (
+                                    <li
+                                        key={bounty.id}
+                                        className="border-b border-border last:border-b-0"
+                                    >
+                                        <Link
+                                            href={buildVisitorsHubHref({
+                                                vue: "succes",
+                                                donjon:
+                                                    selected?.dungeon.slug ??
+                                                    selected?.dungeon.id ??
+                                                    null,
+                                                bounty: key,
+                                                q: search,
+                                            })}
+                                            aria-current={active ? "true" : undefined}
+                                            className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                                                active
+                                                    ? "bg-elevated text-foreground"
+                                                    : "text-muted-foreground hover:bg-elevated hover:text-foreground"
+                                            }`}
+                                        >
+                                            <MonsterImage
+                                                src={bounty.imageUrl}
+                                                className="size-6 shrink-0 rounded object-contain"
+                                            />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate font-medium">
+                                                    {bounty.name}
+                                                </span>
+                                                <span className="block truncate text-[11px]">
+                                                    {bounty.zoneName ?? "—"}
+                                                </span>
+                                            </span>
+                                            <span className="reg-mono shrink-0 text-[11px]">
+                                                {bounty.level}
+                                            </span>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
+
+                <div className="min-w-0">
+                    {selectedBounty ? (
+                        <article className="reg-panel p-4">
+                            <header className="flex items-start gap-3">
+                                <MonsterImage
+                                    src={selectedBounty.bounty.imageUrl}
+                                    className="size-12 shrink-0 rounded-lg object-contain"
+                                />
+                                <div className="min-w-0">
+                                    <h3 className="truncate text-base font-semibold text-foreground">
+                                        {selectedBounty.bounty.name}
+                                    </h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        LVL {selectedBounty.bounty.level}
+                                        {selectedBounty.bounty.zoneName
+                                            ? ` · ${selectedBounty.bounty.zoneName}`
+                                            : ""}
+                                    </p>
+                                    {selectedBounty.bounty.slug ? (
+                                        <Link
+                                            href={`/boss/${selectedBounty.bounty.slug}`}
+                                            className="reg-link mt-1 inline-block text-xs"
+                                        >
+                                            {labels.hub.bountySheet}
+                                        </Link>
+                                    ) : null}
+                                </div>
+                            </header>
+
+                            <div className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
+                                <MemberColumn
+                                    title={labels.hub.doneBy}
+                                    members={selectedBounty.board.done}
+                                    empty={labels.hub.noneDone}
+                                    labels={labels}
+                                />
+                                <MemberColumn
+                                    title={labels.hub.lookingFor}
+                                    members={selectedBounty.board.missing}
+                                    empty={labels.hub.noneLooking}
+                                    labels={labels}
+                                />
+                            </div>
+
+                            {selectedBounty.board.capped ? (
+                                <p className="mt-2 text-[11px] text-muted-foreground">
+                                    {labels.hub.capped.replace(
+                                        "{n}",
+                                        String(SHARED_SUCCES_VISITORS_TAKE)
+                                    )}
+                                </p>
+                            ) : null}
+                        </article>
+                    ) : (
+                        <div className="reg-panel p-6 text-sm text-muted-foreground">
+                            {labels.hub.chooseBountyDesc}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </section>
+        </>
     );
 }

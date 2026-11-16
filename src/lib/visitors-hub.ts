@@ -52,6 +52,8 @@ export type VisitorsHubSearch = {
     vue: VisitorsHubView;
     /** Donjon sélectionné (slug ou id) — seulement dans la vue « succes ». */
     donjon: string | null;
+    /** Avis de recherche sélectionné (slug ou id) — seulement dans la vue « succes ». */
+    bounty: string | null;
     /** Recherche de donjon — seulement dans la vue « succes » (la vue profils a son propre `q`). */
     q: string;
     /** Filtre de la vue « echanges » : Boss / Archimonstres. */
@@ -94,6 +96,15 @@ export function parseVisitorsHubSearch(
             ? donjonParsed.data
             : null;
 
+    const rawBounty = first(raw?.avis);
+    const bountyParsed = rawKeySchema.safeParse(
+        typeof rawBounty === "string" ? rawBounty.trim() : rawBounty
+    );
+    const bounty =
+        bountyParsed.success && isSharedSuccesDungeonKey(bountyParsed.data)
+            ? bountyParsed.data
+            : null;
+
     const rawQ = first(raw?.q);
     const qParsed = rawSearchSchema.safeParse(
         typeof rawQ === "string" ? rawQ.slice(0, RAW_SEARCH_MAX) : rawQ
@@ -104,9 +115,9 @@ export function parseVisitorsHubSearch(
     const type: VisitorsHubTradeType | null =
         rawType === "boss" || rawType === "archimonstre" ? rawType : null;
 
-    if (vue !== "succes" && vue !== "echanges") return { vue, donjon: null, q: "", type: null };
-    if (vue === "succes") return { vue, donjon, q, type: null };
-    return { vue, donjon: null, q: "", type };
+    if (vue !== "succes" && vue !== "echanges") return { vue, donjon: null, bounty: null, q: "", type: null };
+    if (vue === "succes") return { vue, donjon, bounty, q, type: null };
+    return { vue, donjon: null, bounty: null, q: "", type };
 }
 
 /**
@@ -117,6 +128,7 @@ export function parseVisitorsHubSearch(
 export function buildVisitorsHubHref(input: {
     vue: VisitorsHubView;
     donjon?: string | null;
+    bounty?: string | null;
     q?: string | null;
     type?: VisitorsHubTradeType | null;
 }): string {
@@ -124,6 +136,7 @@ export function buildVisitorsHubHref(input: {
     if (input.vue !== "profils") params.set("vue", input.vue);
     if (input.vue === "succes") {
         if (input.donjon) params.set("donjon", input.donjon);
+        if (input.bounty) params.set("avis", input.bounty);
         if (input.q) params.set("q", input.q);
     }
     if (input.vue === "echanges" && input.type) params.set("type", input.type);
@@ -162,6 +175,61 @@ export type SharedSuccesBoard = {
     /** Vrai si le serveur compte plus de profils que la borne : l'écran doit le dire. */
     capped: boolean;
 };
+
+export type SharedBounty = {
+    id: string;
+    name: string;
+    level: number;
+    zoneName: string | null;
+    slug: string | null;
+    imageUrl: string | null;
+};
+
+export type SharedBountyBoard = {
+    bounty: SharedBounty;
+    done: SharedSuccesMember[];
+    missing: SharedSuccesMember[];
+    visitorCount: number;
+    capped: boolean;
+};
+
+/**
+ * Tableau « qui a fait cet avis » — même périmètre que les succès de donjon : profils du
+ * serveur qui ont accepté d'apparaître. Une coche portée par plusieurs personnages du même
+ * profil ne crée **qu'une** entrée (dédoublonnage par `PublicProfile.id`).
+ */
+export function buildSharedBountyBoard(input: {
+    bounty: SharedBounty;
+    doneRows: ReadonlyArray<{ member: SharedSuccesMember }>;
+    visitors: ReadonlyArray<SharedSuccesMember>;
+    visitorCap?: number;
+}): SharedBountyBoard {
+    const cap = Math.max(1, input.visitorCap ?? SHARED_SUCCES_VISITORS_TAKE);
+    const capped = input.visitors.length > cap;
+    const visitors = [...(capped ? input.visitors.slice(0, cap) : input.visitors)].sort(
+        compareMembers
+    );
+    const byId = new Map(visitors.map((member) => [member.id, member]));
+
+    const done: SharedSuccesMember[] = [];
+    const seen = new Set<string>();
+    for (const row of input.doneRows) {
+        const member = byId.get(row.member.id);
+        if (!member || seen.has(member.id)) continue;
+        seen.add(member.id);
+        done.push(member);
+    }
+    done.sort(compareMembers);
+
+    return {
+        bounty: input.bounty,
+        done,
+        missing: visitors.filter((member) => !seen.has(member.id)),
+        visitorCount: visitors.length,
+        capped,
+    };
+}
+
 
 /** Ordre d'affichage stable : pseudo (insensible à la casse), pseudos vides en dernier. */
 function compareMembers(a: SharedSuccesMember, b: SharedSuccesMember): number {

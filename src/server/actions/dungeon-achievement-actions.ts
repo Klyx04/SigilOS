@@ -18,20 +18,40 @@ import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
+import {
+    readSuccesCharacters,
+    resolveSuccesCharacterSlotOrNull,
+    SUCCES_SLOT_MAX,
+} from "@/lib/succes-characters";
 import { getUserContext } from "./user-actions";
 
 const ToggleSchema = z.object({
     guildId: z.string().min(1).max(32),
     dungeonId: z.string().min(1).max(64),
     achievementId: z.string().min(1).max(64),
+    /** `"PRINCIPAL"` ou le pseudo d'une mule déclarée (coche par personnage). */
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
 });
 
 const ReadSchema = z.object({
     guildId: z.string().min(1).max(32),
     dungeonId: z.string().min(1).max(64),
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
 });
 
 type ToggleResponse = { success: boolean; error?: string; done?: boolean };
+
+/** Personnages du profil interne (principal + mules) et slot demandé, fail-closed. */
+async function resolveCharacterSlot(
+    profileId: string,
+    raw: string | undefined
+): Promise<string | null> {
+    const profile = await db.userProfile.findUnique({
+        where: { id: profileId },
+        select: { pseudoDofus: true, classe: true, altPseudos: true },
+    });
+    return resolveSuccesCharacterSlotOrNull(raw, readSuccesCharacters(profile ?? {}));
+}
 
 /** Bascule « fait » / « à faire » d'un succès de donjon pour le profil courant. */
 export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResponse> {
@@ -41,6 +61,9 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
+
+    const characterSlot = await resolveCharacterSlot(ctx.profileId, parsed.data.characterSlot);
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
 
     const limited = await rateLimit(`dungeon-achievement:${ctx.profileId}`, 60, 60_000);
     if (!limited.success) return { success: false, error: "Trop d'actions — réessaie dans une minute." };
@@ -55,9 +78,10 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
 
         const existing = await db.userDungeonAchievement.findUnique({
             where: {
-                userId_dungeonAchievementId: {
+                userId_dungeonAchievementId_characterSlot: {
                     userId: ctx.profileId,
                     dungeonAchievementId: achievement.id,
+                    characterSlot,
                 },
             },
             select: { id: true },
@@ -70,7 +94,7 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
 
         try {
             await db.userDungeonAchievement.create({
-                data: { userId: ctx.profileId, dungeonAchievementId: achievement.id },
+                data: { userId: ctx.profileId, dungeonAchievementId: achievement.id, characterSlot },
             });
         } catch (err) {
             // Course : deux clics rapprochés → la contrainte unique tranche, l'état reste « fait ».
@@ -90,18 +114,27 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
 export async function getDungeonAchievementStates(
     rawGuildId: string,
     rawDungeonId: string,
+    rawCharacterSlot?: string,
 ): Promise<{ success: boolean; error?: string; doneIds?: string[] }> {
-    const parsed = ReadSchema.safeParse({ guildId: rawGuildId, dungeonId: rawDungeonId });
+    const parsed = ReadSchema.safeParse({
+        guildId: rawGuildId,
+        dungeonId: rawDungeonId,
+        characterSlot: rawCharacterSlot,
+    });
     if (!parsed.success) return { success: false, error: "Données invalides" };
     const { guildId, dungeonId } = parsed.data;
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
 
+    const characterSlot = await resolveCharacterSlot(ctx.profileId, parsed.data.characterSlot);
+    if (!characterSlot) return { success: false, error: "Personnage inconnu." };
+
     try {
         const rows = await db.userDungeonAchievement.findMany({
             where: {
                 userId: ctx.profileId,
+                characterSlot,
                 dungeonAchievement: { dungeonId },
             },
             select: { dungeonAchievementId: true },

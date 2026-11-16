@@ -879,6 +879,8 @@ model UserProfile {
   roleGrants                 SigilRoleGrant[]
   submissions                Submission[]
   userDungeonAchievements    UserDungeonAchievement[]
+  /** Avis de recherche cochés (par personnage) — cf. UserBountyCompletion. */
+  userBountyCompletions      UserBountyCompletion[]
   dungeonProgress            UserDungeonProgress[]
   defiProgress               UserDefiProgress[]
   titanProgress              UserTitanProgress[]
@@ -963,6 +965,8 @@ model PublicProfile {
   rushProgress         PublicRushProgress[]
   professions          PublicProfession[]
   achievements         PublicDungeonAchievement[]
+  /** Avis de recherche cochés (par personnage) — cf. PublicBountyCompletion. */
+  bountyCompletions    PublicBountyCompletion[]
 
   @@index([dofusServerId, showOnDirectory])
   @@index([dofusServerId, showRushProgress])
@@ -1024,17 +1028,41 @@ model PublicProfession {
 ///
 /// Table dédiée : `UserDungeonAchievement` pointe `UserProfile`, qui est cloisonné par
 /// guilde (D-V1) — un visiteur n'en a pas.
+///
+/// `characterSlot` : `"PRINCIPAL"` ou le pseudo d'une mule déclarée. La coche est **par
+/// personnage** (demande du 16/11/2026) ; le défaut garde les lignes existantes sur le
+/// personnage principal sans réécriture.
 model PublicDungeonAchievement {
   id                   String             @id @default(cuid())
   publicProfileId      String
   dungeonAchievementId String
+  characterSlot        String             @default("PRINCIPAL")
   completedAt          DateTime           @default(now())
   profile              PublicProfile      @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
   dungeonAchievement   DungeonAchievement @relation(fields: [dungeonAchievementId], references: [id], onDelete: Cascade)
 
-  @@unique([publicProfileId, dungeonAchievementId])
-  @@index([publicProfileId])
+  @@unique([publicProfileId, dungeonAchievementId, characterSlot])
+  @@index([publicProfileId, characterSlot])
   @@index([dungeonAchievementId])
+}
+
+/// Avis de recherche cochés par un visiteur — une ligne par (profil, avis, personnage).
+///
+/// Même logique que `PublicDungeonAchievement` : `characterSlot` distingue le personnage
+/// principal des mules, et le consentement global de l'annuaire ne change pas (la coche
+/// ne sort que dans les vues « succès en commun » du même serveur).
+model PublicBountyCompletion {
+  id              String        @id @default(cuid())
+  publicProfileId String
+  bountyId        String
+  characterSlot   String        @default("PRINCIPAL")
+  completedAt     DateTime      @default(now())
+  profile         PublicProfile @relation(fields: [publicProfileId], references: [id], onDelete: Cascade)
+  bounty          Bounty        @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@unique([publicProfileId, bountyId, characterSlot])
+  @@index([publicProfileId, characterSlot])
+  @@index([bountyId])
 }
 
 /// Registre Membres & Recrutement — commentaires du staff : plusieurs par
@@ -1340,6 +1368,11 @@ model Bounty {
   battleMapSource String?
   dofusdbSyncedAt DateTime?
 
+  /// Coches « avis fait » — internes (membres) et visiteurs (annuaire). Une ligne par
+  /// personnage : voir `UserBountyCompletion` / `PublicBountyCompletion`.
+  userCompletions   UserBountyCompletion[]
+  publicCompletions PublicBountyCompletion[]
+
   @@index([name])
   @@index([zoneName])
   @@index([isBountyMonster])
@@ -1487,13 +1520,31 @@ model UserDungeonAchievement {
   id                   String             @id @default(cuid())
   userId               String
   dungeonAchievementId String
+  /// `"PRINCIPAL"` ou le pseudo d'une mule déclarée — coche **par personnage** (16/11/2026).
+  characterSlot        String             @default("PRINCIPAL")
   completedAt          DateTime           @default(now())
   dungeonAchievement   DungeonAchievement @relation(fields: [dungeonAchievementId], references: [id], onDelete: Cascade)
   user                 UserProfile        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, dungeonAchievementId])
-  @@index([userId])
+  @@unique([userId, dungeonAchievementId, characterSlot])
+  @@index([userId, characterSlot])
   @@index([dungeonAchievementId])
+}
+
+/// Avis de recherche cochés par un membre — une ligne par (profil, avis, personnage).
+/// Miroir interne de `PublicBountyCompletion` : mêmes bornes, même clé de personnage.
+model UserBountyCompletion {
+  id            String      @id @default(cuid())
+  userId        String
+  bountyId      String
+  characterSlot String      @default("PRINCIPAL")
+  completedAt   DateTime    @default(now())
+  user          UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bounty        Bounty      @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bountyId, characterSlot])
+  @@index([userId, characterSlot])
+  @@index([bountyId])
 }
 
 model Notification {

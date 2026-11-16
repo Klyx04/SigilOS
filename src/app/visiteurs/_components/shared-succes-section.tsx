@@ -1,6 +1,8 @@
 import type { DirectoryViewer } from "@/server/public-directory";
 import {
+    getSharedBountyBoard,
     getSharedSuccesDungeonBoard,
+    listSharedSuccesBounties,
     listSharedSuccesDungeons,
 } from "@/server/public-succes-communs";
 import type { VisitorsHubSearch } from "@/lib/visitors-hub";
@@ -21,10 +23,14 @@ export async function SharedSuccesSection({
     hub: VisitorsHubSearch;
     labels: Translations["visitorsPage"];
 }) {
-    const [dungeons, selected] = await Promise.all([
+    const [dungeons, selected, bounties, selectedBounty] = await Promise.all([
         listSharedSuccesDungeons(hub.q),
         hub.donjon
             ? getSharedSuccesDungeonBoard(viewer, hub.donjon)
+            : Promise.resolve(null),
+        listSharedSuccesBounties(hub.q),
+        hub.bounty
+            ? getSharedBountyBoard(viewer, hub.bounty)
             : Promise.resolve(null),
     ]);
 
@@ -32,6 +38,8 @@ export async function SharedSuccesSection({
         <SharedSuccesView
             dungeons={dungeons}
             selected={selected}
+            bounties={bounties}
+            selectedBounty={selectedBounty}
             search={hub.q}
             labels={labels}
         />

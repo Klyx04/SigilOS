@@ -18,8 +18,11 @@ import { SUCCES_DUNGEONS_TAKE } from "@/lib/succes-level-brackets";
 import {
     SHARED_SUCCES_TAKE,
     SHARED_SUCCES_VISITORS_TAKE,
+    buildSharedBountyBoard,
     buildSharedSuccesBoard,
     isSharedSuccesDungeonKey,
+    type SharedBounty,
+    type SharedBountyBoard,
     type SharedSuccesBoard,
     type SharedSuccesMember,
 } from "@/lib/visitors-hub";
@@ -176,4 +179,127 @@ export async function getSharedSuccesDungeonBoard(
     });
 
     return { dungeon: toDungeon(dungeon), board };
+}
+
+/** Entrée de la liste des avis (bornée, triée par niveau). */
+export type SharedSuccesBounty = SharedBounty;
+
+export type SharedSuccesBountyBoard = {
+    bounty: SharedSuccesBounty;
+    board: SharedBountyBoard;
+};
+
+const BOUNTY_SELECT = {
+    id: true,
+    name: true,
+    level: true,
+    zoneName: true,
+    slug: true,
+    imageUrl: true,
+} as const;
+
+function toBounty(row: {
+    id: string;
+    name: string;
+    level: number;
+    zoneName: string | null;
+    slug: string | null;
+    imageUrl: string | null;
+}): SharedSuccesBounty {
+    return {
+        id: row.id,
+        name: row.name,
+        level: row.level,
+        zoneName: row.zoneName,
+        slug: row.slug,
+        imageUrl: row.imageUrl,
+    };
+}
+
+/**
+ * Avis proposés à la sélection — uniquement les lignes **siphonnées**
+ * (`isBountyMonster: true`), même borne et même tri que les donjons.
+ */
+export async function listSharedSuccesBounties(query: string): Promise<SharedSuccesBounty[]> {
+    const rows = await db.bounty.findMany({
+        where: {
+            isBountyMonster: true,
+            ...(query
+                ? {
+                      OR: [
+                          { name: { contains: query, mode: "insensitive" } },
+                          { zoneName: { contains: query, mode: "insensitive" } },
+                      ],
+                  }
+                : {}),
+        },
+        select: BOUNTY_SELECT,
+        orderBy: [{ level: "asc" }, { name: "asc" }],
+        take: SUCCES_DUNGEONS_TAKE,
+    });
+    return rows.map(toBounty);
+}
+
+/**
+ * Tableau « qui a fait cet avis » : coches et profils consentants du **serveur du
+ * lecteur**. Même périmètre que les succès de donjon ; une coche multi-personnages
+ * ne crée qu'une entrée (dédoublonnage dans `buildSharedBountyBoard`).
+ */
+export async function getSharedBountyBoard(
+    viewer: DirectoryViewer,
+    bountyKey: string
+): Promise<SharedSuccesBountyBoard | null> {
+    if (!isSharedSuccesDungeonKey(bountyKey)) return null;
+
+    const bounty = await db.bounty.findFirst({
+        where: {
+            isBountyMonster: true,
+            OR: [{ slug: bountyKey }, { id: bountyKey }],
+        },
+        select: BOUNTY_SELECT,
+    });
+    if (!bounty) return null;
+
+    const [doneRows, visitors] = await Promise.all([
+        db.publicBountyCompletion.findMany({
+            where: {
+                bountyId: bounty.id,
+                profile: {
+                    dofusServerId: viewer.serverId,
+                    showOnDirectory: true,
+                },
+            },
+            select: {
+                profile: { select: { id: true, pseudoDofus: true, classe: true } },
+            },
+            take: SHARED_SUCCES_TAKE,
+        }),
+        db.publicProfile.findMany({
+            where: {
+                dofusServerId: viewer.serverId,
+                showOnDirectory: true,
+            },
+            select: { id: true, pseudoDofus: true, classe: true },
+            orderBy: { id: "desc" },
+            take: SHARED_SUCCES_VISITORS_TAKE + 1,
+        }),
+    ]);
+
+    const board = buildSharedBountyBoard({
+        bounty: toBounty(bounty),
+        doneRows: doneRows.map((row) => ({
+            member: {
+                id: row.profile.id,
+                pseudo: row.profile.pseudoDofus,
+                classe: row.profile.classe,
+            } satisfies SharedSuccesMember,
+        })),
+        visitors: visitors.map((visitor) => ({
+            id: visitor.id,
+            pseudo: visitor.pseudoDofus,
+            classe: visitor.classe,
+        })),
+    });
+
+    return { bounty: toBounty(bounty), board };
 }

@@ -34,9 +34,9 @@ vi.mock("@/lib/dofus-asset-siphon", () => ({
     ensureAssetDirsExist: vi.fn(),
 }));
 
-const mockAssertSafeUrl = vi.fn();
-vi.mock("@/lib/image-downloader", () => ({
-    assertSafeUrl: (...args: any[]) => mockAssertSafeUrl(...args),
+const mockSafeFetch = vi.fn();
+vi.mock("@/lib/safe-fetch", () => ({
+    safeFetch: (...args: unknown[]) => mockSafeFetch(...args),
 }));
 
 import { NextRequest } from "next/server";
@@ -69,7 +69,11 @@ function jsonResponse(body: unknown) {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mockAssertSafeUrl.mockResolvedValue(undefined);
+    // Les téléchargements d'URL externe passent par `safeFetch` : on délègue au `fetch`
+    // stubé par chaque cas, pour que les assertions existantes restent valables.
+    mockSafeFetch.mockImplementation((input: unknown, init?: unknown) =>
+        (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(input, init),
+    );
     mockSharpToBuffer.mockResolvedValue(Buffer.from("webp-bytes"));
     vi.unstubAllGlobals();
 });

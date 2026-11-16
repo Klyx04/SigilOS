@@ -319,13 +319,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   déjà : aucun import `@/server/` dans le client) ; **le guide anonyme n'affiche ni Metamob ni
   Rush Live**.
 - Bouton **« Réinitialiser »** : **mesuré le 08/11** — il est déjà dans la barre, rien à coder.
-- **Reste aussi** : l'**alignement** cliquable comme l'interne. Mesuré : `PublicProfile.alignment`
-  existe mais **aucune action ne l'écrit** et l'interne passe par `resetRushAlignment(guildId, …)`
-  (pas de `guildId` côté visiteur) → il faut une action `updatePublicAlignment` (V2a-4), pas une
-  tuile cliquable qui ouvrirait une modale vide.
-- **Reste** : jouer le rush sur une **mule déclarée** (`PublicProfile.altPseudos`, déjà publique).
-  Mesuré : la progression en base est clé par `characterSlot` (texte), donc **c'est possible** ;
-  il manque seulement la liste des mules dans le sélecteur (V2a-4).
+- **Soldé par V2a-4 (07-08/11)** : l'**alignement** (action `updatePublicAlignment`, modale cité → Ordre, vérifiée côté serveur) et les **mules déclarées** (`altPseudos` proposés dans `GuestCharacterModal`) sont **livrés**. Les deux « restes » qui figuraient ici étaient un pointeur périmé.
 
 **V2a-6 — invitation au profil (anonyme) — livré le 08/11/2026**
 - Le guide non connecté **encourage** à créer son profil visiteur (progression sauvegardée,
@@ -381,15 +375,15 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   carte Ocre compacte (étape, progression, Gardiens/Archimonstres, synchro 5 min + bouton) et
   **Registre Metamob** compact (pseudo, statut, menu vérifier/remplacer/délier) ; fiche lecture
   seule allégée (un bandeau de chiffres, Présentation/Objectifs en un panneau, métiers en chips).
-  Reste l'affinage assets/hiérarchie, sans règle métier.
+  **Affinage validé par le user le 15/11/2026** : plus rien à faire (assets et hiérarchie acceptés).
   **Metamob Ocre (11/11)** : onglet et titre renommés, icône archimonstre, filtre Tous / Boss /
   Archimonstres (`?type=`), monstres rangés par type avec icônes (types du template Metamob,
   images `Archimonstre` par nom, repli bestiaire), en-tête allégé.
 - **Reportés** : nettoyage des images (V-C, le local n'a pas tous les donjons — le VPS est la
   référence), V-D2, route publique du bloc B, V2d, V3.
 
-**V2d — Ladder serveur**
-- Mêmes écrans que l'interne, métriques du worker (pas les onglets Discord).
+**V2d — Ladder serveur — ABANDONNÉ le 15/11/2026**
+- Décision user : **on ne fait pas** de classement entre visiteurs. Conservé ici comme trace, aucun lot.
 
 **V2e — Liste des profils du serveur — livré le 06/11/2026**
 - `/visiteurs` (liste) et `/visiteurs/<id>` (fiche), **connectés seulement**, `noindex` : filtres

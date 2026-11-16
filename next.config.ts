@@ -232,6 +232,11 @@ export default withSentryConfig(nextConfig, {
   org: "sigilos",
   project: "javascript-nextjs",
 
+  // 🔑 Sans ce jeton, le plugin ne peut PAS uploader les source maps : les stacks restent
+  // minifiées (`app:///executors/200.js:1:1442`) et le tri Sentry est impossible.
+  // Il vient du build Docker (`ARG SENTRY_AUTH_TOKEN`, passé par la CI), jamais du runtime.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 

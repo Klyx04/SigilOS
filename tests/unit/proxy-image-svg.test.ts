@@ -12,7 +12,7 @@ const m = vi.hoisted(() => ({
     unlinkSync: vi.fn(),
     statSync: vi.fn(),
     writeFileSync: vi.fn(),
-    lookup: vi.fn(),
+    safeFetch: vi.fn(),
 }));
 
 vi.mock("node:fs", () => {
@@ -26,7 +26,8 @@ vi.mock("node:fs", () => {
     };
     return { default: api, ...api };
 });
-vi.mock("node:dns/promises", () => ({ lookup: m.lookup }));
+// Le proxy passe par la connexion sûre : on délègue au `fetch` stubé par chaque cas.
+vi.mock("@/lib/safe-fetch", () => ({ safeFetch: m.safeFetch }));
 
 import { GET } from "@/app/api/proxy-image/route";
 
@@ -48,7 +49,9 @@ beforeEach(() => {
     m.existsSync.mockReturnValue(false);
     m.mkdirSync.mockImplementation(() => undefined);
     m.readdirSync.mockReturnValue([]);
-    m.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    m.safeFetch.mockImplementation((input: unknown, init?: unknown) =>
+        (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(input, init),
+    );
 });
 
 afterEach(() => {

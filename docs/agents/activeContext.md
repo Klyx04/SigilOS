@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 2) — **Discord · Commande slash `/legendaire` (artisanat et éligibilité quête)** — branche `feat/commande-legendaire`
+
+> **Demande user** : « ajouter une nouvelle commande slash discord dans /dashboard/.../commandes manageable comme les autres dans /admin/commandes, l'objectif: trouvez qui peut craft tel objet legendaire... exemple /legendaire meriana affiche un bel embed avec la liste des pseudo qui ont le métier + la quete animaux fantastique faites donc eligible, l'icone de l'image dans l'embed etc ».
+> **Mesure** : `LegendaryItem` (métier, catégorie, passif, imageUrl) et `UserProfile` (`hasLegendaryPrerequisites`, `legendaryCrafts`, `metiers`) existaient déjà en BDD. Seul manquait le raccordement au catalogue des commandes slash et au routeur d'interactions Discord.
+> **Fait** : Commande ajoutée au catalogue `SLASH_COMMANDS_CATALOG` (`COMMUNAUTE`, rôles par défaut membre/officier/meneur) · Définition Discord dans `COMMAND_PRESENTATION` avec autocomplétion dynamique sur `item` (filtre nom/catégorie/métier insensible à la casse et accents) · Gestionnaire Discord interaction dans `route.ts` (recherche fuzzy, filtrage des membres actifs de la guilde, séparation artisans éligibles vs artisans métier 200 sans quête validée, ping Discord `<@id>`, vignette miniature `fullImageUrl`, passif et métadonnées) · Aperçu visuel dans `CommandsVisualGuide` (`EMBED_PREVIEWS`) · Pilotage et permissions RBAC automatiquement actifs dans `/dashboard/[guildId]/commandes` et `/admin/commandes`.
+> **Preuves** : Tests `slash-commands` (18/18), `discord-command-scope` (23/23), `lot4-slash-commands-api-keys` (4/4) verts · `npx tsc --noEmit` 0 erreur · `npm run lint` 0 erreur.
+> **Reste / ops** : Synchroniser les commandes slash sur Discord via le bouton « Resynchroniser » de l'administration des commandes ou le panneau God.
+> **Rotation** : bloc « Session 15/11/2026 — Tickets God · G4-1 → G4-4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 16/11/2026 (suite) — **Visiteur · tours publics (profil + guide Rush), rejouables et fermables** — branche `feat/tour-public`
 
 > **Décisions user (verbatim)** : « on créé juste un tour publique » — un tour **première fois seulement** sur le profil perso, un tour **complet** des briques du Rush « connecté / non connecté » (connecté = briques en plus), « tous les tours rejouable et fermable » ; `PUBLIC_VISITOR_ENTRY=1` ✅ **posé** ; God visiteurs **à placer** (trop d'onglets côté God) ; D7 à réexpliquer.
@@ -49,15 +58,6 @@
 > **Preuves** : `account-notifications-scope` **14** · ciblé **32** · suite **707 fichiers / 7 501 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
 > **Reste / ops** : N2 (émission changelog : migration additive d'enum, audience à mesurer, lien de destination à trancher), N3 (page + pastille), N4 (réponse au signalement) ; rien à déployer pour N1.
 > **Rotation** : bloc « 13/11/2026 (suite 3) — SEC-04 · cAdvisor supprimé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 15/11/2026 — **Tickets God · G4-1 → G4-4 : configuration dédiée, panneau, runtime, nettoyage** — branche `feat/tickets-god-config`
-
-> **Décisions user** : « G4-1 à 4, go, un commit par G, une PR finale » · catégories **libres** (option B : création, désactivation, jamais de suppression) · migration additive acceptée avant écriture.
-> **Fait** : `GodTicketConfig` + `GodTicketCategory` (migration `20270204000000`, seed des 4 catégories, backfill `categoryKey`, `csatRating`) · panneau `/god/ticket-bot` (serveur, salon, rôles staff/mention, nom du fil, fermeture, archivage, CSAT, catégories, publication ; RBAC God, Zod borné, rate limit, validation Discord fail-closed) · runtime : menu et modales depuis les catégories, création/fermeture/archivage/CSAT depuis la configuration · nettoyage : panneau manuel retiré, console Support alimentée par les catégories, `getBotGuilds` / `getChannelsForGuild` supprimées.
-> **Preuves** : suite **706 fichiers / 7 487 tests ✓** · `tsc` 0 · ESLint 0 erreur · verrous `god-ticket-config` **14**, `god-ticket-actions-guards` **12**, `god-ticket-runtime` **15**, `discord-interaction-ratelimit` **3** · migration appliquée en local (4 catégories, 12 tickets backfillés) · 4 commits de lots + docs + 2 correctifs, PR **#1374**.
-> **Reste / ops** : bêta puis prod → `20270204000000` ; God → `/god/ticket-bot` (serveur + salon + rôles, vérifier les catégories, **publier le panneau**) ; un ticket de test par catégorie + une fermeture avec CSAT ; la garde `discord-interaction-ratelimit` passe de 6 à 7 (CSAT).
-> **Rotation** : bloc « 13/11/2026 (suite 2) — RGPD · Ladder sur les messages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

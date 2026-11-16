@@ -22,6 +22,14 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { AUDIT_RETENTION_DAYS, MS_PER_DAY } from '../src/lib/audit-retention-policy';
 import { buildOrphanUserWhere } from '../src/lib/account-retention-policy';
 import { readTicketPlatformLimits } from '../src/lib/tickets/platform-limits';
+import {
+    LOG_PURGE_BATCH_SIZE,
+    LOG_PURGE_MAX_BATCHES,
+    LOG_RETENTION_DAYS,
+    buildServiceActivityPurgeWhere,
+    buildTelemetryPurgeWhere,
+    logPurgeCutoff,
+} from '../src/lib/telemetry-retention-policy';
 
 const GRACE_PERIOD_DAYS = 7;
 // ⚠️ Politique d'audit : SOURCE UNIQUE dans `src/lib/audit-retention-policy.ts`
@@ -395,6 +403,92 @@ async function main() {
                     where: { createdAt: { lt: ticketAuditCutoff } },
                 });
                 console.log(`  [DEL] Successfully deleted ${res.count} old ticket audit log entries.`);
+            }
+        }
+
+        // 13. Rétention de la télémétrie (90 j) et du journal d'activité (365 j).
+        //     Politique unique dans `src/lib/telemetry-retention-policy.ts`
+        //     (import relatif : ce script ne connaît pas les alias `@/`).
+        //     Compteurs seulement : aucun chemin, aucun pseudo, aucune guilde.
+        const retentionNow = new Date();
+        const telemetryCutoff = logPurgeCutoff(retentionNow, LOG_RETENTION_DAYS.TELEMETRY);
+        const serviceActivityCutoff = logPurgeCutoff(retentionNow, LOG_RETENTION_DAYS.SERVICE_ACTIVITY);
+
+        const telemetryDue = await db.telemetryEvent.count({
+            where: buildTelemetryPurgeWhere(telemetryCutoff),
+        });
+        console.log(`[Telemetry] Found ${telemetryDue} event(s) older than ${LOG_RETENTION_DAYS.TELEMETRY} days.`);
+        if (telemetryDue > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete up to ${Math.min(telemetryDue, LOG_PURGE_BATCH_SIZE * LOG_PURGE_MAX_BATCHES)} telemetry event(s) this pass.`);
+            } else {
+                let telemetryDeleted = 0;
+                let telemetryHasMore = false;
+                for (let batch = 0; batch < LOG_PURGE_MAX_BATCHES; batch += 1) {
+                    const due = await db.telemetryEvent.findMany({
+                        where: buildTelemetryPurgeWhere(telemetryCutoff),
+                        orderBy: { createdAt: 'asc' },
+                        take: LOG_PURGE_BATCH_SIZE + 1,
+                        select: { id: true },
+                    });
+                    const hasMore = due.length > LOG_PURGE_BATCH_SIZE;
+                    const ids = (hasMore ? due.slice(0, LOG_PURGE_BATCH_SIZE) : due).map((event) => event.id);
+                    if (ids.length === 0) {
+                        telemetryHasMore = false;
+                        break;
+                    }
+                    const removed = await db.telemetryEvent.deleteMany({
+                        where: { ...buildTelemetryPurgeWhere(telemetryCutoff), id: { in: ids } },
+                    });
+                    telemetryDeleted += removed.count;
+                    telemetryHasMore = hasMore;
+                    if (!hasMore) break;
+                }
+                console.log(`  [DEL] Successfully deleted ${telemetryDeleted} telemetry event(s)${telemetryHasMore ? ' (more work remains)' : ''}.`);
+            }
+        }
+
+        const serviceActivityDue = await db.serviceActivityLog.count({
+            where: buildServiceActivityPurgeWhere(serviceActivityCutoff),
+        });
+        console.log(`[ServiceActivity] Found ${serviceActivityDue} activity log(s) older than ${LOG_RETENTION_DAYS.SERVICE_ACTIVITY} days.`);
+        if (serviceActivityDue > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete up to ${Math.min(serviceActivityDue, LOG_PURGE_BATCH_SIZE * LOG_PURGE_MAX_BATCHES)} activity log(s) this pass.`);
+            } else {
+                const guilds = await db.guildConfig.findMany({
+                    orderBy: { id: 'asc' },
+                    select: { id: true },
+                });
+                let serviceActivityDeleted = 0;
+                let serviceActivityBatches = 0;
+                let serviceActivityHasMore = false;
+                for (const guild of guilds) {
+                    if (serviceActivityBatches >= LOG_PURGE_MAX_BATCHES) {
+                        serviceActivityHasMore = true;
+                        break;
+                    }
+                    const due = await db.serviceActivityLog.findMany({
+                        where: { guildId: guild.id, ...buildServiceActivityPurgeWhere(serviceActivityCutoff) },
+                        orderBy: { createdAt: 'asc' },
+                        take: LOG_PURGE_BATCH_SIZE + 1,
+                        select: { id: true },
+                    });
+                    const hasMore = due.length > LOG_PURGE_BATCH_SIZE;
+                    const ids = (hasMore ? due.slice(0, LOG_PURGE_BATCH_SIZE) : due).map((log) => log.id);
+                    if (ids.length === 0) continue;
+                    const removed = await db.serviceActivityLog.deleteMany({
+                        where: {
+                            guildId: guild.id,
+                            ...buildServiceActivityPurgeWhere(serviceActivityCutoff),
+                            id: { in: ids },
+                        },
+                    });
+                    serviceActivityDeleted += removed.count;
+                    serviceActivityBatches += 1;
+                    if (hasMore) serviceActivityHasMore = true;
+                }
+                console.log(`  [DEL] Successfully deleted ${serviceActivityDeleted} activity log(s)${serviceActivityHasMore ? ' (more work remains)' : ''}.`);
             }
         }
 

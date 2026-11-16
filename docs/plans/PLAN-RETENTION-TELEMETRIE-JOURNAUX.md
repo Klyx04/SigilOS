@@ -1,7 +1,7 @@
 # 🧹 Rétention — télémétrie et journal d'activité
 
-> **Statut** : cadré le 16/11/2026, **aucun code écrit**. Suppression de données ⇒
-> **go-ahead explicite de l'utilisateur avant la première ligne** (AGENTS §7).
+> **Statut** : **livré le 16/11/2026** (go-ahead explicite reçu). Trois commits :
+> policy + core, wiring `cleanup-logs`/janitor, compteurs God « Stockage ».
 > **Ordre** : `docs/ROADMAP.md` §2 bis, **lot A**. Mesure d'origine : `ROADMAP.md` §0 (16/11/2026).
 
 ## 1. Mesure (16/11/2026)
@@ -95,13 +95,19 @@ dry-run, puis passe réelle avec compteurs. Le janitor ne doit jamais journalise
 5. Compteurs Stockage : test du formatage pur (lignes + « jamais purgé » / date) si un helper est
    extrait ; sinon verrou de source sur l'action gardée.
 
+**Livré** : `tests/unit/telemetry-retention-policy.test.ts` (6), `tests/unit/log-retention.test.ts` (13),
+`tests/unit/cleanup-logs.test.ts` (8), `tests/unit/janitor-logs-retention.test.ts` (5),
+`tests/unit/storage-retention-stats.test.ts` (3) — **35 cas ciblés verts**.
+
 ## 7. Critères d'acceptation
 
 - [ ] Après **deux passes consécutives**, `count({ createdAt: { lt: cutoff } }) === 0` pour les deux tables.
 - [ ] La 2ᵉ passe ne supprime rien (idempotence) et le résumé cron le montre.
 - [ ] Aucune ligne `TelemetryEvent` > 90 j, aucune `ServiceActivityLog` > 365 j.
-- [ ] `cleanup-logs` fonctionne même si la purge d'audit ou du marché échoue (isolation).
-- [ ] `npm run test:run` vert, `npx tsc --noEmit` 0, `npm run lint` 0 erreur, `git status` propre.
+- [x] `cleanup-logs` fonctionne même si la purge d'audit ou du marché échoue (isolation) — testé.
+- [x] `npm run test:run` vert (**733 fichiers / 7 719 tests**), `npx tsc --noEmit` 0, `npm run lint` 0 erreur, `git status` propre.
+
+**Non mesurable dans l'arbre** : les deux premiers critères (zéro ligne échue après deux passes, idempotence en production) se constatent sur la base, après la première passe réelle. La mesure est listée en §8 « ops ».
 
 ## 8. Risques / ops
 

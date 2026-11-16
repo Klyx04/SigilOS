@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 7) — **Rétention · lot A : purge télémétrie 90 j + journal d'activité 365 j** — branche `feat/retention-logs`
+
+> **Décision user (verbatim)** : « A complet » — go explicite pour le lot A du cadrage `PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` (suppression de données) ; durées **90 j** / **365 j** inchangées.
+> **Mesure** : `cleanup-logs` ne connaissait que l'audit (90/30 j), les notifs God et le marché ; `scripts/database-janitor.ts` ne citait ni `TelemetryEvent` ni `ServiceActivityLog` ⇒ **aucune purge** sur les deux tables. `TelemetryEvent` porte **6 index** dont `[createdAt]` ; `ServiceActivityLog` **3 index**, aucun sur `createdAt` seul.
+> **Fait** : **policy** `src/lib/telemetry-retention-policy.ts` (90/365, lots de 500, budget de 10 lots) · **core** `src/server/log-retention.ts` (hors `"use server"`, suppression conditionnelle par ids, télémétrie par `createdAt`, activité **guilde par guilde** sur `GuildConfig.id` interne, `hasMore`/`failed` isolés, compteurs seulement) · **`cleanup-logs`** : deux purges isolées, compteurs dans `recordCronExecution`, `console.error` → `logger` · **janitor** : même politique en import relatif, `DRY_RUN` conservé · **God Stockage** : `getGuildLogsStats` expose `retention` (`count` + `aggregate _min.createdAt`), onglet « Logs par guilde » avec deux tuiles en lecture seule (Télémétrie 90 j / Journal d'activité 365 j, plus ancienne ligne, « purge au prochain cron »).
+> **Preuves** : **35 tests ciblés verts** (`telemetry-retention-policy` 6, `log-retention` 13, `cleanup-logs` 8, `janitor-logs-retention` 5, `storage-retention-stats` 3) · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · `git status --short` propre · **`npm run test:run` à passer avant la PR**.
+> **Reste / ops (humain)** : première passe réelle — dry-run du janitor puis `cleanup-logs`, mesure des compteurs God avant/après ; si `hasMore` reste vrai plusieurs jours, augmenter `LOG_PURGE_MAX_BATCHES` **avec la mesure** ; image applicative pour le cron, `git pull` sur le VPS pour le janitor ; exporter (`exportTelemetryDataAction`) **avant** la première passe si des tendances > 90 j doivent être conservées.
+> **Rotation** : bloc « Session 16/11/2026 (suite) — Visiteur · tours publics (profil + guide Rush) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 6) — **God · V3 visiteurs (liste + reset) + fiche guilde refondue** — branche `feat/god-visiteurs`
 
 > **Décisions user (verbatim)** : « V3 god des visiteurs : à dev coté guilde oui avec la refonte UI de toute la partie guilde complete en meme temps , raz le q de tous ces IA slop » · « le jour de l'ouverture on aura la meme chose que la landing actuel de la beta » (**D7 tranché**) · « la démo est loin d'être fini » · acquisition = outils publics déjà en ligne · V2d abandonné · affinage fiche soldé.
@@ -57,15 +67,6 @@
 > **Preuves** : Tests `slash-commands` (18/18), `discord-command-scope` (24/24), `discord-legendaire-embed` (7/7), `lot4-slash-commands-api-keys` (4/4), `tickets-lot1-bugs` (14/14) verts · `npx tsc --noEmit` 0 erreur · `npm run lint` 0 erreur.
 > **Reste / ops** : Synchroniser les commandes slash sur Discord via le bouton « Resynchroniser » de l'administration des commandes ou le panneau God.
 > **Rotation** : bloc « Session 15/11/2026 — Tickets God · G4-1 → G4-4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 16/11/2026 (suite) — **Visiteur · tours publics (profil + guide Rush), rejouables et fermables** — branche `feat/tour-public`
-
-> **Décisions user (verbatim)** : « on créé juste un tour publique » — un tour **première fois seulement** sur le profil perso, un tour **complet** des briques du Rush « connecté / non connecté » (connecté = briques en plus), « tous les tours rejouable et fermable » ; `PUBLIC_VISITOR_ENTRY=1` ✅ **posé** ; God visiteurs **à placer** (trop d'onglets côté God) ; D7 à réexpliquer.
-> **Mesure** : le moteur de tour existant (`src/components/tour/tour-provider.tsx`) était **couplé à la guilde** (signature `guildId: string`, clés `sigilos-tour-*-${guildId}`, auto-start `?tour=1` du dashboard) ; aucune route God « visiteurs » n'existe (`src/app/god/` sans dossier dédié) ; `PlatformBan` existe déjà.
-> **Fait** : règle pure `src/lib/public-tour.ts` (deux builders, filtre `visitor`/`anonymous`, drapeau `sigilos:visitor-tour-seen`, `shouldAutoStartVisitorTour`) · provider étendu (`scope="public"`, `guildId?`, `storageScope`, `visitorConnected`, `locale`, phases `rushPublic`/`visitorSpace` dans `MODULE_TOUR_PHASES`) · **15 ancres** `data-tour` dans `PublicRushGuideClient` + **11** dans `visitor-nav`/`general` · launcher de première arrivée (`visitor-tour-launcher.tsx`, drapeau posé au démarrage effectif) · rejeu : bouton « Visite guidée » + entrée Options du guide, carte « Revisiter » dans Réglages (`?tour=1`) · bulle `TourOverlay` **déslopée** (violet/glass/`font-black`/`rounded-2xl` retirés, accent produit).
-> **Preuves** : `public-tour` **19** · `tour-overlay-viewport` **7** (clé scopée) · `rush-public-parity` **48** · `rush-public-onboarding` **6** · `visitor-shell` **7** · ciblé **100/100** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : V3 God visiteurs (emplacement à trancher) · **D7** (landing `maintenance.html` vs `page.tsx`) · contrôle visuel 390/768/1024/1440 de la bulle et des deux parcours · rebuild bêta/prod.
-> **Rotation** : bloc « Session 14/11/2026 (suite) — Support · captures paramétrables, doc produit, cadrage G4 et notifications » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

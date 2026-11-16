@@ -10,6 +10,7 @@ import { join, normalize } from "path";
 import { existsSync } from "fs";
 import { rateLimit } from "@/lib/ratelimit";
 import { redis } from "@/lib/redis";
+import { LOG_RETENTION_DAYS } from "@/lib/telemetry-retention-policy";
 
 const kamaDb = db as unknown as PrismaClient;
 
@@ -784,9 +785,19 @@ export async function setGuildStorageLimit(
  * - AuditLog (logs d'audit sécurité par guilde, isGodLog=false)
  * Réservé super-admin.
  */
+export type LogRetentionStats = {
+    telemetry: { rows: number; oldest: string | null };
+    serviceActivity: { rows: number; oldest: string | null };
+    policy: { telemetryDays: number; serviceActivityDays: number };
+};
+
 export async function getGuildLogsStats(): Promise<{
     success: boolean;
-    data?: { rows: { guildId: string; name: string; serviceLogs: number; auditLogs: number; total: number }[]; totals: { serviceLogs: number; auditLogs: number; total: number } };
+    data?: {
+        rows: { guildId: string; name: string; serviceLogs: number; auditLogs: number; total: number }[];
+        totals: { serviceLogs: number; auditLogs: number; total: number };
+        retention: LogRetentionStats;
+    };
     error?: string;
 }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
@@ -813,7 +824,30 @@ export async function getGuildLogsStats(): Promise<{
         { serviceLogs: 0, auditLogs: 0, total: 0 }
     );
 
-    return { success: true, data: { rows, totals } };
+    // Rétention globale (hors fenêtre 30 j) : compteurs mesurés, pas d'estimation.
+    // `count()` + `aggregate _min.createdAt` uniquement — aucun SQL brut.
+    const [telemetryRows, telemetryOldest, serviceActivityRows, serviceActivityOldest] = await Promise.all([
+        db.telemetryEvent.count(),
+        db.telemetryEvent.aggregate({ _min: { createdAt: true } }),
+        db.serviceActivityLog.count(),
+        db.serviceActivityLog.aggregate({ _min: { createdAt: true } }),
+    ]);
+    const retention: LogRetentionStats = {
+        telemetry: {
+            rows: telemetryRows,
+            oldest: telemetryOldest._min.createdAt?.toISOString() ?? null,
+        },
+        serviceActivity: {
+            rows: serviceActivityRows,
+            oldest: serviceActivityOldest._min.createdAt?.toISOString() ?? null,
+        },
+        policy: {
+            telemetryDays: LOG_RETENTION_DAYS.TELEMETRY,
+            serviceActivityDays: LOG_RETENTION_DAYS.SERVICE_ACTIVITY,
+        },
+    };
+
+    return { success: true, data: { rows, totals, retention } };
 }
 
 /**

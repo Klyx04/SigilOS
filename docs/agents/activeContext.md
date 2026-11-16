@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite) — **Visiteur · tours publics (profil + guide Rush), rejouables et fermables** — branche `feat/tour-public`
+
+> **Décisions user (verbatim)** : « on créé juste un tour publique » — un tour **première fois seulement** sur le profil perso, un tour **complet** des briques du Rush « connecté / non connecté » (connecté = briques en plus), « tous les tours rejouable et fermable » ; `PUBLIC_VISITOR_ENTRY=1` ✅ **posé** ; God visiteurs **à placer** (trop d'onglets côté God) ; D7 à réexpliquer.
+> **Mesure** : le moteur de tour existant (`src/components/tour/tour-provider.tsx`) était **couplé à la guilde** (signature `guildId: string`, clés `sigilos-tour-*-${guildId}`, auto-start `?tour=1` du dashboard) ; aucune route God « visiteurs » n'existe (`src/app/god/` sans dossier dédié) ; `PlatformBan` existe déjà.
+> **Fait** : règle pure `src/lib/public-tour.ts` (deux builders, filtre `visitor`/`anonymous`, drapeau `sigilos:visitor-tour-seen`, `shouldAutoStartVisitorTour`) · provider étendu (`scope="public"`, `guildId?`, `storageScope`, `visitorConnected`, `locale`, phases `rushPublic`/`visitorSpace` dans `MODULE_TOUR_PHASES`) · **15 ancres** `data-tour` dans `PublicRushGuideClient` + **11** dans `visitor-nav`/`general` · launcher de première arrivée (`visitor-tour-launcher.tsx`, drapeau posé au démarrage effectif) · rejeu : bouton « Visite guidée » + entrée Options du guide, carte « Revisiter » dans Réglages (`?tour=1`) · bulle `TourOverlay` **déslopée** (violet/glass/`font-black`/`rounded-2xl` retirés, accent produit).
+> **Preuves** : `public-tour` **19** · `tour-overlay-viewport` **7** (clé scopée) · `rush-public-parity` **48** · `rush-public-onboarding` **6** · `visitor-shell` **7** · ciblé **100/100** · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops** : V3 God visiteurs (emplacement à trancher) · **D7** (landing `maintenance.html` vs `page.tsx`) · contrôle visuel 390/768/1024/1440 de la bulle et des deux parcours · rebuild bêta/prod.
+> **Rotation** : bloc « Session 14/11/2026 (suite) — Support · captures paramétrables, doc produit, cadrage G4 et notifications » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 ## 📝 Session 16/11/2026 — **Sentry · un log n'est pas une exception, bruit mesuré filtré, impact par utilisateur** — branche `fix/sentry-bruit`
 
 > **Décisions user (verbatim)** : « pousse déjà tout ce qui doit être en local vers git et on repart là-dessus » ; les issues déjà résolues sont clôturées ; priorité au tri du bruit avant 1M/2R.
@@ -52,13 +60,7 @@
 > **Rotation** : bloc « 13/11/2026 (suite 2) — RGPD · Ladder sur les messages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 14/11/2026 (suite) — **Support · captures paramétrables (textuel/forum), doc produit, cadrage G4 et notifications** — branches `feat/support-canal-captures` → `fix/support-canal-captures-console` → `feat/support-tags-forum`
 
-> **Décisions user** : capture d'écran = **aucun upload**, on renvoie vers un **salon configurable côté God** (console **Support → Signalements**) ; un admin de guilde **ne répond pas** (seul le God répond) ; G4 = **panneau God dédié, paramétrable bout en bout, aucun ID en dur** (route 2) ; pas d'auto-onboarding dans ce chantier ; notifications = **espace de notifications du compte** (changelog, news, réponses ; Rush en v2).
-> **Fait** : PR #1368 réparée (conflit `activeContext` uniquement, merge `dev` + rotation) · salon des captures : règle pure + service **fail-closed** (salon → serveur via `fetchChannel`, cache Redis) + réglage God dans la console Support → Signalements (validation réelle + rate limit) + lien cliquable dans l'overlay Rush, le bouton visiteur et le formulaire dashboard, **plus d'invitation en dur** · **forum accepté** (post créé par le bot : titre `[SIG-n] type — extrait`, **tag choisi par type côté God** parmi les tags réels du forum, URL conservée dans `forumLink`) · doc produit `signalements` (bouton sur le tracker, route `/tracker`, fiche locale volatile) · `PLAN-TICKETS-GOD.md` (G4 route 2 actée) et `PLAN-NOTIFICATIONS.md` (N1→N4) · ROADMAP rang 65 + prod mis à jour (`main` = `c190f2c7`).
-> **Preuves** : verrou neuf `feedback-screenshot-channel` **19** · ciblé **70 tests** · suite **703 fichiers / 7 446 tests** · `tsc` 0 · ESLint 0 erreur · **migration additive `20270203000000_feedback_forum_tag_map`** appliquée en local · PR #1370, #1371, #1372 **mergées** · `dev` = `6a73bbfd` · **0 PR ouverte**.
-> **Reste / ops** : renseigner le salon (textuel ou forum) **et les tags par type** dans Support → Signalements (bêta puis prod) · **doc `signalements` à uploader** via God → Docs · **G4-1** (migration additive de la configuration dédiée) à valider avant écriture · notifications : trancher news / opt-out / rétention · ops signalements inchangées (`20270201000000` → script → filet → drop).
-> **Rotation** : bloc « 13/11/2026 — Sécurité · AUD-01/02/03 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

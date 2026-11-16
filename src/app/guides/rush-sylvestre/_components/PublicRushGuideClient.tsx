@@ -31,6 +31,7 @@ import {
   Settings2,
   Download,
   Upload,
+  Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -157,6 +158,8 @@ import { PublicRushLiveToast } from "./PublicRushLiveToast";
 import { usePublicRushLive } from "@/hooks/use-public-rush-live";
 import { RushOverlayPrereqModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal";
 import { PublicOnboardingModal, type OnboardingStep } from "./PublicOnboardingModal";
+import { useTour } from "@/components/tour/tour-provider";
+import { TourOverlay } from "@/components/tour/tour-overlay";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
 
 interface QuestBlock {
@@ -358,6 +361,10 @@ const ONBOARDING_FLAG = "sigilos:rush-public-onboarded";
 
 export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConnected = false, visitor = null }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
+  // Visite guidée du guide (phase publique `rushPublic`) : fournie par le provider
+  // monté dans la page. Connecté et anonyme partagent le tronc ; les étapes du
+  // compte (Metamob, Rush Live) sont filtrées par la règle pure.
+  const { startTour } = useTour();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
   // facultatifs) : chaque personnage garde SES étapes cochées et SON repère. Sans
@@ -1563,7 +1570,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           « Personnage actif » pour la même intention étaient un doublon ; l'interne
           n'a qu'une tuile. L'identité du COMPTE reste gardée par `visitor` (un
           anonyme ne la voit pas), mais elle se lit désormais DANS la tuile. */}
-      <header className="da-guide-hero">
+      <header className="da-guide-hero" data-tour="rush-public-hero">
         <div className="da-guide-hero-inner">
           <nav aria-label="Fil d'Ariane" className="da-guide-hero-crumb">
             <Link href="/guides" className="da-kicker">
@@ -1602,7 +1609,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           ) : !isConnected ? (
             /* V2a-6 — invitation DISCRÈTE au profil visiteur : un lien, jamais une modale
                forcée. La lecture du guide reste entièrement libre. */
-            <Link href="/espace-visiteur/general" className="da-guide-hero-cta">
+            <Link href="/espace-visiteur/general" className="da-guide-hero-cta" data-tour="rush-public-cta">
               {locale === "en" ? "Create my visitor profile →" : "Créer mon profil visiteur →"}
             </Link>
           ) : null}
@@ -1614,8 +1621,27 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           « Ma cité » vit dans « Options » (le choix pilote toujours la route, il n'est
           plus au premier plan) et le conseil « Niv. 200 » n'est plus affiché nulle part. */}
       <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-2.5 sm:px-5">
+          {/* Visite guidée : rejouable à tout moment, fermable (Passer / Échap).
+              Elle cible les briques de CETTE page ; connecté, deux étapes de plus
+              détaillent Metamob et Rush Live. */}
           <button
             type="button"
+            onClick={() => startTour("rushPublic")}
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            title={
+              locale === "en"
+                ? "Replay the guided tour of this guide"
+                : "Revoir la visite guidée de ce guide"
+            }
+            aria-label={locale === "en" ? "Start the guided tour" : "Lancer la visite guidée"}
+          >
+            <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{locale === "en" ? "Guided tour" : "Visite guidée"}</span>
+          </button>
+
+          <button
+            type="button"
+            data-tour="rush-public-resources"
             onClick={() => setShowResources(true)}
             className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
             title={
@@ -1658,7 +1684,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             (progression locale) quand il existe, sinon l'identité du COMPTE connecté
             (fusionnée ici depuis le bandeau V2a-1). Anonyme sans personnage ⇒ rendu
             d'avant, à l'identique. */}
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5" data-tour="rush-public-character">
           {activeClass ? (
             // Icône de classe du jeu (mêmes PNG que le profil et le dashboard).
             // eslint-disable-next-line @next/next/no-img-element
@@ -1917,6 +1943,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           return (
             <button
               type="button"
+              data-tour="rush-public-alignment"
               onClick={() => setAlignmentOpen(true)}
               title={locale === "en" ? "Set my alignment" : "Changer mon alignement"}
               className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
@@ -1938,6 +1965,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         {visitor ? (
           <button
             type="button"
+            data-tour="rush-public-metamob"
             onClick={() => setMetamobOpen(true)}
             className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
             title={
@@ -1990,6 +2018,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         {visitor ? (
           <button
             type="button"
+            data-tour="rush-public-rush-live"
             onClick={() => setRushLiveOpen(true)}
             className="-mx-1 flex min-w-0 items-center gap-2.5 rounded-[4px] px-1 py-1 text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-accent/50"
             title={
@@ -2030,6 +2059,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             (`/assets/dofus/modules/guide.png`) — plus le glyphe générique `Sparkles`. */}
         <button
           type="button"
+          data-tour="rush-public-overlay"
           onClick={handleLaunchOverlay}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-success px-3 py-1.5 text-xs font-medium text-success-foreground transition-colors hover:bg-success/90"
           title={
@@ -2078,7 +2108,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           V2a-4 y branchera « Revoir le tour ».
           F4 (11/11/2026) : la rangée respire (gap et hauteur augmentés, champ plus
           large) — le champ et « Options » ne sont plus collés. */}
-      <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+      <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5" data-tour="rush-public-search">
         <div className="relative min-w-0 flex-1 sm:max-w-lg">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -2108,6 +2138,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              data-tour="rush-public-options"
               aria-label={locale === "en" ? "Guide options" : "Options du guide"}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
             >
@@ -2146,6 +2177,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               <HelpCircle className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <span className="text-xs font-semibold">
                 {locale === "en" ? "Replay the welcome tour" : "Revoir l accueil"}
+              </span>
+            </DropdownMenuItem>
+
+            {/* Visite complète du guide : la même phase `rushPublic` que le bouton
+                de la barre d outils, donc un seul jeu d étapes à maintenir. */}
+            <DropdownMenuItem
+              onSelect={() => startTour("rushPublic")}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
+            >
+              <Compass className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-xs font-semibold">
+                {locale === "en" ? "Guided tour of the guide" : "Visite guidée du guide"}
               </span>
             </DropdownMenuItem>
 
@@ -2249,7 +2292,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           Elle vivait en 160 px dans la rangée d'actions, et un second
           `reg-progress` la répétait plus bas : mesuré le 05/11/2026, deux
           barres pour la même donnée. Il n'en reste qu'une. */}
-      <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 sm:px-5">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 sm:px-5" data-tour="rush-public-progress">
         <span className="text-[11px] text-muted-foreground">
           {locale === "en" ? "Local progress" : "Progression locale"}
         </span>
@@ -2280,7 +2323,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       {/* ── PROGRESSION PAR DOFUS — une seule carte (chantier 4) : vue « Moi » pour tout le
           monde, vue « Communauté » pour un compte connecté (chargée à la demande). Chaque
           Dofus ouvre sa fiche ; l'Ocre y montre deux mesures séparées (blocs / captures). */}
-      <div className="px-4 pb-4 sm:px-5 lg:px-6">
+      <div className="px-4 pb-4 sm:px-5 lg:px-6" data-tour="rush-public-dofus-progress">
         <PublicDofusProgressPanel
           milestones={rawMilestones}
           completedSeqIds={completedSeqIds}
@@ -2360,7 +2403,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           sidebar PARTAGÉE à droite (chapitres, progression, donjons & métiers à
           prévoir, objets requis avec bascule Restantes/Toutes). Sur petit écran elle
           passe sous le contenu — aucune information perdue, aucun doublon de rendu. */}
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-6" data-tour="rush-public-chapters">
         {visibleMilestones.map((ms) => {
           const blockNumber = blockNumbers.get(ms.id) ?? 0;
           const isDone = completedIds.has(ms.id);
@@ -2461,6 +2504,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             <div
               key={ms.id}
               id={`bloc-${ms.id}`}
+              data-tour="rush-public-block"
               className={cn(
                 "reg-panel-strong overflow-hidden transition-colors",
                 isDone ? "border-success/30 opacity-80" : "border-border"
@@ -3213,7 +3257,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             donjons & métiers à prévoir, objets requis. `hideChapters` évite le doublon
             avec le sommaire de gauche ; le dashboard ne passe pas la prop et garde donc
             exactement son rendu (parité public ↔ interne). */}
-        <div className="da-guide-aside">
+        <div className="da-guide-aside" data-tour="rush-public-dungeons">
           <RushChapterSidebar
             milestones={milestones as any}
             completedSeqIds={completedSeqIds}
@@ -3402,6 +3446,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             pipWin.document.body
           )
         : null}
+
+      {/* Visite guidée du guide : même moteur et même bulle que les tours de guilde,
+          « Passer » + Échap restent disponibles. Montée sous le provider public ;
+          la bulle garde les tokens du produit (elle ne dépend pas de la gouache). */}
+      <TourOverlay />
 
     </>
     </DaThemeProvider>

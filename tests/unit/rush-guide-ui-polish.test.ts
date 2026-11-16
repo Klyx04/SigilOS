@@ -111,7 +111,7 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
         // Demande user du 05/11/2026 : « mets ce bloc dans le bloc du titre ».
         // Le panneau est DANS le `<header>` du bandeau, pas dans la colonne du module.
         const code = codeOf(PUBLIC);
-        const hero = code.indexOf('<header className="da-guide-hero">');
+        const hero = code.indexOf('<header className="da-guide-hero"');
         const controls = code.indexOf('<div className="da-guide-controls">');
         const heroEnd = code.indexOf("</header>", hero);
         expect(hero).toBeGreaterThan(-1);

@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { buildRushPublicSteps, buildVisitorSpaceSteps } from "@/lib/public-tour";
 
 export type TourPhase =
     | "profile"
@@ -43,6 +44,9 @@ export type TourPhase =
     | "guide"
     | "succes"
     | "marche"
+    // Phases PUBLIQUES (sans guilde) : guide Rush Sylvestre et espace visiteur.
+    | "rushPublic"
+    | "visitorSpace"
     | null;
 
 /**
@@ -57,6 +61,8 @@ export const MODULE_TOUR_PHASES = [
     "guide", "succes",
     "marche",
     "tickets",
+    // Tours publics : rejouables comme les tours de module, sans guilde.
+    "rushPublic", "visitorSpace",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -76,6 +82,11 @@ interface TourStep {
     requiresPerm?: string;
     /** Module optionnel (ex: "missions") — la carte n'apparaît que si ce module est actif. */
     module?: string;
+    /**
+     * Audience d'une étape PUBLIQUE : `visitor` réservée aux comptes, `anonymous`
+     * réservée aux visiteurs sans profil. Absente = tout le monde (tours de guilde).
+     */
+    audience?: "all" | "visitor" | "anonymous";
     /**
      * BUG-6 (constat beta) — **page où vit l'ancre**, quand ce n'est pas la page
      * courante (ex. l'éditeur de jet vit sur `/marche/nouveau`). Le provider y
@@ -1438,16 +1449,29 @@ export function TourProvider({
     children,
     guildId,
     modules,
-    user
+    user,
+    scope = "guild",
+    visitorConnected = false,
+    locale = "fr",
 }: {
     children: ReactNode;
-    guildId: string;
+    guildId?: string;
     modules?: any;
     user?: any;
+    /** `public` = guide Rush / espace visiteur : aucune route de guilde, aucun module. */
+    scope?: "guild" | "public";
+    /** Visiteur connecté : décide des étapes `visitor` / `anonymous` d'un tour public. */
+    visitorConnected?: boolean;
+    locale?: "fr" | "en";
 }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    /**
+     * Clé de persistance : la guilde pour un tour de guilde, `public` pour les
+     * tours du site public. Aucune clé localStorage ne porte `undefined`.
+     */
+    const storageScope = guildId ?? "public";
 
     const [tourPhase, setTourPhase] = useState<TourPhase>(null);
     const [currentStep, setCurrentStep] = useState<number>(1);
@@ -1512,6 +1536,17 @@ export function TourProvider({
     const marcheSteps = applyFilters(MARCHE_STEPS);
     const ticketsSteps = applyFilters(TICKETS_STEPS);
 
+    // Étapes PUBLIQUES : construites par la règle pure (`src/lib/public-tour.ts`),
+    // donc testables sans React. Le filtre d'audience est déjà appliqué.
+    const publicRushSteps: TourStep[] = useMemo(
+        () => (scope === "public" ? buildRushPublicSteps({ connected: visitorConnected, locale }) : []),
+        [scope, visitorConnected, locale]
+    );
+    const publicVisitorSteps: TourStep[] = useMemo(
+        () => (scope === "public" ? buildVisitorSpaceSteps() : []),
+        [scope]
+    );
+
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
             case "profile": return profileSteps;
@@ -1546,6 +1581,8 @@ export function TourProvider({
             case "succes": return succesSteps;
             case "marche": return marcheSteps;
             case "tickets": return ticketsSteps;
+            case "rushPublic": return publicRushSteps;
+            case "visitorSpace": return publicVisitorSteps;
             default: return [];
         }
     };
@@ -1578,6 +1615,7 @@ export function TourProvider({
     // on pop UNE FOIS le tour des modules (adminModules) — filtre RBAC + modules.
     // Le tour reste rejouable à tout moment via le bouton « Revoir » (startTour).
     useEffect(() => {
+        if (!guildId) return;
         if (!isAdmin || typeof window === "undefined") return;
         // 🔒 Le tour des modules ne pop que pour le TOUT PREMIER admin (non-God) de la guilde.
         // Un God/super-admin ne reçoit JAMAIS le tour (isFirstAdminForGuild=false pour lui),
@@ -1594,7 +1632,7 @@ export function TourProvider({
         // On ne pop que sur le Dashboard admin (pas sur les sous-pages)
         if (pathname !== `/dashboard/${guildId}`) return;
 
-        const seenKey = `sigilos-tour-admin-modules-seen-${guildId}`;
+        const seenKey = `sigilos-tour-admin-modules-seen-${storageScope}`;
         const hasSeen = localStorage.getItem(seenKey) === "true";
         if (hasSeen) return;
 
@@ -1604,19 +1642,21 @@ export function TourProvider({
         setTourPhase(phase);
         setCurrentStep(1);
         setIsActive(true);
-        localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
-        localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
-    }, [isAdmin, isOnboardingComplete, hasSeenWelcome, pathname, guildId]);
+        localStorage.setItem(`sigilos-tour-phase-${storageScope}`, phase);
+        localStorage.setItem(`sigilos-tour-step-${storageScope}`, "1");
+    }, [isAdmin, isOnboardingComplete, hasSeenWelcome, pathname, guildId, storageScope]);
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {
+        // Tour public : aucun état de guilde à relire, les tours publics sont rejouables.
+        if (!guildId) return;
         // Tour rejouable (module / admin / dashboardBricks) lancé via startTour :
         // ne pas fermer ni réinitialiser lors d'un changement de route.
         if (tourPhase && isReplayableTourPhase(tourPhase)) {
             return;
         }
         if (!isAdmin || isOnboardingComplete) {
-            const hasDoneTour = localStorage.getItem(`sigilos-tour-done-${guildId}`) === "true";
+            const hasDoneTour = localStorage.getItem(`sigilos-tour-done-${storageScope}`) === "true";
             if (hasDoneTour) {
                 setIsActive(false);
                 return;
@@ -1624,43 +1664,46 @@ export function TourProvider({
         }
 
         const tourParam = searchParams.get("tour");
-        const storedPhase = localStorage.getItem(`sigilos-tour-phase-${guildId}`) as TourPhase;
-        const storedStep = parseInt(localStorage.getItem(`sigilos-tour-step-${guildId}`) || "1", 10);
+        const storedPhase = localStorage.getItem(`sigilos-tour-phase-${storageScope}`) as TourPhase;
+        const storedStep = parseInt(localStorage.getItem(`sigilos-tour-step-${storageScope}`) || "1", 10);
 
         if (!isAdmin && (tourParam === "1" || (storedPhase === "profile" && pathname.includes("/profile")))) {
             setTourPhase("profile");
             setCurrentStep(tourParam === "1" ? 1 : storedStep);
             setIsActive(true);
-            localStorage.setItem(`sigilos-tour-phase-${guildId}`, "profile");
+            localStorage.setItem(`sigilos-tour-phase-${storageScope}`, "profile");
         } else if (!isAdmin && (tourParam === "2" || (storedPhase === "dashboard" && pathname === `/dashboard/${guildId}`))) {
             setTourPhase("dashboard");
             setCurrentStep(tourParam === "2" ? 1 : storedStep);
             setIsActive(true);
-            localStorage.setItem(`sigilos-tour-phase-${guildId}`, "dashboard");
+            localStorage.setItem(`sigilos-tour-phase-${storageScope}`, "dashboard");
         }
-    }, [searchParams, pathname, guildId, isAdmin, isOnboardingComplete]);
+    }, [searchParams, pathname, guildId, storageScope, isAdmin, isOnboardingComplete]);
 
-    // Save step to localStorage
+    // Save step to localStorage (tours de guilde seulement : un tour public est rejouable)
     useEffect(() => {
-        if (isActive && tourPhase) {
-            localStorage.setItem(`sigilos-tour-step-${guildId}`, currentStep.toString());
-            localStorage.setItem(`sigilos-tour-phase-${guildId}`, tourPhase);
+        if (isActive && tourPhase && guildId) {
+            localStorage.setItem(`sigilos-tour-step-${storageScope}`, currentStep.toString());
+            localStorage.setItem(`sigilos-tour-phase-${storageScope}`, tourPhase);
         }
-    }, [currentStep, tourPhase, isActive, guildId]);
+    }, [currentStep, tourPhase, isActive, guildId, storageScope]);
 
     const startTour = (phase: TourPhase) => {
         if (!phase) return;
+        setCelebrationActive(false);
         setTourPhase(phase);
         setCurrentStep(1);
         setIsActive(true);
-        // Les tours admin sont REJOUABLES : on ne pose jamais de flag "done"
-        // définitif pour les phases admin. On nettoie simplement l'étape en cours.
+        // Les tours admin et les tours PUBLICS sont REJOUABLES : on ne pose jamais
+        // de flag "done" définitif. On nettoie simplement l'étape en cours.
         const isAdminPhase = isReplayableTourPhase(phase);
         if (!isAdminPhase) {
-            localStorage.removeItem(`sigilos-tour-done-${guildId}`);
+            localStorage.removeItem(`sigilos-tour-done-${storageScope}`);
         }
-        localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
-        localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
+        localStorage.setItem(`sigilos-tour-phase-${storageScope}`, phase);
+        localStorage.setItem(`sigilos-tour-step-${storageScope}`, "1");
+        // Les tours publics vivent sur la page courante : aucune route de guilde à pousser.
+        if (!guildId) return;
         // Routage vers la page correspondant à la phase du tour
         switch (phase) {
             case "admin":
@@ -1752,6 +1795,10 @@ export function TourProvider({
             case "marche":
                 router.push(`/dashboard/${guildId}/marche`);
                 break;
+            case "rushPublic":
+            case "visitorSpace":
+                // Tours publics : déjà sur la page (le `return` ci-dessus les a déjà quittés).
+                break;
             default:
                 break;
         }
@@ -1774,8 +1821,8 @@ export function TourProvider({
         } else if (tourPhase === "profile") {
             setTourPhase("dashboard");
             setCurrentStep(1);
-            localStorage.setItem(`sigilos-tour-phase-${guildId}`, "dashboard");
-            localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
+            localStorage.setItem(`sigilos-tour-phase-${storageScope}`, "dashboard");
+            localStorage.setItem(`sigilos-tour-step-${storageScope}`, "1");
             router.push(`/dashboard/${guildId}?tour=2`);
         } else if (tourPhase === "dashboard") {
             completeTour();
@@ -1792,8 +1839,8 @@ export function TourProvider({
         } else if (tourPhase === "dashboard") {
             setTourPhase("profile");
             setCurrentStep(PROFILE_STEPS.length);
-            localStorage.setItem(`sigilos-tour-phase-${guildId}`, "profile");
-            localStorage.setItem(`sigilos-tour-step-${guildId}`, PROFILE_STEPS.length.toString());
+            localStorage.setItem(`sigilos-tour-phase-${storageScope}`, "profile");
+            localStorage.setItem(`sigilos-tour-step-${storageScope}`, PROFILE_STEPS.length.toString());
             router.push(`/dashboard/${guildId}/profile?tour=1`);
         }
     };
@@ -1807,9 +1854,9 @@ export function TourProvider({
         // (pas de flag "done" définitif) pour relancer l'auto-start à la prochaine visite
         // si l'admin ne l'a pas terminé. Le bouton "Revoir" permet de relancer à tout moment.
         if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
-            localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
+            localStorage.setItem(`sigilos-tour-done-${storageScope}`, "true");
         }
-        localStorage.removeItem(`sigilos-tour-step-${guildId}`);
+        localStorage.removeItem(`sigilos-tour-step-${storageScope}`);
         setCelebrationActive(true);
     };
 
@@ -1824,20 +1871,21 @@ export function TourProvider({
     const skipTour = useCallback(() => {
         setIsActive(false);
         if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
-            localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
+            localStorage.setItem(`sigilos-tour-done-${storageScope}`, "true");
         }
-        localStorage.removeItem(`sigilos-tour-step-${guildId}`);
-    }, [guildId, tourPhase]);
+        localStorage.removeItem(`sigilos-tour-step-${storageScope}`);
+    }, [storageScope, tourPhase]);
 
     // Le tour du guide (plein écran) ne doit JAMAIS « fuir » sur une autre page :
     // dès qu'on quitte la route du guide alors qu'il est actif, on l'arrête
     // silencieusement (sans écran de célébration — ce n'est pas une fin de tour).
     useEffect(() => {
+        if (!guildId) return;
         if (tourPhase === "guide" && isActive && !pathname.includes("/quetes-dofus/guide/")) {
             setIsActive(false);
-            localStorage.removeItem(`sigilos-tour-step-${guildId}`);
+            localStorage.removeItem(`sigilos-tour-step-${storageScope}`);
         }
-    }, [pathname, tourPhase, isActive, guildId]);
+    }, [pathname, tourPhase, isActive, guildId, storageScope]);
 
     /**
      * BUG-6 — navigation d'étape : le chemin est **relatif au tableau de bord**
@@ -1852,6 +1900,8 @@ export function TourProvider({
      */
     const requestStepNavigation = useCallback(
         (relativeHref: string) => {
+            // Tours publics : aucune navigation de guilde, les étapes vivent sur la page.
+            if (!guildId) return;
             if (!relativeHref.startsWith("/") || relativeHref.startsWith("//")) return;
             if (relativeHref.includes("..") || relativeHref.includes(":")) return;
             if (!/^\/[A-Za-z0-9/_-]*$/.test(relativeHref)) return;

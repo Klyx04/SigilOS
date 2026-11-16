@@ -316,7 +316,7 @@ export function TourOverlay() {
 
             {/* Glowing ring around the spotlight */}
             <div
-                className="absolute border border-violet-500/40 rounded-[18px] transition-all duration-300 pointer-events-none "
+                className="absolute border border-accent/40 rounded-[18px] transition-all duration-300 pointer-events-none "
                 style={{
                     left: x,
                     top: y,
@@ -341,19 +341,16 @@ export function TourOverlay() {
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2 }}
                     style={{ maxHeight }}
-                    className="glass-premium rounded-2xl border border-border p-5 bg-background/90 backdrop-blur-md shadow-2xl relative overflow-hidden flex flex-col space-y-4 min-w-0"
+                    className="rounded-xl border border-border p-5 bg-background shadow-xl relative overflow-hidden flex flex-col space-y-4 min-w-0"
                 >
-                    {/* Glowing effect inside tooltip */}
-                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl pointer-events-none" />
-
                     {/* BUG-7 — seule zone défilante quand la fenêtre est courte : la barre de
                         navigation reste donc toujours visible et cliquable. */}
                     <div className="flex items-start gap-3 min-w-0 flex-1 min-h-0 overflow-y-auto pr-6">
-                        <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400 shrink-0 border border-violet-500/20">
+                        <div className="p-2 rounded-xl bg-accent/10 text-accent shrink-0 border border-accent/20">
                             <Award className="w-4 h-4" />
                         </div>
                         <div className="space-y-1 min-w-0 flex-1">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-foreground leading-tight break-words">
+                            <h3 className="text-sm font-semibold text-foreground leading-tight break-words">
                                 {activeStepData.title}
                             </h3>
                             <p className="text-xs font-medium text-muted-foreground leading-relaxed break-words">
@@ -371,7 +368,7 @@ export function TourOverlay() {
                                     className={cn(
                                         "h-1 rounded-full transition-all duration-300",
                                         idx + 1 === currentStep 
-                                            ? "w-4 bg-violet-500 " 
+                                            ? "w-4 bg-accent " 
                                             : "w-1 bg-elevated"
                                     )}
                                 />
@@ -385,7 +382,7 @@ export function TourOverlay() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={back}
-                                    className="h-8 px-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                                    className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
                                 >
                                     <ChevronLeft className="w-4 h-4 mr-0.5" />
                                     Retour
@@ -395,7 +392,7 @@ export function TourOverlay() {
                             <Button
                                 size="sm"
                                 onClick={advance}
-                                className="h-8 px-3 text-xs font-black uppercase tracking-widest bg-violet-600 hover:bg-violet-700 text-foreground rounded-xl shadow-[0_2px_8px_rgba(139,92,246,0.3)] transition-all active:scale-95 gap-0.5"
+                                className="h-8 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all active:scale-95 gap-0.5"
                             >
                                 {currentStep === totalSteps ? (
                                     <>

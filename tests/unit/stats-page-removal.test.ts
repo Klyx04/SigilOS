@@ -125,4 +125,15 @@ describe("page Stats Guilde — supprimée sans casser l'accueil", () => {
         expect(config).toContain('destination: "/dashboard/:guildId"');
         expect(config).toMatch(/permanent:\s*true/);
     });
+
+    // ── Phase 3b (Lot B) — l'autorisation passe avant le cache ────────────────
+
+    it("getGuildStats vérifie l'autorisation avant de lire le cache Redis", () => {
+        const src = read("src/server/actions/guild-stats-actions.ts");
+        const authIndex = src.indexOf("await getUserContext(guildId)");
+        const cacheIndex = src.indexOf("redis.get(cacheKey)");
+        expect(authIndex, "appel getUserContext introuvable").toBeGreaterThan(-1);
+        expect(cacheIndex, "lecture du cache introuvable").toBeGreaterThan(-1);
+        expect(authIndex, "le cache est lu avant l'autorisation").toBeLessThan(cacheIndex);
+    });
 });

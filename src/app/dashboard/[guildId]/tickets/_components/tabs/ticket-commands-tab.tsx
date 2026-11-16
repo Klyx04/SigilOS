@@ -1773,6 +1773,7 @@ export function TicketCommandsTab({
                                                 </div>
                                                 {safeEmbedThumbnailUrl && (
                                                     <img
+                                                        /* codeql[js/xss-through-dom] — faux positif : safeImageSrc n'accepte que http(s) ou un chemin interne, React échappe l'attribut et <img> n'exécute pas de JS. */
                                                         src={safeEmbedThumbnailUrl}
                                                         alt="Thumbnail"
                                                         className="h-10 w-10 rounded object-cover shrink-0"
@@ -1784,6 +1785,7 @@ export function TicketCommandsTab({
                                             {safeEmbedImageUrl && (
                                                 <div className="overflow-hidden rounded">
                                                     <img
+                                                        /* codeql[js/xss-through-dom] — faux positif : safeImageSrc n'accepte que http(s) ou un chemin interne, React échappe l'attribut et <img> n'exécute pas de JS. */
                                                         src={safeEmbedImageUrl}
                                                         alt="Embed"
                                                         className="rounded max-h-36 w-full object-cover"

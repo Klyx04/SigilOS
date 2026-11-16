@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { countUnreadAccountNotifications } from "@/server/account-notifications";
-import { requirePublicSession } from "@/server/public-account";
+import { publicProfileExists, requirePublicSession } from "@/server/public-account";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { VisitorNav } from "./_components/visitor-nav";
@@ -30,9 +30,12 @@ export const metadata = {
  */
 export default async function VisitorLayout({ children }: { children: ReactNode }) {
     const { userId } = await requirePublicSession();
-    const [session, unreadCount] = await Promise.all([
+    const [session, unreadCount, hasProfile] = await Promise.all([
         auth(),
         countUnreadAccountNotifications(userId),
+        // Une seule colonne : la nav n'affiche pas cinq onglets qui rebondissent
+        // sur `general` tant que le profil public n'existe pas.
+        publicProfileExists(userId),
     ]);
 
     return (
@@ -45,7 +48,13 @@ export default async function VisitorLayout({ children }: { children: ReactNode 
                     <p className="text-xs text-muted-foreground">Espace perso</p>
                     <p className="text-lg font-semibold text-foreground">Espace visiteur</p>
                 </div>
-                <VisitorNav unreadCount={unreadCount} />
+                <VisitorNav unreadCount={unreadCount} hasProfile={hasProfile} />
+                {!hasProfile && (
+                    <p className="mx-auto w-full max-w-6xl px-4 pb-3 text-xs text-muted-foreground">
+                        Les onglets Mules, Présentation, Succès, Métiers et Réglages s&apos;ouvrent dès que ton espace
+                        est créé.
+                    </p>
+                )}
             </div>
 
             <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-16">{children}</main>

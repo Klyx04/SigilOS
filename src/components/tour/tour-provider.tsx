@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { buildRushPublicSteps, buildVisitorSpaceSteps } from "@/lib/public-tour";
+import { buildRushPublicSteps, buildVisitorOnboardingSteps, buildVisitorSpaceSteps } from "@/lib/public-tour";
 
 export type TourPhase =
     | "profile"
@@ -47,6 +47,7 @@ export type TourPhase =
     // Phases PUBLIQUES (sans guilde) : guide Rush Sylvestre et espace visiteur.
     | "rushPublic"
     | "visitorSpace"
+    | "visitorOnboarding"
     | null;
 
 /**
@@ -62,7 +63,7 @@ export const MODULE_TOUR_PHASES = [
     "marche",
     "tickets",
     // Tours publics : rejouables comme les tours de module, sans guilde.
-    "rushPublic", "visitorSpace",
+    "rushPublic", "visitorSpace", "visitorOnboarding",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -1546,6 +1547,11 @@ export function TourProvider({
         () => (scope === "public" ? buildVisitorSpaceSteps() : []),
         [scope]
     );
+    // Visite de création : ses trois ancres existent AVANT le profil public.
+    const publicVisitorOnboardingSteps: TourStep[] = useMemo(
+        () => (scope === "public" ? buildVisitorOnboardingSteps() : []),
+        [scope]
+    );
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -1583,6 +1589,7 @@ export function TourProvider({
             case "tickets": return ticketsSteps;
             case "rushPublic": return publicRushSteps;
             case "visitorSpace": return publicVisitorSteps;
+            case "visitorOnboarding": return publicVisitorOnboardingSteps;
             default: return [];
         }
     };

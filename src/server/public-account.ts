@@ -73,6 +73,8 @@ const ALLOWED_ACTIVITIES = AVAILABLE_ACTIVITIES.map((activity) => activity.id);
 export type PublicSession = {
     /** `User.id` — jamais un `guildId` : l'espace visiteur est hors guilde par construction. */
     userId: string;
+    /** Nom d'affichage Discord — sert à l'accueil de première arrivée, jamais persisté. */
+    displayName?: string;
 };
 
 export type PublicAccount = {
@@ -92,6 +94,19 @@ export async function loadPublicProfileView(userId: string): Promise<PublicProfi
         select: PUBLIC_PROFILE_SELECT,
     });
     return row ? toPublicProfileView(row, ALLOWED_ACTIVITIES) : null;
+}
+
+/**
+ * `true` si un profil public existe. Requête **légère** (clé unique, une seule
+ * colonne) : la coque s'en sert pour n'afficher que les onglets franchissables,
+ * sans charger tout le profil que la page va déjà lire.
+ */
+export async function publicProfileExists(userId: string): Promise<boolean> {
+    const row = await db.publicProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+    });
+    return !!row;
 }
 
 /**
@@ -117,7 +132,7 @@ export async function getPublicSession(): Promise<PublicSession | null> {
         }
     }
 
-    return { userId };
+    return { userId, displayName: session?.user?.name ?? undefined };
 }
 
 /**

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { GameIcon } from "@/components/shared/game-icon";
+import { filterVisitorNav } from "@/lib/visitor-nav";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,13 +27,22 @@ const SEGMENTS = [
     { href: "/espace-visiteur/reglages", label: "Réglages", icon: "/assets/nav/cog.png", tour: "visitor-nav-settings" },
 ] as const;
 
-export function VisitorNav({ unreadCount = 0 }: { unreadCount?: number }) {
+export function VisitorNav({
+    unreadCount = 0,
+    hasProfile = true,
+}: {
+    unreadCount?: number;
+    hasProfile?: boolean;
+}) {
     const pathname = usePathname();
+    // Sans profil, seuls les onglets qui ne rebondissent pas sont affichés
+    // (règle pure : `src/lib/visitor-nav.ts`, testée en unité).
+    const segments = filterVisitorNav(SEGMENTS, { hasProfile });
 
     return (
         <nav aria-label="Sections de l'espace visiteur" data-tour="visitor-nav" className="mx-auto w-full max-w-6xl overflow-x-auto px-2">
             <ul className="flex min-w-max gap-1 pb-2">
-                {SEGMENTS.map((segment) => {
+                {segments.map((segment) => {
                     const active =
                         pathname === segment.href ||
                         (segment.href === "/visiteurs" && pathname.startsWith("/visiteurs/"));

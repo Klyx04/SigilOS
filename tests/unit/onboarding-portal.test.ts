@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
     classifyGuildsFetchError,
-    shouldAutoReloadPortal,
+    GUILD_LOOKUP_RETRY_DELAYS_MS,
+    guildLookupRetryDelayMs,
     MAX_PORTAL_AUTO_RELOAD,
     isNavLockedDuringOnboarding,
     isOnboardingAllowedPath,
@@ -31,47 +32,31 @@ describe("onboarding-portal — classification des erreurs Discord", () => {
     });
 });
 
-describe("onboarding-portal — plafond de re-vérification auto", () => {
-    it("recharge en rate-limit sous le plafond", () => {
+describe("onboarding-portal — reprise de la vérification des serveurs", () => {
+    it("réessaie à 2 s, 4 s, 8 s puis 16 s (rafraîchissement serveur, pas un reload)", () => {
         expect(
-            shouldAutoReloadPortal({ rateLimited: true, needsReconnect: false, attempts: 0 }),
-        ).toBe(true);
-        expect(
-            shouldAutoReloadPortal({
-                rateLimited: true,
-                needsReconnect: false,
-                attempts: MAX_PORTAL_AUTO_RELOAD - 1,
-            }),
-        ).toBe(true);
+            [0, 1, 2, 3].map((attempts) =>
+                guildLookupRetryDelayMs({ needsReconnect: false, attempts })
+            )
+        ).toEqual([2000, 4000, 8000, 16000]);
     });
 
-    it("coupe au plafond (anti-tempête 429)", () => {
+    it("coupe au plafond anti-tempête", () => {
         expect(
-            shouldAutoReloadPortal({
-                rateLimited: true,
-                needsReconnect: false,
-                attempts: MAX_PORTAL_AUTO_RELOAD,
-            }),
-        ).toBe(false);
+            guildLookupRetryDelayMs({ needsReconnect: false, attempts: MAX_PORTAL_AUTO_RELOAD })
+        ).toBeNull();
         expect(
-            shouldAutoReloadPortal({
-                rateLimited: true,
-                needsReconnect: false,
-                attempts: MAX_PORTAL_AUTO_RELOAD + 10,
-            }),
-        ).toBe(false);
+            guildLookupRetryDelayMs({ needsReconnect: false, attempts: MAX_PORTAL_AUTO_RELOAD + 10 })
+        ).toBeNull();
     });
 
-    it("jamais de reload si re-consentement requis, même en rate-limit", () => {
-        expect(
-            shouldAutoReloadPortal({ rateLimited: true, needsReconnect: true, attempts: 0 }),
-        ).toBe(false);
+    it("aucune reprise quand seul un re-consentement répare (scope manquant)", () => {
+        expect(guildLookupRetryDelayMs({ needsReconnect: true, attempts: 0 })).toBeNull();
+        expect(guildLookupRetryDelayMs({ needsReconnect: true, attempts: 2 })).toBeNull();
     });
 
-    it("jamais de reload sans rate-limit (état stable + bouton manuel)", () => {
-        expect(
-            shouldAutoReloadPortal({ rateLimited: false, needsReconnect: false, attempts: 0 }),
-        ).toBe(false);
+    it("le plafond EST le calendrier (une seule source)", () => {
+        expect(MAX_PORTAL_AUTO_RELOAD).toBe(GUILD_LOOKUP_RETRY_DELAYS_MS.length);
     });
 });
 

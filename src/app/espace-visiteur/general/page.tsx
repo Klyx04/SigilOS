@@ -1,5 +1,6 @@
 import { getClass } from "@/lib/dofus-assets";
 import { resolveDofusServerName } from "@/lib/presentation-constants";
+import { VISITOR_ONBOARDING_TOUR_STORAGE_KEY } from "@/lib/public-tour";
 import { loadPublicProfileView, requirePublicSession } from "@/server/public-account";
 import { CreateProfileForm } from "../_components/create-profile-form";
 import { IdentityForm } from "../_components/identity-form";
@@ -14,10 +15,22 @@ export const metadata = {
 
 /** Onglet Général : la **seule** page qui accepte l'absence de profil (écran de création). */
 export default async function GeneralPage() {
-    const { userId } = await requirePublicSession();
+    const { userId, displayName } = await requirePublicSession();
     const profile = await loadPublicProfileView(userId);
 
-    if (!profile) return <CreateProfileForm />;
+    if (!profile) {
+        return (
+            <>
+                {/* Visite de création : trois pas dont les ancres existent sur cet
+                    écran (la visite complète attend le profil, cf. `public-tour.ts`). */}
+                <VisitorTourLauncher
+                    phase="visitorOnboarding"
+                    storageKey={VISITOR_ONBOARDING_TOUR_STORAGE_KEY}
+                />
+                <CreateProfileForm displayName={displayName} />
+            </>
+        );
+    }
 
     const className = profile.classe ? getClass(profile.classe)?.name ?? profile.classe : "Classe non renseignée";
     const serverName = resolveDofusServerName(null, String(profile.dofusServerId));

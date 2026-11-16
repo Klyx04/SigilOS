@@ -141,6 +141,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const userGuilds = await res.json() as { id: string; owner?: boolean; permissions?: string }[];
                     const userGuildIds = userGuilds.map(g => g.id);
 
+                    // Snapshot 60 s (Redis) : le portail `/dashboard` réutilise CETTE
+                    // réponse au lieu de rappeler Discord dans la même seconde — le 2e
+                    // appel immédiat recevait un 429 et affichait un écran d'attente.
+                    // Non bloquant : en cas d'échec, le portail refait l'appel.
+                    try {
+                        const { cacheDiscordUserGuilds } = await import("@/server/discord-guilds-cache");
+                        await cacheDiscordUserGuilds(discordId, userGuilds);
+                    } catch { /* cache best-effort */ }
+
                     // 3. Check if any guild is registered in SigilOS
                     const registeredCount = await prisma.guildConfig.count({
                         where: { discordGuildId: { in: userGuildIds } }

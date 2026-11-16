@@ -1598,6 +1598,13 @@ export async function getGuildsSeparated(): Promise<{
      * Guildes bannies : exclues silencieusement (fail-closed côté info).
      */
     awaiting: Array<{ id: string; name: string; icon: string | null }>;
+    /**
+     * Discord n'a **pas répondu** (429, scope refusé, 5xx, réseau, jeton absent) :
+     * les listes vides ne prouvent rien. La porte visiteur reste fermée
+     * (fail-closed) tant que ce drapeau est vrai — un échec **transitoire** ne
+     * doit jamais être lu comme « aucune guilde ».
+     */
+    lookupFailed: boolean;
     rateLimited: boolean;
     /**
      * true quand Discord refuse le token (401/403) : le scope `guilds` manque
@@ -1621,6 +1628,7 @@ export async function getGuildsSeparated(): Promise<{
             active: [],
             pending: [],
             awaiting: [],
+            lookupFailed: false,
             rateLimited: false,
             needsReconnect: false,
             guildLimitReached: false,
@@ -1705,19 +1713,38 @@ export async function getGuildsSeparated(): Promise<{
     });
 
     if (!account?.access_token) {
+        // Aucun jeton Discord : on n'a **pas** pu interroger Discord. Un
+        // re-consentement est la seule sortie (fail-closed, jamais « pas de guilde »).
         return {
             active: [],
             pending: [],
             awaiting: [],
+            lookupFailed: true,
             rateLimited: false,
-            needsReconnect: false,
+            needsReconnect: true,
             guildLimitReached,
             guildLimit,
         };
     }
     const discordUserIdForPortal = account.providerAccountId || null;
 
-    const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
+    // 🔁 Cache 60 s : le callback `signIn` a déjà lu cette liste. Sans lui, ce
+    // second appel immédiat recevait un 429 (mesure du 16/11/2026). Cache absent
+    // (expiré, Redis KO, entrée invalide) ⇒ appel Discord normal : le cache ne
+    // décide jamais d'un accès.
+    const { cacheDiscordUserGuilds, readDiscordUserGuildsCache } = await import(
+        "@/server/discord-guilds-cache"
+    );
+    const cachedGuilds = discordUserIdForPortal
+        ? await readDiscordUserGuildsCache(discordUserIdForPortal)
+        : null;
+    const { error, status, data: userGuildsData } = cachedGuilds
+        ? { error: false, status: 200, data: cachedGuilds }
+        : await fetchDiscordUserGuilds(account.access_token);
+    if (!cachedGuilds && !error && discordUserIdForPortal) {
+        // Alimente le cache pour la landing → portail (même session, < 60 s).
+        await cacheDiscordUserGuilds(discordUserIdForPortal, userGuildsData);
+    }
 
     if (error) {
         const dbProfiles = await db.userProfile.findMany({
@@ -1763,6 +1790,10 @@ export async function getGuildsSeparated(): Promise<{
             active: activeFromDb,
             pending: [],
             awaiting: [],
+            // 429, scope refusé, 5xx et panne réseau : Discord n'a pas répondu.
+            // Le drapeau couvre les trois cas — `rateLimited`/`needsReconnect` ne
+            // servent qu'à choisir le message.
+            lookupFailed: true,
             rateLimited: errorKind === "RATE_LIMIT",
             needsReconnect: errorKind === "SCOPE",
             guildLimitReached,
@@ -1874,6 +1905,7 @@ export async function getGuildsSeparated(): Promise<{
         active,
         pending,
         awaiting: awaitingCandidates,
+        lookupFailed: false,
         rateLimited: false,
         needsReconnect: false,
         guildLimitReached,

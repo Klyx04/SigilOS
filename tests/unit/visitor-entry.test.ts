@@ -22,6 +22,7 @@ const SERVER = "src/server/visitor-entry.ts";
 const DASHBOARD = "src/app/dashboard/page.tsx";
 const LANDING = "src/app/page.tsx";
 const HEADER = "src/components/layout/public-header.tsx";
+const USER_ACTIONS = "src/server/actions/user-actions.ts";
 
 describe("Porte visiteur — la règle ne s'ouvre jamais par défaut", () => {
     const ouvert = { visitorEntryEnabled: true, hasGuild: false, guildLookupFailed: false };
@@ -53,6 +54,24 @@ describe("Porte visiteur — les deux écrans lisent la même garde", () => {
         for (const page of [DASHBOARD, LANDING]) {
             expect(read(page), page).toMatch(/redirectGuildlessUserToVisitorSpace\(/);
         }
+    });
+
+    it("les deux pages lisent l'échec COMPLET de la vérification (pas seulement 429/scope)", () => {
+        // Un 5xx ou une panne réseau ne doit pas être lu comme « aucune guilde » :
+        // `lookupFailed` couvre les trois cas, `rateLimited`/`needsReconnect` non.
+        for (const page of [DASHBOARD, LANDING]) {
+            const code = read(page);
+            expect(code, page).toMatch(/guildLookupFailed:\s*(separated\.)?lookupFailed/);
+            expect(code, page).not.toMatch(/guildLookupFailed:\s*(separated\.)?rateLimited/);
+        }
+    });
+
+    it("le portail serveur marque `lookupFailed` sur tout échec de la vérification", () => {
+        const source = read(USER_ACTIONS);
+        expect(source).toContain("lookupFailed: true");
+        expect(source).toContain("lookupFailed: false");
+        // Le drapeau n'est pas re-déduit de la classification 429/scope.
+        expect(source).not.toMatch(/lookupFailed:\s*errorKind ===/);
     });
 
     it("aucun écran ne relit l'interrupteur pour son compte (source unique)", () => {

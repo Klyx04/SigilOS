@@ -18,9 +18,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
     buildRushPublicSteps,
+    buildVisitorOnboardingSteps,
     buildVisitorSpaceSteps,
     filterPublicTourSteps,
     shouldAutoStartVisitorTour,
+    VISITOR_ONBOARDING_TOUR_STORAGE_KEY,
     VISITOR_TOUR_QUERY_VALUE,
     VISITOR_TOUR_STORAGE_KEY,
 } from "@/lib/public-tour";
@@ -34,6 +36,7 @@ const VISITOR_GENERAL = "src/app/espace-visiteur/general/page.tsx";
 const VISITOR_LAYOUT = "src/app/espace-visiteur/layout.tsx";
 const VISITOR_SETTINGS = "src/app/espace-visiteur/reglages/page.tsx";
 const VISITOR_LAUNCHER = "src/app/espace-visiteur/_components/visitor-tour-launcher.tsx";
+const CREATE_FORM = "src/app/espace-visiteur/_components/create-profile-form.tsx";
 const RUSH_PAGE = "src/app/guides/rush-sylvestre/page.tsx";
 const PROVIDER = "src/components/tour/tour-provider.tsx";
 const OVERLAY = "src/components/tour/tour-overlay.tsx";
@@ -139,9 +142,38 @@ describe("Visite de l'espace visiteur", () => {
     });
 });
 
+describe("Visite de création d'espace (avant le profil)", () => {
+    const steps = buildVisitorOnboardingSteps();
+
+    it("trois pas, tous ancrés sur l'écran de création", () => {
+        expect(steps.map((step) => step.target)).toEqual([
+            '[data-tour="visitor-nav"]',
+            '[data-tour="visitor-onboarding-server"]',
+            '[data-tour="visitor-onboarding-pseudo"]',
+        ]);
+    });
+
+    it("les ancres existent réellement (nav + formulaire)", () => {
+        const nav = read(VISITOR_NAV);
+        const form = read(CREATE_FORM);
+        expect(nav).toContain('data-tour="visitor-nav"');
+        expect(form).toContain('data-tour="visitor-onboarding-server"');
+        expect(form).toContain('data-tour="visitor-onboarding-pseudo"');
+    });
+
+    it("le drapeau est distinct de celui de la visite complète", () => {
+        expect(VISITOR_ONBOARDING_TOUR_STORAGE_KEY).not.toBe(VISITOR_TOUR_STORAGE_KEY);
+    });
+});
+
 describe("Ancres réelles — aucun pointeur mort", () => {
     it("chaque cible est un sélecteur `data-tour` simple et unique", () => {
-        for (const steps of [buildRushPublicSteps({ connected: true }), buildRushPublicSteps({ connected: false }), buildVisitorSpaceSteps()]) {
+        for (const steps of [
+            buildRushPublicSteps({ connected: true }),
+            buildRushPublicSteps({ connected: false }),
+            buildVisitorSpaceSteps(),
+            buildVisitorOnboardingSteps(),
+        ]) {
             const targets = steps.map((step) => step.target);
             expect(new Set(targets).size).toBe(targets.length);
             for (const target of targets) {
@@ -182,6 +214,7 @@ describe("Moteur unique, rejouable et fermable", () => {
         );
         expect(phases).toContain('"rushPublic"');
         expect(phases).toContain('"visitorSpace"');
+        expect(phases).toContain('"visitorOnboarding"');
         expect(provider).toContain('const storageScope = guildId ?? "public";');
     });
 
@@ -196,12 +229,14 @@ describe("Moteur unique, rejouable et fermable", () => {
     it("les deux surfaces offrent un bouton de rejeu", () => {
         expect(read(RUSH_CLIENT)).toContain('startTour("rushPublic")');
         expect(read(VISITOR_SETTINGS)).toContain('href="/espace-visiteur/general?tour=1"');
-        expect(read(VISITOR_LAUNCHER)).toContain('startTour("visitorSpace")');
+        // Le lanceur porte deux phases : création (3 pas) et espace complet (11 pas).
+        expect(read(VISITOR_LAUNCHER)).toContain("startTour(phase)");
+        expect(read(VISITOR_GENERAL)).toContain('phase="visitorOnboarding"');
     });
 
     it("la visite de première arrivée ne se relance pas au rechargement", () => {
         const launcher = read(VISITOR_LAUNCHER);
-        expect(launcher).toContain("window.localStorage.setItem(VISITOR_TOUR_STORAGE_KEY, \"1\")");
+        expect(launcher).toContain("window.localStorage.setItem(storageKey, \"1\")");
         expect(launcher).toContain("window.history.replaceState");
         expect(launcher).toContain("shouldAutoStartVisitorTour");
     });

@@ -7,7 +7,7 @@ import { buildDofusbookClientFetchUrl } from "@/lib/dofusbook-sign";
 import redis from "@/lib/redis";
 import { processDofusbookRawData, extractDofusbookBuildId, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { isDofusbookBreakerOpen, openDofusbookBreaker } from "@/lib/dofusbook-guard";
-import { assertSafeUrl } from "@/lib/image-downloader";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const DOFUSBOOK_API = "https://www.dofusbook.net/api/stuffs/dofus/public/";
 const CACHE_TTL = 3600 * 24; // 24 hours
@@ -55,6 +55,13 @@ function resetDofusbookFailures(): void {
  * Extracts the numerical ID from a Dofusbook URL.
  * Supports both full and short URLs (by following redirects).
  */
+/** Hôtes Dofusbook autorisés — la **destination finale** d'un raccourci est revalidée ici. */
+function isDofusbookHost(hostname: string): boolean {
+    const host = hostname.toLowerCase();
+    return host === "d-bk.net" || host.endsWith(".d-bk.net") ||
+        host === "dofusbook.net" || host === "www.dofusbook.net" || host.endsWith(".dofusbook.net");
+}
+
 export async function getDofusbookId(url: string): Promise<string | null> {
     try {
         // 1. URL complète : extraction **partagée** avec le formulaire client
@@ -65,25 +72,26 @@ export async function getDofusbookId(url: string): Promise<string | null> {
 
         // 2. Short URL resolution (d-bk.net)
         if (url.includes("d-bk.net")) {
-            // 🔐 SSRF guard (F-03) : n'autoriser que d-bk.net / dofusbook.net en
-            // http(s) + bloquer IP internes et DNS rebinding via assertSafeUrl.
+            // 🔐 SSRF : `safeFetch` vérifie l'IP pendant la connexion (plus de fenêtre
+            // TOCTOU) et revalide l'hôte à **chaque** redirection — un raccourci d-bk.net
+            // ne peut plus mener à un service interne.
+            let response;
             try {
-                const parsed = new URL(url);
-                const host = parsed.hostname.toLowerCase();
-                const allowedHost = host === "d-bk.net" || host.endsWith(".d-bk.net") ||
-                    host === "dofusbook.net" || host === "www.dofusbook.net" || host.endsWith(".dofusbook.net");
-                if (!allowedHost) throw new Error("Hôte Dofusbook non autorisé");
-                await assertSafeUrl(url);
+                response = await safeFetch(url, {
+                    method: "GET",
+                    maxRedirects: 5,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                    },
+                    validateUrl: (target) => {
+                        if (!isDofusbookHost(target.hostname)) {
+                            throw new Error("Hôte Dofusbook non autorisé");
+                        }
+                    },
+                });
             } catch {
                 return null;
             }
-            const response = await fetch(url, {
-                method: "GET",
-                redirect: "follow",
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                }
-            });
             const finalUrl = response.url;
             const finalMatch = finalUrl.match(/equipement\/(\d+)/);
             return finalMatch ? finalMatch[1] : null;

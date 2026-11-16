@@ -13,7 +13,7 @@
 - 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
   **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
-  **Réglages** : `CSP_ENFORCE=true` · `STORAGE_LEGACY_TOKENS_UNTIL=<date>` · `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
+  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` (bêta, après contrôle 390/768/1440) · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
 
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
@@ -45,7 +45,7 @@
 | 8 | `presentation-access` | `presentation:view` existe mais n'est pas ouverte au rôle Membre ; l'ancienne page `/presentation` rend encore le règlement | 1 occurrence dans `src/` | ouvrir la permission + trancher la page | — | **D-P1** |
 ### 1bis. Reste de l'audit sécurité (13/11/2026)
 
-Reste **réel** : **TOCTOU DNS** · **Caddy** (POST en maintenance → `503`) · **CSP** à activer (`CSP_ENFORCE=true`) · **date de coupure du jeton legacy** (`STORAGE_LEGACY_TOKENS_UNTIL`) · **next-auth stable** (indisponible : `5.0.0-beta.32`) · **AUD-12** (amont) · **AUD-06/AUD-08** non décrits dans la doc (à clarifier) · ops (sauvegardes, branches, CF, token).
+Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (commits `6bbb1c1f`, `5db4598b` ; branche + PR à ouvrir) · **next-auth stable** (indisponible : `5.0.0-beta.32`) · **AUD-12** (amont) · **AUD-06/AUD-08** non décrits dans la doc (à clarifier) · ops **prod** (sauvegardes, branches, CF, token). **Soldé et vérifié le 15/11/2026** : CSP actif en bêta (`CSP_ENFORCE=true`), jeton legacy coupé au **13/12/2026** (bêta + prod), intent `MessageContent` **OFF** (bêta + prod), cAdvisor absent en bêta, migrations notifications appliquées le 15/11 à 22:20. **Suite datée** : **après le 13/12/2026**, supprimer la branche « legacy » de `src/lib/storage-utils.ts` (HMAC nu + `getLegacySecret` + `legacyTokenWarned`), la variable `STORAGE_LEGACY_TOKENS_UNTIL` (`.env.example` + bêta/prod) et réécrire `tests/unit/storage-token-legacy.test.ts` en « ancien format refusé » — le retrait avant cette date casserait les vieux liens Discord que la date protège.
 ## 2. P1 — Chantiers produit (ordre proposé)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
@@ -74,7 +74,7 @@ Reste **réel** : **TOCTOU DNS** · **Caddy** (POST en maintenance → `503`) ·
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (6 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop — **livrés** | **affinage fiche** (brief) → **V2a-4 reste (tour)** → **V2d** (ladder) → **V3** (God visiteurs) | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
+| 57 | `espace-visiteur` (PV) | Compte Discord **sans guilde** : espace perso (6 segments), progression en base, communauté par serveur, annuaire privé, God | V1a→V1i, V2a-1/2/3/5/6, V2e, V2c, V2f F8→F17b + F1→F7, hub Communauté, échanges Metamob, Ocre ISO, Oméga, deslop — **livrés** | **tour guidé** → **V3** (God visiteurs) · **V2d abandonné** · **affinage fiche validé le 15/11/2026** | `docs/plans/PLAN-ESPACE-VISITEUR.md` | — |
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
@@ -134,7 +134,7 @@ Reste **réel** : **TOCTOU DNS** · **Caddy** (POST en maintenance → `503`) ·
 | 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
 | 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
 | 12 | Données Tougli / Dofusyelle (V-D2, ou acter la cible 517) | 10 | ? |
-| 13 | V2a-4 reste (tour), V2d, V3 (espace visiteur) | 57 | ? |
+| 13 | Tour guidé (reste V2a-4) + V3 (God visiteurs) — **V2d abandonné** | 57 | ? |
 
 
 

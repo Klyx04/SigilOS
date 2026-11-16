@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
-import { assertSafeUrl } from '@/lib/image-downloader';
+import { safeFetch } from '@/lib/safe-fetch';
 import { isRemoteSpriteFetchEnabled } from '@/lib/dofus-monster-assets';
 import { logger } from '@/lib/logger';
 
@@ -163,11 +163,11 @@ export async function GET(
                 return placeholderResponse();
             }
             try {
-                await assertSafeUrl(spriteUrl);
+                
                 // SSRF : aucune redirection suivie — une 3xx sortirait de l'allowlist.
-                const spriteRes = await fetch(spriteUrl, {
+                const spriteRes = await safeFetch(spriteUrl, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    redirect: 'error',
+                    maxRedirects: 0,
                     signal: AbortSignal.timeout(6_000),
                 });
                 if (spriteRes.ok) {
@@ -256,7 +256,7 @@ export async function GET(
         }
 
         // 2. Sinon, on siphonne à la volée depuis la source (Auto Self-Healing)
-        // 🔒 `?url=` durci : hôte allowlisté + assertSafeUrl (DNS + IP privées) + HTTPS only.
+        // 🔒 `?url=` durci : hôte allowlisté + safeFetch (IP vérifiée à la connexion) + HTTPS only.
         const rawUrlParam = req.nextUrl.searchParams.get('url');
         const safeUrlParam = getAllowedRemoteUrl(rawUrlParam);
 
@@ -328,10 +328,10 @@ export async function GET(
                         } else {
                             const imgUrl = getAllowedRemoteUrl(monsterData?.img);
                             if (imgUrl) {
-                                await assertSafeUrl(imgUrl);
-                                const imgRes = await fetch(imgUrl, {
+                                
+                                const imgRes = await safeFetch(imgUrl, {
                                     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                                    redirect: 'error',
+                                    maxRedirects: 0,
                                     signal: AbortSignal.timeout(6_000),
                                 });
                                 if (imgRes.ok) {
@@ -356,10 +356,10 @@ export async function GET(
             // (apparence d'un autre monstre) ne peut donc plus passer devant la fiche DofusDB.
             if (!downloaded && safeUrlParam) {
                 try {
-                    await assertSafeUrl(safeUrlParam);
-                    const declared = await fetch(safeUrlParam, {
+                    
+                    const declared = await safeFetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        redirect: 'error',
+                        maxRedirects: 0,
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -447,10 +447,10 @@ export async function GET(
             // une URL perimee (apparence d un autre objet) ne peut plus passer devant la fiche DofusDB.
             if (!downloaded && safeUrlParam) {
                 try {
-                    await assertSafeUrl(safeUrlParam);
-                    const declared = await fetch(safeUrlParam, {
+                    
+                    const declared = await safeFetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        redirect: 'error',
+                        maxRedirects: 0,
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -596,13 +596,13 @@ export async function GET(
         if (remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled && !dbIconHandled) {
             try {
                 // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
-                await assertSafeUrl(remoteUrl);
-                const remoteRes = await fetch(remoteUrl, {
+                
+                const remoteRes = await safeFetch(remoteUrl, {
                     headers: {
                         Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                     },
-                    redirect: 'error',
+                    maxRedirects: 0,
                     signal: AbortSignal.timeout(8_000),
                 });
 

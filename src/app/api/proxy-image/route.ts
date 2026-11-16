@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_FILE_SIZE, detectMimeType } from "@/lib/image-security";
-import { isPrivateIp } from "@/lib/ip-safety";
+import { safeFetch } from "@/lib/safe-fetch";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
@@ -166,19 +166,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Domain not allowed" }, { status: 403 });
     }
 
-    // 2. Block private/reserved IPs (SSRF via DNS rebinding or direct IP)
-    try {
-      const dns = await import("node:dns/promises");
-      const addresses = await dns.lookup(parsedUrl.hostname, { all: true });
-      for (const addr of addresses) {
-        if (isPrivateIp(addr.address)) {
-          return NextResponse.json({ error: "Internal IP not allowed" }, { status: 403 });
-        }
-      }
-    } catch {
-      // DNS resolution failed → reject (fail-closed)
-      return NextResponse.json({ error: "DNS resolution failed" }, { status: 403 });
-    }
+    // 2. SSRF : la vérification d'IP est faite **pendant la connexion** (safe-fetch), et
+    //    l'hôte est revalidé à **chaque** saut de redirection — voir `safeFetch` ci-dessous.
 
     // Prepare headers to bypass hotlinking detection
     const headers = new Headers();
@@ -193,11 +182,26 @@ export async function GET(req: NextRequest) {
     headers.set("Sec-Fetch-Mode", "no-cors");
     headers.set("Sec-Fetch-Site", "same-origin");
     
-    // Perform fetching on behalf of the client
-    const response = await fetch(url, {
-      headers,
-      method: "GET",
-    });
+    // Perform fetching on behalf of the client. `safeFetch` refuse toute IP privée au moment
+    // de la connexion et revalide protocole + domaine sur chaque redirection (fail-closed).
+    let response;
+    try {
+      response = await safeFetch(url, {
+        headers,
+        method: "GET",
+        maxRedirects: 3,
+        validateUrl: (target) => {
+          if (target.protocol !== "http:" && target.protocol !== "https:") {
+            throw new Error("Protocol not allowed");
+          }
+          if (!ALLOWED_DOMAINS.has(target.hostname.toLowerCase())) {
+            throw new Error("Domain not allowed");
+          }
+        },
+      });
+    } catch {
+      return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
+    }
 
     if (!response.ok) {
       return NextResponse.json(

@@ -18,11 +18,23 @@ describe("correctifs 2ᵉ passe — invariants", () => {
         expect(src).not.toMatch(/!resolvedPath\.startsWith\(UPLOAD_ROOT\)\s*\)/);
     });
 
-    it("/api/proxy-image et image-downloader utilisent la règle IP partagée", () => {
+    it("/api/proxy-image et image-downloader passent par la connexion sûre", () => {
         for (const rel of ["src/app/api/proxy-image/route.ts", "src/lib/image-downloader.ts"]) {
             const src = read(rel);
-            expect(src).toMatch(/from "@\/lib\/ip-safety"/);
-            expect(src).not.toMatch(/PRIVATE_IP_BLOCKS/);
+            expect(src, rel).toMatch(/from ["']@\/lib\/safe-fetch["']/);
+            expect(src, rel).not.toMatch(/await fetch\(/);
+        }
+    });
+
+    it("les autres téléchargements d'URL externe passent aussi par safeFetch", () => {
+        for (const rel of [
+            "src/server/actions/dofusbook-actions.ts",
+            "src/server/actions/skin-actions.ts",
+            "src/app/api/assets-dofus/[type]/[id]/route.ts",
+        ]) {
+            const src = read(rel);
+            expect(src, rel).toMatch(/from ["']@\/lib\/safe-fetch["']/);
+            expect(src, rel).not.toMatch(/assertSafeUrl/);
         }
     });
 

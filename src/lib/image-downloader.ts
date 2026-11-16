@@ -2,47 +2,14 @@ import { writeFile, mkdir } from "fs/promises";
 import { resolve, basename, join, sep } from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
-import { isPrivateIp } from "@/lib/ip-safety";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before optimization
 
-// ─── SSRF protections (F-03 / audit) ────────────────────────────────────────
-// The original implementation fetched ANY url passed by the (God) admin with
-// no protocol/IP restriction. A compromised admin could use it to scan internal
-// services (Redis, Postgres, cloud metadata 169.254.169.254, ...).
-// We now block non-http(s) protocols + private/reserved IPs + DNS rebinding.
-const BLOCKED_PROTOCOLS = ["file:", "ftp:", "gopher:", "dict:", "ldap:", "smb:"];
-
-/** Non-blocking DNS (ssrf): validate protocol + resolve & reject internal IPs. */
-export async function assertSafeUrl(rawUrl: string): Promise<void> {
-  let u: URL;
-  try {
-    u = new URL(rawUrl);
-  } catch {
-    throw new Error("URL invalide");
-  }
-
-  // 1. Protocol allow-list (http/https only)
-  if (BLOCKED_PROTOCOLS.includes(u.protocol) || (u.protocol !== "http:" && u.protocol !== "https:")) {
-    throw new Error("Protocole non autorisé");
-  }
-
-  // 2. Resolve DNS and block private/reserved IPv4 + loopback/link-local IPv6
-  //    → mitigates DNS rebinding where a hostname resolves first to a public IP
-  //      (passing the initial check) then later to an internal one.
-  const { lookup } = await import("node:dns/promises");
-  const addresses = await lookup(u.hostname, { all: true }).catch(() => []);
-  // If resolution fails entirely → reject (fail-closed, we cannot prove safety)
-  if (addresses.length === 0) {
-    throw new Error("Résolution DNS impossible");
-  }
-  for (const addr of addresses) {
-    // AUD-03 : couvre IPv4 **et** IPv6 (ULA, mapped, multicast, documentation…).
-    if (isPrivateIp(addr.address)) {
-      throw new Error("Adresse IP interne bloquée");
-    }
-  }
-}
+// ─── SSRF (F-03 + audit 13/11) ──────────────────────────────────────────────
+// Tout téléchargement sortant passe par `safeFetch` (src/lib/safe-fetch.ts) :
+// protocole http(s), IP privées refusées **pendant** la connexion (fin du TOCTOU
+// DNS) et redirections revalidées. Aucun `fetch` nu dans ce module.
 // -----------------------------------------------------------------------------
 
 // Optimization settings per type
@@ -82,13 +49,11 @@ export async function downloadExternalImage(
     type: ImageType
 ): Promise<{ success: boolean; path?: string; error?: string; sizeReduction?: string }> {
     try {
-        // 🔐 SSRF protection (F-03): validate protocol + block internal IPs before fetch.
-        // A compromised God/admin cannot use this tool to scan the internal network
-        // (Redis, DB, cloud metadata) or hit internal endpoints.
-        await assertSafeUrl(url);
-
-        // 2. Fetch image (domain is now validated by assertSafeUrl)
-        const response = await fetch(url, {
+        // 🔐 SSRF (F-03 + audit 13/11) : `safeFetch` vérifie l'IP **pendant la connexion**
+        // (plus de fenêtre TOCTOU entre le contrôle DNS et le fetch) et revalide chaque
+        // redirection. Un God compromis ne peut donc pas scanner le réseau interne.
+        // 2. Fetch image
+        const response = await safeFetch(url, {
             headers: {
                 "User-Agent": "SigilOS/1.0",
                 "Accept": "image/*"
@@ -96,6 +61,7 @@ export async function downloadExternalImage(
             // Bound the download: abort after 20s so a hanging external host
             // cannot pin the process.
             signal: AbortSignal.timeout(20_000),
+            maxRedirects: 3,
         });
 
         if (!response.ok) {

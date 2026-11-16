@@ -101,6 +101,14 @@ sigilos.fr {
     # 🔁 Le jour de la bascule prod : retirer CETTE ligne (checklist docs/plans/SEO_REPRISE.md).
     header X-Robots-Tag "noindex, nofollow"
 
+    # 🛠️ ÉCRITURES en maintenance : un POST ne reçoit JAMAIS le HTML de la page d'attente en 200.
+    # Mesure du 16/10/2026 : un formulaire envoyé pendant la maintenance recevait `200 text/html`
+    # et le client pouvait croire que l'action avait réussi (perte silencieuse). On répond un
+    # `503 text/plain` honnête — les navigateurs, server actions et webhooks savent réessayer.
+    # Les GET continuent de voir la vitrine : seules les méthodes d'écriture sont coupées.
+    @vitrineWrite method POST PUT PATCH DELETE
+    respond @vitrineWrite "Service en maintenance — réessayez dans quelques minutes." 503
+
     # 🤖 robots.txt statique (E-INF-01/SEO) — DOIT passer avant le rewrite maintenance.
     # Pas de ligne `Sitemap:` : la vitrine n'expose aucun contenu indexable ; le sitemap vit sur la
     # bêta, dans la propriété qui a réellement des pages à faire découvrir. Annoncer ici
@@ -160,6 +168,14 @@ beta.sigilos.fr {
     import security_headers
     import rate_limit_base
     import error_page_429
+
+    # 🛠️ ÉCRITURES en maintenance (même règle que la vitrine) : tant que le drapeau existe,
+    # POST/PUT/PATCH/DELETE → `503 text/plain`, jamais le HTML de maintenance en 200.
+    @maintenanceWrite {
+        method POST PUT PATCH DELETE
+        expression `file("/srv/maintenance-beta-on")`
+    }
+    respond @maintenanceWrite "Service en maintenance — réessayez dans quelques minutes." 503
 
     # If maintenance flag file exists, serve the maintenance page
     @maintenance_on expression `file("/srv/maintenance-beta-on")`

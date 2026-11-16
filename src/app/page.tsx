@@ -49,7 +49,7 @@ export default async function Home({
     // déployer) part dans son espace perso ; Discord en échec ⇒ aucune redirection.
     await redirectGuildlessUserToVisitorSpace({
       hasGuild: separated.active.length + separated.pending.length + separated.awaiting.length > 0,
-      guildLookupFailed: separated.rateLimited || separated.needsReconnect,
+      guildLookupFailed: separated.lookupFailed,
     });
   }
 

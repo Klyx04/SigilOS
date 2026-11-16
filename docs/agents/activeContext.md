@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 3) — **Visiteur · entrée guidée : attente neutre, fail-closed 5xx, cache 60 s, accueil de création** — branche `feat/visiteur-entree`
+
+> **Demande user (verbatim)** : « on devrait pas plutôt le guider en arrivant que lui prompter une page brut pas de guilde etc ? ça donne pas franchement envie ».
+> **Mesure** : le 1er écran était un **verdict** (« Accès restreint / Aucune guilde ») affiché pendant que Discord répondait **429** ; le 429 venait du **double appel** `GET /users/@me/guilds` (callback `signIn` puis portail, même seconde). L'auto-reload était un `window.location.reload()` à **10 s fixes** (plafond 6 ⇒ 60 s). Second défaut fail-closed : un **5xx/réseau** (`TRANSIENT`) n'était ni `rateLimited` ni `needsReconnect` ⇒ `guildLookupFailed = false` ⇒ redirection visiteur alors que Discord n'avait pas répondu.
+> **Fait** : ① **fail-closed** — `getGuildsSeparated` expose `lookupFailed` (429, scope, 5xx, réseau, jeton absent) ; `/dashboard` et `/` le lisent tel quel. ② **écran d'attente neutre** `guild-check-pending.tsx` (« Ton espace se prépare. », jalons, note « ton espace visiteur s'ouvrira tout seul »), reprise **2/4/8/16 s** via `router.refresh()` (`guildLookupRetryDelayMs`, `MAX_PORTAL_AUTO_RELOAD = 4`), navigation complète au dernier recours ; `NoGuildMessage` ne porte plus que le **verdict**. ③ **cause racine** — snapshot **60 s** des serveurs (`src/lib/discord-guilds-snapshot.ts` Zod borné + `src/server/discord-guilds-cache.ts` Redis), écrit par `signIn` et après un fetch réussi, lu avant tout appel Discord. ④ **accueil visiteur** — « Bienvenue {pseudo} » + 3 bénéfices (icônes Dofus réelles) + formulaire requalifié « Étape 1 — Ton personnage », lien « Installer SigilOS » ; **visite de création** 3 pas (`visitorOnboarding`, 2 ancres posées) ; nav limitée aux 3 onglets franchissables (`filterVisitorNav`) tant que le profil n'existe pas.
+> **Preuves** : `npm run test:run` **723 fichiers / 7 610 tests ✅** · `npx tsc --noEmit` 0 · `npm run lint` 0 erreur · ciblés : `onboarding-portal` 11, `visitor-entry` 11, `public-tour` 22, `discord-guilds-snapshot` 7, `visitor-nav-filter` 3, `visitor-shell` 7.
+> **Reste / ops** : aucune migration, aucun env ; le cache s'active au redéploiement (Redis requis, repli = appel Discord).
+> **Rotation** : bloc « Session 15/11/2026 (suite) — Notifications · N1 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 2) — **Discord · Commande slash `/legendaire` (artisanat et éligibilité quête)** — branche `feat/commande-legendaire`
 
 > **Demande user** : « ajouter une nouvelle commande slash discord dans /dashboard/.../commandes manageable comme les autres dans /admin/commandes, l'objectif: trouvez qui peut craft tel objet legendaire... exemple /legendaire meriana affiche un bel embed avec la liste des pseudo qui ont le métier + la quete animaux fantastique faites donc eligible, l'icone de l'image dans l'embed etc ».
@@ -52,13 +62,6 @@
 > **Rotation** : bloc « 13/11/2026 (suite 4) — Sécurité · révocation WS des membres exclus » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 15/11/2026 (suite) — **Notifications · N1 : boîte du compte (`userId` + `guildId: null`)** — branche `feat/notifications-compte-n1`
-
-> **Décisions user** : notifications = **espace du compte** ; audience = **tout le monde** (interne + visiteur avec espace), le scope compte garantit **une notification par personne** ; Rush en v2 ; pas d'e-mail/push ; opt-out possible mais proposé en **N2-bis** (migration) ; rétention existante **30 j lues / 90 j non lues**.
-> **Fait** : N1 sans migration — `src/server/account-notifications.ts` (scope `userId` + `guildId: null` défini **une seule fois**, écriture bornée Zod, lecture ≤ 50, total + non-lues) · `src/server/actions/account-notification-actions.ts` (marquage lu / tout lu, `getPublicSession`, rate limit Redis, `updateMany` propriétaire) · **le verrou `notification-guild-isolation` reste intact** ; `guild-actions-rbac` a révélé le littéral `guildId` dans l'action → scope extrait dans une fonction, action sans `guildId`.
-> **Preuves** : `account-notifications-scope` **14** · ciblé **32** · suite **707 fichiers / 7 501 tests ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : N2 (émission changelog : migration additive d'enum, audience à mesurer, lien de destination à trancher), N3 (page + pastille), N4 (réponse au signalement) ; rien à déployer pour N1.
-> **Rotation** : bloc « 13/11/2026 (suite 3) — SEC-04 · cAdvisor supprimé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

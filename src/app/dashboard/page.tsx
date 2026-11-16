@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { GuildSetupCard } from "@/components/guild-setup-card";
 import { NoGuildMessage } from "@/components/no-guild-message";
+import { GuildCheckPending } from "@/components/guild-check-pending";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { getGuildsSeparated } from "@/server/actions/user-actions";
@@ -24,7 +25,7 @@ export default async function GuildSelectorPage() {
         redirect("/");
     }
 
-    const { active, pending, awaiting, rateLimited, needsReconnect, guildLimitReached, guildLimit } =
+    const { active, pending, awaiting, needsReconnect, lookupFailed, guildLimitReached, guildLimit } =
         await getGuildsSeparated();
 
     // Smart Redirect: if only one guild, go directly without showing the portal
@@ -37,11 +38,12 @@ export default async function GuildSelectorPage() {
 
     // 🔓 Porte visiteur (D-V13) — un compte sans aucune guilde n'a plus de cul-de-sac : il part
     // dans son espace perso. La règle est partagée avec la landing (`src/server/visitor-entry.ts`)
-    // et ne s'ouvre jamais quand Discord n'a pas répondu : un membre ne peut pas être pris pour
-    // un visiteur (fail-closed). Aucune migration, aucun `guildId` transmis.
+    // et ne s'ouvre jamais quand Discord n'a pas répondu (`lookupFailed` couvre 429, scope
+    // refusé, 5xx et panne réseau) : un membre ne peut pas être pris pour un visiteur
+    // (fail-closed). Aucune migration, aucun `guildId` transmis.
     await redirectGuildlessUserToVisitorSpace({
         hasGuild: !isEmpty,
-        guildLookupFailed: rateLimited || needsReconnect,
+        guildLookupFailed: lookupFailed,
     });
 
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
@@ -72,9 +74,13 @@ export default async function GuildSelectorPage() {
 
             <main className="flex-1">
 
-                {isEmpty ? (
+                {isEmpty && lookupFailed ? (
                     <div className="reg-shell py-10 lg:py-14">
-                        <NoGuildMessage rateLimited={rateLimited} needsReconnect={needsReconnect} autoOnboardingOn={autoOnboardingOn} />
+                        <GuildCheckPending needsReconnect={needsReconnect} />
+                    </div>
+                ) : isEmpty ? (
+                    <div className="reg-shell py-10 lg:py-14">
+                        <NoGuildMessage autoOnboardingOn={autoOnboardingOn} />
                     </div>
                 ) : (
                     <div className="reg-shell py-10 lg:py-14 space-y-10">

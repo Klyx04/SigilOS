@@ -60,21 +60,28 @@ export function classifyGuildsFetchError(status: number): GuildsFetchErrorKind {
 }
 
 /**
- * Plafond anti-tempête de la re-vérification auto du portail.
- * Sans plafond, un échec permanent (scope manquant) + reload toutes les
- * 10 s = matraquage de l'API Discord jusqu'au 429, en boucle. Au-delà du
- * plafond, on affiche un état fixe + bouton manuel.
+ * Reprise de la vérification des serveurs (`/dashboard`).
+ *
+ * Le portail ne recharge plus la page entière : il rafraîchit le rendu serveur
+ * selon un calendrier court (2 s → 4 s → 8 s → 16 s), puis rend la main à
+ * l'utilisateur. Un re-consentement manquant (`needsReconnect`) ne se répare
+ * pas en réessayant : aucun essai n'est programmé.
  */
-export const MAX_PORTAL_AUTO_RELOAD = 6;
+export const GUILD_LOOKUP_RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 16_000] as const;
 
-export function shouldAutoReloadPortal(args: {
-    rateLimited: boolean;
+/**
+ * Plafond anti-tempête. Le nom historique est conservé : la doc de refonte de
+ * l'onboarding et les écrans le citent, et il reste la **seule** borne.
+ */
+export const MAX_PORTAL_AUTO_RELOAD = GUILD_LOOKUP_RETRY_DELAYS_MS.length;
+
+/** Délai avant le prochain essai, ou `null` quand on arrête (plafond / re-consentement). */
+export function guildLookupRetryDelayMs(args: {
     needsReconnect: boolean;
     attempts: number;
-}): boolean {
-    if (args.needsReconnect) return false;
-    if (!args.rateLimited) return false;
-    return args.attempts < MAX_PORTAL_AUTO_RELOAD;
+}): number | null {
+    if (args.needsReconnect) return null;
+    return GUILD_LOOKUP_RETRY_DELAYS_MS[args.attempts] ?? null;
 }
 
 /**

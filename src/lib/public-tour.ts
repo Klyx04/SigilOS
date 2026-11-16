@@ -28,6 +28,8 @@ export interface PublicTourStep {
 
 /** Drapeau de la visite de première arrivée (navigateur, jamais le serveur). */
 export const VISITOR_TOUR_STORAGE_KEY = "sigilos:visitor-tour-seen";
+/** Drapeau de la visite de **création** d'espace (avant que le profil existe). */
+export const VISITOR_ONBOARDING_TOUR_STORAGE_KEY = "sigilos:visitor-onboarding-tour-seen";
 /** Paramètre de rejeu explicite : `/espace-visiteur/general?tour=1`. */
 export const VISITOR_TOUR_QUERY_PARAM = "tour";
 export const VISITOR_TOUR_QUERY_VALUE = "1";
@@ -313,3 +315,38 @@ export function buildVisitorSpaceSteps(): PublicTourStep[] {
         },
     ];
 }
+
+/**
+ * Visite de la **création** d'espace (première arrivée, avant tout profil).
+ *
+ * Trois pas, tous ancrés sur l'écran de création : la nav commune, le champ
+ * serveur et le champ pseudo. La visite complète (`buildVisitorSpaceSteps`)
+ * suppose un profil — ses deux derniers pas n'auraient pas d'ancre ici, or
+ * l'overlay ne s'affiche pas quand la cible manque : le visiteur resterait bloqué.
+ */
+export function buildVisitorOnboardingSteps(): PublicTourStep[] {
+    return [
+        {
+            target: target("visitor-nav"),
+            title: "Ton espace visiteur",
+            description:
+                "Général, Notifications et Communauté sont ouverts tout de suite. Les autres onglets s'ouvrent dès que ton espace est créé.",
+            placement: "bottom",
+        },
+        {
+            target: target("visitor-onboarding-server"),
+            title: "Ton serveur Dofus",
+            description:
+                "Choisis le serveur de ton personnage principal : c'est la clé de l'annuaire et de la progression communautaire.",
+            placement: "bottom",
+        },
+        {
+            target: target("visitor-onboarding-pseudo"),
+            title: "Ton pseudo Dofus",
+            description:
+                "Le nom de ton personnage principal. Tu pourras le modifier ensuite depuis l'onglet Général.",
+            placement: "bottom",
+        },
+    ];
+}
+

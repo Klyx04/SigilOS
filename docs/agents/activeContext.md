@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 11) — **Visiteurs · avis de recherche, coches par personnage, page perso et fiche lecture seule** — branches `fix/visiteurs-filtres-hover`, `feat/avis-et-personnages`, `feat/visiteur-page-perso`
+
+> **Demande user (verbatim)** : « on s'était dit aussi qu'on referait la page perso plus personnalisé à la duffus sans copier duffus évidemment et aussi les pages en lecture seule laide actuellement » · « ajoute les avis de recherche dans /espace-visiteur/succes à cocher simplement, validé ou non, même fiche que l'interne, et que ça se voit côté filtre commun, avis fait non fait » · « oui cree la table et enchaine visiteur filtre commun mais idem coté profil de guilde interne : pouvoir cocher les avis de recherche + filtre commun et évidemment on doit pouvoir changer de mule aussi pour les coches des succès, interne et visiteurs » · « ya aucune hover ou survrillance a la selection c penible ».
+> **Mesure** : le survol des filtres utilisait `hover:bg-surface` sur un panneau `.reg-panel` en `--surface` (invisible) ; les avis étaient listés en lecture seule dans `/espace-visiteur/succes` ; le tracker interne écrivait `UserDungeonProgress` sans personnage ; la page perso et la fiche `Rakzia` n'avaient ni hero ni compteurs.
+> **Fait** : **#1409** survol/sélection (hover elevated, ring actif, focus). **#1410** deux migrations **additives** (`PublicBountyCompletion` / `UserBountyCompletion`, `characterSlot` sur les coches) ; coche d'avis visiteur + fiche `BountyFicheView` partagée ; section « Avis de recherche » dans `/visiteurs?vue=succes` (fait / cherchent encore) ; côté interne, sélecteur de personnage dans Mes Succès et la fiche Avis, carte « Avis de recherche » avec filtre commun de guilde. **#1411** page perso (hero, 4 compteurs réels, visibilité, raccourcis ; formulaires et ancres du tour inchangés) et fiche lecture seule (hero, 4 chiffres dont « avis faits » via `bountiesDone`, présentation/objectifs/métiers).
+> **Preuves** : suite **743 fichiers / 7 777 tests ✅** · `tsc` 0 · ESLint 0 erreur · migrations appliquées en local (`migrate deploy` + `generate`) · PR **#1409**, **#1410**, **#1411**.
+> **Reste / ops** : jouer les migrations en **bêta puis prod** (`prisma migrate deploy`) ; contrôle visuel 390/768/1024/1440 de la page perso, de la fiche `/visiteurs/[id]`, du sélecteur de personnage et du filtre avis ; D4→D7 inchangés.
+> **Rotation** : bloc « Session 16/11/2026 (suite 5) — Stats · restes soldés » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 10) — **Reprise D1/D2/D3 : Discord SigilOS, rangs explicites, annuaire multi-serveurs** — branches `feat/discord-sigilos`, `fix/ladder-libelles`, `feat/visiteurs-filtre-serveur`
 
 > **Demande user (verbatim)** : « Commence par D1 et D2 (XS), puis D3. »
@@ -57,15 +67,9 @@
 > **Rotation** : bloc « Sentry · un log n'est pas une exception… » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 16/11/2026 (suite 5) — **Stats · restes soldés, auth avant cache, 404 chartées et journalisées** — branche `fix/stats-restes-et-404`
 
-> **Demande user (verbatim)** : « enchaine tout dans l'ordre , un commit par lot , une seule grosse pr à merger et surveiller ».
-> **Mesure** : les 4 restes de « Stats Guilde » étaient bien morts — `/stats` absent de `src`, « Stats Guilde » rendu par `permission-card.tsx:100`, `stats` retiré du registre (`DEFAULT_MODULES`), aucune commande slash `stats` (l'aperçu `EMBED_PREVIEWS.stats` ne pouvait donc jamais être lu). Sécurité : `getGuildStats` lisait `redis.get` **avant** `getUserContext` ; l'action étant POST-able, un `guildId` au cache chaud renvoyait les stats sans membership. 404 : **aucun** `not-found.tsx` dans le dépôt (22 `notFound()`), `x-pathname` déjà posé par `proxy.ts:312`.
-> **Fait** : **commit 1** — les 4 restes supprimés, `redirects()` **308** `/dashboard/:guildId/stats` → `/dashboard/:guildId` (et non 410 : le contenu vit sur l'accueil) + 4 assertions · **commit 2** — autorisation **avant** le cache (`logger.warn` si Redis indisponible) + verrou d'ordre · **commit 3** — `src/app/not-found.tsx` (registre + `PublicHeader`/`GalacticFooter`, CTA selon session, `robots index:false`), `dashboard/[guildId]/not-found.tsx` (guildId lu par regex snowflake **bornée**), `espace-visiteur/not-found.tsx`, helper pur `src/lib/not-found-log.ts` (query retirée, Referer réduit à l'hôte, UA tronqué, 1/4 sans Referer) + wrapper serveur `cache()` (dédoublonne les deux rendus par requête).
-> **Preuves** : `test:run` **726 fichiers / 7 649 tests ✅** (33 neufs) · `tsc` 0 · ESLint 0 erreur · `npm run build` **EXIT 0**, `/_not-found` **ƒ dynamique** · `next start` + `curl` : `/cette-page-n-existe-pas` **404** (contenu charté), `/guides/inconnu` **404**, `/dashboard/<id>/stats` **308**, `/dashboard/<id>/inconnu` et `/espace-visiteur/inconnu` **404**, **1 ligne de log par requête**.
-> **Essai (demandé en cours de route, hors lot stats/404)** : vérifié que la notification ne s'appuie que sur `trialValidated: false` + `trialEndsAt` non nul (essai de base posé à l'arrivée, reprogrammation via `setMemberTrialState`, sources profil + registre) et que `postServiceMessage` renvoie `null` en échec. **Trou permanent corrigé** : la clé Redis d'idempotence (90 j) était posée **avant** l'envoi — un crash pendant l'envoi supprimait la notification pour cette échéance ⇒ verrou court **5 min** + clé durable écrite **après** un envoi réussi. Embed enrichi : `Dashboard : 🟢 Présent sur le dashboard` / `🔴 Pas de compte dashboard` (`buildTrialEndNotice`, règle pure testée).
-> **Reste / ops** : PR à merger · la mesure `next start` exige `STORAGE_SIGNING_SECRET` (≥ 32) et `GOD_ROUTE` (`/mng-…`) · `/visiteurs/<id>` anonyme répond **200** (porte d'accès `noindex`) : `notFound()` ne couvre que le viewer authentifié — comportement existant, non modifié · une URL non reconnue rend les 404 imbriquées **sans** le layout du segment (mesuré) · `/god/guilds/<id>` inconnu rend la 404 publique (aucun écran dans `/god`, pas de fuite).
-> **Rotation** : bloc « Session 15/11/2026 (suite 3) — Docs · un seul fichier de chantiers » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 
 
 

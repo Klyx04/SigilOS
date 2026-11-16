@@ -724,6 +724,36 @@ export function StorageOverviewPanel() {
                             </div>
                         </div>
 
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {[
+                                {
+                                    label: "Télémétrie",
+                                    days: logs.retention.policy.telemetryDays,
+                                    rows: logs.retention.telemetry.rows,
+                                    oldest: logs.retention.telemetry.oldest,
+                                },
+                                {
+                                    label: "Journal d'activité",
+                                    days: logs.retention.policy.serviceActivityDays,
+                                    rows: logs.retention.serviceActivity.rows,
+                                    oldest: logs.retention.serviceActivity.oldest,
+                                },
+                            ].map((item) => (
+                                <div key={item.label} className="rounded-xl border border-border bg-surface/40 p-4">
+                                    <p className="text-caption text-muted-foreground">
+                                        {item.label} ({item.days} j)
+                                    </p>
+                                    <p className="mt-1 text-xl font-semibold text-foreground font-mono">{item.rows}</p>
+                                    <p className="mt-1 text-caption text-muted-foreground">
+                                        {item.oldest
+                                            ? `Plus ancienne ligne : ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" }).format(new Date(item.oldest))}`
+                                            : "Aucune ligne"}
+                                    </p>
+                                    <p className="mt-2 text-caption text-muted-foreground">Purge au prochain cron</p>
+                                </div>
+                            ))}
+                        </div>
+
                         <div className="overflow-x-auto no-scrollbar">
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-surface">

@@ -8,6 +8,14 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
+import {
+    DISCORD_DESCRIPTION_MAX,
+    DISCORD_FIELD_NAME_MAX,
+    DISCORD_FIELD_VALUE_MAX,
+    DISCORD_TITLE_MAX,
+    truncate,
+} from "@/lib/discord/embed-limits";
+import { formatCrafterList, type LegendaryCrafter } from "@/lib/discord/legendary-crafters";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
@@ -3497,10 +3505,18 @@ export async function POST(request: NextRequest) {
             }
 
             if (commandName === "legendaire" && focusedOption?.name === "item") {
-                const query = normSearch(focusedOption.value || "");
+                // `focusedOption.value` est une chaîne pour une option type 3 : on le
+                // vérifie quand même (un client peut envoyer un nombre), puis on borne
+                // la lecture. Le filtre reste en JS : `normSearch` ignore les accents,
+                // ce que Postgres `contains` ne sait pas faire — la table est un
+                // référentiel de jeu borné.
+                const query = normSearch(
+                    typeof focusedOption.value === "string" ? focusedOption.value : ""
+                );
                 const items = await db.legendaryItem.findMany({
                     select: { name: true, category: true, jobRequired: true },
                     orderBy: { name: "asc" },
+                    take: 200,
                 });
                 const choices = items
                     .filter(
@@ -4167,7 +4183,10 @@ export async function POST(request: NextRequest) {
 
             // ── /legendaire ───────────────────────────────────────────
             if (commandName === "legendaire") {
-                const rawItem = payload.data?.options?.find((o: any) => o.name === "item")?.value?.trim();
+                // Une option texte Discord peut porter jusqu'à 6000 caractères : on borne
+                // avant de l'utiliser, car la valeur est renvoyée dans le message d'erreur.
+                const rawItemValue = payload.data?.options?.find((o: any) => o.name === "item")?.value;
+                const rawItem = typeof rawItemValue === "string" ? rawItemValue.trim().slice(0, 100) : "";
                 const appBaseUrl = getAppBaseUrl();
 
                 if (!rawItem) {
@@ -4230,6 +4249,8 @@ export async function POST(request: NextRequest) {
                         data: {
                             content: `❌ Objet légendaire « ${rawItem} » introuvable.\n👉 Utilise l'autocomplétion pour choisir parmi les objets existants (ex: *Clairvoyance de Mériana*, *Pestilence de Corruption*…).`,
                             flags: 64,
+                            // La valeur vient de l'utilisateur : aucune mention ne doit partir.
+                            allowed_mentions: { parse: [] },
                         },
                     });
                 }
@@ -4261,14 +4282,8 @@ export async function POST(request: NextRequest) {
 
                 const { normalizeMetiers } = await import("@/lib/metiers");
 
-                interface CrafterEntry {
-                    name: string;
-                    discordId?: string;
-                    level: number;
-                }
-
-                const eligibleCrafters: CrafterEntry[] = [];
-                const missingQuestCrafters: CrafterEntry[] = [];
+                const eligibleCrafters: LegendaryCrafter[] = [];
+                const missingQuestCrafters: LegendaryCrafter[] = [];
                 const targetJob = normSearch(item.jobRequired);
 
                 for (const p of profiles) {
@@ -4283,13 +4298,14 @@ export async function POST(request: NextRequest) {
                     if (!isCrafter) continue;
 
                     const crafterName = p.pseudoDofus || p.discordNickname || "Membre";
+                    // `providerAccountId` = flocon Discord : sans lui, `<@cuid>` ne
+                    // mentionne personne (piège mesuré sur les tickets).
                     const discordId = p.user?.accounts?.[0]?.providerAccountId;
-                    const level = matchingJob?.level ?? 200;
 
                     if (p.hasLegendaryPrerequisites) {
-                        eligibleCrafters.push({ name: crafterName, discordId, level });
+                        eligibleCrafters.push({ name: crafterName, discordId });
                     } else {
-                        missingQuestCrafters.push({ name: crafterName, discordId, level });
+                        missingQuestCrafters.push({ name: crafterName, discordId });
                     }
                 }
 
@@ -4303,29 +4319,34 @@ export async function POST(request: NextRequest) {
                     : undefined;
 
                 const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-                    { name: "🔨 Métier requis", value: `**${item.jobRequired}** (Niv. 200)`, inline: true },
-                    { name: "📦 Catégorie", value: item.category, inline: true },
+                    {
+                        name: "🔨 Métier requis",
+                        value: truncate(`**${item.jobRequired}** (Niv. 200)`, DISCORD_FIELD_VALUE_MAX),
+                        inline: true,
+                    },
+                    { name: "📦 Catégorie", value: truncate(item.category, DISCORD_FIELD_VALUE_MAX), inline: true },
                     { name: "⭐ Niveau", value: `Niv. ${item.level}`, inline: true },
                 ];
 
                 if (item.passiveName) {
                     fields.push({
-                        name: `🔮 Effet passif — ${item.passiveName}`,
-                        value: item.passiveDesc ? item.passiveDesc.slice(0, 1024) : "Aucune description",
+                        name: truncate(`🔮 Effet passif — ${item.passiveName}`, DISCORD_FIELD_NAME_MAX),
+                        value: item.passiveDesc
+                            ? truncate(item.passiveDesc, DISCORD_FIELD_VALUE_MAX)
+                            : "Aucune description",
                         inline: false,
                     });
                 }
 
-                // Liste des artisans éligibles (métier + quête animaux fantastiques)
+                // Listes bornées AVANT l'envoi : un champ à 1025 caractères fait refuser
+                // l'interaction entière (Discord répond 400 → « pas de réponse »).
                 if (eligibleCrafters.length > 0) {
-                    const displayed = eligibleCrafters.slice(0, 25);
-                    let val = displayed.map((c) => `• **${c.name}**${c.discordId ? ` (<@${c.discordId}>)` : ""}`).join("\n");
-                    if (eligibleCrafters.length > 25) {
-                        val += `\n*... et ${eligibleCrafters.length - 25} autre(s) artisan(s)*`;
-                    }
                     fields.push({
-                        name: `✅ Artisans éligibles (${eligibleCrafters.length})`,
-                        value: val,
+                        name: truncate(`✅ Artisans éligibles (${eligibleCrafters.length})`, DISCORD_FIELD_NAME_MAX),
+                        value: formatCrafterList(eligibleCrafters, {
+                            maxLines: 25,
+                            overflow: (remaining) => `... et ${remaining} autre(s) artisan(s)`,
+                        }),
                         inline: false,
                     });
                 } else {
@@ -4338,15 +4359,16 @@ export async function POST(request: NextRequest) {
 
                 // Mention des artisans ayant le métier 200 mais pas les prérequis de quête
                 if (missingQuestCrafters.length > 0) {
-                    const displayedMissing = missingQuestCrafters.slice(0, 10);
-                    let valMissing = displayedMissing.map((c) => `• **${c.name}**${c.discordId ? ` (<@${c.discordId}>)` : ""}`).join("\n");
-                    if (missingQuestCrafters.length > 10) {
-                        valMissing += `\n*... et ${missingQuestCrafters.length - 10} autre(s)*`;
-                    }
-                    valMissing += "\n*👉 À valider sur le profil SigilOS une fois la quête terminée.*";
                     fields.push({
-                        name: `⚠️ Métier 200 (quête manquante ou non cochée) (${missingQuestCrafters.length})`,
-                        value: valMissing,
+                        name: truncate(
+                            `⚠️ Métier 200 (quête manquante ou non cochée) (${missingQuestCrafters.length})`,
+                            DISCORD_FIELD_NAME_MAX
+                        ),
+                        value: formatCrafterList(missingQuestCrafters, {
+                            maxLines: 10,
+                            overflow: (remaining) => `... et ${remaining} autre(s)`,
+                            footer: "*👉 À valider sur le profil SigilOS une fois la quête terminée.*",
+                        }),
                         inline: false,
                     });
                 }
@@ -4356,8 +4378,11 @@ export async function POST(request: NextRequest) {
                     data: {
                         embeds: [
                             {
-                                title: `✨ ${item.name}`,
-                                description: `Artisans disponibles sur **${guildConfig.name}** pour fabriquer cet objet.`,
+                                title: truncate(`✨ ${item.name}`, DISCORD_TITLE_MAX),
+                                description: truncate(
+                                    `Artisans disponibles sur **${guildConfig.name}** pour fabriquer cet objet.`,
+                                    DISCORD_DESCRIPTION_MAX
+                                ),
                                 color: eligibleCrafters.length > 0 ? 0xf59e0b : 0x64748b,
                                 fields,
                                 thumbnail: fullImageUrl ? { url: fullImageUrl } : undefined,

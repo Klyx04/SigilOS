@@ -14,6 +14,8 @@ export interface DiscordCommandOption {
     type: number;
     required?: boolean;
     autocomplete?: boolean;
+    /** Longueur maximale d'une option texte (Discord `max_length`, 1–6000). */
+    max_length?: number;
     choices?: Array<{ name: string; value: string }>;
 }
 
@@ -103,6 +105,9 @@ const COMMAND_PRESENTATION: Record<string, { description: string; options?: Disc
                 type: 3,
                 required: true,
                 autocomplete: true,
+                // Discord autorise 6000 caractères : le routeur renvoie la valeur dans
+                // son message d'erreur, donc on borne à la source.
+                max_length: 100,
             },
         ],
     },

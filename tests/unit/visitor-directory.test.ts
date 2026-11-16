@@ -6,7 +6,8 @@
  * 1. **Comportement des règles pures** : les filtres sont bornés et un filtre inconnu ne fait
  *    pas perdre les autres ; le DTO ne contient **aucun** champ privé (mules, Metamob, `userId`) ;
  *    la liste plafonne les métiers, la fiche les montre tous.
- * 2. **Verrou de source** : chaque requête porte `showOnDirectory` **et** le serveur du lecteur ;
+ * 2. **Verrou de source** : chaque requête porte `showOnDirectory` (consentement **global**
+ *    depuis D3) ; le serveur du lecteur est le **défaut** du filtre, jamais une permission ;
  *    les pages privées appellent la garde et restent en `noindex` ; la fiche répond `notFound()`.
  */
 
@@ -17,6 +18,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { VisitorFilters } from "@/app/visiteurs/_components/visitor-filters";
 import { fr } from "@/lib/i18n/locales/fr";
 import {
+    PUBLIC_DIRECTORY_ALL_SERVERS_PARAM,
     PUBLIC_DIRECTORY_JOBS_ON_CARD,
     PUBLIC_DIRECTORY_JOB_LEVEL_MAX,
     PUBLIC_DIRECTORY_JOB_LEVEL_MIN,
@@ -88,6 +90,29 @@ describe("Annuaire des visiteurs — filtres bornés, jamais bloquants", () => {
         expect(parseVisitorDirectoryFilters({ classe: ["iop", "feca"] }).classe).toBe("iop");
     });
 
+    it("accepte un serveur connu, ignore un serveur inconnu ou hors bornes", () => {
+        expect(parseVisitorDirectoryFilters({ serverId: "295" }).serverId).toBe(295);
+        expect(parseVisitorDirectoryFilters({ serverId: " 50 " }).serverId).toBe(50);
+        // 9 999 est dans les bornes mais n'est pas un serveur Dofus : ignoré (fail-soft).
+        expect(parseVisitorDirectoryFilters({ serverId: "9999" }).serverId).toBeUndefined();
+        expect(parseVisitorDirectoryFilters({ serverId: "0" }).serverId).toBeUndefined();
+        expect(parseVisitorDirectoryFilters({ serverId: "12345" }).serverId).toBeUndefined();
+        expect(parseVisitorDirectoryFilters({ serverId: "draconiros" }).serverId).toBeUndefined();
+        // Un serveur inconnu ne fait pas perdre les autres filtres.
+        expect(parseVisitorDirectoryFilters({ serverId: "9999", classe: "iop" })).toEqual({
+            classe: "iop",
+        });
+    });
+
+    it("comprend « tous les serveurs » sans perdre les autres filtres", () => {
+        expect(
+            parseVisitorDirectoryFilters({ serverId: "all", classe: "iop", metier: "forgeron" })
+        ).toEqual({ allServers: true, classe: "iop", metier: "forgeron" });
+        expect(parseVisitorDirectoryFilters({ serverId: ["all", "295"] })).toEqual({
+            allServers: true,
+        });
+    });
+
     it("lit le niveau minimum quand un métier est présent", () => {
         expect(parseVisitorDirectoryFilters({ metier: "forgeron", niveau: "100" })).toEqual({
             metier: "forgeron",
@@ -143,6 +168,20 @@ describe("Annuaire des visiteurs — filtres bornés, jamais bloquants", () => {
             buildVisitorDirectoryHref({ q: "ta kasha", classe: "iop", metier: "forgeron", niveau: 150 })
         ).toBe("/visiteurs?q=ta+kasha&classe=iop&metier=forgeron&niveau=150");
     });
+
+    it("garde le serveur exploré et « tous » dans l'URL", () => {
+        expect(buildVisitorDirectoryHref({ serverId: 295 })).toBe("/visiteurs?serverId=295");
+        expect(buildVisitorDirectoryHref({ allServers: true })).toBe(
+            `/visiteurs?serverId=${PUBLIC_DIRECTORY_ALL_SERVERS_PARAM}`
+        );
+        expect(buildVisitorDirectoryHref({ q: "iop", serverId: 50 })).toBe(
+            "/visiteurs?q=iop&serverId=50"
+        );
+        // La pagination passe le curseur ; un menu de filtre ne le passe jamais.
+        expect(
+            buildVisitorDirectoryHref({ serverId: 295, cursor: "clx1234567890abcdefghij" })
+        ).toBe("/visiteurs?serverId=295&cursor=clx1234567890abcdefghij");
+    });
 });
 
 describe("Annuaire des visiteurs — le périmètre est dans la requête", () => {
@@ -151,6 +190,15 @@ describe("Annuaire des visiteurs — le périmètre est dans la requête", () =>
         expect(where.showOnDirectory).toBe(true);
         expect(where.dofusServerId).toBe(295);
         expect(where).not.toHaveProperty("guildId");
+    });
+
+    it("explore un serveur choisi, ou retire le filtre pour « tous »", () => {
+        expect(buildVisitorDirectoryWhere(295, { serverId: 50 }).dofusServerId).toBe(50);
+        expect(buildVisitorDirectoryWhere(295, { allServers: true })).not.toHaveProperty(
+            "dofusServerId"
+        );
+        // Sans filtre, le défaut reste le serveur du lecteur.
+        expect(buildVisitorDirectoryWhere(295, {}).dofusServerId).toBe(295);
     });
 
     it("filtre le métier comme sous-relation du profil, avec un niveau minimum de 1", () => {
@@ -255,6 +303,7 @@ describe("Annuaire des visiteurs — l'option active se voit et le menu se ferme
             React.createElement(VisitorFilters, {
                 filters: { metier: "forgeron" },
                 labels: fr.visitorsPage,
+                viewerServerId: 295,
             })
         );
         // Le panneau est en `surface` : le fond actif doit être `elevated`, sinon invisible.
@@ -262,6 +311,21 @@ describe("Annuaire des visiteurs — l'option active se voit et le menu se ferme
         expect(html).toContain("bg-elevated");
         expect(html).toContain("lucide-check");
         expect(html).toContain("Forgeron");
+    });
+
+    it("le menu serveur montre le serveur du lecteur par défaut et les treize serveurs", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorFilters, {
+                filters: {},
+                labels: fr.visitorsPage,
+                viewerServerId: 295,
+            })
+        );
+        expect(html).toContain("Draconiros");
+        expect(html).toContain("Tous les serveurs");
+        expect(html).toContain("Tal Kasha");
+        // Les options portent l'icône réelle du serveur (source : ALL_DOFUS_SERVER_ENTRIES).
+        expect(html).toContain("draconiros.webp");
     });
 
     it("un clic sur une option ferme le menu avant la navigation", () => {
@@ -275,11 +339,18 @@ describe("Annuaire des visiteurs — l'option active se voit et le menu se ferme
 describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
     const server = stripComments(read(SERVER));
 
-    it("consentement + serveur du lecteur dans chaque requête", () => {
+    it("consentement global, serveur du lecteur en défaut", () => {
         expect(server).toContain("showOnDirectory: true");
-        expect(server).toContain("dofusServerId: viewer.serverId");
         expect(server).toContain("getPublicSession()");
+        // Le serveur du lecteur est le défaut, via la règle pure — jamais une constante de la fiche.
         expect(server.match(/buildVisitorDirectoryWhere\(viewer\.serverId/g)).toHaveLength(2);
+        expect(server).not.toContain("dofusServerId: viewer.serverId");
+    });
+
+    it("la fiche reste consentie mais n'est plus bornée au serveur du lecteur", () => {
+        // 1 select du lecteur + 2 requêtes de fiche (cuid + pseudo) : le consentement reste
+        // dans chaque lecture, mais aucun `dofusServerId` ne borne plus la fiche.
+        expect(server.match(/showOnDirectory: true/g)).toHaveLength(3);
     });
 
     it("aucune donnée de guilde, aucun champ privé", () => {
@@ -305,6 +376,25 @@ describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
         expect(server).toContain("PUBLIC_DIRECTORY_PAGE_SIZE + 1");
     });
 
+    it("la liste affiche le serveur en colonne, et sous le pseudo en mobile", () => {
+        const page = stripComments(read(LIST_PAGE));
+        expect(page).toContain("labels.serverFilter");
+        expect(page).toContain("src={entry.server.icon}");
+        // Colonne à partir de `md`, ligne sous le pseudo en dessous.
+        expect(page).toContain("md:table-cell");
+        expect(page).toContain("md:hidden");
+    });
+
+    it("le consentement annoncé est global, pas limité au serveur", () => {
+        const settings = stripComments(
+            read("src/app/espace-visiteur/_components/settings-form.tsx")
+        );
+        expect(settings).toContain("n&apos;importe quel serveur");
+        // L'ancienne promesse « visibles par les visiteurs du même serveur » a disparu.
+        // (« même serveur » reste légitime pour la progression de rush, consentement distinct.)
+        expect(settings).not.toContain("visibles par les visiteurs du même serveur");
+    });
+
     it("la fiche répond 404 hors périmètre, sans dire pourquoi", () => {
         const page = stripComments(read(PROFILE_PAGE));
         expect(page).toContain("resolveDirectoryViewer()");
@@ -321,11 +411,12 @@ describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
         expect(menu).toContain('event.key !== "Escape"');
         // Le panneau s'ancre à droite sur grand écran (il débordait de la fenêtre).
         expect(menu).toContain("lg:left-auto lg:right-0");
-        // Les trois filtres (classe, métier, niveau) passent par ce composant, aucun
+        // Les quatre filtres (serveur, classe, métier, niveau) passent par ce composant, aucun
         // `<details>` en double. Le menu « niveau » n'est rendu qu'avec un métier actif.
         const filters = stripComments(read("src/app/visiteurs/_components/visitor-filters.tsx"));
-        expect((filters.match(/<FilterMenu/g) ?? []).length).toBe(3);
+        expect((filters.match(/<FilterMenu/g) ?? []).length).toBe(4);
         expect(filters).not.toContain("<details");
+        expect(filters).toContain("ALL_DOFUS_SERVER_ENTRIES.map");
         expect(filters).toContain("filters.metier && (");
         expect(filters).toContain("PUBLIC_DIRECTORY_JOB_LEVELS.map");
         expect(filters).toContain('name="niveau"');

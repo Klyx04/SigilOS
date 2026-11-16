@@ -389,7 +389,8 @@ describe("Fiche visiteur — URL lisible", () => {
         expect(server).toContain('pseudoDofus: { equals: key, mode: "insensitive" }');
         expect(server).toContain("take: 2");
         expect(server).toContain("showOnDirectory: true");
-        expect(server).toContain("dofusServerId: viewer.serverId");
+        // D3 — consentement global : la fiche n'est plus bornée au serveur du lecteur.
+        expect(server).not.toContain("dofusServerId: viewer.serverId");
     });
 });
 

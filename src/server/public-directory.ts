@@ -5,9 +5,11 @@
  *  · **porte unique** : `resolveDirectoryViewer()` — session valide, compte non banni (via
  *    `getPublicSession()`), profil public existant. Sans profil, pas de serveur, donc pas
  *    d'annuaire : c'est ce qui empêche un membre de guilde de lire des visiteurs (D-V3) ;
- *  · **serveur imposé** : `viewer.serverId` vient du profil, jamais de l'URL ni d'un champ
- *    de formulaire — forger l'URL ne change que le filtre classe/métier ;
- *  · **consentement** : `showOnDirectory: true` est dans *chaque* `where`, liste comme fiche.
+ *  · **serveur par défaut** : `viewer.serverId` vient du profil et sert de défaut quand l'URL
+ *    ne demande rien ; `?serverId=<id>` explore un serveur connu, `?serverId=all` les montre
+ *    tous (D3) — un id inconnu est ignoré par la règle pure ;
+ *  · **consentement global** : `showOnDirectory: true` est dans *chaque* `where`, liste comme
+ *    fiche. Un profil consenti est lisible depuis n'importe quel serveur connecté.
  *
  * Aucun `guildId` dans ce fichier : l'annuaire ne lit aucune donnée de guilde.
  */
@@ -195,9 +197,11 @@ export async function listPublicVisitors(
 }
 
 /**
- * Fiche d'un visiteur du **même serveur**, consentante. `findFirst` (et non `findUnique`) :
- * les conditions de visibilité font partie de la requête, pas d'un `if` après coup — un
- * profil non consentant est **introuvable**, jamais « trouvé puis masqué ».
+ * Fiche d'un visiteur **consentant**. Le consentement est **global** depuis le 16/11/2026 (D3) :
+ * la fiche n'est plus bornée au serveur du lecteur, sinon explorer un autre serveur mènerait à
+ * un 404 sur chaque profil. `findFirst` (et non `findUnique`) : les conditions de visibilité
+ * font partie de la requête, pas d'un `if` après coup — un profil non consentant est
+ * **introuvable**, jamais « trouvé puis masqué ».
  */
 function safeDecode(value: string): string {
     try {
@@ -208,12 +212,14 @@ function safeDecode(value: string): string {
 }
 
 /**
- * Fiche d'un visiteur du serveur. La clé peut être un **pseudo** (URL lisible) ou un
- * cuid (anciens liens). Un pseudo porté par deux profils du même serveur rend les deux
- * candidats : la page propose un choix, jamais un 404 silencieux.
+ * Fiche d'un visiteur. La clé peut être un **pseudo** (URL lisible) ou un cuid (anciens liens).
+ * Un pseudo porté par deux profils (même serveur ou non) rend les deux candidats : la page
+ * propose un choix avec le serveur de chacun, jamais un 404 silencieux.
  */
 export async function getPublicVisitor(
-    viewer: DirectoryViewer,
+    // La porte (`resolveDirectoryViewer`) a déjà validé le lecteur ; son serveur n'entre plus
+    // dans la requête (consentement global). Le paramètre reste pour garder une porte unique.
+    _viewer: DirectoryViewer,
     profileKey: string
 ): Promise<VisitorProfile | VisitorProfile[] | null> {
     const key = safeDecode(profileKey).trim();
@@ -224,7 +230,6 @@ export async function getPublicVisitor(
             where: {
                 id: key,
                 showOnDirectory: true,
-                dofusServerId: viewer.serverId,
             },
             select: PROFILE_SELECT,
         });
@@ -234,7 +239,6 @@ export async function getPublicVisitor(
     const rows = await db.publicProfile.findMany({
         where: {
             showOnDirectory: true,
-            dofusServerId: viewer.serverId,
             pseudoDofus: { equals: key, mode: "insensitive" },
         },
         select: PROFILE_SELECT,

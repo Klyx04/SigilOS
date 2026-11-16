@@ -41,7 +41,7 @@ import type { Translations } from "@/lib/i18n/locales/fr";
 export const metadata: Metadata = {
     title: "Communauté SigilOS | SigilOS",
     description:
-        "Les joueurs de ton serveur Dofus qui ont choisi d'apparaître, et les succès qu'ils ont validés.",
+        "Les joueurs Dofus qui ont choisi d'apparaître, et les succès qu'ils ont validés.",
     robots: { index: false, follow: false },
 };
 
@@ -121,7 +121,11 @@ async function DirectoryList({
 
     return (
         <>
-            <VisitorFilters filters={filters} labels={labels} />
+            <VisitorFilters
+                filters={filters}
+                labels={labels}
+                viewerServerId={viewer.serverId}
+            />
 
             <p className="reg-mono mt-6 text-xs text-muted-foreground">{countLabel}</p>
 
@@ -139,6 +143,9 @@ async function DirectoryList({
                                 <th scope="col">{labels.tablePlayer}</th>
                                 <th scope="col" className="hidden w-[6rem] sm:table-cell">
                                     {labels.tableLevel}
+                                </th>
+                                <th scope="col" className="hidden w-[9rem] md:table-cell">
+                                    {labels.serverFilter}
                                 </th>
                                 <th scope="col" className="hidden w-[11rem] md:table-cell">
                                     {labels.tableJobFiltered}
@@ -158,25 +165,57 @@ async function DirectoryList({
                                         scope="row"
                                         className="border-b border-border py-[0.85rem] pr-4 text-left align-middle text-sm font-semibold normal-case tracking-normal text-foreground"
                                     >
-                                        <span className="flex items-center gap-3">
-                                            {entry.classe ? (
-                                                <GameIcon src={entry.classe.icon} className="size-7" />
-                                            ) : null}
-                                            <Link
-                                                href={visitorProfileHref(entry)}
-                                                className="min-w-0 truncate text-foreground hover:text-accent"
-                                            >
-                                                {entry.pseudo ?? labels.anonymous}
-                                            </Link>
-                                            {entry.classe ? (
-                                                <span className="reg-tag shrink-0 text-muted-foreground">
-                                                    {entry.classe.name}
-                                                </span>
-                                            ) : null}
+                                        <span className="flex flex-col gap-1">
+                                            <span className="flex min-w-0 items-center gap-3">
+                                                {entry.classe ? (
+                                                    <GameIcon src={entry.classe.icon} className="size-7" />
+                                                ) : null}
+                                                <Link
+                                                    href={visitorProfileHref(entry)}
+                                                    className="min-w-0 truncate text-foreground hover:text-accent"
+                                                >
+                                                    {entry.pseudo ?? labels.anonymous}
+                                                </Link>
+                                                {entry.classe ? (
+                                                    <span className="reg-tag shrink-0 text-muted-foreground">
+                                                        {entry.classe.name}
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                            {/* Sous `md`, la colonne Serveur n'existe pas : le serveur
+                                                vit sous le pseudo (aucune largeur fixe qui déborde). */}
+                                            <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground md:hidden">
+                                                {entry.server ? (
+                                                    <>
+                                                        <GameIcon
+                                                            src={entry.server.icon}
+                                                            className="size-4"
+                                                        />
+                                                        {entry.server.name}
+                                                    </>
+                                                ) : (
+                                                    "—"
+                                                )}
+                                            </span>
                                         </span>
                                     </th>
                                     <td className="hidden align-middle text-sm text-muted-foreground sm:table-cell">
                                         {formatDofusLevel(entry.level)}
+                                    </td>
+                                    <td className="hidden align-middle text-sm text-muted-foreground md:table-cell">
+                                        {entry.server ? (
+                                            <span className="inline-flex items-center gap-2">
+                                                <GameIcon
+                                                    src={entry.server.icon}
+                                                    className="size-5"
+                                                />
+                                                <span className="text-foreground">
+                                                    {entry.server.name}
+                                                </span>
+                                            </span>
+                                        ) : (
+                                            "—"
+                                        )}
                                     </td>
                                     <td className="hidden align-middle md:table-cell">
                                         {filters.metier && entry.jobs.length > 0 ? (

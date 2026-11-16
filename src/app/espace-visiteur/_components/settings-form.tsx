@@ -54,7 +54,9 @@ export function SettingsForm({
                     <div>
                         <Label htmlFor="settings-directory">Figurer dans l'annuaire</Label>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Ton pseudo, ta classe et tes Dofus sont visibles par les visiteurs du même serveur.
+                            Ton pseudo, ta classe et tes Dofus sont visibles dans l&apos;annuaire
+                            SigilOS, depuis n&apos;importe quel serveur, par un visiteur connecté.
+                            Ton serveur reste proposé par défaut.
                         </p>
                     </div>
                     <Switch

@@ -1,9 +1,11 @@
 /**
  * Espace visiteur (rang 57) — **règles pures** de l'annuaire des visiteurs (aucune I/O).
  *
- * V2e : l'annuaire est **privé**. Il ne se lit que par un compte connecté qui possède un
- * profil public (donc un serveur), et il ne montre que les profils du **même serveur** qui
- * ont coché le consentement `showOnDirectory` (D-V4).
+ * V2e (révisé le 16/11/2026, D3) : l'annuaire reste **privé** — il ne se lit que par un
+ * compte connecté qui possède un profil public. Le serveur du lecteur est le **défaut**, mais
+ * il devient un **filtre** : `serverId` explore un serveur précis, `serverId=all` les montre
+ * tous. Le consentement `showOnDirectory` est **global** (D-V4) : un profil consenti est
+ * visible depuis n'importe quel serveur, liste **et** fiche.
  *
  * Ce module ne connaît ni session ni base : il borne les filtres, construit le `where`, et
  * fabrique les deux DTO (liste et fiche). C'est lui que `tests/unit/visitor-directory.test.ts`
@@ -13,7 +15,8 @@
  *  · **jamais** de mule (`altPseudos`), de clé Metamob, ni de `userId` dans un DTO : la fiche
  *    publique ne montre que ce que le visiteur a déclaré pour l'annuaire ;
  *  · un filtre inconnu est **ignoré** (jamais une exception, jamais une page blanche) ;
- *  · le **serveur n'est pas un filtre** : il vient du profil du lecteur, résolu côté serveur.
+ *  · le **serveur est un filtre fail-soft** : absent ⇒ serveur du lecteur (résolu côté
+ *    serveur) ; `serverId` borné à un serveur connu, `serverId=all` ⇒ aucun filtre serveur.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -41,6 +44,16 @@ export const PUBLIC_DIRECTORY_JOB_LEVELS = [50, 100, 150, 200] as const;
 export const PUBLIC_DIRECTORY_JOB_LEVEL_MIN = 1;
 export const PUBLIC_DIRECTORY_JOB_LEVEL_MAX = 200;
 
+/**
+ * Bornes du filtre serveur. Les ids Ankama connus vivent entre 50 et 355 ; la borne haute
+ * (9 999) n'est qu'un garde-fou d'URL — un id absent de `ALL_DOFUS_SERVER_ENTRIES` est ignoré.
+ */
+export const PUBLIC_DIRECTORY_SERVER_ID_MIN = 1;
+export const PUBLIC_DIRECTORY_SERVER_ID_MAX = 9999;
+
+/** Valeur d'URL qui demande **tous** les serveurs (le défaut reste celui du lecteur). */
+export const PUBLIC_DIRECTORY_ALL_SERVERS_PARAM = "all";
+
 /** Longueur maximale d'un identifiant de curseur (cuid Prisma). */
 const CURSOR_MAX = 64;
 
@@ -56,12 +69,17 @@ export type VisitorDirectoryFilters = {
     metier?: string;
     /** Niveau **minimum** du métier filtré — n'a de sens qu'avec `metier`. */
     niveau?: number;
+    /** Serveur exploré ; absent = serveur du lecteur (défaut, résolu côté serveur). */
+    serverId?: number;
+    /** `serverId=all` : tous les serveurs consentants. */
+    allServers?: boolean;
     cursor?: string;
 };
 
 const rawSearchSchema = z.string().max(PUBLIC_DIRECTORY_SEARCH_MAX * 10);
 const rawLabelSchema = z.string().max(40);
 const rawLevelSchema = z.string().max(4).regex(/^\d{1,3}$/);
+const rawServerSchema = z.string().max(4);
 const rawCursorSchema = z.string().max(CURSOR_MAX);
 
 /**
@@ -111,13 +129,37 @@ export function parseVisitorDirectoryFilters(
         }
     }
 
+    // D3 — le serveur est un filtre : absent = serveur du lecteur, `all` = tous. Un id
+    // inconnu (ou hors bornes) est ignoré, sans perdre les autres filtres.
+    const rawServer = first(raw?.serverId);
+    if (rawServer === PUBLIC_DIRECTORY_ALL_SERVERS_PARAM) {
+        out.allServers = true;
+    } else {
+        const server = rawServerSchema.safeParse(
+            typeof rawServer === "string" ? rawServer.trim() : rawServer
+        );
+        if (server.success && /^\d{1,4}$/.test(server.data)) {
+            const value = Number(server.data);
+            if (
+                value >= PUBLIC_DIRECTORY_SERVER_ID_MIN &&
+                value <= PUBLIC_DIRECTORY_SERVER_ID_MAX &&
+                ALL_DOFUS_SERVER_ENTRIES.some((entry) => entry.id === value)
+            ) {
+                out.serverId = value;
+            }
+        }
+    }
+
     const cursor = rawCursorSchema.safeParse(first(raw?.cursor));
     if (cursor.success && isPublicProfileId(cursor.data)) out.cursor = cursor.data;
 
     return out;
 }
 
-/** Lien d'annuaire recalculé : les filtres vides disparaissent, `cursor` n'est jamais recopié. */
+/**
+ * Lien d'annuaire recalculé : les filtres vides disparaissent. `cursor` n'est recopié que
+ * lorsque l'appelant le passe (pagination) — les menus de filtre ne le passent jamais.
+ */
 export function buildVisitorDirectoryHref(filters: VisitorDirectoryFilters): string {
     const params = new URLSearchParams();
     if (filters.q) params.set("q", filters.q);
@@ -127,6 +169,8 @@ export function buildVisitorDirectoryHref(filters: VisitorDirectoryFilters): str
         // Le niveau suit le métier : sans métier, il n'a plus de sens.
         if (filters.niveau) params.set("niveau", String(filters.niveau));
     }
+    if (filters.serverId) params.set("serverId", String(filters.serverId));
+    else if (filters.allServers) params.set("serverId", PUBLIC_DIRECTORY_ALL_SERVERS_PARAM);
     if (filters.cursor) params.set("cursor", filters.cursor);
     const query = params.toString();
     return query ? `/visiteurs?${query}` : "/visiteurs";
@@ -143,8 +187,8 @@ export function visitorProfileHref(entry: { id: string; pseudo: string | null })
 }
 
 /**
- * `where` de l'annuaire. Le serveur est **imposé** par l'appelant (profil du lecteur) : aucun
- * chemin ne permet de lire un autre serveur, même en forgeant l'URL.
+ * `where` de l'annuaire. Le serveur du lecteur est le **défaut** ; `filters.serverId` explore
+ * un autre serveur, `filters.allServers` retire le filtre. Toute lecture porte le consentement.
  */
 export function buildVisitorDirectoryWhere(
     viewerServerId: number,
@@ -152,7 +196,11 @@ export function buildVisitorDirectoryWhere(
 ): Prisma.PublicProfileWhereInput {
     return {
         showOnDirectory: true,
-        dofusServerId: viewerServerId,
+        ...(filters.serverId
+            ? { dofusServerId: filters.serverId }
+            : filters.allServers
+              ? {}
+              : { dofusServerId: viewerServerId }),
         ...(filters.classe ? { classe: filters.classe } : {}),
         ...(filters.metier
             ? {

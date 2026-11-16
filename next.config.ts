@@ -6,6 +6,16 @@ const nextConfig: NextConfig = {
   // empreinte inutile qui aide à cibler des vulnérabilités connues (AGENTS §5, « zéro empreinte »).
   poweredByHeader: false,
   images: {
+    // Next 16 applique par défaut `localPatterns: [{ pathname: "**", search: "" }]`,
+    // qui refuse **toute** query string sur une image locale. Le proxy interne
+    // `/api/assets-dofus/...` en porte deux (`url`, `sprite`) : sans ce réglage,
+    // `next/image` lève une erreur au rendu SSR (Sentry 2W, `/visiteurs`).
+    localPatterns: [
+      // Proxy interne : query dynamique autorisée (pas de `search` → tout passe).
+      { pathname: "/api/assets-dofus/**" },
+      // Tout le reste garde le comportement par défaut : aucune query.
+      { pathname: "/**", search: "" },
+    ],
     remotePatterns: [
       {
         protocol: "https",

@@ -100,6 +100,13 @@ export const SERVER_IGNORE_ERRORS: (string | RegExp)[] = [
     // icônes Unity 2x sont référencées en base avant d'être pré-chauffées) reste au
     // ROADMAP : filtrer le bruit ne remplace pas le pré-chauffage.
     /isn't a valid image/,
+    // ⚠️ Mesure du 11/11/2026 (`JAVASCRIPT-NEXTJS-2Q`, 1 événement, 0 utilisateur) :
+    // `⨯ upstream image response failed for https://barbofus.com/storage/images/skins/
+    // <id>.png 404` (culprit `GET /_next/image`) — une **skin externe supprimée** (URL
+    // fournie par l'utilisateur), pas une panne : le composant d'affichage a déjà son
+    // repli. Même famille que « isn't a valid image » ci-dessus : un asset absent n'est
+    // pas une erreur. Le motif reste **ancré** sur le message de Next.
+    /upstream image response failed for/,
 ];
 
 /**

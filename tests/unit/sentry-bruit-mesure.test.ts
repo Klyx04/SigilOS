@@ -124,9 +124,12 @@ describe("Sentry — filtres de bruit mesurés", () => {
         // D — DeprecationWarning pg.
         expect(source).toContain("Calling client");
         expect(source).toContain("already executing a query");
+        // 2Q — image externe supprimée, l'optimiseur Next le journalise en `console.error`.
+        expect(source).toContain("upstream image response failed for");
         expect(source).toContain("JAVASCRIPT-NEXTJS-2J");
         expect(source).toContain("JAVASCRIPT-NEXTJS-2K");
         expect(source).toContain("JAVASCRIPT-NEXTJS-D");
+        expect(source).toContain("JAVASCRIPT-NEXTJS-2Q");
     });
 
     it("⑦ le tunnel Sentry est reconnu par son chemin EXACT (2D)", () => {

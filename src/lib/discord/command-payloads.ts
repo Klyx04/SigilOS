@@ -94,6 +94,18 @@ const COMMAND_PRESENTATION: Record<string, { description: string; options?: Disc
             },
         ],
     },
+    legendaire: {
+        description: "✨ Trouve les artisans capables de fabriquer un objet légendaire",
+        options: [
+            {
+                name: "item",
+                description: "Nom de l'objet légendaire (ex: Clairvoyance de Mériana...)",
+                type: 3,
+                required: true,
+                autocomplete: true,
+            },
+        ],
+    },
     "valider-recrue": {
         // Une seule option : la recrue visée. Le reste se remplit dans la modale
         // (pseudo et tag Ankama lus du profil, date du jour, recruteur = auteur).

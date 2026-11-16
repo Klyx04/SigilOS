@@ -135,6 +135,19 @@ const EMBED_PREVIEWS: Record<string, {
             { name: "Niveau Moyen", value: "198", inline: true }
         ],
         footer: "SigilOS • Statistiques • Données en direct"
+    },
+    legendaire: {
+        color: "#F59E0B",
+        title: "✨ Clairvoyance de Mériana",
+        description: "Artisans disponibles sur la guilde pour fabriquer cet objet.",
+        fields: [
+            { name: "🔨 Métier requis", value: "**Cordonnier** (Niv. 200)", inline: true },
+            { name: "📦 Catégorie", value: "Bottes", inline: true },
+            { name: "⭐ Niveau", value: "Niv. 200", inline: true },
+            { name: "🔮 Effet passif — Clairvoyance", value: "Au début du tour, augmente les dommages finaux.", inline: false },
+            { name: "✅ Artisans éligibles (2)", value: "• **ArtisanA** (<@123456789>)\n• **ArtisanB** (<@987654321>)", inline: false }
+        ],
+        footer: "SigilOS • Artisanat Légendaire"
     }
 };
 

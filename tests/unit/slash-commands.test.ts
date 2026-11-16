@@ -42,15 +42,15 @@ describe("slash-command-helpers", () => {
 describe("slash commands — périmètre", () => {
     const names = SLASH_COMMANDS_CATALOG.map((c) => c.name);
 
-    it("contient exactement les 6 commandes membres + valider-recrue (staff)", () => {
-        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "valider-recrue"]);
+    it("contient exactement les 7 commandes membres + valider-recrue (staff)", () => {
+        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "legendaire", "valider-recrue"]);
     });
 
     it("valider-recrue est staffOnly et masquée du guide membres", () => {
         const valider = SLASH_COMMANDS_CATALOG.find((c) => c.name === "valider-recrue");
         expect(valider?.staffOnly).toBe(true);
         expect(valider?.category).toBe("STAFF");
-        expect(SLASH_COMMANDS_CATALOG.filter((c) => !c.staffOnly)).toHaveLength(6);
+        expect(SLASH_COMMANDS_CATALOG.filter((c) => !c.staffOnly)).toHaveLength(7);
     });
 
     it("ne contient plus les commandes supprimées", () => {
@@ -133,6 +133,15 @@ describe("slash commands — périmètre", () => {
         const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
         expect(route).toContain('url: `${appBaseUrl}/dashboard/${guild_id}/members`');
         expect(route).not.toContain("annuaire-hub");
+    });
+
+    it("/legendaire est géré avec autocomplétion et artisans éligibles", () => {
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).toContain('commandName === "legendaire"');
+        expect(route).toContain('focusedOption?.name === "item"');
+        expect(route).toContain("hasLegendaryPrerequisites");
+        expect(route).toContain("legendaryCrafts");
+        expect(route).toContain("Artisans éligibles");
     });
 });
 

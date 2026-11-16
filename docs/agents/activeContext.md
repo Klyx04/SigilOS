@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 16/11/2026 (suite 8) — **Télémétrie · lot B : filtre guilde réparé, flux serveur, écran God déslopé** — branche `feat/god-telemetrie`
+
+> **Décision user (verbatim)** : « GO LOT B ET C l'un après l'autre enchaine 2 pr ».
+> **Mesure** : le sélecteur envoyait `GuildConfig.id` (CUID) alors que les événements stockent le snowflake de l'URL ⇒ **0 ligne** dès qu'une guilde était choisie ; le flux était plafonné à 100 événements et filtré côté client ; le chemin était tronqué à 320 px ; `details.userAgent` (périmé) restait affiché ; **46 motifs** de slop mesurés (le cadrage en citait 72).
+> **Fait** : **B1** — `src/lib/telemetry/guild-scope.ts` (`resolveTelemetryGuildScope` : CUID **et** snowflake, inconnu ⇒ `none` sans requête), branché dans `getTelemetryStats` (`guildId: { in: scope.ids }`, `internalGuildId` pour `UserProfile`/`PlayerDofusProgress`) et dans l'export. **B2/B3** — `src/lib/telemetry/surface.ts` (`classifyTelemetrySurface`, `buildTelemetrySurfaceWhere`), `getTelemetryLiveEvents` (super-admin, Zod `limit ≤ 200`, cursor, guilde/surface/type/recherche serveur, `sanitizeTelemetryDetails`), `adminPages` (7 j, motif normalisé + membres distincts). **B4** — dashboard réécrit : tokens uniquement, 0 motif, chemin complet `break-all` + lien interne + copie, badge de surface, langue, dates exactes, pagination « Charger plus », rafraîchissement 30 s **du flux seul**, agrégats chargés une fois.
+> **Preuves** : **738 fichiers / 7 742 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés : `telemetry-guild-scope` 6, `telemetry-surface` 8, `telemetry-stats-guild-scope` 3, `telemetry-live-events` 3, `telemetry-dashboard-deslop` 3 (**23 neufs**, 89 avec les gardes existantes).
+> **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de `?tab=telemetry` ; la preuve de perf est structurelle (un appel `limit + 1` par page au lieu de la grappe d'agrégats à chaque frappe/30 s).
+> **Rotation** : bloc « Session 16/11/2026 (suite 2) — Discord · Commande slash `/legendaire` » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 7) — **Rétention · lot A : purge télémétrie 90 j + journal d'activité 365 j** — branche `feat/retention-logs`
 
 > **Décision user (verbatim)** : « A complet » — go explicite pour le lot A du cadrage `PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` (suppression de données) ; durées **90 j** / **365 j** inchangées.
@@ -57,16 +67,6 @@
 > **Reste / ops** : aucune migration, aucun env ; le cache s'active au redéploiement (Redis requis, repli = appel Discord).
 > **Rotation** : bloc « Session 15/11/2026 (suite) — Notifications · N1 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 16/11/2026 (suite 2) — **Discord · Commande slash `/legendaire` (artisanat et éligibilité quête)** — branche `feat/commande-legendaire`
-
-> **Demande user** : « ajouter une nouvelle commande slash discord dans /dashboard/.../commandes manageable comme les autres dans /admin/commandes, l'objectif: trouvez qui peut craft tel objet legendaire... exemple /legendaire meriana affiche un bel embed avec la liste des pseudo qui ont le métier + la quete animaux fantastique faites donc eligible, l'icone de l'image dans l'embed etc ».
-> **Mesure** : `LegendaryItem` (métier, catégorie, passif, imageUrl) et `UserProfile` (`hasLegendaryPrerequisites`, `legendaryCrafts`, `metiers`) existaient déjà en BDD. Seul manquait le raccordement au catalogue des commandes slash et au routeur d'interactions Discord.
-> **Fait** : Commande ajoutée au catalogue `SLASH_COMMANDS_CATALOG` (`COMMUNAUTE`, rôles par défaut membre/officier/meneur) · Définition Discord dans `COMMAND_PRESENTATION` avec autocomplétion dynamique sur `item` (filtre nom/catégorie/métier insensible à la casse et accents) · Gestionnaire Discord interaction dans `route.ts` (recherche fuzzy, filtrage des membres actifs de la guilde, séparation artisans éligibles vs artisans métier 200 sans quête validée, ping Discord `<@id>`, vignette miniature `fullImageUrl`, passif et métadonnées) · Aperçu visuel dans `CommandsVisualGuide` (`EMBED_PREVIEWS`) · Pilotage et permissions RBAC automatiquement actifs dans `/dashboard/[guildId]/commandes` et `/admin/commandes`.
-> **Revue pratiques Discord (même branche)** : saisie bornée à la source (`max_length: 100`, valeur re-bornée dans le routeur) · champs d'embed bornés à 1024/256 avant envoi (`src/lib/discord/embed-limits.ts`, réexporté par les tickets — source unique) avec liste d'artisans qui préserve la ligne « … et N autres » (`src/lib/discord/legendary-crafters.ts`) · autocomplete borné (`take: 200`, type de `focusedOption.value` vérifié) · `allowed_mentions: { parse: [] }` sur le message d'erreur qui réaffiche la saisie · champ `level` mort retiré.
-> **Preuves** : Tests `slash-commands` (18/18), `discord-command-scope` (24/24), `discord-legendaire-embed` (7/7), `lot4-slash-commands-api-keys` (4/4), `tickets-lot1-bugs` (14/14) verts · `npx tsc --noEmit` 0 erreur · `npm run lint` 0 erreur.
-> **Reste / ops** : Synchroniser les commandes slash sur Discord via le bouton « Resynchroniser » de l'administration des commandes ou le panneau God.
-> **Rotation** : bloc « Session 15/11/2026 — Tickets God · G4-1 → G4-4 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

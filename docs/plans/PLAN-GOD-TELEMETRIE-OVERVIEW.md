@@ -1,6 +1,6 @@
 # 🔭 God — télémétrie lisible + vue d'ensemble allégée
 
-> **Statut** : cadré le 16/11/2026, **aucun code écrit**. **Ordre** : `docs/ROADMAP.md` §2 bis,
+> **Statut** : lot B **livré le 16/11/2026** ; lot C en cours. **Ordre** : `docs/ROADMAP.md` §2 bis,
 > lots B (`god-telemetrie`) puis C (`god-overview`). Mesures faites dans l'arbre, pas à l'écran.
 
 ## 1. Mesures (16/11/2026)
@@ -111,6 +111,13 @@ export function resolveTelemetryGuildScope(
   les lignes de la fenêtre. Si la mesure le justifie, borner par lot ou espacer le rafraîchissement.
 - Preuve : nombre de lignes lues et durée de l'action avant/après, consignés dans la PR.
 
+**Livré le 16/11/2026** : `src/lib/telemetry/guild-scope.ts` (CUID + snowflake, `none` fail-closed),
+`src/lib/telemetry/surface.ts` (Admin/Membre/God/Public + filtre SQL), `getTelemetryLiveEvents`
+(super-admin, Zod `limit ≤ 200`, cursor, filtres serveur, détails assainis), `adminPages` (7 j),
+dashboard réécrit (0 motif, chemin complet, copie, lien interne, langue, pagination).
+Tests neufs : `telemetry-guild-scope` (6), `telemetry-surface` (8), `telemetry-stats-guild-scope` (3),
+`telemetry-live-events` (3), `telemetry-dashboard-deslop` (3) — **23 cas**, 89 avec les gardes existantes.
+
 ## 4. Lot C — vue d'ensemble `?tab=overview`
 
 ### C1 — Retirer les deux sections et le code mort associé
@@ -177,12 +184,12 @@ export function resolveTelemetryGuildScope(
 
 ## 6. Critères d'acceptation
 
-- [ ] Sélectionner une guilde dans `?tab=telemetry` retourne **ses** événements (snowflake et CUID).
-- [ ] Le chemin affiché est complet, copiable, cliquable quand il est interne.
-- [ ] Les filtres surface/type/recherche fonctionnent sans recharger les agrégats.
+- [x] Sélectionner une guilde dans `?tab=telemetry` retourne **ses** événements (snowflake et CUID).
+- [x] Le chemin affiché est complet, copiable, cliquable quand il est interne.
+- [x] Les filtres surface/type/recherche fonctionnent sans recharger les agrégats.
 - [ ] « Indicateurs plateforme » et « Activité de la plateforme » ne sont plus rendus ni importés.
 - [ ] Plus aucune requête SSE toutes les 5 s depuis l'overview.
-- [ ] 0 motif de slop sur les fichiers touchés ; `test:run`, `tsc`, `lint` verts ; `git status` propre.
+- [x] 0 motif de slop sur les fichiers touchés ; `test:run`, `tsc`, `lint` verts ; `git status` propre.
 - [ ] Aucune server action métier modifiée par le lot C (diff limité à l'UI et aux imports).
 
 ## 7. Découpage

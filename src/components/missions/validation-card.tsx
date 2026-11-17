@@ -45,9 +45,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     ANOMALIE: {
         icon: Zap,
-        color: "text-fuchsia-400",
-        bgColor: "bg-fuchsia-950/40",
-        borderColor: "border-fuchsia-500/40",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/25",
         headerGradient: "from-[#7d1a6b]/90 via-[#ab47bc]/80 to-[#4d1040]/90",
         bannerImage: "/banners/anomalie.png",
     },

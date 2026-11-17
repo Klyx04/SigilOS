@@ -40,6 +40,18 @@ export interface MissionsCatalogData {
 
 const catalog = rawData as unknown as MissionsCatalogData;
 
+/** Nombre total de missions officielles — **jamais** écrit en dur dans un écran. */
+export const OFFICIAL_MISSIONS_TOTAL = catalog.missions.length;
+
+/** Répartition par catégorie, calculée une fois depuis le catalogue (source unique). */
+export const OFFICIAL_MISSION_COUNTS: Record<string, number> = catalog.missions.reduce<Record<string, number>>(
+    (acc, mission) => {
+        acc[mission.category] = (acc[mission.category] ?? 0) + 1;
+        return acc;
+    },
+    {},
+);
+
 /**
  * Normalise un texte pour la recherche (minuscule, sans accents).
  */

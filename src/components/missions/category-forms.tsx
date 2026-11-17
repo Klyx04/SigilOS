@@ -125,7 +125,7 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
 
             {/* Visual Preview Card for Dungeon */}
             {selectedDungeon && (
-                <div className="relative group overflow-hidden rounded-2xl border border-danger/30 bg-surface/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
+                <div className="relative group overflow-hidden rounded-xl border border-danger/30 bg-surface/40 animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
                     <div className="flex gap-4 relative z-10">
                         <div className="w-20 h-20 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden relative">
                             {selectedDungeon.imageUrl ? (
@@ -144,14 +144,14 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
 
                         <div className="flex-1 min-w-0 py-1">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-caption font-black text-danger uppercase tracking-widest flex items-center gap-1.5">
+                                <span className="text-caption font-semibold text-danger uppercase tracking-wider flex items-center gap-1.5">
                                     <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
                                 </span>
-                                <span className="px-2 py-0.5 bg-danger/10 text-caption font-black text-danger border border-danger/20 rounded-md">
+                                <span className="px-2 py-0.5 bg-danger/10 text-caption font-semibold text-danger border border-danger/20 rounded-md">
                                     NIV. {selectedDungeon.level}
                                 </span>
                             </div>
-                            <h4 className="text-foreground font-black uppercase text-sm leading-tight truncate mb-1">
+                            <h4 className="text-foreground font-semibold uppercase text-sm leading-tight truncate mb-1">
                                 {selectedDungeon.name}
                             </h4>
                             <div className="flex items-center gap-1.5 text-muted-foreground text-caption font-bold">
@@ -300,7 +300,7 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 
             {/* Visual Preview Card for Regulation */}
             {(payload.familyName || payload.zoneName) && (
-                <div className="relative overflow-hidden rounded-2xl border border-success/30 bg-surface/40 backdrop-blur-md p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="relative overflow-hidden rounded-xl border border-success/30 bg-surface/40 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden">
                             {payload.imageUrl ? (
@@ -312,10 +312,10 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="text-caption font-black text-success uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                            <div className="text-caption font-semibold text-success uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
                             </div>
-                            <h4 className="text-foreground font-black uppercase text-sm truncate leading-tight">
+                            <h4 className="text-foreground font-semibold uppercase text-sm truncate leading-tight">
                                 {payload.familyName || "Famille inconnue"}
                             </h4>
                             <div className="text-muted-foreground text-caption mt-1 flex items-center gap-1">
@@ -341,7 +341,7 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                                 />
                                 Objectif de guilde
                             </span>
-                            <span className="text-success font-black text-xs">Vaincre 50 monstres</span>
+                            <span className="text-success font-semibold text-xs">Vaincre 50 monstres</span>
                         </div>
                     </div>
                 </div>
@@ -423,11 +423,11 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                     {TYPES.map(t => (
                         <div key={t.value} className={cn(
                             "flex items-center space-x-2 p-3 rounded-xl border cursor-pointer transition-all",
-                            anomalieType === t.value ? "bg-fuchsia-500/10 border-fuchsia-500/50 shadow-lg shadow-fuchsia-500/10" : "bg-background border-border"
+                            anomalieType === t.value ? "border-warning/50 bg-warning/10" : "bg-background border-border"
                         )}>
                             <RadioGroupItem value={t.value} id={t.value} />
                             <Label htmlFor={t.value} className="cursor-pointer text-sm">
-                                <div className={cn("font-black uppercase tracking-tighter", anomalieType === t.value ? "text-fuchsia-300" : "text-muted-foreground")}>{t.label}</div>
+                                <div className={cn("font-semibold uppercase tracking-tighter", anomalieType === t.value ? "text-warning" : "text-muted-foreground")}>{t.label}</div>
                                 <div className="text-caption text-muted-foreground font-medium">{t.desc}</div>
                             </Label>
                         </div>
@@ -470,27 +470,27 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             )}
 
             {/* Visual Preview Card for Anomalie */}
-            <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="w-14 h-14 rounded-xl bg-surface/80 backdrop-blur-md border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+            <div className="relative overflow-hidden rounded-xl border border-warning/25 bg-warning/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="w-14 h-14 rounded-xl bg-surface/80 border border-warning/25 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                     <img src={getAnomalieArtwork()} className="w-10 h-10 object-contain z-10" alt="Artwork" />
-                    <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
+                    
                 </div>
                 <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
-                    <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Visualisation Mission</div>
+                    <div className="font-semibold text-warning uppercase tracking-wider text-caption mb-1">Visualisation Mission</div>
                     {anomalieType === 'ZONE' && (
-                        <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                        <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-semibold">{levelRange}</span> sous anomalie avec un <span className="text-warning font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'BOSS' && (
-                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span>{elixir !== 'aucun' && (<> avec un <span className="text-fuchsia-300 font-bold">{elixir === 'uchronique' ? "[Elixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}</span></>)}</>
+                        <>Vaincre un <span className="text-foreground font-semibold text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-semibold">{levelRange}</span>{elixir !== 'aucun' && (<> avec un <span className="text-warning font-bold">{elixir === 'uchronique' ? "[Elixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}</span></>)}</>
                     )}
                     {anomalieType === 'FRAGMENTS' && (
-                        <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie</>
+                        <>Obtenir <span className="text-foreground font-semibold">20 Fragments d'anomalie</span> dans une anomalie</>
                     )}
                     {anomalieType === 'STABILISATION' && (
                         <>
-                            Vaincre <span className="text-foreground font-black">3 Gardiens des anomalies</span>
+                            Vaincre <span className="text-foreground font-semibold">3 Gardiens des anomalies</span>
                             {elixir !== 'aucun' && (
-                                <> sous l'effet d'un <span className="text-fuchsia-300 font-bold">
+                                <> sous l'effet d'un <span className="text-warning font-bold">
                                     {elixir === 'uchronique' ? "[Élixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}
                                 </span></>
                             )}
@@ -546,7 +546,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
     return (
         <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground font-black uppercase tracking-widest text-caption">Difficulté Onirique</Label>
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider text-caption">Difficulté Onirique</Label>
                 <div className="grid grid-cols-3 gap-2">
                     {SONGES_CONFIG.difficulties.map(diff => {
                         const isActive = difficulty === diff;
@@ -556,7 +556,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                                 type="button"
                                 onClick={() => updatePayload(diff, level, tier)}
                                 className={cn(
-                                    "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
+                                    "py-2.5 rounded-xl border text-caption font-semibold uppercase tracking-wider transition-all",
                                     isActive ? getDifficultyColor() : "bg-background border-border text-muted-foreground"
                                 )}
                             >
@@ -576,7 +576,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                             type="button"
                             onClick={() => updatePayload(difficulty, lvl, tier)}
                             className={cn(
-                                "flex-1 py-2 rounded-xl border text-caption font-black transition-all",
+                                "flex-1 py-2 rounded-xl border text-caption font-semibold transition-all",
                                 level === lvl ? "bg-elevated border-border-strong text-foreground shadow-xl" : "bg-background border-border text-muted-foreground"
                             )}
                         >
@@ -588,14 +588,14 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
 
             <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Palier de réussite</Label>
-                <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
+                <div className="flex gap-1.5 p-1 bg-background border border-border rounded-xl">
                     {SONGES_CONFIG.tiers.map(t => (
                         <button
                             key={t}
                             type="button"
                             onClick={() => updatePayload(difficulty, level, t)}
                             className={cn(
-                                "flex-1 py-2 rounded-xl text-caption font-black transition-all",
+                                "flex-1 py-2 rounded-xl text-caption font-semibold transition-all",
                                 tier === t ? "bg-info text-info-foreground shadow-lg shadow-cyan-500/20" : "text-muted-foreground hover:text-muted-foreground"
                             )}
                         >
@@ -606,14 +606,14 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
             </div>
 
             {/* Visual Preview Card for Songes */}
-            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
-                <div className="w-16 h-16 rounded-2xl bg-surface/50 backdrop-blur-md border border-info/20 flex items-center justify-center relative overflow-hidden shrink-0">
+            <div className="relative overflow-hidden rounded-xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 rounded-xl bg-surface/50 border border-info/20 flex items-center justify-center relative overflow-hidden shrink-0">
                     <img src={getDifficultyArtwork()} className="w-14 h-14 object-contain z-10" alt="Songes" />
                     <div className="absolute inset-0 bg-info/5 animate-pulse" />
                 </div>
                 <div className="flex-1 space-y-1">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-black text-info uppercase tracking-widest">Aperçu Mission</span>
+                        <span className="text-caption font-semibold text-info uppercase tracking-wider">Aperçu Mission</span>
                         <div className="flex items-center gap-1">
                             {Array.from({ length: 5 }).map((_, i) => (
                                 <div key={i} className={cn("w-1 h-1 rounded-full", i < tier ? "bg-info" : "bg-elevated")} />
@@ -621,7 +621,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                         </div>
                     </div>
                     <p className="text-caption text-muted-foreground leading-tight">
-                        Compléter le <span className="text-foreground font-black">Palier {tier}</span> d'un songe en <span className="text-info font-bold uppercase">{difficulty} {level}</span>.
+                        Compléter le <span className="text-foreground font-semibold">Palier {tier}</span> d'un songe en <span className="text-info font-bold uppercase">{difficulty} {level}</span>.
                     </p>
                     <div className="text-caption text-muted-foreground font-bold italic">
                         {tier === 1 ? "Pensées oniriques" : tier === 5 ? "Abstractions chimériques" : "Exploration onirique"}
@@ -646,7 +646,7 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
     return (
         <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground font-black uppercase tracking-widest text-caption">
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider text-caption">
                     Épreuve de Songe
                 </Label>
                 <p className="text-caption text-muted-foreground italic">
@@ -661,7 +661,7 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
                                 type="button"
                                 onClick={() => handleSelect(name)}
                                 className={cn(
-                                    "relative overflow-hidden rounded-2xl border-2 p-4 flex flex-col items-center gap-3 transition-all duration-200",
+                                    "relative overflow-hidden rounded-xl border-2 p-4 flex flex-col items-center gap-3 transition-all duration-200",
                                     isActive
                                         ? "border-info/60 bg-info/10 shadow-lg shadow-cyan-500/10"
                                         : "border-border bg-surface/40 hover:border-border hover:bg-surface/60"
@@ -675,7 +675,7 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
                                     />
                                 </div>
                                 <span className={cn(
-                                    "text-xs font-black uppercase tracking-wider text-center",
+                                    "text-xs font-semibold uppercase tracking-wider text-center",
                                     isActive ? "text-info" : "text-muted-foreground"
                                 )}>
                                     {name}
@@ -692,8 +692,8 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
             </div>
 
             {epreuve && (
-                <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
-                    <div className="w-16 h-16 rounded-2xl bg-surface/50 backdrop-blur-md border border-info/20 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="relative overflow-hidden rounded-xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 rounded-xl bg-surface/50 border border-info/20 flex items-center justify-center overflow-hidden shrink-0">
                         <img
                             src={`/assets/missions/epreuves-songes/${epreuve}.png`}
                             className="w-14 h-14 object-contain z-10"
@@ -701,9 +701,9 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
                         />
                     </div>
                     <div className="flex-1 space-y-1">
-                        <span className="text-caption font-black text-info uppercase tracking-widest">Aperçu Mission</span>
+                        <span className="text-caption font-semibold text-info uppercase tracking-wider">Aperçu Mission</span>
                         <p className="text-caption text-muted-foreground leading-tight">
-                            Réaliser l'épreuve de Songe <span className="text-foreground font-black">{epreuve}</span>.
+                            Réaliser l'épreuve de Songe <span className="text-foreground font-semibold">{epreuve}</span>.
                         </p>
                     </div>
                 </div>
@@ -774,7 +774,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                             type="button"
                             onClick={() => handleModeChange(m.value)}
                             className={cn(
-                                "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
+                                "py-2.5 rounded-xl border text-caption font-semibold uppercase tracking-wider transition-all",
                                 mode === m.value
                                     ? "bg-warning/20 border-warning/50 text-warning shadow-xl shadow-amber-500/10"
                                     : "bg-background border-border text-muted-foreground hover:border-border"
@@ -799,7 +799,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 
             {/* Selected Preview - Expedition Card */}
             {selectedDungeon && (
-                <div className="relative group overflow-hidden rounded-2xl border border-warning/30 bg-surface/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
+                <div className="relative group overflow-hidden rounded-xl border border-warning/30 bg-surface/40 animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
                     <div className="flex gap-4 relative z-10">
                         <div className="w-20 h-20 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden relative">
                             {selectedDungeon.imageUrl ? (
@@ -818,16 +818,16 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 
                         <div className="flex-1 min-w-0 py-1">
                             <div className="flex items-center gap-2 mb-1.5">
-                                <span className="px-1.5 py-0.5 bg-warning/20 text-caption font-black text-warning border border-warning/30 rounded uppercase tracking-widest">
+                                <span className="px-1.5 py-0.5 bg-warning/20 text-caption font-semibold text-warning border border-warning/30 rounded uppercase tracking-wider">
                                     Expédition
                                 </span>
                                 {mode !== 'aucun' && (
-                                    <span className="text-caption font-black text-foreground/40 uppercase tracking-widest">
+                                    <span className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">
                                         Mode {mode}
                                     </span>
                                 )}
                             </div>
-                            <h4 className="text-foreground font-black uppercase text-sm leading-tight truncate mb-1">
+                            <h4 className="text-foreground font-semibold uppercase text-sm leading-tight truncate mb-1">
                                 {selectedDungeon.name}
                             </h4>
                             <div className="flex items-center gap-1.5 text-muted-foreground text-caption font-bold">
@@ -854,7 +854,7 @@ const EVENT_SUBTYPES: { value: EventSubType; label: string; emoji: string; desc:
     { value: 'DONJON', label: 'Donjon', emoji: '🏰', desc: 'Vaincre le boss du donjon', color: 'text-danger', border: 'border-danger/50 bg-danger/10' },
     { value: 'MONSTRE_SPECIAL', label: 'Monstre Spécial', emoji: '💀', desc: 'Monstre unique / boss', color: 'text-info', border: 'border-info/50 bg-info/10' },
     { value: 'OBJECTIF', label: 'Objectif Manuel', emoji: '📜', desc: 'Objectif à rédiger à la main', color: 'text-info', border: 'border-info/50 bg-info/10' },
-    { value: 'FRAGMENTS_ANOMALIE', label: 'Fragments', emoji: '⚡', desc: '20 fragments d\'anomalie', color: 'text-fuchsia-300', border: 'border-fuchsia-500/50 bg-fuchsia-500/10' },
+    { value: 'FRAGMENTS_ANOMALIE', label: 'Fragments', emoji: '⚡', desc: '20 fragments d\'anomalie', color: 'text-warning', border: 'border-warning/50 bg-warning/10' },
 ];
 
 type EventContextPreset = 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
@@ -1095,9 +1095,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border border-warning/30">
-                            <span className="text-caption font-black text-warning">1</span>
+                            <span className="text-caption font-semibold text-warning">1</span>
                         </div>
-                        <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Contexte</span>
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Contexte</span>
                     </div>
                 </div>
                 
@@ -1108,7 +1108,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             type="button"
                             onClick={() => handleContextPreset(ctx.value)}
                             className={cn(
-                                "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300 relative overflow-hidden group",
+                                "flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all duration-300 relative overflow-hidden group",
                                 contextPreset === ctx.value
                                     ? "border-warning/50 bg-warning/10 text-warning shadow-lg shadow-yellow-500/5"
                                     : "bg-background border-border hover:border-border text-muted-foreground"
@@ -1116,7 +1116,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         >
                             <span className={cn("text-2xl transition-transform duration-300", contextPreset === ctx.value ? "scale-110" : "group-")}>{ctx.emoji}</span>
                             <div className="space-y-0.5">
-                                <div className="text-caption font-black leading-tight uppercase tracking-tighter">{ctx.label}</div>
+                                <div className="text-caption font-semibold leading-tight uppercase tracking-tighter">{ctx.label}</div>
                                 <div className="text-caption opacity-60 font-bold">{ctx.period}</div>
                             </div>
                             {contextPreset === ctx.value && <div className="absolute inset-0 bg-warning/5 animate-pulse pointer-events-none" />}
@@ -1138,9 +1138,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
             <div className="space-y-3">
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-info/20 flex items-center justify-center border border-info/30">
-                        <span className="text-caption font-black text-info">2</span>
+                        <span className="text-caption font-semibold text-info">2</span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Type de mission</span>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Type de mission</span>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1150,7 +1150,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             type="button"
                             onClick={() => handleSubTypeChange(st.value)}
                             className={cn(
-                                "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300",
+                                "flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all duration-300",
                                 eventType === st.value 
                                     ? st.border + " shadow-lg" 
                                     : "bg-background border-border hover:border-border text-muted-foreground"
@@ -1158,7 +1158,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         >
                             <span className="text-xl">{st.emoji}</span>
                             <div className="space-y-0.5">
-                                <div className={cn("text-caption font-black uppercase tracking-tighter", eventType === st.value ? st.color : "text-muted-foreground")}>{st.label}</div>
+                                <div className={cn("text-caption font-semibold uppercase tracking-tighter", eventType === st.value ? st.color : "text-muted-foreground")}>{st.label}</div>
                                 <div className="text-caption opacity-60 font-bold leading-tight">{st.desc}</div>
                             </div>
                         </button>
@@ -1170,9 +1170,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
             <div className="space-y-4 pt-2 border-t border-border">
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border border-success/30">
-                        <span className="text-caption font-black text-success">3</span>
+                        <span className="text-caption font-semibold text-success">3</span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Objectif</span>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Objectif</span>
                 </div>
 
                 {/* DONJON */}
@@ -1187,7 +1187,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             emptyText="Aucun donjon trouvé."
                         />
                         {payload.bossName && (
-                            <div className="relative overflow-hidden rounded-2xl border border-danger/30 bg-danger/5 p-4 flex gap-4">
+                            <div className="relative overflow-hidden rounded-xl border border-danger/30 bg-danger/5 p-4 flex gap-4">
                                 <div className="w-14 h-14 rounded-xl bg-surface border border-border flex-shrink-0 overflow-hidden relative">
                                     {payload.imageUrl ? (
                                         <img src={payload.imageUrl} alt={payload.bossName} className="w-full h-full object-cover" />
@@ -1196,8 +1196,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="text-caption font-black text-danger uppercase tracking-widest mb-1">Cible Événement</div>
-                                    <h4 className="text-foreground font-black uppercase text-sm leading-tight">{payload.bossName}</h4>
+                                    <div className="text-caption font-semibold text-danger uppercase tracking-wider mb-1">Cible Événement</div>
+                                    <h4 className="text-foreground font-semibold uppercase text-sm leading-tight">{payload.bossName}</h4>
                                     {contextLabel && <div className="text-caption text-warning font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
                                 </div>
                             </div>
@@ -1226,7 +1226,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         <AsyncCombobox value={payload.zoneId} onSelect={handleRegZone} fetcher={zoneFetcher} placeholder="Zone (Territoire)..." searchPlaceholder="Rechercher une zone..." />
                         <AsyncCombobox key={payload.zoneId} value={payload.familyId} onSelect={handleRegFamily} fetcher={familyFetcher} placeholder="Famille de monstres..." searchPlaceholder="Rechercher une famille..." />
                         {payload.familyName && (
-                            <div className="relative overflow-hidden rounded-2xl border border-warning/30 bg-warning/5 p-4 flex gap-4">
+                            <div className="relative overflow-hidden rounded-xl border border-warning/30 bg-warning/5 p-4 flex gap-4">
                                 <div className="w-14 h-14 rounded-xl bg-surface border border-border flex-shrink-0 overflow-hidden relative">
                                     {payload.imageUrl ? (
                                         <img src={payload.imageUrl} alt={payload.familyName} className="w-full h-full object-cover" />
@@ -1235,8 +1235,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="text-caption font-black text-warning uppercase tracking-widest mb-1">Régulation Active</div>
-                                    <h4 className="text-foreground font-black uppercase text-sm leading-tight">{payload.familyName}</h4>
+                                    <div className="text-caption font-semibold text-warning uppercase tracking-wider mb-1">Régulation Active</div>
+                                    <h4 className="text-foreground font-semibold uppercase text-sm leading-tight">{payload.familyName}</h4>
                                     <div className="text-caption text-muted-foreground font-bold mt-1">Vaincre 50 monstres</div>
                                 </div>
                             </div>
@@ -1325,14 +1325,14 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         {/* Nombre de cibles */}
                         <div className="space-y-2">
                             <Label className="text-xs text-muted-foreground">Nombre de spécimens à vaincre</Label>
-                            <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
+                            <div className="flex gap-1.5 p-1 bg-background border border-border rounded-xl">
                                 {[1, 10, 25, 50, 100].map(count => (
                                     <button
                                         key={count}
                                         type="button"
                                         onClick={() => handleTargetCount(count)}
                                         className={cn(
-                                            "flex-1 py-2 rounded-xl text-caption font-black transition-all",
+                                            "flex-1 py-2 rounded-xl text-caption font-semibold transition-all",
                                             (payload.targetCount || 50) === count
                                                 ? "bg-info text-info-foreground shadow-lg shadow-purple-500/20"
                                                 : "text-muted-foreground hover:text-muted-foreground"
@@ -1345,9 +1345,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         </div>
                         {/* Preview */}
                         {payload.monsterName && (
-                            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4">
+                            <div className="relative overflow-hidden rounded-xl border border-info/30 bg-info/5 p-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-caption font-black text-info uppercase tracking-widest">Contrat Spécial</span>
+                                    <span className="text-caption font-semibold text-info uppercase tracking-wider">Contrat Spécial</span>
                                     <Skull className="w-3.5 h-3.5 text-info" />
                                 </div>
                                 <div className="flex gap-3">
@@ -1357,7 +1357,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-foreground font-black uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
+                                        <h4 className="text-foreground font-semibold uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
                                         <div className="space-y-0.5">
                                             <p className="text-caption text-muted-foreground font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
                                             {payload.level && <p className="text-caption text-info font-bold">Niveau : {payload.level}</p>}
@@ -1399,13 +1399,13 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             />
                         </div>
                         {payload.description && (
-                            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4">
+                            <div className="relative overflow-hidden rounded-xl border border-info/30 bg-info/5 p-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-caption font-black text-info uppercase tracking-widest flex items-center gap-1">
+                                    <span className="text-caption font-semibold text-info uppercase tracking-wider flex items-center gap-1">
                                         <Sparkles className="w-3.5 h-3.5" /> Objectif Personnel
                                     </span>
                                 </div>
-                                <h4 className="text-foreground font-black uppercase text-sm leading-tight mb-1">{payload.title || "Sans titre"}</h4>
+                                <h4 className="text-foreground font-semibold uppercase text-sm leading-tight mb-1">{payload.title || "Sans titre"}</h4>
                                 <p className="text-caption text-foreground font-medium leading-snug">{payload.description}</p>
                             </div>
                         )}
@@ -1415,14 +1415,14 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                 {/* FRAGMENTS D'ANOMALIE */}
                 {eventType === 'FRAGMENTS_ANOMALIE' && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4">
-                            <div className="w-14 h-14 rounded-xl bg-surface/80 border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+                        <div className="relative overflow-hidden rounded-xl border border-warning/25 bg-warning/5 p-4 flex gap-4">
+                            <div className="w-14 h-14 rounded-xl bg-surface/80 border border-warning/25 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                                 <img src="/assets/missions/fragment.png" className="w-10 h-10 object-contain z-10" alt="Fragments" />
-                                <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
+                                
                             </div>
                             <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
-                                <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Mission Événement Fragments</div>
-                                Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie
+                                <div className="font-semibold text-warning uppercase tracking-wider text-caption mb-1">Mission Événement Fragments</div>
+                                Obtenir <span className="text-foreground font-semibold">20 Fragments d'anomalie</span> dans une anomalie
                             </div>
                         </div>
                     </div>

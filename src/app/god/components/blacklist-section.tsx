@@ -61,7 +61,9 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
                         Blacklist & Restriction Plateforme
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                        Bannissements plateforme (accès bot et plateforme bloqués pour les IDs spécifiés).
+                        {bans.length === 0
+                            ? "Aucun bannissement actif."
+                            : `${bans.length} bannissement${bans.length > 1 ? "s" : ""} actif${bans.length > 1 ? "s" : ""} — accès bot et plateforme bloqués pour les IDs ci-dessous.`}
                     </p>
                 </div>
 
@@ -111,11 +113,7 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
                 </Dialog>
             </div>
 
-            {bans.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-surface/5 p-6 text-center text-xs text-muted-foreground">
-                    Aucun bannissement actif
-                </div>
-            ) : (
+            {bans.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {bans.map((ban: any) => (
                         <div key={ban.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/10 p-4">
@@ -138,7 +136,7 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
                         </div>
                     ))}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

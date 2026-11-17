@@ -1,5 +1,6 @@
 import type { MissionCategoryType } from "@/lib/mission-config";
 import rawData from "@/data/dofus-guild-missions.json";
+import { resolveMissionArtwork } from "@/lib/mission-artwork";
 
 export interface OfficialGuildMission {
     id: number;
@@ -195,6 +196,13 @@ export function mapOfficialToDraftMission(mission: OfficialGuildMission): DraftM
             break;
     }
 
+    const artwork = resolveMissionArtwork({
+        category: mission.category,
+        title: mission.title,
+        monsterId: mission.monsterId,
+        monsterImageUrl: mission.monsterImageUrl,
+    });
+
     return {
         title: mission.title,
         category: mission.category,
@@ -203,6 +211,10 @@ export function mapOfficialToDraftMission(mission: OfficialGuildMission): DraftM
         guildatonsReward: mission.guildTokens,
         payload: {
             ...payload,
+            // Un seul point de décision pour le visuel ET l'épreuve : la modale d'édition
+            // et l'aperçu en direct consomment exactement ce que le catalogue a résolu.
+            ...(artwork.imageUrl ? { imageUrl: artwork.imageUrl } : {}),
+            ...(artwork.epreuve ? { epreuve: artwork.epreuve } : {}),
             officialMissionId: mission.id,
             officialObjectiveText: mission.objectiveText,
         },

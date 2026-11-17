@@ -11,6 +11,8 @@ import {
 } from '@/lib/game-data/guild-missions-catalog';
 import type { MissionCategoryType } from '@/lib/mission-config';
 import { CATEGORY_CONFIG } from '@/lib/mission-config';
+import { resolveMissionArtwork } from '@/lib/mission-artwork';
+import { MissionArtworkImage } from './mission-artwork-image';
 
 interface MissionOfficialSearchProps {
     currentCategory?: MissionCategoryType;
@@ -148,6 +150,14 @@ export function MissionOfficialSearch({
                         const cfg = CATEGORY_CONFIG[m.category] || CATEGORY_CONFIG.DONJON;
                         const CategoryIcon = cfg?.icon || Sparkles;
                         const isSelected = selectedMissionId === m.id;
+                        // Le catalogue ne porte pas de visuel pour Songes / Anomalies / Régulations :
+                        // le résolveur unique corrèle le titre avec nos assets locaux.
+                        const artwork = resolveMissionArtwork({
+                            category: m.category,
+                            title: m.title,
+                            monsterId: m.monsterId,
+                            monsterImageUrl: m.monsterImageUrl,
+                        });
 
                         return (
                             <button
@@ -163,18 +173,14 @@ export function MissionOfficialSearch({
                             >
                                 {/* Miniature Monstre / Catégorie */}
                                 <div className="w-10 h-10 rounded-xl bg-background border border-border shrink-0 overflow-hidden flex items-center justify-center relative">
-                                    {m.monsterImageUrl ? (
-                                        <img
-                                            src={m.monsterImageUrl}
-                                            alt={m.title}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                (e.target as HTMLElement).style.display = 'none';
-                                            }}
-                                        />
-                                    ) : (
+                                    <MissionArtworkImage
+                                        src={artwork.imageUrl}
+                                        fallbackSrc={artwork.fallbackUrl}
+                                        alt={m.title}
+                                        className="w-full h-full object-cover"
+                                    >
                                         <CategoryIcon className={cn("w-5 h-5", cfg.color)} />
-                                    )}
+                                    </MissionArtworkImage>
                                 </div>
 
                                 {/* Texte de la mission */}

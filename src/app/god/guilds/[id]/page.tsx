@@ -10,6 +10,7 @@ import { getGodRoute } from "@/lib/god-route";
 import { formatDofusLevel, toTotalDofusLevel } from "@/lib/dofus-level";
 import { buildAnkamaLadderUrl, resolveGuildOwnerLookup } from "@/lib/god-guild-owner";
 import { resolveOnboardingOrigin } from "@/lib/onboarding-gating";
+import { godStatusTitle } from "@/lib/god-status-glossary";
 import { GodGuildTabs } from "./god-guild-tabs";
 
 interface GodGuildDetailsPageProps {
@@ -67,6 +68,19 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
         select: { addedBy: true, tier: true, notes: true },
     });
     const origin = resolveOnboardingOrigin(allowedGuild ?? null);
+    // G1 — **une phrase complète, datée**, jamais un badge « Autonome » nu.
+    const createdAtLabel = new Date(guild.createdAt).toLocaleDateString("fr-FR");
+    const originPhrase =
+        origin.tag === "AUTONOME"
+            ? `Installée en autonomie le ${createdAtLabel} — aucune approbation humaine requise.`
+            : origin.tag === "VIP"
+                ? `Installée via un ticket de support le ${createdAtLabel} — accompagnement humain.`
+                : `Pré-approuvée par le staff le ${createdAtLabel} — whitelist avant déploiement.`;
+    const statusTitle = guild.deletedAt
+        ? godStatusTitle("SUPPRIMEE")
+        : !guild.isActive
+            ? godStatusTitle("GELEE")
+            : "Accès autorisé et dashboard ouvert.";
 
     // ── Propriétaire (debug2.md) : ownerId peut être un snowflake ou un UUID.
     const ownerLookup = resolveGuildOwnerLookup(guild.ownerId);
@@ -191,20 +205,15 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         <div className="min-w-0 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="text-2xl font-semibold tracking-tight text-foreground">{guild.name}</h1>
-                                <GodBadge variant={guildActive ? "success" : "danger"}>
+                                <GodBadge variant={guildActive ? "success" : "danger"} title={statusTitle}>
                                     {guild.deletedAt ? "Supprimée" : guild.isActive ? "Active" : "Gelée"}
                                 </GodBadge>
-                                {!isAdmin ? <GodBadge variant="info">Lecture seule</GodBadge> : null}
+                                {!isAdmin ? <GodBadge variant="info" title="Consultation autorisée en lecture seule (sous-God).">Lecture seule</GodBadge> : null}
                             </div>
                             <p className="font-mono text-xs text-muted-foreground">{guild.discordGuildId}</p>
                             <p className="text-xs text-muted-foreground">
-                                {origin.kind === "AUTONOME"
-                                    ? "Installée en autonomie — aucune approbation humaine."
-                                    : "Installée via ticket ou whitelist du staff."}
+                                {originPhrase}
                                 {guild.dofusServerName ? ` Serveur ${guild.dofusServerName}.` : ""}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Créée le {new Date(guild.createdAt).toLocaleDateString("fr-FR")}
                             </p>
                         </div>
                     </div>

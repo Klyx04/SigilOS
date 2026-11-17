@@ -288,7 +288,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
             {/* ── Indicateurs ─────────────────────────────────────────────── */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                         Indicateurs (toutes guildes)
                     </h2>
                     <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={disabled}>
@@ -317,7 +317,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
             {/* ── Santé Discord (§18.2) ───────────────────────────────────── */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                         Santé Discord ({health.length})
                     </h2>
                     <Button variant="outline" size="sm" onClick={() => resync()} disabled={disabled}>
@@ -333,7 +333,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                         description="Tous les messages Discord publiés correspondent à l'état en base."
                     />
                 ) : (
-                    <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
+                    <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
                         {health.map((row) => (
                             <div key={row.listingId} className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
                                 <div className="flex-1 min-w-0 space-y-1">
@@ -384,7 +384,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
 
             {/* ── Médias (§18.2) ──────────────────────────────────────────── */}
             <section className="space-y-4">
-                <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">Preuves & médias</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Preuves & médias</h2>
                 <Card className="border-border">
                     <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
                         <div className="flex-1 space-y-1">
@@ -406,7 +406,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
 
             {/* ── Réglages globaux (§18.2) ────────────────────────────────── */}
             <section className="space-y-4">
-                <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                     Réglages globaux (toutes guildes)
                 </h2>
                 <Card className="border-border">
@@ -431,7 +431,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                         </div>
 
                         {/* T4 (D-B) — défauts globaux « Durées, plafonds & rappels » */}
-                        <div className="rounded-2xl border border-border bg-surface/40 p-4 space-y-3">
+                        <div className="rounded-xl border border-border bg-surface/40 p-4 space-y-3">
                             <div>
                                 <p className="text-label font-bold text-foreground">Durées, plafonds &amp; rappels</p>
                                 <p className="text-caption text-muted-foreground">

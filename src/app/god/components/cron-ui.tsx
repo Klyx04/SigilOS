@@ -13,17 +13,17 @@ export type CronUiStatus = "success" | "error" | "unknown";
 
 export function StatusBadge({ status }: { status: CronUiStatus }) {
   if (status === "success") return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/15 text-success border border-success/20">
       <CheckCircle2 className="w-3 h-3" /> OK
     </span>
   );
   if (status === "error") return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/20">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-destructive/15 text-destructive border border-destructive/20">
       <XCircle className="w-3 h-3" /> Erreur
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-zinc-500/15 text-zinc-400 border border-zinc-500/20">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-surface/15 text-muted-foreground border border-border-strong">
       <HelpCircle className="w-3 h-3" /> Inconnu
     </span>
   );

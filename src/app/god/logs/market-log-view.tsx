@@ -53,7 +53,7 @@ export function MarketLogView({
     }
 
     return (
-        <div className="rounded-2xl border border-border bg-surface/40 p-5 space-y-4">
+        <div className="rounded-xl border border-border bg-surface/40 p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-muted-foreground" />

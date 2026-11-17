@@ -80,7 +80,7 @@ export function DelegatedAccessView({
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface/40 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/40 px-4 py-3">
                 <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                     <KeyRound className="h-4 w-4 text-muted-foreground" />
                     <span className="tabular-nums">{total}</span> accès délégué(s) journalisé(s)
@@ -94,7 +94,7 @@ export function DelegatedAccessView({
             </div>
 
             {error ? (
-                <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-4 text-body-sm text-danger">
+                <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-body-sm text-danger">
                     {error}
                 </div>
             ) : loading ? (
@@ -106,7 +106,7 @@ export function DelegatedAccessView({
                     description="Aucune délégation n'a encore été accordée, révoquée ou synchronisée."
                 />
             ) : (
-                <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
                     <table className="w-full border-collapse text-left">
                         <thead className="bg-elevated/60">
                             <tr>

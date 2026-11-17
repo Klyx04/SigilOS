@@ -375,7 +375,7 @@ async function GodGuildLogsSection({
         const isRefusal = !isGod && result.error === "Accès non autorisé";
 
         return isRefusal ? (
-            <div role="status" className="rounded-2xl border border-warning/30 bg-warning/5 p-6">
+            <div role="status" className="rounded-xl border border-warning/30 bg-warning/5 p-6">
                 <p className="text-body-sm font-semibold text-warning">Accès refusé</p>
                 <p className="mt-1 text-caption text-warning/80">
                     Ton accès de guilde ne couvre pas le journal de cette guilde (droit « consulter les journaux »
@@ -383,7 +383,7 @@ async function GodGuildLogsSection({
                 </p>
             </div>
         ) : (
-            <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-6">
+            <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-6">
                 <p className="text-body-sm font-semibold text-danger">Erreur de chargement du journal</p>
                 <p className="mt-1 text-caption text-danger/80">
                     La lecture a échoué ({result.error ?? "cause inconnue"}) — ce n&apos;est pas un refus de droits.

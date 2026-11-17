@@ -80,10 +80,10 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
         <div className="space-y-4">
 
             <div className="space-y-3">
-                <div className="text-caption font-black uppercase tracking-widest text-zinc-500 block">Briques (coche celles à accorder)</div>
+                <div className="text-caption font-semibold uppercase tracking-wide text-muted-foreground block">Briques (coche celles à accorder)</div>
                 {bricksByScope.map((group) => (
                     <div key={group.scope} className="space-y-1.5">
-                        <div className="text-caption font-bold uppercase tracking-widest text-violet-400 border-b border-white/5 pb-1">
+                        <div className="text-caption font-bold uppercase tracking-wide text-accent border-b border-border pb-1">
                             {SCOPE_LABELS[group.scope] || group.scope}
                         </div>
                         <div className="grid grid-cols-1 gap-1.5">
@@ -92,10 +92,10 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
                                 return (
                                     <button key={b.id} type="button" onClick={() => toggleBrick(b.id)}
                                         className={cn("w-full flex items-center justify-between rounded-lg border px-3 py-1.5 text-xs transition-all",
-                                            on ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200")}>
+                                            on ? "bg-success/15 border-success/40 text-success" : "bg-surface/10 border-border text-muted-foreground hover:text-foreground")}>
                                         <span>{b.label}</span>
                                         <span className={cn("w-4 h-4 rounded border flex items-center justify-center text-caption",
-                                            on ? "bg-emerald-500 border-emerald-400 text-white" : "border-white/20 text-transparent")}>✓</span>
+                                            on ? "bg-success border-success text-success-foreground" : "border-border-strong text-transparent")}>✓</span>
                                     </button>
                                 );
                             })}
@@ -105,7 +105,7 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
             </div>
 
             <div className="space-y-2">
-                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 block flex items-center gap-1.5">
+                <label className="text-caption font-semibold uppercase tracking-wide text-muted-foreground block flex items-center gap-1.5">
                     <Timer className="w-3 h-3" /> Durée (min 5, max 90 jours)
                 </label>
                 <div className="flex items-center gap-3">
@@ -118,18 +118,18 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
                             <SelectItem value="days">jours</SelectItem>
                         </SelectContent>
                     </Select>
-                    <span className="text-caption text-zinc-500 font-mono">= {durationMinutes} min</span>
+                    <span className="text-caption text-muted-foreground font-mono">= {durationMinutes} min</span>
                 </div>
             </div>
 
             <div className="space-y-2">
-                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 block">Justification * (auditée)</label>
+                <label className="text-caption font-semibold uppercase tracking-wide text-muted-foreground block">Justification * (auditée)</label>
                 <Input placeholder="Pourquoi cet accès ?" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full" />
             </div>
 
             <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={onClose} disabled={loading} className="border-white/10 bg-white/5 text-zinc-300">Annuler</Button>
-                <Button onClick={handleSave} disabled={loading} className="bg-violet-500 hover:bg-violet-400 text-white font-bold">
+                <Button variant="outline" onClick={onClose} disabled={loading} className="border-border bg-surface/10 text-foreground">Annuler</Button>
+                <Button onClick={handleSave} disabled={loading} className="bg-accent hover:bg-accent text-accent-foreground font-bold">
                     {loading ? "Enregistrement..." : "Enregistrer"}
                 </Button>
             </div>

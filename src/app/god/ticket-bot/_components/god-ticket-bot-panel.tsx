@@ -144,7 +144,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
 
                 {/* KPI Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
+                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 ">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                             <Server className="h-3.5 w-3.5 text-info" />
                             Guildes Déployées
@@ -155,7 +155,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                         </div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
+                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 ">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                             <Activity className="h-3.5 w-3.5 text-info" />
                             Tickets Ouverts Live
@@ -163,7 +163,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                         <div className="text-2xl font-bold text-info">{initialFleet.totalOpenTickets}</div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
+                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 ">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                             <FileText className="h-3.5 w-3.5 text-info" />
                             Transcripts Archivés
@@ -171,7 +171,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                         <div className="text-2xl font-bold text-foreground">{initialFleet.totalTranscripts}</div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 backdrop-blur-sm">
+                    <div className="p-4 rounded-xl bg-surface/60 border border-border/50 ">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                             <Star className="h-3.5 w-3.5 text-info" />
                             Score CSAT Global

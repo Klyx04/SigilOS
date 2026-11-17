@@ -28,7 +28,7 @@ export function DeleteDocButton({ id }: { id: string }) {
         <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={handleDelete}
             disabled={loading}
         >

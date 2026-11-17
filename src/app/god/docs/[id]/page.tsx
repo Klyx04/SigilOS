@@ -18,7 +18,7 @@ export default async function AdminDocEditPage({ params }: { params: Promise<{ i
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full font-sans selection:bg-purple-500/30 overflow-hidden">
+        <div className="flex-1 flex flex-col h-full font-sans selection:bg-accent/30 overflow-hidden">
             <DocEditor initialData={doc as any} />
         </div>
     );

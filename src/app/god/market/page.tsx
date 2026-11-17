@@ -36,7 +36,7 @@ export default async function GodMarketPage() {
         <div className="w-full max-w-[2500px] mx-auto px-4 lg:px-12 pt-10 pb-40">
             <div className="space-y-8">
                 <div className="flex flex-col gap-4">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-caption font-semibold text-amber-400 uppercase tracking-wider w-fit">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warning/10 border border-warning/20 text-caption font-semibold text-warning uppercase tracking-wider w-fit">
                         <Shield className="w-3 h-3" />
                         Supervision plateforme
                     </div>
@@ -54,7 +54,7 @@ export default async function GodMarketPage() {
                 {result.success ? (
                     <GodMarketPanel initialOverview={result.data} />
                 ) : (
-                    <div className="p-6 rounded-2xl border border-danger/30 bg-danger/5 text-danger font-medium">
+                    <div className="p-6 rounded-xl border border-danger/30 bg-danger/5 text-danger font-medium">
                         {result.error}
                     </div>
                 )}

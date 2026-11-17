@@ -69,9 +69,9 @@ function TaskRow({ task, onOpen }: { task: CronTask; onOpen: (task: CronTask) =>
     <div className={cn(
       "rounded-xl border transition-all duration-200",
       task.status === "error"
-        ? "border-red-500/30 bg-red-500/5"
+        ? "border-destructive/30 bg-destructive/5"
         : task.staleness?.silent
-        ? "border-amber-500/30 bg-amber-500/5"
+        ? "border-warning/30 bg-warning/5"
         : task.status === "success"
         ? "border-border bg-surface"
         : "border-border bg-surface opacity-70"
@@ -90,7 +90,7 @@ function TaskRow({ task, onOpen }: { task: CronTask; onOpen: (task: CronTask) =>
         {task.staleness?.silent && (
           <span
             title={`Aucune exécution depuis plus du double de sa cadence (${task.staleness.expectedMinutes} min attendues, seuil ${task.staleness.thresholdMinutes} min)`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/15 text-warning border border-warning/20"
           >
             <Clock className="w-3 h-3" /> Muette
           </span>
@@ -167,7 +167,7 @@ function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: ()
 
             {task.details && Object.keys(task.details).length > 0 && (
               <div className="rounded-lg bg-surface border border-border p-2.5 space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Résumé de la dernière exécution</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Résumé de la dernière exécution</p>
                 <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {Object.entries(task.details).map(([k, v]) => (
                     <div key={k} className="rounded-md bg-elevated/60 border border-border px-2 py-1.5">
@@ -181,7 +181,7 @@ function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: ()
 
             {task.history && task.history.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                   <History className="w-3 h-3" /> Historique des exécutions ({task.history.length})
                 </p>
                 <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
@@ -199,7 +199,7 @@ function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: ()
 
             {task.lastLines.length > 0 ? (
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                   <Terminal className="w-3 h-3" /> Dernières lignes du log
                 </p>
                 <pre className="text-xs font-mono bg-background border border-border rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto text-muted-foreground leading-relaxed">
@@ -255,7 +255,7 @@ export function CronStatusPanel() {
 
   if (error) return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-      <XCircle className="w-10 h-10 text-red-400" />
+      <XCircle className="w-10 h-10 text-destructive" />
       <p className="text-sm font-medium text-foreground">Impossible de charger les statuts</p>
       <p className="text-xs text-muted-foreground">{error}</p>
       <button onClick={fetchData} className="mt-2 text-xs text-primary hover:underline">Réessayer</button>
@@ -275,8 +275,8 @@ export function CronStatusPanel() {
           <div className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
             errorTasks.length > 0
-              ? "bg-red-500/15 text-red-400 border border-red-500/20"
-              : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+              ? "bg-destructive/15 text-destructive border border-destructive/20"
+              : "bg-success/15 text-success border border-success/20"
           )}>
             {errorTasks.length > 0
               ? <><XCircle className="w-3.5 h-3.5" /> {errorTasks.length} tâche(s) en erreur</>
@@ -287,7 +287,7 @@ export function CronStatusPanel() {
             {data.summary.success}/{data.summary.total} OK · {data.summary.unknown} inconnu(s)
           </span>
           {silentTasks.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-warning/15 text-warning border border-warning/20">
               <Clock className="w-3.5 h-3.5" /> {silentTasks.length} tâche(s) muette(s)
             </span>
           )}
@@ -310,9 +310,9 @@ export function CronStatusPanel() {
 
       {/* Alerte erreurs en haut */}
       {errorTasks.length > 0 && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-          <p className="text-sm font-semibold text-red-400 mb-1">⚠️ Tâches en erreur</p>
-          <ul className="text-xs text-red-300/80 space-y-0.5">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <p className="text-sm font-semibold text-destructive mb-1">⚠️ Tâches en erreur</p>
+          <ul className="text-xs text-destructive/80 space-y-0.5">
             {errorTasks.map(t => <li key={t.id}>• {t.name} — {t.logFile}</li>)}
           </ul>
         </div>
@@ -320,11 +320,11 @@ export function CronStatusPanel() {
 
       {/* Alerte « muettes » : celles qui ne donnent plus signe de vie (Sentry est plafonné). */}
       {silentTasks.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <p className="text-sm font-semibold text-amber-400 mb-1">
+        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+          <p className="text-sm font-semibold text-warning mb-1">
             🕰️ Tâches muettes — aucune exécution depuis plus du double de leur cadence
           </p>
-          <ul className="text-xs text-amber-200/80 space-y-0.5">
+          <ul className="text-xs text-warning/80 space-y-0.5">
             {silentTasks.map(t => (
               <li key={t.id}>
                 • {t.name} — dernière exécution {formatRelativeTime(t.lastRun)}

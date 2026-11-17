@@ -274,9 +274,9 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "storage" && (
                         <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Stockage & Captures</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Espace disque par guilde : missions, kamas, prêts, succès et fichiers orphelins.</p>
+                            <div className="space-y-4 pb-12 border-b border-border">
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-foreground tracking-tight">Stockage & Captures</h1>
+                                <p className="text-muted-foreground text-base md:text-lg font-medium">Espace disque par guilde : missions, kamas, prêts, succès et fichiers orphelins.</p>
                             </div>
                             <div className="w-full animate-in fade-in duration-300">
                                 <StorageOverviewPanel />
@@ -330,11 +330,11 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "notifications" && (
                         <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Alertes</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
+                            <div className="space-y-4 pb-12 border-b border-border">
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-foreground tracking-tight">Alertes</h1>
+                                <p className="text-muted-foreground text-base md:text-lg font-medium">Rapports d'automatisation, sauvegardes et status VPS.</p>
                             </div>
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                            <Suspense fallback={<div className="animate-pulse bg-surface/10 h-96 rounded-xl" />}>
                                 <NotificationsServer />
                             </Suspense>
                         </div>
@@ -343,7 +343,7 @@ export default async function SuperAdminPage(props: {
                     {tab === "cron-status" && (
                         <div className="space-y-8">
                             <div className="space-y-3 pb-8 border-b border-border">
-                                <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Tâches CRON</h1>
+                                <h1 className="text-3xl sm:text-5xl font-semibold text-foreground tracking-tight">Tâches CRON</h1>
                                 <p className="text-muted-foreground text-sm md:text-base font-medium">
                                     Statut des scripts automatisés du VPS — dernière exécution, succès/échec,
                                     logs en direct et journal des 10 dernières exécutions par tâche.
@@ -368,25 +368,25 @@ export default async function SuperAdminPage(props: {
                     {tab === "game-data" && (
                         <div className="space-y-12">
                             <div className="space-y-3 pb-8 border-b border-border">
-                                <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Game Data Engine</h1>
+                                <h1 className="text-3xl sm:text-5xl font-semibold text-foreground tracking-tight">Game Data Engine</h1>
                                 <p className="text-muted-foreground text-sm md:text-base font-medium">Synchronisez et orchestrez les données de référence du monde des Douze pour SigilOS.</p>
                             </div>
 
                             {/* Quick Stats Grid */}
                             <Suspense fallback={
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
-                                    {[...Array(4)].map((_, i) => <div key={i} className="bg-surface h-24 rounded-3xl border border-border" />)}
+                                    {[...Array(4)].map((_, i) => <div key={i} className="bg-surface h-24 rounded-xl border border-border" />)}
                                 </div>
                             }>
                                 <GameDataStatsServer />
                             </Suspense>
 
-                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
+                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-xl border border-border" />}>
                                 <GameDataInterface />
                             </Suspense>
 
                             <div className="border-t border-border pt-10 space-y-6">
-                                <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
+                                <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-xl border border-border" />}>
                                     <EventZoneManager />
                                 </Suspense>
                             </div>
@@ -400,10 +400,10 @@ export default async function SuperAdminPage(props: {
                     {tab === "telemetry" && (
                         <div className="space-y-12">
                             <Suspense fallback={
-                                <div className="flex-1 flex items-center justify-center bg-black py-20">
+                                <div className="flex-1 flex items-center justify-center bg-background py-20">
                                     <div className="flex flex-col items-center gap-6">
-                                        <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                        <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Chargement de la télémétrie...</span>
+                                        <div className="w-16 h-16 border-4 border-accent/20 border-t-violet-500 rounded-full animate-spin" />
+                                        <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide animate-pulse">Chargement de la télémétrie...</span>
                                     </div>
                                 </div>
                             }>
@@ -422,19 +422,19 @@ async function OcrStatsServer() {
     try {
         const ocrStats = await getOcrApiStats();
         return (
-            <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl group hover:bg-zinc-900/20 transition-all">
-                <h3 className="text-xs font-black text-zinc-500 mb-8 uppercase tracking-widest flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+            <div className="bg-surface/10 border border-border rounded-xl p-8  group hover:bg-surface/20 transition-all">
+                <h3 className="text-xs font-semibold text-muted-foreground mb-8 uppercase tracking-wide flex items-center gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-info animate-pulse" />
                     OCR Core Engine
                 </h3>
                 <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-1">
-                        <div className="text-4xl font-black text-cyan-400 tracking-tighter">{ocrStats.todayTotal}</div>
-                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">24h Cycle</div>
+                        <div className="text-4xl font-semibold text-info tracking-tighter">{ocrStats.todayTotal}</div>
+                        <div className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">24h Cycle</div>
                     </div>
                     <div className="space-y-1">
-                        <div className="text-4xl font-black text-white tracking-tighter">{ocrStats.monthlyTotal}</div>
-                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Monthly</div>
+                        <div className="text-4xl font-semibold text-foreground tracking-tighter">{ocrStats.monthlyTotal}</div>
+                        <div className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Monthly</div>
                     </div>
                 </div>
             </div>
@@ -598,18 +598,18 @@ async function GameDataStatsServer() {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "Familles", count: families, icon: Layers, color: "text-blue-500" },
-                    { label: "Zones", count: zones, icon: MapPin, color: "text-emerald-500" },
-                    { label: "Succès", count: challenges, icon: Trophy, color: "text-amber-500" },
-                    { label: "Donjons", count: dungeons, icon: Database, color: "text-purple-500" },
+                    { label: "Familles", count: families, icon: Layers, color: "text-info" },
+                    { label: "Zones", count: zones, icon: MapPin, color: "text-success" },
+                    { label: "Succès", count: challenges, icon: Trophy, color: "text-warning" },
+                    { label: "Donjons", count: dungeons, icon: Database, color: "text-accent" },
                 ].map((stat) => (
-                    <div key={stat.label} className="p-6 rounded-3xl border border-border bg-surface shadow-sm flex items-center gap-4">
-                        <div className={cn("p-3 rounded-2xl bg-elevated border border-border", stat.color)}>
+                    <div key={stat.label} className="p-6 rounded-xl border border-border bg-surface shadow-sm flex items-center gap-4">
+                        <div className={cn("p-3 rounded-xl bg-elevated border border-border", stat.color)}>
                             <stat.icon className="w-6 h-6" />
                         </div>
                         <div>
                             <div className="text-caption font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</div>
-                            <div className="text-2xl font-black text-foreground">{stat.count}</div>
+                            <div className="text-2xl font-semibold text-foreground">{stat.count}</div>
                         </div>
                     </div>
                 ))}
@@ -640,7 +640,7 @@ async function TelemetryServer() {
     } catch (err) {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
+        return <div className="p-8 text-center text-destructive text-xs font-mono">Error loading telemetry data</div>;
     }
 }
 

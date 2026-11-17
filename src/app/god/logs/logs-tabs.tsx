@@ -137,7 +137,7 @@ export function LogsTabs({
 
             <TabsContent value="access" className="animate-in fade-in duration-150 focus-visible:outline-none">
                 {/* #84 — onglet dédié « Accès refusés » : appartenance à une guilde au moment du refus */}
-                <div className="space-y-3 rounded-2xl border border-border bg-surface/40 p-5">
+                <div className="space-y-3 rounded-xl border border-border bg-surface/40 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
                             <ShieldX className="h-4 w-4 text-danger" />

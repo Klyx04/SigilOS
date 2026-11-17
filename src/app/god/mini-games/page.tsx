@@ -15,11 +15,11 @@ export default async function GodMiniGamesPage() {
     ]);
 
     return (
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-black">
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-background">
             <Suspense fallback={
                 <div className="flex-1 flex flex-col items-center justify-center p-20 gap-4">
-                    <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                    <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Chargement Interface...</span>
+                    <div className="w-12 h-12 border-4 border-warning/20 border-t-amber-500 rounded-full animate-spin" />
+                    <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide animate-pulse">Chargement Interface...</span>
                 </div>
             }>
                 <MiniGamesGodClient 

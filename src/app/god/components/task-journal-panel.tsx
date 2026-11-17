@@ -116,7 +116,7 @@ export function TaskJournalPanel() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-foreground tracking-tight flex items-center gap-2">
             <History className="w-5 h-5 text-primary" /> Journal des exécutions
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -135,16 +135,16 @@ export function TaskJournalPanel() {
       </div>
 
       {data && !data.redisOk && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-200 leading-relaxed">
+        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+          <p className="text-xs text-warning leading-relaxed">
             <strong>Redis indisponible :</strong> ce journal est vide parce qu&apos;il n&apos;a pas pu être lu,
             pas parce que les tâches n&apos;ont pas tourné. Réessayer dans un instant.
           </p>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2.5 p-3 bg-surface/50 border border-border rounded-2xl">
+      <div className="flex flex-wrap items-center gap-2.5 p-3 bg-surface/50 border border-border rounded-xl">
         <div className="flex items-center gap-2 mr-1 border-r border-border pr-3">
           <Filter className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Filtres</span>
@@ -194,9 +194,9 @@ export function TaskJournalPanel() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2">
-          <XCircle className="w-4 h-4 text-red-400" />
-          <p className="text-xs text-red-300">Impossible de lire le journal ({error}).</p>
+        <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2">
+          <XCircle className="w-4 h-4 text-destructive" />
+          <p className="text-xs text-destructive">Impossible de lire le journal ({error}).</p>
           <button onClick={() => void load(true)} className="ml-auto text-xs text-primary hover:underline">Réessayer</button>
         </div>
       )}
@@ -208,7 +208,7 @@ export function TaskJournalPanel() {
           ))}
         </div>
       ) : !data || data.entries.length === 0 ? (
-        <div className="py-14 text-center space-y-2 bg-surface/30 border border-dashed border-border rounded-2xl">
+        <div className="py-14 text-center space-y-2 bg-surface/30 border border-dashed border-border rounded-xl">
           <History className="w-6 h-6 mx-auto text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
             {data && data.facets.total > 0
@@ -225,7 +225,7 @@ export function TaskJournalPanel() {
         <div className="space-y-6">
           {groupCronJournalByDay(data.entries).map((day) => (
             <section key={day.day} className="space-y-2">
-              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-1">
                 {formatJournalDay(day.day)} · {day.entries.length} exécution(s)
               </h3>
               <ul className="space-y-1.5">
@@ -236,7 +236,7 @@ export function TaskJournalPanel() {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors",
                         entry.status === "error"
-                          ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
+                          ? "border-destructive/30 bg-destructive/5 hover:bg-destructive/10"
                           : "border-border bg-surface hover:bg-muted/30",
                       )}
                       aria-haspopup="dialog"
@@ -290,13 +290,13 @@ function JournalEntryDialog({ entry, onClose }: { entry: CronJournalEntry | null
 
             <div className="space-y-4">
               <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Résumé</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">Résumé</p>
                 <p className="text-sm text-foreground whitespace-pre-line break-words">{entry.summary ?? "—"}</p>
               </div>
 
               {detail.rows.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Détails</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">Détails</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {detail.rows.map((row, index) => (
                       <div key={`${row.label}-${index}`} className="rounded-lg bg-surface border border-border px-2.5 py-2 min-w-0">
@@ -306,7 +306,7 @@ function JournalEntryDialog({ entry, onClose }: { entry: CronJournalEntry | null
                     ))}
                   </div>
                   {detail.hidden > 0 && (
-                    <p className="text-[11px] text-amber-300 mt-1">
+                    <p className="text-[11px] text-warning mt-1">
                       {detail.hidden} détail(s) non affichés (plafond d&apos;affichage).
                     </p>
                   )}
@@ -315,7 +315,7 @@ function JournalEntryDialog({ entry, onClose }: { entry: CronJournalEntry | null
 
               {entry.lines.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
                     <Terminal className="w-3 h-3" /> Lignes
                   </p>
                   <pre className="text-xs font-mono bg-background border border-border rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">

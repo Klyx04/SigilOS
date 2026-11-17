@@ -26,20 +26,20 @@ const SCOPE_TABS: { value: ScopeFilter; label: string }[] = [
 function AccessBadge({ level }: { level: string }) {
     if (level === "ADMIN") {
         return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-500/20 bg-amber-500/5 text-amber-400 font-bold text-[11px] uppercase tracking-widest">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-warning/20 bg-warning/5 text-warning font-bold text-[11px] uppercase tracking-wide">
                 <Shield className="w-3 h-3" /> Staff
             </span>
         );
     }
     if (level === "PUBLIC") {
         return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-zinc-400 font-bold text-[11px] uppercase tracking-widest">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-surface/10 text-muted-foreground font-bold text-[11px] uppercase tracking-wide">
                 <Globe className="w-3 h-3" /> Public
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-400 font-bold text-[11px] uppercase tracking-widest">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-success/20 bg-success/5 text-success font-bold text-[11px] uppercase tracking-wide">
             <Users className="w-3 h-3" /> Membres
         </span>
     );
@@ -97,14 +97,14 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
             {/* Compteurs + filtres */}
             <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline" className="px-3 py-1 rounded-full border-white/10 bg-white/5 text-zinc-300 font-bold">
+                    <Badge variant="outline" className="px-3 py-1 rounded-full border-border bg-surface/10 text-foreground font-bold">
                         {stats.total} fiche{stats.total > 1 ? "s" : ""}
                     </Badge>
-                    <Badge variant="outline" className="px-3 py-1 rounded-full border-emerald-500/20 bg-emerald-500/5 text-emerald-400 font-bold">
+                    <Badge variant="outline" className="px-3 py-1 rounded-full border-success/20 bg-success/5 text-success font-bold">
                         {stats.online} en ligne
                     </Badge>
                     {stats.drafts > 0 && (
-                        <Badge variant="outline" className="px-3 py-1 rounded-full border-amber-500/20 bg-amber-500/5 text-amber-400 font-bold">
+                        <Badge variant="outline" className="px-3 py-1 rounded-full border-warning/20 bg-warning/5 text-warning font-bold">
                             {stats.drafts} brouillon{stats.drafts > 1 ? "s" : ""}
                         </Badge>
                     )}
@@ -114,7 +114,7 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
                         <Button
                             onClick={handleCreateMissing}
                             disabled={isCreating}
-                            className="h-10 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase tracking-widest"
+                            className="h-10 px-4 rounded-xl bg-warning hover:bg-warning text-warning-foreground font-bold text-xs uppercase tracking-wide"
                             title={`Pages sans fiche : ${missing.map((m) => m.slug).join(", ")}`}
                         >
                             {isCreating ? (
@@ -125,17 +125,17 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
                             {missing.length} page{missing.length > 1 ? "s" : ""} manquante{missing.length > 1 ? "s" : ""}
                         </Button>
                     )}
-                    <div className="flex items-center gap-1 p-1 rounded-xl border border-white/5 bg-black/40">
+                    <div className="flex items-center gap-1 p-1 rounded-xl border border-border bg-background/40">
                         {SCOPE_TABS.map((tab) => (
                             <button
                                 key={tab.value}
                                 type="button"
                                 onClick={() => setScope(tab.value)}
                                 className={cn(
-                                    "px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors",
+                                    "px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors",
                                     scope === tab.value
-                                        ? "bg-teal-600 text-white"
-                                        : "text-zinc-500 hover:text-zinc-300"
+                                        ? "bg-success text-success-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
                                 {tab.label}
@@ -143,12 +143,12 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
                         ))}
                     </div>
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Titre, slug, catégorie…"
-                            className="bg-black/40 border-white/5 h-10 pl-9 w-full sm:w-64 rounded-xl text-sm focus:border-teal-500/50"
+                            className="bg-background/40 border-border h-10 pl-9 w-full sm:w-64 rounded-xl text-sm focus:border-success/50"
                         />
                     </div>
                 </div>
@@ -156,9 +156,9 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
 
             {/* Groupes par module */}
             {groups.length === 0 && (
-                <div className="bg-zinc-900/40 border border-white/5 rounded-3xl px-8 py-20 text-center">
-                    <FileText className="w-8 h-8 mx-auto mb-4 text-zinc-600" />
-                    <p className="text-zinc-400 font-medium">
+                <div className="bg-surface/40 border border-border rounded-xl px-8 py-20 text-center">
+                    <FileText className="w-8 h-8 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground font-medium">
                         {docs.length === 0
                             ? "Aucune archive documentaire détectée dans la base."
                             : "Aucune fiche ne correspond à cette recherche."}
@@ -168,7 +168,7 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
                             variant="ghost"
                             size="sm"
                             onClick={() => { setQuery(""); setScope("all"); }}
-                            className="mt-4 text-teal-400 hover:text-teal-300"
+                            className="mt-4 text-success hover:text-success"
                         >
                             Réinitialiser les filtres
                         </Button>
@@ -180,49 +180,49 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
                 const catMeta = CATEGORY_META[group.category];
                 const CategoryIcon = catMeta?.icon ?? FileText;
                 return (
-                    <section key={group.category} className="bg-zinc-900/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-                        <header className="flex items-center justify-between gap-4 px-6 md:px-8 py-5 bg-white/[0.03] border-b border-white/5">
+                    <section key={group.category} className="bg-surface/40 border border-border rounded-xl overflow-hidden shadow-sm">
+                        <header className="flex items-center justify-between gap-4 px-6 md:px-8 py-5 bg-elevated/[0.03] border-b border-border">
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-                                    <CategoryIcon className="w-4 h-4 text-teal-400" />
+                                <div className="w-9 h-9 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center shrink-0">
+                                    <CategoryIcon className="w-4 h-4 text-success" />
                                 </div>
-                                <h2 className="text-base md:text-lg font-black text-white uppercase tracking-tight truncate">
+                                <h2 className="text-base md:text-lg font-semibold text-foreground uppercase tracking-tight truncate">
                                     {group.category}
                                 </h2>
                             </div>
-                            <span className="text-xs font-mono text-zinc-500 shrink-0">
+                            <span className="text-xs font-mono text-muted-foreground shrink-0">
                                 {group.docs.length} fiche{group.docs.length > 1 ? "s" : ""}
                             </span>
                         </header>
-                        <ul className="divide-y divide-white/5">
+                        <ul className="divide-y divide-border">
                             {group.docs.map((doc) => {
                                 const DocIcon = getDocMeta(doc.slug).icon;
                                 return (
-                                    <li key={doc.id} className="group flex flex-col md:flex-row md:items-center gap-3 md:gap-4 px-6 md:px-8 py-4 hover:bg-white/[0.02] transition-colors">
+                                    <li key={doc.id} className="group flex flex-col md:flex-row md:items-center gap-3 md:gap-4 px-6 md:px-8 py-4 hover:bg-elevated/[0.02] transition-colors">
                                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0">
-                                                <DocIcon className="w-4 h-4 text-zinc-400 group-hover:text-teal-400 transition-colors" />
+                                            <div className="w-9 h-9 rounded-xl bg-surface/10 border border-border flex items-center justify-center shrink-0">
+                                                <DocIcon className="w-4 h-4 text-muted-foreground group-hover:text-success transition-colors" />
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-bold text-white truncate">{doc.title}</span>
+                                                    <span className="font-bold text-foreground truncate">{doc.title}</span>
                                                     {!doc.isPublished && (
-                                                        <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20 font-black tracking-widest uppercase">
+                                                        <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full border border-warning/20 font-semibold tracking-wide uppercase">
                                                             Brouillon
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="font-mono text-[11px] text-zinc-600 truncate">/docs/{doc.slug}</p>
+                                                <p className="font-mono text-[11px] text-muted-foreground truncate">/docs/{doc.slug}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-12 md:pl-0 shrink-0">
                                             <AccessBadge level={doc.accessLevel} />
-                                            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl bg-white/5 text-zinc-500 hover:text-white border border-transparent hover:border-white/10" asChild>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl bg-surface/10 text-muted-foreground hover:text-foreground border border-transparent hover:border-border" asChild>
                                                 <Link href={`/docs/${doc.slug}`} target="_blank" title="Voir le rendu">
                                                     <ExternalLink className="w-4 h-4" />
                                                 </Link>
                                             </Button>
-                                            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl bg-white/5 text-teal-400 hover:text-amber-400 hover:bg-teal-500/10 border border-transparent hover:border-teal-500/20" asChild>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl bg-surface/10 text-success hover:text-warning hover:bg-success/10 border border-transparent hover:border-success/20" asChild>
                                                 <Link href={`/god/docs/${doc.id}`} title="Modifier">
                                                     <Edit className="w-4 h-4" />
                                                 </Link>
@@ -240,7 +240,7 @@ export function DocsLibrary({ docs }: { docs: DocPageData[] }) {
             })}
 
             {matchCount > 0 && (
-                <p className="text-center text-xs text-zinc-600 font-mono">
+                <p className="text-center text-xs text-muted-foreground font-mono">
                     {matchCount} fiche{matchCount > 1 ? "s" : ""} affichée{matchCount > 1 ? "s" : ""}
                 </p>
             )}

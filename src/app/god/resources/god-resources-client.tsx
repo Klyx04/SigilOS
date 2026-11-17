@@ -204,17 +204,17 @@ export function GodResourcesClient({
     return (
         <div className="space-y-6">
             <Tabs defaultValue="creators" className="w-full">
-                <TabsList className="bg-surface border border-border p-1 rounded-2xl">
+                <TabsList className="bg-surface border border-border p-1 rounded-xl">
                     <TabsTrigger value="creators" className="rounded-xl font-bold gap-2">
-                        <Tv className="w-4 h-4 text-rose-400" />
+                        <Tv className="w-4 h-4 text-destructive" />
                         <span>Créateurs & Streamers Globaux ({creators.length})</span>
                     </TabsTrigger>
                     <TabsTrigger value="links" className="rounded-xl font-bold gap-2">
-                        <Link2 className="w-4 h-4 text-emerald-400" />
+                        <Link2 className="w-4 h-4 text-success" />
                         <span>Liens & Outils ({categories.reduce((a, c) => a + (c.links?.length || 0), 0)})</span>
                     </TabsTrigger>
                     <TabsTrigger value="health" className="rounded-xl font-bold gap-2">
-                        <ShieldAlert className="w-4 h-4 text-amber-400" />
+                        <ShieldAlert className="w-4 h-4 text-warning" />
                         <span>Diagnostic Santé Liens</span>
                     </TabsTrigger>
                 </TabsList>
@@ -231,7 +231,7 @@ export function GodResourcesClient({
                                 setEditingCreator({ name: "", role: "", color: "#3b82f6", order: creators.length });
                                 setCreatorModalOpen(true);
                             }}
-                            className="bg-rose-600 hover:bg-rose-500 text-white font-bold gap-2"
+                            className="bg-destructive hover:bg-destructive text-destructive-foreground font-bold gap-2"
                         >
                             <Plus className="w-4 h-4" />
                             <span>Ajouter un Créateur Global</span>
@@ -274,13 +274,13 @@ export function GodResourcesClient({
                                 </CardHeader>
                                 <CardContent className="text-xs space-y-1.5 pt-0">
                                     {c.youtube && (
-                                        <a href={c.youtube} target="_blank" rel="noopener noreferrer" className="text-red-500 dark:text-red-400 hover:underline flex items-center gap-1.5 truncate">
+                                        <a href={c.youtube} target="_blank" rel="noopener noreferrer" className="text-destructive dark:text-destructive hover:underline flex items-center gap-1.5 truncate">
                                             <ExternalLink className="w-3 h-3 shrink-0" />
                                             <span className="truncate">{c.youtube}</span>
                                         </a>
                                     )}
                                     {c.twitch && (
-                                        <a href={c.twitch} target="_blank" rel="noopener noreferrer" className="text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1.5 truncate">
+                                        <a href={c.twitch} target="_blank" rel="noopener noreferrer" className="text-accent dark:text-accent hover:underline flex items-center gap-1.5 truncate">
                                             <ExternalLink className="w-3 h-3 shrink-0" />
                                             <span className="truncate">{c.twitch}</span>
                                         </a>
@@ -304,7 +304,7 @@ export function GodResourcesClient({
                                     setEditingCategory({ label: "", color: "#10b981", order: categories.length });
                                     setCategoryModalOpen(true);
                                 }}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2"
+                                className="bg-success hover:bg-success text-success-foreground font-bold gap-2"
                             >
                                 <FolderPlus className="w-4 h-4" />
                                 <span>Nouvelle Catégorie</span>
@@ -382,7 +382,7 @@ export function GodResourcesClient({
                                                                 {link.emoji && <span className="text-sm shrink-0">{link.emoji}</span>}
                                                                 <span className="text-sm font-bold text-foreground truncate">{link.title}</span>
                                                                 {link.isOfficial && (
-                                                                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[9px] font-black uppercase shrink-0">
+                                                                    <span className="px-1.5 py-0.2 rounded bg-warning/20 text-warning dark:text-warning text-[9px] font-semibold uppercase shrink-0">
                                                                         Officiel
                                                                     </span>
                                                                 )}
@@ -390,7 +390,7 @@ export function GodResourcesClient({
                                                             {link.description && (
                                                                 <p className="text-caption text-muted-foreground truncate">{link.description}</p>
                                                             )}
-                                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-sky-500 flex items-center gap-1 truncate font-mono">
+                                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-info flex items-center gap-1 truncate font-mono">
                                                                 <ExternalLink className="w-2.5 h-2.5 shrink-0" />
                                                                 <span className="truncate">{link.url}</span>
                                                             </a>
@@ -434,7 +434,7 @@ export function GodResourcesClient({
                             <div className="flex items-center justify-between flex-wrap gap-4">
                                 <div>
                                     <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                                        <ShieldAlert className="w-5 h-5 text-amber-400" />
+                                        <ShieldAlert className="w-5 h-5 text-warning" />
                                         Diagnostic de Santé des Liens Externes (404 Detector)
                                     </CardTitle>
                                     <CardDescription className="text-xs mt-1">
@@ -444,7 +444,7 @@ export function GodResourcesClient({
                                 <Button
                                     onClick={runHealthCheck}
                                     disabled={isCheckingHealth}
-                                    className="bg-amber-600 hover:bg-amber-500 text-white font-bold gap-2"
+                                    className="bg-warning hover:bg-warning text-warning-foreground font-bold gap-2"
                                 >
                                     {isCheckingHealth ? (
                                         <>
@@ -466,7 +466,7 @@ export function GodResourcesClient({
                                     <p className="text-sm text-muted-foreground">Cliquez sur « Lancer le Scan de Santé » pour vérifier l'état des liens en direct.</p>
                                 </div>
                             ) : healthReport.brokenLinks.length === 0 ? (
-                                <div className="p-6 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-4 text-emerald-600 dark:text-emerald-400">
+                                <div className="p-6 rounded-xl bg-success/10 border border-success/30 flex items-center gap-4 text-success dark:text-success">
                                     <CheckCircle2 className="w-8 h-8 shrink-0" />
                                     <div>
                                         <p className="font-bold text-base">Parfait ! 100% des liens sont fonctionnels.</p>
@@ -475,17 +475,17 @@ export function GodResourcesClient({
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                                    <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 text-warning dark:text-warning text-xs font-bold">
                                         ⚠️ {healthReport.brokenLinks.length} lien(s) nécessitent votre attention :
                                     </div>
                                     <div className="space-y-2">
                                         {healthReport.brokenLinks.map((b, idx) => (
-                                            <div key={idx} className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-center justify-between">
+                                            <div key={idx} className="p-3 rounded-xl border border-destructive/30 bg-destructive/10 flex items-center justify-between">
                                                 <div>
-                                                    <p className="text-sm font-bold text-rose-600 dark:text-rose-300">{b.name}</p>
+                                                    <p className="text-sm font-bold text-destructive dark:text-destructive">{b.name}</p>
                                                     <p className="text-xs text-muted-foreground font-mono">{b.url}</p>
                                                 </div>
-                                                <span className="px-2 py-1 rounded bg-rose-950 text-rose-200 border border-rose-500/40 text-xs font-mono font-bold">
+                                                <span className="px-2 py-1 rounded bg-destructive text-destructive border border-destructive/40 text-xs font-mono font-bold">
                                                     Status : {b.status}
                                                 </span>
                                             </div>
@@ -500,7 +500,7 @@ export function GodResourcesClient({
 
             {/* Modal Créateur */}
             <Dialog open={creatorModalOpen} onOpenChange={setCreatorModalOpen}>
-                <DialogContent className="sm:max-w-md border-border bg-background/95 backdrop-blur-xl">
+                <DialogContent className="sm:max-w-md border-border bg-background/95 ">
                     <DialogHeader>
                         <DialogTitle className="text-foreground">
                             {editingCreator?.id ? "Modifier le Créateur" : "Ajouter un Créateur Global"}
@@ -576,7 +576,7 @@ export function GodResourcesClient({
                             <Button type="button" variant="ghost" onClick={() => setCreatorModalOpen(false)}>
                                 Annuler
                             </Button>
-                            <Button type="submit" disabled={isPending} className="bg-rose-600 hover:bg-rose-500 text-white font-bold">
+                            <Button type="submit" disabled={isPending} className="bg-destructive hover:bg-destructive text-destructive-foreground font-bold">
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
                             </Button>
                         </div>
@@ -586,7 +586,7 @@ export function GodResourcesClient({
 
             {/* Modal Catégorie */}
             <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
-                <DialogContent className="sm:max-w-md border-border bg-background/95 backdrop-blur-xl">
+                <DialogContent className="sm:max-w-md border-border bg-background/95 ">
                     <DialogHeader>
                         <DialogTitle className="text-foreground">
                             {editingCategory?.id ? "Modifier la Catégorie" : "Créer une Nouvelle Catégorie"}
@@ -630,7 +630,7 @@ export function GodResourcesClient({
                             <Button type="button" variant="ghost" onClick={() => setCategoryModalOpen(false)}>
                                 Annuler
                             </Button>
-                            <Button type="submit" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+                            <Button type="submit" disabled={isPending} className="bg-success hover:bg-success text-success-foreground font-bold">
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
                             </Button>
                         </div>
@@ -640,7 +640,7 @@ export function GodResourcesClient({
 
             {/* Modal Lien */}
             <Dialog open={linkModalOpen} onOpenChange={setLinkModalOpen}>
-                <DialogContent className="sm:max-w-md border-border bg-background/95 backdrop-blur-xl">
+                <DialogContent className="sm:max-w-md border-border bg-background/95 ">
                     <DialogHeader>
                         <DialogTitle className="text-foreground">
                             {editingLink?.id ? "Modifier le Lien" : "Ajouter un Lien Officiel"}
@@ -704,7 +704,7 @@ export function GodResourcesClient({
                             <Button type="button" variant="ghost" onClick={() => setLinkModalOpen(false)}>
                                 Annuler
                             </Button>
-                            <Button type="submit" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+                            <Button type="submit" disabled={isPending} className="bg-success hover:bg-success text-success-foreground font-bold">
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
                             </Button>
                         </div>

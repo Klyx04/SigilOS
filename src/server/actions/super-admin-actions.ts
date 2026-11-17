@@ -940,47 +940,6 @@ export async function getUnauthorizedBotConnections() {
 
 
 /**
- * Force Delete User (Admin Manual Action)
- */
-export async function forceDeleteUser(userId: string) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized");
-
-    // Prevent Admin Suicide
-    const session = await auth();
-    if (session?.user?.id === userId) {
-        throw new Error("Cannot delete yourself");
-    }
-
-    try {
-        // Cascade delete will handle relations if Schema is set up correctly,
-        // but explicit clean up is safer/clearer or relying on Prisma onDelete: Cascade
-        await db.user.delete({
-            where: { id: userId }
-        });
-
-        revalidatePath("/god");
-
-        // 📝 LOG ACTION
-        const session = await auth();
-        if (session?.user?.id) {
-            const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-            await createGodAuditLog({
-                guildId: mgmtId?.discordGuildId || undefined,
-                action: "GOD_USER_PLATFORM_BAN",
-                targetType: "USER",
-                targetId: userId,
-                metadata: { operation: "FORCE_DELETE_USER" }
-            });
-        }
-
-        return { success: true };
-    } catch (error) {
-        logger.error("Delete Error:", error);
-        return { success: false, error: "Deletion failed" };
-    }
-}
-/**
  * PLANETARY ORPHAN CLEANUP
  * Removes UserProfile entries that are no longer linked to a valid User.
  * This can happen if a User was deleted bypassing Prisma's cascade or due to previous bugs.

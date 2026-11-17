@@ -41,7 +41,7 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
             body: (
                 <>
                     Chaque clic, chaque action que vous effectuez dans ce panneau est
-                    enregistré avec <strong className="text-amber-300">votre nom, la date et
+                    enregistré avec <strong className="text-warning">votre nom, la date et
                     ce que vous avez fait</strong>. Il existe une trace complète et
                     impossible à modifier de votre activité.
                 </>
@@ -52,9 +52,9 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
             title: "Vous ne voyez que votre périmètre",
             body: (
                 <>
-                    Vous n'avez accès qu'aux sections qui vous ont été <strong className="text-amber-300">spécifiquement accordées</strong>.
+                    Vous n'avez accès qu'aux sections qui vous ont été <strong className="text-warning">spécifiquement accordées</strong>.
                     Tout le reste est verrouillé par sécurité : si une section n'est pas
-                    prévue pour vous, elle est <strong className="text-amber-300">inaccessible</strong> — c'est une
+                    prévue pour vous, elle est <strong className="text-warning">inaccessible</strong> — c'est une
                     protection volontaire, pas un bug.
                 </>
             ),
@@ -67,7 +67,7 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
                     Pour obtenir des droits supplémentaires, adressez-vous à votre administrateur.
                     On accorde les accès un par un, uniquement si nécessaire. Pour voir ce qui
                     vous est actuellement accordé, cliquez sur le bouton{" "}
-                    <strong className="text-amber-300">"Mon accès"</strong> en haut du bandeau.
+                    <strong className="text-warning">"Mon accès"</strong> en haut du bandeau.
                 </>
             ),
         },
@@ -76,7 +76,7 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
             title: "Vos accès actuels",
             body: (
                 <>
-                    <strong className="text-amber-300">{scopeNames}</strong>
+                    <strong className="text-warning">{scopeNames}</strong>
                     {activeScopes.length === 0
                         ? " — vous n'avez actuellement aucun accès actif."
                         : " — voilà les sections sur lesquelles vous pouvez travailler."}
@@ -169,23 +169,23 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
     // Rendu du dial (overlay) du tuto — uniquement si ouvert + hydraté.
     const tutorialOverlay =
         mounted && tutorialOpen ? (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Tutoriel God">
-                <div className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-[#111] p-5 shadow-2xl">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Tutoriel God">
+                <div className="w-full max-w-md rounded-xl border border-warning/30 bg-background p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-4 mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0">
-                                <ShieldAlert className="w-5 h-5 text-amber-400" />
+                            <div className="p-2 rounded-xl bg-warning/15 border border-warning/20 shrink-0">
+                                <ShieldAlert className="w-5 h-5 text-warning" />
                             </div>
                             <div>
-                                <div className="text-xs font-black text-amber-300 uppercase tracking-widest">Onboarding sub-god</div>
-                                <div className="text-caption text-amber-400/80 font-semibold">Étape {currentStep + 1} / {steps.length}</div>
+                                <div className="text-xs font-semibold text-warning uppercase tracking-wide">Onboarding sub-god</div>
+                                <div className="text-caption text-warning/80 font-semibold">Étape {currentStep + 1} / {steps.length}</div>
                             </div>
                         </div>
                         <button
                             type="button"
                             onClick={closeTutorial}
                             aria-label="Fermer le tutoriel"
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 transition-colors"
+                            className="p-2 rounded-xl bg-surface/10 hover:bg-elevated border border-border text-foreground transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -194,9 +194,9 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                     <div className="mb-4">
                         <div className="flex items-center gap-3 mb-3">
                             <span className="text-2xl">{steps[currentStep]?.icon}</span>
-                            <h3 className="text-base font-black text-white">{steps[currentStep]?.title}</h3>
+                            <h3 className="text-base font-semibold text-foreground">{steps[currentStep]?.title}</h3>
                         </div>
-                        <div className="text-sm text-zinc-300 leading-relaxed">{steps[currentStep]?.body}</div>
+                        <div className="text-sm text-foreground leading-relaxed">{steps[currentStep]?.body}</div>
                     </div>
 
                     {/* Points de progression */}
@@ -207,7 +207,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                                 type="button"
                                 aria-label={`Aller à l'étape ${i + 1}`}
                                 onClick={() => setCurrentStep(i)}
-                                className={`h-1.5 rounded-full transition-all ${i === currentStep ? "w-6 bg-amber-400" : "w-1.5 bg-white/20 hover:bg-white/40"}`}
+                                className={`h-1.5 rounded-full transition-all ${i === currentStep ? "w-6 bg-warning" : "w-1.5 bg-elevated/20 hover:bg-elevated/40"}`}
                             />
                         ))}
                     </div>
@@ -217,7 +217,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             type="button"
                             onClick={prevStep}
                             disabled={currentStep === 0}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-caption font-black text-zinc-300 uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-surface/10 hover:bg-elevated border border-border text-caption font-semibold text-foreground uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             <ChevronLeft className="w-4 h-4" /> Précédent
                         </button>
@@ -226,7 +226,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             <button
                                 type="button"
                                 onClick={closeTutorial}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-warning/20 hover:bg-warning/30 border border-warning/40 text-caption font-semibold text-warning uppercase tracking-wide transition-colors"
                             >
                                 J'ai compris <CheckIcon />
                             </button>
@@ -234,7 +234,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             <button
                                 type="button"
                                 onClick={nextStep}
-                                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
+                                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-warning/20 hover:bg-warning/30 border border-warning/40 text-caption font-semibold text-warning uppercase tracking-wide transition-colors"
                             >
                                 Suivant <ChevronRight className="w-4 h-4" />
                             </button>
@@ -248,18 +248,18 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
         <>
             {tutorialOverlay}
 
-            <div className="mx-4 mt-4 md:mx-8 lg:mx-12 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col md:flex-row md:items-center gap-4 backdrop-blur-md">
+            <div className="mx-4 mt-4 md:mx-8 lg:mx-12 rounded-xl border border-warning/30 bg-warning/10 p-4 flex flex-col md:flex-row md:items-center gap-4 ">
                 <div className="flex items-center gap-3 shrink-0">
-                    <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0">
-                        <ShieldAlert className="w-5 h-5 text-amber-400" />
+                    <div className="p-2 rounded-xl bg-warning/15 border border-warning/20 shrink-0">
+                        <ShieldAlert className="w-5 h-5 text-warning" />
                     </div>
                     <div>
-                        <div className="text-xs font-black text-amber-300 uppercase tracking-widest">Accès délégué (sub-god)</div>
-                        <div className="text-caption text-amber-400/80 font-semibold">Scopes actifs : {scopeNames}</div>
+                        <div className="text-xs font-semibold text-warning uppercase tracking-wide">Accès délégué (sub-god)</div>
+                        <div className="text-caption text-warning/80 font-semibold">Scopes actifs : {scopeNames}</div>
                     </div>
                 </div>
 
-                <div className="flex-1 text-xs text-amber-300/90 leading-relaxed">
+                <div className="flex-1 text-xs text-warning/90 leading-relaxed">
                     ⚠️ <strong>Tout ce que vous faites ici est tracé</strong> (qui, quand, quoi).
                     Vous ne pouvez agir que sur les sections qui vous ont été accordées.
                     Le reste est verrouillé par sécurité — aucune action n'est possible en dehors de votre périmètre.
@@ -270,7 +270,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                         type="button"
                         onClick={replayTutorial}
                         aria-label="Aide / Revoir le tutoriel"
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-surface/10 hover:bg-elevated border border-border text-caption font-semibold text-warning uppercase tracking-wide transition-colors"
                     >
                         <HelpCircle className="w-4 h-4" /> Aide / Revoir le tuto
                     </button>
@@ -278,31 +278,31 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
             </div>
 
             {/* 🔄 P3-R — Vue "Mon accès" : briques + temps restant, TOUJOURS visible (h/m/s temps réel) */}
-            <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-md">
+            <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-xl border border-warning/20 bg-warning/5 p-4 ">
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="text-caption font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                        <div className="text-caption font-semibold uppercase tracking-wide text-warning flex items-center gap-2">
                             <KeyRound className="w-3.5 h-3.5" /> Vos accès actifs — temps réel
                         </div>
                     </div>
                     {myGrants.length === 0 ? (
-                        <p className="text-xs text-zinc-500">Aucun accès basé sur une brique accordée pour le moment.</p>
+                        <p className="text-xs text-muted-foreground">Aucun accès basé sur une brique accordée pour le moment.</p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                             {myGrants.map((g) => {
                                 const expired = g.expiresAt ? new Date(g.expiresAt).getTime() < Date.now() : false;
                                 const leftLabel = formatHMS(g.expiresAt);
                                 return (
-                                    <div key={g.brickId} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2">
+                                    <div key={g.brickId} className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface/40 px-3 py-2">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-bold text-zinc-200">{g.label}</div>
-                                            <div className="text-caption text-zinc-500">{g.scope ? SCOPE_LABELS[g.scope] || g.scope : "—"}</div>
+                                            <div className="text-xs font-bold text-foreground">{g.label}</div>
+                                            <div className="text-caption text-muted-foreground">{g.scope ? SCOPE_LABELS[g.scope] || g.scope : "—"}</div>
                                         </div>
                                         {expired ? (
-                                            <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">EXPIRÉ</Badge>
+                                            <Badge className="bg-destructive/15 text-destructive border-destructive/30">EXPIRÉ</Badge>
                                         ) : leftLabel === null ? (
-                                            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30">ILLIMITÉ</Badge>
+                                            <Badge className="bg-success/15 text-success border-success/30">ILLIMITÉ</Badge>
                                         ) : (
-                                            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-mono">
+                                            <Badge className="bg-success/15 text-success border-success/30 font-mono">
                                                 {leftLabel}
                                             </Badge>
                                         )}

@@ -31,6 +31,8 @@ import { toast } from "sonner";
 import Image from "next/image";
 import Link from "next/link";
 import { ProofUploadDialog } from "./proof-upload-dialog";
+import { MissionArtworkImage } from "./mission-artwork-image";
+import { resolveMissionArtwork } from "@/lib/mission-artwork";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,7 +66,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     color: string;
     bgColor: string;
     borderColor: string;
-    fallbackImage?: string;
     label: string;
 }> = {
     DONJON: {
@@ -72,7 +73,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-danger",
         bgColor: "bg-danger/10",
         borderColor: "border-danger/20",
-        fallbackImage: "/banners/donjon.png",
         label: "Donjon"
     },
     REGULATION: {
@@ -80,7 +80,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-success",
         bgColor: "bg-success/10",
         borderColor: "border-success/20",
-        fallbackImage: "/banners/regulation.png",
         label: "Régulation"
     },
     ANOMALIE: {
@@ -88,7 +87,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-fuchsia-400",
         bgColor: "bg-fuchsia-500/10",
         borderColor: "border-fuchsia-500/20",
-        fallbackImage: "/assets/missions/ano1.png",
         label: "Anomalie"
     },
     SONGES: {
@@ -96,7 +94,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-info",
         bgColor: "bg-info/10",
         borderColor: "border-info/20",
-        fallbackImage: "/assets/missions/songes.png",
         label: "Songes"
     },
     EXPEDITION: {
@@ -104,7 +101,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-warning",
         bgColor: "bg-warning/10",
         borderColor: "border-warning/20",
-        fallbackImage: "/banners/expedition.png",
         label: "Expédition"
     },
     EVENT: {
@@ -112,7 +108,6 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         color: "text-warning",
         bgColor: "bg-warning/10",
         borderColor: "border-warning/20",
-        fallbackImage: "/assets/missions/event.png",
         label: "Événement"
     },
 };
@@ -143,45 +138,14 @@ export function MissionCard({
     const Icon = config.icon;
     const payload = mission.payload as any;
 
-    // Extract image URL from payload — Real colorful images, no grayscale or luminosity filters
-    const getSongesImage = () => {
-        if (mission.category !== 'SONGES') return null;
-        if (payload.epreuve) {
-            return `/assets/missions/epreuves-songes/${payload.epreuve}.png`;
-        }
-        const diff: string = (payload.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
-        const lvl = levelMap[payload.level as string] || 1;
-        return `/assets/missions/${diff}${lvl}.png`;
-    };
-
-    const getAnomalieImage = () => {
-        if (mission.category !== 'ANOMALIE') return null;
-        switch (payload.type) {
-            case 'FRAGMENTS': return "/assets/missions/fragment.png";
-            case 'STABILISATION': return "/assets/missions/3-gardiens.png";
-            case 'BOSS':
-            case 'ZONE':
-            default:
-                return "/assets/missions/ano1.png";
-        }
-    };
-
-    const getEventImage = () => {
-        if (mission.category !== 'EVENT') return null;
-        if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
-            return "/assets/missions/fragment.png";
-        }
-        return payload.imageUrl || null;
-    };
-
-    const imageUrl = mission.category === 'SONGES'
-        ? getSongesImage()
-        : mission.category === 'ANOMALIE'
-        ? getAnomalieImage()
-        : mission.category === 'EVENT'
-        ? getEventImage()
-        : (payload.imageUrl || payload.image || (config as any).fallbackImage || null);
+    // Illustration — résolveur unique (Songes, Anomalies, familles, proxy donjon).
+    // Plus de mapping local : `mission-card` ne construit aucun chemin lui-même.
+    const artwork = resolveMissionArtwork({
+        category: mission.category,
+        title: mission.title,
+        monsterId: payload?.monsterId ?? null,
+        payload,
+    });
 
     // OBJECTIF MANUEL (#152)
     const isManualObjective = mission.category === 'EVENT' && payload.eventType === 'OBJECTIF';
@@ -315,15 +279,18 @@ export function MissionCard({
 
                 {/* Left Column: Real Colorful Illustration */}
                 <div className="w-24 sm:w-28 md:w-32 shrink-0 relative flex items-center justify-center p-2.5 sm:p-3">
-                    {imageUrl ? (
+                    {artwork.imageUrl || artwork.fallbackUrl ? (
                         <div className="relative w-full aspect-square max-h-[100px] flex items-center justify-center">
-                            <Image
-                                src={imageUrl}
+                            <MissionArtworkImage
+                                src={artwork.imageUrl}
+                                fallbackSrc={artwork.fallbackUrl}
                                 alt={mission.title || "Illustration mission"}
-                                fill
-                                className="object-contain"
-                                unoptimized={true}
-                            />
+                                className="w-full h-full object-contain"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground">
+                                    <Search className="w-4 h-4" />
+                                </div>
+                            </MissionArtworkImage>
 
                             {/* OBJECTIF MANUEL (#152) */}
                             {isManualObjective && (

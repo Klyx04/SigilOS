@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 19) — **Missions & sondages · visuels, « Sans ping », embeds de clôture** — branche `feat/missions-sondages-artwork` (PR vers `dev`)
+
+> **Demande user (verbatim)** : « traite ce sujet en vérifiant chaque point … un commit par lot, une pr globale, go » — + vigilance « ne te base pas uniquement sur les sources siphonnées en local : c'est pas à jour, le vps l'est ».
+> **Mesure** : `monsterImageUrl` est `null` pour **23 Songes, 17 Anomalies, 135 Régulations** ; le mapping d'images existait en **3 exemplaires divergents** (`mission-card`, `mission-editor`, `MissionLivePreview`) ; `skipDiscord = pingType === "NONE"` annulait tout Discord ; la sous-grille de reping n'offrait que ROLE/EVERYONE ; un **vote tardif** et la **fermeture paresseuse** fermaient le sondage sans supprimer l'embed ; `poll-creator` était bridé à 576 px.
+> **Fait** : `src/lib/mission-artwork.ts` (titre → palier de Songe, 4 épreuves, `fragment/3-gardiens/ano1/anomalie`, familles calculées par règle + 4 alias mesurés, proxy donjon) + `MissionArtworkImage` (repli bannière) ; `mapOfficialToDraftMission` propage `imageUrl`/`epreuve` ; `src/lib/mission-publish.ts` (« Sans ping » ≠ « sans annonce ») ; « Sans ping » ajouté à la mise à jour (3 colonnes) ; `deleteChannelMessage` sur vote tardif et fermeture paresseuse (garde `status: "ACTIVE"`, ids lus avant) ; modale sondage `max-w-3xl`.
+> **Preuves** : suite **752 fichiers / 7 865 tests ✅** · `tsc` 0 · ESLint 0 erreur · verrous `mission-artwork` (18), `mission-publish-ping` (6), `sondages-embed-cloture` (4). **Mesure de couverture** : 57 des 135 familles ont un fichier dans le dépôt, 78 non — le chemin est calculé et le bind mount `game-data` du VPS fait autorité (repli visuel si absent).
+> **Reste / ops** : contrôle visuel 390/768/1024/1440 (catalogue de missions, modale de mission, modale de sondage) ; **aucune migration** ; ouvrir la PR vers `dev`.
+> **Rotation** : bloc « Session 16/11/2026 (suite 13) — Visiteurs · fiche V5 bis » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 17/11/2026 (suite 18) — **God · déslop complet (D6) et normalisation `ownerId` (D7)** — branches `feat/god-deslop-tokens` (PR #1421) et `feat/god-owner-id` (PR #1422)
 
 > **Demande user (verbatim)** : « enchaine tout conclus tout » — après D5 (G1/G2), livrer D6 (déslop God, plafond 79) puis D7 (ownerId).
@@ -52,17 +62,6 @@
 > **Preuves** : suite **746 fichiers / 7 802 tests ✅** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : contrôle visuel 390/768/1024/1440 (fiche filtrée, avis, boss sans sorts locaux), migrations V4 bêta/prod, D4→D7.
 > **Rotation** : bloc « Session 16/11/2026 (suite 8) — Télémétrie · lot B » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-## 📝 Session 16/11/2026 (suite 13) — **Visiteurs · fiche V5 bis complète (succès, avis, mules, activités, Rush, Metamob)** — branche `feat/visiteur-fiche-complete`
-
-> **Demande user (verbatim)** : « c ca que t'appelle fait sur v5 fche lecture seule ? » puis choix « V5 bis complet : succès + avis + mules + activités + Rush/Metamob (en respectant les consentements) ».
-> **Mesure** : la fiche V5 ne rendait que le hero, 4 compteurs, présentation/objectifs/métiers ; le DTO `VisitorProfile` ne portait ni mules, ni activités, ni listes de succès/avis, ni Rush, ni Metamob. Les données existaient en base (`altPseudos`, `preferredActivities`, `PublicDungeonAchievement`, `PublicBountyCompletion`, `PublicRushProgress`, `metamobPseudo/Verified`).
-> **Fait** : `VisitorProfile` enrichi (mules normalisées, activités filtrées par liste blanche, succès/avis plafonnés à 60 avec totaux `_count`, Rush résumé par personnage, Metamob vérifié) ; `PROFILE_SELECT` + `hydrateProfile` lisent le Rush **seulement** si `showRushProgress` ; `VisitorProfileCard` rend les sections (aucune palette en dur, assets du jeu) ; i18n FR/EN ; décision `D-V9 bis` ; verrous `visitor-directory` + `visiteur-page-perso`.
-> **Preuves** : suite **744 fichiers / 7 790 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés **141 ✅** (8 fichiers).
-> **Reste / ops** : contrôle visuel 390/768/1024/1440 de la fiche (listes longues, Rush non partagé, Metamob vérifié) ; aucune migration.
-> **Rotation** : bloc « Session 16/11/2026 (suite 7) — Rétention · lot A » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

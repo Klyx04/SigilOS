@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Swords, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CATEGORY_CONFIG, type MissionCategoryType } from '@/lib/mission-config';
+import { resolveMissionArtwork } from '@/lib/mission-artwork';
+import { MissionArtworkImage } from './mission-artwork-image';
 
 interface MissionLivePreviewProps {
     category: MissionCategoryType;
@@ -27,8 +29,8 @@ export function MissionLivePreview({
     const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.DONJON;
     const CategoryIcon = config.icon || Swords;
 
-    // Détermination de l'illustration
-    const imageUrl = payload?.imageUrl || (payload?.monsterId ? `/uploads/assets-dofus/monsters/${payload.monsterId}.webp` : null);
+    // Détermination de l'illustration — résolveur unique (Songes, Anomalies, familles, proxy donjon)
+    const artwork = resolveMissionArtwork({ category, title, payload });
 
     // Détermination de l'objectif
     let objectiveText = payload?.officialObjectiveText || payload?.description || '';
@@ -102,18 +104,14 @@ export function MissionLivePreview({
                 {/* Corps avec illustration et objectif */}
                 <div className="flex items-center gap-3.5 mt-3 pt-3 border-t border-border/60">
                     <div className="w-12 h-12 rounded-xl bg-background border border-border shrink-0 overflow-hidden flex items-center justify-center relative">
-                        {imageUrl ? (
-                            <img
-                                src={imageUrl}
-                                alt={title || "Mission"}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    (e.target as HTMLElement).style.display = 'none';
-                                }}
-                            />
-                        ) : (
+                        <MissionArtworkImage
+                            src={artwork.imageUrl}
+                            fallbackSrc={artwork.fallbackUrl}
+                            alt={title || "Mission"}
+                            className="w-full h-full object-cover"
+                        >
                             <CategoryIcon className={cn("w-6 h-6", config.color)} />
-                        )}
+                        </MissionArtworkImage>
                     </div>
 
                     <div className="flex-1 min-w-0">

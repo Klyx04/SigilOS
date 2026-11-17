@@ -36,6 +36,7 @@ import { PingEstimate } from "@/components/shared/ping-estimate";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
 import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { formatDofusRange, getDofusWeek } from "@/lib/date-utils";
+import { shouldPublishMissionAnnouncement } from "@/lib/mission-publish";
 
 interface MissionPublishFlowDialogProps {
     isOpen: boolean;
@@ -135,6 +136,13 @@ export function MissionPublishFlowDialog({
 
     const activePingType = isRepublish ? repingType : pingType;
 
+    // Décision unique : le ping ne décide pas de l'envoi, seuls le bot et le salon le font.
+    const willPublishAnnouncement = shouldPublishMissionAnnouncement({
+        pingType,
+        isDiscordConfigured,
+        channelId,
+    });
+
     const mentionPreview = useMemo(() => {
         if (activePingType === "EVERYONE") return "Bonjour @everyone !";
         if (activePingType === "ROLE" && selectedRoleIds.length > 0) {
@@ -215,7 +223,9 @@ export function MissionPublishFlowDialog({
             return;
         }
 
-        const skipDiscord = pingType === "NONE" || !isDiscordConfigured || !channelId;
+        // « Sans ping » ≠ « sans annonce » : l'embed part avec « Bonjour à tous ! ».
+        // On ne saute Discord que si le bot ou le salon ne sont pas configurés.
+        const skipDiscord = !willPublishAnnouncement;
 
         setIsSaving(true);
         try {
@@ -323,7 +333,7 @@ export function MissionPublishFlowDialog({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-sm font-bold text-foreground">
-                                            Enregistrer sans ping (Silencieux)
+                                            Enregistrer sans annonce Discord (silencieux)
                                         </h4>
                                         <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded-md">
                                             Recommandé
@@ -378,7 +388,7 @@ export function MissionPublishFlowDialog({
                                 {/* Expanded Ping Options for Reping */}
                                 {republishChoice === 'REPING' && (
                                     <div className="pt-3 border-t border-border/60 space-y-3 mt-1 transition-all duration-200">
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-3 gap-2">
                                             <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setRepingType("ROLE"); }}
@@ -405,6 +415,22 @@ export function MissionPublishFlowDialog({
                                             >
                                                 <AtSign className="w-3.5 h-3.5" />
                                                 <span>@everyone</span>
+                                            </button>
+
+                                            {/* Oublié en mise à jour alors qu'il existe en 1ère publication :
+                                                publier l'annonce SANS mentionner (≠ option silencieuse). */}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setRepingType("NONE"); }}
+                                                className={cn(
+                                                    "py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all",
+                                                    repingType === "NONE"
+                                                        ? "bg-elevated border-primary text-foreground shadow-sm ring-1 ring-primary/40"
+                                                        : "bg-elevated/40 border-border text-muted-foreground hover:text-foreground"
+                                                )}
+                                            >
+                                                <BellOff className="w-3.5 h-3.5" />
+                                                <span>Sans ping</span>
                                             </button>
                                         </div>
 
@@ -473,7 +499,9 @@ export function MissionPublishFlowDialog({
                                     className="h-10 px-6 font-bold text-xs"
                                 >
                                     {isPublishingDiscord ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                                    Enregistrer & Repinger sur Discord
+                                    {repingType === "NONE"
+                                        ? "Enregistrer & publier sur Discord"
+                                        : "Enregistrer & Repinger sur Discord"}
                                 </Button>
                             )}
                         </div>
@@ -731,13 +759,15 @@ export function MissionPublishFlowDialog({
                             >
                                 {isBusy ? (
                                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                ) : pingType === "NONE" || !channelId ? (
+                                ) : !willPublishAnnouncement ? (
                                     <Check className="w-4 h-4 mr-2" />
                                 ) : (
                                     <Send className="w-4 h-4 mr-2" />
                                 )}
-                                {pingType === "NONE" || !channelId
+                                {!willPublishAnnouncement
                                     ? "Publier les missions (sans notification)"
+                                    : pingType === "NONE"
+                                    ? "Publier l'annonce Discord (sans mention)"
                                     : "Publier & Notifier sur Discord"}
                             </Button>
                         </div>

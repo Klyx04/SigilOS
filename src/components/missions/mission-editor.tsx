@@ -18,6 +18,8 @@ import { MissionPublishFlowDialog } from "./mission-publish-flow-dialog";
 import { MissionOfficialSearch } from "./MissionOfficialSearch";
 import { MissionLivePreview } from "./MissionLivePreview";
 import { mapOfficialToDraftMission } from "@/lib/game-data/guild-missions-catalog";
+import { resolveMissionArtwork } from "@/lib/mission-artwork";
+import { MissionArtworkImage } from "./mission-artwork-image";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import {
@@ -648,10 +650,13 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         }
                     };
                     const payloadPreview = mission.title ? getPayloadPreview(mission.category, mission.payload) : null;
-                    const imageUrl = mission.payload?.imageUrl 
-                        || (mission.payload?.monsterId ? `/uploads/assets-dofus/monsters/${mission.payload.monsterId}.webp` : null)
-                        || (mission.category === 'ANOMALIE' ? '/assets/missions/ano1.png' : null)
-                        || (mission.category === 'SONGES' ? '/assets/missions/songes.png' : null);
+                    // Résolveur unique : Songes/Anomalies/familles + proxy monstre (le legacy
+                    // `/uploads/assets-dofus/...` est réécrit vers `/api/assets-dofus/...`).
+                    const artwork = resolveMissionArtwork({
+                        category: mission.category,
+                        title: mission.title,
+                        payload: mission.payload,
+                    });
 
                     return (
                         <Card
@@ -717,20 +722,16 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                                     "w-12 h-12 rounded-xl border shrink-0 overflow-hidden flex items-center justify-center relative bg-background/60 shadow-sm transition-transform duration-200 group-hover:scale-105",
                                                     config.borderColor
                                                 )}>
-                                                    {imageUrl ? (
-                                                        <img
-                                                            src={imageUrl}
-                                                            alt={mission.title}
-                                                            className="w-full h-full object-cover"
-                                                            onError={(e) => {
-                                                                (e.target as HTMLElement).style.display = 'none';
-                                                            }}
-                                                        />
-                                                    ) : (
+                                                    <MissionArtworkImage
+                                                        src={artwork.imageUrl}
+                                                        fallbackSrc={artwork.fallbackUrl}
+                                                        alt={mission.title}
+                                                        className="w-full h-full object-cover"
+                                                    >
                                                         <div className={cn("w-full h-full flex items-center justify-center", config.bgColor)}>
                                                             <CategoryIcon className={cn("w-6 h-6", config.color)} />
                                                         </div>
-                                                    )}
+                                                    </MissionArtworkImage>
                                                 </div>
 
                                                 {/* Title & Badges */}

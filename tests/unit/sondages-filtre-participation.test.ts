@@ -182,6 +182,10 @@ describe("sondages — en-têtes harmonisés et modale responsive", () => {
         const creator = codeOnly(CREATOR);
         expect(creator).toContain("PollCategoryTiles");
         expect(creator).toContain("w-[95vw]");
+        // Mesure du 17/11/2026 : la question, les options, l'aperçu Discord et les réglages
+        // ne tiennent pas dans 576 px — même largeur que la modale de mission (`max-w-3xl`).
+        expect(creator).toContain("max-w-3xl");
+        expect(creator).not.toContain("max-w-xl");
     });
 
     it("le module staff reçoit les mêmes traitements", () => {

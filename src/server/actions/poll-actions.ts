@@ -248,20 +248,37 @@ async function checkPollCooldown(guildId: string, profileId: string, category: P
 
 async function lazyClosePollsForGuild(guildConfigId: string): Promise<void> {
     try {
-        await db.poll.updateMany({
+        const now = new Date();
+        // On lit les embeds AVANT la fermeture : sans ces deux ids, l'embed de vote
+        // resterait cliquable après la clôture (même trou que le vote tardif, cf. `processPollVote`).
+        const targets = await db.poll.findMany({
             where: {
                 guildId: guildConfigId,
                 status: "ACTIVE",
                 OR: [
-                    { expiresAt: { lt: new Date() } },
+                    { expiresAt: { lt: now } },
                     { expiresAt: null, createdAt: { lt: new Date(Date.now() - MAX_POLL_DURATION_MS) } },
                 ],
             },
+            select: { id: true, discordChannelId: true, discordMessageId: true },
+        });
+        if (targets.length === 0) return;
+
+        // Garde d'état dans le WHERE : un sondage repassé ACTIVE entre-temps n'est pas fermé.
+        await db.poll.updateMany({
+            where: { id: { in: targets.map((t) => t.id) }, status: "ACTIVE" },
             data: {
                 status: "CLOSED",
-                closedAt: new Date(),
+                closedAt: now,
             },
         });
+
+        // L'embed de vote ne survit pas à la clôture (règle unique des 3 chemins de fermeture).
+        for (const target of targets) {
+            if (target.discordChannelId && target.discordMessageId) {
+                await deleteChannelMessage(target.discordChannelId, target.discordMessageId).catch(() => null);
+            }
+        }
     } catch (e) {
         logger.error("[Polls] Lazy close error", { error: e });
     }
@@ -816,10 +833,17 @@ export async function processPollVote(
 
         // Check expiry
         if (option.poll.expiresAt && option.poll.expiresAt < new Date()) {
-            await (db as any).poll.update({
-                where: { id: option.poll.id },
+            // Fermeture conditionnelle (garde d'état) : deux votes simultanés ne clôturent qu'une fois.
+            const closed = await (db as any).poll.updateMany({
+                where: { id: option.poll.id, status: "ACTIVE" },
                 data: { status: "CLOSED", closedAt: new Date() },
             });
+            // 🐛 Mesure du 17/11/2026 : ce chemin fermait le sondage SANS supprimer l'embed,
+            // qui restait cliquable et affichait des résultats figés. Les deux autres chemins
+            // (clôture manuelle, cron) supprimaient déjà le message : règle alignée.
+            if (closed?.count > 0 && option.poll.discordChannelId && option.poll.discordMessageId) {
+                await deleteChannelMessage(option.poll.discordChannelId, option.poll.discordMessageId).catch(() => null);
+            }
             return { success: false, error: "Ce sondage a expiré" };
         }
 

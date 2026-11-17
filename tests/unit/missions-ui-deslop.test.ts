@@ -11,8 +11,14 @@ describe("Missions UI Deslop & Normes", () => {
     const categoryFormsCode = fs.readFileSync(categoryFormsPath, "utf-8");
 
     it("utilise ano1.png pour les missions anomalie (et non anomalie.png)", () => {
-        expect(missionCardCode).toContain('"/assets/missions/ano1.png"');
+        // Source unique = le résolveur d'artwork ; `mission-card` ne construit plus de chemin.
+        const resolverCode = fs.readFileSync(
+            path.resolve(process.cwd(), "src/lib/mission-artwork.ts"),
+            "utf-8",
+        );
+        expect(resolverCode).toContain('"/assets/missions/ano1.png"');
         expect(categoryFormsCode).toContain('"/assets/missions/ano1.png"');
+        expect(missionCardCode).toContain("resolveMissionArtwork");
         // Vérifie qu'ano1.png existe sur le disque
         const ano1DiskPath = path.resolve(process.cwd(), "public/assets/missions/ano1.png");
         expect(fs.existsSync(ano1DiskPath)).toBe(true);
@@ -44,9 +50,11 @@ describe("Missions UI Deslop & Normes", () => {
         const missionEditorPath = path.resolve(process.cwd(), "src/components/missions/mission-editor.tsx");
         const missionEditorCode = fs.readFileSync(missionEditorPath, "utf-8");
 
-        expect(missionEditorCode).toContain("imageUrl");
-        expect(missionEditorCode).toContain("/uploads/assets-dofus/monsters/");
-        expect(missionEditorCode).toContain("img");
+        // Le visuel ne se construit plus dans le composant : il vient du résolveur unique
+        // (Songes/Anomalies/familles + proxy `/api/assets-dofus/monsters/<id>`).
+        expect(missionEditorCode).toContain("resolveMissionArtwork");
+        expect(missionEditorCode).toContain("MissionArtworkImage");
+        expect(missionEditorCode).toContain("fallbackSrc");
         expect(missionEditorCode).toContain("CategoryIcon");
     });
 
@@ -57,7 +65,7 @@ describe("Missions UI Deslop & Normes", () => {
         // Présence du mode republish direct
         expect(publishDialogCode).toContain("handleSilentSave");
         expect(publishDialogCode).toContain("handleRepingSave");
-        expect(publishDialogCode).toContain("Enregistrer sans ping");
+        expect(publishDialogCode).toContain("Enregistrer sans annonce Discord");
         expect(publishDialogCode).toContain("Repinger la guilde sur Discord");
         // Première publication
         expect(publishDialogCode).toContain("handleFirstPublish");

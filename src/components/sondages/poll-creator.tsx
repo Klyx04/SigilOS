@@ -361,7 +361,7 @@ export function PollCreator({
                     )}
                 </DialogTrigger>
 
-                <DialogContent className="w-[95vw] max-w-xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[calc(100dvh-2rem)] overflow-y-auto p-0 gap-0 premium-scrollbar">
+                <DialogContent className="w-[95vw] max-w-3xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[calc(100dvh-2rem)] overflow-y-auto p-0 gap-0 premium-scrollbar">
                     <div className="p-6 pb-4 border-b border-border bg-surface/40 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-info/5 blur-3xl rounded-full -mr-16 -mt-16" />
                         <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">

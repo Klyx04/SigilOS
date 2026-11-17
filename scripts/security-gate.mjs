@@ -13,13 +13,21 @@
  * D'où la règle, explicitement asymétrique :
  *  1. **GATE 1 — le livré** : `--omit=dev`, échec sur `high` ou `critical` ;
  *  2. **GATE 2 — tout l'arbre** : échec sur `critical` seulement (un `high` de dev, non livré,
- *     n'empêche plus une PR ; il reste visible dans le rapport hebdo « Full Security Audit »).
+ *     n'empêche plus une PR ; il reste visible dans le rapport hebdo « Full Security Audit ») ;
+ *  3. **Exception temporaire** (GATE 1 uniquement) : nominative (une GHSA), datée, couvrante
+ *     et fail-closed — voir `scripts/security-gate-policy.mjs` (testé). Elle est **écrite**
+ *     dans la sortie, expire d'elle-même et ne couvre jamais GATE 2.
  *
  * Aucune exception n'est silencieuse : ce qui est ignoré est **écrit** dans la sortie.
  * Échappatoire assumée pour le hook local uniquement : `SKIP_AUDIT=1` (jamais en CI).
  */
 
 import { spawnSync } from "node:child_process";
+import {
+    PROD_AUDIT_EXCEPTIONS,
+    findApplicableException,
+    isExceptionExpired,
+} from "./security-gate-policy.mjs";
 
 const ATTEMPTS = 3;
 const RETRY_DELAY_MS = 15_000;
@@ -67,18 +75,40 @@ if (skip) {
 }
 
 // ── GATE 1 — ce qui est livré ───────────────────────────────────────────────
+const now = new Date();
+for (const exception of PROD_AUDIT_EXCEPTIONS) {
+    if (isExceptionExpired(exception, now)) {
+        console.warn(
+            `⚠️  Exception EXPIRÉE : ${exception.advisory} (${exception.expiresAt}) — ` +
+                "retire-la de scripts/security-gate-policy.mjs.",
+        );
+    }
+}
+
 const prod = runAudit(["--omit=dev", "--audit-level=high"]);
 if (!skip) {
     const prodFails = listAtLeast(prod, ["high", "critical"]);
     if (prodFails.length > 0) {
-        console.error(`❌ Dépendances LIVRÉES vulnérables (high/critical) : ${prodFails.join(", ")}`);
-        console.error("   Corrige (`npm audit fix`, ou un pin dans `overrides`) avant de pousser.");
-        process.exit(1);
+        const exception = findApplicableException({ report: prod, now });
+        if (!exception) {
+            console.error(`❌ Dépendances LIVRÉES vulnérables (high/critical) : ${prodFails.join(", ")}`);
+            console.error("   Corrige (`npm audit fix`, ou un pin dans `overrides`) avant de pousser.");
+            process.exit(1);
+        }
+        const message =
+            `⚠️  Exception temporaire (expire le ${exception.expiresAt}) — ${exception.advisory} : ` +
+            `${exception.reason} Paquets couverts : ${exception.packages.join(", ")}`;
+        console.warn(message);
+        if (process.env.GITHUB_ACTIONS === "true") {
+            console.warn(`::warning::${message}`);
+        }
     }
 }
+const prodTotal = prod?.metadata?.vulnerabilities?.total ?? 0;
 console.log(
-    `✅ Production : ${prod?.metadata?.vulnerabilities?.total ?? 0} vulnérabilité(s) — ` +
-        "c'est ce qui part chez l'utilisateur.",
+    prodTotal > 0
+        ? `ℹ️  Production : ${prodTotal} vulnérabilité(s) — voir l'exception datée ci-dessus.`
+        : "✅ Production : 0 vulnérabilité — c'est ce qui part chez l'utilisateur.",
 );
 
 // ── GATE 2 — tout l'arbre, uniquement les critiques ────────────────────────

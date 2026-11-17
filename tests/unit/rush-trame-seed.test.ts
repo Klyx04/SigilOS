@@ -15,6 +15,7 @@
  *  · les deux spines (Tougli / Yelle) restent des fonctions pures.
  */
 
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { buildRushSeedFromTrame, type TrameInput } from "@/lib/rush-trame-seed";
 
@@ -190,6 +191,13 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
     expect(sequence.dungeonDbIds).toEqual([13]);
     expect(sequence.dungeonIds).toBeUndefined();
   });
+
+  it("n'expose aucun nom de source dans le payload", () => {
+    const payload = JSON.stringify(result.payload).toLowerCase();
+    for (const token of ["tougli", "touglie", "dofusyelle", "laniyelle", "marcellusito", "barbofus"]) {
+      expect(payload).not.toContain(token);
+    }
+  });
 });
 
 describe("spine Yelle — liste de quêtes, succès, classes et neutre", () => {
@@ -256,6 +264,13 @@ describe("spine Yelle — liste de quêtes, succès, classes et neutre", () => {
     ]);
     const block = withUnknown.payload.blocks.find((candidate) => candidate.title.includes("Étape 4"));
     expect(block?.sequences[0]).toMatchObject({ subGuideName: "Introuvable", questDbIds: [] });
+  });
+
+  it("n'expose aucun nom de source dans le payload", () => {
+    const payload = JSON.stringify(result.payload).toLowerCase();
+    for (const token of ["tougli", "touglie", "dofusyelle", "laniyelle", "marcellusito", "barbofus"]) {
+      expect(payload).not.toContain(token);
+    }
   });
 });
 
@@ -356,5 +371,12 @@ describe("pureté et bornes du générateur", () => {
     expect(result.report.warnings.join(" ")).toContain("Condition inconnue");
     expect(result.payload.blocks[0].sequences[0].alignReq).toBeUndefined();
     expect(result.payload.blocks[0].sequences[0].classReq).toBeUndefined();
+  });
+
+  it("le dataset historique ne contient plus de nom de source", () => {
+    const dataset = readFileSync("src/data/rush-sylvestre-guide.json", "utf8").toLowerCase();
+    for (const token of ["tougli", "touglie", "dofusyelle", "laniyelle", "marcellusito", "barbofus"]) {
+      expect(dataset).not.toContain(token);
+    }
   });
 });

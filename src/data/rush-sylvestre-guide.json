@@ -2,7 +2,7 @@
   "meta": {
     "version": "4.0.0",
     "generatedAt": "2026-10-08T19:37:43.951Z",
-    "name": "Guide Rush Sylvestre — Zéro Doublon & Prérequis Tougli Complets",
+    "name": "Guide Rush Sylvestre — Zéro Doublon & Prérequis Complets",
     "author": "SigilOS Master Builder",
     "milestonesCount": 96,
     "sequencesCount": 335,
@@ -1633,7 +1633,7 @@
     {
       "type": "INFO",
       "title": "Conseils : Démarrage & Prérequis Fondamentaux",
-      "tips": "· Guide optimisé pour personnage Niveau 200 (recommandé par Tougli).\n· Posséder le sort de Capture d'Âme.\n· Lancer immédiatement la quête \"L'éternelle moisson\" pour capturer au fil de l'eau et profiter d'une ouverture Kralamoure.\n· Lancer \"Chaque chose en son temps\" dès la première anomalie temporelle pour drop le Pixel Perpétuel.\n· Choisir l'alignement Bontarien avec le protecteur Djaul pour limiter le farm.",
+      "tips": "· Guide optimisé pour personnage Niveau 200 (recommandé pour le rush).\n· Posséder le sort de Capture d'Âme.\n· Lancer immédiatement la quête \"L'éternelle moisson\" pour capturer au fil de l'eau et profiter d'une ouverture Kralamoure.\n· Lancer \"Chaque chose en son temps\" dès la première anomalie temporelle pour drop le Pixel Perpétuel.\n· Choisir l'alignement Bontarien avec le protecteur Djaul pour limiter le farm.",
       "accentColor": "#f59e0b",
       "imageUrl": "/assets/icons/dofusdb.png",
       "chapter": 0,

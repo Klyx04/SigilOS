@@ -487,6 +487,27 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 
 ---
 
+## 🧹 Backfill ponctuel — `GuildConfig.ownerId` (D7, 17/11/2026)
+
+La colonne porte un snowflake Discord (onboarding) ou un identifiant interne (`User.id`,
+CUID — transfert de propriété). La cible est l'identifiant interne ; le snowflake n'est
+qu'une valeur transitoire tant que le propriétaire n'a pas de compte lié.
+
+```bash
+# 1) Dry-run (aucune écriture)
+npx -y tsx scripts/backfill-guild-owner-id.ts
+
+# 2) Exécution (bêta puis prod), depuis un environnement avec DATABASE_URL
+npx -y tsx scripts/backfill-guild-owner-id.ts --execute
+```
+
+- Le script ne journalise que des **compteurs** : aucun snowflake, aucun CUID.
+- `sans compte lié` = propriétaire pas encore inscrit : la valeur reste transitoire et
+  sera normalisée à sa première visite du dashboard (`getUserContext`).
+- Idempotent : une seconde exécution ne réécrit rien.
+
+---
+
 ## 🔍 Monitoring
 
 ### Check Hardening

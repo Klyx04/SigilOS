@@ -3,8 +3,8 @@
  *
  * 🐛 Trois défauts constatés :
  * 1. le compteur du **site** ne lisait que le snowflake dans `GuildConfig.ownerId`, alors que la
- *    succession y écrit un **UUID interne** ⇒ une guilde transférée sortait du compteur et son
- *    propriétaire pouvait déployer une 3ᵉ guilde ;
+ *    succession y écrit un **identifiant interne** (`User.id`) ⇒ une guilde transférée sortait du
+ *    compteur et son propriétaire pouvait déployer une 3ᵉ guilde ;
  * 2. un **transfert Discord** n'était répercuté par personne (`GUILD_CREATE` ne repasse pas,
  *    la succession ne couvre que le départ) ⇒ `ownerId` restait l'ancien, ou `null` (STELLIUM) ;
  * 3. l'écran « Serveur Supprimé » affirmait que le compte n'était pas concerné — faux pour un
@@ -46,13 +46,15 @@ describe("bot — un transfert Discord met `GuildConfig.ownerId` à jour", () =>
 
 describe("site — réconciliation paresseuse quand le propriétaire ouvre le dashboard", () => {
     it("ne s'exécute que pour le propriétaire live, et seulement si la valeur diverge", () => {
+        // D7 — la cible est l'identifiant INTERNE (User.id), plus le snowflake.
         expect(ACTIONS).toContain(
-            "if (isOwner && guildConfig && guildConfig.ownerId !== discordUserId)",
+            "if (isOwner && guildConfig && guildConfig.ownerId !== session.user.id)",
         );
     });
 
     it("rattrape aussi le cas `ownerId = null` (sinon STELLIUM resterait cassé)", () => {
-        expect(ACTIONS).toContain("OR: [{ ownerId: null }, { ownerId: { not: discordUserId } }]");
+        expect(ACTIONS).toContain("OR: [{ ownerId: null }, { ownerId: { not: session.user.id } }]");
+        expect(ACTIONS).toContain("data: { ownerId: session.user.id }");
     });
 
     it("le propriétaire est bien dans le contexte caché (select + clés obligatoires)", () => {

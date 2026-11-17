@@ -857,10 +857,13 @@ export async function handleGdprDeletionRequest() {
                     const discordGuild = await fetchGuild(profile.guild.discordGuildId);
                     currentOwnerId = discordGuild.owner_id;
 
-                    // Update DB with the real owner for future checks
+                    // D7 — on écrit l'identifiant interne quand il est résoluble ; sinon le
+                    // snowflake reste transitoire (le propriétaire n'a pas encore de compte).
+                    const { resolveGuildOwnerWriteId } = await import("@/server/guild-owner");
+                    const ownerWriteId = await resolveGuildOwnerWriteId(currentOwnerId);
                     await db.guildConfig.update({
                         where: { id: profile.guild.id },
-                        data: { ownerId: currentOwnerId } as any
+                        data: { ownerId: ownerWriteId }
                     });
                 } catch (err) {
                     logger.error(`[GDPR Deletion] Failed to fetch owner from Discord for ${profile.guild.name}:`, err);

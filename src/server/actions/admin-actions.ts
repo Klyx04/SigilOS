@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { resolveOnboardingOrigin } from "@/lib/onboarding-gating";
+import { resolveGuildOwnerWriteId } from "@/server/guild-owner";
 import { logAction } from "./audit-actions";
 
 export type ActionResponse = {
@@ -191,11 +192,14 @@ export async function onboardGuild(rawGuildId: string): Promise<ActionResponse> 
         }
 
         // 4. Create Config (Safe to proceed)
+        // D7 — `ownerId` cible l'identifiant interne (`User.id`) ; snowflake
+        // transitoire seulement si le propriétaire n'a pas encore de compte lié.
+        const ownerId = await resolveGuildOwnerWriteId(guildInfo.owner_id);
         await db.guildConfig.create({
             data: {
                 discordGuildId: guildId,
                 name: guildInfo.name,
-                ownerId: guildInfo.owner_id,
+                ownerId,
                 iconUrl: guildInfo.icon ? `https://cdn.discordapp.com/icons/${guildInfo.id}/${guildInfo.icon}.png` : null,
             } as any
         });

@@ -84,9 +84,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     ANOMALIE: {
         icon: Zap,
-        color: "text-fuchsia-400",
-        bgColor: "bg-fuchsia-500/10",
-        borderColor: "border-fuchsia-500/20",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/25",
         label: "Anomalie"
     },
     SONGES: {
@@ -617,28 +617,28 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 };
                 if (bossElixir === 'aucun') {
                     return (
-                        <>Vaincre un <span className="text-fuchsia-400 font-bold">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span></>
+                        <>Vaincre un <span className="text-warning font-bold">gardien d'anomalie</span> de niveau <span className="text-warning font-bold">{range}</span></>
                     );
                 }
                 const bossElixirLabel = bossLabelMap[bossElixir as keyof typeof bossLabelMap] || bossLabelMap.uchronique;
                 return (
-                    <>Vaincre un <span className="text-fuchsia-400 font-bold">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">{bossElixirLabel}</span></>
+                    <>Vaincre un <span className="text-warning font-bold">gardien d'anomalie</span> de niveau <span className="text-warning font-bold">{range}</span> sous l'effet d'un <span className="text-warning font-bold">{bossElixirLabel}</span></>
                 );
             }
             if (payload.type === 'GARDIENS') {
                 return (
-                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 gardiens d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
+                    <>Vaincre <span className="text-warning font-bold">3 gardiens d'anomalie</span> de niveau <span className="text-warning font-bold">{range}</span> sous l'effet d'un <span className="text-warning font-bold">Elixir uchronique</span></>
                 );
             }
             if (payload.type === 'COLLECTE') {
                 const frag = payload.fragmentLevel || 1;
                 return (
-                    <>Collecter des <span className="text-fuchsia-400 font-bold">Fragments d'anomalie {frag}</span></>
+                    <>Collecter des <span className="text-warning font-bold">Fragments d'anomalie {frag}</span></>
                 );
             }
             if (payload.type === 'FRAGMENTS') {
                 return (
-                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
+                    <>Obtenir <span className="text-warning font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
                 );
             }
             if (payload.type === 'STABILISATION') {
@@ -652,15 +652,15 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 const elixirLabel = labelMap[elixir as keyof typeof labelMap] || labelMap.majeur;
                 if (elixir === 'aucun') {
                     return (
-                        <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span></>
+                        <>Vaincre <span className="text-warning font-bold">3 Gardiens des anomalies</span></>
                     );
                 }
                 return (
-                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[{elixirLabel}]</span></>
+                    <>Vaincre <span className="text-warning font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-warning font-bold">[{elixirLabel}]</span></>
                 );
             }
             return (
-                <>Vaincre <span className="text-fuchsia-400 font-bold">50 monstres</span> dans une zone de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
+                <>Vaincre <span className="text-warning font-bold">50 monstres</span> dans une zone de niveau <span className="text-warning font-bold">{range}</span> sous l'effet d'un <span className="text-warning font-bold">Elixir uchronique</span></>
             );
         case "SONGES":
             if (payload.epreuve) {
@@ -687,7 +687,7 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
         case "EVENT":
             if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
                 return (
-                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
+                    <>Obtenir <span className="text-warning font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
                 );
             }
             if (payload.eventType === 'OBJECTIF' || payload.description) {

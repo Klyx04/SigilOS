@@ -53,77 +53,85 @@ export function MissionLivePreview({
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-info" /> Aperçu en direct
+                    <Eye className="h-3.5 w-3.5 text-info" aria-hidden="true" /> Aperçu en direct
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="font-mono text-[10px] font-normal normal-case tracking-normal">
                     Rendu membre
                 </span>
             </div>
 
-            <Card className={cn(
-                "relative overflow-hidden border transition-all duration-300 p-4 bg-surface/90",
-                config.borderColor,
-                "shadow-lg"
-            )}>
-                {/* En-tête de la carte */}
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className={cn("p-1.5 rounded-lg border flex items-center justify-center", config.bgColor, config.borderColor)}>
-                            <CategoryIcon className={cn("w-4 h-4", config.color)} />
-                        </div>
-                        <div>
-                            <span className={cn("text-[10px] font-black uppercase tracking-wider", config.color)}>
-                                {config.label}
-                            </span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono font-bold border-border bg-background/50">
-                                    Rang {rank}
-                                </Badge>
-                                {payload?.level && (
-                                    <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground border-border">
-                                        Niv. {payload.level}
+            {!title ? (
+                // État vide explicite : l'ancien aperçu affichait une fausse carte « Titre de la
+                // mission… » alors que le slot n'était pas configuré (mesure du 17/11/2026).
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface/30 px-4 py-8 text-center">
+                    <CategoryIcon className={cn('h-6 w-6', config.color)} aria-hidden="true" />
+                    <p className="text-xs font-medium text-foreground">Aucune mission sélectionnée</p>
+                    <p className="max-w-[38ch] text-[11px] text-muted-foreground">
+                        Choisissez une mission dans le catalogue ou composez-la en mode personnalisé.
+                    </p>
+                </div>
+            ) : (
+                <Card className={cn(
+                    'relative overflow-hidden border bg-surface p-4',
+                    config.borderColor,
+                )}>
+                    {/* En-tête de la carte */}
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className={cn('flex items-center justify-center rounded-lg border p-1.5', config.bgColor, config.borderColor)}>
+                                <CategoryIcon className={cn('h-4 w-4', config.color)} aria-hidden="true" />
+                            </div>
+                            <div>
+                                <span className={cn('text-[10px] font-semibold uppercase tracking-wider', config.color)}>
+                                    {config.label}
+                                </span>
+                                <div className="mt-0.5 flex items-center gap-1.5">
+                                    <Badge variant="outline" className="border-border bg-background/50 px-1 py-0 font-mono text-[9px] font-semibold">
+                                        Rang {rank}
                                     </Badge>
-                                )}
+                                    {payload?.level && (
+                                        <Badge variant="outline" className="border-border px-1 py-0 font-mono text-[9px] text-muted-foreground">
+                                            Niv. {payload.level}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Récompenses en haut à droite */}
+                        <div className="flex items-center gap-2">
+                            <div className="rounded-md border border-info/20 bg-info/10 px-2 py-0.5 text-xs font-semibold text-info">
+                                {xpReward} XP
+                            </div>
+                            <div className="rounded-md border border-warning/20 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
+                                {guildatonsReward} 🪙
                             </div>
                         </div>
                     </div>
 
-                    {/* Récompenses en haut à droite */}
-                    <div className="flex items-center gap-2">
-                        <div className="px-2 py-0.5 rounded-md bg-info/10 border border-info/20 text-info text-xs font-black">
-                            {xpReward} XP
+                    {/* Corps avec illustration et objectif */}
+                    <div className="mt-3 flex items-center gap-3.5 border-t border-border/60 pt-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+                            <MissionArtworkImage
+                                src={artwork.imageUrl}
+                                fallbackSrc={artwork.fallbackUrl}
+                                alt={title || "Mission"}
+                                className="h-full w-full object-contain p-0.5"
+                            >
+                                <CategoryIcon className={cn('h-6 w-6', config.color)} aria-hidden="true" />
+                            </MissionArtworkImage>
                         </div>
-                        <div className="px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20 text-warning text-xs font-black">
-                            {guildatonsReward} 🪙
+
+                        <div className="min-w-0 flex-1">
+                            <h4 className="truncate text-sm font-semibold text-foreground">{title}</h4>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{objectiveText}</p>
                         </div>
                     </div>
-                </div>
-
-                {/* Corps avec illustration et objectif */}
-                <div className="flex items-center gap-3.5 mt-3 pt-3 border-t border-border/60">
-                    <div className="w-12 h-12 rounded-xl bg-background border border-border shrink-0 overflow-hidden flex items-center justify-center relative">
-                        <MissionArtworkImage
-                            src={artwork.imageUrl}
-                            fallbackSrc={artwork.fallbackUrl}
-                            alt={title || "Mission"}
-                            className="w-full h-full object-cover"
-                        >
-                            <CategoryIcon className={cn("w-6 h-6", config.color)} />
-                        </MissionArtworkImage>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-black text-foreground truncate">
-                            {title || <span className="text-muted-foreground italic">Titre de la mission...</span>}
-                        </h4>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                            {objectiveText}
-                        </p>
-                    </div>
-                </div>
-            </Card>
+                </Card>
+            )}
         </div>
     );
 }
+

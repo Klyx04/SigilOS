@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier, isWeekPublished } from "@/server/actions/mission-actions";
 import { getDofusConfig, updateGuildHallConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
-import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles, Home, ChevronDown, MapPin, X, RefreshCw } from "lucide-react";
+import { Save, Trash2, Edit2, Loader2, AlertTriangle, AlertCircle, Send, Swords, Sparkles, Home, X, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getDofusWeek } from "@/lib/date-utils";
@@ -17,7 +19,7 @@ import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import { MissionPublishFlowDialog } from "./mission-publish-flow-dialog";
 import { MissionOfficialSearch } from "./MissionOfficialSearch";
 import { MissionLivePreview } from "./MissionLivePreview";
-import { mapOfficialToDraftMission } from "@/lib/game-data/guild-missions-catalog";
+import { mapOfficialToDraftMission, OFFICIAL_MISSIONS_TOTAL } from "@/lib/game-data/guild-missions-catalog";
 import { resolveMissionArtwork } from "@/lib/mission-artwork";
 import { MissionArtworkImage } from "./mission-artwork-image";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -309,8 +311,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
     const currentMission = editingSlot !== null ? missions[editingSlot] : null;
 
-    const handleGlobalTierChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newTier = parseInt(e.target.value);
+    const handleGlobalTierChange = async (value: string) => {
+        const newTier = parseInt(value, 10);
         setGlobalTier(newTier);
 
         setIsLoading(true);
@@ -328,12 +330,12 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     return (
         <div className="space-y-6">
             {!isDiscordConfigured && (
-                <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-start gap-4 shadow-lg backdrop-blur-sm">
-                    <div className="p-2 bg-warning/20 rounded-lg text-warning">
-                        <AlertTriangle className="w-5 h-5" />
+                <div className="flex items-start gap-4 rounded-xl border border-warning/20 bg-warning/10 p-4">
+                    <div className="rounded-lg bg-warning/20 p-2 text-warning">
+                        <AlertTriangle className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="flex-1">
-                        <h4 className="text-sm font-black text-warning uppercase tracking-widest mb-1">Configuration Discord Absente</h4>
+                        <h4 className="text-sm font-semibold text-warning uppercase tracking-wider mb-1">Configuration Discord Absente</h4>
                         <p className="text-xs text-warning/70 leading-relaxed font-medium">
                             Le salon de notification des missions n&apos;est pas configuré dans les paramètres de la guilde.
                             <span className="text-warning font-bold ml-1 italic text-caption sm:text-xs">
@@ -363,17 +365,21 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     <div className="w-px h-8 bg-elevated mx-2 hidden sm:block"></div>
 
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-muted-foreground font-medium">Palier semaine</label>
-                        <select
-                            className="h-9 w-32 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:ring-2 focus:ring-ring/50 outline-none disabled:opacity-50"
-                            value={globalTier}
-                            onChange={handleGlobalTierChange}
+                        <label id="mission-week-tier" className="text-sm text-muted-foreground font-medium">Palier semaine</label>
+                        <Select
+                            value={String(globalTier)}
+                            onValueChange={handleGlobalTierChange}
                             disabled={isLoading}
                         >
-                            {[1, 2, 3, 4, 5].map(t => (
-                                <option key={t} value={t}>Palier {t}</option>
-                            ))}
-                        </select>
+                            <SelectTrigger aria-labelledby="mission-week-tier" className="h-9 w-32 rounded-lg text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[1, 2, 3, 4, 5].map(t => (
+                                    <SelectItem key={t} value={String(t)}>Palier {t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         {globalTier !== guildDefaultTier && (
                             <span className="text-caption text-muted-foreground italic">Défaut guilde : {guildDefaultTier}</span>
                         )}
@@ -383,7 +389,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                 </div>
 
-                <div className="flex items-center gap-2 p-1 bg-black/40 border border-border rounded-xl shadow-inner backdrop-blur-md">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-surface p-1">
                     <div data-tour="admin-missions-bonus">
                         <BonusMenuButton guildId={guildId} />
                     </div>
@@ -434,7 +440,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             <Button 
                                 onClick={() => setConfirmPublishOpen(true)} 
                                 variant="sigil" 
-                                className="h-9 px-6 shadow-lg shadow-indigo-500/20 font-bold" 
+                                className="h-9 px-6 font-semibold rounded-lg shadow-sm" 
                                 size="sm"
                                 disabled={isLoading}
                             >
@@ -457,25 +463,25 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Guild Hall Config Panel */}
             {hallPanelOpen && (
-                <div className="border border-info/20 bg-info/5 backdrop-blur-md rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="rounded-xl border border-info/20 bg-info/5 p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="p-1.5 rounded-lg bg-info/10 border border-info/20">
-                                <Home className="w-4 h-4 text-info" />
+                                <Home className="w-4 h-4 text-info" aria-hidden="true" />
                             </div>
                             <div>
-                                <p className="text-sm font-black text-foreground">Hall de Guilde</p>
+                                <p className="text-sm font-semibold text-foreground">Hall de Guilde</p>
                                 <p className="text-caption text-muted-foreground">Position du point de ralliement visible par tous les membres.</p>
                             </div>
                         </div>
-                        <button onClick={() => setHallPanelOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-all">
-                            <X className="w-4 h-4" />
+                        <button onClick={() => setHallPanelOpen(false)} aria-label="Fermer le panneau Hall de Guilde" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+                            <X className="w-4 h-4" aria-hidden="true" />
                         </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
                         <div>
-                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Position X</label>
+                            <label className="text-caption font-semibold text-info uppercase tracking-wider block mb-1">Position X</label>
                             <input
                                 type="number"
                                 value={hallPosX ?? ""}
@@ -485,7 +491,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             />
                         </div>
                         <div>
-                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Position Y</label>
+                            <label className="text-caption font-semibold text-info uppercase tracking-wider block mb-1">Position Y</label>
                             <input
                                 type="number"
                                 value={hallPosY ?? ""}
@@ -495,19 +501,17 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             />
                         </div>
                         <div>
-                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Monde</label>
-                            <div className="relative">
-                                <select
-                                    value={hallWorldId}
-                                    onChange={(e) => setHallWorldId(Number(e.target.value))}
-                                    className="w-full bg-background/60 border border-border hover:border-info/30 focus:border-info rounded-xl pl-3 pr-7 py-2 text-caption font-bold text-foreground outline-none appearance-none transition-all cursor-pointer"
-                                >
+                            <label id="mission-hall-world" className="text-caption font-semibold text-info uppercase tracking-wider block mb-1">Monde</label>
+                            <Select value={String(hallWorldId)} onValueChange={(value) => setHallWorldId(Number(value))}>
+                                <SelectTrigger aria-labelledby="mission-hall-world" className="h-9 w-full rounded-lg text-caption">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
                                     {DOFUS_WORLDS.map(w => (
-                                        <option key={w.id} value={w.id} className="bg-background text-foreground text-xs">{w.name}</option>
+                                        <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>
                                     ))}
-                                </select>
-                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-                            </div>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -536,7 +540,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     toast.error(res.error || "Erreur");
                                 }
                             }}
-                            className="px-6 bg-info hover:bg-info text-info-foreground font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20"
+                            className="px-6 bg-info hover:bg-info text-info-foreground font-semibold rounded-lg transition-colors"
                         >
                             {isSavingHall ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             Sauvegarder
@@ -547,7 +551,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Pool Toggle — Dofus 3.5 Classiques / Spéciales */}
             <div className="flex items-center gap-3 flex-wrap w-full">
-                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-border rounded-2xl sm:rounded-full shadow-lg flex-wrap sm:flex-nowrap w-full sm:w-auto">
+                <div className="flex items-center gap-1 p-1 bg-surface border border-border rounded-xl flex-wrap sm:flex-nowrap w-full sm:w-auto">
                     {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                         const isActive = missionPool === pool;
                         const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 20).filter(m => m.title).length;
@@ -556,19 +560,20 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             <button
                                 key={pool}
                                 onClick={() => setMissionPool(pool)}
+                                aria-pressed={isActive}
                                 className={cn(
-                                    "flex-1 sm:flex-none relative flex items-center justify-center gap-1.5 sm:gap-2 px-2 py-2 sm:px-5 text-caption sm:text-xs font-black rounded-full transition-all duration-300 uppercase tracking-widest min-w-0",
+                                    "flex-1 sm:flex-none relative flex items-center justify-center gap-1.5 sm:gap-2 px-2 py-2 sm:px-5 text-caption sm:text-xs font-semibold rounded-lg transition-colors uppercase tracking-wide min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
                                     isActive
                                         ? pool === 'CLASSIQUES'
                                             ? "bg-info text-info-foreground "
                                             : "bg-warning text-warning-foreground "
-                                        : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-elevated/60"
                                 )}
                             >
-                                {pool === 'CLASSIQUES' ? <Swords className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                {pool === 'CLASSIQUES' ? <Swords className="w-3.5 h-3.5" aria-hidden="true" /> : <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />}
                                 {pool}
                                 <span className={cn(
-                                    "text-caption font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
+                                    "text-caption font-semibold px-1.5 py-0.5 rounded-md min-w-[18px] text-center",
                                     isActive
                                         ? pool === 'CLASSIQUES' ? "bg-elevated text-foreground" : "bg-muted/20 text-foreground"
                                         : "bg-muted text-foreground"
@@ -594,7 +599,6 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
                     const CategoryIcon = config.icon || Swords;
                     const borderColor = isEmpty ? "border-border" : config.borderColor;
-                    const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
                     const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
 
                     const getPayloadPreview = (category: MissionCategoryType, payload: Record<string, any>): React.ReactNode => {
@@ -604,7 +608,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 const name = payload.dungeonName;
                                 const boss = payload.bossName;
                                 return name ? (
-                                    <span className="text-violet-300 font-medium truncate">
+                                    <span className="text-foreground font-medium truncate">
                                         🏰 {name}{boss && boss !== name ? <span className="text-muted-foreground font-normal"> · {boss}</span> : null}
                                     </span>
                                 ) : null;
@@ -612,7 +616,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             case 'ANOMALIE': {
                                 const typeLabel = payload.type === 'BOSS' ? '🐉 Gardien' : payload.type === 'ZONE' ? '⚔️ Zone' : (payload.type || 'Anomalie');
                                 const level = payload.levelRange ? `Niv. ${payload.levelRange}` : null;
-                                return <span className="text-fuchsia-300 font-medium truncate">⚡ {[typeLabel, level].filter(Boolean).join(' · ')}</span>;
+                                return <span className="text-warning font-medium truncate">⚡ {[typeLabel, level].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'REGULATION': {
                                 const zone = payload.zoneName;
@@ -633,7 +637,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             }
                             case 'EVENT': {
                                 if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
-                                    return <span className="text-fuchsia-300 font-medium">⚡ 20 Fragments d'anomalie</span>;
+                                    return <span className="text-warning font-medium">⚡ 20 Fragments d'anomalie</span>;
                                 }
                                 const desc = payload.description || payload.officialObjectiveText;
                                 if (desc) {
@@ -662,18 +666,17 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         <Card
                             key={mission.slotIndex}
                             className={cn(
-                                "relative group transition-all duration-300 flex flex-col h-full",
-                                "bg-surface shadow-xl",
+                                "relative group transition-colors duration-200 flex flex-col h-full",
+                                "bg-surface shadow-sm",
                                 isEmpty
                                     ? "bg-background/50 border-border/60 border-dashed hover:bg-surface/80"
                                     : cn("border ", borderColor)
                             )}
-                            style={{ "--glow-color": glowColor } as React.CSSProperties}
                         >
                             <CardHeader className="p-3.5 flex flex-row items-center justify-between pb-2 space-y-0 relative z-10">
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
-                                        "text-caption font-black px-1.5 py-0.5 rounded transition-colors",
+                                        "text-caption font-semibold px-1.5 py-0.5 rounded transition-colors",
                                         isEmpty ? "bg-elevated text-muted-foreground" : "bg-surface text-foreground border border-border"
                                     )}>
                                         #{mission.slotIndex + 1}
@@ -709,17 +712,17 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 <div className="h-full flex flex-col justify-between gap-2.5">
                                     {isEmpty ? (
                                         <div className="flex flex-col items-center justify-center py-6 gap-2">
-                                            <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shadow-inner">
+                                            <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border flex items-center justify-center transition-colors duration-200 group-hover:border-foreground/20">
                                                 <Edit2 className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                                             </div>
-                                            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">Configurer</span>
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">Configurer</span>
                                         </div>
                                     ) : (
                                         <>
                                             <div className="flex items-start gap-3">
                                                 {/* Asset Thumbnail */}
                                                 <div className={cn(
-                                                    "w-12 h-12 rounded-xl border shrink-0 overflow-hidden flex items-center justify-center relative bg-background/60 shadow-sm transition-transform duration-200 group-hover:scale-105",
+                                                    "w-12 h-12 rounded-xl border shrink-0 overflow-hidden flex items-center justify-center relative bg-background/60 shadow-sm transition-colors duration-200",
                                                     config.borderColor
                                                 )}>
                                                     <MissionArtworkImage
@@ -756,7 +759,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                             </div>
 
                                             {payloadPreview && (
-                                                <div className="mt-auto flex items-center gap-1.5 text-[11px] px-2.5 py-1 bg-black/40 rounded-md border border-border/80 group-hover:border-border transition-colors truncate">
+                                                <div className="mt-auto flex items-center gap-1.5 text-[11px] px-2.5 py-1 bg-background/60 rounded-md border border-border/80 group-hover:border-border transition-colors truncate">
                                                     {payloadPreview}
                                                 </div>
                                             )}
@@ -771,59 +774,68 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Editing Dialog */}
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
-                <DialogContent className="bg-surface border-border text-foreground sm:max-w-4xl lg:max-w-5xl shadow-2xl max-h-[92vh] flex flex-col p-6 overflow-hidden">
-                    <DialogHeader className="shrink-0 pb-3 border-b border-border/60">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <DialogTitle className="text-xl font-black flex items-center gap-2">
+                <DialogContent className="grid max-h-[calc(100dvh-2rem)] w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-border bg-surface p-0 text-foreground shadow-lg sm:max-w-4xl lg:max-w-5xl">
+                    <DialogHeader className="shrink-0 border-b border-border/60 px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-semibold sm:text-xl">
                                 {editingSlot !== null && editingSlot >= 12
-                                    ? <><Sparkles className="w-5 h-5 text-warning" /> Éditer Slot Spécial #{editingSlot - 11}</>
+                                    ? <><Sparkles className="w-5 h-5 text-warning" aria-hidden="true" /> Éditer Slot Spécial #{editingSlot - 11}</>
                                     : <>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</>}
                                 {currentMission?.payload?.officialMissionId && (
-                                    <Badge variant="outline" className="text-caption py-0.5 px-2 border-warning/40 text-warning bg-warning/10 font-bold ml-2">
+                                    <Badge variant="outline" className="ml-1 border-warning/40 bg-warning/10 px-2 py-0.5 text-caption font-semibold text-warning">
                                         ⚡ Officiel Dofus (#{currentMission.payload.officialMissionId})
                                     </Badge>
                                 )}
                             </DialogTitle>
 
                             {/* Bascule Mode Catalogue vs Personnalisé */}
-                            <div className="flex items-center gap-1 bg-background/80 p-1 rounded-xl border border-border shrink-0 self-start sm:self-auto">
+                            <div className="flex w-full items-center gap-1 rounded-xl border border-border bg-background/80 p-1 sm:w-auto sm:shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => setEditorMode('CATALOG')}
+                                    aria-pressed={editorMode === 'CATALOG'}
                                     className={cn(
-                                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+                                        "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:flex-none sm:px-3",
                                         editorMode === 'CATALOG'
-                                            ? "bg-warning/20 border border-warning/40 text-warning shadow-sm font-black"
+                                            ? "border border-warning/40 bg-warning/10 text-warning"
                                             : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    <Sparkles className="w-3.5 h-3.5" /> Catalogue Officiel (468)
+                                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                                    Catalogue officiel
+                                    <span className={cn(
+                                        "hidden font-mono text-[10px] font-normal sm:inline",
+                                        editorMode === 'CATALOG' ? "text-warning/70" : "text-muted-foreground"
+                                    )}>
+                                        ({OFFICIAL_MISSIONS_TOTAL})
+                                    </span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setEditorMode('CUSTOM')}
+                                    aria-pressed={editorMode === 'CUSTOM'}
                                     className={cn(
-                                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+                                        "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:flex-none sm:px-3",
                                         editorMode === 'CUSTOM'
-                                            ? "bg-muted text-foreground border border-border/80 font-black"
+                                            ? "border border-border/80 bg-muted text-foreground"
                                             : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    <Edit2 className="w-3.5 h-3.5" /> Personnalisé
+                                    <Edit2 className="w-3.5 h-3.5" aria-hidden="true" /> Personnalisé
                                 </button>
                             </div>
                         </div>
                     </DialogHeader>
 
                     {currentMission && (
-                        <div className="flex-1 overflow-hidden py-3">
-                            {/* Grille 2 colonnes sans scrollbar parent qui bloque */}
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full items-start">
+                        <div className="min-h-0 overflow-y-auto lg:overflow-hidden">
+                            {/* Deux panneaux indépendants à partir de lg ; un seul scroll avant. */}
+                            <div className="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:h-full lg:grid-cols-12 lg:items-start">
                                 {/* COLONNE GAUCHE (5 cols) : Paramètres clés + Live Preview */}
-                                <div className="lg:col-span-5 space-y-4 bg-background/40 p-4 rounded-2xl border border-border h-full flex flex-col justify-between overflow-y-auto max-h-[500px]">
+                                <section className="flex min-h-0 flex-col justify-between gap-4 rounded-xl border border-border bg-background/40 p-4 lg:col-span-5 lg:h-full lg:overflow-y-auto lg:pr-3 premium-scrollbar">
                                     <div className="space-y-3.5">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                                 Configuration du Slot
                                             </h3>
                                             <span className="text-[10px] text-muted-foreground font-mono">
@@ -833,35 +845,48 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
                                         {/* Catégorie */}
                                         <div className="space-y-1.5">
-                                            <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Catégorie</label>
-                                            <select
-                                                className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/50 font-medium"
+                                            <label id="mission-category-label" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                Catégorie
+                                            </label>
+                                            <Select
                                                 value={currentMission.category}
-                                                onChange={(e) => updateMission(currentMission.slotIndex, {
-                                                    category: e.target.value as MissionCategoryType,
+                                                onValueChange={(value) => updateMission(currentMission.slotIndex, {
+                                                    category: value as MissionCategoryType,
                                                     title: "",
                                                     payload: {}
                                                 })}
                                             >
-                                                {MISSION_CATEGORIES.map(c => (
-                                                    <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger
+                                                    aria-labelledby="mission-category-label"
+                                                    className="h-11 w-full rounded-lg text-xs sm:h-9"
+                                                >
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {MISSION_CATEGORIES.map(c => (
+                                                        <SelectItem key={c} value={c}>{CATEGORY_CONFIG[c].label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
 
                                         {/* Rang (Difficulté 1 à 5) */}
                                         <div className="space-y-1.5">
-                                            <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Rang (Difficulté)</label>
+                                            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                Rang (Difficulté)
+                                            </span>
                                             <div className="grid grid-cols-5 gap-1.5">
                                                 {[1, 2, 3, 4, 5].map(r => (
                                                     <button
                                                         key={r}
                                                         type="button"
                                                         onClick={() => updateMission(currentMission.slotIndex, { rank: r })}
+                                                        aria-pressed={currentMission.rank === r}
+                                                        aria-label={`Rang ${r}`}
                                                         className={cn(
-                                                            "py-1.5 text-xs font-bold rounded-xl border transition-all text-center",
+                                                            "h-11 rounded-lg border text-xs font-semibold transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:h-9",
                                                             currentMission.rank === r
-                                                                ? "bg-warning/20 border-warning text-warning shadow-sm"
+                                                                ? "bg-warning/10 border-warning/50 text-warning"
                                                                 : "bg-background border-border text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
@@ -874,19 +899,25 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                         {/* XP & Guildatons */}
                                         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
                                             <div className="space-y-1.5">
-                                                <label className="text-[11px] font-black uppercase tracking-widest text-cyan-400">XP Guilde</label>
-                                                <input
+                                                <label htmlFor="mission-xp-reward" className="text-[11px] font-semibold uppercase tracking-wider text-info">XP Guilde</label>
+                                                <Input
+                                                    id="mission-xp-reward"
                                                     type="number"
-                                                    className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground font-mono font-bold outline-none focus:ring-2 focus:ring-cyan-500/30"
+                                                    min={0}
+                                                    step={10}
+                                                    className="h-11 rounded-lg font-mono text-xs font-semibold sm:h-9"
                                                     value={currentMission.xpReward}
                                                     onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-[11px] font-black uppercase tracking-widest text-amber-400">Guildatons</label>
-                                                <input
+                                                <label htmlFor="mission-guildatons-reward" className="text-[11px] font-semibold uppercase tracking-wider text-warning">Guildatons</label>
+                                                <Input
+                                                    id="mission-guildatons-reward"
                                                     type="number"
-                                                    className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500/30"
+                                                    min={0}
+                                                    step={5}
+                                                    className="h-11 rounded-lg font-mono text-xs font-semibold sm:h-9"
                                                     value={currentMission.guildatonsReward}
                                                     onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
                                                 />
@@ -905,18 +936,18 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                             payload={currentMission.payload}
                                         />
                                     </div>
-                                </div>
+                                </section>
 
                                 {/* COLONNE DROITE (7 cols) : Soit Catalogue Inline, Soit Formulaire Personnalisé */}
-                                <div className="lg:col-span-7 bg-background/30 p-4 rounded-2xl border border-border h-full overflow-hidden flex flex-col justify-between">
+                                <section className="flex min-h-0 flex-col rounded-xl border border-border bg-background/30 p-4 lg:col-span-7 lg:h-full lg:overflow-hidden">
                                     {editorMode === 'CATALOG' ? (
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                                    <Sparkles className="w-3.5 h-3.5 text-warning" />
-                                                    Sélectionner parmi les 468 missions officielles
+                                        <div className="flex min-h-0 flex-col gap-3 lg:h-full">
+                                            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+                                                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    <Sparkles className="w-3.5 h-3.5 text-warning" aria-hidden="true" />
+                                                    Sélectionner parmi les {OFFICIAL_MISSIONS_TOTAL} missions officielles
                                                 </h3>
-                                                <span className="text-[10px] text-muted-foreground font-mono">
+                                                <span className="font-mono text-[10px] text-muted-foreground">
                                                     Dofus Unity
                                                 </span>
                                             </div>
@@ -933,10 +964,10 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                             />
                                         </div>
                                     ) : (
-                                        <div className="space-y-4 overflow-y-auto max-h-[480px] pr-1">
-                                            <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                        <div className="min-h-0 space-y-4 lg:flex-1 lg:overflow-y-auto lg:pr-1 premium-scrollbar">
+                                            <h3 className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                                 <span>Configuration Manuelle</span>
-                                                <span className="text-[10px] text-muted-foreground font-normal">
+                                                <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
                                                     Créez votre objectif sur-mesure
                                                 </span>
                                             </h3>
@@ -975,7 +1006,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                                                 title: ''
                                                             })}
                                                             className={cn(
-                                                                "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
+                                                                "flex-1 py-2 rounded-lg text-caption font-semibold uppercase tracking-wider transition-all",
                                                                 !currentMission.payload?.epreuve
                                                                     ? "bg-info/20 text-info border border-info/30"
                                                                     : "text-muted-foreground hover:text-foreground"
@@ -990,7 +1021,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                                                 title: ''
                                                             })}
                                                             className={cn(
-                                                                "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
+                                                                "flex-1 py-2 rounded-lg text-caption font-semibold uppercase tracking-wider transition-all",
                                                                 currentMission.payload?.epreuve
                                                                     ? "bg-info/20 text-info border border-info/30"
                                                                     : "text-muted-foreground hover:text-foreground"
@@ -1033,26 +1064,38 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                             )}
                                         </div>
                                     )}
-                                </div>
+                                </section>
                             </div>
                         </div>
                     )}
-                    <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row items-center pt-3 border-t border-border">
+                    <DialogFooter className="shrink-0 flex-col items-stretch gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
                         {currentMission && (() => {
                             const err = validateMission(currentMission);
                             return err ? (
-                                <p className="flex-1 text-xs text-danger font-medium flex items-center gap-1.5 mr-auto">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
+                                <p
+                                    role="status"
+                                    aria-live="polite"
+                                    className="mr-auto flex items-center gap-1.5 text-xs font-medium text-warning"
+                                >
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                     {err}
                                 </p>
-                            ) : null;
+                            ) : (
+                                <span className="mr-auto" aria-hidden="true" />
+                            );
                         })()}
-                        <Button variant="ghost" onClick={() => setEditingSlot(null)} className="text-muted-foreground hover:text-foreground">Annuler</Button>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setEditingSlot(null)}
+                            className="w-full text-muted-foreground hover:text-foreground sm:w-auto"
+                        >
+                            Annuler
+                        </Button>
                         <Button
                             onClick={() => currentMission && handleSaveFromDialog(currentMission.slotIndex)}
                             disabled={!!currentMission && !!validateMission(currentMission)}
                             variant="sigil"
-                            className="h-10 px-8"
+                            className="h-10 w-full px-8 sm:w-auto"
                         >
                             Enregistrer
                         </Button>

@@ -269,7 +269,7 @@ export function MissionPublishFlowDialog({
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !isBusy && onOpenChange(open)}>
             <DialogContent className={cn(
-                "bg-surface border border-border text-foreground rounded-2xl p-0 overflow-hidden shadow-lg transition-all",
+                "bg-surface border border-border text-foreground rounded-xl p-0 overflow-hidden shadow-lg transition-all",
                 isRepublish ? "sm:max-w-xl" : "sm:max-w-3xl"
             )}>
                 {/* ══════════════════════════════════════════════════════════════════
@@ -280,11 +280,11 @@ export function MissionPublishFlowDialog({
                     <div className="p-6 space-y-6">
                         <DialogHeader>
                             <div className="flex items-center gap-3">
-                                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 shadow-sm">
+                                <div className="p-2.5 rounded-xl bg-warning/10 border border-warning/25 text-warning">
                                     <RefreshCw className="w-5 h-5 animate-spin-reverse" />
                                 </div>
                                 <div>
-                                    <DialogTitle className="text-xl font-black text-foreground">
+                                    <DialogTitle className="text-xl font-semibold text-foreground">
                                         Mettre à jour les missions
                                     </DialogTitle>
                                     <DialogDescription className="text-xs text-muted-foreground mt-0.5">
@@ -335,7 +335,7 @@ export function MissionPublishFlowDialog({
                                         <h4 className="text-sm font-bold text-foreground">
                                             Enregistrer sans annonce Discord (silencieux)
                                         </h4>
-                                        <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                                        <span className="text-[11px] font-medium text-success bg-success/10 border border-success/25 px-2 py-0.5 rounded-md">
                                             Recommandé
                                         </span>
                                     </div>
@@ -518,7 +518,7 @@ export function MissionPublishFlowDialog({
                                     {missionPool === 'SPECIALES' ? <Sparkles className="w-5 h-5" /> : <Target className="w-5 h-5" />}
                                 </div>
                                 <div>
-                                    <DialogTitle className="text-xl font-black text-foreground">
+                                    <DialogTitle className="text-xl font-semibold text-foreground">
                                         Publication Hebdomadaire {missionPool === 'SPECIALES' ? 'Spéciale' : ''}
                                     </DialogTitle>
                                     <DialogDescription className="text-xs text-muted-foreground mt-0.5">

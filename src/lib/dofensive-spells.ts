@@ -201,16 +201,28 @@ export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean 
 }
 
 /**
- * Fusionne les sorts DofusDB (images/descriptions) avec les données de combat
- * Dofensive (AP/portée/LoS/ligne/diagonale/cooldown/zone). Les champs de combat
- * Dofensive PRIMENT (source de vérité combat) ; les sorts présents uniquement chez
- * l'une des deux sources sont conservés. Jamais d'écrasement destructif.
+ * IDs légitimes pour la garde d'appartenance de `mergeDofensiveSpells`.
  *
- * Lot 6 « sorts étrangers » — `knownSpellIds` (fail-closed opt-in) : ids de sorts
- * LÉGITIMES du monstre (DofusDB `monster.spells` + `startingSpellId` + sous-sorts
- * déclenchés). Quand il est fourni, tout sort Dofensive hors de cet ensemble est
- * **écarté** (un appariement incertain ne doit jamais injecter les sorts d'un boss
- * étranger dans la fiche). Absent ⇒ comportement historique (conservé).
+ * Un ensemble **vide** ne doit pas écarter tous les sorts Dofensive : sans ids locaux, il n'y
+ * a rien à comparer, et la fiche boss resterait sans simulation alors que l'avis du même
+ * monstre l'affiche (mesure du 16/11/2026 : « les fiches boss pas de bloc simu »). On rend
+ * donc `undefined` quand aucun id exploitable n'est connu, ce qui laisse la source Dofensive
+ * alimenter la grille ; la garde reste active dès qu'un id local existe.
+ */
+export function knownSpellIdsForMerge(ids: Iterable<number>): number[] | undefined {
+    const out = [...ids]
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+    return out.length > 0 ? out : undefined;
+}
+
+/**
+ * Fusionne les sorts DofusDB et Dofensive — même règle que ci-dessous.
+ *
+ * `knownSpellIds` (fail-closed opt-in) : ids de sorts LÉGITIMES du monstre (DofusDB
+ * `monster.spells` + `startingSpellId` + sous-sorts déclenchés). Quand il est fourni, tout
+ * sort Dofensive hors de cet ensemble est **écarté** (un appariement incertain ne doit jamais
+ * injecter les sorts d'un boss étranger dans la fiche). Absent ⇒ comportement historique.
  */
 export function mergeDofensiveSpells(
     dbSpells: Array<{ id: number; name?: string; nameEn?: string; imageUrl?: string; description?: string; unityIconId?: number; unityDescription?: string; unityEffects?: string[]; unityCriticalEffects?: string[] }> = [],

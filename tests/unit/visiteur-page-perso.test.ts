@@ -47,6 +47,64 @@ const PROFILE: VisitorProfile = {
     introduction: "Chasseuse de primes.",
     objectifs: "Finir les avis.",
     updatedAt: new Date("2026-11-16T10:00:00Z"),
+    mules: [
+        {
+            pseudo: "Rakzia-Mule",
+            classe: {
+                id: "iop",
+                name: "Iop",
+                icon: "/assets/dofus/classes/iop.png",
+            },
+            level: 200,
+        },
+    ],
+    activities: [
+        {
+            id: "pvm",
+            label: "PVM",
+            icon: "/assets/dofus/icons/crossedSwords.png",
+        },
+    ],
+    achievementList: [
+        {
+            id: "ach-1",
+            name: "Sans peur",
+            points: 30,
+            iconUrl: null,
+            dungeonName: "Donjon des Tofus",
+            characterSlot: "PRINCIPAL",
+        },
+    ],
+    bountyList: [
+        {
+            id: "bounty-1",
+            name: "Ronce",
+            level: 60,
+            zoneName: "Amakna",
+            imageUrl: null,
+            characterSlot: "Rakzia-Mule",
+        },
+    ],
+    rush: [
+        {
+            characterSlot: "PRINCIPAL",
+            characterName: "Rakzia",
+            classe: {
+                id: "eliotrope",
+                name: "Eliotrope",
+                icon: "/assets/dofus/classes/eliotrope.png",
+            },
+            completedMilestones: 12,
+            completedSteps: 34,
+            dungeonChecks: 5,
+            currentStep: null,
+            updatedAt: new Date("2026-11-16T10:00:00Z"),
+        },
+    ],
+    metamob: {
+        pseudo: "Rakzia",
+        url: "https://www.metamob.fr/profile/Rakzia",
+    },
 };
 
 describe("page perso visiteur — hero et compteurs réels", () => {
@@ -81,6 +139,7 @@ describe("fiche lecture seule — avis faits et sections lisibles", () => {
             React.createElement(VisitorProfileCard, {
                 profile: PROFILE,
                 labels: fr.visitorsPage,
+                locale: "fr",
             })
         );
         expect(html).toContain("Profil public");
@@ -89,5 +148,52 @@ describe("fiche lecture seule — avis faits et sections lisibles", () => {
         expect(html).toContain("12");
         expect(html).toContain("Forgeron");
         expect(html).toContain("Chasseuse de primes.");
+    });
+
+    it("rend les sections V5 bis : personnages, activités, succès, avis, Rush, Metamob", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorProfileCard, {
+                profile: PROFILE,
+                labels: fr.visitorsPage,
+                locale: "fr",
+            })
+        );
+        expect(html).toContain(fr.visitorsPage.profile.characters);
+        expect(html).toContain("Rakzia-Mule");
+        expect(html).toContain(fr.visitorsPage.profile.activities);
+        expect(html).toContain("PVM");
+        expect(html).toContain(fr.visitorsPage.profile.achievements);
+        expect(html).toContain("Sans peur");
+        expect(html).toContain(fr.visitorsPage.profile.bountiesSection);
+        expect(html).toContain("Ronce");
+        expect(html).toContain(fr.visitorsPage.profile.rush);
+        expect(html).toContain(fr.visitorsPage.profile.metamob);
+        expect(html).toContain("https://www.metamob.fr/profile/Rakzia");
+    });
+
+    it("propose des filtres sur les listes de succès, d'avis et de métiers", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorProfileCard, {
+                profile: PROFILE,
+                labels: fr.visitorsPage,
+                locale: "fr",
+            })
+        );
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchAchievements);
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchBounties);
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchJobs);
+        expect(html).toContain(fr.visitorsPage.profile.filterCharacter);
+    });
+
+    it("respecte les consentements : Rush masqué et Metamob absent", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorProfileCard, {
+                profile: { ...PROFILE, rush: null, metamob: null },
+                labels: fr.visitorsPage,
+                locale: "fr",
+            })
+        );
+        expect(html).toContain("La progression Rush");
+        expect(html).not.toContain("https://www.metamob.fr/profile/Rakzia");
     });
 });

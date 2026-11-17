@@ -4,7 +4,9 @@
  * Deux familles d'assertions, chacune protège une règle déjà payée :
  *
  * 1. **Comportement des règles pures** : les filtres sont bornés et un filtre inconnu ne fait
- *    pas perdre les autres ; le DTO ne contient **aucun** champ privé (mules, Metamob, `userId`) ;
+ *    pas perdre les autres ; la **liste** ne contient aucun champ privé (mules, Metamob,
+ *    `userId`) ; la **fiche** expose les données déclarées (mules, activités, succès, avis,
+ *    Metamob vérifié, Rush sous consentement) sans jamais lire la clé Metamob ni `userId` ;
  *    la liste plafonne les métiers, la fiche les montre tous.
  * 2. **Verrou de source** : chaque requête porte `showOnDirectory` (consentement **global**
  *    depuis D3) ; le serveur du lecteur est le **défaut** du filtre, jamais une permission ;
@@ -271,32 +273,139 @@ describe("Annuaire des visiteurs — aucun champ privé ne sort", () => {
         expect(entry.server?.name).toBe("Draconiros");
     });
 
-    it("la fiche ajoute la présentation sans élargir la liste blanche", () => {
-        const profile = toVisitorProfile({
-            ...ROW,
-            _count: { achievements: 42, bountyCompletions: 7 },
-            introduction: "Salut",
-            objectifs: "Finir le Sylvestre",
-        });
+    it("la fiche ajoute les données déclarées, les listes et le Rush sous consentement", () => {
+        const profile = toVisitorProfile(
+            {
+                ...ROW,
+                _count: { achievements: 42, bountyCompletions: 7 },
+                introduction: "Salut",
+                objectifs: "Finir le Sylvestre",
+                altPseudos: [{ pseudo: "MonIop-Mule", classe: "feca", level: 120 }],
+                preferredActivities: ["pvm", "inconnu"],
+                metamobPseudo: "MonIop",
+                metamobVerified: true,
+                showRushProgress: true,
+                achievements: [
+                    {
+                        dungeonAchievementId: "ach-1",
+                        characterSlot: "PRINCIPAL",
+                        completedAt: new Date("2026-11-16T10:00:00Z"),
+                        dungeonAchievement: {
+                            points: 30,
+                            imageUrl: null,
+                            challenge: { name: "Sans peur", slug: "sans-peur", iconUrl: null },
+                            dungeon: { name: "Donjon des Tofus" },
+                        },
+                    },
+                ],
+                bountyCompletions: [
+                    {
+                        bountyId: "bounty-1",
+                        characterSlot: "MonIop-Mule",
+                        completedAt: new Date("2026-11-16T10:00:00Z"),
+                        bounty: {
+                            name: "Ronce",
+                            level: 60,
+                            zoneName: "Amakna",
+                            imageUrl: "/assets/dofus/icons/boss.png",
+                        },
+                    },
+                ],
+            },
+            [
+                {
+                    characterSlot: "PRINCIPAL",
+                    characterName: "MonIop",
+                    classe: "iop",
+                    completedMilestones: ["a", "b"],
+                    completedSteps: ["s1"],
+                    dungeonChecks: { d1: true },
+                    currentStep: null,
+                    updatedAt: new Date("2026-11-16T10:00:00Z"),
+                },
+            ]
+        );
         expect(profile.introduction).toBe("Salut");
         expect(profile.objectifs).toBe("Finir le Sylvestre");
         expect(profile.bountiesDone).toBe(7);
         expect(profile.jobs.length).toBeGreaterThan(PUBLIC_DIRECTORY_JOBS_ON_CARD);
+        expect(profile.mules[0]?.pseudo).toBe("MonIop-Mule");
+        expect(profile.mules[0]?.level).toBe(120);
+        expect(profile.activities.map((activity) => activity.id)).toEqual(["pvm"]);
+        expect(profile.achievementList[0]).toMatchObject({
+            name: "Sans peur",
+            dungeonName: "Donjon des Tofus",
+            points: 30,
+        });
+        expect(profile.bountyList[0]).toMatchObject({
+            name: "Ronce",
+            level: 60,
+            zoneName: "Amakna",
+        });
+        expect(profile.rush?.[0]).toMatchObject({
+            completedMilestones: 2,
+            completedSteps: 1,
+            dungeonChecks: 1,
+        });
+        expect(profile.metamob).toEqual({
+            pseudo: "MonIop",
+            url: "https://www.metamob.fr/profile/MonIop",
+        });
         expect(Object.keys(profile).sort()).toEqual([
+            "achievementList",
             "achievements",
+            "activities",
             "bountiesDone",
+            "bountyList",
             "classe",
             "guildName",
             "id",
             "introduction",
             "jobs",
             "level",
+            "metamob",
+            "mules",
             "objectifs",
             "pseudo",
+            "rush",
             "server",
             "successPoints",
             "updatedAt",
         ]);
+    });
+
+    it("la fiche ne devine pas : Rush non partagé et Metamob non vérifié restent absents", () => {
+        const profile = toVisitorProfile(
+            {
+                ...ROW,
+                _count: { achievements: 0, bountyCompletions: 0 },
+                introduction: null,
+                objectifs: null,
+                altPseudos: null,
+                preferredActivities: null,
+                metamobPseudo: "MonIop",
+                metamobVerified: false,
+                showRushProgress: false,
+                achievements: [],
+                bountyCompletions: [],
+            },
+            [
+                {
+                    characterSlot: "PRINCIPAL",
+                    characterName: "MonIop",
+                    classe: "iop",
+                    completedMilestones: ["a"],
+                    completedSteps: [],
+                    dungeonChecks: {},
+                    currentStep: null,
+                    updatedAt: new Date("2026-11-16T10:00:00Z"),
+                },
+            ]
+        );
+        expect(profile.rush).toBeNull();
+        expect(profile.metamob).toBeNull();
+        expect(profile.activities).toEqual([]);
+        expect(profile.mules).toEqual([]);
     });
 });
 
@@ -367,11 +476,26 @@ describe("Verrou de source — l'annuaire ne lit pas hors périmètre", () => {
         expect(server.match(/showOnDirectory: true/g)).toHaveLength(3);
     });
 
-    it("aucune donnée de guilde, aucun champ privé", () => {
+    it("la liste garde sa liste blanche ; la fiche ajoute les données déclarées", () => {
         expect(server).not.toMatch(/guildId/);
+        const listStart = server.indexOf("const LIST_SELECT_BASE");
+        const listEnd = server.indexOf("} satisfies", listStart);
+        const listSelect = server.slice(listStart, listEnd);
+        // La LISTE ne lit jamais les mules, Metamob ni les listes de succès/avis.
+        expect(listSelect).not.toContain("altPseudos");
+        expect(listSelect).not.toContain("metamobPseudo");
+        expect(listSelect).not.toMatch(/achievements:\s*\{/);
+        // La FICHE les lit, mais jamais la clé Metamob ni `userId`.
+        expect(server).toContain("altPseudos: true");
+        expect(server).toContain("metamobVerified: true");
         expect(server).not.toContain("metamobApiKey");
-        expect(server).not.toContain("altPseudos");
         expect(server).not.toContain("userId: true");
+    });
+
+    it("ne lit le Rush qu'avec le consentement showRushProgress", () => {
+        expect(server).toContain("const rushRows = row.showRushProgress");
+        expect(server).toContain("publicRushProgress.findMany");
+        expect(server).toContain("take: PUBLIC_PROFILE_RUSH_TAKE");
     });
 
     it("un métier à 0 n'est ni lu ni filtrable", () => {

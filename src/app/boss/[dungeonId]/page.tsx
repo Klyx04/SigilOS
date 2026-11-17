@@ -15,7 +15,7 @@ import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { getBountyFiche } from "@/server/actions/bounty-actions";
-import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { knownSpellIdsForMerge, mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
 import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/actions/public-boss-tabs-actions";
 import { bossSovereigntyKey } from "@/lib/boss-sovereignty";
@@ -258,10 +258,10 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   if (monsterStats && spellsData) {
     // Lot 6 — garde d'appartenance : seuls les sorts du monstre (DofusDB +
     // passif) survivent à la fusion (fini les sorts d'un boss étranger).
-    const legitIds = [
+    const legitIds = knownSpellIdsForMerge([
       ...(monsterStats.spells ?? []).map((s: any) => Number(s?.id)),
       ...(Number((monsterStats as any)?.passive?.spellId) > 0 ? [Number((monsterStats as any).passive.spellId)] : []),
-    ];
+    ]);
     monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData, legitIds) };
   } else if (!monsterStats && spellsData) {
     monsterStats = { name: focusMonsterName, spells: spellsData, grades: [], drops: [] };

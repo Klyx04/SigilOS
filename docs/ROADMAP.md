@@ -116,9 +116,16 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
 | V4 | `avis-recherche` | Avis de recherche cochables (visiteur + interne), **par personnage**, et filtres communs « fait / cherchent encore » | **livré le 16/11/2026** : deux migrations **additives** (`PublicBountyCompletion`, `UserBountyCompletion`, `characterSlot` sur les coches), `togglePublicBounty` / `toggleUserBounty`, fiche interne `BountyFicheView` partagée, section Avis dans `/visiteurs?vue=succes`, carte « Avis de recherche » dans Mes Succès | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
-| V5 | `visiteur-page-perso` | Page perso et fiche lecture seule personnalisées | **livré le 16/11/2026** : hero classe/serveur/guilde, compteurs réels (succès et avis distincts, tous personnages), visibilité, raccourcis ; fiche `/visiteurs/[id]` avec `bountiesDone` | — | idem |
+| V5 | `visiteur-page-perso` | Page perso et fiche lecture seule personnalisées | **livré le 16/11/2026** : hero classe/serveur/guilde, compteurs réels (succès et avis distincts, tous personnages), visibilité, raccourcis ; **V5 bis** fiche `/visiteurs/[id]` : listes de succès et d'avis plafonnées, mules, activités, Rush si `showRushProgress`, Metamob vérifié ; clé et `userId` jamais exposés | — | idem |
 | V6 | `visiteur-filtres-hover` | Survol et sélection des filtres `/visiteurs` | **livré le 16/11/2026** : `hover:bg-surface` invisible sur `.reg-panel` corrigé en `elevated/60`, ring actif, focus visible | — | idem |
 | V7 | `ocre-parite-visiteur` | Carte « Quête de l'Éternelle Moisson » du visiteur alignée sur l'interne (possession et synchro) | **livré le 16/11/2026** : `owned` normalisé (`normalizeQuestMonster`), comptage commun (`isOcreMonsterNeeded`), `OCRE_TOTAL_STEPS = 34`, « Forcer la synchro » avec `skipCache`/`revalidate: 0`, relecture du patch sans cache + `revalidateTag` par pseudo ; verrou `ocre-possession-parity` | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
+| V8 | `visiteur-fiche-filtres` | Filtres des listes de la fiche visiteur (succès, avis, métiers) | **livré le 16/11/2026** : `visitor-profile-filters` (recherche accent-insensible, personnage, donjon/zone, niveau minimum), `VisitorProfileLists` paginé par 24 avec « Voir plus », plafonds 200/120, i18n FR/EN ; verrou `visiteur-profile-filters` | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
+
+## 2 quinquies. Fiches publiques — retours du 16/11/2026
+
+| Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
+|---|---|---|---|---|---|
+| B1 | `boss-fiche-simu-responsive` | Fiche boss : simulation vide + responsive des fiches avis/boss | **livré le 16/11/2026** : `knownSpellIdsForMerge` (garde vide ⇒ sorts Dofensive conservés), `SpellRangeGrid` et les vues Succès empilées avant `2xl`, verrou `boss-simulation-spells` | — | `docs/CONTEXT.md` |
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 

@@ -12,7 +12,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 > `docs/plans/MODULE-RUSH-SYLVESTRE.md` ; la route d'alignement dans
 > `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md`.
 >
-> **Dernière MAJ : 16/11/2026** — **tour guidé public livré** (profil visiteurs une seule fois + guide Rush connecté/anonyme, rejouables) · V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11).
+> **Dernière MAJ : 16/11/2026** — **tour guidé public livré** (profil visiteurs une seule fois + guide Rush connecté/anonyme, rejouables) · V1c livré (écrans, DTO étanche, `touchLastSeen`, migration unique) · **porte d'entrée (D-V13)** · **coque publique (D-V14)** · **succès (V1i)** · **V2f F8→F17a** · **Ocre public ISO** (09/11) · **hub Communauté SigilOS + succès en commun** (11/11) · **chantier 2 : échanges Metamob** (11/11) · **V5 bis fiche visiteur** (16/11).
 
 ## 1. Décisions verrouillées
 
@@ -35,6 +35,7 @@ description: Espace visiteur — compte Discord public, profil perso, progressio
 | **D-V8** | **Pas de « progression commune » agrégée** dans l'annuaire | la statistique vit dans le **panneau « Progression Communautaire »** : reproduction du panneau interne par Dofus (nom, % par Dofus, détail **par bloc**, quête en cours par membre) + **donjons requis** (« qui l'a coché », « à faire ») via `PublicRushProgress.dungeonChecks` |
 | **D-V9** | Onglet **Succès Donjons** de l'espace visiteur : **boss + titans + avis uniquement**, pas le reste | vue « qui a quoi **entre visiteurs du même serveur** », filtres et recherche, alimentée par `PublicDungeonAchievement` + profils consentants |
 | **D-V9 révisé (16/11/2026)** | **Avis de recherche cochables** : `PublicBountyCompletion` / `UserBountyCompletion` (profil, avis, personnage) ; la fiche boss publique reste en lecture seule | un avis se coche dans `/espace-visiteur/succes` et dans Mes Succès interne, **par personnage** ; les vues « succès en commun » montrent fait / cherchent encore ; défaut `PRINCIPAL`, aucune donnée réinitialisée |
+| **D-V9 bis (16/11/2026)** | **Fiche visiteur complète** (V5 bis, décision user) : la fiche `/visiteurs/[id]` expose les **mules**, les **activités**, les **listes** de succès de donjons et d'avis (plafonnées à 200/120, totaux `_count`), le pseudo **Metamob vérifié** et la progression **Rush** uniquement si `showRushProgress` | la **liste** `/visiteurs` garde sa liste blanche stricte (pas de mule, pas de Metamob) ; la fiche reste privée (`showOnDirectory` global, `noindex`) ; les listes sont **filtrées/paginées** côté client (recherche, personnage, donjon/zone, niveau) ; la clé Metamob et `userId` ne sortent jamais ; aucune migration |
 | **D-V10** | Suppression depuis l'espace visiteur = **vie publique seulement** si le `User` a aussi un `UserProfile` ACTIVE | refus explicite avec la marche à suivre ; jamais de suppression qui emporterait l'historique de guilde. Sans vie de guilde : suppression dure, **sans archivage** |
 | **D-V11** | **`touchLastSeen()` dans la garde visiteur** (`requirePublicAccount`) | sans ça, un visiteur n'est **jamais** marqué « vu » (seul `getUserContext` l'écrit) ⇒ il serait purgé à l'échéance malgré des visites quotidiennes. **Obligatoire avant `PUBLIC_VISITOR_ENTRY=1`** |
 | **D-V12** | **Guide public connecté = bandeau de l'interne** : 5 tuiles (Personnage actif, Alignement, Metamob, Rush Live, Ouvrir Overlay), recherche + Options **entre** le bloc Rush et le bloc Progression, puis **Progression Communautaire** | non connecté : mode local actuel inchangé. La tuile Metamob est un **agrégat serveur** (la clé API ne part jamais au client) ; Rush Live dépend de `showPresence` |
@@ -405,7 +406,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 **V2e — Liste des profils du serveur — livré le 06/11/2026**
 - `/visiteurs` (liste) et `/visiteurs/<id>` (fiche), **connectés seulement**, `noindex` : filtres
   classe / métier, recherche bornée (40 car.), pagination par curseur stable (`id` décroissant).
-- Règles pures `src/lib/public-directory.ts` (bornes, `where`, DTO **sans** mule / Metamob / `userId`) ;
+- Règles pures `src/lib/public-directory.ts` (bornes, `where`, DTO de **liste** sans mule / Metamob / `userId` ; **fiche** enrichie V5 bis : mules, activités, succès/avis plafonnés, Metamob vérifié, Rush sous `showRushProgress`) ;
   requêtes `src/server/public-directory.ts` (`showOnDirectory` + `dofusServerId` du lecteur, **aucun
   `guildId`**). La barre publique regroupe **Guides + Guildes + Visiteurs** sous « Explorer », chaque
   entrée portant un asset Dofus réel (menu `details` natif : les liens restent dans le HTML servi).

@@ -8,8 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Check, X, ExternalLink,
     ShieldCheck, Users, Trophy, Target,
-    Swords, Skull, Zap, Clock, Sparkles,
-    Infinity as InfinityIcon,
     User as UserIcon
 } from "lucide-react";
 import Image from "next/image";
@@ -17,65 +15,6 @@ import { cn } from "@/lib/utils";
 import { MissionCategory } from "@prisma/client";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { SubmissionCountdown } from "./submission-countdown";
-
-// Shared category config (same as mission-card.tsx)
-const CATEGORY_CONFIG: Record<MissionCategory, {
-    icon: any;
-    color: string;
-    bgColor: string;
-    borderColor: string;
-    headerGradient: string;
-    bannerImage: string;
-}> = {
-    DONJON: {
-        icon: Swords,
-        color: "text-danger",
-        bgColor: "bg-danger/40",
-        borderColor: "border-danger/40",
-        headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
-        bannerImage: "/banners/donjon.png",
-    },
-    REGULATION: {
-        icon: Skull,
-        color: "text-success",
-        bgColor: "bg-success/40",
-        borderColor: "border-success/40",
-        headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
-        bannerImage: "/banners/regulation.png",
-    },
-    ANOMALIE: {
-        icon: Zap,
-        color: "text-warning",
-        bgColor: "bg-warning/10",
-        borderColor: "border-warning/25",
-        headerGradient: "from-[#7d1a6b]/90 via-[#ab47bc]/80 to-[#4d1040]/90",
-        bannerImage: "/banners/anomalie.png",
-    },
-    SONGES: {
-        icon: InfinityIcon,
-        color: "text-info",
-        bgColor: "bg-info/40",
-        borderColor: "border-info/40",
-        headerGradient: "from-[#1a6b7d]/90 via-[#26c6da]/80 to-[#10404d]/90",
-        bannerImage: "/banners/songes.png",
-    },
-    EXPEDITION: {
-        icon: Clock,
-        color: "text-warning",
-        bgColor: "bg-warning/40",
-        borderColor: "border-warning/40",
-        headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
-        bannerImage: "/banners/expedition.png",
-    },
-    EVENT: {
-        icon: Sparkles,
-        color: "text-warning",
-        bgColor: "bg-warning/40",
-        borderColor: "border-warning/40",
-        headerGradient: "from-[#7d6b1a]/90 via-[#fbc02d]/80 to-[#4d4010]/90",
-        bannerImage: "/banners/event.png",
-    },
-};
 
 type ValidationCardProps = {
     submission: {
@@ -121,8 +60,6 @@ function getDefaultLevel(rank: number): number {
 }
 
 export function ValidationCard({ submission, onValidate, onReject, onZoom, isProcessing }: ValidationCardProps) {
-    const config = CATEGORY_CONFIG[submission.mission.category];
-    const Icon = config.icon;
     const payload = submission.mission.payload as any;
     const displayLevel = payload.level || getDefaultLevel(submission.mission.rank || 1);
 
@@ -133,10 +70,6 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
         )}>
             {/* ----------------- HEADER BAR ----------------- */}
             <div className="relative z-20 flex flex-wrap items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 border-b border-border bg-elevated/40">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface border border-border shrink-0">
-                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
-                </div>
-
                 <div className="min-w-0 flex-1 relative z-10 break-words pr-2">
                     <h3 className="font-black text-xs sm:text-base text-foreground tracking-tight uppercase leading-tight">
                         {submission.mission.title || "Mission Sans Titre"}

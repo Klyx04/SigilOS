@@ -244,10 +244,6 @@ export function MissionCard({
         )}>
             {/* ----------------- HEADER BAR ----------------- */}
             <div className="relative z-20 flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 border-b border-border bg-elevated/40">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface border border-border shrink-0">
-                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
-                </div>
-
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-xs sm:text-sm text-foreground truncate uppercase tracking-tight">
                         {mission.title || getAutoTitle(mission.category, payload)}

@@ -47,6 +47,12 @@ restrict,command="/home/sigiladmin/.sigilos-agent/agent-ro.sh" ssh-ed25519 AAAA�
 Tout le reste (`bash`, `whoami`, `deploy`, `sudo`, `docker run`, un argument libre…)
 répond `Commande non autorisée` (code 2) et est journalisé (`logger -t sigilos-agent-ro`).
 
+> **Limite mesurée le 17/11/2026** : `counts` ne compte que les `GuideSequence` du guide
+> `rush-sylvestre` (`total/align_req/ordres/classes`) ; il n'expose ni `Dungeon` ni le
+> total `GameQuest`. Ajouter un verbe `dungeons` (ou `game_counts`) serait une **nouvelle
+> capacité** : revue + ce document + test de la matrice (`status`, `logs`, `migrations`,
+> `whoami` refusé).
+
 ## 3. Le rôle `sigil_ro` (une fois, sur la bêta)
 
 À exécuter **sur la bêta**, avec un mot de passe généré localement et stocké dans

@@ -32,6 +32,8 @@ import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-sl
 import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
+import { isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { safeImageUrl } from "@/lib/security";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -4757,6 +4759,15 @@ export async function deleteRushSequence(sequenceId: string) {
  * un JSON écrit à la main). Toute valeur hors bornes est refusée : l'import écrit
  * des centaines de lignes, il ne peut pas dépendre de la bonne foi du client.
  */
+const RushImportActivityTagSchema = z.object({
+  type: z.string().trim().min(1).max(32),
+  name: z.string().trim().max(200).optional(),
+  level: z.number().int().min(0).max(200).optional(),
+  count: z.number().int().min(0).max(100_000).optional(),
+  id: z.string().trim().max(64).optional(),
+  quantity: z.number().int().min(0).max(1_000_000).optional(),
+});
+
 const RushImportSequenceSchema = z.object({
   subGuideName: z.string().trim().min(1).max(200),
   questDbIds: z.array(z.number().int().positive()).max(10).optional(),
@@ -4771,16 +4782,55 @@ const RushImportSequenceSchema = z.object({
   dofusdbUrl: z.string().trim().max(500).nullish(),
   dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
   dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  // Ids DofusDB **portables** : le serveur les résout vers `Dungeon.id` par `dofusdbId`.
+  dungeonDbIds: z.array(z.number().int().positive()).max(12).optional(),
   dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   takeEarly: z.boolean().optional(),
   isOptional: z.boolean().optional(),
+  /** Étape de succès (icône trophée) — jamais une règle de blocage. */
+  isSuccess: z.boolean().optional(),
+  /** Tags d'activité : bornés, purement informatifs. */
+  activityTags: z.array(RushImportActivityTagSchema).max(30).optional(),
   tips: z.string().max(4000).nullish(),
   note: z.string().max(4000).nullish(),
 });
 
+/**
+ * Types de bloc acceptés par l'import — **la liste fermée** du schéma Prisma.
+ * Un type inconnu est refusé (fail-closed) : le seed ne peut pas inventer une valeur.
+ */
+const RUSH_IMPORT_BLOCK_TYPES = [
+  "DOFUS",
+  "DOFUS_OBTAINED",
+  "ZONE",
+  "DONJON",
+  "QUETE_SERIE",
+  "ALIGNEMENT",
+  "PREREQUIS",
+  "SUCCES",
+  "INFO",
+  "SEPARATEUR",
+  "COMBAT_TACTIQUE",
+  "COMBAT_SEMI_TACTIQUE",
+] as const;
+
 const RushImportBlockSchema = z.object({
   title: z.string().trim().min(1).max(200),
   order: z.number().int().min(0).max(1000).optional(),
+  // Métadonnées du bloc : bornées ici, validées à l'écriture (image, liens, hex).
+  type: z.enum(RUSH_IMPORT_BLOCK_TYPES).optional(),
+  chapter: z.number().int().min(0).max(1000).optional(),
+  chapterLabel: z.string().trim().max(200).nullish(),
+  description: z.string().max(8000).nullish(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
+  imageUrl: z.string().trim().max(1000).nullish(),
+  tips: z.string().max(4000).nullish(),
+  links: z
+    .array(z.object({ label: z.string().trim().min(1).max(120), url: z.string().trim().max(500) }))
+    .max(10)
+    .optional(),
+  dofusId: z.string().trim().max(64).nullish(),
+  isOptional: z.boolean().optional(),
   sequences: z.array(RushImportSequenceSchema).max(80),
 });
 
@@ -4814,7 +4864,14 @@ export async function importRushGuide(raw: unknown, apply = false) {
   const guide = await getOrCreateRushSylvestreGuide();
   if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
 
-  const knownDungeonIds = new Set((await db.dungeon.findMany({ select: { id: true } })).map((d) => d.id));
+  const allDungeons = await db.dungeon.findMany({ select: { id: true, dofusdbId: true } });
+  const knownDungeonIds = new Set(allDungeons.map((d) => d.id));
+  const dungeonByDofusDbId = new Map(
+    allDungeons
+      .filter((d): d is { id: string; dofusdbId: number } => d.dofusdbId != null)
+      .map((d) => [d.dofusdbId, d.id])
+  );
+  const knownDungeonDbIds = new Set(dungeonByDofusDbId.keys());
   const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
 
   const plan = planRushImport(
@@ -4826,7 +4883,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
         sequences: m.sequences.map((s) => ({ id: s.id, subGuideName: s.subGuideName })),
       })),
     },
-    { knownDungeonIds, knownClassIds }
+    { knownDungeonIds, knownDungeonDbIds, knownClassIds }
   );
 
   if (!apply) return { success: true as const, data: { dryRun: true as const, plan } };
@@ -4851,25 +4908,38 @@ export async function importRushGuide(raw: unknown, apply = false) {
   const payloadQueue = [...parsed.data.blocks];
 
   for (const blockPlan of plan.blocks) {
-    const newNames = new Set(blockPlan.sequences.filter((s) => s.status === "new").map((s) => importKey(s.name)));
-    if (newNames.size === 0) continue;
-
     const queueIndex = payloadQueue.findIndex((b) => importKey(b.title) === importKey(blockPlan.title));
     if (queueIndex < 0) continue;
     const payloadBlock = payloadQueue.splice(queueIndex, 1)[0];
+
+    const newNames = new Set(blockPlan.sequences.filter((s) => s.status === "new").map((s) => importKey(s.name)));
+    // Un bloc d'information (INFO, SEPARATEUR, DOFUS_OBTAINED, COMBAT_*) n'a pas de
+    // quête : `newNames` est vide, mais le bloc doit quand même être créé. Un bloc de
+    // quêtes vide reste écarté (aucun contenu à importer).
+    const isNewNonQuestBlock =
+      blockPlan.status === "new" &&
+      typeof payloadBlock.type === "string" &&
+      isRushNonQuestBlock(payloadBlock.type);
+    if (newNames.size === 0 && !isNewNonQuestBlock) continue;
 
     let milestoneId = blockPlan.existingMilestoneId;
     if (!milestoneId) {
       const created = await db.guideMilestone.create({
         data: {
           guideId: guide.id,
-          type: "QUETE_SERIE",
-          chapter,
-          chapterLabel,
+          type: payloadBlock.type ?? "QUETE_SERIE",
+          chapter: payloadBlock.chapter ?? chapter,
+          chapterLabel: payloadBlock.chapterLabel?.trim() || chapterLabel,
           title: blockPlan.title,
-          accentColor: "#10b981",
+          description: payloadBlock.description ?? null,
+          accentColor: payloadBlock.accentColor ?? "#10b981",
+          imageUrl: safeImageUrl(payloadBlock.imageUrl) || null,
+          tips: payloadBlock.tips ?? null,
+          // Forme bornée + allowlist d'URL, comme le studio (`rush-block-links`).
+          links: normalizeRushBlockLinks(payloadBlock.links),
+          dofusId: payloadBlock.dofusId ?? null,
           order: nextOrder,
-          isOptional: false,
+          isOptional: payloadBlock.isOptional ?? false,
         },
         select: { id: true },
       });
@@ -4901,17 +4971,41 @@ export async function importRushGuide(raw: unknown, apply = false) {
         alignLevelReq: sequence.alignLevelReq ?? null,
         classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
         // Variante exclusive : le tag `choice_group` (même convention que le studio).
-        activityTags: choiceGroupTag(sequence.choiceGroup) ?? [],
+        // Les tags du seed (ressources, combats, donjons, métiers) sont bornés par Zod.
+        activityTags: [
+          ...(choiceGroupTag(sequence.choiceGroup) ?? []),
+          ...(sequence.activityTags ?? []),
+        ],
         // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.
         dofusdbUrl: safeRushGuideLink("dofusdb", sequence.dofusdbUrl),
         dofuspourlesnoobsUrl: safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl),
         questDbIds: boundQuestDbIds(sequence.questDbIds),
-        dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
-        dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
-          (id) => knownDungeonIds.has(id) && (sequence.dungeonIds ?? []).includes(id)
-        ),
+        // Les ids DofusDB sont **portables** ; on résout le `Dungeon.id` de la base cible.
+        // Les ids locaux du payload restent acceptés pour les exports historique.
+        ...(() => {
+          const dungeonDbIds = (sequence.dungeonDbIds ?? []).filter((id) =>
+            dungeonByDofusDbId.has(id)
+          );
+          const resolvedDungeonIds = dungeonDbIds
+            .map((id) => dungeonByDofusDbId.get(id))
+            .filter((id): id is string => Boolean(id));
+          const uniqueDungeonIds = [
+            ...new Set([
+              ...(sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
+              ...resolvedDungeonIds,
+            ]),
+          ];
+          return {
+            dungeonIds: uniqueDungeonIds,
+            dungeonDbIds,
+            dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
+              (id) => knownDungeonIds.has(id) && uniqueDungeonIds.includes(id)
+            ),
+          };
+        })(),
         tips: sequence.tips ?? null,
         note: sequence.note ?? null,
+        isSuccess: sequence.isSuccess ?? false,
       });
       sequenceOrder += 1;
     }

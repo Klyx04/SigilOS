@@ -269,6 +269,11 @@ Les 16 alias de donjons (même donjon, slug différent) sont à trancher une foi
 une table de correspondance — ex. `caverne-de-kolosso` ↔ `caverne-du-koulosse`,
 `repaire-du-skeunk` ↔ `antre-du-skeunk`, `caverne-de-cire-momore`, `antre-du-crocabulia`.
 
+> ⚠️ **Mesure VPS du 17/11/2026** : `quests[].dungeonIds` = ids **DofusDB** (ex. `13` =
+> Donjon des Bworks), `quests[].dungeonOurIds` = `Dungeon.id` **locaux** de la Trame. Le
+> seed transporte les premiers (`dungeonDbIds`), jamais les seconds : l'import résout
+> `Dungeon.dofusdbId` sur la base cible (bêta `0f3a052e`, 494 séquences).
+
 
 
 ### 4.6 Contraintes par quête — inventaire exhaustif (Tougli, 1 085 entrées)

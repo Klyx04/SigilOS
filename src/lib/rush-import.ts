@@ -20,6 +20,17 @@
 
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { safeExternalUrl } from "@/lib/security";
+import type { RushMilestoneType } from "@/types/rush-guide-types";
+
+/** Tag d'activité borné (ressource, combat, donjon, métier, horaire…). */
+export type RushImportActivityTag = {
+    type: string;
+    name?: string;
+    level?: number;
+    count?: number;
+    id?: string;
+    quantity?: number;
+};
 
 export type RushImportSequence = {
     subGuideName: string;
@@ -34,17 +45,48 @@ export type RushImportSequence = {
     dofusdbUrl?: string | null;
     /** Lien DPLN (`dofuspourlesnoobs.com` uniquement) — première source du module. */
     dofuspourlesnoobsUrl?: string | null;
+    /** Ids **locaux** (`Dungeon.id`) — valables pour la base cible uniquement. */
     dungeonIds?: string[];
+    /**
+     * Ids **DofusDB** des donjons (stables entre environnements). Le serveur les résout
+     * vers `Dungeon.id` par `Dungeon.dofusdbId` : c'est le seul champ portable d'un
+     * poste local vers le VPS.
+     */
+    dungeonDbIds?: number[];
     dungeonOptionalIds?: string[];
     takeEarly?: boolean;
     isOptional?: boolean;
+    /** Étape de succès (icône trophée) — bloc `SUCCES` ou quête-succès. */
+    isSuccess?: boolean;
+    /** Ressources, combats, donjons, métiers, horaires — **infos**, jamais des blocages. */
+    activityTags?: RushImportActivityTag[];
     tips?: string | null;
     note?: string | null;
 };
 
+/**
+ * Un bloc importable — **typé** depuis le 17/11/2026.
+ *
+ * Le seed produit par la corrélation Tougli × Dofusyelle ne crée pas 57 blocs
+ * `QUETE_SERIE` : il porte le **type réel** (DOFUS, ALIGNEMENT, DONJON, INFO…), son
+ * chapitre et ses textes. L'import reste **additif** : un bloc déjà présent n'est
+ * jamais réécrit, seules ses quêtes manquantes sont ajoutées.
+ */
 export type RushImportBlock = {
     title: string;
     order?: number;
+    /** Type visuel du bloc (`GuideMilestoneType`). Défaut : `QUETE_SERIE`. */
+    type?: RushMilestoneType | string;
+    /** Chapitre visuel (regroupement) — défaut : celui du dernier bloc du guide. */
+    chapter?: number;
+    chapterLabel?: string | null;
+    description?: string | null;
+    accentColor?: string | null;
+    imageUrl?: string | null;
+    tips?: string | null;
+    links?: Array<{ label: string; url: string }> | null;
+    dofusId?: string | null;
+    isOptional?: boolean;
     sequences: RushImportSequence[];
 };
 
@@ -61,6 +103,8 @@ export type RushImportCurrent = {
 export type RushImportOptions = {
     /** Donjons connus (`Dungeon.id`) : un id inconnu est signalé, jamais deviné. */
     knownDungeonIds?: ReadonlySet<string>;
+    /** Donjons connus par id **DofusDB** (`Dungeon.dofusdbId`). */
+    knownDungeonDbIds?: ReadonlySet<number>;
     /** Classes connues (`classReq`) : même principe. */
     knownClassIds?: ReadonlySet<string>;
 };
@@ -199,6 +243,11 @@ export function planRushImport(
             for (const dungeonId of sequence.dungeonIds ?? []) {
                 if (options.knownDungeonIds && !options.knownDungeonIds.has(dungeonId)) {
                     sequenceWarnings.push(`Donjon inconnu « ${dungeonId} » : il sera ignoré.`);
+                }
+            }
+            for (const dungeonDbId of sequence.dungeonDbIds ?? []) {
+                if (options.knownDungeonDbIds && !options.knownDungeonDbIds.has(dungeonDbId)) {
+                    sequenceWarnings.push(`Donjon DofusDB ${dungeonDbId} inconnu : il sera ignoré.`);
                 }
             }
             // Liens externes : un refus n'arrête pas l'import (le lien est optionnel), mais

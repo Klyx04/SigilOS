@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 20) — **Rush · route iso Tougli × Yelle × DofusDex (démo)** — branche `feat/rush-iso-tougli`
+
+> **Demande user (verbatim)** : « je voulais proposer une démo à mes guildeux du module rush sylvestre fin de semaine … siphonne la route de tougli … si je choisis un cra … aucun alignement … que fait tougli et que faisons-nous … trouve le dofusdex … corrèle dofusyelle … fais moi rêver ».
+> **Mesure** : Tougli **383 objectifs / 530 quêtes / 11 choices** (19 classes, Bonta 100, Brâkmar 102, **Neutre = 1 quête `1316`**, 6 Ordres × 5) ; Dofusyelle **57 étapes / 392 quêtes / 81 succès / 83 donjons / 531 ressources**, **361/384** appariées par la Trame ; DofusDex du client : **30 progressions / 115 étapes / 109 prérequis / 783 objectifs / 0 non résolu** (types mesurés : 1=succès, 2=PNJ, 3=quête, 4=succès/donjon) ; le moteur laissait **19 quêtes de classe** visibles sans classe et **les deux cités** sans alignement.
+> **Fait** : ① `rush-route-scenarios.ts` (5 cas + plans de reset, 17 tests) + `alignReq="neutre"` dans `rush-route.ts` ; ② import God **typé** (type/chapitre/description/image/liens/`dofusId`/`isSuccess` + tags d'activité, blocs d'information vides) ; ③ `rush-trame-seed.ts` + `scripts/build-rush-trame-seed.ts` : spine **Tougli** (35 blocs / 523 séquences / 839 tags item / 9 DofusDex) et **Yelle** (56 blocs / 457 séquences / 375 ids / 81 succès / 598 tags / 23 DofusDex / 1 non appariée) ; ④ `scripts/siphon-dofusdex.py` + `public/game-data/dofusdex.json` (245 Ko, faits, aucune description Ankama) ; ⑤ checklist DofusDex sur les blocs portant un nom de Dofus (Domakuro = les 9 lignes de la capture ; **« Sang d'encre »**, pas « Song d'encre ») ; ⑥ `docs/reference/QUEST-PREREQUISITES.md` : Tougli 430/530 (492 arêtes, sans opérateur), DofusDex 109 prérequis **de Dofus**, client 990/1 984 (1 187 `Qf=`, **893 AND-only / 97 OR**), moteur `prereq_text` AND-only (301 tags par nom) — le seed n'importe pas les 492 en ET ; ⑦ **VPS bêta vérifié en lecture seule** (`0f3a052e`) : guide **494/238/32/19**, migrations à jour, `GameQuest` 1971/1960/2149/2197/1316/433 présents ; le code n'est **pas** déployé ; `dungeonOurIds` locaux non portables → seed changé en **`dungeonDbIds`** (DofusDB) + résolution `Dungeon.dofusdbId` à l'import (140/184/98 Tougli, 113/166/85 Yelle, **0 cuid local**).
+> **Preuves** : **66 tests ciblés** (scénarios 17 · route 15 · import 14 · import typé 6 · seed 14) ✅ · suite complète **757 fichiers / 7 922 tests ✅** · `npx tsc --noEmit` 0 · ESLint 0 erreur · payloads dans `src/temp/rush-seed/` (volatile) · DofusDex **0 non résolu**.
+> **Reste / ops** : brancher `resolveRushScenario` sur les **3 surfaces** (dashboard/public/overlay) ; **déployer le code en bêta (`deploy-cd.sh beta`) avant l'import** ; importer le seed dans God (dry-run → apply, **aucune migration**) ; choisir la cible du spine Yelle (guide existant ou guide cible) et contrôler les ids DofusDB inconnus au dry-run ; réécrire les **48 conseils Yelle** + 5 notes Tougli ; relier **Flovoraison** ; décider des types `RESSOURCES`/`SAVE_DONJON`/`DOFUSDEX`/`ORDRE`/`CONTRAINTE` (migration ⇒ accord) ; **`prereq_expr` ET/OU + import AND-only (97 quêtes OR) + backfill T-2c** ; contrôle visuel 390/768/1024/1440. Détail : `docs/plans/ROUTE-RUSH-ISO-TOUGLI.md` · références : `docs/reference/DOFUSDEX.md`, `docs/reference/QUEST-PREREQUISITES.md`.
+> **Rotation** : bloc « Session 16/11/2026 (suite 14) — Visiteurs · filtres de la fiche + fiches boss » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 17/11/2026 (suite 19) — **Missions & sondages · visuels, « Sans ping », embeds de clôture** — branche `feat/missions-sondages-artwork` (PR vers `dev`)
 
 > **Demande user (verbatim)** : « traite ce sujet en vérifiant chaque point … un commit par lot, une pr globale, go » — + vigilance « ne te base pas uniquement sur les sources siphonnées en local : c'est pas à jour, le vps l'est ».
@@ -54,14 +64,7 @@
 > **Rotation** : bloc « Session 16/11/2026 (suite 9) — God · lot C » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 16/11/2026 (suite 14) — **Visiteurs · filtres de la fiche + fiches boss (simulation, responsive)** — branche `feat/visiteur-fiche-complete` (PR #1414)
 
-> **Demandes user (verbatim)** : « la liste des succès des fiches lectures seules n'a aucun filtre c imbuvable idem avis · metier on balance tout d'un coup » · « les fiches boss pas de bloc simu mais actif pour les avis et ko responsive » · « Note dans le plan, le plan doit être à jour 100% pour reprendre dans une autre session ».
-> **Mesure** : la fiche V5 bis rendait 60 succès + 60 avis + 16 métiers d'un bloc, sans filtre ; `SpellRangeGrid` passait en 2 colonnes dès `lg` alors que le détail avis ne dispose que de ~880 px ⇒ débordement ; la fiche boss passait `knownSpellIds` **vide** à `mergeDofensiveSpells`, qui écartait tous les sorts Dofensive (aucun bloc simu).
-> **Fait** : `src/lib/visitor-profile-filters.ts` + `VisitorProfileLists` (recherche, personnage, donjon/zone, niveau, pagination 24, « Voir plus »), plafonds 200/120 ; `knownSpellIdsForMerge` branché page boss + client ; `SpellRangeGrid` et les 3 vues Succès empilent avant `2xl` ; i18n FR/EN ; verrous `visiteur-profile-filters`, `boss-simulation-spells`, `visiteur-page-perso`.
-> **Preuves** : suite **746 fichiers / 7 802 tests ✅** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : contrôle visuel 390/768/1024/1440 (fiche filtrée, avis, boss sans sorts locaux), migrations V4 bêta/prod, D4→D7.
-> **Rotation** : bloc « Session 16/11/2026 (suite 8) — Télémétrie · lot B » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

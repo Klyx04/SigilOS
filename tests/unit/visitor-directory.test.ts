@@ -294,7 +294,7 @@ describe("Annuaire des visiteurs — aucun champ privé ne sort", () => {
                             points: 30,
                             imageUrl: null,
                             challenge: { name: "Sans peur", slug: "sans-peur", iconUrl: null },
-                            dungeon: { name: "Donjon des Tofus" },
+                            dungeon: { name: "Donjon des Tofus", imageUrl: null },
                         },
                     },
                 ],

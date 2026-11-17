@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import {
@@ -28,17 +29,36 @@ export function VisitorProfileCard({
     profile,
     labels,
     locale,
+    ocrePercent = null,
 }: {
     profile: VisitorProfile;
     labels: Translations["visitorsPage"];
     locale: Locale;
+    /** % Ocre du lecteur, seulement quand la fiche est la sienne (la clé Metamob reste privée). */
+    ocrePercent?: number | null;
 }) {
     const dateLocale = locale === "en" ? enUS : fr;
     const summary = [
-        { label: labels.profile.level, value: formatDofusLevel(profile.level) },
-        { label: labels.profile.successPoints, value: profile.successPoints ?? "—" },
-        { label: labels.profile.achievements, value: profile.achievements },
-        { label: labels.profile.bounties, value: profile.bountiesDone },
+        {
+            label: labels.profile.level,
+            value: formatDofusLevel(profile.level),
+            icon: "/assets/dofus/game-icons/experience.png",
+        },
+        {
+            label: labels.profile.successPoints,
+            value: profile.successPoints ?? "—",
+            icon: "/assets/dofus/game-icons/trophy-1.png",
+        },
+        {
+            label: labels.profile.achievements,
+            value: profile.achievements,
+            icon: "/assets/dofus-ui/pictos/donjon.png",
+        },
+        {
+            label: labels.profile.bounties,
+            value: profile.bountiesDone,
+            icon: "/assets/avis/avitons.png",
+        },
     ];
 
     return (
@@ -91,7 +111,8 @@ export function VisitorProfileCard({
                             key={item.label}
                             className="min-w-0 rounded-lg border border-border bg-background/60 px-3 py-2.5"
                         >
-                            <dt className="text-[11px] leading-tight text-muted-foreground">
+                            <dt className="flex items-center gap-1.5 text-[11px] leading-tight text-muted-foreground">
+                                <GameIcon src={item.icon} className="size-3.5" />
                                 {item.label}
                             </dt>
                             <dd className="reg-mono mt-1 text-lg font-semibold text-foreground">
@@ -262,7 +283,13 @@ export function VisitorProfileCard({
             {profile.metamob ? (
                 <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
                     <h2 className="reg-eyebrow flex items-center gap-2">
-                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                        <Image
+                            src="/assets/metamob/favicon.png"
+                            alt=""
+                            width={14}
+                            height={14}
+                            className="size-3.5 rounded-[3px] object-contain"
+                        />
                         {labels.profile.metamob}
                     </h2>
                     <a
@@ -277,6 +304,14 @@ export function VisitorProfileCard({
                     <p className="mt-1 text-xs text-muted-foreground">
                         {labels.profile.metamobVerified}
                     </p>
+                    {ocrePercent !== null ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {labels.profile.metamobOcreProgress.replace(
+                                "{n}",
+                                String(ocrePercent)
+                            )}
+                        </p>
+                    ) : null}
                 </section>
             ) : null}
         </>

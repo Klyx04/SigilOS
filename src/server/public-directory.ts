@@ -186,7 +186,7 @@ const PROFILE_SELECT = {
                     points: true,
                     imageUrl: true,
                     challenge: { select: { name: true, slug: true, iconUrl: true } },
-                    dungeon: { select: { name: true } },
+                    dungeon: { select: { name: true, imageUrl: true } },
                 },
             },
         },

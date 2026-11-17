@@ -286,7 +286,7 @@ export type VisitorProfileRow = Omit<VisitorDirectoryRow, "_count"> & {
             points: number;
             imageUrl: string | null;
             challenge: { name: string; slug: string | null; iconUrl: string | null };
-            dungeon: { name: string };
+            dungeon: { name: string; imageUrl: string | null };
         };
     }>;
     /** Avis cochés, bornés par `PUBLIC_PROFILE_BOUNTIES_TAKE`. */
@@ -354,6 +354,8 @@ export type VisitorAchievement = {
     points: number;
     iconUrl: string | null;
     dungeonName: string;
+    /** Illustration du donjon (chemin local ou proxy) — sert d'icône dans la liste. */
+    dungeonImageUrl: string | null;
     characterSlot: string;
 };
 
@@ -515,6 +517,7 @@ export function toVisitorProfile(
             points: entry.dungeonAchievement.points,
             iconUrl: getDungeonAchievementIconUrl(entry.dungeonAchievement),
             dungeonName: entry.dungeonAchievement.dungeon.name,
+            dungeonImageUrl: entry.dungeonAchievement.dungeon.imageUrl ?? null,
             characterSlot: entry.characterSlot,
         })),
         bountyList: row.bountyCompletions.map((entry) => ({

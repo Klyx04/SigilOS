@@ -50,6 +50,7 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             bounty: null,
             q: "",
             type: null,
+            liste: null,
         });
         expect(parseVisitorsHubSearch({ vue: "wow" }).vue).toBe("profils");
     });
@@ -61,6 +62,7 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             bounty: null,
             q: "",
             type: null,
+            liste: null,
         });
         expect(
             parseVisitorsHubSearch({ vue: "succes", donjon: "tournesol-affame", q: "  tour  " })
@@ -70,10 +72,11 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             bounty: null,
             q: "tour",
             type: null,
+            liste: "donjons",
         });
         expect(
             parseVisitorsHubSearch({ vue: "echanges", donjon: "tournesol-affame", q: "tour" })
-        ).toEqual({ vue: "echanges", donjon: null, bounty: null, q: "", type: null });
+        ).toEqual({ vue: "echanges", donjon: null, bounty: null, q: "", type: null, liste: null });
     });
 
     it("lit l'avis sélectionné dans la vue succès, et rien ailleurs", () => {
@@ -85,9 +88,25 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             bounty: "ronce-123",
             q: "ronce",
             type: null,
+            liste: "avis",
         });
         expect(parseVisitorsHubSearch({ vue: "succes", avis: "../../etc" }).bounty).toBeNull();
         expect(parseVisitorsHubSearch({ vue: "echanges", avis: "ronce-123" }).bounty).toBeNull();
+    });
+
+    it("un ancien lien avec donjon ET avis garde l'avis, jamais les deux détails", () => {
+        const parsed = parseVisitorsHubSearch({
+            vue: "succes",
+            donjon: "directeur-grunob",
+            avis: "ambi-guman",
+        });
+        expect(parsed.liste).toBe("avis");
+        expect(parsed.donjon).toBe("directeur-grunob");
+        expect(parsed.bounty).toBe("ambi-guman");
+        // Le filtre explicite reste prioritaire : `liste=donjons` garde la liste des donjons.
+        expect(
+            parseVisitorsHubSearch({ vue: "succes", liste: "donjons", avis: "ambi-guman" }).liste
+        ).toBe("donjons");
     });
 
     it("ne garde le filtre de type que dans la vue échanges", () => {
@@ -128,8 +147,8 @@ describe("Recherche du hub — bornée, jamais bloquante", () => {
             buildVisitorsHubHref({ vue: "succes", donjon: "tournesol-affame", q: "tour" })
         ).toBe("/visiteurs?vue=succes&donjon=tournesol-affame&q=tour");
         expect(
-            buildVisitorsHubHref({ vue: "succes", bounty: "ronce-123", q: "ronce" })
-        ).toBe("/visiteurs?vue=succes&avis=ronce-123&q=ronce");
+            buildVisitorsHubHref({ vue: "succes", bounty: "ronce-123", liste: "avis", q: "ronce" })
+        ).toBe("/visiteurs?vue=succes&avis=ronce-123&liste=avis&q=ronce");
     });
 });
 
@@ -291,6 +310,7 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
                 selected: { dungeon: DUNGEON, board },
                 bounties: [],
                 selectedBounty: null,
+                liste: "donjons",
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -320,6 +340,7 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
                 selected: { dungeon: DUNGEON, board },
                 bounties: [],
                 selectedBounty: null,
+                liste: "donjons",
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -340,6 +361,7 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
                 selected: { dungeon: DUNGEON, board },
                 bounties: [],
                 selectedBounty: null,
+                liste: "donjons",
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -405,6 +427,7 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
                 selected: null,
                 bounties: [bounty],
                 selectedBounty: { bounty, board },
+                liste: "avis",
                 search: "",
                 labels: fr.visitorsPage,
             })
@@ -413,6 +436,49 @@ describe("Rendu — le hub dit qui a validé, et borne l'affichage", () => {
         expect(html).toContain("Ronce");
         expect(html).toContain("Déjà validé");
         expect(html).toContain("Cherchent encore");
+    });
+
+    it("une seule liste et un seul détail : le filtre bascule, il n'empile pas", () => {
+        const dungeonBoard = buildSharedSuccesBoard({
+            achievements: ACHIEVEMENTS,
+            doneRows: [],
+            visitors: MEMBERS,
+        });
+        const bounty = {
+            id: "b1",
+            name: "Ronce",
+            level: 100,
+            zoneName: "Amakna",
+            slug: "ronce",
+            imageUrl: null,
+        };
+        const bountyBoard = buildSharedBountyBoard({
+            bounty,
+            doneRows: [],
+            visitors: MEMBERS,
+        });
+        const base = {
+            dungeons: [DUNGEON],
+            selected: { dungeon: DUNGEON, board: dungeonBoard },
+            bounties: [bounty],
+            selectedBounty: { bounty, board: bountyBoard },
+            search: "",
+            labels: fr.visitorsPage,
+        };
+
+        const donjonsHtml = renderToStaticMarkup(
+            React.createElement(SharedSuccesView, { ...base, liste: "donjons" as const })
+        );
+        expect(donjonsHtml).toContain("Tournesol Affamé");
+        expect(donjonsHtml).not.toContain("Ronce");
+        expect(donjonsHtml).toContain("liste=avis");
+
+        const avisHtml = renderToStaticMarkup(
+            React.createElement(SharedSuccesView, { ...base, liste: "avis" as const })
+        );
+        expect(avisHtml).toContain("Ronce");
+        expect(avisHtml).not.toContain("Tournesol Affamé");
+        expect(avisHtml).toContain("liste=avis");
     });
 });
 

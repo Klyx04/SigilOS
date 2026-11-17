@@ -111,7 +111,9 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 **Ordre** : **D1 → D4 livrés** (D1–D3 le 16/11/2026, D4 le 25/09/2026) ; reste **D5 → D6 → D7**. **D8/D9** sont des vérifications humaines, à faire dès que possible.
 
-## 2 quater. Visiteurs — avis, personnages et personnalisation (livré le 16/11/2026)
+**Visiteurs** : **V4 → V9 livrés côté code** ; les migrations V4 (`PublicBountyCompletion`, `UserBountyCompletion`, `characterSlot`) restent à jouer en **bêta puis prod**.
+
+## 2 quater. Visiteurs — avis, personnages et personnalisation (V4→V9, livrés les 16-17/11/2026)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
@@ -119,7 +121,8 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | V5 | `visiteur-page-perso` | Page perso et fiche lecture seule personnalisées | **livré le 16/11/2026** : hero classe/serveur/guilde, compteurs réels (succès et avis distincts, tous personnages), visibilité, raccourcis ; **V5 bis** fiche `/visiteurs/[id]` : listes de succès et d'avis plafonnées, mules, activités, Rush si `showRushProgress`, Metamob vérifié ; clé et `userId` jamais exposés | — | idem |
 | V6 | `visiteur-filtres-hover` | Survol et sélection des filtres `/visiteurs` | **livré le 16/11/2026** : `hover:bg-surface` invisible sur `.reg-panel` corrigé en `elevated/60`, ring actif, focus visible | — | idem |
 | V7 | `ocre-parite-visiteur` | Carte « Quête de l'Éternelle Moisson » du visiteur alignée sur l'interne (possession et synchro) | **livré le 16/11/2026** : `owned` normalisé (`normalizeQuestMonster`), comptage commun (`isOcreMonsterNeeded`), `OCRE_TOTAL_STEPS = 34`, « Forcer la synchro » avec `skipCache`/`revalidate: 0`, relecture du patch sans cache + `revalidateTag` par pseudo ; verrou `ocre-possession-parity` | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
-| V8 | `visiteur-fiche-filtres` | Filtres des listes de la fiche visiteur (succès, avis, métiers) | **livré le 16/11/2026** : `visitor-profile-filters` (recherche accent-insensible, personnage, donjon/zone, niveau minimum), `VisitorProfileLists` paginé par 24 avec « Voir plus », plafonds 200/120, i18n FR/EN ; verrou `visiteur-profile-filters` | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
+| V8 | `visiteur-fiche-filtres` | Filtres des listes de la fiche visiteur (succès, avis, métiers) | **livré le 16/11/2026** : `visitor-profile-filters` (recherche accent-insensible, personnage, donjon/zone, niveau minimum), `VisitorProfileLists` paginé par 24 avec « Voir plus », plafonds 200/120, i18n FR/EN ; verrou `visiteur-profile-filters`. **Complété le 17/11/2026 (#1417)** : tableaux denses succès/avis, tri donjon/zone/nom/points/niveau, combobox donjon/zone recherchable, **filtre donjon obligatoire** (sinon « N donjons » + consigne, plus de mur), image du donjon, icônes/assets des cartes de synthèse, favicon Metamob + % Ocre du lecteur | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
+| V9 | `succes-communs-filtre` | Hub `/visiteurs?vue=succes` : avis et donjons dans **une seule** zone maître-détail | **livré le 17/11/2026** (#1417) : filtre d'URL `?liste=avis` (avis prioritaire sur un ancien lien mixte), plus d'avis empilés sous les donjons, recherche `q` partagée, verrou `visitors-hub` | — | `docs/plans/PLAN-ESPACE-VISITEUR.md` |
 
 ## 2 quinquies. Fiches publiques — retours du 16/11/2026
 

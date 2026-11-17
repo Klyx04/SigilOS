@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 16) — **Visiteurs · avis/donjons dans un seul filtre, fiches concises et assets** — branche `feat/visiteurs-listes-concises` (PR #1417)
+
+> **Demandes user (verbatim)** : « au lieu de mettre les avis sous les dj ... on peut pas les mettre dans un filtre plutôt avec les dj » · « on peut pas laisser des pavé de succès comme ca et le drop down de dj, faut un meilleur tri plus concis idem pour les avis » · « t'as pas mis les assetsd » · « metamob faudrait la favicon du site etc et une idée du % de complétion de la quete si liée ».
+> **Mesure** : `/visiteurs?vue=succes` rendait deux master-détails (donjons puis avis) ; `?donjon` + `?avis` pouvaient coexister ; la fiche lecture seule affichait 2 colonnes de cartes et un `Select` de tous les donjons ; le DTO `VisitorAchievement` n'avait pas l'image du donjon ; les cartes de synthèse et Metamob n'avaient pas d'asset ; `getPublicOcreProgress()` est **lecteur-scopé** (clé Metamob privée).
+> **Fait** : `?liste=avis` + zone maître-détail unique (avis prioritaire sur un ancien lien mixte), `SharedSuccesView` sans section empilée ; fiches lecture seule en **tableaux denses**, tri donjon/zone/nom/points/niveau, combobox donjon/zone **recherchable**, **filtre donjon obligatoire** (sinon « N donjons » + consigne, plus de mur de 200 lignes) ; `dungeonImageUrl` ajouté au DTO public + select ; assets Dofus sur les cartes de synthèse (expérience, trophée, donjon, aviton) et les sections ; favicon Metamob local ; **% Ocre seulement sur sa propre fiche** (aucune donnée d'un autre visiteur, aucune clé).
+> **Preuves** : **746 fichiers / 7 809 tests ✅** · `tsc` 0 · ESLint 0 erreur · audit sécurité vert · métadonnées **0** · CI **7m48** · `Build & Push` bêta **11m35** · PR **#1417** mergée, `dev @ 721d71bb`.
+> **Reste / ops** : contrôle visuel 390/768/1024/1440/1536 de la fiche ; migrations V4 bêta/prod ; **D5** (G1/G2, sans `/god/users`), puis D6/D7 ; D8/D9.
+> **Rotation** : bloc « Session 16/11/2026 (suite 10) — Reprise D1/D2/D3 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 17/11/2026 (suite 15) — **Simulateur · seuil conteneur, cadres de la fiche avis et reprise du plan God** — branche `fix/simulation-responsive-conteneur` (PR #1415)
 
 > **Demande user (verbatim)** : « ya un vrai pb avec le simulateur non responsive qui sort à droite » puis « pl ya autant de contour ».
@@ -57,15 +67,6 @@
 > **Reste / ops** : jouer les migrations en **bêta puis prod** (`prisma migrate deploy`) ; contrôle visuel 390/768/1024/1440 de la page perso, de la fiche `/visiteurs/[id]`, du sélecteur de personnage et du filtre avis ; D4→D7 inchangés.
 > **Rotation** : bloc « Session 16/11/2026 (suite 5) — Stats · restes soldés » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 16/11/2026 (suite 10) — **Reprise D1/D2/D3 : Discord SigilOS, rangs explicites, annuaire multi-serveurs** — branches `feat/discord-sigilos`, `fix/ladder-libelles`, `feat/visiteurs-filtre-serveur`
-
-> **Demande user (verbatim)** : « Commence par D1 et D2 (XS), puis D3. »
-> **Mesure** : `discord.gg/uX7G6SUDgN` résout la guilde **SigilOS** ; `/discord` (`BMVvXpYHEt`) résout **STELLIUM** (nom interne). `#364` = rang du worker Ladder **Ankama** ; `#13` = `getLadderPreview` (membres ACTIFs avec plus de points + 1), pas un rang Ankama. `/visiteurs` figeait `dofusServerId: viewer.serverId` dans la liste **et** la fiche : explorer un autre serveur aurait rendu un 404 par profil.
-> **Fait** : **D1** — `src/lib/discord-invite.ts` (env + repli), lien « Discord » à côté de Documentation (rangée en `flex-wrap` pour la sidebar à 232 px), bouton « Rejoindre le Discord » sur Tickets (cible 44 px), verrou `discord-sigilos-links` 3 tests. **D2** — `src/lib/ladder-rank.ts` (`formatRankOrdinal` déterministe U+202F : `364ᵉ`, `1ᵉʳ`, `—`), libellés « Rang succès » / « Rang interne » + info-bulles, carte en `flex-wrap` (390 px), verrou 3 tests. **D3** — `serverId` borné 1..9999 + `all`, serveur du lecteur en défaut, consentement `showOnDirectory` **global** (liste **et** fiche), menu serveur avec icônes `ALL_DOFUS_SERVER_ENTRIES`, colonne Serveur (sous le pseudo en mobile), pagination qui préserve `serverId`, i18n FR/EN, texte de consentement explicite, plan D-V18 révisé, 81 ciblés.
-> **Preuves** : suite **739 fichiers / 7 752 tests ✅** · `tsc` 0 · ESLint 0 erreur · PR **#1405**, **#1406**, **#1407** mergées · aucune migration, aucun secret, aucun cron.
-> **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de la sidebar, de la page Tickets et de `/visiteurs` (menu serveur + colonne) ; vérifier le post-merge `Build & Push` bêta ; D4→D7 inchangés.
-> **Rotation** : bloc « Session 16/11/2026 (suite 4) — Visiteur · guide Rush » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

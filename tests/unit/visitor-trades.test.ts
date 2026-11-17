@@ -348,6 +348,7 @@ describe("Bascule du hub — la troisième vue a son URL", () => {
             bounty: null,
             q: "",
             type: null,
+            liste: null,
         });
         expect(parseVisitorsHubSearch({ vue: "echanges", type: "boss" }).type).toBe("boss");
         expect(buildVisitorsHubHref({ vue: "echanges" })).toBe("/visiteurs?vue=echanges");

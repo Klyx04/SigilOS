@@ -48,6 +48,10 @@ export const SHARED_SUCCES_MEMBERS_SHOWN = 12;
 
 export type VisitorsHubTradeType = "boss" | "archimonstre";
 
+/** Filtre de la vue « succes » : la même zone maître-détail montre les donjons ou les avis. */
+export const VISITORS_HUB_SUCCES_LISTS = ["donjons", "avis"] as const;
+export type VisitorsHubSuccesList = (typeof VISITORS_HUB_SUCCES_LISTS)[number];
+
 export type VisitorsHubSearch = {
     vue: VisitorsHubView;
     /** Donjon sélectionné (slug ou id) — seulement dans la vue « succes ». */
@@ -58,6 +62,11 @@ export type VisitorsHubSearch = {
     q: string;
     /** Filtre de la vue « echanges » : Boss / Archimonstres. */
     type: VisitorsHubTradeType | null;
+    /**
+     * Filtre de la vue « succes » : `donjons` (défaut) ou `avis`. Une seule liste et un
+     * seul détail sont rendus — jamais les avis empilés sous les donjons.
+     */
+    liste: VisitorsHubSuccesList | null;
 };
 
 const RAW_SEARCH_MAX = SHARED_SUCCES_SEARCH_MAX * 10;
@@ -115,9 +124,21 @@ export function parseVisitorsHubSearch(
     const type: VisitorsHubTradeType | null =
         rawType === "boss" || rawType === "archimonstre" ? rawType : null;
 
-    if (vue !== "succes" && vue !== "echanges") return { vue, donjon: null, bounty: null, q: "", type: null };
-    if (vue === "succes") return { vue, donjon, bounty, q, type: null };
-    return { vue, donjon: null, bounty: null, q: "", type };
+    const rawListe = first(raw?.liste);
+    const listeParam = VISITORS_HUB_SUCCES_LISTS.includes(rawListe as VisitorsHubSuccesList)
+        ? (rawListe as VisitorsHubSuccesList)
+        : null;
+
+    if (vue !== "succes" && vue !== "echanges") {
+        return { vue, donjon: null, bounty: null, q: "", type: null, liste: null };
+    }
+    if (vue === "succes") {
+        // Un ancien lien peut porter `donjon` ET `avis` : l'avis sélectionné est le
+        // dernier geste, il gagne ; le filtre `liste` explicite reste prioritaire.
+        const liste = listeParam ?? (bounty ? "avis" : "donjons");
+        return { vue, donjon, bounty, q, type: null, liste };
+    }
+    return { vue, donjon: null, bounty: null, q: "", type, liste: null };
 }
 
 /**
@@ -131,12 +152,15 @@ export function buildVisitorsHubHref(input: {
     bounty?: string | null;
     q?: string | null;
     type?: VisitorsHubTradeType | null;
+    /** Vue « succes » : `avis` est explicite ; `donjons` est le défaut (omis de l'URL). */
+    liste?: VisitorsHubSuccesList | null;
 }): string {
     const params = new URLSearchParams();
     if (input.vue !== "profils") params.set("vue", input.vue);
     if (input.vue === "succes") {
         if (input.donjon) params.set("donjon", input.donjon);
         if (input.bounty) params.set("avis", input.bounty);
+        if (input.liste === "avis") params.set("liste", "avis");
         if (input.q) params.set("q", input.q);
     }
     if (input.vue === "echanges" && input.type) params.set("type", input.type);

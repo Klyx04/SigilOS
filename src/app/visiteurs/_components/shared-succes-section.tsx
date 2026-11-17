@@ -10,9 +10,9 @@ import type { Translations } from "@/lib/i18n/locales/fr";
 import { SharedSuccesView } from "./shared-succes-view";
 
 /**
- * Section serveur des succès en commun : deux lectures **indépendantes** partent ensemble
- * (la liste des donjons et, si un donjon est sélectionné, son tableau). Un refus de la
- * base remonte à l'`error.tsx` du segment — jamais une liste vide trompeuse.
+ * Section serveur des succès en commun : les listes de donjons et d'avis partent ensemble
+ * (la recherche `q` s'applique aux deux) ; seul le tableau de la liste **active** est chargé.
+ * Un refus de la base remonte à l'`error.tsx` du segment — jamais une liste vide trompeuse.
  */
 export async function SharedSuccesSection({
     viewer,
@@ -23,13 +23,14 @@ export async function SharedSuccesSection({
     hub: VisitorsHubSearch;
     labels: Translations["visitorsPage"];
 }) {
+    const liste = hub.liste ?? "donjons";
     const [dungeons, selected, bounties, selectedBounty] = await Promise.all([
         listSharedSuccesDungeons(hub.q),
-        hub.donjon
+        liste === "donjons" && hub.donjon
             ? getSharedSuccesDungeonBoard(viewer, hub.donjon)
             : Promise.resolve(null),
         listSharedSuccesBounties(hub.q),
-        hub.bounty
+        liste === "avis" && hub.bounty
             ? getSharedBountyBoard(viewer, hub.bounty)
             : Promise.resolve(null),
     ]);
@@ -40,6 +41,7 @@ export async function SharedSuccesSection({
             selected={selected}
             bounties={bounties}
             selectedBounty={selectedBounty}
+            liste={liste}
             search={hub.q}
             labels={labels}
         />

@@ -503,7 +503,7 @@ function buildTougliBlocks(
     // Chapitres de 6 blocs : l'ordre chronologique de la Trame reste lisible dans la
     // timeline. Six chapitres ≈ les grandes phases du rush, pas 36 chapitres d'un bloc.
     const chapter = Math.ceil((blockIndex + 1) / 6);
-    const chapterLabel = `Tougli — partie ${chapter}`;
+    const chapterLabel = `Route Sylvestre — partie ${chapter}`;
     const type = typeForTougliBlock(title);
     const sequences: RushImportSequence[] = [];
     const notes: string[] = [];
@@ -590,14 +590,14 @@ function buildTougliBlocks(
     seenTitles.add(uniqueTitle.toLowerCase());
 
     if (notes.length > 0) {
-      tipsToWrite.push({ step: null, title: uniqueTitle, category: "Touglie", lines: notes.length });
+      tipsToWrite.push({ step: null, title: uniqueTitle, category: "Route Sylvestre", lines: notes.length });
     }
 
     for (const sequence of sequences) {
       resources += (sequence.activityTags ?? []).filter((tag) => tag.type === "item").length;
     }
 
-    const description = `Route Tougli — ${title} · ${sequences.length} quête(s)${notes.length ? ` · ${notes.length} note(s) à réécrire` : ""}.`;
+    const description = `Route Sylvestre — ${title} · ${sequences.length} quête(s)${notes.length ? ` · ${notes.length} note(s) à réécrire` : ""}.`;
     const block: RushImportBlock = {
       title: uniqueTitle,
       type,
@@ -729,7 +729,7 @@ function buildYelleBlocks(
           push({
             subGuideName: questTitle || "Quête sans id",
             questDbIds: [],
-            note: "Quête Dofusyelle non appariée — à relier dans le studio.",
+            note: "Quête non appariée — à relier dans le studio.",
             isSuccess: false,
             activityTags: [],
           })
@@ -814,7 +814,7 @@ function buildYelleBlocks(
 
     const pushedSuccesses = sequences.filter((sequence) => sequence.isSuccess).length;
     const description =
-      `Route Dofusyelle — ${category} · ${(step.quetes ?? []).length} quête(s), ` +
+      `Route Sylvestre — ${category} · ${(step.quetes ?? []).length} quête(s), ` +
       `${pushedSuccesses} succès, ${dungeonNames.length} donjon(s).` +
       (dungeonNames.length ? ` Donjons : ${dungeonNames.join(", ")}.` : "");
 

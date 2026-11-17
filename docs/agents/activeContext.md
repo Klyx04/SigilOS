@@ -5,6 +5,17 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 15) — **Simulateur · seuil conteneur, cadres de la fiche avis et reprise du plan God** — branche `fix/simulation-responsive-conteneur` (PR #1415)
+
+> **Demande user (verbatim)** : « ya un vrai pb avec le simulateur non responsive qui sort à droite » puis « pl ya autant de contour ».
+> **Mesure** : `SpellRangeGrid` passait en côte à côte à `2xl` (fenêtre ≥ 1536 px) alors que la fiche avis ne lui laisse que ~700 px (`max-w-6xl` − colonne de 340 px) : le rail de 384 px écrasait le plateau. La fiche empilait aussi une seconde carte et la légende gardait le style flottant `board`.
+> **Fait** : seuil **conteneur** (`@container` + `@5xl` = 64 rem) pour le plateau et le rail ; prop `embedded` (fiche avis/monstre) qui supprime la seconde carte ; légende `full` dans le rail ; barre, puce du sort et badges sans bordures redondantes ; verrous `boss-simulation-spells` et `sim-tactique-rangement` mis à jour.
+> **Preuves** : **746 fichiers / 7 804 tests ✅** · `tsc` 0 · ESLint 0 erreur · audit sécurité vert · CSS dev contient `@container (min-width: 64rem)`.
+> **Reprise** : **D4 est déjà livré** (#752, 25/09/2026) — la ligne `ROADMAP` a été corrigée ; la reprise du plan God commence à **D5** (G1 glossaire + G2 tour de contrôle ; G9 re-mesuré : pas de route `/god/users`, surface dans `?tab=tickets`).
+> **Reste / ops** : contrôle visuel 390/768/1024/1440/1536+ de la fiche avis ; `Build & Push` bêta post-#1415 ; aucune migration, aucun secret.
+> **Rotation** : bloc « Session 16/11/2026 (suite 9) — God · lot C » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 16/11/2026 (suite 14) — **Visiteurs · filtres de la fiche + fiches boss (simulation, responsive)** — branche `feat/visiteur-fiche-complete` (PR #1414)
 
 > **Demandes user (verbatim)** : « la liste des succès des fiches lectures seules n'a aucun filtre c imbuvable idem avis · metier on balance tout d'un coup » · « les fiches boss pas de bloc simu mais actif pour les avis et ko responsive » · « Note dans le plan, le plan doit être à jour 100% pour reprendre dans une autre session ».
@@ -56,14 +67,5 @@
 > **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de la sidebar, de la page Tickets et de `/visiteurs` (menu serveur + colonne) ; vérifier le post-merge `Build & Push` bêta ; D4→D7 inchangés.
 > **Rotation** : bloc « Session 16/11/2026 (suite 4) — Visiteur · guide Rush » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 16/11/2026 (suite 9) — **God · lot C : vue d'ensemble allégée, SSE supprimé, cartes tokenisées** — branche `feat/god-overview`
-
-> **Décision user (verbatim)** : « GO LOT B ET C l'un après l'autre enchaine 2 pr ».
-> **Mesure** : `getPlatformActivityStats` chargeait **tous les `User`** + **tous les `AuditLog`** des 30 j en mémoire ; `getPlatformStats` = 10 `count()` repoussés toutes les 5 s par onglet ouvert (172 800 comptages/jour/onglet) ; `announcement-panel` **102 motifs**, `worker-tester` **40**, `page.tsx` 56.
-> **Fait** : **C1** — « Indicateurs plateforme » et « Activité de la plateforme » supprimées, `LiveStats`/`ActivityChart`/`god-live-stats.ts`/SSE/`getPlatformStats`/`getPlatformActivityStats` supprimés (−1 161 lignes), `SystemHealthDashboard` conservée. **C2** — bandeau compact « Pilotage » (phrase, horodatage Europe/Paris, lien Journaux via `godRoute`), fallback tokenisé sans `animate-pulse`. **C3** — `AnnouncementPanel` en deux cartes (« Bandeau du dashboard » / « Broadcast Discord ») et `WorkerTester` en carte compacte « Synchronisation & diagnostic », mêmes actions et champs. **C4** — santé tokenisée (0 motif) et polling **en pause** quand `document.visibilityState === "hidden"`, reprise + refresh au retour.
-> **Preuves** : **739 fichiers / 7 744 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés : `god-overview` 4, `god-overview-tabs-render` 3, `god-overview-deslop` 4, `god-deslop` 4 · plafond de fichiers God **81 → 79**.
-> **Reste / ops** : contrôle visuel humain 390/768/1024/1440 de `?tab=overview` ; aucune migration, aucun secret. Le SSE disparaît : plus aucune requête de stats toutes les 5 s depuis l'overview.
-> **Rotation** : bloc « Session 16/11/2026 (suite 3) — Visiteur · entrée guidée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

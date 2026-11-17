@@ -102,14 +102,14 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | D1 | `discord-stellium` | Bouton « Discord SigilOS » en interne guilde (sidebar + page Tickets) | **livré le 16/11/2026** : mesure API Discord (`uX7G6SUDgN` → guilde SigilOS ; `/discord` → STELLIUM, nom interne), 2 liens via `NEXT_PUBLIC_DISCORD_INVITE_URL` (`src/lib/discord-invite.ts`), rangée sidebar en `flex-wrap` (232 px), cible 44 px sur Tickets, verrou 3 tests | — | amorce locale `src/temp/amorce-reprise-2026-11-16-god-chantiers.md` (non versionnée) |
 | D2 | `ladder-libelles` | `#364` / `#13` : rangs explicites | **livré le 16/11/2026** : « Rang succès » (Ankama) / « Rang interne » (SigilOS), ordinal déterministe U+202F (`364ᵉ`, `1ᵉʳ`, `—`), info-bulles, carte en `flex-wrap` (390 px), verrou 3 tests | — | idem |
 | D3 | `visiteurs-filtre-serveur` | `/visiteurs` : serveur du lecteur par défaut + dropdown pour explorer (option 2) ; consentement global | **livré le 16/11/2026** : `serverId` borné 1..9999 + `all`, défaut lecteur, consentement `showOnDirectory` global (liste **et** fiche), menu serveur `ALL_DOFUS_SERVER_ENTRIES`, colonne Serveur (sous le pseudo en mobile), i18n FR/EN, plan D-V18 révisé, 81 ciblés | — | idem |
-| D4 | `god-lot4` | Lot 4 « Le God voit tout » (G7/A4/A5) | plan God vivant ; G4 livré, fiche guilde refondue | lot 4 | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` |
-| D5 | `god-lot5` | Lot 5 : langage, tour de contrôle, roster, RBAC, users (G1/G2/G3/G5/G9) | roster/RBAC faits dans la fiche ; reste `/god` et `/god/users` | lot 5 | idem |
+| D4 | `god-lot4` | Lot 4 « Le God voit tout » (G7/A4/A5) | **livré le 25/09/2026** (#752) : `createAuditLog` route les actions God vers le journal plateforme (`isGodActorWithoutGuildAuthority`), fiche guilde lue par `isSuperAdmin`, « erreur de chargement » ≠ « accès refusé » ; verrou `god-sees-everything` (9 tests) | — | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` |
+| D5 | `god-lot5` | Lot 5 : langage, tour de contrôle, roster, RBAC, users (G1/G2/G3/G5/G9) | roster/RBAC faits dans la fiche ; reste G1 (glossaire) et G2 (tour de contrôle) ; **G9 re-mesuré** : aucune route `/god/users`, la surface utilisateurs vit dans `?tab=tickets` | lot 5 | idem |
 | D6 | `god-lot6` | Lot 6 : déslop God, tokens, plafond `god-deslop.test.ts` | plafond **79** (81 → 79 au lot C) ; écrans restants | lot 6 | idem |
 | D7 | `owner-id-uuid` | Normaliser `GuildConfig.ownerId` en UUID interne | lecture gère snowflake **ou** UUID (`god-guild-owner.ts`) ; donnée mixte | mesure + backfill + écriture unique | amorce locale (non versionnée) |
 | D8 | `ops-retention` | Première passe de rétention (lot A) | code livré (#1401), aucune passe réelle | dry-run janitor → `cleanup-logs` → compteurs | `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md` |
 | D9 | `ops-visuel` | Contrôle visuel 390/768/1024/1440 de `?tab=telemetry` et `?tab=overview` | non fait (humain) | captures + validation | `docs/ROADMAP.md` §2 bis |
 
-**Ordre** : **D1 → D2 → D3 livrés le 16/11/2026** ; reste D4 → D5 → D6 → D7. **D8/D9** sont des vérifications humaines, à faire dès que possible.
+**Ordre** : **D1 → D4 livrés** (D1–D3 le 16/11/2026, D4 le 25/09/2026) ; reste **D5 → D6 → D7**. **D8/D9** sont des vérifications humaines, à faire dès que possible.
 
 ## 2 quater. Visiteurs — avis, personnages et personnalisation (livré le 16/11/2026)
 
@@ -125,7 +125,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
 |---|---|---|---|---|---|
-| B1 | `boss-fiche-simu-responsive` | Fiche boss : simulation vide + responsive des fiches avis/boss | **livré le 16/11/2026** : `knownSpellIdsForMerge` (garde vide ⇒ sorts Dofensive conservés), `SpellRangeGrid` et les vues Succès empilées avant `2xl`, verrou `boss-simulation-spells` | — | `docs/CONTEXT.md` |
+| B1 | `boss-fiche-simu-responsive` | Fiche boss : simulation vide + responsive des fiches avis/boss | **livré le 16/11/2026** : `knownSpellIdsForMerge` (garde vide ⇒ sorts Dofensive conservés), vues Succès empilées avant `2xl`, verrou `boss-simulation-spells`. **Complété le 17/11/2026 (#1415)** : `SpellRangeGrid` à seuil **conteneur** (`@container` + `@5xl` = 64 rem) au lieu de la fenêtre (`2xl`), prop `embedded` (plus de seconde carte sur la fiche avis/monstre) | — | `docs/CONTEXT.md` |
 
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getServerI18n } from "@/lib/i18n/server";
 import { formatDofusLevel } from "@/lib/dofus-level";
 import { getPublicVisitor, resolveDirectoryViewer } from "@/server/public-directory";
+import { getPublicOcreProgress } from "@/server/actions/public-profile-actions";
 import { VisitorAccess } from "../_components/visitor-access";
 import { VisitorProfileCard } from "../_components/visitor-profile-card";
 import { VisitorsShell, VisitorsTitle } from "../_components/visitors-shell";
@@ -93,6 +94,14 @@ export default async function VisitorProfilePage({
         );
     }
 
+    const isSelf = profile.id === access.viewer.profileId;
+    const ocrePercent =
+        isSelf && profile.metamob
+            ? await getPublicOcreProgress()
+                  .then((result) => (result.success ? result.progress : null))
+                  .catch(() => null)
+            : null;
+
     return (
         <VisitorsShell
             user={session?.user}
@@ -103,7 +112,12 @@ export default async function VisitorProfilePage({
             <Link href="/visiteurs" className="reg-link text-sm">
                 {labels.profile.backToList}
             </Link>
-            <VisitorProfileCard profile={profile} labels={labels} locale={locale} />
+            <VisitorProfileCard
+                profile={profile}
+                labels={labels}
+                locale={locale}
+                ocrePercent={ocrePercent}
+            />
         </VisitorsShell>
     );
 }

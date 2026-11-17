@@ -4,11 +4,14 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
     filterVisitorAchievements,
     filterVisitorBounties,
     filterVisitorJobs,
     normalizeVisitorFilterText,
+    sortVisitorAchievements,
+    sortVisitorBounties,
     visitorCharacterSlots,
     visitorDungeonNames,
     visitorZoneNames,
@@ -23,6 +26,7 @@ const ACHIEVEMENTS: VisitorAchievement[] = [
         points: 30,
         iconUrl: null,
         dungeonName: "Donjon des Tofus",
+        dungeonImageUrl: null,
         characterSlot: "PRINCIPAL",
     },
     {
@@ -31,6 +35,7 @@ const ACHIEVEMENTS: VisitorAchievement[] = [
         points: 20,
         iconUrl: null,
         dungeonName: "Donjon des Larves",
+        dungeonImageUrl: null,
         characterSlot: "Mule",
     },
     {
@@ -39,6 +44,7 @@ const ACHIEVEMENTS: VisitorAchievement[] = [
         points: 30,
         iconUrl: null,
         dungeonName: "Donjon des Tofus",
+        dungeonImageUrl: null,
         characterSlot: "Mule",
     },
 ];
@@ -116,5 +122,57 @@ describe("Fiche visiteur — filtres de listes", () => {
         expect(visitorVisibleSlice([1, 2, 3], 2)).toEqual([1, 2]);
         expect(visitorVisibleSlice([1, 2, 3], 0)).toEqual([]);
         expect(visitorVisibleSlice([1, 2, 3], 99)).toEqual([1, 2, 3]);
+    });
+
+    it("trie les succès par donjon, nom ou points sans muter l'original", () => {
+        expect(sortVisitorAchievements(ACHIEVEMENTS, "dungeon").map((a) => a.id)).toEqual([
+            "a2",
+            "a1",
+            "a3",
+        ]);
+        expect(sortVisitorAchievements(ACHIEVEMENTS, "name").map((a) => a.id)).toEqual([
+            "a2",
+            "a1",
+            "a3",
+        ]);
+        expect(sortVisitorAchievements(ACHIEVEMENTS, "points").map((a) => a.id)).toEqual([
+            "a1",
+            "a3",
+            "a2",
+        ]);
+        // La liste reçue du serveur n'est jamais réordonnée en place.
+        expect(ACHIEVEMENTS.map((a) => a.id)).toEqual(["a1", "a2", "a3"]);
+    });
+
+    it("trie les avis par zone, nom ou niveau sans muter l'original", () => {
+        expect(sortVisitorBounties(BOUNTIES, "zone").map((b) => b.id)).toEqual([
+            "b2",
+            "b3",
+            "b1",
+        ]);
+        expect(sortVisitorBounties(BOUNTIES, "name").map((b) => b.id)).toEqual([
+            "b1",
+            "b2",
+            "b3",
+        ]);
+        expect(sortVisitorBounties(BOUNTIES, "level").map((b) => b.id)).toEqual([
+            "b2",
+            "b3",
+            "b1",
+        ]);
+        expect(BOUNTIES.map((b) => b.id)).toEqual(["b1", "b2", "b3"]);
+    });
+
+    it("la fiche lecture seule rend des tableaux compacts, pas des pavés de cartes", () => {
+        const source = readFileSync(
+            "src/app/visiteurs/_components/visitor-profile-lists.tsx",
+            "utf8"
+        );
+        expect(source).toContain("<table");
+        expect(source).toContain("SearchableFilter");
+        expect(source).toContain("sortVisitorAchievements");
+        expect(source).toContain("sortVisitorBounties");
+        // Les deux listes ne sont plus une grille de cartes en deux colonnes.
+        expect(source).not.toContain("sm:grid-cols-2");
     });
 });

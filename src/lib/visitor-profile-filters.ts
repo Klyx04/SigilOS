@@ -111,3 +111,53 @@ export function visitorZoneNames(items: ReadonlyArray<VisitorBounty>): string[] 
 export function visitorVisibleSlice<T>(items: ReadonlyArray<T>, visible: number): T[] {
     return items.slice(0, Math.max(0, visible));
 }
+
+/**
+ * Tris de la fiche visiteur — une **préférence d'affichage**, jamais un filtre.
+ *
+ * Le tri par donjon / zone est le défaut : il regroupe les lignes qui partagent la même
+ * origine, ce qui rend le tableau lisible sans recopier le nom du donjon sur chaque ligne.
+ */
+export const VISITOR_PROFILE_ACHIEVEMENT_SORTS = ["dungeon", "name", "points"] as const;
+export type VisitorProfileAchievementSort = (typeof VISITOR_PROFILE_ACHIEVEMENT_SORTS)[number];
+
+export const VISITOR_PROFILE_BOUNTY_SORTS = ["zone", "name", "level"] as const;
+export type VisitorProfileBountySort = (typeof VISITOR_PROFILE_BOUNTY_SORTS)[number];
+
+function compareText(a: string | null | undefined, b: string | null | undefined): number {
+    return (a ?? "").localeCompare(b ?? "", "fr", { sensitivity: "base" });
+}
+
+/** Copie triée : l'original n'est jamais muté (les listes viennent du serveur). */
+export function sortVisitorAchievements(
+    items: ReadonlyArray<VisitorAchievement>,
+    sort: VisitorProfileAchievementSort
+): VisitorAchievement[] {
+    return [...items].sort((a, b) => {
+        switch (sort) {
+            case "name":
+                return compareText(a.name, b.name) || compareText(a.dungeonName, b.dungeonName);
+            case "points":
+                return b.points - a.points || compareText(a.name, b.name);
+            default:
+                return compareText(a.dungeonName, b.dungeonName) || compareText(a.name, b.name);
+        }
+    });
+}
+
+/** Copie triée des avis : zone par défaut, puis nom ou niveau décroissant. */
+export function sortVisitorBounties(
+    items: ReadonlyArray<VisitorBounty>,
+    sort: VisitorProfileBountySort
+): VisitorBounty[] {
+    return [...items].sort((a, b) => {
+        switch (sort) {
+            case "name":
+                return compareText(a.name, b.name) || compareText(a.zoneName, b.zoneName);
+            case "level":
+                return b.level - a.level || compareText(a.name, b.name);
+            default:
+                return compareText(a.zoneName, b.zoneName) || compareText(a.name, b.name);
+        }
+    });
+}

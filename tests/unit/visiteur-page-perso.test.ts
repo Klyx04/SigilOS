@@ -72,6 +72,7 @@ const PROFILE: VisitorProfile = {
             points: 30,
             iconUrl: null,
             dungeonName: "Donjon des Tofus",
+            dungeonImageUrl: null,
             characterSlot: "PRINCIPAL",
         },
     ],
@@ -163,7 +164,9 @@ describe("fiche lecture seule — avis faits et sections lisibles", () => {
         expect(html).toContain(fr.visitorsPage.profile.activities);
         expect(html).toContain("PVM");
         expect(html).toContain(fr.visitorsPage.profile.achievements);
-        expect(html).toContain("Sans peur");
+        // La liste est vide par défaut : un donjon doit être choisi (pas de mur de 200 lignes).
+        expect(html).toContain(fr.visitorsPage.profile.chooseDungeon);
+        expect(html).not.toContain("Sans peur");
         expect(html).toContain(fr.visitorsPage.profile.bountiesSection);
         expect(html).toContain("Ronce");
         expect(html).toContain(fr.visitorsPage.profile.rush);

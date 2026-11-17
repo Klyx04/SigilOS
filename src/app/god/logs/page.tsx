@@ -102,7 +102,7 @@ function GodAccessStatsStrip({ stats }: { stats: GodAccessStats }) {
     const busiest = Math.max(...stats.days.map((day) => day.count), 1);
 
     return (
-        <div className="rounded-3xl border border-border bg-surface/40 p-5">
+        <div className="rounded-xl border border-border bg-surface/40 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                     <MonitorSmartphone className="h-4 w-4 text-muted-foreground" />

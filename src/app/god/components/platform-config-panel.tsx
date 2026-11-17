@@ -158,7 +158,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 setFormData(prev => ({ ...prev, maintenanceMode: newValue }));
                 toast.success(`Mode maintenance ${newValue ? "activé" : "désactivé"} !`, {
                     description: newValue ? "Le site est maintenant réservé aux admins." : "Le site est de nouveau public.",
-                    icon: newValue ? <Lock className="w-4 h-4 text-rose-500" /> : <Globe className="w-4 h-4 text-emerald-500" />
+                    icon: newValue ? <Lock className="w-4 h-4 text-destructive" /> : <Globe className="w-4 h-4 text-success" />
                 });
             } else {
                 toast.error(res.error || "Erreur de mise à jour");
@@ -185,20 +185,20 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         }
     };
 
-    const inputClasses = "w-full h-14 px-6 bg-zinc-900 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono shadow-inner placeholder:text-zinc-700";
+    const inputClasses = "w-full h-14 px-6 bg-surface border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all font-mono shadow-inner placeholder:text-foreground";
 
     return (
         <div className="space-y-10 animate-in fade-in duration-300 pb-20">
             
             {/* BARRE D'ACTIONS PRO */}
-            <div className="bg-zinc-950/60 border border-white/10 rounded-3xl p-6 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-2xl">
+            <div className="bg-background/60 border border-border rounded-xl p-6  flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                        <Settings className="w-6 h-6 text-indigo-400" />
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+                        <Settings className="w-6 h-6 text-accent" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-black text-white uppercase tracking-wider">Infrastructure & Configuration</h3>
-                        <p className="text-zinc-500 text-xs font-semibold">Gestion des intégrations Discord, routage des alertes et statut d'accès.</p>
+                        <h3 className="text-lg font-semibold text-foreground uppercase tracking-wider">Infrastructure & Configuration</h3>
+                        <p className="text-muted-foreground text-xs font-semibold">Gestion des intégrations Discord, routage des alertes et statut d'accès.</p>
                     </div>
                 </div>
 
@@ -206,16 +206,16 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     <button
                         onClick={handleDiagnose}
                         disabled={isDiagPending}
-                        className="flex-1 sm:flex-none px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+                        className="flex-1 sm:flex-none px-4 py-3 bg-surface hover:bg-elevated border border-border text-foreground text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                        {isDiagPending ? <Loader2 className="w-4 h-4 animate-spin text-indigo-400" /> : <ClipboardList className="w-4 h-4" />}
+                        {isDiagPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <ClipboardList className="w-4 h-4" />}
                         Scan Accès
                     </button>
                     
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                        className="flex-1 sm:flex-none px-6 py-3 bg-accent hover:bg-accent text-accent-foreground text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm shadow-accent/20 active:scale-95"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Sauvegarder
@@ -225,31 +225,31 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
 
             {/* RAPPORT DE DIAGNOSTIC DISCORD */}
             {diagResults && (
-                <div ref={reportRef} className="bg-indigo-500/10 border border-indigo-500/20 rounded-3xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
+                <div ref={reportRef} className="bg-accent/10 border border-accent/20 rounded-xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-black text-indigo-300 uppercase tracking-wider">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
                             <ShieldCheck className="w-4 h-4" /> Rapport de Diagnostic Discord
                         </div>
-                        <button onClick={() => setDiagResults(null)} className="text-caption text-zinc-500 hover:text-white font-bold uppercase">Fermer</button>
+                        <button onClick={() => setDiagResults(null)} className="text-caption text-muted-foreground hover:text-foreground font-bold uppercase">Fermer</button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
-                        <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-caption text-zinc-500 uppercase block">Connexion Bot</span>
-                            <span className={cn(diagResults.token.status === "OK" ? "text-emerald-400" : "text-rose-400")}>{diagResults.token.message}</span>
+                        <div className="p-4 rounded-xl bg-background/80 border border-border space-y-1">
+                            <span className="text-caption text-muted-foreground uppercase block">Connexion Bot</span>
+                            <span className={cn(diagResults.token.status === "OK" ? "text-success" : "text-destructive")}>{diagResults.token.message}</span>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-caption text-zinc-500 uppercase block">Identité Bot</span>
-                            <span className="text-white font-mono">{diagResults.botIdentity?.username || "N/A"}</span>
+                        <div className="p-4 rounded-xl bg-background/80 border border-border space-y-1">
+                            <span className="text-caption text-muted-foreground uppercase block">Identité Bot</span>
+                            <span className="text-foreground font-mono">{diagResults.botIdentity?.username || "N/A"}</span>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-caption text-zinc-500 uppercase block">Serveurs</span>
-                            <span className="text-white">{diagResults.guilds.length} actifs</span>
+                        <div className="p-4 rounded-xl bg-background/80 border border-border space-y-1">
+                            <span className="text-caption text-muted-foreground uppercase block">Serveurs</span>
+                            <span className="text-foreground">{diagResults.guilds.length} actifs</span>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-caption text-zinc-500 uppercase block">Salons accessibles</span>
+                        <div className="p-4 rounded-xl bg-background/80 border border-border space-y-1">
+                            <span className="text-caption text-muted-foreground uppercase block">Salons accessibles</span>
                             <div className="flex flex-wrap gap-1">
                                 {Object.entries(diagResults.channels).map(([k, v]: any) => (
-                                    <span key={k} title={v.message} className={cn("text-caption font-mono px-1.5 py-0.5 rounded cursor-help", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
+                                    <span key={k} title={v.message} className={cn("text-caption font-mono px-1.5 py-0.5 rounded cursor-help", v.status === "OK" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive")}>{k}</span>
                                 ))}
                             </div>
                             {/* Le POURQUOI d'une pastille rouge : sans ce détail, l'opérateur ne
@@ -261,7 +261,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     {Object.entries(diagResults.channels)
                                         .filter(([, v]: any) => v.status !== "OK")
                                         .map(([k, v]: any) => (
-                                            <p key={k} className="text-caption text-rose-300 font-mono leading-tight break-words">
+                                            <p key={k} className="text-caption text-destructive font-mono leading-tight break-words">
                                                 {k} · {v.status} — {v.message}
                                             </p>
                                         ))}
@@ -273,39 +273,39 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
             )}
 
             {/* CARTE 1: ROUTAGE DES SALONS DISCORD */}
-            <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6">
-                <div className="border-b border-white/5 pb-4 space-y-1">
-                    <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <Server className="w-4 h-4 text-indigo-400" />
+            <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6">
+                <div className="border-b border-border pb-4 space-y-1">
+                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                        <Server className="w-4 h-4 text-accent" />
                         Routage des Salons Discord (Core System)
                     </h4>
-                    <p className="text-zinc-500 text-xs font-medium">Définissez les canaux d'émission pour les Changelogs, la surveillance de santé et les alertes d'administration.</p>
+                    <p className="text-muted-foreground text-xs font-medium">Définissez les canaux d'émission pour les Changelogs, la surveillance de santé et les alertes d'administration.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Salon Hub */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                    <div className="p-5 rounded-xl bg-surface/30 border border-border space-y-4">
                         <div className="space-y-1">
-                            <span className="text-xs font-black text-white uppercase block">1. Salon Hub (Changelog)</span>
-                            <p className="text-caption text-zinc-500 leading-normal">Diffusion des mises à jour publiques.</p>
+                            <span className="text-xs font-semibold text-foreground uppercase block">1. Salon Hub (Changelog)</span>
+                            <p className="text-caption text-muted-foreground leading-normal">Diffusion des mises à jour publiques.</p>
                         </div>
                         <Input
                             type="text"
                             value={formData.hubChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, hubChannelId: e.target.value }))}
                             placeholder="ID Discord du salon..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                     </div>
 
                     {/* Salon Santé */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                    <div className="p-5 rounded-xl bg-surface/30 border border-border space-y-4">
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                                <span className="text-xs font-black text-white uppercase block">2. Salon Santé (Ping Status)</span>
-                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot. La fréquence est appliquée en temps réel (garde-fou anti-spam).</p>
+                                <span className="text-xs font-semibold text-foreground uppercase block">2. Salon Santé (Ping Status)</span>
+                                <p className="text-caption text-muted-foreground leading-normal">Surveillance automatique du bot. La fréquence est appliquée en temps réel (garde-fou anti-spam).</p>
                             </div>
-                            <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-caption font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20">
+                            <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-caption font-semibold uppercase text-success bg-success/10 border border-success/20 hover:bg-success/20">
                                 Test Ping
                             </Button>
                         </div>
@@ -314,21 +314,21 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.serviceStatusChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, serviceStatusChannelId: e.target.value }))}
                             placeholder="ID Discord du salon..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                         <div className="grid grid-cols-2 gap-2">
                             <Select value={String(formData.statusFrequency)} onValueChange={(val) => setFormData(prev => ({ ...prev, statusFrequency: parseInt(val) }))}>
-                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="bg-surface border-border text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent><SelectItem value="5">Toutes les 5m</SelectItem><SelectItem value="15">Toutes les 15m</SelectItem><SelectItem value="60">Toutes les 1h</SelectItem></SelectContent>
                             </Select>
                             <Select value={formData.statusMention} onValueChange={(val) => setFormData(prev => ({ ...prev, statusMention: val }))}>
-                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="bg-surface border-border text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">Sans mention</SelectItem><SelectItem value="@here">@here</SelectItem></SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <Select value={formData.statusMode} onValueChange={(val) => setFormData(prev => ({ ...prev, statusMode: val }))}>
-                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase" title="Living = édite UN SEUL embed en place. Notification = nouveau message à chaque ping."><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="bg-surface border-border text-caption font-bold uppercase" title="Living = édite UN SEUL embed en place. Notification = nouveau message à chaque ping."><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="living">Living (1 embed édité)</SelectItem>
                                     <SelectItem value="notification">Notification (nouveau msg)</SelectItem>
@@ -341,8 +341,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 className={cn(
                                     "px-3 py-2 rounded-xl border text-caption font-bold uppercase transition-colors",
                                     formData.statusIsLite
-                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                        : "bg-zinc-900 border-white/10 text-zinc-500 hover:border-white/20"
+                                        ? "bg-success/10 border-success/30 text-success"
+                                        : "bg-surface border-border text-muted-foreground hover:border-border-strong"
                                 )}
                             >
                                 {formData.statusIsLite ? "Lite : ON" : "Lite : OFF"}
@@ -351,17 +351,17 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </div>
 
                     {/* Salon Alertes God */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                    <div className="p-5 rounded-xl bg-surface/30 border border-border space-y-4">
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                                <span className="text-xs font-black text-white uppercase block">3. Salon Alertes GOD (Privé)</span>
-                                <p className="text-caption text-zinc-500 leading-normal">Rapports d'erreurs critiques & backups.</p>
+                                <span className="text-xs font-semibold text-foreground uppercase block">3. Salon Alertes GOD (Privé)</span>
+                                <p className="text-caption text-muted-foreground leading-normal">Rapports d'erreurs critiques & backups.</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <Button size="sm" variant="ghost" onClick={handleTestSentry} title="Envoie un event test vers Sentry (vérifie le DSN)" className="text-caption font-black uppercase text-violet-400 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20">
+                                <Button size="sm" variant="ghost" onClick={handleTestSentry} title="Envoie un event test vers Sentry (vérifie le DSN)" className="text-caption font-semibold uppercase text-accent bg-accent/10 border border-accent/20 hover:bg-accent/20">
                                     Test Sentry
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
+                                <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-semibold uppercase text-destructive bg-destructive/10 border border-destructive/20 hover:bg-destructive/20">
                                     Test Alerte
                                 </Button>
                             </div>
@@ -371,24 +371,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.godNotifyChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, godNotifyChannelId: e.target.value }))}
                             placeholder="ID Salon alertes..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                         <Input
                             type="text"
                             value={formData.godNotifyRoleId}
                             onChange={(e) => setFormData(prev => ({ ...prev, godNotifyRoleId: e.target.value }))}
                             placeholder="ID Rôle GOD (à ping)..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                     </div>
 
                     {/* Salon Feedback Dofus */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                    <div className="p-5 rounded-xl bg-surface/30 border border-border space-y-4">
                         <div className="space-y-1">
-                            <span className="text-xs font-black text-white uppercase block">4. Salon Feedback Dofus</span>
-                            <p className="text-caption text-zinc-500 leading-normal">
+                            <span className="text-xs font-semibold text-foreground uppercase block">4. Salon Feedback Dofus</span>
+                            <p className="text-caption text-muted-foreground leading-normal">
                                 Cible les retours envoyés depuis les pages « Les Dofus Dofus » (Hub, Détail Dofus, Rush Sylvestre).
-                                <span className="text-zinc-600"> Non configuré : repli sur le salon Alertes GOD.</span>
+                                <span className="text-muted-foreground"> Non configuré : repli sur le salon Alertes GOD.</span>
                             </p>
                         </div>
                         <Input
@@ -396,17 +396,17 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.questFeedbackChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, questFeedbackChannelId: e.target.value }))}
                             placeholder="ID Salon feedbacks..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                     </div>
 
                     {/* Salon Dons Ko-fi */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                    <div className="p-5 rounded-xl bg-surface/30 border border-border space-y-4">
                         <div className="space-y-1">
-                            <span className="text-xs font-black text-white uppercase block">5. Salon Dons Ko-fi</span>
-                            <p className="text-caption text-zinc-500 leading-normal">
+                            <span className="text-xs font-semibold text-foreground uppercase block">5. Salon Dons Ko-fi</span>
+                            <p className="text-caption text-muted-foreground leading-normal">
                                 Remerciements publics automatiques à chaque don (dons privés exclus via `is_public`).
-                                <span className="text-zinc-600"> Non configuré : alerte God uniquement.</span>
+                                <span className="text-muted-foreground"> Non configuré : alerte God uniquement.</span>
                             </p>
                         </div>
                         <Input
@@ -414,7 +414,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.kofiChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, kofiChannelId: e.target.value }))}
                             placeholder="ID Salon dons-kofi..."
-                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                            className="bg-surface border-border text-xs font-mono"
                         />
                     </div>
                 </div>
@@ -423,13 +423,13 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
             {/* CARTE 2 & 3: OPTIONS SYSTÈME ET MAINTENANCE EN 2 COLONNES */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Options de sécurité / Fonctionnalités */}
-                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6">
-                    <div className="border-b border-white/5 pb-4 space-y-1">
-                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6">
+                    <div className="border-b border-border pb-4 space-y-1">
+                        <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-warning" />
                             Modules Plateforme & Sécurité
                         </h4>
-                        <p className="text-zinc-500 text-xs font-medium">Interrupteurs d'activation globale des services optionnels.</p>
+                        <p className="text-muted-foreground text-xs font-medium">Interrupteurs d'activation globale des services optionnels.</p>
                     </div>
 
                     <div className="space-y-3">
@@ -448,15 +448,15 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     key={opt.key}
                                     onClick={() => setFormData(prev => ({ ...prev, [opt.key]: !active }))}
                                     className={cn(
-                                        "w-full p-4 rounded-2xl border transition-all text-left flex items-center justify-between gap-4",
-                                        active ? "bg-indigo-500/10 border-indigo-500/30 text-white" : "bg-zinc-900/30 border-white/5 text-zinc-500 hover:border-white/10"
+                                        "w-full p-4 rounded-xl border transition-all text-left flex items-center justify-between gap-4",
+                                        active ? "bg-accent/10 border-accent/30 text-foreground" : "bg-surface/30 border-border text-muted-foreground hover:border-border"
                                     )}
                                 >
                                     <div className="space-y-0.5 min-w-0">
                                         <span className="text-xs font-bold block">{opt.label}</span>
-                                        <span className="text-caption text-zinc-500 block truncate">{opt.desc}</span>
+                                        <span className="text-caption text-muted-foreground block truncate">{opt.desc}</span>
                                     </div>
-                                    <span className={cn("text-caption font-black uppercase px-2.5 py-1 rounded-lg shrink-0", active ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-600")}>
+                                    <span className={cn("text-caption font-semibold uppercase px-2.5 py-1 rounded-lg shrink-0", active ? "bg-success/20 text-success border border-success/30" : "bg-surface text-muted-foreground")}>
                                         {active ? "Actif" : "Inactif"}
                                     </span>
                                 </button>
@@ -469,8 +469,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         qui refuserait même la première guilde et verrouillerait la plateforme. */}
                     <div className="space-y-2.5">
                         <div className="space-y-1">
-                            <span className="text-xs font-bold text-white uppercase block">Guildes maximum par utilisateur</span>
-                            <p className="text-caption text-zinc-500 leading-normal">
+                            <span className="text-xs font-bold text-foreground uppercase block">Guildes maximum par utilisateur</span>
+                            <p className="text-caption text-muted-foreground leading-normal">
                                 Appliqué à l&apos;arrivée (premier accès, déploiement, réactivation). Entier de 1 à 10.
                                 Valeur par défaut : 2.
                             </p>
@@ -484,24 +484,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, maxGuildsPerUser: Number(event.target.value) }))
                             }
-                            className="w-28 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2 text-sm font-bold text-white outline-none focus:border-indigo-500/40"
+                            className="w-28 rounded-xl border border-border bg-surface/40 px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-accent/40"
                         />
                     </div>
 
                     {/* Chantier #68 — Choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus */}
                     <div className="space-y-2.5">
                         <div className="space-y-1">
-                            <span className="text-xs font-black text-white uppercase block">Icône du bloc quêtes par Dofus</span>
-                            <p className="text-caption text-zinc-500 leading-normal">
+                            <span className="text-xs font-semibold text-foreground uppercase block">Icône du bloc quêtes par Dofus</span>
+                            <p className="text-caption text-muted-foreground leading-normal">
                                 Icône affichée dans le bloc d'en-tête (à la place de l'image générique) sur chaque page quête par Dofus.
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
                             <Select value={formData.dofusQuestHeaderIcon} onValueChange={(v) => setFormData(prev => ({ ...prev, dofusQuestHeaderIcon: v }))}>
-                                <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs font-medium">
+                                <SelectTrigger className="w-full bg-surface border-border text-xs font-medium">
                                     <SelectValue placeholder="Choisir une icône" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-zinc-950 border-white/10">
+                                <SelectContent className="bg-background border-border">
                                     <SelectItem value="serie-de-quete">Serie de quête (Dofus vert)</SelectItem>
                                     <SelectItem value="icone-succes">Succès</SelectItem>
                                 </SelectContent>
@@ -511,13 +511,13 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 </div>
 
                 {/* Mode Maintenance (Killswitch) */}
-                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 flex flex-col justify-between">
-                    <div className="border-b border-white/5 pb-4 space-y-1">
-                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                            <Power className="w-4 h-4 text-rose-400" />
+                <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6 flex flex-col justify-between">
+                    <div className="border-b border-border pb-4 space-y-1">
+                        <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                            <Power className="w-4 h-4 text-destructive" />
                             Accès Plateforme & Maintenance
                         </h4>
-                        <p className="text-zinc-500 text-xs font-medium">Verrouille tout le site (sessions loggées incluses, Gods compris) — seul ce panel God reste accessible pour désactiver.</p>
+                        <p className="text-muted-foreground text-xs font-medium">Verrouille tout le site (sessions loggées incluses, Gods compris) — seul ce panel God reste accessible pour désactiver.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -526,16 +526,16 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.maintenanceMessage}
                             onChange={(e) => setFormData(prev => ({ ...prev, maintenanceMessage: e.target.value }))}
                             placeholder="Message de maintenance personnalisé..."
-                            className="bg-zinc-900 border-white/10 text-xs font-medium"
+                            className="bg-surface border-border text-xs font-medium"
                         />
 
                         <button
                             onClick={handleToggleMaintenance}
                             className={cn(
-                                "w-full h-16 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-3 shadow-lg active:scale-98",
+                                "w-full h-16 rounded-xl text-xs font-semibold uppercase tracking-wide transition-all border flex items-center justify-center gap-3 shadow-sm active:scale-98",
                                 formData.maintenanceMode
-                                    ? "bg-rose-500 hover:bg-rose-600 text-white border-rose-400 shadow-rose-500/20"
-                                    : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/10"
+                                    ? "bg-destructive hover:bg-destructive text-destructive-foreground border-destructive shadow-destructive/20"
+                                    : "bg-surface hover:bg-elevated text-foreground border-border"
                             )}
                         >
                             <Lock className="w-4 h-4" />
@@ -545,14 +545,14 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 </div>
 
                 {/* CARTE 4: GESTION DES RAPPELS ET POSTS INACTIFS (#107) */}
-                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
-                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6 md:col-span-2">
+                    <div className="border-b border-border pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <Bell className="w-4 h-4 text-amber-400" />
+                            <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                                <Bell className="w-4 h-4 text-warning" />
                                 Relances & Purge des Posts Inactifs (DJ / Quêtes / Songes)
                             </h4>
-                            <p className="text-zinc-500 text-xs font-medium">
+                            <p className="text-muted-foreground text-xs font-medium">
                                 Calendrier progressif (7 &gt; 15 &gt; 20 &gt; Fini) : rappels automatiques par ping Discord à J+7, J+15, J+20 puis auto-clôture et suppression de l'embed.
                             </p>
                         </div>
@@ -572,7 +572,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     }
                                 });
                             }}
-                            className="bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold shrink-0"
+                            className="bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20 text-xs font-bold shrink-0"
                         >
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
                             Lancer le balayage maintenant
@@ -580,32 +580,32 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Calendrier des Relances</span>
-                            <p className="text-white font-black text-sm">J+7 • J+15 • J+20</p>
-                            <span className="text-zinc-600 text-caption block">3 rappels progressifs par ping Discord</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Calendrier des Relances</span>
+                            <p className="text-foreground font-semibold text-sm">J+7 • J+15 • J+20</p>
+                            <span className="text-muted-foreground text-caption block">3 rappels progressifs par ping Discord</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Plafond & Canal</span>
-                            <p className="text-white font-black text-sm">3 appels max</p>
-                            <span className="text-zinc-600 text-caption block">Dans le fil / salon du post de guilde</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Plafond & Canal</span>
+                            <p className="text-foreground font-semibold text-sm">3 appels max</p>
+                            <span className="text-muted-foreground text-caption block">Dans le fil / salon du post de guilde</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
-                            <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
-                            <span className="text-zinc-600 text-caption block">Fermeture DB + suppression de l'embed</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Action finale</span>
+                            <p className="text-destructive font-semibold text-sm">Clôture & Purge à J+21</p>
+                            <span className="text-muted-foreground text-caption block">Fermeture DB + suppression de l'embed</span>
                         </div>
                     </div>
                 </div>
                 {/* CARTE 5: NETTOYAGE DES DEMANDES DE SERVICE INACTIVES */}
-                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
-                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6 md:col-span-2">
+                    <div className="border-b border-border pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                            <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-success" />
                                 Purge des Demandes de Service sans réponse
                             </h4>
-                            <p className="text-zinc-500 text-xs font-medium">
+                            <p className="text-muted-foreground text-xs font-medium">
                                 Calendrier 7 &gt; 14 &gt; 21 : rappels automatiques par ping Discord au demandeur à J+7 (suppression dans 14 j) puis J+14 (dans 7 j), clôture CANCELLED et suppression de l'embed à J+21.
                             </p>
                         </div>
@@ -623,7 +623,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     }
                                 });
                             }}
-                            className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold shrink-0"
+                            className="bg-success/10 border border-success/30 text-success hover:bg-success/20 text-xs font-bold shrink-0"
                         >
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
                             Lancer le balayage maintenant
@@ -631,33 +631,33 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Calendrier des Rappels</span>
-                            <p className="text-white font-black text-sm">J+7 • J+14</p>
-                            <span className="text-zinc-600 text-caption block">2 rappels progressifs par ping Discord au demandeur</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Calendrier des Rappels</span>
+                            <p className="text-foreground font-semibold text-sm">J+7 • J+14</p>
+                            <span className="text-muted-foreground text-caption block">2 rappels progressifs par ping Discord au demandeur</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
-                            <p className="text-white font-black text-sm">Statut PENDING</p>
-                            <span className="text-zinc-600 text-caption block">Demandes sans réponse du passeur ; le demandeur est pingé</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Cible</span>
+                            <p className="text-foreground font-semibold text-sm">Statut PENDING</p>
+                            <span className="text-muted-foreground text-caption block">Demandes sans réponse du passeur ; le demandeur est pingé</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
-                            <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
-                            <span className="text-zinc-600 text-caption block">Statut CANCELLED + suppression de l'embed</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Action finale</span>
+                            <p className="text-destructive font-semibold text-sm">Clôture & Purge à J+21</p>
+                            <span className="text-muted-foreground text-caption block">Statut CANCELLED + suppression de l'embed</span>
                         </div>
                     </div>
                 </div>
 
                 {/* CARTE 5: RATTRAPAGE DES EMBEDS DE SONDAGES (barres de %) */}
-                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
-                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="p-8 rounded-xl bg-background/40 border border-border space-y-6 md:col-span-2">
+                    <div className="border-b border-border pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <ClipboardList className="w-4 h-4 text-sky-400" />
+                            <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList className="w-4 h-4 text-info" />
                                 Rattrapage des embeds de sondages
                             </h4>
-                            <p className="text-zinc-500 text-xs font-medium">
+                            <p className="text-muted-foreground text-xs font-medium">
                                 Un embed n'est réécrit que sur un nouveau vote : un sondage lancé avant la refonte reste figé (pas de barres de %, pas de métadonnées à jour) alors que les votes sont déjà en base. Ce balayage relit l'état réel et <strong>modifie le message existant</strong> — même message, même salon, aucun ping, aucun doublon.
                             </p>
                         </div>
@@ -677,7 +677,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     }
                                 });
                             }}
-                            className="bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 text-xs font-bold shrink-0"
+                            className="bg-info/10 border border-info/30 text-info hover:bg-info/20 text-xs font-bold shrink-0"
                         >
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
                             Lancer le rattrapage maintenant
@@ -685,20 +685,20 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
-                            <p className="text-white font-black text-sm">Sondages en cours</p>
-                            <span className="text-zinc-600 text-caption block">Salon + message connus, 200 par balayage</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Cible</span>
+                            <p className="text-foreground font-semibold text-sm">Sondages en cours</p>
+                            <span className="text-muted-foreground text-caption block">Salon + message connus, 200 par balayage</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Effet</span>
-                            <p className="text-sky-400 font-black text-sm">Barres & % réels</p>
-                            <span className="text-zinc-600 text-caption block">Réécriture du message, jamais un nouveau</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Effet</span>
+                            <p className="text-info font-semibold text-sm">Barres & % réels</p>
+                            <span className="text-muted-foreground text-caption block">Réécriture du message, jamais un nouveau</span>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
-                            <span className="text-zinc-500 text-caption uppercase font-bold">Cas non résolus</span>
-                            <p className="text-amber-400 font-black text-sm">Comptés à part</p>
-                            <span className="text-zinc-600 text-caption block">Identifiant de file perdu (bêta) : republication requise</span>
+                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-1">
+                            <span className="text-muted-foreground text-caption uppercase font-bold">Cas non résolus</span>
+                            <p className="text-warning font-semibold text-sm">Comptés à part</p>
+                            <span className="text-muted-foreground text-caption block">Identifiant de file perdu (bêta) : republication requise</span>
                         </div>
                     </div>
                 </div>

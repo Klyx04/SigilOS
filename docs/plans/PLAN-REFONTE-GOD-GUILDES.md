@@ -188,9 +188,10 @@
   restent des **filtres cliquables** mais avec **libellé + légende** (G1) ; on masque une section vide au lieu de
   l'afficher vide.
 
-### G9 — `/god/users` : même traitement
-- `god/user-list.tsx` : même langage visuel que Guildes (cartes, badges, pagination), **aucun slug brut**, et
-  vérification qu'un God ne peut **jamais** tomber sur un refus de lecture (G7).
+### G9 — `/god/users` : même traitement — **soldé sans route**
+- `src/app/god/user-list.tsx` était **orphelin** (aucun import) : supprimé le 17/11/2026 (D6) avec
+  `forceDeleteUser`, son action destructive sans appelant. La surface utilisateurs vit dans
+  `?tab=tickets` ; **ne pas créer** de route `/god/users`.
 
 ### G10 — Responsive + états vides + déslop du périmètre God
 - Cible : `src/app/god/**` — 86 fichiers encore en palettes zinc/violet (**allowlist** de `sigil/no-hardcoded-colors`).

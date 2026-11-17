@@ -135,16 +135,16 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         <>
             {/* Popup d'avertissement d'expiration */}
             {warning && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-                    <div className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-[#111] p-6 shadow-2xl">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/70  p-4" role="dialog" aria-modal="true">
+                    <div className="w-full max-w-md rounded-xl border border-warning/30 bg-background p-6 shadow-sm">
                         <div className="flex items-start gap-4">
-                            <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0">
-                                <ShieldAlert className="w-5 h-5 text-amber-400" />
+                            <div className="p-2 rounded-xl bg-warning/15 border border-warning/20 shrink-0">
+                                <ShieldAlert className="w-5 h-5 text-warning" />
                             </div>
                             <div className="space-y-1">
-                                <div className="text-xs font-black text-amber-300 uppercase tracking-widest">Accès bientôt expiré</div>
-                                <div className="text-sm text-zinc-200 font-bold">{warning.label}</div>
-                                <div className="text-xs text-zinc-500">
+                                <div className="text-xs font-semibold text-warning uppercase tracking-wide">Accès bientôt expiré</div>
+                                <div className="text-sm text-foreground font-bold">{warning.label}</div>
+                                <div className="text-xs text-muted-foreground">
                                     Votre accès arrive à expiration. Pensez à demander un renouvellement à votre administrateur.
                                 </div>
                             </div>
@@ -152,7 +152,7 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                         <div className="mt-5 flex justify-end">
                             <Button
                                 onClick={() => setWarning(null)}
-                                className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 font-bold"
+                                className="bg-warning/20 hover:bg-warning/30 border border-warning/40 text-warning font-bold"
                             >
                                 J'ai compris
                             </Button>
@@ -163,16 +163,16 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
 
             {/* R4 — Popup de RÉVOCATION LIVE : l'accès God a été révoqué */}
             {revoked && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="alertdialog" aria-modal="true">
-                    <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-[#111] p-6 shadow-2xl">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80  p-4" role="alertdialog" aria-modal="true">
+                    <div className="w-full max-w-md rounded-xl border border-destructive/40 bg-background p-6 shadow-sm">
                         <div className="flex items-start gap-4">
-                            <div className="p-2 rounded-xl bg-red-500/15 border border-red-500/30 shrink-0">
-                                <Ban className="w-5 h-5 text-red-400" />
+                            <div className="p-2 rounded-xl bg-destructive/15 border border-destructive/30 shrink-0">
+                                <Ban className="w-5 h-5 text-destructive" />
                             </div>
                             <div className="space-y-1">
-                                <div className="text-xs font-black text-red-400 uppercase tracking-widest">Accès révoqué</div>
-                                <div className="text-sm text-zinc-200 font-bold">Votre accès a été révoqué</div>
-                                <div className="text-xs text-zinc-500">
+                                <div className="text-xs font-semibold text-destructive uppercase tracking-wide">Accès révoqué</div>
+                                <div className="text-sm text-foreground font-bold">Votre accès a été révoqué</div>
+                                <div className="text-xs text-muted-foreground">
                                     Un administrateur a révoqué vos droits d'accès au panel God.
                                     Vous allez être redirigé vers la page d'accueil.
                                 </div>
@@ -181,7 +181,7 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                         <div className="mt-5 flex justify-end">
                             <Button
                                 onClick={() => router.replace("/")}
-                                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 font-bold"
+                                className="bg-destructive/20 hover:bg-destructive/30 border border-destructive/40 text-destructive font-bold"
                             >
                                 Retour à l'accueil
                             </Button>

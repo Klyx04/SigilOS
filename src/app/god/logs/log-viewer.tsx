@@ -219,7 +219,7 @@ export function LogViewer({
     return (
         <div className="space-y-4">
             {/* Compteurs par **famille** (G6) — mesurés en base, jamais déduits de la page */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface/40 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-4 py-3">
                 <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                     <History className="h-4 w-4 text-muted-foreground" />
                     <span className="tabular-nums">{total}</span> entrée(s)
@@ -240,7 +240,7 @@ export function LogViewer({
             </div>
 
             {/* Filtres — tout part **en base** (action, catégorie, période, guilde, recherche) */}
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface/40 p-3">
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface/40 p-3">
                 <span className="flex items-center gap-2 px-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
                     <Filter className="h-4 w-4" /> Filtres
                 </span>
@@ -334,7 +334,7 @@ export function LogViewer({
 
             {error ? (
                 /* Erreur ≠ refus ≠ vide : trois messages distincts (cf. plan §8.3). */
-                <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-4 text-body-sm text-danger">
+                <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-body-sm text-danger">
                     {error}
                 </div>
             ) : loading ? (
@@ -346,7 +346,7 @@ export function LogViewer({
                     description="Élargis la période ou retire un filtre. Rétention : 90 j pour la plateforme, 30 j pour une guilde."
                 />
             ) : (
-                <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
                     <table className="w-full border-collapse text-left">
                         <thead className="bg-elevated/60">
                             <tr>

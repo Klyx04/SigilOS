@@ -79,7 +79,7 @@ export function PlatformModulesPanel({ overview }: { overview: PlatformModuleOve
                     description="Coupez un module pour TOUTES les guildes (le toggle de chaque guilde est conservé et restauré au déverrouillage) et rédigez le message affiché sur la carte du module."
                 />
                 {overview.updatedAt && (
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-muted-foreground">
                         Dernière modification : {new Date(overview.updatedAt).toLocaleString("fr-FR")}
                     </p>
                 )}
@@ -90,7 +90,7 @@ export function PlatformModulesPanel({ overview }: { overview: PlatformModuleOve
                 if (groupModules.length === 0) return null;
                 return (
                     <div key={group.label} className="space-y-4">
-                        <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 px-1">{group.label}</h3>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">{group.label}</h3>
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                             {groupModules.map((mod) => {
                                 const key = mod.key;
@@ -102,53 +102,53 @@ export function PlatformModulesPanel({ overview }: { overview: PlatformModuleOve
                                 const dirty = notice.trim() !== (notices[key] ?? "");
 
                                 return (
-                                    <GodCard key={key} className={cn("p-5 space-y-4", isLocked && "border-amber-500/20")}>
+                                    <GodCard key={key} className={cn("p-5 space-y-4", isLocked && "border-warning/20")}>
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex items-start gap-3 min-w-0">
                                                 <div className={cn(
                                                     "h-11 w-11 rounded-xl flex items-center justify-center border shrink-0",
-                                                    isLocked ? "bg-amber-500/10 border-amber-500/25" : "bg-white/5 border-white/10"
+                                                    isLocked ? "bg-warning/10 border-warning/25" : "bg-surface/10 border-border"
                                                 )}>
                                                     {MODULE_DOFUS_ASSETS[key] ? (
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img src={`/assets/dofus/modules/${MODULE_DOFUS_ASSETS[key]}`} alt="" className="w-6 h-6 object-contain" />
                                                     ) : (
-                                                        <Icon className="w-5 h-5 text-zinc-300" strokeWidth={1.5} />
+                                                        <Icon className="w-5 h-5 text-foreground" strokeWidth={1.5} />
                                                     )}
                                                 </div>
                                                 <div className="min-w-0 space-y-1">
                                                     <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="text-sm font-bold text-white">{mod.label}</span>
+                                                        <span className="text-sm font-bold text-foreground">{mod.label}</span>
                                                         {isLocked ? (
                                                             <GodBadge variant="warning">{MAINTENANCE_LABEL}</GodBadge>
                                                         ) : (
                                                             <GodBadge variant="success">Disponible</GodBadge>
                                                         )}
                                                         {guildCount > 0 && (
-                                                            <span className="text-caption text-zinc-500">
+                                                            <span className="text-caption text-muted-foreground">
                                                                 verrouillé par le God pour {guildCount} guilde{guildCount > 1 ? "s" : ""}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-xs text-zinc-400 line-clamp-2">{mod.description}</p>
+                                                    <p className="text-xs text-muted-foreground line-clamp-2">{mod.description}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center shrink-0">
                                                 {isLoading ? (
-                                                    <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                                                 ) : (
                                                     <Switch
                                                         checked={isLocked}
                                                         onCheckedChange={(val) => writeState(key, val, draftOf(key))}
                                                         aria-label={`Couper ${mod.label} pour toutes les guildes`}
-                                                        className="data-[state=checked]:bg-amber-500"
+                                                        className="data-[state=checked]:bg-warning"
                                                     />
                                                 )}
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2 pt-3 border-t border-white/5">
-                                            <label className="text-caption uppercase tracking-widest text-zinc-500" htmlFor={`notice-${key}`}>
+                                        <div className="space-y-2 pt-3 border-t border-border">
+                                            <label className="text-caption uppercase tracking-wide text-muted-foreground" htmlFor={`notice-${key}`}>
                                                 Message affiché sur la carte
                                             </label>
                                             <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ export function PlatformModulesPanel({ overview }: { overview: PlatformModuleOve
                                                     maxLength={MODULE_NOTICE_MAX_LENGTH}
                                                     onChange={(event) => setDrafts((prev) => ({ ...prev, [key]: event.target.value }))}
                                                     placeholder={`Défaut : ${MAINTENANCE_LABEL}`}
-                                                    className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/40"
+                                                    className="flex-1 rounded-xl border border-border bg-surface/10 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/40"
                                                 />
                                                 <button
                                                     type="button"
@@ -167,15 +167,15 @@ export function PlatformModulesPanel({ overview }: { overview: PlatformModuleOve
                                                     className={cn(
                                                         "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors",
                                                         !isLocked || !dirty
-                                                            ? "border-white/10 text-zinc-600 cursor-not-allowed"
-                                                            : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                                                            ? "border-border text-muted-foreground cursor-not-allowed"
+                                                            : "border-warning/30 text-warning hover:bg-warning/10"
                                                     )}
                                                 >
                                                     <Save className="w-3.5 h-3.5" /> Enregistrer
                                                 </button>
                                             </div>
                                             {!isLocked && (
-                                                <p className="flex items-center gap-1.5 text-caption text-zinc-500">
+                                                <p className="flex items-center gap-1.5 text-caption text-muted-foreground">
                                                     <Info className="w-3 h-3" /> Le message s&apos;applique avec la coupure du module.
                                                 </p>
                                             )}

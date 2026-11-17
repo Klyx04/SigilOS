@@ -1,26 +1,24 @@
 /**
- * Gardes — **déslop God, périmètre de la refonte du 25/09/2026**.
+ * Gardes — **déslop God, périmètre complet `src/app/god/**`** (lot D6, 17/11/2026).
  *
- * 🎯 Le God est volontairement **allowlisté** dans la règle `sigil/no-hardcoded-colors`
- * (`eslint.config.mjs` : « console admin dark legacy : chantier dédié (93 fichiers,
- * ~3 500 couleurs) »). Ce n'est pas une raison pour laisser **dériver** les surfaces
- * qu'on vient de refondre : ce test verrouille ce qui a été unifié et empêche le
- * retour du « chaque écran invente sa carte ».
- *
- * Ce qui est mesuré ici (et rien d'autre) :
- *  ① la recette de carte brute (`bg-zinc-900/2x border border-white/5 rounded-3xl`)
- *    ne doit plus exister dans `src/app/god/**` — elle vit dans `GOD_CARD_BASE` ;
- *  ② les surfaces refondues consomment le kit (`src/app/god/ui`) ;
- * ③ le reste du déslop God est **tracé** (ROADMAP) : le compteur d'écrans God qui
- *    gardent des palettes en dur uniquement décroît (plafond explicite ci-dessous).
+ * 🎯 Le God était volontairement **allowlisté** dans la règle `sigil/no-hardcoded-colors`
+ * (`eslint.config.mjs`). Ce test est donc la **seule** barrière qui empêche le retour
+ * du « chaque écran invente sa palette ». Depuis D6, la garde ne compte plus seulement
+ * des fichiers : elle exige **zéro** classe de palette en dur, **zéro** recette de
+ * carte brute et **zéro** motif de slop (formes, effets, graisses) sur tout le périmètre.
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const GOD_ROOT = "src/app/god";
 const RAW_CARD = /bg-zinc-900\/2[05] border border-white\/5 rounded-3xl/g;
+const PALETTE =
+    /\b(?:text|bg|border|from|to|via|ring|shadow|divide|placeholder|fill|stroke)-(?:zinc|slate|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?\b|\b(?:text|bg|border)-(?:white|black)(?:\/\d+)?\b/g;
+const ARBITRARY_COLOR = /-(?:text|bg|border|from|to|via|ring|shadow|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]/g;
+const SHAPE_SLOP =
+    /\b(?:font-black|font-extrabold|rounded-2xl|rounded-3xl|backdrop-blur(?:-\w+)?|tracking-widest|shadow-lg|shadow-xl|shadow-2xl|glass-premium)\b/g;
 
 /** Écrans refondus : ils DOIVENT passer par le kit. */
 const REFONTE_FILES = [
@@ -33,7 +31,7 @@ const REFONTE_FILES = [
     "src/app/god/components/system-health-dashboard.tsx",
 ];
 
-/** Liste récursive des fichiers copiés d'un dossier. */
+/** Liste récursive des fichiers d'un dossier. */
 function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((entry) => {
         const full = join(dir, entry);
@@ -41,15 +39,58 @@ function walk(dir: string): string[] {
     });
 }
 
-describe("déslop God — recette de carte unique", () => {
-    it("plus aucune recette brute dans src/app/god (elle vit dans GOD_CARD_BASE)", () => {
-        const offenders = walk(GOD_ROOT)
-            .filter((f) => /\.tsx?$/.test(f))
-            .filter((f) => RAW_CARD.test(readFileSync(f, "utf8")))
-            .map((f) => f.replace(/^src\/app\/god\//, ""));
-        expect(offenders, "cartes recopiées à la main : utiliser <GodCard> / GOD_CARD_BASE").toEqual([]);
+const GOD_FILES = walk(GOD_ROOT).filter((file) => /\.tsx?$/.test(file));
+
+/** Un scrim de modale est le seul `bg-black` toléré (le kit `dialog.tsx` fait pareil). */
+function withoutScrims(source: string): string {
+    return source
+        .split("\n")
+        .map((line) => (line.includes("fixed inset-0") ? line.replace(/bg-black\/\d+/g, "bg-scrim") : line))
+        .join("\n");
+}
+
+/** Fichiers qui portent encore un motif, avec les motifs trouvés (pour un échec lisible). */
+function offenders(pattern: RegExp): string[] {
+    return GOD_FILES.flatMap((file) => {
+        const matches = withoutScrims(readFileSync(file, "utf8")).match(pattern) ?? [];
+        return matches.length > 0 ? [`${file} → ${[...new Set(matches)].join(", ")}`] : [];
+    });
+}
+
+/** Rayons arbitraires au-delà de 12 px (la DA autorise ≤ 12 px, 14 px pour la fenêtre Rush). */
+function oversizedRadii(): string[] {
+    return GOD_FILES.flatMap((file) => {
+        const source = readFileSync(file, "utf8");
+        const bad: string[] = [];
+        for (const match of source.matchAll(/rounded-\[([0-9.]+)(px|rem|em)\]/g)) {
+            const value = Number(match[1]);
+            const tooBig = match[2] === "px" ? value > 12 : value > 0.75;
+            if (tooBig) bad.push(match[0]);
+        }
+        return bad.length > 0 ? [`${file} → ${[...new Set(bad)].join(", ")}`] : [];
+    });
+}
+
+describe("déslop God — zéro palette en dur sur tout le périmètre", () => {
+    it("aucune classe de palette (zinc/emerald/amber/rose/white/black…) ne subsiste", () => {
+        expect(offenders(PALETTE), "classes de palette en dur : utiliser les tokens de la DA").toEqual([]);
     });
 
+    it("aucune couleur arbitraire en classe ne subsiste", () => {
+        expect(offenders(ARBITRARY_COLOR), "couleurs arbitraires : utiliser les tokens de la DA").toEqual([]);
+    });
+
+    it("aucune forme de slop (graisses, rayons, flous, ombres) ne subsiste", () => {
+        expect(offenders(SHAPE_SLOP), "motifs de slop : utiliser le kit God (≤ 12 px, pas de glass)").toEqual([]);
+        expect(oversizedRadii(), "rayon arbitraire > 12 px").toEqual([]);
+    });
+
+    it("plus aucune recette brute dans src/app/god (elle vit dans GOD_CARD_BASE)", () => {
+        expect(offenders(RAW_CARD), "cartes recopiées à la main : utiliser <GodCard> / GOD_CARD_BASE").toEqual([]);
+    });
+});
+
+describe("déslop God — le kit et les surfaces refondues", () => {
     it("le kit God exporte la recette partagée", () => {
         const kit = readFileSync("src/app/god/ui/god-card.tsx", "utf8");
         expect(kit).toContain("export const GOD_CARD_BASE");
@@ -64,27 +105,19 @@ describe("déslop God — recette de carte unique", () => {
         }
     });
 
-    it("le périmètre refondu reste mesuré : le compteur d'écrans God à palettes en dur ne remonte pas", () => {
-        // Mesure du 25/09/2026 : 86 fichiers dans src/app/god, dont la majorité garde des
-        // palettes zinc/violet (allowlist ESLint). Ce plafond ne peut que DÉCROÎTRE —
-        // il matérialise le reste du chantier, il ne l'excuse pas.
-        // (+1 le 25/09 : la vue God « Modules & maintenance » (A2 · G12) est une surface
-        // NOUVELLE demandée par le plan ; elle consomme le kit, donc elle n'ajoute pas
-        // de dette — le plafond suit un nombre de fichiers, pas la qualité.)
-        // (−1 le 25/09, lot 3 : les journaux sont **une seule porte** — `audit-feed-panel`
-        // (second panneau mort) plus deux orphelins mesurés (`guild-manager.tsx`,
-        // `docs/_components/doc-outline-sidebar.tsx`, aucun import) disparaissent ; le
-        // kit gagne `GodPagination` et l'onglet « Accès délégués » une vue. Net : −1.)
-        // (−8 le 28/09/2026, chantier « purge des onglets morts » : Studio Badges (2),
-        // Icônes Modules (1), Packs Reaction Roles (2), Roadmap Pro (2) et Onboarding
-        // B2B (1) sont supprimés — 85 → 77.)
-        // (+4 le 16/11/2026, V3 « God visiteurs » : `visitors-panel`, `guild-area-switch`,
-        // `god-pagination-links` et `visitor-visibility-reset` — tous consommateurs du kit.
-        // Le bouton de réinitialisation est une surface neuve, pas une dette.)
-        // (−2 le 16/11/2026, lot C : `live-stats.tsx` et `activity-chart.tsx` supprimés avec
-        // le flux SSE et les sections « Indicateurs/Activité » de la vue d'ensemble.)
-        const CEILING = 79;
-        const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
-        expect(godFiles.length).toBeLessThanOrEqual(CEILING);
+    it("l'ancienne liste d'utilisateurs orpheline et son action destructive ont disparu", () => {
+        expect(existsSync("src/app/god/user-list.tsx")).toBe(false);
+        const actions = readFileSync("src/server/actions/super-admin-actions.ts", "utf8");
+        expect(actions).not.toContain("export async function forceDeleteUser");
+    });
+});
+
+describe("déslop God — le périmètre reste borné", () => {
+    it("le nombre de fichiers God ne remonte pas (plafond 78)", () => {
+        // 79 → 78 le 17/11/2026 (D6) : `user-list.tsx` était orphelin (aucun import)
+        // et portait une action de suppression de compte sans appelant. Ce plafond
+        // ne peut que DÉCROÎTRE — il matérialise le reste, il ne l'excuse pas.
+        const CEILING = 78;
+        expect(GOD_FILES.length).toBeLessThanOrEqual(CEILING);
     });
 });

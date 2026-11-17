@@ -253,7 +253,7 @@ export default function MiniGamesGodClient({
                         className={cn(
                             "px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2",
                             activeTab === "GUESSER"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                ? "bg-success/10 text-success border border-success/30"
                                 : "text-muted-foreground hover:text-foreground hover:bg-surface/50"
                         )}
                     >
@@ -278,12 +278,12 @@ export default function MiniGamesGodClient({
             {activeTab === "MAINTENANCE" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {statuses.map(game => (
-                        <div key={game.gameId} className="bg-surface border border-border rounded-2xl p-6 space-y-4 shadow-sm">
+                        <div key={game.gameId} className="bg-surface border border-border rounded-xl p-6 space-y-4 shadow-sm">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
-                                        game.isEnabled ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                        game.isEnabled ? "bg-success/10 text-success border border-success/20" : "bg-destructive/10 text-destructive border border-destructive/20"
                                     )}>
                                         <Gamepad2 size={18} />
                                     </div>
@@ -297,7 +297,7 @@ export default function MiniGamesGodClient({
 
                                 <div className={cn(
                                     "px-2.5 py-1 rounded-full text-caption font-bold border",
-                                    game.isEnabled ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                                    game.isEnabled ? "bg-success/10 border-success/30 text-success" : "bg-destructive/10 border-destructive/30 text-destructive"
                                 )}>
                                     {game.isEnabled ? "ON" : "OFF"}
                                 </div>
@@ -321,8 +321,8 @@ export default function MiniGamesGodClient({
                                     className={cn(
                                         "px-4 py-2 rounded-xl text-xs font-bold transition-colors",
                                         game.isEnabled
-                                            ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30"
-                                            : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
+                                            ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/30"
+                                            : "bg-success/10 text-success hover:bg-success/20 border border-success/30"
                                     )}
                                 >
                                     {game.isEnabled ? "Passer en maintenance" : "Activer le jeu"}
@@ -346,16 +346,16 @@ export default function MiniGamesGodClient({
             {activeTab === "GUESSER" && (
                 <div className="space-y-6">
                     {/* Live Statistics Banner */}
-                    <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="bg-surface border border-border rounded-xl p-5 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                <div className="w-9 h-9 rounded-xl bg-success/10 border border-success/30 flex items-center justify-center text-success">
                                     <Layers size={18} />
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-foreground text-sm">Synthèse des Maps Exclues du Pool</h3>
                                     <p className="text-caption text-muted-foreground">
-                                        Total : <strong className="text-foreground">{blacklist.length}</strong> maps blacklistées • <strong className="text-amber-400">{reportedIds.length}</strong> signalements en attente
+                                        Total : <strong className="text-foreground">{blacklist.length}</strong> maps blacklistées • <strong className="text-warning">{reportedIds.length}</strong> signalements en attente
                                     </p>
                                 </div>
                             </div>
@@ -368,7 +368,7 @@ export default function MiniGamesGodClient({
                                 className={cn(
                                     "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors border",
                                     worldFilter === "ALL"
-                                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                                        ? "bg-success/20 border-success/40 text-success"
                                         : "bg-background border-border text-muted-foreground hover:text-foreground"
                                 )}
                             >
@@ -385,7 +385,7 @@ export default function MiniGamesGodClient({
                                         className={cn(
                                             "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors border",
                                             worldFilter === wId
-                                                ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                                                ? "bg-success/20 border-success/40 text-success"
                                                 : "bg-background border-border text-muted-foreground hover:text-foreground"
                                         )}
                                     >
@@ -399,10 +399,10 @@ export default function MiniGamesGodClient({
                     {/* Main Grid: Reports vs Blacklist */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* 1. Reports from players */}
-                        <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm flex flex-col">
+                        <div className="bg-surface border border-border rounded-xl p-5 space-y-4 shadow-sm flex flex-col">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                    <div className="w-8 h-8 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-center text-warning">
                                         <Flag size={15} />
                                     </div>
                                     <div>
@@ -410,7 +410,7 @@ export default function MiniGamesGodClient({
                                         <p className="text-caption text-muted-foreground">Maps tactiques ou souterraines à vérifier</p>
                                     </div>
                                 </div>
-                                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-caption font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-warning/10 border border-warning/30 text-warning font-mono text-caption font-bold">
                                     {reportedIds.length}
                                 </span>
                             </div>
@@ -418,16 +418,16 @@ export default function MiniGamesGodClient({
                             <div className="flex-1 overflow-y-auto max-h-[480px] space-y-2 pr-1 custom-scrollbar">
                                 {reportedIds.length === 0 ? (
                                     <div className="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">
-                                        <CheckCircle2 size={24} className="mx-auto mb-1 text-emerald-400/50" />
+                                        <CheckCircle2 size={24} className="mx-auto mb-1 text-success/50" />
                                         Aucun signalement en attente
                                     </div>
                                 ) : (
                                     reportedIds.map(id => {
                                         const d = mapDetails[id];
                                         return (
-                                            <div key={id} className="p-2.5 rounded-xl bg-background border border-border flex items-center justify-between hover:border-amber-500/30 transition-colors">
+                                            <div key={id} className="p-2.5 rounded-xl bg-background border border-border flex items-center justify-between hover:border-warning/30 transition-colors">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-zinc-900 border border-border shrink-0">
+                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-surface border border-border shrink-0">
                                                         <img
                                                             src={`/game-data/hd_maps/${id}.webp`}
                                                             alt=""
@@ -446,21 +446,21 @@ export default function MiniGamesGodClient({
                                                 <div className="flex items-center gap-1.5">
                                                     <button
                                                         onClick={() => addToBlacklist(id)}
-                                                        className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white text-caption font-bold transition-colors flex items-center gap-1"
+                                                        className="px-2.5 py-1 rounded-lg bg-success/10 text-success hover:bg-success hover:text-success-foreground text-caption font-bold transition-colors flex items-center gap-1"
                                                         title="Confirmer l'exclusion"
                                                     >
                                                         <Ban size={12} /> Blacklister
                                                     </button>
                                                     <button
                                                         onClick={() => handlePermanentDelete(id)}
-                                                        className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-600 hover:text-white text-caption font-bold transition-colors flex items-center gap-1"
+                                                        className="px-2.5 py-1 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive hover:text-destructive-foreground text-caption font-bold transition-colors flex items-center gap-1"
                                                         title="Supprimer définitivement l'image HD du VPS et blacklister"
                                                     >
                                                         <Flame size={12} /> Supprimer HD
                                                     </button>
                                                     <button
                                                         onClick={() => removeFromReported(id)}
-                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-zinc-800 hover:text-foreground transition-colors"
+                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground transition-colors"
                                                         title="Ignorer le signalement"
                                                     >
                                                         <Trash2 size={13} />
@@ -474,10 +474,10 @@ export default function MiniGamesGodClient({
                         </div>
 
                         {/* 2. Blacklisted Maps */}
-                        <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm flex flex-col">
+                        <div className="bg-surface border border-border rounded-xl p-5 space-y-4 shadow-sm flex flex-col">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                                    <div className="w-8 h-8 rounded-lg bg-destructive/10 border border-destructive/30 flex items-center justify-center text-destructive">
                                         <Ban size={15} />
                                     </div>
                                     <div>
@@ -485,7 +485,7 @@ export default function MiniGamesGodClient({
                                         <p className="text-caption text-muted-foreground">Exclues définitivement de la sélection</p>
                                     </div>
                                 </div>
-                                <span className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-mono text-caption font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 text-destructive font-mono text-caption font-bold">
                                     {filteredBlacklist.length}
                                 </span>
                             </div>
@@ -503,7 +503,7 @@ export default function MiniGamesGodClient({
                                     />
                                     <button
                                         onClick={handleManualAdd}
-                                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-400 transition-colors flex items-center justify-center"
+                                        className="px-3 py-2 rounded-xl bg-success text-success-foreground font-bold text-xs hover:bg-success transition-colors flex items-center justify-center"
                                         title="Ajouter à la blacklist"
                                     >
                                         <Plus size={14} />
@@ -534,7 +534,7 @@ export default function MiniGamesGodClient({
                                         return (
                                             <div key={id} className="p-2.5 rounded-xl bg-background border border-border flex items-center justify-between hover:border-border transition-colors">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-zinc-900 border border-border shrink-0">
+                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-surface border border-border shrink-0">
                                                         <img
                                                             src={`/game-data/hd_maps/${id}.webp`}
                                                             alt=""
@@ -553,14 +553,14 @@ export default function MiniGamesGodClient({
                                                 <div className="flex items-center gap-1.5">
                                                     <button
                                                         onClick={() => handlePermanentDelete(id)}
-                                                        className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/15 transition-colors"
+                                                        className="p-1.5 rounded-lg text-destructive hover:bg-destructive/15 transition-colors"
                                                         title="Purger définitivement l'image HD du disque"
                                                     >
                                                         <Flame size={14} />
                                                     </button>
                                                     <button
                                                         onClick={() => removeFromBlacklist(id)}
-                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                                                         title="Retirer de la blacklist"
                                                     >
                                                         <Trash2 size={14} />

@@ -29,10 +29,10 @@ interface SyncResult {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-    DONJONS_QUETES: "text-amber-500 bg-amber-500/10 border-amber-500/20",
-    COMMUNAUTE: "text-violet-400 bg-violet-400/10 border-violet-400/20",
-    PROFIL: "text-sky-400 bg-sky-400/10 border-sky-400/20",
-    UTILITAIRE: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+    DONJONS_QUETES: "text-warning bg-warning/10 border-warning/20",
+    COMMUNAUTE: "text-accent bg-accent/10 border-accent/20",
+    PROFIL: "text-info bg-info/10 border-info/20",
+    UTILITAIRE: "text-success bg-success/10 border-success/20"
 };
 
 /** État + actions des portées (chargement, bascule, rechargement après succès). */
@@ -101,7 +101,7 @@ function GuildCommandScopes() {
         SLASH_COMMANDS_CATALOG.map((command) => ({ name: command.name, staffOnly: command.staffOnly === true }));
 
     return (
-        <div className="p-5 sm:p-6 rounded-2xl border border-border bg-surface space-y-4">
+        <div className="p-5 sm:p-6 rounded-xl border border-border bg-surface space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="space-y-1">
                     <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -128,7 +128,7 @@ function GuildCommandScopes() {
             {isLoading && !payload ? (
                 <p className="text-xs text-muted-foreground">Chargement des guilde(s)…</p>
             ) : payload && !payload.success ? (
-                <p className="text-xs text-rose-500">{payload.error || "Lecture impossible"}</p>
+                <p className="text-xs text-destructive">{payload.error || "Lecture impossible"}</p>
             ) : (payload?.guilds?.length ?? 0) === 0 ? (
                 <p className="text-xs text-muted-foreground">Aucune guilde active.</p>
             ) : (
@@ -160,7 +160,7 @@ function GuildCommandScopes() {
                                                 "px-2 py-1 rounded-lg border text-[10px] font-mono transition-colors",
                                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                                                 deployed
-                                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                                                    ? "border-success/40 bg-success/10 text-success"
                                                     : "border-border/60 bg-background text-muted-foreground hover:border-accent/40",
                                                 pending === key && "opacity-50",
                                                 command.staffOnly && !deployed && "border-warning/40 text-warning"
@@ -217,9 +217,9 @@ export function GodSlashCommandsPanel() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="p-6 sm:p-8 rounded-[2rem] border border-border bg-surface shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="p-6 sm:p-8 rounded-xl border border-border bg-surface shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="space-y-1">
-                    <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
                         <Terminal className="w-4 h-4 text-accent" />
                         Commandes Slash Discord (Plateforme)
                     </h3>
@@ -227,7 +227,7 @@ export function GodSlashCommandsPanel() {
                         Déploie les commandes sur tous les serveurs SigilOS — avec autocomplétion, descriptions et options exactement comme les meilleurs bots.
                     </p>
                     {lastSyncTime && (
-                        <p className="text-[10px] font-mono text-emerald-500">
+                        <p className="text-[10px] font-mono text-success">
                             Dernière sync : {lastSyncTime}
                         </p>
                     )}
@@ -236,7 +236,7 @@ export function GodSlashCommandsPanel() {
                 <Button
                     onClick={handleSyncDiscordCommands}
                     disabled={isSyncing}
-                    className="h-10 px-5 rounded-xl text-xs font-black gap-2 shadow-sm shrink-0"
+                    className="h-10 px-5 rounded-xl text-xs font-semibold gap-2 shadow-sm shrink-0"
                 >
                     <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
                     {isSyncing ? "Déploiement en cours..." : "Synchroniser Discord"}
@@ -245,23 +245,23 @@ export function GodSlashCommandsPanel() {
 
             {/* Sync Results */}
             {syncResults.length > 0 && (
-                <div className="p-5 rounded-3xl bg-surface border border-border space-y-3 animate-in fade-in">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                <div className="p-5 rounded-xl bg-surface border border-border space-y-3 animate-in fade-in">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Résultats du Déploiement
                     </h4>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                         {syncResults.map((result) => (
                             <div key={result.guildId} className="flex items-center gap-2.5 text-xs font-mono">
                                 {result.ok ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                                 ) : (
-                                    <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                                    <XCircle className="w-4 h-4 text-destructive shrink-0" />
                                 )}
                                 <span className="text-muted-foreground">{result.guildId}</span>
                                 {result.ok ? (
-                                    <span className="text-emerald-500 font-bold">→ {result.count} commandes enregistrées</span>
+                                    <span className="text-success font-bold">→ {result.count} commandes enregistrées</span>
                                 ) : (
-                                    <span className="text-rose-500 text-[10px]">{result.error}</span>
+                                    <span className="text-destructive text-[10px]">{result.error}</span>
                                 )}
                             </div>
                         ))}
@@ -270,7 +270,7 @@ export function GodSlashCommandsPanel() {
             )}
 
             {/* How it works info banner */}
-            <div className="p-4 rounded-2xl bg-accent-soft border border-accent/20 flex items-start gap-3">
+            <div className="p-4 rounded-xl bg-accent-soft border border-accent/20 flex items-start gap-3">
                 <Zap className="w-4 h-4 text-accent shrink-0 mt-0.5" />
                 <div className="space-y-1">
                     <p className="text-xs font-bold text-foreground">
@@ -290,15 +290,15 @@ export function GodSlashCommandsPanel() {
                 {SLASH_COMMANDS_CATALOG.map((cmd) => (
                     <div 
                         key={cmd.name}
-                        className="p-5 rounded-3xl bg-surface border border-border flex flex-col justify-between gap-4 hover:border-accent/30 transition-colors"
+                        className="p-5 rounded-xl bg-surface border border-border flex flex-col justify-between gap-4 hover:border-accent/30 transition-colors"
                     >
                         <div className="space-y-2.5">
                             <div className="flex items-center justify-between gap-2">
-                                <code className="text-sm font-black font-mono text-accent bg-accent-soft px-2 py-0.5 rounded-lg">
+                                <code className="text-sm font-semibold font-mono text-accent bg-accent-soft px-2 py-0.5 rounded-lg">
                                     /{cmd.name}
                                 </code>
                                 <span className={cn(
-                                    "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border",
+                                    "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md border",
                                     CATEGORY_COLORS[cmd.category] || "text-muted-foreground bg-elevated border-border"
                                 )}>
                                     {cmd.category.replace("_", " ")}
@@ -312,7 +312,7 @@ export function GodSlashCommandsPanel() {
 
                         <div className="pt-3 border-t border-border/60 flex items-center justify-between text-[11px]">
                             <span className="font-mono text-muted-foreground">{cmd.usage}</span>
-                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full border border-success/20">
                                 {cmd.staffOnly ? "Sur autorisation" : "Active"}
                             </span>
                         </div>

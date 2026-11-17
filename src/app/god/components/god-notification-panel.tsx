@@ -123,13 +123,13 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
 
     const getTypeIcon = (type: string) => {
         switch (type) {
-            case "VPS_MAINTENANCE": return <Terminal className="w-4 h-4 text-blue-400" />;
-            case "BACKUP": return <Database className="w-4 h-4 text-emerald-400" />;
-            case "WORKER_SYNC": return <RefreshCw className="w-4 h-4 text-amber-400" />;
-            case "TICKET": return <Ticket className="w-4 h-4 text-indigo-400" />;
-            case "GEOGUESSER_REPORT": return <Bug className="w-4 h-4 text-rose-400" />;
-            case "SECURITY_ALERT": return <ShieldAlert className="w-4 h-4 text-red-500" />;
-            default: return <Info className="w-4 h-4 text-zinc-400" />;
+            case "VPS_MAINTENANCE": return <Terminal className="w-4 h-4 text-info" />;
+            case "BACKUP": return <Database className="w-4 h-4 text-success" />;
+            case "WORKER_SYNC": return <RefreshCw className="w-4 h-4 text-warning" />;
+            case "TICKET": return <Ticket className="w-4 h-4 text-accent" />;
+            case "GEOGUESSER_REPORT": return <Bug className="w-4 h-4 text-destructive" />;
+            case "SECURITY_ALERT": return <ShieldAlert className="w-4 h-4 text-destructive" />;
+            default: return <Info className="w-4 h-4 text-muted-foreground" />;
         }
     };
 
@@ -182,7 +182,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
             {/* Header & Smart Search */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-border">
                 <div className="space-y-1">
-                    <h2 className="text-2xl font-black text-foreground uppercase tracking-tight flex items-center gap-3">
+                    <h2 className="text-2xl font-semibold text-foreground uppercase tracking-tight flex items-center gap-3">
                         <Bell className="w-6 h-6 text-danger" />
                         Alertes Système God
                     </h2>
@@ -202,7 +202,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
             </div>
 
             {/* Filters Bar */}
-            <div className="flex flex-wrap items-center gap-2.5 p-3 bg-surface/50 border border-border rounded-2xl">
+            <div className="flex flex-wrap items-center gap-2.5 p-3 bg-surface/50 border border-border rounded-xl">
                 <div className="flex items-center gap-2 mr-1 border-r border-border pr-3">
                     <Filter className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Filtres</span>
@@ -271,7 +271,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
             {/* Notifications List */}
             <div className="grid gap-3">
                 {filteredAndSortedNotifications.length === 0 ? (
-                    <div className="py-16 text-center space-y-3 bg-surface/30 border border-dashed border-border rounded-2xl">
+                    <div className="py-16 text-center space-y-3 bg-surface/30 border border-dashed border-border rounded-xl">
                         <div className="inline-flex p-3 rounded-full bg-surface border border-border">
                             <ListFilter className="w-6 h-6 text-muted-foreground" />
                         </div>
@@ -345,14 +345,14 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                                 <Link
                                                     href={`/god/guilds/${notif.metadata.guildId}`}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30 text-success text-xs font-black uppercase tracking-wider hover:bg-success/25 transition-colors"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30 text-success text-xs font-semibold uppercase tracking-wider hover:bg-success/25 transition-colors"
                                                 >
                                                     Transférer (détail guilde)
                                                 </Link>
                                             )}
                                             <button
                                                 onClick={(e) => handleRejectClaim(notif, e)}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs font-black uppercase tracking-wider hover:bg-danger/20 transition-colors"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs font-semibold uppercase tracking-wider hover:bg-danger/20 transition-colors"
                                             >
                                                 Rejeter
                                             </button>
@@ -377,7 +377,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                             <div 
                                 key={notif.id}
                                 className={cn(
-                                    "group relative overflow-hidden p-5 bg-surface border border-border rounded-2xl transition-all duration-200 hover:bg-elevated/30 hover:border-border-strong",
+                                    "group relative overflow-hidden p-5 bg-surface border border-border rounded-xl transition-all duration-200 hover:bg-elevated/30 hover:border-border-strong",
                                     !notif.isRead && "border-danger/30 bg-danger/5",
                                     link && "cursor-pointer"
                                 )}

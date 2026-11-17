@@ -92,6 +92,9 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
     // Whitelist Modal State
     const [isAddOpen, setIsAddOpen] = useState(false);
+    // G2 — les connexions non autorisées ne sont plus un bouton permanent : elles
+    // vivent dans le menu ⋯ et ne s'affichent que s'il y a réellement des tentatives.
+    const [isUnauthorizedOpen, setIsUnauthorizedOpen] = useState(false);
     const [newGuildId, setNewGuildId] = useState("");
     const [newGuildName, setNewGuildName] = useState("");
     const [newGuildNotes, setNewGuildNotes] = useState("");
@@ -168,6 +171,9 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
         return result;
     }, [guilds, search, filterStatus, sortBy, sortOrder]);
 
+    /** Tentatives réelles : guilde autorisée mais jamais déployée (tier PENDING). */
+    const pendingGuilds = guilds.filter((g) => g.isWhitelistOnly && g.tier === 'PENDING');
+
     const toggleSelect = (id: string) => {
         const newSelected = new Set(selected);
         if (newSelected.has(id)) {
@@ -219,73 +225,27 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                        Gestion des Guildes
+                        Gestion des guildes
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        {filteredGuilds.length} guilde{filteredGuilds.length > 1 ? 's' : ''}
-                        {search && ` · Recherche: "${search}"`}
+                        {filteredGuilds.length === guilds.length
+                            ? `${guilds.length} guilde${guilds.length > 1 ? 's' : ''}`
+                            : `${filteredGuilds.length} sur ${guilds.length} guildes`}
+                        {search && ` · Recherche : « ${search} »`}
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Unauthorized bot attempts button */}
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <ShieldAlert className="h-4 w-4 text-warning" aria-hidden="true" />
-                                Connexions non autorisées
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-lg rounded-xl border border-border bg-background p-6 text-foreground">
-                            <DialogHeader>
-                                <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
-                                    <ShieldAlert className="h-5 w-5 text-warning" aria-hidden="true" /> Serveurs ayant invité le Bot
-                                </DialogTitle>
-                                <DialogDescription className="text-xs text-muted-foreground">
-                                    Ces serveurs Discord ont ajouté le Bot SigilOS mais ne sont pas encore dans la Whitelist. Le bot y reste inactif jusqu'à votre approbation.
-                                </DialogDescription>
-                            </DialogHeader>
-
-                            <div className="mt-4 max-h-[350px] space-y-2 overflow-y-auto pr-1">
-                                {guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-border bg-surface/5 p-6 text-center text-xs text-muted-foreground">
-                                        Aucune tentative non autorisée
-                                    </div>
-                                ) : (
-                                    guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').map(g => (
-                                        <div key={g.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/10 p-3">
-                                            <div className="min-w-0 space-y-0.5">
-                                                <div className="truncate text-xs font-semibold text-foreground">{g.name}</div>
-                                                <div className="font-mono text-xs text-muted-foreground">{g.discordGuildId}</div>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={async () => {
-                                                    await addAllowedGuild({ discordGuildId: g.discordGuildId, name: g.name });
-                                                    toast.success(`Guilde ${g.name} Whitelistée !`);
-                                                    window.location.reload();
-                                                }}
-                                                className="shrink-0"
-                                            >
-                                                Autoriser
-                                            </Button>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </DialogContent>
-                    </Dialog>
-
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>
                             <Button className="gap-2">
                                 <UserPlus className="h-4 w-4" aria-hidden="true" />
-                                Whitelist New Guild
+                                Autoriser une guilde
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-md rounded-xl border border-border bg-background p-6 text-foreground">
                             <DialogHeader>
-                                <DialogTitle className="text-base font-semibold text-foreground">Autoriser une Guilde</DialogTitle>
+                                <DialogTitle className="text-base font-semibold text-foreground">Autoriser une guilde</DialogTitle>
                                 <DialogDescription className="text-sm text-muted-foreground">
                                     L'autorisation de première connexion permet au bot de rejoindre le serveur.
                                 </DialogDescription>
@@ -294,7 +254,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                             <div className="mt-6 space-y-5">
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                        <Hash className="h-3 w-3" aria-hidden="true" /> Discord Guild ID *
+                                        <Hash className="h-3 w-3" aria-hidden="true" /> ID du serveur Discord *
                                     </label>
                                     <Input
                                         placeholder="Ex: 1234567890..."
@@ -318,7 +278,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                        <FileText className="h-3 w-3" aria-hidden="true" /> Notes (Interne)
+                                        <FileText className="h-3 w-3" aria-hidden="true" /> Notes internes
                                     </label>
                                     <Input
                                         placeholder="Ex: Guilde de test, Premium..."
@@ -338,8 +298,74 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                             </div>
                         </DialogContent>
                     </Dialog>
+
+                    {/* G2 — une seule action primaire par bloc : le reste dans ⋯.
+                        Le menu n'existe que s'il y a réellement des tentatives. */}
+                    {pendingGuilds.length > 0 ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" aria-label="Autres actions">
+                                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 border border-border bg-background text-foreground">
+                                <DropdownMenuLabel className="p-3 text-xs uppercase tracking-wide text-muted-foreground">
+                                    Autres actions
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setIsUnauthorizedOpen(true)}
+                                    className="cursor-pointer gap-3 p-3 focus:bg-elevated focus:text-foreground"
+                                >
+                                    <ShieldAlert className="h-4 w-4 text-warning" aria-hidden="true" />
+                                    Connexions non autorisées ({pendingGuilds.length})
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : null}
                 </div>
             </div>
+
+            {/* G2 — une section vide ne s'affiche plus : ce dialogue n'est atteignable
+                que s'il existe au moins une tentative (menu ⋯). */}
+            <Dialog open={isUnauthorizedOpen} onOpenChange={setIsUnauthorizedOpen}>
+                <DialogContent className="max-w-lg rounded-xl border border-border bg-background p-6 text-foreground">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                            <ShieldAlert className="h-5 w-5 text-warning" aria-hidden="true" /> Serveurs ayant invité le bot
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground">
+                            Ces serveurs Discord ont ajouté le bot SigilOS mais ne sont pas encore autorisés. Le bot y reste inactif jusqu'à approbation.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="mt-4 max-h-[350px] space-y-2 overflow-y-auto pr-1">
+                        {pendingGuilds.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">Aucune tentative non autorisée.</p>
+                        ) : (
+                            pendingGuilds.map((g) => (
+                                <div key={g.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/10 p-3">
+                                    <div className="min-w-0 space-y-0.5">
+                                        <div className="truncate text-xs font-semibold text-foreground">{g.name}</div>
+                                        <div className="font-mono text-xs text-muted-foreground">{g.discordGuildId}</div>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                            await addAllowedGuild({ discordGuildId: g.discordGuildId, name: g.name });
+                                            toast.success(`Guilde ${g.name} autorisée.`);
+                                            window.location.reload();
+                                        }}
+                                        className="shrink-0"
+                                    >
+                                        Autoriser
+                                    </Button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Radar de Surveillance & Métriques d'Onboarding */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -382,7 +408,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
                     </div>
                     <div className="mt-1 text-2xl font-semibold text-foreground">{radarStats.vip}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">Whitelist God ou ticket</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">Autorisation staff ou ticket</div>
                 </button>
 
                 <button

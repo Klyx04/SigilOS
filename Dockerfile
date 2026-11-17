@@ -90,6 +90,10 @@ RUN npm run build:succes
 # `node scripts/backfill-dungeon-completion.js [--apply]`)
 RUN npm run build:backfill-dungeon-completion
 
+# Build du backfill ownerId (D7 — normalise GuildConfig.ownerId, dry-run par défaut :
+# `node scripts/backfill-guild-owner-id.js [--execute]`)
+RUN npm run build:backfill-guild-owner
+
 # Build worker script
 RUN npm run build:worker
 

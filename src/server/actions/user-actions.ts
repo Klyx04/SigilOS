@@ -968,15 +968,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     // 🔄 Réconciliation du **propriétaire** : un transfert de serveur Discord n'émet aucun événement
     // que le site écoute. Le propriétaire live est la vérité ; on aligne la colonne une seule fois.
+    // D7 — la colonne cible l'**identifiant interne** (`User.id`), jamais le snowflake : un
+    // snowflake transitoire (onboarding) est remplacé ici à la première visite du propriétaire.
     // ⚠️ `ownerId` peut être `null` (STELLIUM) : `{ not }` seul ne matche pas `NULL` en SQL, d'où le `OR`.
-    if (isOwner && guildConfig && guildConfig.ownerId !== discordUserId) {
+    if (isOwner && guildConfig && guildConfig.ownerId !== session.user.id) {
         await db.guildConfig
             .updateMany({
                 where: {
                     id: guildConfig.id,
-                    OR: [{ ownerId: null }, { ownerId: { not: discordUserId } }],
+                    OR: [{ ownerId: null }, { ownerId: { not: session.user.id } }],
                 },
-                data: { ownerId: discordUserId },
+                data: { ownerId: session.user.id },
             })
             .catch(() => {
                 /* best-effort : la visite suivante rejouera l'alignement */

@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 18) — **God · déslop complet (D6) et normalisation `ownerId` (D7)** — branches `feat/god-deslop-tokens` (PR #1421) et `feat/god-owner-id` (PR #1422)
+
+> **Demande user (verbatim)** : « enchaine tout conclus tout » — après D5 (G1/G2), livrer D6 (déslop God, plafond 79) puis D7 (ownerId).
+> **Mesure** : 39 fichiers God portaient encore ~1 800 occurrences de palettes en dur (zinc/emerald/amber/rose/white/black), 246 `font-black`, 136 `rounded-2xl/3xl`, 23 `backdrop-blur`, 116 `tracking-widest` ; `user-list.tsx` était orphelin et `forceDeleteUser` sans appelant. `GuildConfig.ownerId` : 7 guildes locales → 3 snowflakes (3/3 résolubles), 3 nulles, 1 interne ; trois écrivains pouvaient y remettre un snowflake.
+> **Fait** : **D6** — tous les fichiers God tokenisés (zéro palette, zéro forme hors DA), contraste des boutons pleins, scrims alignés sur le kit, `user-list.tsx` + `forceDeleteUser` supprimés, garde `god-deslop` réécrite (palette/formes/kit) et plafond **79 → 78**. **D7** — `resolveGuildOwnerWriteId` (cible `User.id`, snowflake transitoire sinon), onboarding + self-heals dashboard/RGPD branchés, transfert inchangé (interne), script `scripts/backfill-guild-owner-id.ts` (dry-run par défaut) et procédure `MAINTENANCE.md`.
+> **Preuves** : suite **748 fichiers / 7 824 tests ✅** · `tsc` 0 · ESLint 0 erreur · dry-run réel **7 guildes : 3 à normaliser, 0 sans compte lié, 4 déjà interne/nulle** · verrous `god-deslop` (8) et `guild-owner-normalization` (13).
+> **Reste / ops** : lancer le backfill **bêta puis prod** (`--execute`) puis contrôler les compteurs ; D8 (rétention réelle) et D9 (visuel) humains ; migrations V4 bêta/prod ; contrôle visuel God 390/768/1024/1440 après D6.
+> **Rotation** : bloc « Session 16/11/2026 (suite 12) — Visiteurs · carte Ocre alignée sur l'interne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 17/11/2026 (suite 17) — **God · glossaire des statuts (G1) et tour de contrôle allégée (G2)** — branches `feat/god-glossaire-statuts` (PR #1419) et `feat/god-tour-controle` (PR #1420)
 
 > **Demande user (verbatim)** : « Coder D5 : d'abord G1 (glossaire/libellés God), puis G2 (page God) », sans créer `/god/users`.
@@ -55,16 +64,6 @@
 > **Reste / ops** : contrôle visuel 390/768/1024/1440 de la fiche (listes longues, Rush non partagé, Metamob vérifié) ; aucune migration.
 > **Rotation** : bloc « Session 16/11/2026 (suite 7) — Rétention · lot A » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-
-## 📝 Session 16/11/2026 (suite 12) — **Visiteurs · carte Ocre alignée sur l'interne (possession + vraie synchro)** — branche `fix/ocre-visiteur-parite`
-
-> **Demande user (verbatim)** : « la quete ocre se sync pas en externe comme l'interne c bizarre » (+ captures : externe 1/18, 0 %, 0/51, 0/286 ; interne 1/34, 69 %, 42/51, 191/286).
-> **Mesure** : la route de quête Metamob renvoie `status` / `want` / `offer` sans `owned` ; l'interne passait par `normalizeQuestMonster`, le visiteur lisait `owned ?? 0` ⇒ 0 capture partout. `stepCount` venait de `quest_template.step_count` (18) alors que l'interne affiche 34. Enfin, « Forcer la synchro » relisait le cache Next (`revalidate` 3600) et le patch relisait sans `skipCache` (double cross-check factice).
-> **Fait** : `toPublicOcreMonster` reçoit l'`owned` normalisé (`normalizeQuestMonster`, `parallel_quests`) ; comptage des deux côtés par `isOcreMonsterNeeded` (possédé **ou** étape passée) ; `OCRE_TOTAL_STEPS = 34` source unique (guide, PiP, carte visiteur) ; `getPublicOcreProgress({ force })` borné par Zod, `skipCache`/`revalidate: 0` sur la lecture forcée (TTL normal 5 min) ; relecture du patch sans cache + `revalidateTag` par pseudo ; tests `ocre-possession-parity`.
-> **Preuves** : `npm run test:run` **744 fichiers / 7 786 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés **108 ✅**.
-> **Reste / ops** : contrôle visuel 390/768/1024/1440 de la carte Ocre visiteur (valeurs identiques à l'interne, bouton « Forcer la synchro ») ; les migrations V4 restent à jouer en bêta puis prod.
-> **Rotation** : bloc « Session 16/11/2026 (suite 6) — God · V3 visiteurs + fiche guilde » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

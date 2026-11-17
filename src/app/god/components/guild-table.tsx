@@ -13,7 +13,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw, Plus, UserPlus, FileText, Hash, Copy, Snowflake, AlertTriangle, LogOut, Radio, ShieldX, Ban, Pencil
+    Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw, Plus, UserPlus, FileText, Hash, Copy, Snowflake, AlertTriangle, LogOut, Radio, ShieldX, Ban, Pencil, Info
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { z } from 'zod';
 import { isSelfOnboardedGuild, resolveOnboardingOrigin } from '@/lib/onboarding-gating';
+import { GOD_STATUS_GLOSSARY, godStatusTitle } from '@/lib/god-status-glossary';
 
 const whitelistSchema = z.object({
     discordGuildId: z.string().min(17, "ID Discord trop court").max(20, "ID Discord trop long").regex(/^\d+$/, "L'ID doit être numérique"),
@@ -344,6 +345,8 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 <button
                     onClick={() => setFilterStatus('all')}
+                    aria-pressed={filterStatus === 'all'}
+                    title="Toutes les guildes répertoriées, quel que soit leur statut."
                     className={`rounded-xl border p-4 text-left transition-colors ${filterStatus === 'all' ? 'border-border-strong bg-elevated' : 'border-border bg-surface/10 hover:border-border-strong'}`}
                 >
                     <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -356,6 +359,8 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
                 <button
                     onClick={() => setFilterStatus('autonomous')}
+                    aria-pressed={filterStatus === 'autonomous'}
+                    title={godStatusTitle("AUTONOME")}
                     className={`rounded-xl border p-4 text-left transition-colors ${filterStatus === 'autonomous' ? 'border-border-strong bg-elevated' : 'border-border bg-surface/10 hover:border-border-strong'}`}
                 >
                     <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -363,15 +368,17 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         <Radio className="h-4 w-4 text-success" aria-hidden="true" />
                     </div>
                     <div className="mt-1 text-2xl font-semibold text-foreground">{radarStats.autonomous}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">Installations 1-clic</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">Sans validation humaine</div>
                 </button>
 
                 <button
                     onClick={() => setFilterStatus('vip')}
+                    aria-pressed={filterStatus === 'vip'}
+                    title={godStatusTitle("PRE_APPROUVEE")}
                     className={`rounded-xl border p-4 text-left transition-colors ${filterStatus === 'vip' ? 'border-border-strong bg-elevated' : 'border-border bg-surface/10 hover:border-border-strong'}`}
                 >
                     <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        <span>Pré-approuvées</span>
+                        <span>Validées par le staff</span>
                         <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
                     </div>
                     <div className="mt-1 text-2xl font-semibold text-foreground">{radarStats.vip}</div>
@@ -380,18 +387,22 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
                 <button
                     onClick={() => setFilterStatus('watch')}
+                    aria-pressed={filterStatus === 'watch'}
+                    title={godStatusTitle("PEU_DE_MEMBRES")}
                     className={`rounded-xl border p-4 text-left transition-colors ${filterStatus === 'watch' ? 'border-border-strong bg-elevated' : 'border-border bg-surface/10 hover:border-border-strong'}`}
                 >
                     <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        <span>À surveiller</span>
+                        <span>Peu de membres</span>
                         <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
                     </div>
                     <div className="mt-1 text-2xl font-semibold text-foreground">{radarStats.watch}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">&le; 3 profils actifs</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">&le; 3 profils — à vérifier</div>
                 </button>
 
                 <button
                     onClick={() => setFilterStatus('frozen')}
+                    aria-pressed={filterStatus === 'frozen'}
+                    title={godStatusTitle("GELEE")}
                     className={`rounded-xl border p-4 text-left transition-colors ${filterStatus === 'frozen' ? 'border-border-strong bg-elevated' : 'border-border bg-surface/10 hover:border-border-strong'}`}
                 >
                     <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -441,10 +452,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                 </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-                Autonome = bot invité, aucune validation humaine. Pré-approuvée = ajoutée par le staff.
-                À surveiller = 3 profils ou moins. Gelée = accès coupé.
-            </p>
+            <GodStatusLegend />
 
             {/* Table */}
             <div className="overflow-hidden rounded-xl border border-border bg-surface/10">
@@ -467,7 +475,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                                     Membres
                                 </th>
                                 <th className="hidden p-4 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground sm:table-cell">
-                                    Status
+                                    Statut
                                 </th>
                                 <th className="hidden p-4 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Créée
@@ -499,6 +507,51 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+/**
+ * Légende dépliable des statuts (G1) — **le glossaire du plan, dans l'écran**.
+ *
+ * Fermée par défaut : le God qui connaît déjà les statuts n'a pas un pavé de
+ * plus au-dessus du tableau. Ouverte, elle répond mot pour mot aux questions
+ * « c'est quoi autonome / pré-approuvé / à surveiller / gelée-off ».
+ */
+function GodStatusLegend() {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="rounded-xl border border-border bg-surface/10">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                aria-controls="god-status-legend"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+                <span className="inline-flex items-center gap-2 text-xs font-medium text-foreground">
+                    <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    Comprendre les statuts
+                </span>
+                <ChevronDown
+                    className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                />
+            </button>
+            {open ? (
+                <dl
+                    id="god-status-legend"
+                    className="grid gap-3 border-t border-border px-4 py-4 sm:grid-cols-2"
+                >
+                    {GOD_STATUS_GLOSSARY.map((entry) => (
+                        <div key={entry.id} className="space-y-1">
+                            <dt className="text-xs font-semibold text-foreground">{entry.label}</dt>
+                            <dd className="text-xs text-muted-foreground">{entry.description}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : null}
         </div>
     );
 }
@@ -626,13 +679,13 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
             ? {
                 label: 'Supprimée',
                 color: 'text-destructive bg-destructive/10 border-destructive/30',
-                tooltip: 'Guilde en cours de suppression. Accès au dashboard BLOQUÉ.'
+                tooltip: godStatusTitle("SUPPRIMEE") + " Accès au dashboard bloqué.",
             }
             : !guild.isActive
                 ? {
                     label: 'Gelée',
                     color: 'text-destructive bg-destructive/10 border-destructive/30',
-                    tooltip: 'Accès coupé par le staff (Kill-Switch).'
+                    tooltip: godStatusTitle("GELEE"),
                 }
                 : guild._count.profiles === 0
                     ? {
@@ -700,7 +753,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                             <div className="text-sm font-semibold text-foreground">{guild.name}</div>
                             {/* Origin badge */}
                             {isAutonomous ? (
-                                <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success" title="Aucune validation humaine : bot invité ou self-onboarding en 1 clic.">
+                                <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success" title={godStatusTitle("AUTONOME")}>
                                     {origin.badge}
                                 </span>
                             ) : guild.isWhitelistOnly ? (
@@ -708,21 +761,21 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                     Bot seul — en attente de déploiement
                                 </span>
                             ) : (
-                                <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent" title={origin.label}>
+                                <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent" title={origin.tag === "VIP" ? godStatusTitle("TICKET") : godStatusTitle("PRE_APPROUVEE")}>
                                     {origin.badge}
                                 </span>
                             )}
                             {/* Risk score badge */}
                             {isFrozen ? (
-                                <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive" title="Guilde désactivée ou supprimée — activation requise (bouton Activer). Normal juste après une invitation, avant le Déployer du portail.">
+                                <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive" title={`${godStatusTitle("GELEE")} Une activation suffit à rouvrir l'accès.`}>
                                     Gelé — activation requise
                                 </span>
                             ) : isWatch ? (
-                                <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning" title="Faible activité (< 4 membres)">
-                                    À surveiller
+                                <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning" title={godStatusTitle("PEU_DE_MEMBRES")}>
+                                    Peu de membres — à vérifier
                                 </span>
                             ) : (
-                                <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-success" title="Communauté saine">
+                                <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-success" title="Communauté saine : accès autorisé et plus de 3 profils actifs.">
                                     Sain
                                 </span>
                             )}
@@ -778,11 +831,11 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 
                     {/* Alert Badges (50% / 80%) */}
                     {guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.8 ? (
-                        <div className="rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-center text-caption font-semibold uppercase tracking-wide text-destructive">
+                        <div className="rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-center text-caption font-semibold uppercase tracking-wide text-destructive" title="Capacité de la guilde au-delà de 80 % : les nouvelles arrivées risquent d'être refusées.">
                             Seuil &gt; 80% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
                         </div>
                     ) : guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.5 ? (
-                        <div className="rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-center text-caption font-semibold uppercase tracking-wide text-warning">
+                        <div className="rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-center text-caption font-semibold uppercase tracking-wide text-warning" title="Capacité de la guilde au-delà de 50 % : surveiller la croissance avant le plafond.">
                             Capacité &gt; 50% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
                         </div>
                     ) : null}

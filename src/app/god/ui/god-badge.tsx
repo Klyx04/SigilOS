@@ -9,11 +9,11 @@ const VARIANT_STYLES: Record<GodBadgeVariant, string> = {
     danger: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
-export function GodBadge({ variant = "info", className, children }: {
-    variant?: GodBadgeVariant; className?: string; children: React.ReactNode;
+export function GodBadge({ variant = "info", className, title, children }: {
+    variant?: GodBadgeVariant; className?: string; title?: string; children: React.ReactNode;
 }) {
     return (
-        <span className={cn(
+        <span title={title} className={cn(
             "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption font-bold uppercase tracking-wide",
             VARIANT_STYLES[variant],
             className

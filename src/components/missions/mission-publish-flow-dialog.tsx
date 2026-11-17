@@ -36,6 +36,7 @@ import { PingEstimate } from "@/components/shared/ping-estimate";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
 import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { formatDofusRange, getDofusWeek } from "@/lib/date-utils";
+import { shouldPublishMissionAnnouncement } from "@/lib/mission-publish";
 
 interface MissionPublishFlowDialogProps {
     isOpen: boolean;
@@ -135,6 +136,13 @@ export function MissionPublishFlowDialog({
 
     const activePingType = isRepublish ? repingType : pingType;
 
+    // Décision unique : le ping ne décide pas de l'envoi, seuls le bot et le salon le font.
+    const willPublishAnnouncement = shouldPublishMissionAnnouncement({
+        pingType,
+        isDiscordConfigured,
+        channelId,
+    });
+
     const mentionPreview = useMemo(() => {
         if (activePingType === "EVERYONE") return "Bonjour @everyone !";
         if (activePingType === "ROLE" && selectedRoleIds.length > 0) {
@@ -215,7 +223,9 @@ export function MissionPublishFlowDialog({
             return;
         }
 
-        const skipDiscord = pingType === "NONE" || !isDiscordConfigured || !channelId;
+        // « Sans ping » ≠ « sans annonce » : l'embed part avec « Bonjour à tous ! ».
+        // On ne saute Discord que si le bot ou le salon ne sont pas configurés.
+        const skipDiscord = !willPublishAnnouncement;
 
         setIsSaving(true);
         try {
@@ -731,13 +741,15 @@ export function MissionPublishFlowDialog({
                             >
                                 {isBusy ? (
                                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                ) : pingType === "NONE" || !channelId ? (
+                                ) : !willPublishAnnouncement ? (
                                     <Check className="w-4 h-4 mr-2" />
                                 ) : (
                                     <Send className="w-4 h-4 mr-2" />
                                 )}
-                                {pingType === "NONE" || !channelId
+                                {!willPublishAnnouncement
                                     ? "Publier les missions (sans notification)"
+                                    : pingType === "NONE"
+                                    ? "Publier l'annonce Discord (sans mention)"
                                     : "Publier & Notifier sur Discord"}
                             </Button>
                         </div>

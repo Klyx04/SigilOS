@@ -58,6 +58,18 @@ describe("Missions UI Deslop & Normes", () => {
         expect(missionEditorCode).toContain("CategoryIcon");
     });
 
+    it("n'affiche plus de pictogramme de catégorie devant le titre de la mission", () => {
+        // Retiré le 17/11/2026 (demande user) : le glyphe générique collé au titre faisait
+        // doublon avec l'illustration réelle et le libellé de catégorie du corps de carte.
+        expect(missionCardCode).not.toContain('<Icon className={cn("w-3.5 h-3.5", config.color)} />');
+        const validationCode = fs.readFileSync(
+            path.resolve(process.cwd(), "src/components/missions/validation-card.tsx"),
+            "utf-8",
+        );
+        expect(validationCode).not.toContain("CATEGORY_CONFIG");
+        expect(validationCode).not.toContain("config.icon");
+    });
+
     it("propose directement le choix silencieux vs reping Discord dans mission-publish-flow-dialog lors d'un republish", () => {
         const publishDialogPath = path.resolve(process.cwd(), "src/components/missions/mission-publish-flow-dialog.tsx");
         const publishDialogCode = fs.readFileSync(publishDialogPath, "utf-8");

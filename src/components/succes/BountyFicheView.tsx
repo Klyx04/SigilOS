@@ -160,7 +160,7 @@ export function BountyFicheView({
                 </div>
             </div>
 
-            <div className="grid gap-2 rounded-xl border border-border bg-background/40 p-3 text-[11px] sm:grid-cols-2">
+            <div className="grid gap-2 rounded-xl bg-background/40 p-3 text-[11px] sm:grid-cols-2">
                 {(fiche as any).meta.travelCommand && (
                     <button
                         type="button"
@@ -268,6 +268,7 @@ export function BountyFicheView({
                         onGradeChange={(idx) => setActiveGradeIndex(idx)}
                         monsters={[]}
                         allowFreeCasterMove
+                        embedded
                     />
                 ) : (
                     <p className="py-6 text-center text-xs text-muted-foreground">

@@ -74,6 +74,13 @@ describe("isSequenceOnRoute", () => {
     expect(isSequenceOnRoute(seq("b", "brakmarien"), undefined)).toBe(true);
   });
 
+  it("la quête neutre (Tougli `Ali=Neutre`) n'est visible que sans cité choisie", () => {
+    expect(isSequenceOnRoute(seq("n", "neutre"), null)).toBe(true);
+    expect(isSequenceOnRoute(seq("n", "neutre"), { camp: null })).toBe(true);
+    expect(isSequenceOnRoute(seq("n", "neutre"), "bontarien")).toBe(false);
+    expect(isSequenceOnRoute(seq("n", "neutre"), "brakmarien")).toBe(false);
+  });
+
   it("tolère les deux vocabulaires d'Ordre (code canonique et id court historique)", () => {
     const withOrder = (code: string) =>
       ({ ...seq("o", "bontarien"), alignOrderCode: code }) as unknown as RushSequence;

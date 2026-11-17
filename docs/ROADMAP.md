@@ -6,10 +6,11 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 16/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 17/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
+- 🎯 **Démo Rush** — `rush-iso-tougli` : seed, scénarios, DofusDex ; reste 3 surfaces + import God (`docs/plans/ROUTE-RUSH-ISO-TOUGLI.md`) · **VPS bêta 494/238/32/19, code à déployer**.
 - 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
   **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
@@ -21,15 +22,7 @@
   (retrait du rewrite `maintenance.html`) ; une **nouvelle refonte de la landing** est prévue « un de ces
   quatre », **sans cadrage pour l'instant** (décision user, aucun détail).
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
-- 🗓️ **Sprint S1 — semaine du 09/11/2026** *(ordre de passage ; cocher au fur et à mesure ; bloc retiré le 16/11)*
-  - [ ] **lun** — F17b ✅ 10/11 · V-H ✅ 10/11 · finitions anonymes F1→F7 ✅ 11/11 · dettes visiteur · `PUBLIC_VISITOR_ENTRY=1` ✅ 16/11
-  - [ ] **mar** — F1 · F2 · F5+F6
-  - [ ] **mer** — F16 hub + succès en commun ✅ 11/11 · V2a-4 reste (tour spotlight) ✅ 16/11
-  - [ ] **jeu** — T-4 (O14 · O15 · G7/G8/G9) · transverses + 4 `prompt()` · V-C · V-D2 · drop `alignOrderReq`
-  - [ ] **ven** — studio E2 (inspecteur quête) · V2c (Rush Live visiteurs) ✅ 11/11
-  - [ ] **sam** — V2d (ladder serveur) · E3 (bloc/masse/problèmes) · V3 (God visiteurs)
-  - [ ] **S2** — T-5 · T-6 · bloc B · E4/E5 studio · lot D · E4 DA Wakfu · colonne `resources` · `questDbIds`
-  **Dépend de toi** : captures G7/G8/G9/O15 · nom de `33380` · 98 textes Brâkmarien · 2×100 + 30 quêtes.
+- **Dépend de toi** : captures G7/G8/G9/O15 · nom de `33380` · 98 textes Brâkmarien · 2×100 + 30 quêtes.
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
 

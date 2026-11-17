@@ -95,6 +95,8 @@ docs/
 │   ├── OCR_STRATEGY_2026.md
 │   ├── METAMOB-API.md             API Metamob mesurée (routes, matches, veille)
 │   ├── TOUGLI-API.md              API Tougli mesurée (guides, objectives, `choice`/`condition`)
+│   ├── DOFUSDEX.md                 DofusDex officiel du client (30 progressions, 783 objectifs)
+│   ├── QUEST-PREREQUISITES.md      prérequis entre quêtes (Tougli 430/530, client 990/1 984)
 │   └── REDIS-OCR-SETUP.md
 │
 ├── arbo/                          état et journal de l'arborescence

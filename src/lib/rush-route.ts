@@ -50,11 +50,19 @@ export function normalizeAlignmentCamp(value?: string | null): RushAlignmentCamp
  * | Cas | Résultat |
  * |---|---|
  * | aucune `alignReq` | **visible** (quête commune) |
+ * | `alignReq = "neutre"` | **visible** sans cité, **masquée** dès qu'une cité est choisie |
  * | `alignReq` inconnu (valeur non reconnue) | **masquée** — fail-closed |
  * | aucun choix du joueur | **visible** (on ne vide pas le guide par défaut) |
  * | camp identique au choix | **visible** |
  * | camp opposé | **masquée** |
  */
+export function isNeutralAlignment(value: string | null | undefined): boolean {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") === "neutre";
+}
 export function isSequenceOnRoute(
   seq: Pick<RushSequence, "alignReq" | "alignOrderCode" | "classReq">,
   choice?: RushRouteChoice | string | null
@@ -64,10 +72,17 @@ export function isSequenceOnRoute(
   // Étage 1 — cité.
   const rawCamp = (seq.alignReq ?? "").trim();
   if (rawCamp) {
-    const required = normalizeAlignmentCamp(rawCamp);
-    if (!required) return false; // fail-closed : cité inconnue
     const chosen = normalizeAlignmentCamp(route.camp);
-    if (chosen && required !== chosen) return false;
+    if (isNeutralAlignment(rawCamp)) {
+      // « La rivalité » (Tougli `Ali=Neutre`, 1 quête) : elle n'existe que tant que le
+      // joueur n'a pas choisi de cité. Dès qu'une cité est choisie, elle disparaît —
+      // comme la branche neutre du guide.
+      if (chosen) return false;
+    } else {
+      const required = normalizeAlignmentCamp(rawCamp);
+      if (!required) return false; // fail-closed : cité inconnue
+      if (chosen && required !== chosen) return false;
+    }
   }
 
   // Étage 2 — Ordre : ne concerne que les quêtes qui en portent un.

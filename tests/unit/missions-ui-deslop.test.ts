@@ -65,7 +65,7 @@ describe("Missions UI Deslop & Normes", () => {
         // Présence du mode republish direct
         expect(publishDialogCode).toContain("handleSilentSave");
         expect(publishDialogCode).toContain("handleRepingSave");
-        expect(publishDialogCode).toContain("Enregistrer sans ping");
+        expect(publishDialogCode).toContain("Enregistrer sans annonce Discord");
         expect(publishDialogCode).toContain("Repinger la guilde sur Discord");
         // Première publication
         expect(publishDialogCode).toContain("handleFirstPublish");

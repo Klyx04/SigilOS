@@ -59,3 +59,20 @@ describe("mission-publish-flow-dialog — câblage de la première publication",
         expect(dialog).toContain("Publier & Notifier sur Discord");
     });
 });
+
+describe("mission-publish-flow-dialog — mise à jour d'une semaine déjà publiée", () => {
+    it("propose les TROIS choix de ping, dont « Sans ping » (3 colonnes)", () => {
+        const dialog = codeOnly(DIALOG);
+        expect(dialog).toContain('setRepingType("ROLE")');
+        expect(dialog).toContain('setRepingType("EVERYONE")');
+        expect(dialog).toContain('setRepingType("NONE")');
+        expect(dialog).toContain("grid grid-cols-3 gap-2");
+        expect(dialog).toContain("Enregistrer & publier sur Discord");
+    });
+
+    it("distingue clairement « aucune annonce » de « annonce sans mention »", () => {
+        const dialog = codeOnly(DIALOG);
+        expect(dialog).toContain("Enregistrer sans annonce Discord");
+        expect(dialog).toContain("<span>Sans ping</span>");
+    });
+});

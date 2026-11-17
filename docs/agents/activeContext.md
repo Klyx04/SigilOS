@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 17/11/2026 (suite 17) — **God · glossaire des statuts (G1) et tour de contrôle allégée (G2)** — branches `feat/god-glossaire-statuts` (PR #1419) et `feat/god-tour-controle` (PR #1420)
+
+> **Demande user (verbatim)** : « Coder D5 : d'abord G1 (glossaire/libellés God), puis G2 (page God) », sans créer `/god/users`.
+> **Mesure** : « autonome / pré-approuvé / à surveiller / gelée-off » n'était expliqué nulle part dans l'écran ; « À surveiller » ressemblait à une sanction alors que c'est un radar (≤ 3 profils) ; l'en-tête des guildes portait deux actions de même poids (« Connexions non autorisées » + « Whitelist New Guild ») et affichait des sections vides ; **G9 re-mesuré** : `?tab=tickets` est la seule surface utilisateurs, aucune route `/god/users`.
+> **Fait** : **G1** — `src/lib/god-status-glossary.ts` (source unique des libellés + définitions du plan), légende dépliable « Comprendre les statuts », `title` sur chaque badge, « À surveiller » → « Peu de membres — à vérifier », « Pré-approuvées » → « Validées par le staff », fiche guilde avec origine datée et statut infobulle. **G2** — une action primaire « Autoriser une guilde », connexions non autorisées dans un menu `⋯` visible seulement s'il y en a, dialogue contrôlé, blacklist vide masquée, compteurs radar `aria-pressed` + libellés humains. G3/G5 déjà couverts par la fiche guilde ; G9 = rien à coder.
+> **Preuves** : suite **748 fichiers / 7 820 tests ✅** · `tsc` 0 · ESLint 0 erreur · verrous neufs `god-status-glossary` (7) et `god-tour-controle` (4) · plafond `god-deslop` inchangé (**79**).
+> **Reste / ops** : D6 (déslop God, plafond à faire baisser) → D7 (ownerId) ; D8/D9 humains ; migrations V4 bêta/prod ; contrôle visuel 390/768/1024/1440/1536 de la fiche visiteur.
+> **Rotation** : bloc « Session 16/11/2026 (suite 11) — Visiteurs · avis de recherche, coches par personnage, page perso et fiche lecture seule » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 17/11/2026 (suite 16) — **Visiteurs · avis/donjons dans un seul filtre, fiches concises et assets** — branche `feat/visiteurs-listes-concises` (PR #1417)
 
 > **Demandes user (verbatim)** : « au lieu de mettre les avis sous les dj ... on peut pas les mettre dans un filtre plutôt avec les dj » · « on peut pas laisser des pavé de succès comme ca et le drop down de dj, faut un meilleur tri plus concis idem pour les avis » · « t'as pas mis les assetsd » · « metamob faudrait la favicon du site etc et une idée du % de complétion de la quete si liée ».
@@ -56,16 +65,6 @@
 > **Preuves** : `npm run test:run` **744 fichiers / 7 786 tests ✅** · `tsc` 0 · ESLint 0 erreur · ciblés **108 ✅**.
 > **Reste / ops** : contrôle visuel 390/768/1024/1440 de la carte Ocre visiteur (valeurs identiques à l'interne, bouton « Forcer la synchro ») ; les migrations V4 restent à jouer en bêta puis prod.
 > **Rotation** : bloc « Session 16/11/2026 (suite 6) — God · V3 visiteurs + fiche guilde » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 16/11/2026 (suite 11) — **Visiteurs · avis de recherche, coches par personnage, page perso et fiche lecture seule** — branches `fix/visiteurs-filtres-hover`, `feat/avis-et-personnages`, `feat/visiteur-page-perso`
-
-> **Demande user (verbatim)** : « on s'était dit aussi qu'on referait la page perso plus personnalisé à la duffus sans copier duffus évidemment et aussi les pages en lecture seule laide actuellement » · « ajoute les avis de recherche dans /espace-visiteur/succes à cocher simplement, validé ou non, même fiche que l'interne, et que ça se voit côté filtre commun, avis fait non fait » · « oui cree la table et enchaine visiteur filtre commun mais idem coté profil de guilde interne : pouvoir cocher les avis de recherche + filtre commun et évidemment on doit pouvoir changer de mule aussi pour les coches des succès, interne et visiteurs » · « ya aucune hover ou survrillance a la selection c penible ».
-> **Mesure** : le survol des filtres utilisait `hover:bg-surface` sur un panneau `.reg-panel` en `--surface` (invisible) ; les avis étaient listés en lecture seule dans `/espace-visiteur/succes` ; le tracker interne écrivait `UserDungeonProgress` sans personnage ; la page perso et la fiche `Rakzia` n'avaient ni hero ni compteurs.
-> **Fait** : **#1409** survol/sélection (hover elevated, ring actif, focus). **#1410** deux migrations **additives** (`PublicBountyCompletion` / `UserBountyCompletion`, `characterSlot` sur les coches) ; coche d'avis visiteur + fiche `BountyFicheView` partagée ; section « Avis de recherche » dans `/visiteurs?vue=succes` (fait / cherchent encore) ; côté interne, sélecteur de personnage dans Mes Succès et la fiche Avis, carte « Avis de recherche » avec filtre commun de guilde. **#1411** page perso (hero, 4 compteurs réels, visibilité, raccourcis ; formulaires et ancres du tour inchangés) et fiche lecture seule (hero, 4 chiffres dont « avis faits » via `bountiesDone`, présentation/objectifs/métiers).
-> **Preuves** : suite **743 fichiers / 7 777 tests ✅** · `tsc` 0 · ESLint 0 erreur · migrations appliquées en local (`migrate deploy` + `generate`) · PR **#1409**, **#1410**, **#1411**.
-> **Reste / ops** : jouer les migrations en **bêta puis prod** (`prisma migrate deploy`) ; contrôle visuel 390/768/1024/1440 de la page perso, de la fiche `/visiteurs/[id]`, du sélecteur de personnage et du filtre avis ; D4→D7 inchangés.
-> **Rotation** : bloc « Session 16/11/2026 (suite 5) — Stats · restes soldés » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

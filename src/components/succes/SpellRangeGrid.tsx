@@ -227,6 +227,12 @@ interface SpellRangeGridProps {
     hideMapDamageBadges?: boolean;
     /** Ouvre le plateau en plein écran par défaut. */
     defaultFullscreen?: boolean;
+    /**
+     * La fiche hôte porte déjà la carte (fiche avis, monstre, boss) : le simulateur ne
+     * rajoute **pas** une seconde boîte (`border` + `bg-surface`) autour du plateau.
+     * Sans cet opt-in, les contextes autonomes (démo, overlay) gardent leur carte.
+     */
+    embedded?: boolean;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -280,6 +286,7 @@ export function SpellRangeGrid({
     damageTakenMultiplier = 1,
     hideMapDamageBadges = false,
     defaultFullscreen = false,
+    embedded = false,
 }: SpellRangeGridProps) {
     const { t, locale } = useI18n();
     const simT = t.tacticalSim;
@@ -1614,7 +1621,7 @@ export function SpellRangeGrid({
      */
     const legendPanel = (rail: boolean) => (
         <SimulationTacticalLegend
-            variant="board"
+            variant={rail ? "full" : "board"}
             open={showLegend}
             onToggle={() => setShowLegend((v) => !v)}
             isRealMap={!!mapData}
@@ -1774,7 +1781,7 @@ export function SpellRangeGrid({
     // quand le 404 précède l'hydratation (mesure du 11/10/2026 : icônes KO sur la fiche publique).
     const activeSpellIconSrc = resolveSpellIconUrl(currentSpell?.unityIconId);
     const simSurface = (
-        <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs", fullscreen && "h-full min-h-0 flex flex-col space-y-0 rounded-none border-0 bg-transparent p-0 sm:p-0 shadow-none")}>
+        <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : cn("@container space-y-3", !embedded && "rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs"), fullscreen && "h-full min-h-0 flex flex-col space-y-0 rounded-none border-0 bg-transparent p-0 sm:p-0 shadow-none")}>
             {/* 🎨 Mode peinture ACTIF : bandeau hors du panneau « Options » — le panneau peut être
                 replié, le mode ne doit jamais rester actif sans signe visible (un clic peindrait
                 au lieu de viser). Un seul clic pour en sortir. */}
@@ -1803,9 +1810,9 @@ export function SpellRangeGrid({
             )}
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
             {!compact && (
-                <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface/30 p-2.5">
                     {/* Identité du sort simulé */}
-                    <div className="flex min-w-0 shrink items-center gap-2.5 rounded-lg border border-border/70 bg-surface/50 px-3 py-1.5">
+                    <div className="flex min-w-0 shrink items-center gap-2.5 rounded-lg bg-surface/40 px-3 py-1.5">
                         {activeSpellIconSrc ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -1872,12 +1879,12 @@ export function SpellRangeGrid({
                                     {minRange === maxRange ? `${maxRange}` : `${minRange}-${maxRange}`}
                                 </span>
                                 {!castTestLos && (
-                                    <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                                    <span className="rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
                                         {simT.noLos}
                                     </span>
                                 )}
                                 {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
-                                    <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    <span className="rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                         {simT.zoneShape.replace("{shape}", currentSpell.zone.shape)}
                                     </span>
                                 )}
@@ -1901,10 +1908,17 @@ export function SpellRangeGrid({
                 🔁 22/09/2026 (retour user : « j'en ai par dessus la tête, tout se marche dessus »)
                 — en mise en page EN LIGNE (fiche / landing) le plateau et un **rail latéral** sont
                 posés côte à côte : la prévisu de dégâts et la légende ne sont plus SUR la carte.
-                Le rail passe sous le plateau sur écran étroit, jamais par-dessus. */}
+                Le rail passe sous le plateau sur écran étroit, jamais par-dessus.
+
+                🐛 17/11/2026 (retour user : « le simulateur non responsive qui sort à droite ») :
+                `2xl:flex-row` interroge la **fenêtre**, alors que le composant vit dans une colonne
+                de ~700 px sur la fiche avis (même sur un écran ≥ 1536 px) : le rail de 384 px
+                écrasait le plateau. Le seuil est désormais celui du **conteneur** (`@container`
+                sur la surface + `@5xl` = 64 rem), donc le plateau passe sous le rail dès que
+                SA largeur ne suffit plus — quel que soit l'écran. */}
             <div
                 className={cn(
-                    "flex min-w-0 flex-col gap-3 2xl:flex-row 2xl:items-start",
+                    "flex min-w-0 flex-col gap-3 @5xl:flex-row @5xl:items-start",
                     fitsViewport && "min-h-0 flex-1"
                 )}
             >
@@ -3448,7 +3462,7 @@ export function SpellRangeGrid({
             {!compact && !fullscreen && (
                 <aside
                     data-no-drag
-                    className="flex w-full shrink-0 flex-col gap-2 2xl:w-96 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
+                    className="flex w-full shrink-0 flex-col gap-2 @5xl:w-96 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
                 >
                     {damagePanel(true)}
                     {legendPanel(true)}

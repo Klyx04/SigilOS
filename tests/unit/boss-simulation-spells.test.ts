@@ -59,11 +59,42 @@ describe("Fiche boss — repli des sorts pour la simulation", () => {
         expect(client).toContain("knownSpellIdsForMerge(");
     });
 
-    it("la grille et le détail des avis s'empilent avant 2xl (responsive)", () => {
-        const grid = readFileSync("src/components/succes/SpellRangeGrid.tsx", "utf8");
+    it("la grille s'empile selon la largeur du composant, pas celle de la fenêtre", () => {
+        // Code SANS commentaires : la règle de layout doit porter sur les classes rendues,
+        // pas sur le commentaire qui explique le bug.
+        const readCode = (path: string) =>
+            readFileSync(path, "utf8")
+                .replace(/\/\*[\s\S]*?\*\//g, "")
+                .replace(/\/\/[^\n]*/g, "");
+        const grid = readCode("src/components/succes/SpellRangeGrid.tsx");
+        // 🐛 17/11/2026 — « le simulateur sort à droite » : `2xl:` interroge la fenêtre,
+        // or la fiche avis ne dispose que de ~700 px même sur un écran ≥ 1536 px.
+        // Le seuil doit être celui du conteneur (`@container` + `@5xl` = 64 rem).
+        expect(grid).toContain("@container");
+        expect(grid).toContain("@5xl:flex-row @5xl:items-start");
+        expect(grid).toContain("@5xl:w-96");
+        expect(grid).not.toContain("2xl:flex-row");
+        expect(grid).not.toContain("2xl:w-96");
+    });
+
+    it("le détail des avis s'empile avant 2xl (responsive de l'onglet)", () => {
         const tab = readFileSync("src/components/succes/SuccesAvisTab.tsx", "utf8");
-        expect(grid).toContain("2xl:flex-row 2xl:items-start");
-        expect(grid).toContain("2xl:w-96");
         expect(tab).toContain("2xl:grid-cols-[320px_1fr]");
+    });
+
+    it("la fiche hôte ne double pas la carte du simulateur", () => {
+        const grid = readFileSync("src/components/succes/SpellRangeGrid.tsx", "utf8");
+        expect(grid).toContain("embedded?: boolean");
+        expect(grid).toContain("!embedded &&");
+
+        for (const file of [
+            "src/components/succes/BountyFicheView.tsx",
+            "src/components/succes/MonsterFicheView.tsx",
+        ]) {
+            const source = readFileSync(file, "utf8");
+            const start = source.indexOf("<SpellRangeGrid");
+            const block = source.slice(start, source.indexOf("/>", start));
+            expect(block, file).toContain("embedded");
+        }
     });
 });

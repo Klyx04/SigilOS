@@ -82,7 +82,7 @@ describe("sort actif — identifiable d'un coup d'œil", () => {
   /** Bloc du sort actif (markup seul : les commentaires sont retirés en amont). */
   const spellBlock = () => {
     const start = GRID.indexOf(
-      "flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl"
+      "flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface/30 p-2.5"
     );
     // Fin du bloc : la barre d'outils se referme AVANT le plateau. La légende n'est plus un frère
     // du bandeau (elle vit dans `legendPanel`, source unique partagée avec le rail de la modale
@@ -122,9 +122,10 @@ describe("légende — une seule surface, repliée par défaut, i18n", () => {
       /import \{ SimulationTacticalLegend \} from "@\/components\/succes\/SimulationTacticalLegend";/
     );
     expect(GRID).toMatch(/<SimulationTacticalLegend/);
-    // La légende est montée en **overlay du plateau** (`board`) : elle ne pousse plus la carte et
-    // reste atteignable sans dézoomer ni défiler (retour user 21/09/2026).
-    expect(GRID).toMatch(/variant="board"/);
+    // Le composant est partagé : le rail (fiche / plein écran) prend la variante de
+    // **section** (`full`, sans cadre flottant), la fenêtre de jeu PiP garde `board`.
+    // Une seule définition pour les deux modes, jamais deux légendes recopiées.
+    expect(GRID).toMatch(/variant=\{rail \? "full" : "board"\}/);
     expect(GRID).not.toMatch(/setShowCompactLegend/);
   });
 

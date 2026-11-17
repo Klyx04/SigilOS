@@ -296,6 +296,7 @@ export function MonsterFicheView({
                         onGradeChange={(idx) => setActiveGradeIndex(idx)}
                         monsters={[]}
                         allowFreeCasterMove
+                        embedded
                     />
                 ) : (
                     <p className="py-6 text-center text-xs text-muted-foreground">

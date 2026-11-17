@@ -31,6 +31,7 @@
     "build:siphon": "esbuild scripts/siphon-guide-images.ts --bundle --platform=node --outfile=scripts/siphon-guide-images.js --external:@prisma/client --external:sharp",
     "build:succes": "esbuild scripts/succes-speciaux.ts --bundle --platform=node --outfile=scripts/succes-speciaux.js --alias:@=./src --external:@prisma/client --external:sharp",
     "build:backfill-dungeon-completion": "esbuild scripts/backfill-dungeon-completion.ts --bundle --platform=node --outfile=scripts/backfill-dungeon-completion.js --alias:@=./src --external:@prisma/client --external:sharp",
+    "build:backfill-guild-owner": "esbuild scripts/backfill-guild-owner-id.ts --bundle --platform=node --outfile=scripts/backfill-guild-owner-id.js --external:@prisma/client --external:sharp",
     "build:worker": "esbuild src/workers/metamob-worker.ts --bundle --platform=node --outfile=dist/worker.js --external:@prisma/client --external:ioredis --external:bullmq --external:sharp",
     "build:ladder-sync": "esbuild src/workers/ladder-sync-worker.ts --bundle --platform=node --outfile=dist/ladder-sync.js --external:@prisma/client --external:ioredis --external:bullmq --external:sharp",
     "ladder:sync": "npx -y tsx src/workers/ladder-sync-worker.ts",

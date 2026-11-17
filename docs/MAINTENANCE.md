@@ -41,6 +41,25 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 6. **Nettoyage des notifications** — queue BullMQ `sigilos-cleanup` (`src/workers/metamob-worker.ts`, `0 4 * * *`), non bloquant : **lues > 30 j** (une passe) et **non lues > 90 j** (par lots de 500, 20 000 lignes/jour au maximum, reliquat repris le lendemain). Mesure du 15/10/2026 : la purge ne visait que les lues, or **66 lignes sur 11 722** l'étaient — la table ne décroissait donc jamais. **Aucune clôture de contenu ici** (05/11/2026) : ce job abandonnait les runs Songes à **J+3**, sans rappel ni suppression du post Discord ; ce calendrier est supprimé, le seul est `cleanup-inactive-posts` (J+7/15/20/21, §Cron).
 7. **Contrôle de la mémoire Redis** — le mot de passe est relu dans la ligne de commande du conteneur (injecté au parse du compose, donc absent de son environnement) et transmis par `REDISCLI_AUTH`, **jamais affiché**. Alerte Discord au-delà de **60 %** du plafond, et alerte explicite si `maxmemory` vaut **0** (le plafond vit dans `docker-compose.prod.yml` : `--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes`, sur **les deux** Redis). Politique `noeviction` = à 100 %, Redis **refuse les écritures** : les files BullMQ s'arrêtent, d'où l'alerte précoce.
 
+**Première passe de rétention (D8) — contrôle manuel.** Le janitor de 04h00 tourne avec
+`--execute` ; pour la première passe, on vérifie d'abord **à blanc** (aucune suppression) :
+
+```bash
+# Bêta — dry-run
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/database-janitor.js
+
+# Bêta — exécution réelle (irréversible : exporter avant si les tendances > 90 j comptent)
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/database-janitor.js --execute
+
+# Relancer le dry-run : les lignes échues doivent être à 0 (idempotence)
+# Prod : remplacer .env.beta par .env.prod et app-beta par app-prod
+```
+
+`scripts/database-janitor.js` est bundlé dans l'image ; la variante `.ts` échouerait
+(l'image ne contient pas `src/`).
+
 ### 🛡️ Mises à jour système & veille CVE noyau
 
 **Le socle.** `scripts/setup_security_updates.sh` installe et configure `unattended-upgrades` :
@@ -493,18 +512,28 @@ La colonne porte un snowflake Discord (onboarding) ou un identifiant interne (`U
 CUID — transfert de propriété). La cible est l'identifiant interne ; le snowflake n'est
 qu'une valeur transitoire tant que le propriétaire n'a pas de compte lié.
 
-```bash
-# 1) Dry-run (aucune écriture)
-npx -y tsx scripts/backfill-guild-owner-id.ts
+Le script est **bundlé dans l'image** (`npm run build:backfill-guild-owner`, étape Docker).
+Il s'exécute donc avec `node`, **jamais** avec `tsx` : l'image de prod ne contient ni
+`src/` ni `tsconfig`.
 
-# 2) Exécution (bêta puis prod), depuis un environnement avec DATABASE_URL
-npx -y tsx scripts/backfill-guild-owner-id.ts --execute
+```bash
+# Bêta — dry-run (aucune écriture)
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/backfill-guild-owner-id.js
+
+# Bêta — exécution
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/backfill-guild-owner-id.js --execute
+
+# Prod : remplacer .env.beta par .env.prod et app-beta par app-prod
 ```
 
 - Le script ne journalise que des **compteurs** : aucun snowflake, aucun CUID.
 - `sans compte lié` = propriétaire pas encore inscrit : la valeur reste transitoire et
   sera normalisée à sa première visite du dashboard (`getUserContext`).
 - Idempotent : une seconde exécution ne réécrit rien.
+- `Cannot find module scripts/backfill-guild-owner-id.js` = image antérieure à D7 :
+  redéployer avant de relancer.
 
 ---
 

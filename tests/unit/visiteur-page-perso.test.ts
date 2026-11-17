@@ -171,6 +171,20 @@ describe("fiche lecture seule — avis faits et sections lisibles", () => {
         expect(html).toContain("https://www.metamob.fr/profile/Rakzia");
     });
 
+    it("propose des filtres sur les listes de succès, d'avis et de métiers", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(VisitorProfileCard, {
+                profile: PROFILE,
+                labels: fr.visitorsPage,
+                locale: "fr",
+            })
+        );
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchAchievements);
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchBounties);
+        expect(html).toContain(fr.visitorsPage.profile.filterSearchJobs);
+        expect(html).toContain(fr.visitorsPage.profile.filterCharacter);
+    });
+
     it("respecte les consentements : Rush masqué et Metamob absent", () => {
         const html = renderToStaticMarkup(
             React.createElement(VisitorProfileCard, {

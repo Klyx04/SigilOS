@@ -2,9 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import {
     Compass,
-    Crosshair,
     ExternalLink,
-    Hammer,
     Sparkles,
     Swords,
     Target,
@@ -13,6 +11,7 @@ import {
     Users,
 } from "lucide-react";
 import { GameIcon } from "@/components/shared/game-icon";
+import { VisitorProfileLists } from "./visitor-profile-lists";
 import { formatDofusLevel } from "@/lib/dofus-level";
 import type { VisitorProfile } from "@/lib/public-directory";
 import { MAIN_CHARACTER_SLOT } from "@/lib/succes-characters";
@@ -188,142 +187,16 @@ export function VisitorProfileCard({
                 </section>
             </div>
 
-            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
-                <h2 className="reg-eyebrow flex items-center gap-2">
-                    <Hammer className="size-3.5" aria-hidden="true" />
-                    {labels.profile.jobs}
-                </h2>
-                {profile.jobs.length === 0 ? (
-                    <p className="mt-2 text-sm text-muted-foreground">{labels.profile.noJobs}</p>
-                ) : (
-                    <ul className="mt-3 flex flex-wrap gap-2">
-                        {profile.jobs.map((job) => (
-                            <li
-                                key={job.id}
-                                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-                            >
-                                <GameIcon src={job.icon} className="size-4" />
-                                <span className="max-w-[10rem] truncate">{job.name}</span>
-                                <span className="reg-mono text-muted-foreground">{job.level}</span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+                        <VisitorProfileLists
+                achievements={profile.achievementList}
+                achievementsTotal={profile.achievements}
+                bounties={profile.bountyList}
+                bountiesTotal={profile.bountiesDone}
+                jobs={profile.jobs}
+                labels={labels}
+            />
 
-            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="reg-eyebrow flex items-center gap-2">
-                        <Trophy className="size-3.5" aria-hidden="true" />
-                        {labels.profile.achievements}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">
-                        {profile.achievementList.length} / {profile.achievements}
-                    </span>
-                </div>
-                {profile.achievementList.length === 0 ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        {labels.profile.noAchievements}
-                    </p>
-                ) : (
-                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {profile.achievementList.map((achievement) => (
-                            <li
-                                key={`${achievement.id}:${achievement.characterSlot}`}
-                                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
-                            >
-                                {achievement.iconUrl ? (
-                                    <GameIcon
-                                        src={achievement.iconUrl}
-                                        className="size-6 shrink-0"
-                                    />
-                                ) : (
-                                    <Trophy
-                                        className="size-5 shrink-0 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-foreground">
-                                        {achievement.name}
-                                    </p>
-                                    <p className="truncate text-xs text-muted-foreground">
-                                        {achievement.dungeonName} · {achievement.points}{" "}
-                                        {labels.profile.points}
-                                    </p>
-                                </div>
-                                <CharacterBadge
-                                    slot={achievement.characterSlot}
-                                    labels={labels}
-                                />
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                {profile.achievementList.length < profile.achievements ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        {labels.profile.cappedAchievements.replace(
-                            "{n}",
-                            String(profile.achievementList.length)
-                        )}
-                    </p>
-                ) : null}
-            </section>
-
-            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="reg-eyebrow flex items-center gap-2">
-                        <Crosshair className="size-3.5" aria-hidden="true" />
-                        {labels.profile.bountiesSection}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">
-                        {profile.bountyList.length} / {profile.bountiesDone}
-                    </span>
-                </div>
-                {profile.bountyList.length === 0 ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        {labels.profile.noBounties}
-                    </p>
-                ) : (
-                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {profile.bountyList.map((bounty) => (
-                            <li
-                                key={`${bounty.id}:${bounty.characterSlot}`}
-                                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
-                            >
-                                {bounty.imageUrl ? (
-                                    <GameIcon src={bounty.imageUrl} className="size-6 shrink-0" />
-                                ) : (
-                                    <Crosshair
-                                        className="size-5 shrink-0 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-foreground">
-                                        {bounty.name}
-                                    </p>
-                                    <p className="truncate text-xs text-muted-foreground">
-                                        {labels.profile.level} {bounty.level}
-                                        {bounty.zoneName ? ` · ${bounty.zoneName}` : ""}
-                                    </p>
-                                </div>
-                                <CharacterBadge slot={bounty.characterSlot} labels={labels} />
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                {profile.bountyList.length < profile.bountiesDone ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        {labels.profile.cappedBounties.replace(
-                            "{n}",
-                            String(profile.bountyList.length)
-                        )}
-                    </p>
-                ) : null}
-            </section>
-
-            <section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+<section className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
                 <h2 className="reg-eyebrow flex items-center gap-2">
                     <Swords className="size-3.5" aria-hidden="true" />
                     {labels.profile.rush}

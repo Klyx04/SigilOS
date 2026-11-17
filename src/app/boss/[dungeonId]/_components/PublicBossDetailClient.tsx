@@ -32,7 +32,7 @@ import {
   getDofensiveDungeonForBoss,
   type DofensiveDungeonInfo,
 } from "@/server/actions/dofensive-actions";
-import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { knownSpellIdsForMerge, mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
 import { BRAND_ICONS } from "@/lib/source-icons";
@@ -353,10 +353,10 @@ export function PublicBossDetailClient({
             const dRes = await getBossDofensiveSpells(target, dungeon.name, undefined, false, undefined, locale);
             if (!cancelled && dRes.success && dRes.data) {
               // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
-              const legitIds = [
+              const legitIds = knownSpellIdsForMerge([
                 ...(data.spells ?? []).map((s: any) => Number(s?.id)),
                 ...(Number((data as any)?.passive?.spellId) > 0 ? [Number((data as any).passive.spellId)] : []),
-              ];
+              ]);
               data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data, legitIds) };
             }
           } catch { /* sorts locaux conservés */ }
@@ -387,10 +387,10 @@ export function PublicBossDetailClient({
     getBossDofensiveSpells(target, dungeon.name, targetGrade, false, undefined, locale)
       .then((dRes) => {
         if (!cancelled && dRes.success && dRes.data && currentStats) {
-          const legitIds = [
+          const legitIds = knownSpellIdsForMerge([
             ...(currentStats.spells ?? []).map((s: any) => Number(s?.id)),
             ...(Number((currentStats as any)?.passive?.spellId) > 0 ? [Number((currentStats as any).passive.spellId)] : []),
-          ];
+          ]);
           const merged = mergeDofensiveSpells(currentStats.spells ?? [], dRes.data, legitIds);
           setStatsByKey((prev) => ({
             ...prev,
@@ -485,10 +485,10 @@ export function PublicBossDetailClient({
           const cur = prev[entityKey];
           if (!cur) return prev;
           // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
-          const legitIds = [
+          const legitIds = knownSpellIdsForMerge([
             ...(cur.spells ?? []).map((s: any) => Number(s?.id)),
             ...(Number((cur as any)?.passive?.spellId) > 0 ? [Number((cur as any).passive.spellId)] : []),
-          ];
+          ]);
           return { ...prev, [entityKey]: { ...cur, spells: mergeDofensiveSpells(cur.spells ?? [], res.data, legitIds) } };
         });
       })

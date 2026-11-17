@@ -117,7 +117,7 @@ export function SuccesAvisDirectory({ guildId }: { guildId: string }) {
     }
 
     return (
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="grid gap-4 2xl:grid-cols-[320px_1fr]">
             <aside className="min-w-0">
                 <div className="reg-panel p-3">
                     <div className="relative">

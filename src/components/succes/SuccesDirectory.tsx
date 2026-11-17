@@ -378,7 +378,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                 )}
             </div>
 
-            <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
+            <div className="grid 2xl:grid-cols-[340px_1fr] gap-4 items-start">
                 {/* ─── LISTE DES DONJONS ─── */}
                 <div className={cn("space-y-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar", selectedDungeon && "hidden lg:block")}>
                     {filteredDungeons.length === 0 ? (

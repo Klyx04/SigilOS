@@ -51,8 +51,8 @@ export const PUBLIC_DIRECTORY_JOBS_ON_CARD = 4;
  * Bornes de la **fiche** : les listes sont plafonnées et le total reste affiché
  * (`_count`), pour ne jamais charger un profil de 500 succès d'un seul coup.
  */
-export const PUBLIC_PROFILE_ACHIEVEMENTS_TAKE = 60;
-export const PUBLIC_PROFILE_BOUNTIES_TAKE = 60;
+export const PUBLIC_PROFILE_ACHIEVEMENTS_TAKE = 200;
+export const PUBLIC_PROFILE_BOUNTIES_TAKE = 120;
 export const PUBLIC_PROFILE_RUSH_TAKE = 12;
 
 /**

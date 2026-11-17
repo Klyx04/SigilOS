@@ -183,7 +183,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
 
 
     return (
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="grid gap-4 2xl:grid-cols-[320px_1fr]">
             {/* ── LISTE ─────────────────────────────────────────────────────────── */}
             <div className="rounded-2xl border border-border bg-surface/70 p-3 space-y-3">
                 <div className="flex items-center justify-between">

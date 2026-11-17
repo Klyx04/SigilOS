@@ -1904,7 +1904,7 @@ export function SpellRangeGrid({
                 Le rail passe sous le plateau sur écran étroit, jamais par-dessus. */}
             <div
                 className={cn(
-                    "flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start",
+                    "flex min-w-0 flex-col gap-3 2xl:flex-row 2xl:items-start",
                     fitsViewport && "min-h-0 flex-1"
                 )}
             >
@@ -3448,7 +3448,7 @@ export function SpellRangeGrid({
             {!compact && !fullscreen && (
                 <aside
                     data-no-drag
-                    className="flex w-full shrink-0 flex-col gap-2 lg:w-96 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
+                    className="flex w-full shrink-0 flex-col gap-2 2xl:w-96 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
                 >
                     {damagePanel(true)}
                     {legendPanel(true)}

@@ -133,7 +133,12 @@ export type RushTrameSeedOptions = {
   includeSuccesses?: boolean;
   /** Ajoute les ressources/contraintes des quêtes comme tags d'activité. */
   includeResources?: boolean;
-  /** Plafond de sécurité par bloc (le schéma Zod accepte 80). */
+  /**
+   * Plafond de sécurité par bloc (le schéma Zod accepte 120). Mesuré le 18/11/2026 :
+   * « Alignement - Partie 2/4 » porte **90 quêtes** ; un plafond à 80 coupait les 10
+   * dernières (dont « Manière forte » et « Retour aux origines »), donc leurs prérequis
+   * ne pouvaient pas être posés.
+   */
   maxSequencesPerBlock?: number;
   /** DofusDex officiel (`public/game-data/dofusdex.json`) : enrichit les blocs DOFUS. */
   dofusdex?: RushDofusDex | null;
@@ -1346,7 +1351,7 @@ export function buildRushSeedFromTrame(
     includeClasses: options.includeClasses ?? true,
     includeSuccesses: options.includeSuccesses ?? true,
     includeResources: options.includeResources ?? true,
-    maxSequencesPerBlock: Math.max(1, Math.min(80, options.maxSequencesPerBlock ?? 80)),
+    maxSequencesPerBlock: Math.max(1, Math.min(120, options.maxSequencesPerBlock ?? 120)),
     dofusdex: options.dofusdex ?? null,
     enrichFromYelle: options.enrichFromYelle ?? false,
   };

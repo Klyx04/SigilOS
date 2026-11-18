@@ -132,7 +132,7 @@ const { payload, report } = buildRushSeedFromTrame(trame as unknown as TrameInpu
   includeResources: !has("--no-resources"),
   includeClasses: !has("--no-classes"),
   includeSuccesses: !has("--no-successes"),
-  maxSequencesPerBlock: Number(valueOf("--max", "80")) || 80,
+  maxSequencesPerBlock: Number(valueOf("--max", "120")) || 120,
   dofusdex,
   enrichFromYelle: enrichYelle,
 });

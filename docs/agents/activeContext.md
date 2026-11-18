@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 18/11/2026 (suite 25) — **Rush · les 3 derniers points UX** — branche `feat/rush-ux-trois`
+
+> **Demande user (verbatim)** : « Reste : les 3 autres points UX (alignement visible, clic quête, message perso), le `prereq_expr`, puis UI / Bloc I / 55 conseils / VPS. »
+> **Cause mesurée (alignement)** : le PiP ne se rafraîchissait **jamais** — `RushTimelineClient` figeait `milestones` dans `openOverlay(...)` (« payload figé à l'ouverture ») ; `router.refresh()` rafraîchissait le dashboard, pas l'instantané du PiP. Le payload n'y portait pas non plus `selfAlignment`/`selfOrder`.
+> **Fait** : ① store `sync(patch)` + `overlayData` mémoïsé (ouverture **et** resynchronisation) + cité/Ordre du personnage dans le payload/host ; ② le **nom de quête** ouvre la fiche détaillée (dashboard + guide public, `aria-label`, picto « i » conservé) ; ③ toast « Personnage actif : <nom> » au changement de slot (progression séparée).
+> **Preuves** : **760 fichiers / 7 961 tests ✅** · `tsc` 0 · lint 0 erreur · 5 tests `rush-ux-trois` (sync conserve fenêtre et reste du payload, no-op sans overlay, câblage des 3 surfaces).
+> **Reste / ops** : `prereq_expr` (OU) — mesuré sur « Supermilicien » (275) : le client accepte 272/273/274, le guide n'exige que 273 ; puis UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
+> **Rotation** : bloc « suite 19 » (Missions & sondages) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 18/11/2026 (suite 24) — **Rush · séries d'alignement numérotées** — branche `feat/rush-alignement-series`
 
 > **Demandes user (verbatim)** : « oui il faut afficher séparément de 1 à X bonta et idem brak, idem ordre aussi » · « pour brak il y a une quête qui a en prérequis plusieurs quêtes au choix, c'est pris en compte dans le backend et l'ui ? ».
@@ -52,14 +62,6 @@
 > **Rotation** : bloc « Session 16/11/2026 (suite 14) — Visiteurs · filtres de la fiche + fiches boss » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 17/11/2026 (suite 19) — **Missions & sondages · visuels, « Sans ping », embeds de clôture** — branche `feat/missions-sondages-artwork` (PR vers `dev`)
-
-> **Demande user (verbatim)** : « traite ce sujet en vérifiant chaque point … un commit par lot, une pr globale, go » — + vigilance « ne te base pas uniquement sur les sources siphonnées en local : c'est pas à jour, le vps l'est ».
-> **Mesure** : `monsterImageUrl` est `null` pour **23 Songes, 17 Anomalies, 135 Régulations** ; le mapping d'images existait en **3 exemplaires divergents** (`mission-card`, `mission-editor`, `MissionLivePreview`) ; `skipDiscord = pingType === "NONE"` annulait tout Discord ; la sous-grille de reping n'offrait que ROLE/EVERYONE ; un **vote tardif** et la **fermeture paresseuse** fermaient le sondage sans supprimer l'embed ; `poll-creator` était bridé à 576 px.
-> **Fait** : `src/lib/mission-artwork.ts` (titre → palier de Songe, 4 épreuves, `fragment/3-gardiens/ano1/anomalie`, familles calculées par règle + 4 alias mesurés, proxy donjon) + `MissionArtworkImage` (repli bannière) ; `mapOfficialToDraftMission` propage `imageUrl`/`epreuve` ; `src/lib/mission-publish.ts` (« Sans ping » ≠ « sans annonce ») ; « Sans ping » ajouté à la mise à jour (3 colonnes) ; `deleteChannelMessage` sur vote tardif et fermeture paresseuse (garde `status: "ACTIVE"`, ids lus avant) ; modale sondage `max-w-3xl`. **UI/UX de l'éditeur** : tokens seuls (plus de palette en dur ni de `glowColor`), `font-black`/`backdrop-blur`/`rounded-2xl`/ombres colorées retirés, onglet **Anomalies** + compteurs issus du catalogue, un seul défilement par panneau (plus de liste à 360 px), cibles tactiles 44 px sur mobile, `Select`/`Input` maison, `aria-pressed`/libellés, aperçu vide explicite ; **pictogrammes de catégorie retirés devant les titres** des cartes membre et de validation (doublon avec l'illustration réelle et le libellé du corps).
-> **Preuves** : suite **754 fichiers / 7 884 tests ✅** · `tsc` 0 · ESLint 0 erreur · verrous `mission-artwork` (18), `mission-publish-ping` (6), `sondages-embed-cloture` (4), `missions-editor-ui` (9), `security-gate-policy` (9). **Mesure de couverture** : 57 des 135 familles ont un fichier dans le dépôt, 78 non — le chemin est calculé et le bind mount `game-data` du VPS fait autorité (repli visuel si absent).
-> **Reste / ops** : contrôle visuel 390/768/1024/1440 (catalogue de missions, modale de mission, modale de sondage) ; **aucune migration** ; ouvrir la PR vers `dev`. **Exception sécurité datée** `GHSA-fc5q-39xc-vjpf` (picomatch ReDoS, build-only Sentry, PR #1427) : **expire le 24/11/2026**, à retirer de `scripts/security-gate-policy.mjs` dès que picomatch ≥ 4.0.8. Deslop hors périmètre de la capture (reste) : `guild-progress-bar`, `guild-hall-widget`, `personal-guildaton-widget`, `validation-*`, `proof-upload-dialog`, `residency/submission-countdown`.
-> **Rotation** : bloc « Session 16/11/2026 (suite 13) — Visiteurs · fiche V5 bis » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

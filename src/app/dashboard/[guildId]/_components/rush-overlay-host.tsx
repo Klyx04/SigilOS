@@ -30,6 +30,8 @@ export function RushOverlayHost() {
         milestones={payload.milestones}
         allProgress={payload.allProgress}
         altPseudo={payload.altPseudo}
+        selfAlignment={payload.selfAlignment ?? null}
+        selfOrder={payload.selfOrder ?? null}
         character={payload.character}
         pinned={payload.pinned}
         ocre={payload.ocre ?? null}

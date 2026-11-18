@@ -441,6 +441,111 @@ describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
   });
 });
 
+const TRAME_PREREQ: TrameInput = {
+  blocks: [
+    {
+      title: "Astrub",
+      items: [
+        { kind: "quest", questId: 1 },
+        { kind: "quest", questId: 2 },
+        { kind: "quest", questId: 3 },
+        { kind: "quest", questId: 4 },
+        { kind: "quest", questId: 5 },
+      ],
+    },
+    {
+      title: "Bonta",
+      items: [
+        {
+          kind: "choice",
+          branches: [
+            {
+              condition: { kind: "camp", raw: "Bonta", value: "bontarien" },
+              items: [{ kind: "quest", questId: 6 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      title: "Brakmar",
+      items: [
+        {
+          kind: "choice",
+          branches: [
+            {
+              condition: { kind: "camp", raw: "Brak", value: "brakmarien" },
+              items: [{ kind: "quest", questId: 7 }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  quests: {
+    "1": { id: 1, name: "Début" },
+    "2": { id: 2, name: "Suite", prereqIds: [1] },
+    "3": { id: 3, name: "Cible absente", prereqIds: [999] },
+    "4": { id: 4, name: "Soi-même", prereqIds: [4] },
+    "5": { id: 5, name: "Croisée", prereqIds: [7] },
+    "6": { id: 6, name: "Bonta 1", prereqIds: [1] },
+    "7": { id: 7, name: "Brak 1", prereqIds: [1] },
+  },
+};
+
+const prereqNamesOf = (result: ReturnType<typeof buildRushSeedFromTrame>, name: string) =>
+  result.payload.blocks
+    .flatMap((block) => block.sequences)
+    .find((sequence) => sequence.subGuideName === name)
+    ?.activityTags?.filter((tag) => tag.type === "prereq_text")
+    .map((tag) => tag.name) ?? [];
+
+describe("Prérequis entre quêtes — prereq_text par nom", () => {
+  const result = buildRushSeedFromTrame(TRAME_PREREQ, { spine: "tougli" });
+
+  it("pose le prérequis par nom, jamais par un id inventé", () => {
+    expect(prereqNamesOf(result, "Suite")).toEqual(["Début"]);
+    expect(result.report.prereqTags).toBeGreaterThan(0);
+  });
+
+  it("n'invente rien quand la cible n'existe pas et ne se référence pas elle-même", () => {
+    expect(prereqNamesOf(result, "Cible absente")).toEqual([]);
+    expect(prereqNamesOf(result, "Soi-même")).toEqual([]);
+  });
+
+  it("refuse une cible d'une autre cité (aucun blocage à vie)", () => {
+    // « Croisée » n'a pas de cité ; sa cible est brâkmarienne : l'arête est écartée.
+    expect(prereqNamesOf(result, "Croisée")).toEqual([]);
+    expect(result.report.prereqSkipped).toBeGreaterThanOrEqual(3);
+  });
+
+  it("garde une arête dès que la cible n'est pas conditionnée autrement", () => {
+    expect(prereqNamesOf(result, "Bonta 1")).toEqual(["Début"]);
+    expect(prereqNamesOf(result, "Brak 1")).toEqual(["Début"]);
+  });
+
+  it("ne dépasse jamais 30 tags par séquence (schéma d'import)", () => {
+    const items = Array.from({ length: 30 }, (_, index) => ({
+      id: index + 1,
+      name: `Ressource ${index + 1}`,
+      count: 1,
+    }));
+    const trame: TrameInput = {
+      blocks: [
+        { title: "Bloc", items: [{ kind: "quest", questId: 1 }, { kind: "quest", questId: 2 }] },
+      ],
+      quests: {
+        "1": { id: 1, name: "Prérequis" },
+        "2": { id: 2, name: "Chargée", items, prereqIds: [1] },
+      },
+    };
+    const built = buildRushSeedFromTrame(trame, { spine: "tougli" });
+    const sequence = built.payload.blocks[0].sequences.find((s) => s.subGuideName === "Chargée");
+    expect(sequence?.activityTags).toHaveLength(30);
+    expect(sequence?.activityTags?.some((tag) => tag.type === "prereq_text")).toBe(false);
+  });
+});
+
 describe("pureté et bornes du générateur", () => {
   it("ne mute jamais la Trame d'origine", () => {
     const before = JSON.stringify(TRAME);

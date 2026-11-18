@@ -49,6 +49,13 @@ function MissingDungeonThumb({
         alt=""
         className="h-4 w-4 rounded-[2px] object-cover"
         loading="lazy"
+        onLoad={(event) => {
+          // Le proxy d'assets renvoie parfois un PNG **transparent 1×1** (mesure du
+          // chantier Ocre) : il « charge » sans erreur et laissait un cadre vide.
+          // Une vraie vignette fait au moins quelques pixels — sinon on n'affiche rien,
+          // conformément à la règle « pas d'image ⇒ rien » du 22/10/2026.
+          if (event.currentTarget.naturalWidth <= 2) setBroken(true);
+        }}
         onError={() => setBroken(true)}
       />
     </button>

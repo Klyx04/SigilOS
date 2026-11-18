@@ -17,7 +17,7 @@ import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
 import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
-import { alignmentCountForCamp, alignmentTagCamp } from "@/lib/rush-guide-utils";
+import { alignmentCountForCamp, alignmentTagCamp, isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
@@ -629,6 +629,25 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
           missingDungeons: blocked.missing,
         };
       }
+
+      // ── Verrou de PRÉREQUIS du bloc (fail-closed) ────────────────────────────
+      // Le bloc se valide d'un coup : ses propres quêtes comptent comme validées,
+      // seuls les prérequis EXTERNES peuvent le bloquer.
+      const blockSeqIds = (milestoneWithSequences.sequences ?? []).map((seq) => seq.id);
+      const blockedPrereq = await findSequenceBlockedByPrereq(
+        milestoneWithSequences.guide.id,
+        profileId,
+        characterSlot,
+        blockSeqIds,
+        blockSeqIds
+      );
+      if (blockedPrereq) {
+        return {
+          success: false as const,
+          error: `« ${blockedPrereq.name} » : prérequis non validé(s)`,
+          blockedSequenceId: blockedPrereq.id,
+        };
+      }
     }
   }
 
@@ -1079,6 +1098,58 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
 }
 
 /**
+ * Verrou de PRÉREQUIS (fail-closed) — même règle que les trois surfaces
+ * (`isSequenceBlockedByPrereqs`) : une quête dont un prérequis `prereq_text` n'est pas
+ * validé ne se coche pas, **même par un appel direct à l'action**.
+ *
+ * Mesure du 18/11/2026 : « Réponses à tout » se cochait sans « Sous le regard des dieux ».
+ * Le client grisait la ligne, mais le serveur écrivait sans vérifier — la règle n'existait
+ * qu'à l'écran. Une cible introuvable ne bloque pas (règle historique : pas de verrou à vie).
+ */
+async function findSequenceBlockedByPrereq(
+  guideId: string,
+  profileId: string,
+  characterSlot: string,
+  sequenceIds: string[],
+  assumeCompleted: string[] = []
+): Promise<{ id: string; name: string } | null> {
+  if (!guideId || sequenceIds.length === 0) return null;
+
+  const milestones = await db.guideMilestone.findMany({
+    where: { guideId },
+    select: {
+      id: true,
+      type: true,
+      chapter: true,
+      chapterLabel: true,
+      sequences: { select: { id: true, subGuideName: true, subGuideRef: true, activityTags: true } },
+    },
+  });
+  if (milestones.length === 0) return null;
+
+  const progress = await db.playerGuideProgress.findMany({
+    where: { profileId, characterSlot, milestone: { guideId } },
+    select: { completedSteps: true },
+  });
+  const completed = new Set<string>(assumeCompleted);
+  for (const row of progress) {
+    if (Array.isArray(row.completedSteps)) {
+      for (const id of row.completedSteps as string[]) completed.add(id);
+    }
+  }
+
+  const byId = new Map(milestones.flatMap((m) => m.sequences.map((s) => [s.id, s] as const)));
+  for (const id of sequenceIds.slice(0, 500)) {
+    const sequence = byId.get(id);
+    if (!sequence) continue;
+    if (isSequenceBlockedByPrereqs(sequence as never, completed, milestones as never)) {
+      return { id, name: sequence.subGuideName ?? id };
+    }
+  }
+  return null;
+}
+
+/**
  * Verrou de DONJONS (S0-4) — première séquence **nouvellement cochée** dont un donjon
  * **requis** n'est pas marqué « fait » par ce personnage.
  *
@@ -1231,6 +1302,25 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
         error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
         blockedSequenceId: blocked.id,
         missingDungeons: blocked.missing,
+      };
+    }
+  }
+
+  // ── Verrou de PRÉREQUIS (fail-closed) ───────────────────────────────────────
+  // Le client grise la ligne, mais l'action peut être appelée directement : sans cette
+  // garde, une quête verrouillée s'écrivait quand même (mesure du 18/11/2026).
+  if (newlyValidated.length > 0) {
+    const blockedPrereq = await findSequenceBlockedByPrereq(
+      milestone.guide.id,
+      profileId,
+      characterSlot,
+      newlyValidated
+    );
+    if (blockedPrereq) {
+      return {
+        success: false as const,
+        error: `« ${blockedPrereq.name} » : prérequis non validé(s)`,
+        blockedSequenceId: blockedPrereq.id,
       };
     }
   }

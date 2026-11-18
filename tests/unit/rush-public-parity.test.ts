@@ -510,6 +510,14 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(calls).toBeGreaterThanOrEqual(3);
   });
 
+  it("le verrou de PRÉREQUIS est SERVEUR aussi — quête seule et bloc entier", () => {
+    // La règle est appelée par l'action (pas seulement par les écrans) : une coche
+    // directe ne peut pas contourner un `prereq_text` non validé.
+    const calls = ACTIONS_CODE.match(/findSequenceBlockedByPrereq\(/g)?.length ?? 0;
+    expect(calls).toBeGreaterThanOrEqual(3); // définition + 2 appels
+    expect(ACTIONS_CODE).toMatch(/prérequis non validé\(s\)/);
+  });
+
   it("le dashboard bloque AVANT l'aller-retour et charge l'état au montage", () => {
     expect(DASH).toMatch(
       /useRushDungeonStates\(\{guildId,slug:guide\.slug,altPseudo:effectiveAltPseudo\}\)/

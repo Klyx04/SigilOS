@@ -411,21 +411,36 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           )}
         </div>
 
-        {/* Repère — TOUJOURS proposé (11/11/2026) : un donjon requis ou un prérequis bloque
-            la **validation**, pas le fait de dire où l'on en est. Seule une quête déjà
-            validée le désactive (soit validée, soit repère). */}
+        {/* Repère (18/11/2026) : une quête **verrouillée** n'est pas jouable, on n'y pose plus de
+            repère. S'il en existait un avant le verrou, il reste retirable (sinon il serait collé). */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            if (!isDone) onBookmark();
+            if (!isDone && !(isLocked && !isBookmarked)) onBookmark();
           }}
-          disabled={isDone}
-          aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
-          title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : "Je suis ici"}
+          disabled={isDone || (isLocked && !isBookmarked)}
+          aria-label={
+            isDone
+              ? "Quête déjà validée"
+              : isBookmarked
+                ? "Retirer le repère"
+                : isLocked
+                  ? "Quête verrouillée — repère indisponible"
+                  : "Poser le repère ici"
+          }
+          title={
+            isDone
+              ? "Quête déjà validée — repère désactivé"
+              : isBookmarked
+                ? "Repère posé ici"
+                : isLocked
+                  ? "Quête verrouillée — terminez d'abord ses prérequis"
+                  : "Je suis ici"
+          }
           className={cn(
             "shrink-0 rounded-[3px] p-1 transition-colors",
-            isDone && "cursor-not-allowed opacity-40",
+            (isDone || (isLocked && !isBookmarked)) && "cursor-not-allowed opacity-40",
             isBookmarked && !isDone
               ? "bg-warning/15 text-warning"
               : "text-muted-foreground hover:bg-warning/10 hover:text-warning"

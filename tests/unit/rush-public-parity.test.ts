@@ -53,7 +53,7 @@ describe("Prérequis — le public refuse EXACTEMENT ce que l'interne refuse", (
     expect(PUB).toMatch(/data-state=\{daState\}/);
     expect(PUB).toMatch(/className="da-row"/);
     expect(codeOf("src/app/da-wakfu.css")).toMatch(
-      /\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.78/
+      /\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.92/
     );
     expect(PUB).toMatch(/disabled=\{stepLocked\}/);
     expect(PUB).toMatch(/getPrereqRefs\(seq, milestones\)/);

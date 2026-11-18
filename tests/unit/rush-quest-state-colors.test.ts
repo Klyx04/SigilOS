@@ -38,7 +38,7 @@ describe("Dashboard — quête bloquée ≠ quête repérée (deux attributs, de
     expect(DA_CSS).toMatch(
       /\.da-row\[data-state="locked"\] \.da-node::before\s*\{[^}]*border-style:\s*dashed/
     );
-    expect(DA_CSS).toMatch(/\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.78/);
+    expect(DA_CSS).toMatch(/\.da-row\[data-state="locked"\] \.da-card\s*\{\s*opacity:\s*\.92/);
     // Les anciennes teintes de blocage ne doivent pas revenir.
     expect(DASH).not.toMatch(/bg-danger\/\[0\.05\] border-danger\/30/);
     expect(DASH).not.toMatch(/bg-warning\/\[0\.04\] border-warning\/25/);

@@ -471,6 +471,10 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Cache public | Ops | ISR 1 h, `revalidatePath`/`updateRushSylvestreSettings` |
 | Progression au déplacement | Backend | `moveRushSequence`, `PlayerGuideProgress`, `deleteRushMilestone` |
 | Pages `/q/<slug>` | Ops | 0 publiée |
+| Quêtes d'alignement numérotées (« Ali 1 », « Ali 2 »…), séparées Bonta / Brâkmar | Données/UI | libellés `Brâkmarien : …` sans rang ; demande du 18/11/2026 |
+| Icône de quête dans l'overlay | ✅ livré | `RushOverlayQuestListItem` : repli `icone-quete.png`, comme le dashboard |
+| Light mode de l'overlay | ✅ retiré | `GuideOverlayClient`/`RushOverlayHeader` : état, `localStorage`, bouton |
+| Alignement modifié mais guide inchangé | UX (à reproduire) | `AlignmentChoiceForm` (`router.refresh()`), `resolveRushRoute` |
 
 **Ordre** : prérequis → UX (clic, perso, alignement/`resolveRushScenario`) → UI (détail/assets, succès,
 DofusDex, icône) → **Bloc I** (succès de donjon) → 55 conseils → PR/VPS.

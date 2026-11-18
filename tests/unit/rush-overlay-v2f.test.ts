@@ -80,11 +80,17 @@ describe("F4 — la rangée de filtres est centrée et aérée", () => {
     });
 });
 
-describe("F10 — le thème clair est posé avant la peinture", () => {
-    it("la lecture de `localStorage` passe par un layout effect", () => {
+describe("F10 — le thème clair a été retiré (18/11/2026)", () => {
+    it("aucun état clair, aucune persistance, un `data-theme` sombre en dur", () => {
         const shell = read(SHELL);
-        expect(shell).toMatch(/const useIsomorphicLayoutEffect\s*=/);
-        expect(shell).toMatch(/useIsomorphicLayoutEffect\(\(\) => \{[\s\S]{0,200}sigil_overlay_theme/);
+        const header = read(HEADER);
+        // L'overlay est sombre uniquement : plus de bascule, donc plus de `localStorage`
+        // à lire avant la peinture — le clignotement F10 disparaît avec sa cause.
+        expect(shell).not.toMatch(/sigil_overlay_theme/);
+        expect(shell).not.toMatch(/lightMode/);
+        expect(shell).toMatch(/data-theme="dark"/);
+        expect(header).not.toMatch(/onToggleTheme/);
+        expect(header).not.toMatch(/useDaTheme/);
     });
 });
 

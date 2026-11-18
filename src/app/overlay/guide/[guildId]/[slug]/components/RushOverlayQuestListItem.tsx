@@ -49,6 +49,13 @@ function MissingDungeonThumb({
         alt=""
         className="h-4 w-4 rounded-[2px] object-cover"
         loading="lazy"
+        onLoad={(event) => {
+          // Le proxy d'assets renvoie parfois un PNG **transparent 1×1** (mesure du
+          // chantier Ocre) : il « charge » sans erreur et laissait un cadre vide.
+          // Une vraie vignette fait au moins quelques pixels — sinon on n'affiche rien,
+          // conformément à la règle « pas d'image ⇒ rien » du 22/10/2026.
+          if (event.currentTarget.naturalWidth <= 2) setBroken(true);
+        }}
         onError={() => setBroken(true)}
       />
     </button>
@@ -222,10 +229,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {/* 1ʳᵉ rangée : icône de type · portrait PNJ · nom de la quête */}
           <div className="flex min-w-0 items-start gap-1.5">
-          {seqIcon && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
-          )}
+          {/* Icône de type : même repli que le dashboard (`icone-quete.png`) — la ligne
+              reste reconnaissable même quand le God n'a pas posé d'icône sur la quête. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={seqIcon ?? "/assets/icons/icone-quete.png"}
+            alt=""
+            className="h-4 w-4 shrink-0 object-contain opacity-90"
+            loading="lazy"
+          />
           {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
             <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
           )}

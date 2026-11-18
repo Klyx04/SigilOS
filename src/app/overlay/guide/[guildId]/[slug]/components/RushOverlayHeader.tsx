@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sun, Moon, ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
-import { useDaTheme } from "@/components/da/da-theme";
 
 interface RushOverlayHeaderProps {
   guideName: string;
@@ -14,7 +13,6 @@ interface RushOverlayHeaderProps {
   totalSteps: number;
   completedSteps: number;
   overallPct: number;
-  onToggleTheme: () => void;
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
   onOpenTutorial: () => void;
@@ -66,9 +64,8 @@ interface RushOverlayHeaderProps {
 
 /**
  * Header fixe de l'overlay.
- * - Nom du guide + progression explicite (N / M étapes · X%)
+ * - Nom du guide + progression explicite (N / M quêtes · X%)
  * - Icône Dofus (œuf)
- * - Bascule thème Clair/Sombre
  * - Lien dashboard
  */
 export function RushOverlayHeader({
@@ -79,7 +76,6 @@ export function RushOverlayHeader({
   totalSteps,
   completedSteps,
   overallPct,
-  onToggleTheme,
   hideCompleted,
   onToggleHideCompleted,
   onOpenTutorial,
@@ -97,10 +93,6 @@ export function RushOverlayHeader({
   onOpenAlignment,
   block = "emeraude",
 }: RushOverlayHeaderProps) {
-  // Thème de la DA : une seule source (`data-theme` de la racine, exposé par le
-  // contexte) — plus aucune prop de thème à faire descendre.
-  const da = useDaTheme();
-  const light = da?.theme === "light";
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
@@ -231,17 +223,6 @@ export function RushOverlayHeader({
 
         {/* Droite : actions + œuf Dofus */}
         <div className="relative flex items-center gap-1.5 shrink-0">
-          {/* Thème */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            aria-label={light ? "Passer en mode sombre" : "Passer en mode clair"}
-            title={light ? "Mode Sombre" : "Mode Clair"}
-            className={actionBtnGold}
-          >
-            {light ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
-          </button>
-
           {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
           {onOpenAlignment && (
             <button

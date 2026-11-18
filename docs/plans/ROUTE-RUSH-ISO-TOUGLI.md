@@ -295,6 +295,10 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
 | Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |
 | Pages `/q/<slug>` | 0 publiée | **ops/édition** |
+| **Quêtes d'alignement numérotées** (« Ali 1 », « Ali 2 »…) et séparées Bonta / Brâkmar | les séquences s'appellent « Brâkmarien : … » sans rang (demande du 18/11/2026) | **Données/UI** — préfixe par cité + rang, à décider (seed ou affichage) |
+| Icône de quête dans l'overlay | ✅ **livré 18/11/2026** : repli `icone-quete.png`, même convention que le dashboard | — |
+| Bouton light mode de l'overlay | ✅ **retiré 18/11/2026** (état + `localStorage.sigil_overlay_theme` + bouton) | — |
+| Changement d'alignement visible immédiatement | `router.refresh()` existe dans `AlignmentChoiceForm` ; l'overlay ne se met pas à jour à l'écran | **UX** — à reproduire avant correction |
 
 **Ordre proposé** : **prérequis** → **UX** (clic, perso, alignement/`resolveRushScenario`) → **UI**
 (détail/assets, succès, DofusDex, icône) → **Bloc I** (succès de donjon) → **55 conseils** → **PR/VPS**

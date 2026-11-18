@@ -5,13 +5,13 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
-## 📝 Session 18/11/2026 (suite 26) — **Rush · prérequis « au choix » (`prereq_expr`)** — branche `feat/rush-prereq-or`
+## 📝 Session 18/11/2026 (suite 26) — **Rush · prérequis « au choix » (`prereq_expr`)** — branche `feat/rush-prereq-or` (PR **#1448** mergée, `dev ec9bd234`)
 
 > **Demande user (verbatim)** : « Reste : … le `prereq_expr`, puis UI / Bloc I / 55 conseils / VPS. » — avec la règle posée : « jamais de blocage si une alternative n'est pas vérifiable dans le guide ».
 > **Mesure** : « Supermilicien » (275) exige `(Qf=272|Qf=273|Qf=274)` dans le client ; la Trame est **plate** (`prereqIds: [272,273,274]`) et ne connaît ni 272 ni 274 ; le guide ne contient que 273 → il était exigé en **ET**.
 > **Fait** : ① `src/lib/rush-prereq-expr.ts` — lecture bornée (**4 groupes × 8 alternatives**), résolution par **`questDbIds`**, évaluation « au moins une », **non bloquant dès qu'une alternative est hors guide** ; intégration dans `isSequenceBlockedByPrereqs`. ② Seed : `--prereq-or` lit `quest-prerequisites.json`, émet `prereq_expr`, **retire** les `prereq_text` déjà posés sur une alternative et **neutralise le verrou d'ordre** sur ces mêmes alternatives. ③ Schéma d'import borné (`alternatives` ≤ 8). ④ Ligne « Au choix : … » sur dashboard, guide public et overlay ; **le verrou de l'overlay appelle enfin la règle serveur** (palier + OU), au lieu de sa liste locale.
 > **Preuves** : **761 fichiers / 7 977 tests ✅** · `tsc` 0 · lint 0 erreur · **16 tests** (13 `rush-prereq-or` + 3 seed : groupe posé, arête ET retirée, alternative unique ignorée, verrou d'ordre neutralisé) · seed réel : **3 `prereq_expr`** (Supermilicien 272/273/274, Malédiction 710/711/1316, Ça sent le gaz borné à 8) et **plus aucun `prereq_text`** en doublon.
-> **Reste / ops** : **archivage + import** (local et VPS) pour que les tags arrivent au guide ; puis UI, Bloc I, 55 conseils. **PR à ouvrir**.
+> **Reste / ops** : **archivage + import** (local et VPS) pour que les tags `prereq_expr` arrivent au guide ; puis **UI**, **Bloc I** (succès de donjon), **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs — cadré dans `MODULE` §J), 55 conseils. `git status` propre, `dev` = `ec9bd234`.
 > **Rotation** : bloc « suite 20 » (route iso Tougli × Yelle) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

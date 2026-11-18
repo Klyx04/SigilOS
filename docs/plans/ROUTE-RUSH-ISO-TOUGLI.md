@@ -305,7 +305,8 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 **Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** →
 **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide public) → **Bloc I**
-(succès de donjon) → **55 conseils** → **VPS**.
+(succès de donjon) → **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs) →
+**55 conseils** → **VPS**.
 
 ## 13. Reprise propre — la porte d'entrée
 

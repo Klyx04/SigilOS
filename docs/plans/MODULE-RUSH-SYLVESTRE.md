@@ -432,6 +432,60 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Statut** : **à faire** ; ordre dans `docs/ROADMAP.md` ; priorité après les prérequis et l'UX de
   navigation, avant les 55 conseils.
 
+### J — Donjons du guide : vue transversale « qui a fait quoi » · cadré le 18/11/2026
+
+- **Besoin (verbatim)** : « liste des dj guide navigateur / bouton overlay avec leur quête et étape
+  associées, qui parmi les gens sur le rush a fait lequel / à faire ; succès associés de guilde /
+  visiteurs connectés ; penser aux dj qui ont plusieurs quêtes aussi ; attention les dj dans Brâkmar
+  si Bontarien = pas possible par exemple ».
+- **Différence avec I** : I ouvre **un** donjon (modale de succès). J est une **vue d'ensemble** :
+  la liste de **tous** les donjons de la route, chacun relié à **ses** quêtes/étapes, avec l'état
+  **par membre** et les **succès agrégés**. I et J partagent la même vérité de coche, aucune
+  duplication de table.
+- **État mesuré (18/11/2026)** :
+  - **Coche par occurrence** : `PlayerGuideDungeonState` = `(profileId, guideId, sequenceId,
+    characterSlot, dungeonKey, state)` — le même donjon demandé par **deux quêtes** se coche deux
+    fois (`@@unique` sur les cinq colonnes). `useRushDungeonStates` expose déjà `others`
+    (`RushDungeonMemberState[]`) pour le bloc affiché : l'agrégat « qui a fait lequel » se lit là,
+    pas dans une table parallèle.
+  - **Visiteurs** : `PublicRushProgress.dungeonChecks` (Json) porte les coches publiées, **par
+    `characterSlot`** et **uniquement si `PublicProfile.showRushProgress`** (consentement distinct,
+    D-V21). Sans consentement : rien n'est lu, rien n'est agrégé.
+  - **Succès** : `DungeonAchievement` (par donjon) ; `UserDungeonAchievement` (membre, par
+    `characterSlot`) ; `PublicDungeonAchievement` (visiteur, par `characterSlot`). Le pseudo-succès
+    « Donjon validé » (`Dungeon.isNoAchievement` → `visibleDungeonAchievements`) reste le fallback :
+    il ne doit pas être compté deux fois avec la coche de donjon.
+  - **Clé de donjon** : `dungeonKeyOf` (stable) — jamais l'id local ni le nom brut ; la résolution
+    des noms passe par `Dungeon.dofusdbId` (3 donjons encore non aliasés sur 98 : **à compléter
+    avant de promettre une liste exhaustive**).
+  - **Contrainte d'alignement** : `Dungeon` ne porte **aucune** cité/Ordre/classe. La seule source
+    est la **quête requérante** (`GuideSequence.alignReq`, `alignOrderCode`, `classReq`, filtrés par
+    `resolveRushRoute`). Un donjon dont **toutes** les quêtes requérantes sont hors route disparaît ;
+    un donjon requis par une quête commune reste visible. **Ne jamais écrire « impossible » sans
+    mesure** : le verdict vient du filtre de route, pas d'un libellé codé en dur.
+- **Décisions ouvertes** :
+  - **Agrégat membres** : une requête par guide (group by `dungeonKey`, `sequenceId`) bornée, jamais
+    une par donjon ; afficher « n/N occurrences » et « m/M membres » (jamais un « fait » global
+    déduit d'une seule occurrence).
+  - **Visiteurs connectés** : agrégat des seuls profils publiés (`showRushProgress`) et **jamais**
+    `userId`/snowflake/e-mail ; un visiteur non consenti est **invisible**, pas « à faire ».
+  - **Multi-quêtes** : lister les quêtes/étapes qui exigent le donjon (nom + bloc + position), et
+    l'état par occurrence ; un donjon peut être « fait » sur une quête et « à faire » sur une autre.
+  - **Succès de guilde** : par donjon, « x/y membres » pour chaque succès ou un compteur agrégé ;
+    les succès restent **par personnage** (`characterSlot`), donc agréger au niveau **membre** en
+    disant le slot (pas de fusion silencieuse main + mules).
+  - **Place dans l'UI** : guide navigateur (panneau/liste dédiée) et bouton dans l'overlay ; la
+    fiche donjon existante (`/boss/<slug>`) reste la source du détail.
+- **Invariants** : filtre de route **avant** l'agrégat ; fail-closed sur le consentement ; aucune
+  requête N+1 ; pas de `filter` CSS sur une liste de cartes ; overlay en `data-quality="low"` ;
+  DA Wakfu (`--da-*`) ; français, aucun nom d'outil interne.
+- **Tests** : règle pure de l'agrégat (multi-quêtes, occurrences, donjon hors route, donjon commun,
+  consentement absent) ; actions (auth, guilde, `characterSlot`, lecture seule, rate limit) ;
+  parité des 3 surfaces ; verrous existants `rush-dungeons`, `rush-overlay-dungeon-gate`,
+  `dungeon-no-achievement`.
+- **Statut** : **cadré, à faire** — après **I**, avant les 55 conseils. Aucune migration prévue
+  (les tables existent) ; les 3 alias de donjons sont un prérequis de données.
+
 ## 3. Ordre d'exécution
 
 → **`docs/ROADMAP.md`** (l'ordre unique). Non recopié ici.
@@ -465,6 +519,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Changement perso sans message | ✅ livré 18/11/2026 | toast « Personnage actif : <nom> » + `sync` de l'overlay ouvert |
 | Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |
 | Succès de donjon | **Bloc I** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
+| Donjons du guide : qui a fait quoi | **Bloc J** | `PlayerGuideDungeonState`, `PublicRushProgress.dungeonChecks`, `dungeonKeyOf`, `resolveRushRoute` (route **avant** l'agrégat) |
 | 55 conseils | Éditorial | `tipsToWrite` |
 | Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
 | 3 donjons inconnus | Data | `dungeonNames` 98/95, `Dungeon`/`bossName` |
@@ -479,5 +534,6 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Quête verrouillée peu lisible / repère posable | ✅ livré | rouge franc, opacité `.92`, libellé « Verrouillée » ; repère retiré sur une quête verrouillée |
 | Liste « Mon Ocre » rognée | ✅ livré | `OcreQuestPanel` : défilement natif `min(440px,55svh)`, barre visible |
 
-**Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** →
-UI (détail/assets, DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) → 55 conseils → VPS.
+**Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
+UI (détail/assets, DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) →
+**Bloc J** (donjons : qui a fait quoi) → 55 conseils → VPS.

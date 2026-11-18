@@ -202,7 +202,7 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
 });
 
 describe("spine Yelle — liste de quêtes, succès, classes et neutre", () => {
-  const result = buildRushSeedFromTrame(TRAME, { spine: "yelle" });
+  const result = buildRushSeedFromTrame(TRAME, { spine: "yelle", includeSuccesses: true });
 
   it("crée l'étape 1 en INFO vide (un conseil rédigé remplace le texte source)", () => {
     const first = result.payload.blocks[0];
@@ -379,24 +379,28 @@ const DOFUSDEX_ENRICH = {
   ],
 };
 
+const ACHIEVEMENTS_ENRICH = [{ id: 900, name: "Succès 1", questIds: [1958] }];
+
 describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
   const result = buildRushSeedFromTrame(ENRICH_TRAME, {
     spine: "tougli",
     enrichFromYelle: true,
     dofusdex: DOFUSDEX_ENRICH,
+    achievements: ACHIEVEMENTS_ENRICH,
   });
   const byTitle = (title: string) => result.payload.blocks.find((block) => block.title === title);
 
-  it("garde la charpente Tougli et ajoute le succès Yelle dans le bloc corrélé", () => {
+  it("attache le succès officiel à sa quête, sans créer de ligne cochable", () => {
     const astrub = byTitle("Astrub");
-    expect(astrub?.sequences.map((sequence) => sequence.subGuideName)).toEqual(
-      expect.arrayContaining(["Q1", "Succès 1"])
-    );
-    expect(astrub?.sequences.find((sequence) => sequence.subGuideName === "Succès 1")?.isSuccess).toBe(true);
-    expect(byTitle("Pandala")?.sequences.some((sequence) => sequence.subGuideName === "Succès Domakuro")).toBe(
-      true
-    );
-    expect(result.report.yelleSuccesses).toBeGreaterThanOrEqual(2);
+    // Aucune 2ᵉ ligne « succès » : le succès est une propriété de la quête.
+    expect(astrub?.sequences.map((sequence) => sequence.subGuideName)).not.toContain("Succès 1");
+    expect(astrub?.sequences.filter((sequence) => sequence.isSuccess)).toHaveLength(0);
+    const q1 = astrub?.sequences.find((sequence) => sequence.subGuideName === "Q1");
+    const tags = (q1?.activityTags ?? []).filter((tag) => tag.type === "succes");
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toMatchObject({ name: "Succès 1", id: "900" });
+    expect(result.report.successTags).toBeGreaterThanOrEqual(1);
+    expect(result.report.successQuests).toBeGreaterThanOrEqual(1);
   });
 
   it("pose le conseil Yelle rédigé sur la quête corrélée, pas sur le bloc", () => {

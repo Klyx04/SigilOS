@@ -39,6 +39,7 @@ const yelleRawPath = path.resolve(
   valueOf("--yelle", "src/temp/archive/siphon-align/dofusyelle-com-assets-js-rush-sylvestre-data-js.js")
 );
 const dofusDexPath = path.resolve(valueOf("--dofusdex", "public/game-data/dofusdex.json"));
+const achievementsPath = path.resolve(valueOf("--achievements", "public/game-data/achievements.json"));
 const outDir = path.resolve(valueOf("--out-dir", "src/temp/rush-seed"));
 const enrichYelle = has("--enrich-yelle");
 const defaultSeedName = spine === "tougli" && enrichYelle ? "tougli-enriched" : spine;
@@ -127,13 +128,25 @@ if (fs.existsSync(dofusDexPath)) {
   console.warn(`DofusDex absent : ${dofusDexPath} (blocs DOFUS non enrichis).`);
 }
 
+let achievements: Array<{ id: number; name: string; questIds?: number[] }> = [];
+if (fs.existsSync(achievementsPath)) {
+  const raw = JSON.parse(fs.readFileSync(achievementsPath, "utf8")) as {
+    achievements?: Array<{ id: number; name: string; questIds?: number[] }>;
+  };
+  achievements = (raw.achievements ?? []).filter((row) => (row.questIds ?? []).length > 0);
+  console.log(`Succès officiels : ${achievements.length} avec des quêtes.`);
+} else {
+  console.warn(`Succès absents : ${achievementsPath} (aucune pastille de succès).`);
+}
+
 const { payload, report } = buildRushSeedFromTrame(trame as unknown as TrameInput, {
   spine,
   includeResources: !has("--no-resources"),
   includeClasses: !has("--no-classes"),
-  includeSuccesses: !has("--no-successes"),
+  includeSuccesses: has("--successes"),
   maxSequencesPerBlock: Number(valueOf("--max", "120")) || 120,
   dofusdex,
+  achievements,
   enrichFromYelle: enrichYelle,
 });
 
@@ -156,6 +169,8 @@ const lines = [
   `| Succès | ${report.successes} |`,
   `| Prérequis (prereq_text) | ${report.prereqTags} |`,
   `| Prérequis d'ordre (route) | ${report.routePrereqs} |`,
+  `| Succès officiels attachés | ${report.successAchievements} |`,
+  `| Tags succes posés | ${report.successTags} (sur ${report.successQuests} quêtes) |`,
   `| Arêtes de prérequis écartées | ${report.prereqSkipped} |`,
   `| Succès Yelle fusionnés | ${report.yelleSuccesses} |`,
   `| Conseils Yelle fusionnés | ${report.yelleTipsMerged} |`,
@@ -201,7 +216,10 @@ console.log(
   `  Yelle : ${report.yelleSuccesses} succès fusionné(s) · ${report.yelleTipsMerged} conseil(s) · ${report.yelleDofusDexMerged} bloc(s) DofusDex · ${report.yelleDungeonBlocks} bloc(s) avec donjons`
 );
 console.log(
-  `  prérequis : ${report.prereqTags} posé(s) · ${report.prereqSkipped} arête(s) écartée(s) · ${report.routePrereqs} verrou(s) d'ordre`
+  `  prérequis : ${report.prereqTags} posé(s) · ${report.prereqSkipped} écartée(s) · ${report.routePrereqs} verrou(s) d'ordre`
+);
+console.log(
+  `  succès : ${report.successAchievements} attaché(s) · ${report.successTags} tag(s) sur ${report.successQuests} quête(s)`
 );
 console.log(`  non appariées : ${report.unmatched.length} · conseils à rédiger : ${report.tipsToWrite.length}`);
 console.log(`  payload : ${path.relative(process.cwd(), outPath)}`);

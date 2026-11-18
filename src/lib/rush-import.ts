@@ -53,6 +53,11 @@ export type RushImportSequence = {
      * poste local vers le VPS.
      */
     dungeonDbIds?: number[];
+    /**
+     * Noms de donjons (repli **portable** quand `Dungeon.dofusdbId` est vide) : le
+     * serveur les résout par `Dungeon.name` / `bossName`, comme l'ancien seed.
+     */
+    dungeonNames?: string[];
     dungeonOptionalIds?: string[];
     takeEarly?: boolean;
     isOptional?: boolean;
@@ -105,6 +110,8 @@ export type RushImportOptions = {
     knownDungeonIds?: ReadonlySet<string>;
     /** Donjons connus par id **DofusDB** (`Dungeon.dofusdbId`). */
     knownDungeonDbIds?: ReadonlySet<number>;
+    /** Noms **normalisés** des donjons connus (`Dungeon.name` / `bossName`). */
+    knownDungeonNames?: ReadonlySet<string>;
     /** Classes connues (`classReq`) : même principe. */
     knownClassIds?: ReadonlySet<string>;
 };
@@ -248,6 +255,12 @@ export function planRushImport(
             for (const dungeonDbId of sequence.dungeonDbIds ?? []) {
                 if (options.knownDungeonDbIds && !options.knownDungeonDbIds.has(dungeonDbId)) {
                     sequenceWarnings.push(`Donjon DofusDB ${dungeonDbId} inconnu : il sera ignoré.`);
+                }
+            }
+            for (const dungeonName of sequence.dungeonNames ?? []) {
+                const key = importKey(dungeonName);
+                if (key && options.knownDungeonNames && !options.knownDungeonNames.has(key)) {
+                    sequenceWarnings.push(`Donjon « ${dungeonName} » inconnu : il sera ignoré.`);
                 }
             }
             // Liens externes : un refus n'arrête pas l'import (le lien est optionnel), mais

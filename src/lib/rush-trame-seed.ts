@@ -64,12 +64,21 @@ type TrameItemNode = {
 
 type TrameBlock = { id?: number; order?: number; title?: string; items?: TrameItemNode[] };
 
+type TrameDungeonNode =
+  | string
+  | {
+      name?: string;
+      t?: string;
+      title?: string;
+      items?: Array<{ name?: string; t?: string; title?: string } | string>;
+    };
+
 type TrameStep = {
   n?: number;
   category?: string;
   title?: string;
   body?: unknown[];
-  donjons?: Array<{ name?: string } | string>;
+  donjons?: TrameDungeonNode[];
   succes?: Array<{ t?: string; title?: string } | string>;
   quetes?: Array<{ t?: string; u?: string }>;
 };
@@ -126,6 +135,12 @@ export type RushTrameSeedOptions = {
   maxSequencesPerBlock?: number;
   /** DofusDex officiel (`public/game-data/dofusdex.json`) : enrichit les blocs DOFUS. */
   dofusdex?: RushDofusDex | null;
+  /**
+   * **Touglie enrichi** : garde la charpente Touglie et y fusionne les succès, conseils
+   * rédigés, DofusDex et donjons Dofusyelle déjà corrélés. Sans effet sur le spine Yelle,
+   * qui est déjà la source.
+   */
+  enrichFromYelle?: boolean;
 };
 
 export type RushTrameSeedReport = {
@@ -135,6 +150,14 @@ export type RushTrameSeedReport = {
   questsWithIds: number;
   resources: number;
   successes: number;
+  /** Succès Dofusyelle fusionnés dans la charpente Touglie (0 pour le spine Yelle). */
+  yelleSuccesses: number;
+  /** Conseils Dofusyelle rédigés posés sur une quête Touglie. */
+  yelleTipsMerged: number;
+  /** Blocs Touglie enrichis par un DofusDex d'étape Dofusyelle. */
+  yelleDofusDexMerged: number;
+  /** Blocs Touglie ayant reçu une ligne « Donjons (étape Yelle N) ». */
+  yelleDungeonBlocks: number;
   /** Blocs `DOFUS` enrichis avec la checklist officielle + le `dofusId`. */
   dofusDexTagged: number;
   unmatched: Array<{ step: number | null; title: string; reason: string }>;
@@ -226,15 +249,8 @@ function dofusIdForTitle(title: string): string | null {
   return candidates[0]?.id ?? null;
 }
 
-/**
- * Enrichit un bloc avec la **checklist officielle** du DofusDex : objectifs (noms +
- * niveaux), prérequis et `dofusId`. Aucune description Ankama n'est recopiée — ce sont
- * des faits de progression, affichés en markdown dans les conseils du bloc.
- */
-function enrichWithDofusDex(block: RushImportBlock, dofusdex?: RushDofusDex | null): boolean {
-  const entry = findDofusDexEntry(block.title, dofusdex);
-  if (!entry) return false;
-
+/** Construit la checklist DofusDex d'une entrée (objectifs, niveaux, prérequis). */
+function buildDofusDexChecklist(entry: RushDofusDexEntry): { checklist: string; objectives: number } | null {
   const lines: string[] = [];
   const seen = new Set<string>();
   for (const step of entry.steps ?? []) {
@@ -249,30 +265,89 @@ function enrichWithDofusDex(block: RushImportBlock, dofusdex?: RushDofusDex | nu
       lines.push(`- ${name}${typeof level === "number" ? ` (Niv. ${level})` : ""}`);
     }
   }
-  if (lines.length === 0) return false;
+  if (lines.length === 0) return null;
 
   const prerequisites = (entry.prerequisites ?? [])
     .map((step) => text(step.name, 200))
     .filter(Boolean);
   const range =
     entry.minLevel != null && entry.maxLevel != null ? ` (${entry.minLevel}–${entry.maxLevel})` : "";
-  const checklist = [
-    `**DofusDex officiel** — ${text(entry.name)}${range}`,
-    ...lines,
-    ...(prerequisites.length ? [`**Prérequis** : ${prerequisites.join(", ")}`] : []),
-  ].join("\n");
+  return {
+    checklist: [
+      `**DofusDex officiel** — ${text(entry.name)}${range}`,
+      ...lines,
+      ...(prerequisites.length ? [`**Prérequis** : ${prerequisites.join(", ")}`] : []),
+    ].join("\n"),
+    objectives: lines.length,
+  };
+}
 
-  // Le schéma d'import borne `tips` à 4 000 caractères : un Dofus à 20 objectifs +
-  // 18 prérequis dépasserait et ferait refuser TOUT le payload. On tronque proprement.
-  const MAX_TIPS = 3950;
-  const combined = [block.tips, checklist].filter(Boolean).join("\n\n");
+// Le schéma d'import borne `tips` à 4 000 caractères : un Dofus à 20 objectifs +
+// 18 prérequis dépasserait et ferait refuser TOUT le payload. On tronque proprement.
+const MAX_TIPS = 3950;
+
+/**
+ * Applique **une entrée DofusDex** à un bloc, sans doublon.
+ *
+ * `titleForId` sert au repli `dofusId` : une étape Yelle « Quêtes Pandala - Domakuro »
+ * appliquée à un bloc Touglie « Pandala » retrouve bien `domakuro`.
+ */
+function applyDofusDexEntry(
+  block: RushImportBlock,
+  entry: RushDofusDexEntry,
+  titleForId = block.title
+): boolean {
+  const built = buildDofusDexChecklist(entry);
+  if (!built) return false;
+
+  const header = `**DofusDex officiel** — ${text(entry.name)}`;
+  if ((block.tips ?? "").includes(header)) return false; // déjà posé (titre Touglie ou autre étape)
+
+  const combined = [block.tips, built.checklist].filter(Boolean).join("\n\n");
   block.tips =
     combined.length <= MAX_TIPS ? combined : `${combined.slice(0, MAX_TIPS).trimEnd()}\n…`;
-  block.description = [block.description, `DofusDex : ${lines.length} objectif(s) officiel(s).`]
+  block.description = [block.description, `DofusDex : ${built.objectives} objectif(s) officiel(s).`]
     .filter(Boolean)
     .join(" ");
-  block.dofusId = block.dofusId ?? dofusIdForTitle(block.title);
+  block.dofusId = block.dofusId ?? dofusIdForTitle(titleForId);
   return true;
+}
+
+/**
+ * Enrichit un bloc avec la **checklist officielle** du DofusDex : objectifs (noms +
+ * niveaux), prérequis et `dofusId`. Aucune description Ankama n'est recopiée — ce sont
+ * des faits de progression, affichés en markdown dans les conseils du bloc.
+ */
+function enrichWithDofusDex(block: RushImportBlock, dofusdex?: RushDofusDex | null): boolean {
+  const entry = findDofusDexEntry(block.title, dofusdex);
+  if (!entry) return false;
+  return applyDofusDexEntry(block, entry);
+}
+
+/** Aplatit les donjons d'une étape Yelle : groupe `{ items:[{ t }] }`, `{ name }` ou string. */
+function dungeonNamesOf(step: TrameStep): string[] {
+  const names: string[] = [];
+  for (const entry of step.donjons ?? []) {
+    if (typeof entry === "string") {
+      const name = text(entry, 200);
+      if (name) names.push(name);
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    if (Array.isArray(entry.items)) {
+      for (const item of entry.items) {
+        const name = text(
+          typeof item === "string" ? item : item?.t ?? item?.name ?? item?.title,
+          200
+        );
+        if (name) names.push(name);
+      }
+      continue;
+    }
+    const name = text(entry.name ?? entry.t ?? entry.title, 200);
+    if (name) names.push(name);
+  }
+  return [...new Set(names)];
 }
 
 function typeForTougliBlock(title: string): RushMilestoneType {
@@ -454,6 +529,14 @@ function sequenceForQuest(
     // ⚠️ `dungeonOurIds` est un cuid **local** : il ne survit pas à l'import sur le VPS.
     // On transporte l'id DofusDB, que le serveur résout par `Dungeon.dofusdbId`.
     ...(quest?.dungeonIds?.length ? { dungeonDbIds: quest.dungeonIds.slice(0, 12) } : {}),
+    ...(quest?.dungeonNames?.length
+      ? {
+          dungeonNames: quest.dungeonNames
+            .slice(0, 12)
+            .map((name) => text(name, 200))
+            .filter(Boolean),
+        }
+      : {}),
     ...(route.classReq ? { classReq: route.classReq } : {}),
     ...(route.alignReq ? { alignReq: route.alignReq } : {}),
     ...(route.alignOrderCode ? { alignOrderCode: route.alignOrderCode } : {}),
@@ -477,7 +560,12 @@ function pushUnique(sequences: RushImportSequence[], sequence: RushImportSequenc
 function buildTougliBlocks(
   trame: TrameInput,
   meta: Map<number, QuestRouteMeta>,
-  options: Required<Pick<RushTrameSeedOptions, "includeResources" | "maxSequencesPerBlock" | "dofusdex">>
+  options: Required<
+    Pick<
+      RushTrameSeedOptions,
+      "includeSuccesses" | "includeResources" | "maxSequencesPerBlock" | "dofusdex" | "enrichFromYelle"
+    >
+  >
 ): { blocks: RushImportBlock[]; report: RushTrameSeedReport } {
   const warnings: string[] = [];
   const tipsToWrite: RushTrameSeedReport["tipsToWrite"] = [];
@@ -618,22 +706,288 @@ function buildTougliBlocks(
     blockTypes[type] = (blockTypes[type] ?? 0) + 1;
   });
 
-  return {
-    blocks,
-    report: {
-      spine: "tougli",
-      blocks: blocks.length,
-      sequences: sequencesCount,
-      questsWithIds,
-      resources,
-      successes,
-      dofusDexTagged,
-      unmatched: [],
-      tipsToWrite,
-      blockTypes,
-      warnings,
-    },
+  const report: RushTrameSeedReport = {
+    spine: "tougli",
+    blocks: blocks.length,
+    sequences: sequencesCount,
+    questsWithIds,
+    resources,
+    successes,
+    yelleSuccesses: 0,
+    yelleTipsMerged: 0,
+    yelleDofusDexMerged: 0,
+    yelleDungeonBlocks: 0,
+    dofusDexTagged,
+    unmatched: [],
+    tipsToWrite,
+    blockTypes,
+    warnings,
   };
+
+  if (options.enrichFromYelle) {
+    enrichTougliWithYelle(blocks, trame, options, report);
+  }
+
+  return { blocks, report };
+}
+
+/**
+ * **Touglie enrichi** — la trame Touglie reste la seule charpente ; on y fusionne les
+ * données Dofusyelle déjà corrélées : succès, conseils rédigés, DofusDex et donjons.
+ *
+ * Règles :
+ *  · une étape Yelle est rattachée au bloc Touglie de la **première quête corrélée** ;
+ *  · un succès n'est ajouté qu'une fois par bloc (nom normalisé) ;
+ *  · un conseil rédigé se pose sur la **quête** corrélée (jamais sur le bloc) ;
+ *  · les autres conseils restent dans `tipsToWrite` (aucun texte tiers recopié) ;
+ *  · un DofusDex d'étape est appliqué au bloc Touglie même si son titre diffère
+ *    (Domakuro, Dorigami, Tacheté…), sans doublon ;
+ *  · une étape qui porte des quêtes/succès/donjons sans quête Touglie corrélée est
+ *    signalée dans `unmatched` — elle n'est jamais perdue silencieusement.
+ *
+ * Les **ressources** et **conditions** restent celles de la Trame Touglie (par quête) :
+ * la liste globale Yelle n'est pas recopiée sur un bloc, elle n'a pas de quête cible.
+ */
+function enrichTougliWithYelle(
+  blocks: RushImportBlock[],
+  trame: TrameInput,
+  options: Required<Pick<RushTrameSeedOptions, "includeSuccesses" | "maxSequencesPerBlock" | "dofusdex">>,
+  report: RushTrameSeedReport
+): void {
+  const steps = trame.dofusyelle?.steps ?? [];
+  const byStep = new Map<number, TrameCorrelation[]>();
+  for (const entry of trame.dofusyelle?.correlation ?? []) {
+    const step = Number(entry.step);
+    if (!Number.isFinite(step)) continue;
+    const list = byStep.get(step) ?? [];
+    list.push(entry);
+    byStep.set(step, list);
+  }
+
+  const questIndex = new Map<number, { block: RushImportBlock; sequence: RushImportSequence }>();
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      for (const questId of sequence.questDbIds ?? []) {
+        if (!questIndex.has(questId)) questIndex.set(questId, { block, sequence });
+      }
+    }
+  }
+
+  const findNamed = (block: RushImportBlock, name: string) => {
+    const key = normTitle(name);
+    return block.sequences.find((sequence) => normTitle(sequence.subGuideName) === key) ?? null;
+  };
+
+  const allByName = new Map<string, RushImportSequence>();
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      const key = normTitle(sequence.subGuideName);
+      if (key && !allByName.has(key)) allByName.set(key, sequence);
+    }
+  }
+  const fallbackSuccesses = new Map<string, string>();
+  const fallbackDex: Array<{ entry: RushDofusDexEntry; title: string }> = [];
+  const fallbackDungeons: Array<{ step: number; names: string[] }> = [];
+
+  for (const step of steps) {
+    const n = Number.isFinite(step.n) ? Number(step.n) : 0;
+    const title = text(step.title, 200) || `Étape ${n}`;
+    const category = text(step.category, 120) || "Route";
+    const entries = byStep.get(n) ?? [];
+    const questIds = [...new Set(entries.flatMap((entry) => entry.questIds ?? []))];
+
+    let target: { block: RushImportBlock; sequence: RushImportSequence } | null = null;
+    for (const questId of questIds) {
+      const hit = questIndex.get(questId);
+      if (hit) {
+        target = hit;
+        break;
+      }
+    }
+
+    if (!target) {
+      const successNames = (step.succes ?? [])
+        .map((success) => text(typeof success === "string" ? success : success?.t ?? success?.title, 200))
+        .filter(Boolean);
+      const hasContent =
+        (step.quetes ?? []).length > 0 ||
+        successNames.length > 0 ||
+        (step.donjons ?? []).length > 0;
+      if (hasContent) {
+        report.unmatched.push({ step: n, title, reason: "Aucune quête Touglie corrélée" });
+      }
+      // Succès sans bloc cible : marqués sur une quête existante, sinon gardés pour le
+      // bloc « Compléments » — rien ne se perd.
+      for (const name of successNames) {
+        const key = normTitle(name);
+        if (!key) continue;
+        const existing = allByName.get(key);
+        if (existing) {
+          if (!existing.isSuccess) {
+            existing.isSuccess = true;
+            report.successes += 1;
+            report.yelleSuccesses += 1;
+          }
+        } else if (!fallbackSuccesses.has(key)) {
+          fallbackSuccesses.set(key, name);
+        }
+      }
+      // Conseil non rattaché : il reste listé, jamais recopié.
+      const tip = YELLE_DEMO_TIPS[n];
+      const bodyLines = Array.isArray(step.body) ? step.body.length : 0;
+      if (tip || bodyLines > 0) {
+        report.tipsToWrite.push({ step: n, title, category, lines: tip ? 1 : bodyLines });
+      }
+      const dexEntry = findDofusDexEntry(title, options.dofusdex);
+      if (dexEntry) fallbackDex.push({ entry: dexEntry, title });
+      const dungeonNames = dungeonNamesOf(step);
+      if (dungeonNames.length > 0) fallbackDungeons.push({ step: n, names: dungeonNames });
+      continue;
+    }
+
+    // 1. Succès Yelle → séquences `isSuccess` dans le bloc Touglie de la quête corrélée.
+    if (options.includeSuccesses) {
+      const successNames = (step.succes ?? [])
+        .map((success) => text(typeof success === "string" ? success : success?.t ?? success?.title, 200))
+        .filter(Boolean);
+      for (const name of successNames) {
+        const existing = findNamed(target.block, name);
+        if (existing) {
+          // Le succès porte le nom d'une quête déjà dans le bloc : on MARQUE la quête,
+          // on ne crée pas un doublon de libellé.
+          if (!existing.isSuccess) {
+            existing.isSuccess = true;
+            report.successes += 1;
+            report.yelleSuccesses += 1;
+          }
+          continue;
+        }
+        if (target.block.sequences.length >= options.maxSequencesPerBlock) {
+          const key = normTitle(name);
+          const anywhere = allByName.get(key);
+          if (anywhere) {
+            if (!anywhere.isSuccess) {
+              anywhere.isSuccess = true;
+              report.successes += 1;
+              report.yelleSuccesses += 1;
+            }
+          } else if (!fallbackSuccesses.has(key)) {
+            fallbackSuccesses.set(key, name);
+          }
+          report.warnings.push(
+            `Succès « ${name} » (étape ${n}) : bloc « ${target.block.title} » plein → « Compléments — succès hors trame ».`
+          );
+          continue;
+        }
+        target.block.sequences.push({
+          subGuideName: name,
+          questDbIds: [],
+          isSuccess: true,
+          activityTags: [],
+        });
+        report.sequences += 1;
+        report.successes += 1;
+        report.yelleSuccesses += 1;
+      }
+    }
+
+    // 2. Conseil Yelle : seulement s'il a été rédigé pour SigilOS ; sinon il reste à écrire.
+    const tip = YELLE_DEMO_TIPS[n];
+    if (tip) {
+      if (!target.sequence.tips) {
+        target.sequence.tips = tip;
+        report.yelleTipsMerged += 1;
+      } else if (target.sequence.tips !== tip) {
+        report.tipsToWrite.push({ step: n, title, category, lines: 1 });
+      }
+    } else {
+      const bodyLines = Array.isArray(step.body) ? step.body.length : 0;
+      if (bodyLines > 0) report.tipsToWrite.push({ step: n, title, category, lines: bodyLines });
+    }
+
+    // 3. DofusDex d'étape → bloc Touglie, même si le titre du bloc ne le reconnaît pas.
+    const dexEntry = findDofusDexEntry(title, options.dofusdex);
+    if (dexEntry && applyDofusDexEntry(target.block, dexEntry, title)) {
+      report.dofusDexTagged += 1;
+      report.yelleDofusDexMerged += 1;
+    }
+
+    // 4. Donjons Yelle → une ligne de conseil datée de l'étape, sans doublon.
+    const dungeonNames = dungeonNamesOf(step);
+    if (dungeonNames.length > 0) {
+      const header = `**Donjons (étape ${n} de la trame)**`;
+      if (!(target.block.tips ?? "").includes(header)) {
+        const combined = [target.block.tips, `${header} — ${dungeonNames.join(", ")}`]
+          .filter(Boolean)
+          .join("\n\n");
+        target.block.tips =
+          combined.length <= MAX_TIPS ? combined : `${combined.slice(0, MAX_TIPS).trimEnd()}\n…`;
+        report.yelleDungeonBlocks += 1;
+      }
+    }
+  }
+
+  // 5. Les succès/repères des étapes sans quête Touglie : un bloc dédié, jamais perdus.
+  if (fallbackSuccesses.size > 0 || fallbackDex.length > 0 || fallbackDungeons.length > 0) {
+    const chapter = Math.max(0, ...blocks.map((block) => block.chapter ?? 0)) + 1;
+    const order = Math.max(0, ...blocks.map((block) => block.order ?? 0)) + 1;
+    const fallback: RushImportBlock = {
+      title: "Compléments — succès hors trame",
+      type: "SUCCES",
+      chapter,
+      chapterLabel: "Compléments",
+      order,
+      description: `Route Sylvestre — succès et repères non rattachés à un bloc de la trame · ${fallbackSuccesses.size} succès.`,
+      accentColor: null,
+      imageUrl: null,
+      tips: null,
+      links: [],
+      dofusId: null,
+      isOptional: false,
+      sequences: [...fallbackSuccesses.values()].map((name) => ({
+        subGuideName: name,
+        questDbIds: [],
+        isSuccess: true,
+        activityTags: [],
+      })),
+    };
+    for (const { entry, title } of fallbackDex) {
+      if (applyDofusDexEntry(fallback, entry, title)) {
+        report.dofusDexTagged += 1;
+        report.yelleDofusDexMerged += 1;
+      }
+    }
+    for (const { step, names } of fallbackDungeons) {
+      const header = `**Donjons (étape ${step} de la trame)**`;
+      if (!(fallback.tips ?? "").includes(header)) {
+        const combined = [fallback.tips, `${header} — ${names.join(", ")}`]
+          .filter(Boolean)
+          .join("\n\n");
+        fallback.tips =
+          combined.length <= MAX_TIPS ? combined : `${combined.slice(0, MAX_TIPS).trimEnd()}\n…`;
+      }
+    }
+    if (fallbackDungeons.length > 0) report.yelleDungeonBlocks += 1;
+    blocks.push(fallback);
+    report.blocks = blocks.length;
+    report.sequences += fallbackSuccesses.size;
+    report.successes += fallbackSuccesses.size;
+    report.yelleSuccesses += fallbackSuccesses.size;
+    report.blockTypes.SUCCES = (report.blockTypes.SUCCES ?? 0) + 1;
+    report.warnings.push(
+      `Succès hors trame : ${fallbackSuccesses.size} succès placé(s) dans « ${fallback.title} ».`
+    );
+  }
+
+  const successOccurrences = steps.reduce(
+    (count, step) => count + (Array.isArray(step.succes) ? step.succes.length : 0),
+    0
+  );
+  if (successOccurrences > report.yelleSuccesses) {
+    report.warnings.push(
+      `Succès Yelle : ${successOccurrences} occurrences → ${report.yelleSuccesses} succès distincts (doublons fusionnés).`
+    );
+  }
 }
 
 /** Le spine Yelle : 57 étapes chronologiques, 361/384 quêtes appariées. */
@@ -695,9 +1049,7 @@ function buildYelleBlocks(
     const chapterLabel = `Étapes ${(chapter - 1) * 8 + 1}–${chapter * 8}`;
     const sequences: RushImportSequence[] = [];
     const isAlignment = category.toLowerCase().includes("alignement");
-    const dungeonNames = (step.donjons ?? [])
-      .map((dungeon) => text(typeof dungeon === "string" ? dungeon : dungeon?.name, 200))
-      .filter(Boolean);
+    const dungeonNames = dungeonNamesOf(step);
 
     const push = (sequence: RushImportSequence) => {
       if (sequences.length >= options.maxSequencesPerBlock) return false;
@@ -847,6 +1199,10 @@ function buildYelleBlocks(
       questsWithIds,
       resources,
       successes,
+      yelleSuccesses: 0,
+      yelleTipsMerged: 0,
+      yelleDofusDexMerged: 0,
+      yelleDungeonBlocks: 0,
       dofusDexTagged,
       unmatched,
       tipsToWrite,
@@ -873,6 +1229,7 @@ export function buildRushSeedFromTrame(
     includeResources: options.includeResources ?? true,
     maxSequencesPerBlock: Math.max(1, Math.min(80, options.maxSequencesPerBlock ?? 80)),
     dofusdex: options.dofusdex ?? null,
+    enrichFromYelle: options.enrichFromYelle ?? false,
   };
 
   if (!trame || typeof trame !== "object") {
@@ -885,6 +1242,10 @@ export function buildRushSeedFromTrame(
         questsWithIds: 0,
         resources: 0,
         successes: 0,
+        yelleSuccesses: 0,
+        yelleTipsMerged: 0,
+        yelleDofusDexMerged: 0,
+        yelleDungeonBlocks: 0,
         dofusDexTagged: 0,
         unmatched: [],
         tipsToWrite: [],
@@ -897,6 +1258,12 @@ export function buildRushSeedFromTrame(
   const meta = buildQuestMeta(trame);
   const built =
     spine === "yelle" ? buildYelleBlocks(trame, meta, resolved) : buildTougliBlocks(trame, meta, resolved);
+
+  if (spine === "yelle" && resolved.enrichFromYelle) {
+    built.report.warnings.push(
+      "enrichFromYelle est ignoré pour le spine yelle : ce spine est déjà la source Yelle."
+    );
+  }
 
   // Filet de sécurité inter-blocs : l'import apparie les blocs par titre normalisé.
   const seen = new Set<string>();

@@ -99,6 +99,11 @@ describe("verrou de source — l'enum Prisma et l'import ne divergent pas", () =
     expect(ACTIONS).toContain("chapter: z.number().int().min(0).max(1000).optional()");
     expect(ACTIONS).toContain("description: z.string().max(8000).nullish()");
     expect(ACTIONS).toContain("accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullish()");
+    // Le seed pose `null` : l'import ne doit pas imposer un vert (la DA / le Dofus décide).
+    expect(ACTIONS).toContain("accentColor: payloadBlock.accentColor ?? null");
+    // Le nouveau guide (seed Trame) refuse l'ancien import legacy, destructif.
+    expect(ACTIONS).toContain("seedSource");
+    expect(ACTIONS).toContain("l'import legacy est désactivé");
     expect(ACTIONS).toContain("imageUrl: z.string().trim().max(1000).nullish()");
     expect(ACTIONS).toContain("dofusId: z.string().trim().max(64).nullish()");
     expect(ACTIONS).toContain("isSuccess: z.boolean().optional()");
@@ -115,8 +120,12 @@ describe("verrou de source — l'enum Prisma et l'import ne divergent pas", () =
     expect(ACTIONS).toContain("...(sequence.activityTags ?? [])");
     // Les donjons passent par l'id **DofusDB** puis sont résolus en `Dungeon.id`.
     expect(ACTIONS).toContain("dungeonDbIds: z.array(z.number().int().positive()).max(12).optional()");
+    expect(ACTIONS).toContain("dungeonNames: z.array(z.string().trim().min(1).max(200)).max(12).optional()");
     expect(ACTIONS).toContain("dungeonByDofusDbId");
+    expect(ACTIONS).toContain("dungeonByBoss");
     expect(ACTIONS).toContain("knownDungeonDbIds");
+    expect(ACTIONS).toContain("knownDungeonNames");
+    expect(ACTIONS).toContain("resolvedByName");
     expect(ACTIONS).toContain("dungeonDbIds,");
   });
 
@@ -131,6 +140,7 @@ describe("verrou de source — l'enum Prisma et l'import ne divergent pas", () =
     expect(LIB).toContain("isSuccess?: boolean;");
     expect(LIB).toContain("activityTags?: RushImportActivityTag[];");
     expect(LIB).toContain("dungeonDbIds?: number[];");
+    expect(LIB).toContain("dungeonNames?: string[];");
     expect(LIB).toContain("knownDungeonDbIds?: ReadonlySet<number>;");
     expect(LIB).toContain("Donjon DofusDB");
   });

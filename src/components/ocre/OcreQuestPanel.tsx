@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { ExternalLink, Info, RefreshCw, Search, X } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { OcreMonsterThumb, OcreTargetStepper } from "@/components/ocre/OcreTargetBits";
 import type { OcreMonsterLite } from "@/lib/ocre-soul-stones";
@@ -189,7 +188,12 @@ export default function OcreQuestPanel({
                 </p>
             )}
 
-            <ScrollArea className="no-scrollbar max-h-[440px] w-full min-w-0 px-2 py-2">
+            {/* Défilement NATIF borné : un `max-height` suffit, sans viewport en
+                `height:100%` (un `ScrollArea` Radix n'a pas de hauteur définie ici :
+                il rognait la liste au lieu de la faire défiler). La barre reste
+                visible — `no-scrollbar` la masquait. `55svh` garde la liste dans la
+                fenêtre PiP courte, `440px` la borne sur grand écran. */}
+            <div className="max-h-[min(440px,55svh)] w-full min-w-0 overflow-y-auto overscroll-contain px-2 py-2">
                 {filtered.length === 0 ? (
                     <p className="px-2 py-10 text-center text-sm text-muted-foreground">
                         {query
@@ -232,7 +236,7 @@ export default function OcreQuestPanel({
                         ))}
                     </div>
                 )}
-            </ScrollArea>
+            </div>
         </>
     );
 }

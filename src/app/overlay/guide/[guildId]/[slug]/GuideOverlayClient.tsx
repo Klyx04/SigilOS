@@ -13,7 +13,8 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, isSequenceBlockedByPrereqs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { getPrereqChoiceGroups, type RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
@@ -763,7 +764,7 @@ export default function GuideOverlayClient({
   }, [milestones, completedStepsByMs]);
 
   const getSeqGate = useCallback(
-    (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[] } => {
+    (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[]; choiceGroups: RushPrereqChoiceGroup[] } => {
       const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
       // Même règle que le serveur (`setRushSequenceProgress`) : un donjon **requis** non
       // coché verrouille la quête. Sans ce test, le bouton restait cliquable et le clic
@@ -773,13 +774,18 @@ export default function GuideOverlayClient({
         seq,
         doneDungeonKeysForSequence(dungeonActions.states, seq.id)
       );
+      // Le verrou est celui du SERVEUR (`isSequenceBlockedByPrereqs`) : tags ET, chaîne
+      // des rangs, palier de cité et groupes « au choix ». La liste `refs` ne sert qu'à
+      // l'affichage (nommer les prérequis ET) — elle ne couvrait ni le palier ni l'OU.
+      const choiceGroups = getPrereqChoiceGroups(seq, milestones);
       return {
-        locked: refs.some((r) => !gateAllCompleted.has(r.seqId)) || missingDungeons.length > 0,
+        locked: isSequenceBlockedByPrereqs(seq, gateAllCompleted, milestones) || missingDungeons.length > 0,
         // Seuls les prérequis ENCORE manquants : la carte affiche « Terminer : X » et
         // X devait être la quête précédente même une fois validée (mesure du 05/11/2026).
-        // Le verrou, lui, reste calculé sur `refs` entier.
+        // Le verrou, lui, reste calculé sur le guide entier.
         prereqs: refs.filter((r) => !gateAllCompleted.has(r.seqId)),
         missingDungeons,
+        choiceGroups,
       };
     },
     [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
@@ -1607,6 +1613,7 @@ export default function GuideOverlayClient({
                         capturedOcreNames={capturedOcreNames}
                         onOpenOcre={openOcre}
                         alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
+                        choiceGroups={gate.choiceGroups}
                       />
                     </React.Fragment>
                   );
@@ -1676,6 +1683,7 @@ export default function GuideOverlayClient({
                       capturedOcreNames={capturedOcreNames}
                       onOpenOcre={openOcre}
                       alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
+                      choiceGroups={gate.choiceGroups}
                     />
                   </React.Fragment>
                 );

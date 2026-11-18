@@ -13,6 +13,8 @@ import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManua
 import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
+import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import type { RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import type { RushSequence } from "@/types/rush-guide-types";
 import type {
   RushDungeonMemberState,
@@ -115,6 +117,8 @@ interface RushOverlayQuestListItemProps {
   onOpenOcre?: () => void;
   /** Série d'alignement dérivée (« Ali 12 », « Rang 2 ») — jamais persistée. */
   alignmentLabel?: string | null;
+  /** Groupes « au choix » (`prereq_expr`) : une seule alternative suffit. */
+  choiceGroups?: RushPrereqChoiceGroup[];
 }
 
 /**
@@ -149,6 +153,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   capturedOcreNames,
   onOpenOcre,
   alignmentLabel = null,
+  choiceGroups = [],
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
@@ -379,6 +384,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 {prereqs.length > 1 ? ` +${prereqs.length - 1}` : ""}
               </span>
             </button>
+          )}
+          {isLocked && choiceGroups.length > 0 && (
+            <RushPrereqChoiceHint groups={choiceGroups} tone="da" />
           )}
           {prereqsOpen && (
             <RushOverlayPrereqModal

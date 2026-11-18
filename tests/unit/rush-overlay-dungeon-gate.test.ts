@@ -92,9 +92,12 @@ describe("Overlay — verrou composé (prérequis ET donjons requis)", () => {
     expect(codeOf(OVERLAY)).toMatch(/missingRequiredDungeons\(/);
   });
 
-  it("le verrou combine les deux causes", () => {
+  it("le verrou combine la règle PARTAGÉE des prérequis et les donjons manquants", () => {
+    // 18/11/2026 : le verrou ne recopie plus `refs.some(...)` — cette liste ne porte que
+    // les tags ET et la chaîne des rangs, donc elle ignorait le **palier de cité** et les
+    // groupes **« au choix »** (`prereq_expr`). On appelle la règle du serveur.
     expect(codeOf(OVERLAY)).toMatch(
-      /locked:\s*refs\.some\([\s\S]{0,140}missingDungeons\.length > 0/
+      /locked:\s*isSequenceBlockedByPrereqs\([\s\S]{0,120}missingDungeons\.length > 0/
     );
   });
 

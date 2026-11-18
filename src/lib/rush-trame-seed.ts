@@ -163,6 +163,12 @@ export type RushTrameSeedOptions = {
   routeOrderLock?: boolean;
   /** Succès officiels : leur présence pose un tag `succes` sur les quêtes qu'ils couvrent. */
   achievements?: RushAchievementInput[];
+  /**
+   * Groupes **OU** du client (`public/game-data/quest-prerequisites.json`) :
+   * `questId → orGroups`. La Trame est **plate** (elle écrit 272/273/274 en ET) ;
+   * le client dit « au moins une de ces quêtes suffit ».
+   */
+  prereqOr?: Record<number, number[][]>;
 };
 
 export type RushTrameSeedReport = {
@@ -184,6 +190,8 @@ export type RushTrameSeedReport = {
   dofusDexTagged: number;
   /** Tags `prereq_text` posés depuis les `prereqIds` de la Trame (442 sur 492 le 17/11/2026). */
   prereqTags: number;
+  /** Tags `prereq_expr` posés (groupes « au choix » du client). */
+  prereqChoiceTags: number;
   /** Arêtes de prérequis écartées : cible absente, autre branche, soi-même, plafond de tags. */
   prereqSkipped: number;
   /** Prérequis d'**ordre** posés par la route (chaque quête exige la précédente de sa branche). */
@@ -619,8 +627,9 @@ const MAX_ACTIVITY_TAGS = 30;
  */
 function attachQuestPrerequisites(
   trame: TrameInput,
-  blocks: RushImportBlock[]
-): { tags: number; skipped: number } {
+  blocks: RushImportBlock[],
+  prereqOr: Record<number, number[][]> = {}
+): { tags: number; skipped: number; choiceTags: number } {
   type PrereqTarget = {
     sequence: RushImportSequence;
     name: string;
@@ -645,17 +654,47 @@ function attachQuestPrerequisites(
     }
   }
 
+  // Nom de quête → ids DofusDB : sert à retirer un `prereq_text` déjà posé par
+  // l'enrichissement quand la même arête est couverte par un groupe **OU**.
+  const questIdsByName = new Map<string, number[]>();
+  for (const [questId, target] of byQuest) {
+    const key = target.name.toLowerCase();
+    questIdsByName.set(key, [...(questIdsByName.get(key) ?? []), questId]);
+  }
+
   let tags = 0;
   let skipped = 0;
+  let choiceTags = 0;
+
   for (const block of blocks) {
     for (const sequence of block.sequences) {
       const ownAlign = text(sequence.alignReq, 60);
       const ownClass = text(sequence.classReq, 60);
       const wanted: string[] = [];
       const seen = new Set<string>();
+      const choiceGroups: number[][] = [];
+      const orMembers = new Set<number>();
 
+      // ① Groupes **OU** du client : « au moins une de ces quêtes suffit ».
+      for (const questId of sequence.questDbIds ?? []) {
+        for (const group of prereqOr[questId] ?? []) {
+          const alternatives = [...new Set(group)]
+            .filter((id) => Number.isInteger(id) && id > 0)
+            .slice(0, 8);
+          if (alternatives.length < 2) continue;
+          const signature = alternatives.join(",");
+          if (choiceGroups.some((g) => g.join(",") === signature)) continue;
+          choiceGroups.push(alternatives);
+          for (const id of alternatives) orMembers.add(id);
+        }
+      }
+
+      // ② Arêtes **ET** de la Trame. Une arête déjà couverte par un groupe OU n'est PAS
+      //    reposée en `prereq_text` : elle redeviendrait obligatoire (c'est le défaut
+      //    mesuré sur « Supermilicien » : 272/273/274 en ET au lieu d'un choix).
       for (const questId of sequence.questDbIds ?? []) {
         for (const prereqId of trame.quests?.[String(questId)]?.prereqIds ?? []) {
+          if (orMembers.has(prereqId)) continue;
           const target = byQuest.get(prereqId);
           if (!target || target.sequence === sequence) {
             skipped += 1;
@@ -675,13 +714,31 @@ function attachQuestPrerequisites(
           wanted.push(target.name);
         }
       }
-      if (wanted.length === 0) continue;
 
-      const existingTags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+      if (wanted.length === 0 && choiceGroups.length === 0) continue;
+
+      // Un `prereq_text` déjà posé (enrichissement) qui appartient à un groupe OU est
+      // RETIRÉ : le garder en ET annulerait le choix (défaut mesuré sur « Supermilicien »,
+      // dont l'ancien tag « Le magnanime » bloquait encore).
+      const rawTags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+      const existingTags =
+        orMembers.size > 0
+          ? rawTags.filter((tag) => {
+              if (tag.type !== "prereq_text") return true;
+              const key = text(tag.name, 200).toLowerCase();
+              const ids = questIdsByName.get(key) ?? [];
+              return !ids.some((id) => orMembers.has(id));
+            })
+          : rawTags;
       const existingNames = new Set(
         existingTags
           .filter((tag) => tag.type === "prereq_text")
           .map((tag) => text(tag.name, 200).toLowerCase())
+      );
+      const existingChoices = new Set(
+        existingTags
+          .filter((tag) => tag.type === "prereq_expr")
+          .map((tag) => (tag.alternatives ?? []).map((a) => a.questId).join(","))
       );
       const room = MAX_ACTIVITY_TAGS - existingTags.length;
       if (room <= 0) {
@@ -694,14 +751,26 @@ function attachQuestPrerequisites(
         if (existingNames.has(name.toLowerCase())) continue;
         added.push({ type: "prereq_text", name });
       }
+      for (const alternatives of choiceGroups.slice(0, Math.max(0, room - added.length))) {
+        const signature = alternatives.join(",");
+        if (existingChoices.has(signature)) continue;
+        added.push({
+          type: "prereq_expr",
+          name: "Au choix",
+          alternatives: alternatives.map((questId) => ({ questId })),
+        });
+        choiceTags += 1;
+      }
       if (added.length === 0) continue;
+
       sequence.activityTags = [...existingTags, ...added];
-      tags += added.length;
-      skipped += wanted.length - added.length;
+      const addedText = added.filter((tag) => tag.type === "prereq_text").length;
+      tags += addedText;
+      skipped += wanted.length - addedText;
     }
   }
 
-  return { tags, skipped };
+  return { tags, skipped, choiceTags };
 }
 
 /**
@@ -777,7 +846,10 @@ function attachSuccessTags(
  * Le verrou **s'ajoute** aux prérequis réels du jeu, il ne les remplace jamais ; le plafond de
  * 30 tags du schéma d'import reste respecté (une quête pleine n'en reçoit pas).
  */
-function applyRouteOrderPrerequisites(blocks: RushImportBlock[]): { added: number; cycles: number } {
+function applyRouteOrderPrerequisites(
+  blocks: RushImportBlock[],
+  prereqOr: Record<number, number[][]> = {}
+): { added: number; cycles: number } {
   // Index global des noms : les tags se résolvent par nom, comme à l'exécution.
   const byName = new Map<string, RushImportSequence>();
   for (const block of blocks) {
@@ -825,9 +897,19 @@ function applyRouteOrderPrerequisites(blocks: RushImportBlock[]): { added: numbe
         // Refus d'un cycle : si la précédente dépend déjà de cette quête (prérequis du jeu),
         // l'arête d'ordre l'enfermerait — on ne la pose pas.
         const wouldCycle = previous === sequence || dependsOn(previous, name, new Set<string>());
+        // Ne jamais verrouiller une **alternative** d'un groupe « au choix » : le verrou
+        // d'ordre la rendrait obligatoire et annulerait le OU (mesure du 18/11/2026 :
+        // « Supermilicien » recevait « Le magnanime » par l'ordre, en plus du groupe).
+        const orMembers = new Set<number>();
+        for (const questId of sequence.questDbIds ?? []) {
+          for (const group of prereqOr[questId] ?? []) {
+            for (const id of group) orMembers.add(id);
+          }
+        }
+        const previousIsChoice = (previous.questDbIds ?? []).some((id) => orMembers.has(id));
         if (wouldCycle) {
           cycles += 1;
-        } else if (!already) {
+        } else if (!already && !previousIsChoice) {
           sequence.activityTags = [...tags, { type: "prereq_text", name: prevName }];
           added += 1;
         }
@@ -1005,6 +1087,7 @@ function buildTougliBlocks(
     yelleDungeonBlocks: 0,
     dofusDexTagged,
     prereqTags: 0,
+    prereqChoiceTags: 0,
     prereqSkipped: 0,
     routePrereqs: 0,
     successAchievements: 0,
@@ -1497,6 +1580,7 @@ function buildYelleBlocks(
       yelleDungeonBlocks: 0,
       dofusDexTagged,
       prereqTags: 0,
+      prereqChoiceTags: 0,
       prereqSkipped: 0,
       routePrereqs: 0,
       successAchievements: 0,
@@ -1530,6 +1614,7 @@ export function buildRushSeedFromTrame(
     enrichFromYelle: options.enrichFromYelle ?? false,
     routeOrderLock: options.routeOrderLock ?? true,
     achievements: options.achievements ?? [],
+    prereqOr: options.prereqOr ?? {},
   };
 
   if (!trame || typeof trame !== "object") {
@@ -1548,6 +1633,7 @@ export function buildRushSeedFromTrame(
         yelleDungeonBlocks: 0,
         dofusDexTagged: 0,
         prereqTags: 0,
+        prereqChoiceTags: 0,
         prereqSkipped: 0,
         routePrereqs: 0,
         successAchievements: 0,
@@ -1573,13 +1659,14 @@ export function buildRushSeedFromTrame(
 
   // Prérequis entre quêtes : après l'enrichissement (toutes les séquences sont là),
   // avant le filet de titres — les noms posés sont ceux du payload final.
-  const prereq = attachQuestPrerequisites(trame, built.blocks);
+  const prereq = attachQuestPrerequisites(trame, built.blocks, resolved.prereqOr);
   built.report.prereqTags = prereq.tags;
+  built.report.prereqChoiceTags = prereq.choiceTags;
   built.report.prereqSkipped = prereq.skipped;
 
   // Verrou d'ORDRE (option C) : après les prérequis réels (on ne les remplace pas).
   if (resolved.routeOrderLock) {
-    const route = applyRouteOrderPrerequisites(built.blocks);
+    const route = applyRouteOrderPrerequisites(built.blocks, resolved.prereqOr);
     built.report.routePrereqs = route.added;
     if (route.cycles > 0) {
       built.report.warnings.push(

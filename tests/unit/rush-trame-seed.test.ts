@@ -527,6 +527,55 @@ describe("Prérequis entre quêtes — prereq_text par nom", () => {
     expect(prereqNamesOf(result, "Bonta 1")).toEqual(["Début"]);
     expect(prereqNamesOf(result, "Brak 1")).toEqual(["Début"]);
   });
+});
+
+describe("Prérequis « au choix » — prereq_expr", () => {
+  const result = buildRushSeedFromTrame(TRAME_PREREQ, {
+    spine: "tougli",
+    routeOrderLock: false,
+    prereqOr: { 2: [[1, 3]] },
+  });
+  const tagsOf = (name: string) =>
+    result.payload.blocks
+      .flatMap((block) => block.sequences)
+      .find((sequence) => sequence.subGuideName === name)
+      ?.activityTags ?? [];
+
+  it("pose un groupe OU et NE repose PAS l'arête en ET", () => {
+    const tags = tagsOf("Suite");
+    const expr = tags.filter((tag) => tag.type === "prereq_expr");
+    expect(expr).toHaveLength(1);
+    expect(expr[0].alternatives?.map((alt) => alt.questId)).toEqual([1, 3]);
+    // Le membre du groupe n'est plus un prérequis obligatoire.
+    expect(prereqNamesOf(result, "Suite")).toEqual([]);
+    expect(result.report.prereqChoiceTags).toBe(1);
+  });
+
+  it("le verrou d'ORDRE ne verrouille jamais une alternative", () => {
+    // « Suite » a pour précédente « Début » (quête 1) : si 1 est une alternative du
+    // groupe, l'ordre ne doit pas la reposer en ET (défaut mesuré sur Supermilicien).
+    const locked = buildRushSeedFromTrame(TRAME_PREREQ, {
+      spine: "tougli",
+      prereqOr: { 2: [[1, 4]] },
+    });
+    expect(prereqNamesOf(locked, "Suite")).toEqual([]);
+    const expr = locked.payload.blocks
+      .flatMap((block) => block.sequences)
+      .find((sequence) => sequence.subGuideName === "Suite")
+      ?.activityTags?.find((tag) => tag.type === "prereq_expr");
+    expect(expr?.alternatives?.map((alt) => alt.questId)).toEqual([1, 4]);
+  });
+
+  it("ignore un groupe d'une seule alternative (ce n'est pas un choix)", () => {
+    const single = buildRushSeedFromTrame(TRAME_PREREQ, {
+      spine: "tougli",
+      routeOrderLock: false,
+      prereqOr: { 2: [[1]] },
+    });
+    expect(single.report.prereqChoiceTags).toBe(0);
+    expect(prereqNamesOf(single, "Suite")).toEqual(["Début"]);
+  });
+
 
   it("ne dépasse jamais 30 tags par séquence (schéma d'import)", () => {
     const items = Array.from({ length: 30 }, (_, index) => ({

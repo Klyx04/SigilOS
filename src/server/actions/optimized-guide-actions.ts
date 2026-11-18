@@ -4864,6 +4864,16 @@ const RushImportActivityTagSchema = z.object({
   id: z.string().trim().max(64).optional(),
   quantity: z.number().int().min(0).max(1_000_000).optional(),
   iconId: z.number().int().min(0).max(100_000).optional(),
+  // Prérequis « au choix » (`prereq_expr`) : ids DofusDB, bornés (8 max par groupe).
+  alternatives: z
+    .array(
+      z.object({
+        questId: z.number().int().positive().max(9_999_999),
+        name: z.string().trim().max(200).optional(),
+      })
+    )
+    .max(8)
+    .optional(),
 });
 
 const RushImportSequenceSchema = z.object({

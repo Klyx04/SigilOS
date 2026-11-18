@@ -40,6 +40,9 @@ const yelleRawPath = path.resolve(
 );
 const dofusDexPath = path.resolve(valueOf("--dofusdex", "public/game-data/dofusdex.json"));
 const achievementsPath = path.resolve(valueOf("--achievements", "public/game-data/achievements.json"));
+const prereqOrPath = path.resolve(
+  valueOf("--prereq-or", "public/game-data/quest-prerequisites.json")
+);
 const outDir = path.resolve(valueOf("--out-dir", "src/temp/rush-seed"));
 const enrichYelle = has("--enrich-yelle");
 const defaultSeedName = spine === "tougli" && enrichYelle ? "tougli-enriched" : spine;
@@ -139,6 +142,28 @@ if (fs.existsSync(achievementsPath)) {
   console.warn(`Succès absents : ${achievementsPath} (aucune pastille de succès).`);
 }
 
+/**
+ * Groupes **OU** du client (`startCriterion`) : `questId → orGroups`. La Trame écrit ces
+ * mêmes arêtes en **ET** ; sans cette source, « Supermilicien » exigerait les trois quêtes
+ * au lieu d'une seule.
+ */
+let prereqOr: Record<number, number[][]> = {};
+if (fs.existsSync(prereqOrPath)) {
+  const raw = JSON.parse(fs.readFileSync(prereqOrPath, "utf8")) as {
+    quests?: Array<{ questId?: number; orGroups?: number[][] }>;
+  };
+  for (const row of raw.quests ?? []) {
+    if (typeof row.questId !== "number") continue;
+    const groups = (row.orGroups ?? []).filter(
+      (group) => Array.isArray(group) && group.length >= 2
+    );
+    if (groups.length) prereqOr[row.questId] = groups;
+  }
+  console.log(`Prérequis « au choix » : ${Object.keys(prereqOr).length} quête(s).`);
+} else {
+  console.warn(`Prérequis client absents : ${prereqOrPath} (aucun groupe « au choix »).`);
+}
+
 const { payload, report } = buildRushSeedFromTrame(trame as unknown as TrameInput, {
   spine,
   includeResources: !has("--no-resources"),
@@ -148,6 +173,7 @@ const { payload, report } = buildRushSeedFromTrame(trame as unknown as TrameInpu
   dofusdex,
   achievements,
   enrichFromYelle: enrichYelle,
+  prereqOr,
 });
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
@@ -168,6 +194,7 @@ const lines = [
   `| Ressources (tags item) | ${report.resources} |`,
   `| Succès | ${report.successes} |`,
   `| Prérequis (prereq_text) | ${report.prereqTags} |`,
+  `| Prérequis « au choix » (prereq_expr) | ${report.prereqChoiceTags} |`,
   `| Prérequis d'ordre (route) | ${report.routePrereqs} |`,
   `| Succès officiels attachés | ${report.successAchievements} |`,
   `| Tags succes posés | ${report.successTags} (sur ${report.successQuests} quêtes) |`,

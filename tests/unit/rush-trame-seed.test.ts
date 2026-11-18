@@ -501,7 +501,7 @@ const prereqNamesOf = (result: ReturnType<typeof buildRushSeedFromTrame>, name: 
     .map((tag) => tag.name) ?? [];
 
 describe("Prérequis entre quêtes — prereq_text par nom", () => {
-  const result = buildRushSeedFromTrame(TRAME_PREREQ, { spine: "tougli" });
+  const result = buildRushSeedFromTrame(TRAME_PREREQ, { spine: "tougli", routeOrderLock: false });
 
   it("pose le prérequis par nom, jamais par un id inventé", () => {
     expect(prereqNamesOf(result, "Suite")).toEqual(["Début"]);
@@ -543,6 +543,76 @@ describe("Prérequis entre quêtes — prereq_text par nom", () => {
     const sequence = built.payload.blocks[0].sequences.find((s) => s.subGuideName === "Chargée");
     expect(sequence?.activityTags).toHaveLength(30);
     expect(sequence?.activityTags?.some((tag) => tag.type === "prereq_text")).toBe(false);
+  });
+});
+
+describe("Verrou d'ordre de la route (option C)", () => {
+  const TRAME_ORDER: TrameInput = {
+    blocks: [
+      {
+        title: "Ordre",
+        items: [
+          { kind: "quest", questId: 1 },
+          { kind: "quest", questId: 2 },
+          { kind: "group", items: [{ kind: "quest", questId: 3 }, { kind: "quest", questId: 4 }] },
+          { kind: "quest", questId: 5 },
+          {
+            kind: "choice",
+            branches: [
+              { condition: { kind: "camp", value: "bontarien" }, items: [{ kind: "quest", questId: 6 }] },
+              { condition: { kind: "camp", value: "brakmarien" }, items: [{ kind: "quest", questId: 7 }] },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Avance",
+        items: [
+          { kind: "take_quests", questIds: [8] },
+          { kind: "quest", questId: 9 },
+        ],
+      },
+    ],
+    quests: {
+      "1": { id: 1, name: "Q1" },
+      "2": { id: 2, name: "Q2" },
+      "3": { id: 3, name: "Q3" },
+      "4": { id: 4, name: "Q4" },
+      "5": { id: 5, name: "Q5" },
+      "6": { id: 6, name: "Q6" },
+      "7": { id: 7, name: "Q7" },
+      "8": { id: 8, name: "Q8" },
+      "9": { id: 9, name: "Q9" },
+    },
+  };
+
+  const built = buildRushSeedFromTrame(TRAME_ORDER, { spine: "tougli" });
+  const prereqsOf = (name: string) =>
+    (built.payload.blocks
+      .flatMap((block) => block.sequences)
+      .find((sequence) => sequence.subGuideName === name)?.activityTags ?? [])
+      .filter((tag) => tag.type === "prereq_text")
+      .map((tag) => tag.name);
+
+  it("chaque quête exige la précédente de sa branche", () => {
+    expect(prereqsOf("Q2")).toEqual(["Q1"]);
+    expect(prereqsOf("Q1")).toEqual([]);
+    expect(built.report.routePrereqs).toBeGreaterThanOrEqual(2);
+  });
+
+  it("une quête « à prendre à l'avance » ne verrouille rien", () => {
+    expect(prereqsOf("Q8")).toEqual([]);
+    expect(prereqsOf("Q9")).toEqual([]);
+  });
+
+  it("les quêtes parallèles ne s'enchaînent pas entre elles", () => {
+    expect(prereqsOf("Q3")).toEqual([]);
+    expect(prereqsOf("Q4")).toEqual([]);
+  });
+
+  it("une quête d'une branche n'exige jamais celle de l'autre", () => {
+    expect(prereqsOf("Q6")).toEqual([]);
+    expect(prereqsOf("Q7")).toEqual([]);
   });
 });
 

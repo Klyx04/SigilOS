@@ -155,6 +155,7 @@ const lines = [
   `| Ressources (tags item) | ${report.resources} |`,
   `| Succès | ${report.successes} |`,
   `| Prérequis (prereq_text) | ${report.prereqTags} |`,
+  `| Prérequis d'ordre (route) | ${report.routePrereqs} |`,
   `| Arêtes de prérequis écartées | ${report.prereqSkipped} |`,
   `| Succès Yelle fusionnés | ${report.yelleSuccesses} |`,
   `| Conseils Yelle fusionnés | ${report.yelleTipsMerged} |`,
@@ -200,7 +201,7 @@ console.log(
   `  Yelle : ${report.yelleSuccesses} succès fusionné(s) · ${report.yelleTipsMerged} conseil(s) · ${report.yelleDofusDexMerged} bloc(s) DofusDex · ${report.yelleDungeonBlocks} bloc(s) avec donjons`
 );
 console.log(
-  `  prérequis : ${report.prereqTags} posé(s) · ${report.prereqSkipped} arête(s) écartée(s)`
+  `  prérequis : ${report.prereqTags} posé(s) · ${report.prereqSkipped} arête(s) écartée(s) · ${report.routePrereqs} verrou(s) d'ordre`
 );
 console.log(`  non appariées : ${report.unmatched.length} · conseils à rédiger : ${report.tipsToWrite.length}`);
 console.log(`  payload : ${path.relative(process.cwd(), outPath)}`);

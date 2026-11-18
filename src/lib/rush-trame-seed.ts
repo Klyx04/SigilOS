@@ -148,6 +148,11 @@ export type RushTrameSeedOptions = {
    * qui est déjà la source.
    */
   enrichFromYelle?: boolean;
+  /**
+   * Verrou d'**ordre** de la route (option C, 18/11/2026) : chaque quête exige la précédente
+   * de sa branche. `false` pour ne tester que le graphe du jeu (prérequis officiels).
+   */
+  routeOrderLock?: boolean;
 };
 
 export type RushTrameSeedReport = {
@@ -171,6 +176,8 @@ export type RushTrameSeedReport = {
   prereqTags: number;
   /** Arêtes de prérequis écartées : cible absente, autre branche, soi-même, plafond de tags. */
   prereqSkipped: number;
+  /** Prérequis d'**ordre** posés par la route (chaque quête exige la précédente de sa branche). */
+  routePrereqs: number;
   unmatched: Array<{ step: number | null; title: string; reason: string }>;
   tipsToWrite: Array<{ step: number | null; title: string; category: string; lines: number }>;
   blockTypes: Record<string, number>;
@@ -183,6 +190,12 @@ export type RushTrameSeedResult = {
 };
 
 const ORDER_LEVELS = [20, 40, 60, 80, 100] as const;
+
+/**
+ * Marqueur des quêtes **parallèles** (branche `group` d'un bloc) : leur ordre interne
+ * n'a pas d'importance, elles ne s'enchaînent donc pas entre elles (verrou d'ordre, C).
+ */
+const PARALLEL_NOTE = "Quête parallèle — l'ordre interne n'a pas d'importance.";
 
 /**
  * Conseils **rédigés pour SigilOS** sur les étapes où le guide source porte un
@@ -675,7 +688,85 @@ function attachQuestPrerequisites(
   return { tags, skipped };
 }
 
-/** Un bloc Tougli : 36 blocs, conditions, ressources, Ordres à 5 paliers. */
+/**
+ * Verrou d'**ORDRE** de la route (option C, 18/11/2026) — chaque quête exige la **précédente
+ * de sa branche**, sauf :
+ *  · une quête **« à prendre à l'avance »** (`takeEarly`) : elle se prend tôt et ne sert pas
+ *    de référence ;
+ *  · une quête **parallèle** (`PARALLEL_NOTE`) : l'ordre interne du groupe est libre ;
+ *  · les succès (pas des quêtes).
+ *
+ * La **branche** est la clé : une quête brâkmarienne n'exige jamais une bontarienne — elle ne
+ * serait jamais validée (verrou à vie). La signature reprend `alignReq`, `classReq` et
+ * `alignOrderCode`.
+ *
+ * Le verrou **s'ajoute** aux prérequis réels du jeu, il ne les remplace jamais ; le plafond de
+ * 30 tags du schéma d'import reste respecté (une quête pleine n'en reçoit pas).
+ */
+function applyRouteOrderPrerequisites(blocks: RushImportBlock[]): { added: number; cycles: number } {
+  // Index global des noms : les tags se résolvent par nom, comme à l'exécution.
+  const byName = new Map<string, RushImportSequence>();
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      const key = normTitle(sequence.subGuideName);
+      if (key && !byName.has(key)) byName.set(key, sequence);
+    }
+  }
+
+  /** `start` dépend-il (directement ou non) de `targetName` ? Sert à refuser un cycle. */
+  const dependsOn = (start: RushImportSequence, targetName: string, seen: Set<string>): boolean => {
+    const key = normTitle(start.subGuideName);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    if (key === normTitle(targetName)) return true;
+    for (const tag of start.activityTags ?? []) {
+      if (tag.type !== "prereq_text" || !tag.name) continue;
+      const next = byName.get(normTitle(tag.name));
+      if (next && dependsOn(next, targetName, seen)) return true;
+    }
+    return false;
+  };
+
+  let added = 0;
+  let cycles = 0;
+  for (const block of blocks) {
+    const lastByBranch = new Map<string, RushImportSequence>();
+    for (const sequence of block.sequences) {
+      if (sequence.isSuccess || sequence.takeEarly || sequence.note === PARALLEL_NOTE) continue;
+      const name = text(sequence.subGuideName, 200);
+      if (!name) continue;
+      const branch = [
+        text(sequence.alignReq, 60),
+        text(sequence.classReq, 60),
+        text(sequence.alignOrderCode, 60),
+      ].join("|");
+      const previous = lastByBranch.get(branch);
+      const tags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+      if (previous && previous !== sequence && tags.length < MAX_ACTIVITY_TAGS) {
+        const prevName = text(previous.subGuideName, 200);
+        const already = tags.some(
+          (tag) =>
+            tag.type === "prereq_text" && text(tag.name, 200).toLowerCase() === prevName.toLowerCase()
+        );
+        // Refus d'un cycle : si la précédente dépend déjà de cette quête (prérequis du jeu),
+        // l'arête d'ordre l'enfermerait — on ne la pose pas.
+        const wouldCycle = previous === sequence || dependsOn(previous, name, new Set<string>());
+        if (wouldCycle) {
+          cycles += 1;
+        } else if (!already) {
+          sequence.activityTags = [...tags, { type: "prereq_text", name: prevName }];
+          added += 1;
+        }
+      }
+      lastByBranch.set(branch, sequence);
+    }
+  }
+  return { added, cycles };
+}
+
+/**
+ * Un bloc Tougli : 36 blocs, conditions, ressources, Ordres à 5 paliers.
+ */
 
 function buildTougliBlocks(
   trame: TrameInput,
@@ -733,6 +824,7 @@ function buildTougliBlocks(
           const sequence = sequenceForQuest(questId, trame, meta, options.includeResources, {
             ...patch,
             note: "À prendre à l'avance.",
+            takeEarly: true,
           });
           if (pushUnique(sequences, sequence)) {
             sequencesCount += 1;
@@ -775,7 +867,7 @@ function buildTougliBlocks(
       }
       if (node.kind === "group") {
         for (const child of node.items ?? []) {
-          addNode(child, { ...patch, note: "Quête parallèle — l'ordre interne n'a pas d'importance." });
+          addNode(child, { ...patch, note: PARALLEL_NOTE });
         }
         return;
       }
@@ -840,6 +932,7 @@ function buildTougliBlocks(
     dofusDexTagged,
     prereqTags: 0,
     prereqSkipped: 0,
+    routePrereqs: 0,
     unmatched: [],
     tipsToWrite,
     blockTypes,
@@ -1328,6 +1421,7 @@ function buildYelleBlocks(
       dofusDexTagged,
       prereqTags: 0,
       prereqSkipped: 0,
+      routePrereqs: 0,
       unmatched,
       tipsToWrite,
       blockTypes,
@@ -1354,6 +1448,7 @@ export function buildRushSeedFromTrame(
     maxSequencesPerBlock: Math.max(1, Math.min(120, options.maxSequencesPerBlock ?? 120)),
     dofusdex: options.dofusdex ?? null,
     enrichFromYelle: options.enrichFromYelle ?? false,
+    routeOrderLock: options.routeOrderLock ?? true,
   };
 
   if (!trame || typeof trame !== "object") {
@@ -1373,6 +1468,7 @@ export function buildRushSeedFromTrame(
         dofusDexTagged: 0,
         prereqTags: 0,
         prereqSkipped: 0,
+        routePrereqs: 0,
         unmatched: [],
         tipsToWrite: [],
         blockTypes: {},
@@ -1396,6 +1492,17 @@ export function buildRushSeedFromTrame(
   const prereq = attachQuestPrerequisites(trame, built.blocks);
   built.report.prereqTags = prereq.tags;
   built.report.prereqSkipped = prereq.skipped;
+
+  // Verrou d'ORDRE (option C) : après les prérequis réels (on ne les remplace pas).
+  if (resolved.routeOrderLock) {
+    const route = applyRouteOrderPrerequisites(built.blocks);
+    built.report.routePrereqs = route.added;
+    if (route.cycles > 0) {
+      built.report.warnings.push(
+        `${route.cycles} verrou(s) d'ordre écarté(s) : ils auraient formé un cycle avec un prérequis du jeu.`
+      );
+    }
+  }
 
   // Filet de sécurité inter-blocs : l'import apparie les blocs par titre normalisé.
   const seen = new Set<string>();

@@ -123,3 +123,25 @@ Exemples mesurés :
    `seqId` est connu une fois les lignes créées) ; le nom reste un repli.
 5. **DofusDex** : garder ses 109 prérequis comme **checklist de Dofus** (ce que le seed
    écrit dans `tips`) ; ne pas lui demander le graphe de quêtes — il ne l'a pas.
+
+## 7. Siphon du client — ce qu'il donne vraiment (18/11/2026)
+
+`scripts/siphon-quest-prerequisites.py` lit `QuestsDataRoot.startCriterion` et écrit
+`public/game-data/quest-prerequisites.json` (133 Ko) :
+
+| Indicateur | Valeur |
+|---|---|
+| Quêtes du client | 1 984 |
+| Quêtes avec prérequis (`Qf=` positif) | **990** |
+| Arêtes (cibles distinctes) | **1 187** |
+| **En ET pur** (importable sans `prereq_expr`) | **970** |
+| Avec un choix (OU) | **20** |
+| Exclusions `Qf!` (quêtes mutuellement exclusives) | **209**, écartées |
+
+- `Qf!<id>` n'est **jamais** un prérequis : c'est « ne pas avoir fini » (exclusivité).
+- Le OU n'est pas importable en l'état : `prereq_text` est AND-only (`prereq_expr` reste à faire).
+- **Divergence mesurée** : « Réponses à tout » (1631) porte `BT=1` dans le client et **aucun
+  `prereqIds`** dans la Trame, alors que la fiche communautaire annonce « Sous le regard des
+  dieux ». Le guide ne peut pas être plus strict que le jeu : ces cas restent à saisir dans God
+  (ou à documenter), ils ne s'inventent pas.
+

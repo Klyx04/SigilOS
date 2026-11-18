@@ -455,6 +455,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Retour | Lot | Points d'entrée |
 |---|---|---|
 | Prérequis absents | ✅ livré | siphon client (`startCriterion`) + verrou d'ordre ; 451 jeu + 76 ordre |
+| Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** pour que la donnée arrive au guide |
 | Détail trop petit / vrais monstres/items | UI | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
 | 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
 | Compteur 0/448 vs 591 séquences | UI | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |

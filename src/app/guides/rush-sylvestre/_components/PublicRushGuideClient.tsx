@@ -142,6 +142,8 @@ import {
   buildAlignmentSeries,
 } from "@/lib/rush-alignment-series";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
+import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
 import { DaRail } from "@/components/da/da-rail";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
@@ -2847,6 +2849,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             const dungeonLocked = !stepDone && isSeqBlockedByDungeon(seq.id);
                             const stepLocked = prereqLocked || dungeonLocked;
                             const prereqRefs = prereqLocked ? getPrereqRefs(seq, milestones) : [];
+                            // Groupes « au choix » (`prereq_expr`) : une seule alternative suffit.
+                            const choiceGroups = prereqLocked
+                              ? getPrereqChoiceGroups(seq, milestones)
+                              : [];
                             // Donjons : pastille + panneau local, état par OCCURRENCE.
                             const seqDungeonReqs = resolveSequenceDungeons(
                               seq,
@@ -3244,6 +3250,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       </button>
                                     )}
                                   </div>
+                                )}
+                                {choiceGroups.length > 0 && (
+                                  <RushPrereqChoiceHint groups={choiceGroups} className="mt-1 space-y-0.5" />
                                 )}
 
                                 {/* ── DONJONS DE LA QUÊTE : panneau local, ouvert depuis la

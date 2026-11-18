@@ -32,6 +32,8 @@ export type RushImportActivityTag = {
     quantity?: number;
     /** Succès : id d'icône du client (`img/achievements/{iconId}.png`). */
     iconId?: number;
+    /** Groupe « au choix » (`prereq_expr`) : alternatives par id DofusDB. */
+    alternatives?: Array<{ questId: number; name?: string }>;
 };
 
 export type RushImportSequence = {

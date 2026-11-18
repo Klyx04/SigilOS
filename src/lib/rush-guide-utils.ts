@@ -3,6 +3,11 @@ import { getJob } from "@/lib/dofus-assets";
 import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
 import { normalizeAlignmentCamp, previousOrderRank } from "@/lib/rush-route";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
+import {
+  evaluatePrereqExprGroups,
+  readPrereqExprGroups,
+  resolvePrereqAlternative,
+} from "@/lib/rush-prereq-expr";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -694,7 +699,19 @@ export function isSequenceBlockedByPrereqs(
   const rankRef = previousOrderRank(seq, allMilestones);
   if (rankRef && !allCompletedSeqIds.has(rankRef.seqId)) return true;
 
-  // 3. Prérequis explicites (`prereq_text`).
+  // 3. Groupes « au choix » (`prereq_expr`) : au moins une alternative par groupe.
+  //    Une alternative hors guide est **non vérifiable** : elle ne bloque jamais.
+  const choiceGroups = readPrereqExprGroups(seq);
+  if (choiceGroups.length > 0) {
+    const evaluation = evaluatePrereqExprGroups(
+      choiceGroups,
+      (alternative) => resolvePrereqAlternative(alternative, allMilestones),
+      (seqId) => allCompletedSeqIds.has(seqId)
+    );
+    if (evaluation.blocked) return true;
+  }
+
+  // 4. Prérequis explicites (`prereq_text`), tous requis (ET).
   const tags = Array.isArray(seq.activityTags)
     ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
     : [];

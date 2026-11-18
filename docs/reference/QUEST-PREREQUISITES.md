@@ -100,8 +100,10 @@ Exemples mesurés :
   nom, en excluant les 19 classes de `1960` (le cas est réglé par `classReq`) ; le 2004→1635
   s'afficherait. Le **niveau/guilde** demandent le `criterion` du client (`GameQuest.levelMin` +
   `startCriterion`) et l'UI.
-- **Lot complet** : le §6 (client 990/1984, **893 AND-only / 97 OR**, `prereq_expr` ET/OU, T-2c,
-  niveau/guilde).
+- **Livré le 18/11/2026** : `prereq_expr` (groupes **OU** du client) — alternatives par **id
+  DofusDB**, résolues contre les `questDbIds` des séquences ; une alternative **hors guide**
+  n'est pas vérifiable et **ne bloque jamais**. Reste : **niveau** (`GameQuest.levelMin`) et
+  **guilde** (`startCriterion`) affichés séparément, et **T-2c** (id de séquence dans `prereq_text`).
 
 ## 6. Décision et prochain lot
 
@@ -109,10 +111,11 @@ Exemples mesurés :
    `public/game-data/quest-prerequisites.json` : `{ questId, criterion, qfTargets,
    andGroups, orGroups }`. Le script `scripts/siphon-dofusdex.py` charge déjà les
    quêtes ; un `scripts/siphon-quest-prerequisites.py` séparé garde les sujets distincts.
-2. **Parser pur** (`parseQuestCriterion`) + tag `prereq_expr` (JSON dans
-   `activityTags`, **aucune migration**) + évaluation **ET/OU** dans
-   `isSequenceBlockedByPrereqs`, avec tests : `(Qf=720|Qf=721)&Qf=724` doit se lire
-   « (720 ou 721) et 724 ».
+2. ✅ **Livré 18/11/2026** — `prereq_expr` (JSON dans `activityTags`, **aucune migration**) :
+   alternatives par **id DofusDB**, évaluation « au moins une » dans
+   `isSequenceBlockedByPrereqs` (`src/lib/rush-prereq-expr.ts`). Invariant : une alternative
+   absente du guide **ne bloque pas** (non vérifiable) ; un groupe entièrement présent bloque
+   tant qu'aucune n'est cochée. Affichage « Au choix : … » sur les trois surfaces.
 3. **Seed** : importer maintenant les **893 quêtes / 957 arêtes AND-only** en
    `prereq_text` par **nom** ; **quick win** : les **492 arêtes `prereqIds` de la Trame**
    (430/530, `sequenceForQuest`) en `prereq_text`, en excluant les 19 classes de `1960` ;
@@ -139,7 +142,10 @@ Exemples mesurés :
 | Exclusions `Qf!` (quêtes mutuellement exclusives) | **209**, écartées |
 
 - `Qf!<id>` n'est **jamais** un prérequis : c'est « ne pas avoir fini » (exclusivité).
-- Le OU n'est pas importable en l'état : `prereq_text` est AND-only (`prereq_expr` reste à faire).
+- Le OU est **modélisé** depuis le 18/11/2026 : `prereq_expr` (groupes d'alternatives par id
+  DofusDB). Le seed le pose depuis ce fichier (`--prereq-or`), et **ne repose plus en
+  `prereq_text`** les arêtes couvertes par un groupe (sinon elles redeviendraient obligatoires).
+- Une alternative **hors guide** ne bloque pas : on ne peut pas prouver qu'elle est faite.
 - **Divergence mesurée** : « Réponses à tout » (1631) porte `BT=1` dans le client et **aucun
   `prereqIds`** dans la Trame, alors que la fiche communautaire annonce « Sous le regard des
   dieux ». Le guide ne peut pas être plus strict que le jeu : ces cas restent à saisir dans God

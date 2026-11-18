@@ -279,6 +279,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Retour | Cause | Lot |
 |---|---|---|
 | Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | ✅ **livré 18/11/2026** : siphon client (`startCriterion` : 990 quêtes / 1 187 arêtes, ET-only) + verrou d'**ordre** (`Réponses à tout` → `Sous le regard des dieux`) ; **451 prérequis du jeu + 76 d'ordre** | — |
+| Prérequis **« au choix »** (ex. « Supermilicien » : 272, 273 **ou** 274) | ✅ **livré 18/11/2026** : tag `prereq_expr` (alternatives par id DofusDB, **aucune migration**), évaluation « au moins une » ; une alternative **hors guide** ne bloque jamais ; seed enrichi depuis `quest-prerequisites.json`. **Archivage + import requis** | — |
 | Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — agrandir, assets réels |
 | 68 succès cochables | ✅ **livré 18/11/2026** : un succès est un **groupe de quêtes** — 68 lignes supprimées, **303 tags** sur 284 quêtes, pastille + fiche `SuccessChip` (dashboard + overlay, icône officielle du client) | — |
 | Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; le « 448 » d'un écran non identifié reste **à reproduire** | **UI** (petit) |

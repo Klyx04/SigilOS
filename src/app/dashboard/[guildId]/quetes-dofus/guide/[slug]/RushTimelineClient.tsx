@@ -93,6 +93,8 @@ import {
   type RushAlignmentSeriesMap,
 } from "@/lib/rush-alignment-series";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
+import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { OCRE_TOTAL_STEPS, toOcrePanelData } from "@/lib/ocre-soul-stones";
@@ -333,6 +335,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     // Source UNIQUE des prérequis (tags `prereq_text` + chaîne des rangs, L2) : la carte
     // bloquée nomme donc aussi le rang précédent d'un Ordre, qui n'a aucun tag.
     const prereqRefs = getPrereqRefs(seq as any, allMilestones as any);
+    /** Groupes « au choix » (`prereq_expr`) : une seule alternative suffit. */
+    const choiceGroups = getPrereqChoiceGroups(seq as any, allMilestones as any);
     const totalPrereqs = prereqRefs.length;
     const singleName = totalPrereqs === 1 ? prereqRefs[0]?.name : null;
     // Verrou de PALIER : une quête d'Ordre exige 20/40/60/80/100 quêtes de cité. Sans ce
@@ -433,6 +437,11 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 {palierLocked ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité` : "Verrouillée"}
               </p>
             </div>
+          </div>
+        )}
+        {choiceGroups.length > 0 && (
+          <div className="px-3 pb-3">
+            <RushPrereqChoiceHint groups={choiceGroups} />
           </div>
         )}
         </div>

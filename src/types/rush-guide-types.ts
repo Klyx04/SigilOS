@@ -29,9 +29,23 @@ export type RushActivityTagType =
   | "alignment_set"
   | "npc";
 
+/** Alternative d'un prérequis « au choix » (tag `prereq_expr`), par id DofusDB. */
+export type RushPrereqAlternative = {
+  questId: number;
+  /** Nom connu à la source (affichage seulement) ; la résolution passe par `questDbIds`. */
+  name?: string;
+};
+
 export type RushActivityTag = {
   type: RushActivityTagType | string;
   name?: string;
+  /**
+   * Tag `prereq_expr` — **prérequis « au choix »** : au moins une de ces quêtes suffit
+   * (groupe OU du client). Les alternatives sont désignées par leur id DofusDB, résolu
+   * contre les `questDbIds` des séquences : une alternative absente du guide est
+   * **non vérifiable** et ne bloque jamais (voir `rush-prereq-expr`).
+   */
+  alternatives?: RushPrereqAlternative[];
   /**
    * Camp d'un tag `alignment_set` — **vocabulaire canonique** (02/11/2026).
    * L'ancien import écrivait `name` : il reste lu en legacy (`alignmentTagCamp`).
@@ -70,6 +84,8 @@ export type RushSequence = {
   dungeonIds?: string[];
   dungeon?: RushDungeonRef | null;
   dungeons?: RushDungeonRef[];
+  /** Ids DofusDB des quêtes portées par la séquence (source des prérequis « au choix »). */
+  questDbIds?: number[];
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;

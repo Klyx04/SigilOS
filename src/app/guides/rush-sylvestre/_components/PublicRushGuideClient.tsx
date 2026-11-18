@@ -137,6 +137,11 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 // Sommaire au langage du dock — composant PARTAGÉ (public en E2, interne en E4).
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import {
+  alignmentSectionFor,
+  buildAlignmentSeries,
+} from "@/lib/rush-alignment-series";
+import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { DaRail } from "@/components/da/da-rail";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
@@ -518,6 +523,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // comptait les séparateurs et les encarts : les numéros sautaient, et ils ne
   // correspondaient pas à ceux du guide membre (mesuré le 12/11/2026).
   const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
+  // Séries d'alignement (« Ali 12 », « Rang 2 ») : dérivées du guide routé — le rang
+  // d'une cité ne dépend pas de l'autre cité (il est calculé par camp).
+  const alignmentSeries = useMemo(() => buildAlignmentSeries(milestones), [milestones]);
 
   // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
   // Persistées LOCALEMENT (aucun compte requis), par personnage — même clé que le
@@ -2501,6 +2509,32 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             questBlocks = questBlocks.filter((b) => !b.isDone);
           }
 
+          // Sections contiguës par cité / Ordre : la MÊME règle que le dashboard et
+          // l'overlay (`alignmentSectionFor`). Fail-closed : si un seul bloc n'a pas de
+          // série (encart info, quête commune), on garde l'ordre du guide.
+          const blockSections = questBlocks.map((block) =>
+            alignmentSectionFor(block.sequences, alignmentSeries)
+          );
+          const canGroupBlocks =
+            blockSections.length > 0 && blockSections.every((section) => section.key !== "commun");
+          const questBlockGroups: Array<{
+            key: string;
+            label: string | null;
+            blocks: typeof questBlocks;
+          }> = [];
+          questBlocks.forEach((block, index) => {
+            const section = blockSections[index];
+            const last = questBlockGroups[questBlockGroups.length - 1];
+            const key = canGroupBlocks ? section.key : "ordre-du-guide";
+            if (last && last.key === key) last.blocks.push(block);
+            else
+              questBlockGroups.push({
+                key,
+                label: canGroupBlocks ? section.label : null,
+                blocks: [block],
+              });
+          });
+
           if (questBlocks.length === 0 && (searchQuery.trim().length > 0 || hideDone)) {
             return null;
           }
@@ -2675,13 +2709,26 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                       Aucune étape correspondante.
                     </p>
                   ) : (
-                    questBlocks.map((block, blockIdx) => {
+                    questBlockGroups.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {questBlockGroups.length > 1 && group.label && (
+                          <p className="flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                            <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
+                            {group.label}
+                          </p>
+                        )}
+                        {group.blocks.map((block, blockIdx) => {
                       const questDofusImg = resolveDofusLocalImage(block.questName) || resolveDofusLocalImage(ms.title);
                       // Les encarts info ne sont pas des étapes : ils ne comptent ni dans
                       // l'en-tête (« n/N »), ni dans « Valider tout le bloc », ni dans le
                       // repère — mais ils gardent leur place dans le flux.
                       const blockSteps = block.sequences.filter((s) => !isInfoSequence(s));
                       const hasSteps = blockSteps.length > 0;
+                      // Série d'alignement du bloc (« Ali 12 », « Rang 2 ») : portée par sa
+                      // première étape — un encart info n'en a pas.
+                      const blockAlignmentLabel = blockSteps[0]
+                        ? alignmentSeries.get(blockSteps[0].id)?.label ?? null
+                        : null;
                       // Éléments réellement affichés (étapes + encarts, dans l'ordre du guide).
                       const blockItems = block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id));
                       // Bloc mono-étape : pas d'en-tête redondant, la ligne-carte porte le nom (comme le guide interne)
@@ -2719,6 +2766,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                               if (primaryUrl) {
                                 return (
                                   <h4 className={cls}>
+                                    <RushAlignmentBadge label={blockAlignmentLabel} />{" "}
                                     <a
                                       href={primaryUrl}
                                       target="_blank"
@@ -2732,7 +2780,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   </h4>
                                 );
                               }
-                              return <h4 className={`${cls} text-foreground`}>{block.questName}</h4>;
+                              return <h4 className={`${cls} text-foreground`}><RushAlignmentBadge label={blockAlignmentLabel} />{" "}{block.questName}</h4>;
                             })()}
 
                             <span className="reg-mono text-xs text-muted-foreground shrink-0">
@@ -2916,6 +2964,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                         {/* Nom de quête (blocs mono-étape : pas d'en-tête, la ligne porte le nom) */}
                                         {isSingleStep && (
                                           <>
+                                            <RushAlignmentBadge label={blockAlignmentLabel} />
                                             {(() => {
                                               const primaryUrl = (seq as any).dofuspourlesnoobsUrl || (seq as any).dofusdbUrl || block.dofuspourlesnoobsUrl || block.dofusdbUrl || null;
                                               // `min-w` : dans un `flex-wrap` bourré de chips `shrink-0`, le nom
@@ -3278,8 +3327,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                         </div>
                       </div>
                     );
-                  })
-                )}
+                        })}
+                      </React.Fragment>
+                    ))
+                  )}
                 </DaRail>
               )}
             </div>

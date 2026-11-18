@@ -87,6 +87,12 @@ import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resol
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
+import {
+  buildAlignmentSeries,
+  groupByAlignmentSeries,
+  type RushAlignmentSeriesMap,
+} from "@/lib/rush-alignment-series";
+import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { OCRE_TOTAL_STEPS, toOcrePanelData } from "@/lib/ocre-soul-stones";
@@ -299,6 +305,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   /** Portée de la DA pour les nœuds portailés (Radix et `createPortal` sortent de la coque). */
   const daScope = daScopeProps(useDaTheme());
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
+  const alignmentSeries = React.useContext(AlignmentSeriesCtx);
+  const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
   const dungeonActions = React.useContext(RushDungeonActionsCtx);
@@ -348,7 +356,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               elle doit se reconnaître d'un coup d'œil dans la liste. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={seq.icon ? safeImageUrl(resolveRushSeqIcon(seq.icon) as string) : "/assets/icons/icone-quete.png"} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" loading="lazy" />
-          <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">{questName}</p>
+          <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">
+            <RushAlignmentBadge label={alignmentLabel} /> {questName}
+          </p>
           <span className="shrink-0 rounded-[3px] border border-danger/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-danger">
             Verrouillée
           </span>
@@ -488,6 +498,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 (DofusPourLesNoobs / DofusDB) portent déjà les liens vers ces fiches — un
                 titre cliquable vers la même URL faisait doublon (retour user 08/10/2026). */}
             <span className="text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground">
+              <RushAlignmentBadge label={alignmentLabel} />{" "}
               {questName}
             </span>
             {/* Pastille donjon : ouvre les DEUX coches (fait / à faire) de CETTE quête.
@@ -941,6 +952,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
+  const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -962,6 +974,13 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const c=accentColor||"#10b981";
   const visibleSeqs = ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id));
   const firstVisibleSeqId = visibleSeqs.find((s:any)=>!isInfoSequence(s))?.id;
+  // Sections contiguës quand le bloc mélange les deux cités ou plusieurs Ordres
+  // (règle pure `groupByAlignmentSeries`). **Fail-closed** : si une seule ligne du bloc
+  // n'a pas de série (encart info, quête commune), on ne réordonne RIEN — l'ordre du
+  // guide est conservé, les pastilles restent affichées.
+  const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
+    ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
+    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
 
   return (
     <div>
@@ -1066,12 +1085,22 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                     /* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
                        opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */
                     <DaRail>
-                    {visibleSeqs.map((s:any)=>(
+                    {alignmentGroups.map((group)=>(
+                      <React.Fragment key={group.key}>
+                        {alignmentGroups.length>1&&group.label&&(
+                          <p className="flex items-center gap-1.5 px-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                            <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
+                            {group.label}
+                          </p>
+                        )}
+                        {group.sequences.map((s:any)=>(
                       isInfoSequence(s) ? (
                         <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
+                        ))}
+                      </React.Fragment>
                     ))}
                     </DaRail>
                   )}
@@ -1185,6 +1214,11 @@ const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
 const OpenOcreCtx=React.createContext<(() => void) | undefined>(undefined);
 const ScrollToPrereqCtx=React.createContext<(name:string, targetSeqId?:string|null)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
+/**
+ * Séries d'alignement (« Ali 12 », « Rang 2 ») dérivées du guide ENTIER. Un seul
+ * calcul par page (`buildAlignmentSeries`) : les lignes ne font que lire la table.
+ */
+const AlignmentSeriesCtx=React.createContext<RushAlignmentSeriesMap>(new Map());
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
 /**
@@ -2216,7 +2250,10 @@ const timelineItems=useMemo(()=>{
   };
 
 
-  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  // Séries d'alignement (« Ali 12 », « Rang 2 ») : un seul calcul pour toute la page.
+  const alignmentSeries = React.useMemo(() => buildAlignmentSeries(milestones), [milestones]);
+
+  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AlignmentSeriesCtx.Provider value={alignmentSeries}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
       `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
       `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
@@ -2857,7 +2894,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
+   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AlignmentSeriesCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
 
 
 </>);}

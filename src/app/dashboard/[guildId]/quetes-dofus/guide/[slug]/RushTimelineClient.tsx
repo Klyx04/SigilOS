@@ -349,36 +349,37 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={seq.icon ? safeImageUrl(resolveRushSeqIcon(seq.icon) as string) : "/assets/icons/icone-quete.png"} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" loading="lazy" />
           <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">{questName}</p>
-          {/* 11/11/2026 — le repère « j'en suis là » reste possible sur une carte verrouillée :
-              un donjon/prérequis empêche de VALIDER, pas de dire où l'on en est. */}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-            className={`ml-auto flex shrink-0 items-center justify-center rounded-[3px] p-1.5 transition-colors cursor-pointer ${
-              isThisBookmarked ? "bg-warning/15 text-warning" : "text-muted-foreground hover:bg-elevated hover:text-warning"
-            }`}
-            title={isThisBookmarked ? "Retirer le repère (Je suis ici)" : "Je suis ici"}
-            aria-label={isThisBookmarked ? "Retirer le repère" : "Je suis ici"}
-          >
-            {isThisBookmarked ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
-          </button>
+          <span className="shrink-0 rounded-[3px] border border-danger/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-danger">
+            Verrouillée
+          </span>
+          {/* 18/11/2026 — une quête verrouillée n'est pas jouable : on n'y pose plus de repère.
+              S'il en existait un avant le verrou, il reste retirable (sinon il serait collé). */}
+          {isThisBookmarked && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+              className="ml-auto flex shrink-0 items-center justify-center rounded-[3px] p-1.5 transition-colors cursor-pointer bg-warning/15 text-warning"
+              title="Retirer le repère (Je suis ici)"
+              aria-label="Retirer le repère"
+            >
+              <BookmarkCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         {totalPrereqs === 1 && singleName ? (
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);}}
-            className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/25 bg-danger/[0.04] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/45 focus-visible:outline-2 focus-visible:outline-danger/50"
+            className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/45 bg-danger/[0.07] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/60 focus-visible:outline-2 focus-visible:outline-danger/50"
             aria-label={`Voir la quête requise : ${singleName}`}
             data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
           >
-            {/* Le DANGER dit le verrou, jamais l'ambre : l'ambre est le REPÈRE
-                (« Je suis ici »). Les deux états avaient la même couleur de carte —
-                impossible de lire lequel bloquait. Filet + teinte rouge, comme le
-                cadenas et le libellé. */}
+            {/* Le rouge dit le verrou d'un coup d'œil (retour user du 18/11/2026 : la carte
+                neutralisée ne se lisait plus comme bloquée). Franc, pas criard : filet + teinte. */}
             <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
               <p className="text-[13px] font-semibold text-danger truncate">{singleName}</p>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-danger/60 group-hover:text-danger/90 transition-colors shrink-0" />
           </button>
         ) : totalPrereqs > 0 ? (
           <>
@@ -391,7 +392,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               }}
               aria-haspopup="dialog"
               aria-label={`Voir les ${totalPrereqs} quêtes à terminer avant`}
-              className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/25 bg-danger/[0.04] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/45 focus-visible:outline-2 focus-visible:outline-danger/50"
+              className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/45 bg-danger/[0.07] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/60 focus-visible:outline-2 focus-visible:outline-danger/50"
             >
               <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
               <div className="flex-1 min-w-0">
@@ -400,7 +401,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   {totalPrereqs} quêtes à terminer
                 </p>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-danger/60 group-hover:text-danger/90 transition-colors shrink-0" />
             </button>
             {prereqModal ? (
               <RushOverlayPrereqModal
@@ -1041,7 +1042,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
             {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
-            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
+            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id)&&!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
           </div>
         </div>

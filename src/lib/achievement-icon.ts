@@ -108,3 +108,15 @@ export function getDungeonAchievementIconUrl(achievement: {
     const challengeSlug = achievement.challenge?.slug ?? achievement.slug ?? null;
     return getAchievementIconUrl(challengeSlug, challengeIconUrl);
 }
+
+/**
+ * Icône d'un succès du client (`iconId` → `img/achievements/{iconId}.png`) servie par le
+ * **proxy interne**, trophée local en repli. Aucun hotlink, aucun chemin disque rendu brut.
+ */
+export function successIconUrl(iconId?: number | null): string {
+    if (typeof iconId === "number") {
+        const proxied = internalDofusDbImageUrl(`https://api.dofusdb.fr/img/achievements/${iconId}.png`);
+        if (proxied) return proxied;
+    }
+    return "/assets/icons/icone-succes.png";
+}

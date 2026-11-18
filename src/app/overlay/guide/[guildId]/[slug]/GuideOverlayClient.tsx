@@ -13,7 +13,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
@@ -743,6 +743,23 @@ export default function GuideOverlayClient({
     }
     return map;
   }, [currentMs, milestones]);
+
+  /**
+   * Quêtes du guide (id → nom + état) : la fiche d'un succès les liste avec leur coche.
+   * Construite une fois par rendu des jalons — 600 entrées légères, pas de requête.
+   */
+  const guideQuests = useMemo<RushGuideQuestRef[]>(() => {
+    const out: RushGuideQuestRef[] = [];
+    for (const ms of milestones) {
+      const doneSet = completedStepsByMs.get(ms.id);
+      for (const seq of ms.sequences) {
+        for (const questId of (seq as { questDbIds?: number[] }).questDbIds ?? []) {
+          out.push({ id: questId, name: seq.subGuideName || `Quête ${questId}`, done: doneSet?.has(seq.id) ?? false });
+        }
+      }
+    }
+    return out;
+  }, [milestones, completedStepsByMs]);
 
   const getSeqGate = useCallback(
     (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[] } => {
@@ -1567,6 +1584,7 @@ export default function GuideOverlayClient({
                         isLocked={gate.locked}
                         prereqs={gate.prereqs}
                         missingDungeons={gate.missingDungeons}
+                        guideQuests={guideQuests}
                         onGoToPrereq={handleGoToPrereq}
                         onToggle={() => handleToggleSeq(ms, seq.id)}
                         onBookmark={() => handleBookmark(ms, seq.id)}

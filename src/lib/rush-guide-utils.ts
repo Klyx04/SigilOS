@@ -506,6 +506,39 @@ function prereqCandidates(allMilestones: RushMilestone[]): PrereqCandidate[] {
   return out;
 }
 
+/** Un succès attaché à une quête (tag `succes` : id officiel, nom, icône du client). */
+export type RushSuccessRef = { id: string | null; name: string; iconId: number | null };
+
+/**
+ * Succès portés par une séquence — **jamais une coche** : le succès est un groupe de quêtes.
+ * Une valeur illisible est écartée (jamais devinée), comme partout dans le module.
+ */
+export function getSequenceSuccesses(
+  seq: { activityTags?: unknown } | null | undefined
+): RushSuccessRef[] {
+  const tags = Array.isArray(seq?.activityTags) ? (seq!.activityTags as Array<Record<string, unknown>>) : [];
+  const out: RushSuccessRef[] = [];
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (tag?.type !== "succes") continue;
+    const name = typeof tag.name === "string" ? tag.name.trim().slice(0, 200) : "";
+    const id = typeof tag.id === "string" ? tag.id.trim().slice(0, 64) : "";
+    if (!name && !id) continue;
+    const key = id || name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: id || null,
+      name: name || "Succès",
+      iconId: typeof tag.iconId === "number" && Number.isFinite(tag.iconId) ? tag.iconId : null,
+    });
+  }
+  return out;
+}
+
+/** Une quête du guide, telle que la fiche d'un succès la liste. */
+export type RushGuideQuestRef = { id: number; name: string; done: boolean };
+
 /**
  * Résout UN tag `prereq_text` vers sa séquence cible.
  *

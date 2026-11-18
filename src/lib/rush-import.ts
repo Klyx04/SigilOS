@@ -30,6 +30,8 @@ export type RushImportActivityTag = {
     count?: number;
     id?: string;
     quantity?: number;
+    /** Succès : id d'icône du client (`img/achievements/{iconId}.png`). */
+    iconId?: number;
 };
 
 export type RushImportSequence = {

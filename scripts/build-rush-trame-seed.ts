@@ -128,10 +128,10 @@ if (fs.existsSync(dofusDexPath)) {
   console.warn(`DofusDex absent : ${dofusDexPath} (blocs DOFUS non enrichis).`);
 }
 
-let achievements: Array<{ id: number; name: string; questIds?: number[] }> = [];
+let achievements: Array<{ id: number; name: string; iconId?: number | null; questIds?: number[] }> = [];
 if (fs.existsSync(achievementsPath)) {
   const raw = JSON.parse(fs.readFileSync(achievementsPath, "utf8")) as {
-    achievements?: Array<{ id: number; name: string; questIds?: number[] }>;
+    achievements?: Array<{ id: number; name: string; iconId?: number | null; questIds?: number[] }>;
   };
   achievements = (raw.achievements ?? []).filter((row) => (row.questIds ?? []).length > 0);
   console.log(`Succès officiels : ${achievements.length} avec des quêtes.`);

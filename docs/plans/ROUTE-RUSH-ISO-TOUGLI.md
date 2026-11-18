@@ -295,7 +295,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
 | Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |
 | Pages `/q/<slug>` | 0 publiée | **ops/édition** |
-| **Quêtes d'alignement numérotées** (« Ali 1 », « Ali 2 »…) et séparées Bonta / Brâkmar | les séquences s'appellent « Brâkmarien : … » sans rang (demande du 18/11/2026) | **Données/UI** — préfixe par cité + rang, à décider (seed ou affichage) |
+| **Quêtes d'alignement numérotées** (« Ali 1 », « Ali 2 »…), séparées Bonta / Brâkmar | ✅ **livré 18/11/2026** : « Ali 1 → 100 » (Bonta) et « Ali 1 → 102 » (Brâkmar), rangs d'Ordre **1 → 5** ; **dérivés à l'affichage** (`buildAlignmentSeries`), blocs séparés par cité (dashboard, guide public, overlay). Aucun renommage, aucun réimport : les prérequis restent résolus par nom | — |
 | Icône de quête dans l'overlay | ✅ **livré 18/11/2026** : repli `icone-quete.png`, même convention que le dashboard | — |
 | Bouton light mode de l'overlay | ✅ **retiré 18/11/2026** (état + `localStorage.sigil_overlay_theme` + bouton) | — |
 | Quête verrouillée peu lisible | ✅ **livré 18/11/2026** : rouge franc, opacité `.92`, libellé « Verrouillée » ; **plus de repère** sur une quête verrouillée (navigateur + overlay) | — |

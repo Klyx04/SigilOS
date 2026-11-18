@@ -15,6 +15,7 @@ import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
+import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -1223,6 +1224,18 @@ export default function GuideOverlayClient({
     return seqs;
   }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
 
+  // Séries d'alignement (« Ali 12 », « Rang 2 ») : dérivées du guide ENTIER, jamais du
+  // nom stocké — les prérequis sont résolus par nom (`resolvePrereqTag`).
+  const alignmentSeries = useMemo(() => buildAlignmentSeries(milestones), [milestones]);
+  const alignmentGroups = useMemo(() => {
+    // Fail-closed : on ne regroupe (donc on ne réordonne) que si TOUTES les lignes
+    // portent une série. Un encart info ou une quête commune garde sa place.
+    if (!visibleSequences.every((s) => alignmentSeries.has(s.id))) {
+      return [{ key: "ordre-du-guide", camp: null, label: null, sequences: visibleSequences }];
+    }
+    return groupByAlignmentSeries(visibleSequences, alignmentSeries);
+  }, [visibleSequences, alignmentSeries]);
+
   // Quête « à faire maintenant » de la liste AFFICHÉE : une seule règle partagée
   // par le nœud accentué, « Reprendre » et l'arrêt du fil de sève.
   const nextSeqId = useMemo(
@@ -1593,6 +1606,7 @@ export default function GuideOverlayClient({
                         onOpenBookmarkers={() => openSeqMembers(seq)}
                         capturedOcreNames={capturedOcreNames}
                         onOpenOcre={openOcre}
+                        alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
                       />
                     </React.Fragment>
                   );
@@ -1621,7 +1635,15 @@ export default function GuideOverlayClient({
             ) : currentMs ? (
               <div className="da-rail" ref={railRef}>
                 <div>
-                  {visibleSequences.map((seq) => {
+                  {alignmentGroups.map((group) => (
+                    <React.Fragment key={group.key}>
+                      {alignmentGroups.length > 1 && group.label && (
+                        <div className="flex items-center gap-1.5 px-0.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
+                          {group.label}
+                        </div>
+                      )}
+                      {group.sequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
                   // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
@@ -1653,10 +1675,13 @@ export default function GuideOverlayClient({
                       onOpenBookmarkers={() => openSeqMembers(seq)}
                       capturedOcreNames={capturedOcreNames}
                       onOpenOcre={openOcre}
+                      alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
                     />
                   </React.Fragment>
                 );
-                  })}
+                      })}
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             ) : null}

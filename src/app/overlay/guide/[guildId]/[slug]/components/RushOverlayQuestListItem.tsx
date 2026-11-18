@@ -12,6 +12,7 @@ import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
+import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 import type {
   RushDungeonMemberState,
@@ -112,6 +113,8 @@ interface RushOverlayQuestListItemProps {
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
   onOpenOcre?: () => void;
+  /** Série d'alignement dérivée (« Ali 12 », « Rang 2 ») — jamais persistée. */
+  alignmentLabel?: string | null;
 }
 
 /**
@@ -145,6 +148,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   dungeonActions,
   capturedOcreNames,
   onOpenOcre,
+  alignmentLabel = null,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
@@ -266,6 +270,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             >
               <span className="flex min-w-0 items-center gap-2">
                 {titleIcon}
+                <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 <span className="line-clamp-2">{name}</span>
               </span>
             </a>
@@ -281,6 +286,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             >
               <span className="flex min-w-0 items-center gap-2">
                 {titleIcon}
+                <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 <span className="line-clamp-2">{name}</span>
               </span>
             </button>

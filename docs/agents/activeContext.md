@@ -5,6 +5,16 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 18/11/2026 (suite 24) — **Rush · séries d'alignement numérotées** — branche `feat/rush-alignement-series`
+
+> **Demandes user (verbatim)** : « oui il faut afficher séparément de 1 à X bonta et idem brak, idem ordre aussi » · « pour brak il y a une quête qui a en prérequis plusieurs quêtes au choix, c'est pris en compte dans le backend et l'ui ? ».
+> **Mesure** : **aucune** séquence ne porte le préfixe « Brâkmarien : » (0/536) ; les deux cités vivent **mêlées** dans les 4 blocs « Alignement » (17/19 · 45/45 · 15/15 · 15/15), « Ordres » (15/15) et 3 blocs Dofus ; 117 brâkmariennes / 115 bontariennes / 304 sans cité. Le rang existe dans la source (`cites[].series[].index`) mais n'était pas transporté.
+> **Fait** : règle pure `src/lib/rush-alignment-series.ts` — rang **par cité** dans l'ordre du guide (**Bonta 1→100**, **Brâkmar 1→102**, Ordres **1→5** par palier), regroupement **fail-closed** (une ligne sans série annule le réordonnancement) ; pastille `RushAlignmentBadge` ; sections par cité sur dashboard, guide public et overlay. Le nom stocké n'est **jamais** préfixé : les prérequis sont résolus par nom (`resolvePrereqTag`).
+> **Preuves** : **759 fichiers / 7 956 tests ✅** · `tsc` 0 · lint 0 erreur · base réelle : **100/102 sans discontinuité**, 6 Ordres en rangs 1→5, bloc 2/4 → **2 sections 45/45** (Ali 20→64 / Ali 21→65).
+> **Reste / ops** : prérequis **OU** non modélisés (`prereq_expr`) — mesuré sur « Supermilicien » (275) : le jeu accepte 272/273/274, le guide n'exige que 273 ; puis les **3 autres points UX**, UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
+> **Rotation** : bloc « suite 18 » (God D6/D7) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 18/11/2026 (suite 23) — **Rush · prérequis client, succès en tags, verrou d'ordre et verrouillage lisible** — `dev` (`269805fb`)
 
 > **Demandes user (verbatim)** : « c'est pas vide » · « on affiche ça comment dans le guide et l'overlay ? » · « les succès sont des listes de quêtes, pas des coches » · « je peux cocher Réponses à tout alors que Sous le regard des dieux n'est pas faite » · « le repère n'a pas à être dispo si la quête n'est pas possible » · « fais et pose plus de question ».
@@ -52,12 +62,4 @@
 > **Rotation** : bloc « Session 16/11/2026 (suite 13) — Visiteurs · fiche V5 bis » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 17/11/2026 (suite 18) — **God · déslop complet (D6) et normalisation `ownerId` (D7)** — branches `feat/god-deslop-tokens` (PR #1421) et `feat/god-owner-id` (PR #1422)
-
-> **Demande user (verbatim)** : « enchaine tout conclus tout » — après D5 (G1/G2), livrer D6 (déslop God, plafond 79) puis D7 (ownerId).
-> **Mesure** : 39 fichiers God portaient encore ~1 800 occurrences de palettes en dur (zinc/emerald/amber/rose/white/black), 246 `font-black`, 136 `rounded-2xl/3xl`, 23 `backdrop-blur`, 116 `tracking-widest` ; `user-list.tsx` était orphelin et `forceDeleteUser` sans appelant. `GuildConfig.ownerId` : 7 guildes locales → 3 snowflakes (3/3 résolubles), 3 nulles, 1 interne ; trois écrivains pouvaient y remettre un snowflake.
-> **Fait** : **D6** — tous les fichiers God tokenisés (zéro palette, zéro forme hors DA), contraste des boutons pleins, scrims alignés sur le kit, `user-list.tsx` + `forceDeleteUser` supprimés, garde `god-deslop` réécrite (palette/formes/kit) et plafond **79 → 78**. **D7** — `resolveGuildOwnerWriteId` (cible `User.id`, snowflake transitoire sinon), onboarding + self-heals dashboard/RGPD branchés, transfert inchangé (interne), script `scripts/backfill-guild-owner-id.ts` (dry-run par défaut) et procédure `MAINTENANCE.md`.
-> **Preuves** : suite **748 fichiers / 7 824 tests ✅** · `tsc` 0 · ESLint 0 erreur · dry-run réel **7 guildes : 3 à normaliser, 0 sans compte lié, 4 déjà interne/nulle** · verrous `god-deslop` (8) et `guild-owner-normalization` (13).
-> **Reste / ops** : **bêta faite le 17/11/2026** — backfill `ownerId` 3/3, D8 **15 296 → 0** (11 journaux d’audit et 2 sessions God purgés), migrations V4 jouées par le déploiement. **Reste** : visuels bêta (D9 + fiche visiteur), puis **prod** — merger `dev` → `main`, `./scripts/deploy-cd.sh prod`, backfill `ownerId`, D8, visuels.
-> **Rotation** : bloc « Session 16/11/2026 (suite 12) — Visiteurs · carte Ocre alignée sur l'interne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

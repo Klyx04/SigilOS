@@ -42,7 +42,7 @@ import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignm
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
-import { useRushOverlayStore } from "@/store/rush-overlay-store";
+import { useRushOverlayStore, type RushOverlayPayload } from "@/store/rush-overlay-store";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import type { RushMilestone } from "@/types/rush-guide-types";
 import type { RushQuestConstraints } from "@/types/rush-constraints";
@@ -497,10 +497,16 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {/* Nom de quête en TEXTE SIMPLE : les deux pastilles de marque juste à droite
                 (DofusPourLesNoobs / DofusDB) portent déjà les liens vers ces fiches — un
                 titre cliquable vers la même URL faisait doublon (retour user 08/10/2026). */}
-            <span className="text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground">
+            <button
+              type="button"
+              onClick={() => setDetailOpen(true)}
+              className="min-w-0 cursor-pointer break-words text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-warning"
+              aria-label={`Voir les détails de ${questName}`}
+              title="Voir les détails complets de la quête"
+            >
               <RushAlignmentBadge label={alignmentLabel} />{" "}
               {questName}
-            </span>
+            </button>
             {/* Pastille donjon : ouvre les DEUX coches (fait / à faire) de CETTE quête.
                 Même geste que l'overlay et le guide public — jamais un onglet global. */}
             {allDungeons.length > 0 && (
@@ -1197,7 +1203,17 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const currentLabel=selectedCharacter==="PRINCIPAL"?mainPseudo:selectedCharacter;
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
   const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="size-3.5 text-warning"/>:<Users className="size-3.5 text-info"/>;
-  const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
+  const handleSelect=(char:string)=>{
+    const label=char==="PRINCIPAL"?mainPseudo:char;
+    const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);
+    router.push(`${window.location.pathname}?${params.toString()}`);
+    // Message au changement de personnage (18/11/2026) : la progression est SÉPARÉE
+    // par slot — sans retour visuel, un écran inchangé faisait croire à un bug.
+    toast.success(`Personnage actif : ${label}`, {
+      description: "Le guide affiche la progression de ce personnage.",
+      duration: 2600,
+    });
+  };
   return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" role="combobox" aria-expanded={false} aria-label="Choisir le personnage actif" className="justify-between gap-1.5 min-w-0 max-w-full px-1.5 text-xs font-medium cursor-pointer hover:bg-elevated"><span className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></span><ChevronDown className="size-3 opacity-40 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-[4px] p-1.5 z-[100]"><DropdownMenuRadioGroup value={selectedCharacter} onValueChange={handleSelect}><DropdownMenuRadioItem value="PRINCIPAL" className="gap-2.5 py-2 cursor-pointer">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="size-3.5 text-warning"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mainPseudo}</span><span className="text-caption text-muted-foreground">{mainClass||"Principal"}</span></span></DropdownMenuRadioItem>{mules.length>0&&<DropdownMenuSeparator className="my-1 h-px bg-border"/>}{mules.map((mule:any)=><DropdownMenuRadioItem key={mule.pseudo} value={mule.pseudo} className="gap-2.5 py-2 cursor-pointer">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="size-3.5 text-info"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mule.pseudo}</span><span className="text-caption text-muted-foreground">{formatDofusLevel(mule.level)}{mule.classe?` • ${mule.classe}`:""}</span></span></DropdownMenuRadioItem>)}</DropdownMenuRadioGroup>{onRequestReset&&<><DropdownMenuSeparator className="my-1 h-px bg-border"/><DropdownMenuItem onClick={onRequestReset} className="gap-2.5 px-2.5 py-2 cursor-pointer text-danger focus:text-danger"><RotateCcw className="size-3.5"/><span className="text-xs font-medium">Réinitialiser « {currentLabel} »</span></DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>;
 }
 
@@ -1309,9 +1325,65 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
   const router=useRouter();const altPseudo=selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined;
   // Overlay PiP : rendu géré par `RushOverlayHost` (monté dans le LAYOUT `[guildId]`,
-  // persistant). Ici on ne fait qu'ouvrir/fermer la fenêtre et figer les données.
+  // persistant). Ici on ouvre/ferme la fenêtre, et on lui **resynchronise** ses données.
   const openOverlay = useRushOverlayStore((s) => s.open);
   const closeOverlay = useRushOverlayStore((s) => s.close);
+  // Mule sélectionnée : une seule lecture typée, réutilisée par le payload.
+  const selectedMuleSlot =
+    (mules as Array<{
+      pseudo?: string;
+      classe?: string | null;
+      alignment?: string | null;
+      alignmentOrder?: string | null;
+    }>).find((m) => m.pseudo === selectedCharacter) ?? null;
+  /**
+   * Données de l'overlay, construites UNE fois : à l'ouverture (`open`) puis à chaque
+   * rafraîchissement de la page (`sync`). L'instantané du PiP doit suivre les props —
+   * sinon un alignement enregistré ou un changement de personnage restait invisible
+   * à l'écran (cause mesurée le 18/11/2026 : payload figé à l'ouverture).
+   */
+  const overlayData = useMemo<Omit<RushOverlayPayload, "pinned">>(() => ({
+    guildId,
+    guide: {
+      id: guide.id,
+      name: guide.name,
+      slug: guide.slug,
+      description: guide.description ?? undefined,
+      imageUrl: guide.imageUrl ?? undefined,
+    },
+    milestones: milestones as RushMilestone[],
+    allProgress: guildProgress as GuideProgressRow[],
+    altPseudo: altPseudo ?? null,
+    // Cité / Ordre du personnage actif : la modale d'alignement du PiP les pré-remplit,
+    // et la resynchronisation les met à jour après un enregistrement.
+    selfAlignment: selectedCharacter === "PRINCIPAL"
+      ? currentUserProfile?.alignment ?? null
+      : selectedMuleSlot?.alignment ?? null,
+    selfOrder: selectedCharacter === "PRINCIPAL"
+      ? currentUserProfile?.alignmentOrder ?? null
+      : selectedMuleSlot?.alignmentOrder ?? null,
+    character: selectedCharacter === "PRINCIPAL"
+      ? { pseudo: currentUserProfile?.pseudoDofus || "Principal", classe: currentUserProfile?.dofusClass || null, isMain: true }
+      : { pseudo: selectedCharacter, classe: selectedMuleSlot?.classe || null, isMain: false },
+    // Quête Ocre : figée avec le reste du payload (aucun fetch dans la fenêtre PiP).
+    ocre: toOcrePanelData(
+      ocreStats
+        ? {
+            monsters: ocreMonsters || [],
+            questInfo: {
+              currentStep: ocreStats.currentStep ?? 0,
+              // Même constante que `getMyOcreProgress` (questInfo.totalSteps) et la carte
+              // visiteur : la quête de l'Éternelle Moisson compte 34 étapes.
+              totalSteps: OCRE_TOTAL_STEPS,
+              serverName: ocreStats.serverName,
+              parallelQuests: ocreStats.parallelQuests,
+            },
+            pseudo: currentUserProfile?.metamobPseudo ?? null,
+          }
+        : null
+    ),
+  }), [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters]);
+
   const handleOverlayClick = useCallback(async () => {
     // Déjà ouvert → on le referme.
     if (useRushOverlayStore.getState().win) {
@@ -1334,41 +1406,15 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     if (!win) return;
     // Fermeture native de la fenêtre (bouton PiP / croix) → on nettoie l'état.
     win.addEventListener("pagehide", () => useRushOverlayStore.getState().onWindowGone());
-    openOverlay(win, {
-      guildId,
-      pinned,
-      guide: {
-        id: guide.id,
-        name: guide.name,
-        slug: guide.slug,
-        description: guide.description ?? undefined,
-        imageUrl: guide.imageUrl ?? undefined,
-      },
-      milestones: milestones as RushMilestone[],
-      allProgress: guildProgress as GuideProgressRow[],
-      altPseudo: altPseudo ?? null,
-      character: selectedCharacter === "PRINCIPAL"
-        ? { pseudo: currentUserProfile?.pseudoDofus || "Principal", classe: currentUserProfile?.dofusClass || null, isMain: true }
-        : { pseudo: selectedCharacter, classe: (mules || []).find((m: any) => m.pseudo === selectedCharacter)?.classe || null, isMain: false },
-      // Quête Ocre : figée avec le reste du payload (aucun fetch dans la fenêtre PiP).
-      ocre: toOcrePanelData(
-        ocreStats
-          ? {
-              monsters: ocreMonsters || [],
-              questInfo: {
-                currentStep: ocreStats.currentStep ?? 0,
-                // Même constante que `getMyOcreProgress` (questInfo.totalSteps) et la carte
-                // visiteur : la quête de l'Éternelle Moisson compte 34 étapes.
-                totalSteps: OCRE_TOTAL_STEPS,
-                serverName: ocreStats.serverName,
-                parallelQuests: ocreStats.parallelQuests,
-              },
-              pseudo: currentUserProfile?.metamobPseudo ?? null,
-            }
-          : null
-      ),
-    });
-  }, [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters, openOverlay, closeOverlay]);
+    openOverlay(win, { ...overlayData, pinned });
+  }, [overlayData, openOverlay, closeOverlay]);
+
+  // Page rafraîchie (alignement enregistré, personnage changé) → l'overlay OUVERT suit.
+  useEffect(() => {
+    if (useRushOverlayStore.getState().payload) {
+      useRushOverlayStore.getState().sync(overlayData);
+    }
+  }, [overlayData]);
   // Local copy of profile for optimistic alignment updates (sync profile<->rush)
   const [localProfile,setLocalProfile]=useState(currentUserProfile);
   useEffect(()=>{setLocalProfile(currentUserProfile);},[currentUserProfile]);

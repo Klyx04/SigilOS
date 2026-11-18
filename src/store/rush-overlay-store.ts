@@ -16,6 +16,9 @@ export interface RushOverlayPayload {
   milestones: RushMilestone[];
   allProgress: GuideProgressRow[];
   altPseudo: string | null;
+  /** Cité / Ordre du personnage actif : pré-remplissent la modale d'alignement du PiP. */
+  selfAlignment?: string | null;
+  selfOrder?: string | null;
   /** Personnage courant (principal ou mule) pour l'affichage dans l'overlay. */
   character: { pseudo: string; classe: string | null; isMain: boolean };
   /**
@@ -39,6 +42,14 @@ interface RushOverlayState {
   open: (win: Window, payload: RushOverlayPayload) => void;
   /** Ferme la fenêtre et vide l'état (bouton « fermer » de l'overlay). */
   close: () => void;
+  /**
+   * Met à jour les données d'un overlay **déjà ouvert**, sans toucher à la fenêtre.
+   *
+   * L'instantané initial (`open`) reste figé par conception ; il doit en revanche
+   * suivre les données fraîches de la page (alignement enregistré → `router.refresh()`,
+   * changement de personnage). Sans ça, le PiP gardait l'ancienne route à l'écran.
+   */
+  sync: (patch: Partial<RushOverlayPayload>) => void;
   /** La fenêtre a disparu (fermée par l'utilisateur / pagehide) : on vide l'état. */
   onWindowGone: () => void;
 }
@@ -59,4 +70,6 @@ export const useRushOverlayStore = create<RushOverlayState>()((set, get) => ({
     set({ win: null, payload: null });
   },
   onWindowGone: () => set({ win: null, payload: null }),
+  sync: (patch) =>
+    set((state) => (state.payload ? { payload: { ...state.payload, ...patch } } : {})),
 }));

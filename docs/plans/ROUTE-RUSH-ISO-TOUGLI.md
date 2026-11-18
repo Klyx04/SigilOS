@@ -284,9 +284,9 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; le « 448 » d'un écran non identifié reste **à reproduire** | **UI** (petit) |
 | 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | **UI** — panneau/badge DofusDex |
 | Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | **UI** — icône du Dofus |
-| Quêtes non cliquables dans le guide navigateur | l'overlay ouvre le détail (`RushOverlayQuestListItem`) ; le dashboard/public ont l'icône Info, pas la ligne | **UI** — ligne cliquable |
-| Changement d'alignement : refresh ? | `resolveRushRoute` filtre depuis le profil ; les actions revalident le dashboard ; le public est local ; l'overlay peut nécessiter un reload ; `resolveRushScenario` (`switchPlan`) **non branché** | **UX/scénarios** |
-| Changement de personnage : aucun message | `altPseudo` → `characterSlot`, progression séparée, mais aucun retour visuel | **UX** — bandeau/toast |
+| Quêtes non cliquables dans le guide navigateur | ✅ **livré 18/11/2026** : la **ligne de quête** (nom) ouvre la fiche détaillée sur le dashboard et le guide public ; le picto « i » reste | — |
+| Changement d'alignement : refresh ? | ✅ **livré 18/11/2026** — cause mesurée : le PiP recevait un **instantané figé** ; l'overlay ouvert est resynchronisé (`sync`) à chaque rafraîchissement, et la cité/Ordre du personnage pré-remplit sa modale | — |
+| Changement de personnage : aucun message | ✅ **livré 18/11/2026** : toast « Personnage actif : <nom> » + resynchronisation de l'overlay | — |
 | **Succès de donjon : bouton `+`/modale** | **feature demandée** : voir `MODULE-RUSH-SYLVESTRE.md` **Bloc I** (guide navigateur + mini overlay interne/connecté) | **Bloc I** |
 | 55 conseils | `tipsToWrite` ; 6 paraphrases posées | **éditorial** |
 | Descriptions de blocs (8 vs 12) | description calculée avant l'enrichissement | **seed** (petit) |
@@ -300,10 +300,10 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Bouton light mode de l'overlay | ✅ **retiré 18/11/2026** (état + `localStorage.sigil_overlay_theme` + bouton) | — |
 | Quête verrouillée peu lisible | ✅ **livré 18/11/2026** : rouge franc, opacité `.92`, libellé « Verrouillée » ; **plus de repère** sur une quête verrouillée (navigateur + overlay) | — |
 | Liste « Mon Ocre » rognée | ✅ **livré 18/11/2026** : défilement natif borné (`min(440px,55svh)`), barre visible | — |
-| Changement d'alignement visible immédiatement | `router.refresh()` existe dans `AlignmentChoiceForm` ; l'overlay ne se met pas à jour à l'écran | **UX** — à reproduire avant correction |
+| Changement d'alignement visible immédiatement | ✅ **livré 18/11/2026** : cause = payload PiP figé ; `sync` du store à chaque rafraîchissement + cité/Ordre pré-remplis dans la modale | — |
 
-**Ordre proposé** : **UX** (« Ali 1 / Ali 2 », alignement visible après enregistrement, clic quête, message
-perso) → **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide public) → **Bloc I**
+**Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** →
+**UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide public) → **Bloc I**
 (succès de donjon) → **55 conseils** → **VPS**.
 
 ## 13. Reprise propre — la porte d'entrée

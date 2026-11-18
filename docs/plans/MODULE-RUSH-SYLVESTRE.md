@@ -460,9 +460,9 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Compteur 0/448 vs 591 séquences | UI | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
 | 16 DofusDex sans panneau | UI | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
 | Icône Dofus discrète | UI | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
-| Quêtes non cliquables | UI | `RushOverlayQuestListItem` (overlay), `RushOverlayQuestDetailModal`, `RushTimelineClient`/`PublicRushGuideClient` |
-| Changement perso sans message | UX | `altPseudo`/`characterSlot`, `getOptimizedGuideDetail`, `RushOverlayHeader` |
-| Alignement sans refresh/message | UX | `resolveRushRoute`, `resolveRushScenario` (`switchPlan`), `applyRushAlignmentFromSequence`, `resetRushAlignment` |
+| Quêtes non cliquables | ✅ livré 18/11/2026 | la ligne (nom) ouvre la fiche sur le dashboard et le guide public ; picto « i » conservé |
+| Changement perso sans message | ✅ livré 18/11/2026 | toast « Personnage actif : <nom> » + `sync` de l'overlay ouvert |
+| Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |
 | Succès de donjon | **Bloc I** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
 | 55 conseils | Éditorial | `tipsToWrite` |
 | Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
@@ -474,9 +474,9 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Quêtes d'alignement numérotées (« Ali 1 », « Ali 2 »…), séparées Bonta / Brâkmar | ✅ livré 18/11/2026 | `buildAlignmentSeries` (rangs 1→100/102, Ordres 1→5) · `RushAlignmentBadge` · sections par cité sur dashboard / guide public / overlay |
 | Icône de quête dans l'overlay | ✅ livré | `RushOverlayQuestListItem` : repli `icone-quete.png`, comme le dashboard |
 | Light mode de l'overlay | ✅ retiré | `GuideOverlayClient`/`RushOverlayHeader` : état, `localStorage`, bouton |
-| Alignement modifié mais guide inchangé | UX (à reproduire) | `AlignmentChoiceForm` (`router.refresh()`), `resolveRushRoute` |
+| Alignement modifié mais guide inchangé | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store, cité/Ordre pré-remplis |
 | Quête verrouillée peu lisible / repère posable | ✅ livré | rouge franc, opacité `.92`, libellé « Verrouillée » ; repère retiré sur une quête verrouillée |
 | Liste « Mon Ocre » rognée | ✅ livré | `OcreQuestPanel` : défilement natif `min(440px,55svh)`, barre visible |
 
-**Ordre** : UX (« Ali 1 / Ali 2 », alignement visible, clic quête, message perso) → UI (détail/assets,
-DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) → 55 conseils → VPS.
+**Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** →
+UI (détail/assets, DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) → 55 conseils → VPS.

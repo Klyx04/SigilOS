@@ -2780,7 +2780,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   </h4>
                                 );
                               }
-                              return <h4 className={`${cls} text-foreground`}><RushAlignmentBadge label={blockAlignmentLabel} />{" "}{block.questName}</h4>;
+                              return (
+                                <h4 className={`${cls} text-foreground`}>
+                                  <RushAlignmentBadge label={blockAlignmentLabel} />{" "}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      blockSteps[0] &&
+                                      setDetailModalSeq({ milestone: ms, sequence: blockSteps[0] })
+                                    }
+                                    className="cursor-pointer text-left transition-colors hover:text-warning"
+                                    aria-label={`Voir les détails de ${block.questName}`}
+                                  >
+                                    {block.questName}
+                                  </button>
+                                </h4>
+                              );
                             })()}
 
                             <span className="reg-mono text-xs text-muted-foreground shrink-0">
@@ -2986,7 +3001,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                                   </a>
                                                 );
                                               }
-                                              return <span className={`${cls} text-foreground`}>{block.questName}</span>;
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
+                                                  className={`${cls} cursor-pointer text-left text-foreground transition-colors hover:text-warning`}
+                                                  aria-label={`Voir les détails de ${block.questName}`}
+                                                >
+                                                  {block.questName}
+                                                </button>
+                                              );
                                             })()}
                                           </>
                                         )}

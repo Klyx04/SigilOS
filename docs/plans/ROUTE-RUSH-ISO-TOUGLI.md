@@ -278,10 +278,10 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 | Retour | Cause | Lot |
 |---|---|---|
-| Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | le seed n'importe pas `prereqIds` ; `prereq_text` AND-only ; client 990/1984, 893 AND/97 OR | **Prérequis** (le plus gros) |
+| Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | ✅ **livré 18/11/2026** : siphon client (`startCriterion` : 990 quêtes / 1 187 arêtes, ET-only) + verrou d'**ordre** (`Réponses à tout` → `Sous le regard des dieux`) ; **451 prérequis du jeu + 76 d'ordre** | — |
 | Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — agrandir, assets réels |
-| 68 succès : où ? | ce sont les lignes `isSuccess` (labels « Succès ») ; 10 dans « Compléments » ; **aucun compteur/filtre** ; overlay sans label | **UI** — compteur/filtre + overlay |
-| Compteur 0/448 vs 591 séquences | `RushGuideView.totalSteps` compte les **étapes** (blocs/variantes/infos), pas les 591 `GuideSequence` (68 succès, 33 blocs donjons, 10 Compléments) | **UI** — libellé/commentaire |
+| 68 succès cochables | ✅ **livré 18/11/2026** : un succès est un **groupe de quêtes** — 68 lignes supprimées, **303 tags** sur 284 quêtes, pastille + fiche `SuccessChip` (dashboard + overlay, icône officielle du client) | — |
+| Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; le « 448 » d'un écran non identifié reste **à reproduire** | **UI** (petit) |
 | 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | **UI** — panneau/badge DofusDex |
 | Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | **UI** — icône du Dofus |
 | Quêtes non cliquables dans le guide navigateur | l'overlay ouvre le détail (`RushOverlayQuestListItem`) ; le dashboard/public ont l'icône Info, pas la ligne | **UI** — ligne cliquable |
@@ -298,11 +298,13 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | **Quêtes d'alignement numérotées** (« Ali 1 », « Ali 2 »…) et séparées Bonta / Brâkmar | les séquences s'appellent « Brâkmarien : … » sans rang (demande du 18/11/2026) | **Données/UI** — préfixe par cité + rang, à décider (seed ou affichage) |
 | Icône de quête dans l'overlay | ✅ **livré 18/11/2026** : repli `icone-quete.png`, même convention que le dashboard | — |
 | Bouton light mode de l'overlay | ✅ **retiré 18/11/2026** (état + `localStorage.sigil_overlay_theme` + bouton) | — |
+| Quête verrouillée peu lisible | ✅ **livré 18/11/2026** : rouge franc, opacité `.92`, libellé « Verrouillée » ; **plus de repère** sur une quête verrouillée (navigateur + overlay) | — |
+| Liste « Mon Ocre » rognée | ✅ **livré 18/11/2026** : défilement natif borné (`min(440px,55svh)`), barre visible | — |
 | Changement d'alignement visible immédiatement | `router.refresh()` existe dans `AlignmentChoiceForm` ; l'overlay ne se met pas à jour à l'écran | **UX** — à reproduire avant correction |
 
-**Ordre proposé** : **prérequis** → **UX** (clic, perso, alignement/`resolveRushScenario`) → **UI**
-(détail/assets, succès, DofusDex, icône) → **Bloc I** (succès de donjon) → **55 conseils** → **PR/VPS**
-(le seed actuel peut partir en bêta en parallèle).
+**Ordre proposé** : **UX** (« Ali 1 / Ali 2 », alignement visible après enregistrement, clic quête, message
+perso) → **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide public) → **Bloc I**
+(succès de donjon) → **55 conseils** → **VPS**.
 
 ## 13. Reprise propre — la porte d'entrée
 

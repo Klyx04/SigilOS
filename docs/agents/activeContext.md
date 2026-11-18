@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 18/11/2026 (suite 23) — **Rush · prérequis client, succès en tags, verrou d'ordre et verrouillage lisible** — `dev` (`269805fb`)
+
+> **Demandes user (verbatim)** : « c'est pas vide » · « on affiche ça comment dans le guide et l'overlay ? » · « les succès sont des listes de quêtes, pas des coches » · « je peux cocher Réponses à tout alors que Sous le regard des dieux n'est pas faite » · « le repère n'a pas à être dispo si la quête n'est pas possible » · « fais et pose plus de question ».
+> **Fait (14 PR #1431 → #1444)** : prérequis **client** siphonnés (`QuestsDataRoot.startCriterion` : 990 quêtes / 1 187 arêtes, ET-only, `Qf!` écarté) + **verrou d'ORDRE** (par branche, `takeEarly`/parallèles exempts, anti-cycle) → **451 prérequis du jeu + 76 d'ordre** ; **succès = tags de quêtes** (les 68 fausses cases sont supprimées, `public/game-data/achievements.json` = 2 777 succès / 259 avec quêtes, **303 tags sur 284 quêtes**, pastille + fiche `SuccessChip` dashboard/overlay, icône officielle du client) ; guide local **36 / 536** ; **quête verrouillée lisible** (rouge franc, opacité `.92`, libellé « Verrouillée ») et **plus de repère dessus** (navigateur + overlay, retrait conservé) ; overlay **sombre uniquement** ; icône de quête sur la ligne du nom ; **scroll « Mon Ocre »** réparé ; plafond 80 → 120 (10 quêtes brâkmariennes récupérées).
+> **Preuves** : **758 fichiers / 7 945 tests ✅** · `tsc` 0 · lint 0 erreur · CI verte sur chaque PR · `git status` propre · base locale **536 séquences** (importée).
+> **Reste / ops** : **UX** (« Ali 1 / Ali 2 » Bonta/Brâkmar, alignement visible après enregistrement, clic quête, message changement de perso) ; **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide **public**) ; **Bloc I** (succès de donjon) ; **55 conseils** ; 3 donjons à aliasser ; cache public ; `/q/<slug>` ; **VPS** (`deploy-cd.sh beta` → `pg_dump` → archivage → import → `--delete-archive`). Détail : `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5.
+> **Rotation** : blocs « suite 17 », « suite 16 » et « suite 15 » sortis (≥ 6 blocs) — récupérables via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 18/11/2026 (suite 22) — **Rush · Touglie enrichi mergé + quick win prérequis** — `dev` (`928c1d18`)
 
 > **Demande user (verbatim)** : « enchaine 1 2 3 » (PR du seed, prérequis, puis UX/UI).
@@ -52,40 +60,4 @@
 > **Preuves** : suite **748 fichiers / 7 824 tests ✅** · `tsc` 0 · ESLint 0 erreur · dry-run réel **7 guildes : 3 à normaliser, 0 sans compte lié, 4 déjà interne/nulle** · verrous `god-deslop` (8) et `guild-owner-normalization` (13).
 > **Reste / ops** : **bêta faite le 17/11/2026** — backfill `ownerId` 3/3, D8 **15 296 → 0** (11 journaux d’audit et 2 sessions God purgés), migrations V4 jouées par le déploiement. **Reste** : visuels bêta (D9 + fiche visiteur), puis **prod** — merger `dev` → `main`, `./scripts/deploy-cd.sh prod`, backfill `ownerId`, D8, visuels.
 > **Rotation** : bloc « Session 16/11/2026 (suite 12) — Visiteurs · carte Ocre alignée sur l'interne » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 17/11/2026 (suite 17) — **God · glossaire des statuts (G1) et tour de contrôle allégée (G2)** — branches `feat/god-glossaire-statuts` (PR #1419) et `feat/god-tour-controle` (PR #1420)
-
-> **Demande user (verbatim)** : « Coder D5 : d'abord G1 (glossaire/libellés God), puis G2 (page God) », sans créer `/god/users`.
-> **Mesure** : « autonome / pré-approuvé / à surveiller / gelée-off » n'était expliqué nulle part dans l'écran ; « À surveiller » ressemblait à une sanction alors que c'est un radar (≤ 3 profils) ; l'en-tête des guildes portait deux actions de même poids (« Connexions non autorisées » + « Whitelist New Guild ») et affichait des sections vides ; **G9 re-mesuré** : `?tab=tickets` est la seule surface utilisateurs, aucune route `/god/users`.
-> **Fait** : **G1** — `src/lib/god-status-glossary.ts` (source unique des libellés + définitions du plan), légende dépliable « Comprendre les statuts », `title` sur chaque badge, « À surveiller » → « Peu de membres — à vérifier », « Pré-approuvées » → « Validées par le staff », fiche guilde avec origine datée et statut infobulle. **G2** — une action primaire « Autoriser une guilde », connexions non autorisées dans un menu `⋯` visible seulement s'il y en a, dialogue contrôlé, blacklist vide masquée, compteurs radar `aria-pressed` + libellés humains. G3/G5 déjà couverts par la fiche guilde ; G9 = rien à coder.
-> **Preuves** : suite **748 fichiers / 7 820 tests ✅** · `tsc` 0 · ESLint 0 erreur · verrous neufs `god-status-glossary` (7) et `god-tour-controle` (4) · plafond `god-deslop` inchangé (**79**).
-> **Reste / ops** : D6 (déslop God, plafond à faire baisser) → D7 (ownerId) ; D8/D9 humains ; migrations V4 bêta/prod ; contrôle visuel 390/768/1024/1440/1536 de la fiche visiteur.
-> **Rotation** : bloc « Session 16/11/2026 (suite 11) — Visiteurs · avis de recherche, coches par personnage, page perso et fiche lecture seule » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 17/11/2026 (suite 16) — **Visiteurs · avis/donjons dans un seul filtre, fiches concises et assets** — branche `feat/visiteurs-listes-concises` (PR #1417)
-
-> **Demandes user (verbatim)** : « au lieu de mettre les avis sous les dj ... on peut pas les mettre dans un filtre plutôt avec les dj » · « on peut pas laisser des pavé de succès comme ca et le drop down de dj, faut un meilleur tri plus concis idem pour les avis » · « t'as pas mis les assetsd » · « metamob faudrait la favicon du site etc et une idée du % de complétion de la quete si liée ».
-> **Mesure** : `/visiteurs?vue=succes` rendait deux master-détails (donjons puis avis) ; `?donjon` + `?avis` pouvaient coexister ; la fiche lecture seule affichait 2 colonnes de cartes et un `Select` de tous les donjons ; le DTO `VisitorAchievement` n'avait pas l'image du donjon ; les cartes de synthèse et Metamob n'avaient pas d'asset ; `getPublicOcreProgress()` est **lecteur-scopé** (clé Metamob privée).
-> **Fait** : `?liste=avis` + zone maître-détail unique (avis prioritaire sur un ancien lien mixte), `SharedSuccesView` sans section empilée ; fiches lecture seule en **tableaux denses**, tri donjon/zone/nom/points/niveau, combobox donjon/zone **recherchable**, **filtre donjon obligatoire** (sinon « N donjons » + consigne, plus de mur de 200 lignes) ; `dungeonImageUrl` ajouté au DTO public + select ; assets Dofus sur les cartes de synthèse (expérience, trophée, donjon, aviton) et les sections ; favicon Metamob local ; **% Ocre seulement sur sa propre fiche** (aucune donnée d'un autre visiteur, aucune clé).
-> **Preuves** : **746 fichiers / 7 809 tests ✅** · `tsc` 0 · ESLint 0 erreur · audit sécurité vert · métadonnées **0** · CI **7m48** · `Build & Push` bêta **11m35** · PR **#1417** mergée, `dev @ 721d71bb`.
-> **Reste / ops** : contrôle visuel 390/768/1024/1440/1536 de la fiche ; migrations V4 bêta/prod ; **D5** (G1/G2, sans `/god/users`), puis D6/D7 ; D8/D9.
-> **Rotation** : bloc « Session 16/11/2026 (suite 10) — Reprise D1/D2/D3 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 17/11/2026 (suite 15) — **Simulateur · seuil conteneur, cadres de la fiche avis et reprise du plan God** — branche `fix/simulation-responsive-conteneur` (PR #1415)
-
-> **Demande user (verbatim)** : « ya un vrai pb avec le simulateur non responsive qui sort à droite » puis « pl ya autant de contour ».
-> **Mesure** : `SpellRangeGrid` passait en côte à côte à `2xl` (fenêtre ≥ 1536 px) alors que la fiche avis ne lui laisse que ~700 px (`max-w-6xl` − colonne de 340 px) : le rail de 384 px écrasait le plateau. La fiche empilait aussi une seconde carte et la légende gardait le style flottant `board`.
-> **Fait** : seuil **conteneur** (`@container` + `@5xl` = 64 rem) pour le plateau et le rail ; prop `embedded` (fiche avis/monstre) qui supprime la seconde carte ; légende `full` dans le rail ; barre, puce du sort et badges sans bordures redondantes ; verrous `boss-simulation-spells` et `sim-tactique-rangement` mis à jour.
-> **Preuves** : **746 fichiers / 7 804 tests ✅** · `tsc` 0 · ESLint 0 erreur · audit sécurité vert · CSS dev contient `@container (min-width: 64rem)`.
-> **Reprise** : **D4 est déjà livré** (#752, 25/09/2026) — la ligne `ROADMAP` a été corrigée ; la reprise du plan God commence à **D5** (G1 glossaire + G2 tour de contrôle ; G9 re-mesuré : pas de route `/god/users`, surface dans `?tab=tickets`).
-> **Reste / ops** : contrôle visuel 390/768/1024/1440/1536+ de la fiche avis ; `Build & Push` bêta post-#1415 ; aucune migration, aucun secret.
-> **Rotation** : bloc « Session 16/11/2026 (suite 9) — God · lot C » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
 

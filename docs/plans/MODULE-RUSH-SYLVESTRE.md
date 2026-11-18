@@ -454,9 +454,9 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 | Retour | Lot | Points d'entrée |
 |---|---|---|
-| Prérequis absents | Données | `prereqIds` Trame, client `startCriterion`, `prereq_text`/`prereq_expr`, `GameQuest.levelMin` |
+| Prérequis absents | ✅ livré | siphon client (`startCriterion`) + verrou d'ordre ; 451 jeu + 76 ordre |
 | Détail trop petit / vrais monstres/items | UI | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
-| 68 succès sans compteur | UI | `RushGuideView`/`stepCounts`, `RushTimelineClient`, `PublicRushGuideClient`, `RushOverlayQuestListItem` |
+| 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
 | Compteur 0/448 vs 591 séquences | UI | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
 | 16 DofusDex sans panneau | UI | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
 | Icône Dofus discrète | UI | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
@@ -475,6 +475,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Icône de quête dans l'overlay | ✅ livré | `RushOverlayQuestListItem` : repli `icone-quete.png`, comme le dashboard |
 | Light mode de l'overlay | ✅ retiré | `GuideOverlayClient`/`RushOverlayHeader` : état, `localStorage`, bouton |
 | Alignement modifié mais guide inchangé | UX (à reproduire) | `AlignmentChoiceForm` (`router.refresh()`), `resolveRushRoute` |
+| Quête verrouillée peu lisible / repère posable | ✅ livré | rouge franc, opacité `.92`, libellé « Verrouillée » ; repère retiré sur une quête verrouillée |
+| Liste « Mon Ocre » rognée | ✅ livré | `OcreQuestPanel` : défilement natif `min(440px,55svh)`, barre visible |
 
-**Ordre** : prérequis → UX (clic, perso, alignement/`resolveRushScenario`) → UI (détail/assets, succès,
-DofusDex, icône) → **Bloc I** (succès de donjon) → 55 conseils → PR/VPS.
+**Ordre** : UX (« Ali 1 / Ali 2 », alignement visible, clic quête, message perso) → UI (détail/assets,
+DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) → 55 conseils → VPS.

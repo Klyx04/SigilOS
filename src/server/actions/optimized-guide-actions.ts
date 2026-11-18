@@ -3355,6 +3355,13 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
   };
 
   const guide = await getOrCreateRushSylvestreGuide();
+  const seedSource = (guide.rushUIConfig as { seedSource?: string } | null)?.seedSource;
+  if (seedSource) {
+    return {
+      success: false as const,
+      error: "Ce guide est issu du seed Trame : l'import legacy est désactivé.",
+    };
+  }
   const existingMs = await db.guideMilestone.findMany({
     where: { guideId: guide.id },
     include: {
@@ -4784,6 +4791,7 @@ const RushImportSequenceSchema = z.object({
   dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   // Ids DofusDB **portables** : le serveur les résout vers `Dungeon.id` par `dofusdbId`.
   dungeonDbIds: z.array(z.number().int().positive()).max(12).optional(),
+  dungeonNames: z.array(z.string().trim().min(1).max(200)).max(12).optional(),
   dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   takeEarly: z.boolean().optional(),
   isOptional: z.boolean().optional(),
@@ -4864,14 +4872,19 @@ export async function importRushGuide(raw: unknown, apply = false) {
   const guide = await getOrCreateRushSylvestreGuide();
   if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
 
-  const allDungeons = await db.dungeon.findMany({ select: { id: true, dofusdbId: true } });
+  const allDungeons = await db.dungeon.findMany({
+    select: { id: true, dofusdbId: true, name: true, bossName: true },
+  });
   const knownDungeonIds = new Set(allDungeons.map((d) => d.id));
   const dungeonByDofusDbId = new Map(
-    allDungeons
-      .filter((d): d is { id: string; dofusdbId: number } => d.dofusdbId != null)
-      .map((d) => [d.dofusdbId, d.id])
+    allDungeons.flatMap((d) => (d.dofusdbId != null ? [[d.dofusdbId, d.id] as const] : []))
   );
   const knownDungeonDbIds = new Set(dungeonByDofusDbId.keys());
+  // Repli **portable** : les ids DofusDB ne sont remplis que sur une petite partie des
+  // donjons locaux ; le nom / le boss, lui, existe toujours. On résout dans cet ordre.
+  const dungeonByName = new Map(allDungeons.map((d) => [importKey(d.name), d.id]));
+  const dungeonByBoss = new Map(allDungeons.map((d) => [importKey(d.bossName), d.id]));
+  const knownDungeonNames = new Set([...dungeonByName.keys(), ...dungeonByBoss.keys()]);
   const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
 
   const plan = planRushImport(
@@ -4883,7 +4896,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
         sequences: m.sequences.map((s) => ({ id: s.id, subGuideName: s.subGuideName })),
       })),
     },
-    { knownDungeonIds, knownDungeonDbIds, knownClassIds }
+    { knownDungeonIds, knownDungeonDbIds, knownDungeonNames, knownClassIds }
   );
 
   if (!apply) return { success: true as const, data: { dryRun: true as const, plan } };
@@ -4932,7 +4945,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
           chapterLabel: payloadBlock.chapterLabel?.trim() || chapterLabel,
           title: blockPlan.title,
           description: payloadBlock.description ?? null,
-          accentColor: payloadBlock.accentColor ?? "#10b981",
+          accentColor: payloadBlock.accentColor ?? null,
           imageUrl: safeImageUrl(payloadBlock.imageUrl) || null,
           tips: payloadBlock.tips ?? null,
           // Forme bornée + allowlist d'URL, comme le studio (`rush-block-links`).
@@ -4989,10 +5002,14 @@ export async function importRushGuide(raw: unknown, apply = false) {
           const resolvedDungeonIds = dungeonDbIds
             .map((id) => dungeonByDofusDbId.get(id))
             .filter((id): id is string => Boolean(id));
+          const resolvedByName = (sequence.dungeonNames ?? [])
+            .map((name) => dungeonByName.get(importKey(name)) ?? dungeonByBoss.get(importKey(name)))
+            .filter((id): id is string => Boolean(id));
           const uniqueDungeonIds = [
             ...new Set([
               ...(sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
               ...resolvedDungeonIds,
+              ...resolvedByName,
             ]),
           ];
           return {

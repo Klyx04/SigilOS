@@ -190,6 +190,7 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
     const sequence = result.payload.blocks[0].sequences[0];
     expect(sequence.dungeonDbIds).toEqual([13]);
     expect(sequence.dungeonIds).toBeUndefined();
+    expect(sequence.dungeonNames).toEqual(["Donjon des Bworks"]);
   });
 
   it("n'expose aucun nom de source dans le payload", () => {
@@ -332,6 +333,111 @@ describe("DofusDex — la checklist officielle enrichit le bloc", () => {
     const result = buildRushSeedFromTrame(TRAME, { spine: "tougli", dofusdex: huge });
     const block = result.payload.blocks.find((candidate) => candidate.title === "Dofus des Veilleurs");
     expect(block?.tips?.length ?? 0).toBeLessThanOrEqual(4000);
+  });
+});
+
+const ENRICH_TRAME: TrameInput = {
+  ...TRAME,
+  blocks: [
+    ...(TRAME.blocks ?? []),
+    {
+      id: 4,
+      order: 3,
+      title: "Pandala",
+      items: [{ kind: "quest", questId: 500, name: "Q Domakuro" }],
+    },
+  ],
+  quests: { ...(TRAME.quests ?? {}), "500": { id: 500, name: "Q Domakuro" } },
+  dofusyelle: {
+    steps: [
+      ...(TRAME.dofusyelle?.steps ?? []),
+      {
+        n: 13,
+        category: "Pandala",
+        title: "Quêtes Pandala - Domakuro",
+        body: ["une ligne"],
+        quetes: [{ t: "Q Domakuro" }],
+        succes: [{ t: "Succès Domakuro" }],
+        donjons: [{ name: "Donjon Domakuro" }],
+      },
+    ],
+    correlation: [
+      ...(TRAME.dofusyelle?.correlation ?? []),
+      { step: 13, title: "Q Domakuro", questIds: [500], matched: true },
+    ],
+  },
+};
+
+const DOFUSDEX_ENRICH = {
+  dofus: [
+    {
+      name: "Domakuro",
+      minLevel: 100,
+      maxLevel: 120,
+      steps: [{ objectives: [{ name: "Objectif Domakuro", level: 110 }] }],
+    },
+  ],
+};
+
+describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
+  const result = buildRushSeedFromTrame(ENRICH_TRAME, {
+    spine: "tougli",
+    enrichFromYelle: true,
+    dofusdex: DOFUSDEX_ENRICH,
+  });
+  const byTitle = (title: string) => result.payload.blocks.find((block) => block.title === title);
+
+  it("garde la charpente Tougli et ajoute le succès Yelle dans le bloc corrélé", () => {
+    const astrub = byTitle("Astrub");
+    expect(astrub?.sequences.map((sequence) => sequence.subGuideName)).toEqual(
+      expect.arrayContaining(["Q1", "Succès 1"])
+    );
+    expect(astrub?.sequences.find((sequence) => sequence.subGuideName === "Succès 1")?.isSuccess).toBe(true);
+    expect(byTitle("Pandala")?.sequences.some((sequence) => sequence.subGuideName === "Succès Domakuro")).toBe(
+      true
+    );
+    expect(result.report.yelleSuccesses).toBeGreaterThanOrEqual(2);
+  });
+
+  it("pose le conseil Yelle rédigé sur la quête corrélée, pas sur le bloc", () => {
+    const q1 = byTitle("Astrub")?.sequences.find((sequence) => sequence.subGuideName === "Q1");
+    expect(q1?.tips).toContain("Prends toutes les quêtes");
+    expect(byTitle("Astrub")?.tips ?? "").not.toContain("Prends toutes les quêtes");
+  });
+
+  it("applique le DofusDex d'une étape à un bloc Tougli dont le titre diffère", () => {
+    const pandala = byTitle("Pandala");
+    expect(pandala?.tips).toContain("DofusDex officiel");
+    expect(pandala?.tips).toContain("Objectif Domakuro");
+    expect(pandala?.dofusId).toBe("domakuro");
+    expect(result.report.yelleDofusDexMerged).toBeGreaterThanOrEqual(1);
+  });
+
+  it("conserve les donjons Yelle en conseil du bloc", () => {
+    expect(byTitle("Pandala")?.tips).toContain("Donjon Domakuro");
+    expect(byTitle("Astrub")?.tips).toContain("Donjon 1");
+  });
+
+  it("laisse dans « conseils à rédiger » ce qui n'a pas été rédigé", () => {
+    expect(result.report.tipsToWrite.some((tip) => tip.step === 13)).toBe(true);
+  });
+
+  it("n'expose aucun nom de source dans le payload enrichi", () => {
+    const payload = JSON.stringify(result.payload).toLowerCase();
+    for (const token of ["tougli", "touglie", "dofusyelle", "laniyelle", "marcellusito", "barbofus"]) {
+      expect(payload).not.toContain(token);
+    }
+  });
+
+  it("sans l'option, le spine Tougli reste inchangé", () => {
+    const plain = buildRushSeedFromTrame(ENRICH_TRAME, {
+      spine: "tougli",
+      dofusdex: DOFUSDEX_ENRICH,
+    });
+    expect(plain.report.successes).toBe(0);
+    expect(plain.report.yelleSuccesses).toBe(0);
+    const plainPandala = plain.payload.blocks.find((block) => block.title === "Pandala");
+    expect(plainPandala?.tips ?? "").not.toContain("Donjon Domakuro");
   });
 });
 

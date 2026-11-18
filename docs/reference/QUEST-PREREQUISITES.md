@@ -89,6 +89,20 @@ Exemples mesurés :
 - **L'ET seul ne suffit pas** : les 97 quêtes à `|` (dont `1960`) seraient sur-verrouillées
   si on importait la liste plate de Tougli en ET. `1960` est déjà exclu par `classReq`.
 
+### 5.1 Exemple mesuré — « Destination Astrub » (2004)
+
+- Trame (`src/temp/trame-rush/data.json`) : `prereqIds: [1635]`, `level: 10` (`build-data.mjs:219`) ;
+  la page DofusDB affiche en plus « Dans la guilde du Milimilou » — le **niveau** est dans
+  `GameQuest.levelMin` (10), la **guilde** est un `startCriterion` du **client** (pas dans la Trame).
+- Le seed **Touglie enrichi** n'importe **aucun** `prereq_text` : le guide neuf (36/591) n'a **aucun**
+  prérequis ; les 301 tags de l'ancien guide sont sur l'ancien guide (archivé).
+- **Quick win possible** : les `prereqIds` de la Trame (**430/530**, **492 arêtes**) → `prereq_text` par
+  nom, en excluant les 19 classes de `1960` (le cas est réglé par `classReq`) ; le 2004→1635
+  s'afficherait. Le **niveau/guilde** demandent le `criterion` du client (`GameQuest.levelMin` +
+  `startCriterion`) et l'UI.
+- **Lot complet** : le §6 (client 990/1984, **893 AND-only / 97 OR**, `prereq_expr` ET/OU, T-2c,
+  niveau/guilde).
+
 ## 6. Décision et prochain lot
 
 1. **Siphonner le graphe du client** (lecture seule, `QuestsDataRoot`) vers
@@ -100,9 +114,11 @@ Exemples mesurés :
    `isSequenceBlockedByPrereqs`, avec tests : `(Qf=720|Qf=721)&Qf=724` doit se lire
    « (720 ou 721) et 724 ».
 3. **Seed** : importer maintenant les **893 quêtes / 957 arêtes AND-only** en
-   `prereq_text` par **nom** ; **ne pas importer** les **97 quêtes / 230 arêtes OR**
-   avant `prereq_expr` ; **exclure** les prérequis dont la cible porte un `classReq`
-   (le cas `1960`).
+   `prereq_text` par **nom** ; **quick win** : les **492 arêtes `prereqIds` de la Trame**
+   (430/530, `sequenceForQuest`) en `prereq_text`, en excluant les 19 classes de `1960` ;
+   **ne pas importer** les **97 quêtes / 230 arêtes OR** avant `prereq_expr` ; le
+   **niveau** (`GameQuest.levelMin`) et la **guilde** (le `startCriterion` client) sont
+   affichés séparément, pas en `prereq_text`.
 4. **T-2c** : après import, backfiller l'**id de séquence** dans `prereq_text` (le
    `seqId` est connu une fois les lignes créées) ; le nom reste un repli.
 5. **DofusDex** : garder ses 109 prérequis comme **checklist de Dofus** (ce que le seed

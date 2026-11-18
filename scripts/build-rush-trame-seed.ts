@@ -12,6 +12,7 @@
  *
  * Usage :
  *   npx tsx scripts/build-rush-trame-seed.ts --spine tougli
+ *   npx tsx scripts/build-rush-trame-seed.ts --spine tougli --enrich-yelle
  *   npx tsx scripts/build-rush-trame-seed.ts --spine yelle --no-resources
  *   npx tsx scripts/build-rush-trame-seed.ts --trame src/temp/trame-rush/data.json
  */
@@ -39,8 +40,12 @@ const yelleRawPath = path.resolve(
 );
 const dofusDexPath = path.resolve(valueOf("--dofusdex", "public/game-data/dofusdex.json"));
 const outDir = path.resolve(valueOf("--out-dir", "src/temp/rush-seed"));
-const outPath = path.resolve(valueOf("--out", path.join(outDir, `${spine}.json`)));
-const reportPath = path.resolve(valueOf("--report", path.join(outDir, `${spine}-rapport.md`)));
+const enrichYelle = has("--enrich-yelle");
+const defaultSeedName = spine === "tougli" && enrichYelle ? "tougli-enriched" : spine;
+const outPath = path.resolve(valueOf("--out", path.join(outDir, `${defaultSeedName}.json`)));
+const reportPath = path.resolve(
+  valueOf("--report", path.join(outDir, `${defaultSeedName}-rapport.md`))
+);
 
 if (!fs.existsSync(tramePath)) {
   console.error(`Trame introuvable : ${tramePath}`);
@@ -102,7 +107,14 @@ if (fs.existsSync(yelleRawPath)) {
     });
   }
   trame.dofusyelle = { ...(trame.dofusyelle ?? {}), steps };
-  console.log(`Yelle brute fusionnée : ${rawSteps.length} étapes (succès, donjons, quêtes).`);
+  const mergedDonjons = steps.filter((step) => (step.donjons ?? []).length > 0).length;
+  const mergedSucces = steps.reduce(
+    (count, step) => count + (Array.isArray(step.succes) ? step.succes.length : 0),
+    0
+  );
+  console.log(
+    `Yelle brute fusionnée : ${rawSteps.length} étapes (${mergedDonjons} avec donjons, ${mergedSucces} succès).`
+  );
 } else {
   console.warn(`Yelle brute absente : ${yelleRawPath} (succès/donjons non fusionnés).`);
 }
@@ -122,6 +134,7 @@ const { payload, report } = buildRushSeedFromTrame(trame as unknown as TrameInpu
   includeSuccesses: !has("--no-successes"),
   maxSequencesPerBlock: Number(valueOf("--max", "80")) || 80,
   dofusdex,
+  enrichFromYelle: enrichYelle,
 });
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
@@ -141,6 +154,10 @@ const lines = [
   `| Quêtes avec id DofusDB | ${report.questsWithIds} |`,
   `| Ressources (tags item) | ${report.resources} |`,
   `| Succès | ${report.successes} |`,
+  `| Succès Yelle fusionnés | ${report.yelleSuccesses} |`,
+  `| Conseils Yelle fusionnés | ${report.yelleTipsMerged} |`,
+  `| Blocs DofusDex Yelle | ${report.yelleDofusDexMerged} |`,
+  `| Blocs avec donjons Yelle | ${report.yelleDungeonBlocks} |`,
   `| Blocs enrichis DofusDex | ${report.dofusDexTagged} |`,
   `| Quêtes non appariées | ${report.unmatched.length} |`,
   `| Conseils à rédiger | ${report.tipsToWrite.length} |`,
@@ -177,7 +194,10 @@ console.log(`[${report.spine}] ${report.blocks} bloc(s) · ${report.sequences} s
 console.log(
   `  quêtes avec id : ${report.questsWithIds} · ressources : ${report.resources} · succès : ${report.successes} · DofusDex : ${report.dofusDexTagged}`
 );
+console.log(
+  `  Yelle : ${report.yelleSuccesses} succès fusionné(s) · ${report.yelleTipsMerged} conseil(s) · ${report.yelleDofusDexMerged} bloc(s) DofusDex · ${report.yelleDungeonBlocks} bloc(s) avec donjons`
+);
 console.log(`  non appariées : ${report.unmatched.length} · conseils à rédiger : ${report.tipsToWrite.length}`);
 console.log(`  payload : ${path.relative(process.cwd(), outPath)}`);
 console.log(`  rapport : ${path.relative(process.cwd(), reportPath)}`);
-console.log("  → importer dans God ▸ Rush Sylvestre ▸ Importer (dry-run d'abord).");
+console.log("  → importer dans God ▸ Rush Sylvestre ▸ JSON (dry-run d'abord).");

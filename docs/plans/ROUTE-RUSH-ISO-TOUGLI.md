@@ -198,3 +198,119 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
   (0 id, T-2c à faire) ; le seed Trame **n'en ajoute pas**. Le prochain lot est
   `prereq_expr` ET/OU + import **AND-only** (893/957), les 97 quêtes OR attendant le
   modèle. Détail : `docs/reference/QUEST-PREREQUISITES.md`.
+
+## 10. Touglie enrichi — un seul guide, trame Touglie + tout Dofusyelle (17/11/2026)
+
+> **Besoin** : garder la **trame Touglie** (35 blocs, 523 quêtes, 2 cités, Ordres, conditions,
+> ressources, donjons) et y fusionner **tout Dofusyelle** (81 succès, conseils, donjons, DofusDex).
+> Les deux spines `tougli.json` / `yelle.json` ne répondaient pas à ce besoin : ils sont séparés.
+
+- **Générateur** : `src/lib/rush-trame-seed.ts`, option `enrichFromYelle` ; CLI :
+  `npx tsx scripts/build-rush-trame-seed.ts --spine tougli --enrich-yelle`
+  → `src/temp/rush-seed/tougli-enriched.json` + `tougli-enriched-rapport.md` (volatile, non commité).
+- **Règles de fusion** : une étape Yelle est rattachée au bloc Touglie de la **première quête corrélée**
+  (la Trame `dofusyelle.correlation`) ; un succès qui porte le nom d'une quête existante **marque la quête**
+  (`isSuccess = true`), sinon il est ajouté ; un bloc plein (80) envoie ses succès dans
+  **« Compléments — succès hors trame »** (avec les 4 étapes sans cible) ; un conseil rédigé
+  (`YELLE_DEMO_TIPS`, 6) se pose sur la **quête** corrélée, les autres restent dans `tipsToWrite`
+  (aucun texte tiers recopié) ; le DofusDex d'une étape s'applique au bloc Touglie **même si son titre
+  diffère** (Domakuro, Dorigami, Tacheté…), sans doublon ; les donjons d'étape deviennent une ligne
+  **« Donjons (étape N de la trame) »** dans les conseils du bloc ; les **ressources/conditions**
+  restent celles de la Trame **par quête** (la liste globale Yelle n'a pas de quête cible).
+- **Payload** : **36 blocs / 591 séquences** ; 523 quêtes Touglie ; **68 succès distincts** (81 occurrences,
+  13 doublons) ; **839 tags `item`** ; **33 blocs avec donjons Yelle** ; **16 checklists DofusDex**
+  (9 Touglie + 7 Yelle) ; **55 conseils à rédiger** ; 4 étapes sans cible ; 10 succès dans
+  « Compléments » ; **140 séquences / 98 noms de donjons** (dont **95 résolus** en local par nom).
+- **Tests** : `tests/unit/rush-trame-seed.test.ts` **24** (dont 7 pour l'enrichissement : succès,
+  conseil sur la quête, DofusDex d'un bloc au titre différent, donjons, Compléments, absence de noms
+  de source) ; `tsc` 0. Le **rapport** liste les 55 conseils, les 4 étapes, les 7 succès « bloc plein »
+  et les 13 doublons.
+- **Corrections du lot** : `accentColor` du seed reste `null` (l'import ne force plus `#10b981`) ;
+  l'import **legacy** est refusé sur le nouveau guide (`rushUIConfig.seedSource`) ; les donjons de
+  quête sont résolus **par nom** (`dungeonNames`, `Dungeon.name`/`bossName`) en plus de `dungeonDbIds`
+  (3/98 → **95/98**).
+- **Ce que le seed ne fait pas** : il **n'importe pas les prérequis** (`prereqIds` de la Trame,
+  430/530, 492 arêtes ; client 990/1984, 893 AND/97 OR) — voir `docs/reference/QUEST-PREREQUISITES.md`
+  §5.1/§6 ; il ne réécrit pas les 55 conseils ; les descriptions de blocs gardent le compte **avant**
+  l'enrichissement (« Incarnam · 8 quêtes » alors que 12 séquences avec les 4 succès) — petit correctif
+  du générateur à faire.
+- **Suite** : l'import local a été fait (36/591) ; le remplacement/archivage est décrit au §11 ;
+  les retours du test sont au §12 ; la reprise propre au §13.
+
+## 11. Remplacement du guide — archivage local / VPS (17/11/2026)
+
+> **Principe** : on ne supprime jamais le guide actif. On l'**archive** (slug
+> `rush-sylvestre-archive-<date>`, `isActive=false`), on crée un nouveau `rush-sylvestre` **vide** avec
+> les réglages copiés et le marqueur `rushUIConfig.seedSource = "trame-enriched"`, puis on importe le
+> payload via **God ▸ JSON** (dry-run → Appliquer). L'ancien guide/progression reste en base ; le
+> nouveau démarre à zéro.
+
+- **Script** : `scripts/archive-rush-guide.mjs` (même style que `seed-rush-sylvestre-cli.mjs`) :
+  `--dry-run` (défaut), `--apply`, `--list-archives`, `--delete-archive <slug> --apply`.
+  Il refuse toute suppression hors `rush-sylvestre-archive-*` ; la suppression cascade (`OptimizedGuide`
+  → blocs → séquences → progression, coches de ressources, états de donjons).
+- **Local (fait)** : `rush-sylvestre` archivé **108/492** → `rush-sylvestre-archive-20261117T224935` ;
+  nouveau guide **0/0** ; import God **36/591** ; l'ancien guide est conservé, le nouveau est actif
+  (pas en construction, public ouvert, `TIMELINE`).
+- **VPS (à faire)** : `./scripts/deploy-cd.sh beta` (code + script) → `pg_dump` de sauvegarde →
+  `docker compose exec app node scripts/archive-rush-guide.mjs --dry-run` puis `--apply` → God bêta
+  ▸ JSON ▸ `tougli-enriched.json` (le fichier reste **local** : le champ fichier du navigateur l'envoie)
+  → vérifier → `--delete-archive` seulement après validation. La **prod** suit la même procédure.
+- **Lecture seule** : la clé `agent-ro` ne peut pas exécuter ces écritures ; `pg_dump`, `docker compose
+  exec app`, l'import God et `--delete-archive` sont **humains**. `counts`/`logs` restent les seules
+  vérifications agent. Détail : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; `vps-read-only.md`.
+- **Legacy interdit** : `src/data/rush-sylvestre-guide.json` + le bouton « Importer » + le CLI
+  `seed-rush-sylvestre-cli.mjs` **resynchronisent l'ancien dataset** et suppriment les blocs absents ;
+  le bouton God est refusé par `seedSource`, mais **le CLI doit être considéré comme obsolète** sur le
+  nouveau guide (voir la note ajoutée dans `MAINTENANCE.md`). Le nouveau seed est le JSON enrichi.
+- **Conséquences** : progression/ressources/donjons des membres **remis à zéro** (nouveaux ids) ;
+  l'archive les conserve ; les pages `/q/<slug>` restent en 404 tant qu'elles ne sont pas publiées ;
+  le public est en ISR 1 h (revalidation/`updateRushSylvestreSettings` ou attente).
+- **PR** : le code (seed, import, action, script, tests) + les docs sont **non commités** ; branche
+  `feat/rush-touglie-enrichi` à créer, PR → `dev`, `npm run test:run`/`tsc`/`lint`/`security:audit`,
+  CI, merge, puis `deploy-cd.sh beta`. Aucune migration, aucun lockfile.
+
+## 12. Retours du test local (17/11/2026) — backlog
+
+> Le guide importé est **bon** (structures, quêtes, succès, donjons, DofusDex). Les retours portent sur
+> ce qui n'est **pas encore rendu** ou **pas importé**. Détail UI/UX/feature : `MODULE-RUSH-SYLVESTRE.md`
+> §5 et Bloc I ; prérequis : `QUEST-PREREQUISITES.md` §5.1/§6.
+
+| Retour | Cause | Lot |
+|---|---|---|
+| Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | le seed n'importe pas `prereqIds` ; `prereq_text` AND-only ; client 990/1984, 893 AND/97 OR | **Prérequis** (le plus gros) |
+| Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — agrandir, assets réels |
+| 68 succès : où ? | ce sont les lignes `isSuccess` (labels « Succès ») ; 10 dans « Compléments » ; **aucun compteur/filtre** ; overlay sans label | **UI** — compteur/filtre + overlay |
+| Compteur 0/448 vs 591 séquences | `RushGuideView.totalSteps` compte les **étapes** (blocs/variantes/infos), pas les 591 `GuideSequence` (68 succès, 33 blocs donjons, 10 Compléments) | **UI** — libellé/commentaire |
+| 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | **UI** — panneau/badge DofusDex |
+| Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | **UI** — icône du Dofus |
+| Quêtes non cliquables dans le guide navigateur | l'overlay ouvre le détail (`RushOverlayQuestListItem`) ; le dashboard/public ont l'icône Info, pas la ligne | **UI** — ligne cliquable |
+| Changement d'alignement : refresh ? | `resolveRushRoute` filtre depuis le profil ; les actions revalident le dashboard ; le public est local ; l'overlay peut nécessiter un reload ; `resolveRushScenario` (`switchPlan`) **non branché** | **UX/scénarios** |
+| Changement de personnage : aucun message | `altPseudo` → `characterSlot`, progression séparée, mais aucun retour visuel | **UX** — bandeau/toast |
+| **Succès de donjon : bouton `+`/modale** | **feature demandée** : voir `MODULE-RUSH-SYLVESTRE.md` **Bloc I** (guide navigateur + mini overlay interne/connecté) | **Bloc I** |
+| 55 conseils | `tipsToWrite` ; 6 paraphrases posées | **éditorial** |
+| Descriptions de blocs (8 vs 12) | description calculée avant l'enrichissement | **seed** (petit) |
+| 3 donjons inconnus | 95/98 résolus ; 3 alias | **data** (petit) |
+| 4 étapes / 10 succès | « Compléments — succès hors trame » | **normal** |
+| Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
+| Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |
+| Pages `/q/<slug>` | 0 publiée | **ops/édition** |
+
+**Ordre proposé** : **prérequis** → **UX** (clic, perso, alignement/`resolveRushScenario`) → **UI**
+(détail/assets, succès, DofusDex, icône) → **Bloc I** (succès de donjon) → **55 conseils** → **PR/VPS**
+(le seed actuel peut partir en bêta en parallèle).
+
+## 13. Reprise propre — la porte d'entrée
+
+1. Lire `docs/agents/activeContext.md` (bloc **suite 21**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
+2. Le **quoi** : `docs/plans/ROUTE-RUSH-ISO-TOUGLI.md` §10-13 (seed/archivage/retours) ;
+   `docs/plans/MODULE-RUSH-SYLVESTRE.md` **Bloc I** (succès de donjon) + **§5** (retours UI/UX).
+3. Les **prérequis** : `docs/reference/QUEST-PREREQUISITES.md` §5.1/§6.
+4. Les **ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; `docs/agents/vps-read-only.md`.
+5. **État local** : `rush-sylvestre` **36/591** (importé), archive **108/492** ;
+   `src/temp/rush-seed/tougli-enriched.json` (volatile) ; le code + les docs sont **non commités** ;
+   la branche est `dev`.
+6. **Prochaine session** : choisir le lot (prérequis, UX, UI, Bloc I) ; la PR du seed peut être préparée
+   en parallèle ; le VPS après la PR (backup → archive → import → vérifier → `--delete-archive`).
+7. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer le seed sans dry-run ; déplacer/
+   supprimer des quêtes cochées ; oublier `npm run test:run` avant la PR.

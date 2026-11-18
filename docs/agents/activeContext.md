@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 18/11/2026 (suite 22) — **Rush · Touglie enrichi mergé + quick win prérequis** — `dev` (`928c1d18`)
+
+> **Demande user (verbatim)** : « enchaine 1 2 3 » (PR du seed, prérequis, puis UX/UI).
+> **Fait** : PR **#1431** (Touglie enrichi + archivage) et **#1432** (prérequis) **mergées** ; `dev @ 928c1d18`. La suite entière a d'abord détecté une régression : `ROADMAP.md` à **62 162 o** pour un garde-fou à **61 440** → doc resserrée à **61 247 o** (le test n'a pas été touché).
+> **Prérequis mesurés** : 492 arêtes `prereqIds` → **442 tags `prereq_text`** posés (règle pure `attachQuestPrerequisites`) ; écartées : **19** quêtes de classe (`1960`), **1** autre cité, **30** cibles absentes, 7 doublons de nom ; plafond **30 tags** du schéma d'import respecté. L'import est **additif** : les tags n'apparaissent qu'au prochain **archivage + import** (bêta/prod), pas sur le guide local déjà importé.
+> **UI — non livré, mesuré** : le « 0/448 vs 591 » n'est produit par **aucun chemin** du code (seed : **0** tag `info_sequence`, **0** `choice_group` ; `buildRushGuideView().counters` n'est consommé que par le guide public). Le garde-fou `rush-vocabulary` impose « quêtes » pour un compteur de lignes cochables : l'alignement de l'overlay sur `stepCounts` a été **reverté**. **Reproduire l'écran avant de corriger.**
+> **Preuves** : **757 fichiers / 7 937 tests ✅** · `tsc` 0 · lint 0 erreur · audit sécurité vert (exception picomatch datée du 24/11) · CI verte sur les deux PR · `git status` propre.
+> **Reste / ops** : reproduire le compteur 448 ; UX (clic quête, message perso, alignement/`resolveRushScenario`) ; UI (détail/assets, succès, DofusDex, icône) ; **Bloc I** ; 55 conseils ; `deploy-cd.sh beta` puis archive → import → vérifier → `--delete-archive` (humains).
+
 ## 📝 Session 17/11/2026 (suite 21) — **Rush · Touglie enrichi, archivage local, retours du test et spec « succès de donjon »** — branche `feat/rush-touglie-enrichi` (à créer)
 
 > **Demande user (verbatim)** : « je voulais remplacer le contenu du guide actuel par les nouveautés avec le seed » · « documente littéralement tout ça stp dans les fichiers existants on va reprendre dans une session propre » · **feature** : dans les donjons requis, un bouton `+` par donjon → modale dédiée (guide navigateur) / mini (overlay, interne + visiteur connecté) listant les succès de donjon validés ou non, avec coche du donjon et des succès.

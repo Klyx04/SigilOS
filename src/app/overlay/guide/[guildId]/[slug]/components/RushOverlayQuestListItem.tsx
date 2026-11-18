@@ -186,6 +186,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
    * Le repère passe AVANT le verrou : on peut être « ici » sur une quête encore verrouillée.
    */
   const daState = isDone ? "Validée" : isBookmarked ? "Je suis ici" : isLocked ? "Verrouillée" : "À faire";
+  /**
+   * Icône de type de la quête — **dans la ligne du nom**, jamais au-dessus : posée dans
+   * la rangée de l'état (`items-start`), elle flottait à côté de « À faire / Verrouillée »
+   * au lieu de la quête (retour user du 18/11/2026). Même repli que le dashboard.
+   */
+  const titleIcon = (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={seqIcon ?? "/assets/icons/icone-quete.png"}
+      alt=""
+      className="w-4 h-4 shrink-0 object-contain opacity-90"
+      loading="lazy"
+    />
+  );
 
   return (
     <div
@@ -227,17 +241,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             étiquettes passent en dessous, en `flex-wrap` — la rangée unique d'avant écrasait
             le nom de la quête dès que la fenêtre PiP était étroite (retour user 08/10/2026). */}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {/* 1ʳᵉ rangée : icône de type · portrait PNJ · nom de la quête */}
+          {/* 1ʳᵉ rangée : portrait PNJ · état + nom de la quête (l'icône de type vit
+              désormais DANS la ligne du nom, voir `titleIcon`). */}
           <div className="flex min-w-0 items-start gap-1.5">
-          {/* Icône de type : même repli que le dashboard (`icone-quete.png`) — la ligne
-              reste reconnaissable même quand le God n'a pas posé d'icône sur la quête. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={seqIcon ?? "/assets/icons/icone-quete.png"}
-            alt=""
-            className="h-4 w-4 shrink-0 object-contain opacity-90"
-            loading="lazy"
-          />
           {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
             <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
           )}
@@ -250,9 +256,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               title={`Ouvrir la fiche sur ${externalLabel}`}
-              className="da-qtitle block w-full text-left transition-colors hover:text-accent hover:underline line-clamp-2"
+              className="da-qtitle block w-full text-left transition-colors hover:text-accent hover:underline"
             >
-              {name}
+              <span className="flex min-w-0 items-center gap-2">
+                {titleIcon}
+                <span className="line-clamp-2">{name}</span>
+              </span>
             </a>
           ) : (
             <button
@@ -262,9 +271,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 onOpenDetail();
               }}
               title="Voir les détails"
-              className="da-qtitle block w-full cursor-pointer text-left transition-colors hover:text-accent hover:underline line-clamp-2"
+              className="da-qtitle block w-full cursor-pointer text-left transition-colors hover:text-accent hover:underline"
             >
-              {name}
+              <span className="flex min-w-0 items-center gap-2">
+                {titleIcon}
+                <span className="line-clamp-2">{name}</span>
+              </span>
             </button>
           )}
           </div>

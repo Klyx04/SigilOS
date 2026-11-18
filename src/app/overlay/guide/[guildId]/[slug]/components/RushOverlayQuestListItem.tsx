@@ -9,7 +9,8 @@ import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinat
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 import type {
@@ -80,6 +81,8 @@ interface RushOverlayQuestListItemProps {
   bookmarkers?: OverlayBubbleMember[];
   /** Quête verrouillée tant que ses prérequis ne sont pas validés */
   isLocked?: boolean;
+  /** Les quêtes du guide (id → nom + état) : la fiche d'un succès les liste. */
+  guideQuests?: RushGuideQuestRef[];
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
   /**
@@ -132,6 +135,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onOpenDetail,
   bookmarkers = [],
   isLocked = false,
+  guideQuests = [],
   prereqs = [],
   missingDungeons = [],
   onGoToPrereq,
@@ -186,6 +190,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
    * Le repère passe AVANT le verrou : on peut être « ici » sur une quête encore verrouillée.
    */
   const daState = isDone ? "Validée" : isBookmarked ? "Je suis ici" : isLocked ? "Verrouillée" : "À faire";
+  /** Succès officiels portés par cette quête (pastille + fiche, jamais une coche). */
+  const successes = getSequenceSuccesses(seq);
   /**
    * Icône de type de la quête — **dans la ligne du nom**, jamais au-dessus : posée dans
    * la rangée de l'état (`items-start`), elle flottait à côté de « À faire / Verrouillée »
@@ -283,8 +289,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </div>
 
           {/* 2e ligne : indicateurs (chips harmonisés) — toute la largeur de la ligne */}
-          {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet) && (
+          {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet || successes.length > 0) && (
             <div className="flex flex-wrap items-center gap-1">
+              {successes.length > 0 && <SuccessChip successes={successes} quests={guideQuests} />}
               {alignmentSet && alignLabel && (
                 <span className={chip} title={`Quête d'alignement → ${alignLabel}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}

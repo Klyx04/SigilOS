@@ -95,7 +95,12 @@ export type TrameInput = {
 };
 
 /** Succès officiel (`public/game-data/achievements.json`) : id, nom, quêtes couvertes. */
-export type RushAchievementInput = { id: number; name: string; questIds?: number[] };
+export type RushAchievementInput = {
+  id: number;
+  name: string;
+  iconId?: number | null;
+  questIds?: number[];
+};
 
 /** Objectif officiel d'un Dofus (`public/game-data/dofusdex.json`). */
 export type RushDofusDexObjective = {
@@ -739,7 +744,15 @@ function attachSuccessTags(
         continue;
       }
       if (current.length >= MAX_ACTIVITY_TAGS) continue;
-      sequence.activityTags = [...current, { type: "succes", name, id }];
+      sequence.activityTags = [
+        ...current,
+        {
+          type: "succes",
+          name,
+          id,
+          ...(typeof achievement.iconId === "number" ? { iconId: achievement.iconId } : {}),
+        },
+      ];
       touched.add(sequence);
       tags += 1;
       used = true;

@@ -83,7 +83,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
@@ -100,6 +100,7 @@ import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
 
@@ -270,6 +271,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               const guildId = React.useContext(GuildIdCtx);
   const resourceChecks = React.useContext(ResourceChecksCtx);
   const onToggleResourceCheck = React.useContext(OnToggleResourceCheckCtx);
+  /**
+   * Quêtes du guide (id → nom + état) pour la fiche d'un succès. Construite par ligne
+   * (53 entrées) : aucune requête, aucun état partagé de plus.
+   */
+  const guideQuests = useMemo(() => {
+    const out: Array<{ id: number; name: string; done: boolean }> = [];
+    for (const milestone of allMilestones) {
+      for (const sequence of milestone.sequences ?? []) {
+        for (const id of (sequence as { questDbIds?: number[] }).questDbIds ?? []) {
+          out.push({ id, name: sequence.subGuideName || `Quête ${id}`, done: allCompletedSeqIds.has(sequence.id) });
+        }
+      }
+    }
+    return out;
+  }, [allMilestones, allCompletedSeqIds]);
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === (bookmarksByMs.get(ms.id) ?? null);
@@ -493,6 +509,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 )}
               </button>
             )}
+            <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} />
             {(() => {
               const npc = getSequenceNpc(seq);
               if (!npc || (!npc.name && npc.id === null)) return null;

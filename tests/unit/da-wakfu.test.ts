@@ -369,7 +369,10 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
 
     it("le thème n'est plus passé en prop : `data-theme` + un contexte pour les portails", () => {
         // Zéro `isLightMode` dans TOUT `src` : la vérité vit sur la racine.
-        expect(readFileSync(SHELL, "utf8")).toMatch(/data-theme=\{lightMode \? "light" : "dark"\}/);
+        // Depuis le 18/11/2026, l'overlay est sombre uniquement : `data-theme` est
+        // posé en dur et plus aucun état clair n'est synchronisé.
+        expect(readFileSync(SHELL, "utf8")).toMatch(/data-theme="dark"/);
+        expect(readFileSync(SHELL, "utf8")).not.toMatch(/lightMode/);
         expect(readFileSync(SHELL, "utf8")).toMatch(/<DaThemeProvider value=\{daThemeValue\}>/);
         for (const path of [SHELL, HEADER, DOCK, "src/components/da/da-theme.tsx"]) {
             expect(readFileSync(path, "utf8"), path).not.toMatch(/isLightMode/);

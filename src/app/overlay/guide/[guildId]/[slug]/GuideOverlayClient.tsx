@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { CheckCircle2, Users } from "lucide-react";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
@@ -146,17 +146,6 @@ type Props = {
   selfOrder?: string | null;
 };
 
-/**
- * `useLayoutEffect` côté navigateur, `useEffect` au rendu serveur.
- *
- * F10 — le thème de l'overlay vit dans `localStorage`, que le serveur ne connaît pas.
- * Le lire dans un `useEffect` laissait peindre un premier cadre sombre avant de basculer
- * en clair : c'est le clignotement du mode clair. Un *layout effect* s'exécute après le
- * commit DOM mais **avant** la peinture — le thème est posé avant le premier pixel.
- */
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
 export default function GuideOverlayClient({
   guildId = "public",
   guide,
@@ -218,30 +207,11 @@ export default function GuideOverlayClient({
     return null;
   }, []);
 
-  // ─── Thème Clair / Sombre ─────────────────────────────────────────────────
-  // Source UNIQUE du thème de la DA : l'état local, posé sur la racine en
-  // `data-theme` (+ `.light` pour la passerelle des jetons sémantiques). Les
-  // composants ne le reçoivent plus en prop : ceux qui sortent de l'arbre
-  // (portails) lisent le contexte `DaThemeProvider`.
-  const [lightMode, setLightMode] = useState<boolean>(false);
-  // F10 : avant peinture, pas après (voir `useIsomorphicLayoutEffect`).
-  useIsomorphicLayoutEffect(() => {
-    try {
-      const saved = localStorage.getItem("sigil_overlay_theme");
-      if (saved === "light") setLightMode(true);
-    } catch {}
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    setLightMode((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("sigil_overlay_theme", next ? "light" : "dark");
-      } catch {}
-      toast.info(next ? "☀️ Mode Clair activé" : "🌙 Mode Sombre activé", { duration: 1200 });
-      return next;
-    });
-  }, []);
+  // ─── Thème ────────────────────────────────────────────────────────────────
+  // L'overlay est **sombre uniquement** (décision du 18/11/2026) : le bouton de
+  // bascule clair/sombre et sa préférence persistée en `localStorage` ont été
+  // retirés. La DA « Gouache Wakfu » est peinte pour un fond sombre ; un thème
+  // clair la dénaturait et ajoutait un état à synchroniser pour rien.
 
   const [showResources, setShowResources] = useState<boolean>(false);
   const [showOcre, setShowOcre] = useState<boolean>(false);
@@ -1303,11 +1273,11 @@ export default function GuideOverlayClient({
   // `data-theme`, une seule fois — plus aucun composant ne reçoit le thème en prop.
   const daThemeValue = useMemo(
     () => ({
-      theme: lightMode ? ("light" as const) : ("dark" as const),
+      theme: "dark" as const,
       block: daBlock,
       accent: daTheme.accent,
     }),
-    [lightMode, daBlock, daTheme.accent]
+    [daBlock, daTheme.accent]
   );
 
   // Compteurs des filtres — même source que la liste filtrée, même règle pure
@@ -1414,24 +1384,21 @@ export default function GuideOverlayClient({
   // épingler / réduire) diffèrent selon le contexte.
 
   return (
-    // `.light` bascule les jetons de thème pour tout le sous-arbre : les
-    // composants du rush (carte de quête, modales détails/donjon/badges) ne se
-    // peignent qu'avec `--surface`, `--border`, `--accent`… et suivent donc le
-    // thème sans variante claire codée en dur. Sans cette classe, `<html>` porte
-    // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
-    // Le fournisseur expose la MÊME vérité aux portails, sans prop-drilling.
+    // L'overlay est **sombre uniquement** : `data-theme="dark"` est posé une seule fois,
+    // et le fournisseur expose la même vérité aux portails (popover de donjon, prérequis)
+    // sans prop-drilling.
     <DaThemeProvider value={daThemeValue}>
     <div
       ref={rootRef}
       data-da="wakfu"
-      data-theme={lightMode ? "light" : "dark"}
+      data-theme="dark"
       data-block={daBlock}
       /* F7 (chantier 4) — la PiP flotte AU-DESSUS du jeu : `data-quality="low"` coupe le grain
          et les bords « rough » (règle `[data-quality="low"]` de `da-wakfu.css`, déjà écrite
          mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa
          signature, la petite fenêtre reste nette. */
       data-quality="low"
-      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors ${lightMode ? "light" : ""} bg-background text-foreground`}
+      className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors bg-background text-foreground`}
       style={{
         fontFamily: "var(--da-font-text)",
         ...(daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : null),
@@ -1456,7 +1423,6 @@ export default function GuideOverlayClient({
             overallPct={overallPct}
             isNarrow={overlaySmall}
             density={overlayDensity}
-            onToggleTheme={toggleTheme}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
             onOpenTutorial={() => setShowTutorial(true)}
@@ -1796,7 +1762,7 @@ export default function GuideOverlayClient({
           l'arbre : hors de cette portée, il retombait sur un noir en dur). */}
       <div
         data-da="wakfu"
-        data-theme={lightMode ? "light" : "dark"}
+        data-theme="dark"
         data-block={daBlock}
         className="contents"
       >

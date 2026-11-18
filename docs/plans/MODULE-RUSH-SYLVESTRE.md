@@ -84,7 +84,7 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 `src/store/rush-overlay-store.ts` · `src/types/rush-guide-types.ts` · `src/data/rush-sylvestre-guide.json` (**96 blocs / 335 séquences / 568 tags `item` / 391 ids uniques**) · `src/data/rush-sylvestre-guide.enriched.json` (374 quêtes) · `src/data/rush-sylvestre-pense-bete.ts`
 
 ### 1.8 Scripts
-`scripts/correlate-rush-guides.mjs` (Tougli ∪ Dofusyelle ∪ NOOBS — **rapport dry-run**) · `enrich-rush-guide-items.mjs` · `seed-rush-sylvestre-cli.mjs` · `seed-rush-sylvestre-enriched-cli.mjs` · `inspect-rush-sylvestre-guide.mjs` · `prune-rush-guide-orphans.mjs` · `dofus-asset-siphoner.ts` · `siphon-guide-images.ts`
+`scripts/correlate-rush-guides.mjs` (Tougli ∪ Dofusyelle ∪ NOOBS — **rapport dry-run**) · `enrich-rush-guide-items.mjs` · `seed-rush-sylvestre-cli.mjs` · `seed-rush-sylvestre-enriched-cli.mjs` · `inspect-rush-sylvestre-guide.mjs` · `prune-rush-guide-orphans.mjs` · `dofus-asset-siphoner.ts` · `siphon-guide-images.ts` · `build-rush-trame-seed.ts` (**Touglie enrichi**, `--enrich-yelle`) · `archive-rush-guide.mjs` (**archivage/remplacement** local + VPS)
 
 ### 1.9 Tests (**49** fichiers `tests/unit/rush-*.test.ts`)
 
@@ -362,6 +362,76 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Overlay public (10/11)** : `DialogContent` porte un `portalContainer` ; `PublicMetamobModal` est rendue dans le `body` de la **PiP** (même `OcreQuestPanel`), les captures du visiteur sont poussées par `publicCapturedOcreNames`, et `OverlayToastProvider` est monté dans le portail public (toasts dans la PiP, DA unique). `notifyBlockDone` toastifie un **bloc validé** / un **Dofus obtenu** dans `GuideOverlayClient`.
 - **Reste (mesuré le 10/11)** : le live **entre visiteurs du même serveur** (bloc validé / Dofus obtenu) = **V2c**, **livré le 11/11/2026** (room SSE par serveur, `showPresence` opt-in, toasts page + PiP) ; les toasts de la **page** publique restent des toasts de page, volontairement.
 
+### I — Succès de donjon (modale) · à faire (17/11/2026)
+
+- **Besoin (verbatim)** : « dans les dj requis un bouton en + par dj qui ouvre une modale (modale dédiée
+  pour le guide navigateur et mini modale aussi côté rush mais que pour l'interne et visiteur connectés)
+  qui liste les succès validés ou non et qui est sur l'étape et pourrait taper ce donjon et ce / ces succès ».
+- **État mesuré** :
+  - `DungeonAchievement` (les succès du donjon : `dungeonId`, `challengeId`, `points`, `imageUrl`,
+    `description`, `achievedBy`, `publicAchievedBy`, `userProgress`) ; `visibleDungeonAchievements`
+    (le pseudo-succès « Donjon validé » de `Dungeon.isNoAchievement`) ; `getDungeonAchievementIconUrl`.
+  - `UserDungeonAchievement` (interne : `userId`, `dungeonAchievementId`, `characterSlot`, `completedAt`) ;
+    `UserDungeonProgress` (interne « Mes Succès » : `profileId`, `dungeonId`, `achievementId`,
+    `characterSlot`, `source`) ; `PublicDungeonAchievement` (visiteur : `publicProfileId`,
+    `dungeonAchievementId`, `characterSlot`, `completedAt`).
+  - Actions existantes : `toggleDungeonAchievement`/`getDungeonAchievementStates`
+    (`dungeon-achievement-actions.ts`, le boss `SuccesBossGuide`) ; `toggleDungeonAchievements`
+    (`dungeon-finder-actions.ts`, le `SuccesTracker`) ; `togglePublicDungeonAchievement`/les bracket/group
+    (`public-profile-actions.ts`, l'espace visiteur) ; `setRushDungeonState` (`optimized-guide-actions.ts`,
+    `PlayerGuideDungeonState`, la coche **par occurrence** de quête).
+  - UI existante : `RushOverlayDungeonCard` (les donjons requis, les états, le `+` ocre) ;
+    `RushOverlayDungeonPopover` ; `RushOverlayQuestDetailModal` (le détail, la carte donjon) ;
+    `RushOverlayQuestListItem` (l'overlay) ; `RushTimelineClient`/`PublicRushGuideClient`/`GuideOverlayClient`
+    (les 3 surfaces) ; `RushOverlayDungeonCard` est déjà partagé par le détail dashboard/public/overlay.
+- **Changement** :
+  - Un bouton **`+`** par donjon **requis** (`sequence.dungeonIds` − `dungeonOptionalIds`) dans la carte
+    donjon (le `RushOverlayDungeonCard`, à côté du badge ocre) ; il ouvre la modale.
+  - **Guide navigateur** : une **modale dédiée** (`DungeonAchievementsModal`, pleine) depuis le détail de
+    l'étape (dashboard et public connecté) ; liste les `DungeonAchievement` du donjon avec l'état
+    **validé/non validé** du membre (`UserDungeonAchievement`/`UserDungeonProgress`/`PublicDungeonAchievement`),
+    le « Valider le donjon » (`setRushDungeonState(..., "DONE")`/`TODO`/`null`) et le toggle des succès
+    (`toggleDungeonAchievement`/`toggleDungeonAchievements` pour l'interne, `togglePublicDungeonAchievement`
+    pour le visiteur).
+  - **Overlay Rush** : une **mini modale** (`RushOverlayDungeonAchievementsModal`) depuis la carte donjon,
+    **uniquement** pour l'**interne** (le guildId réel) et le **visiteur connecté** (un profil) ; le
+    **guest** (`isGuest`/`isPublicOverlay`) reste en **lecture seule** (ou sans le bouton) — aucune
+    écriture serveur sans profil.
+  - **« Sur l'étape »** : la coche du donjon est **par occurrence** (`sequenceId` + `dungeonKey`, la table
+    `PlayerGuideDungeonState`) ; les succès de donjon sont **par donjon + personnage** (`characterSlot`) ;
+    la modale dit les deux niveaux (le donjon de cette étape / les succès du donjon) pour ne pas confondre
+    « ce donjon » et « ce succès ».
+  - **Assets** : l'icône du succès (`getDungeonAchievementIconUrl`), le nom du challenge, les points, le
+    boss/le niveau/le donjon ; la même ligne/le même composant sur les 3 surfaces ; la DA (tokens, pas de
+    `filter` sur les listes, `data-quality`), le responsive 390/768/1024/1440, le focus/`aria`.
+
+- **Données / décisions ouvertes** :
+  - **Deux tables internes** (`UserDungeonAchievement` vs `UserDungeonProgress`) : la source **canonique**
+    de « Mes Succès » doit être choisie ; ne pas créer une troisième vérité. Le `SuccesBossGuide`
+    (`UserDungeonAchievement`) et le `SuccesTracker` (`UserDungeonProgress`) doivent être alignés ou
+    explicitement distingués (le lot doit trancher).
+  - **`characterSlot`** : les 4 tables le portent ; la modale doit utiliser le **personnage sélectionné**
+    (`altPseudo`) comme `setRushDungeonState` ; le `UserDungeonAchievement` est `userId` (pas `profileId`).
+  - **Visiteur** : `PublicDungeonAchievement` pour l'espace visiteur/le guide public connecté ; la coche
+    du **donjon** (`PlayerGuideDungeonState`) exige un `guildId`/un `UserProfile` — le guide public
+    connecté ne peut donc pas « taper le donjon » par cette table ; décider (le public connected a-t-il
+    un `PlayerGuideDungeonState` ? sinon, la coche du donjon reste **interne**, le visiteur ne coche que
+    ses succès `PublicDungeonAchievement`).
+  - **`isNoAchievement`** : le pseudo-succès « Donjon validé » est-il listé/cochable ? Le `visibleDungeonAchievements`
+    le filtre déjà ; le « Valider le donjon » le remplace.
+  - **`DungeonAchievement` vs les 68 `isSuccess`** : la modale traite les **succès de donjon**, pas les
+    succès de quête Yelle (`GuideSequence.isSuccess`) ; le libellé doit être sans ambiguïté.
+  - **Donjons optionnels** : le `+` est sur les **requis** ; les optionnels peuvent être listés sans
+    bloquer (le `dungeonOptionalIds` existant).
+- **Tests** : la règle pure (requis/optionnel, `dungeonKey`, `sequenceDungeonProgress`, `missingDungeons`,
+  `visibleDungeonAchievements`, `isNoAchievement`) ; les actions (auth interne/visiteur, guilde/guide/
+  séquence/donjon, `characterSlot`, rate limit, idempotence, log, fail-closed) ; l'UI (le `+` par requis,
+  la modale pleine, la mini, le guest, la parité des 3 surfaces, la DA/responsive/a11y) ; les verrous
+  existants (`rush-overlay-dungeon-gate` 12, `dungeon-invalidation`, `rush-dungeons`,
+  `dungeon-no-achievement`, `dungeon-completion` 7, `succes-ui-deslop` 4).
+- **Statut** : **à faire** ; ordre dans `docs/ROADMAP.md` ; priorité après les prérequis et l'UX de
+  navigation, avant les 55 conseils.
+
 ## 3. Ordre d'exécution
 
 → **`docs/ROADMAP.md`** (l'ordre unique). Non recopié ici.
@@ -375,3 +445,32 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 5. **Fail-closed** : un alignement / ordre inconnu ne débloque rien ; état illisible ⇒ on refuse.
 6. **Une seule implémentation par comportement** (un composant partagé, jamais une copie par surface).
 7. **Ressources et validation** : valider une quête **coche** toutes ses ressources, l'invalider les **décoche** — règle pure `src/lib/rush-resource-checks.ts`, appliquée côté serveur et en écho optimiste sur les trois surfaces.
+
+## 5. Retours du test local (17/11/2026) — backlog UI/UX
+
+> Le guide **Touglie enrichi** est importé (36/591) et bon ; les retours portent sur le **rendu** ou le
+> **contenu non importé**. Détail route/seed/archive : `ROUTE-RUSH-ISO-TOUGLI.md` §10-13 ; prérequis :
+> `QUEST-PREREQUISITES.md` §5.1/§6 ; feature succès de donjon : **Bloc I**.
+
+| Retour | Lot | Points d'entrée |
+|---|---|---|
+| Prérequis absents | Données | `prereqIds` Trame, client `startCriterion`, `prereq_text`/`prereq_expr`, `GameQuest.levelMin` |
+| Détail trop petit / vrais monstres/items | UI | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
+| 68 succès sans compteur | UI | `RushGuideView`/`stepCounts`, `RushTimelineClient`, `PublicRushGuideClient`, `RushOverlayQuestListItem` |
+| Compteur 0/448 vs 591 séquences | UI | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
+| 16 DofusDex sans panneau | UI | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
+| Icône Dofus discrète | UI | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
+| Quêtes non cliquables | UI | `RushOverlayQuestListItem` (overlay), `RushOverlayQuestDetailModal`, `RushTimelineClient`/`PublicRushGuideClient` |
+| Changement perso sans message | UX | `altPseudo`/`characterSlot`, `getOptimizedGuideDetail`, `RushOverlayHeader` |
+| Alignement sans refresh/message | UX | `resolveRushRoute`, `resolveRushScenario` (`switchPlan`), `applyRushAlignmentFromSequence`, `resetRushAlignment` |
+| Succès de donjon | **Bloc I** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
+| 55 conseils | Éditorial | `tipsToWrite` |
+| Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
+| 3 donjons inconnus | Data | `dungeonNames` 98/95, `Dungeon`/`bossName` |
+| 4 étapes/10 succès | Normal | « Compléments — succès hors trame » |
+| Cache public | Ops | ISR 1 h, `revalidatePath`/`updateRushSylvestreSettings` |
+| Progression au déplacement | Backend | `moveRushSequence`, `PlayerGuideProgress`, `deleteRushMilestone` |
+| Pages `/q/<slug>` | Ops | 0 publiée |
+
+**Ordre** : prérequis → UX (clic, perso, alignement/`resolveRushScenario`) → UI (détail/assets, succès,
+DofusDex, icône) → **Bloc I** (succès de donjon) → 55 conseils → PR/VPS.

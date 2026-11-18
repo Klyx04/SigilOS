@@ -1166,6 +1166,13 @@ Le guide vit **en base** (`GuideMilestone` / `GuideSequence`), seedé depuis le 
 `src/data/rush-sylvestre-guide.json` (source unique, committée). Trois commandes, dans cet ordre,
 **par environnement** :
 
+> ⚠️ **Depuis le 17/11/2026, le guide `rush-sylvestre` est le seed Trame enrichi** (`tougli-enriched.json`,
+> `rushUIConfig.seedSource`). L'ancien dataset `src/data/rush-sylvestre-guide.json`, le bouton
+> « Importer » et `seed-rush-sylvestre-cli.mjs` sont **legacy** : ils **resynchronisent l'ancien contenu
+> et suppriment les blocs absents**. Le bouton God est refusé (`seedSource`) ; **ne pas lancer le CLI**
+> sur le nouveau guide. Pour remplacer/archiver le guide, voir la section **« Rush — remplacer/archiver »**
+> plus bas.
+
 | Étape | Commande | Effet |
 |---|---|---|
 | 1. Seed / re-seed | bouton **« Importer »** de `/god/rush-sylvestre` **ou** `node scripts/seed-rush-sylvestre-cli.mjs --apply` | crée/enrichit les blocs et quêtes **sans perte** (appariement par bloc + nom normalisé) |
@@ -1337,5 +1344,50 @@ WHERE g.slug = 'rush-sylvestre';
 > **Encodage** : les noms comportent des accents (`é`, `à`). Passe les fichiers **en flux** (`< ~/01-….sql`)
 > ou colle-les depuis un client en `UTF8` (`SHOW client_encoding;`) — un pipe qui ré-encode (PowerShell →
 > psql) casse les correspondances par nom (mesuré : 2 lignes sur 5 muettes).
+
+## 🏹 Rush — remplacer / archiver le guide (local + VPS)
+
+> **Principe** : on **archive** le guide actif (`rush-sylvestre-archive-<date>`, `isActive=false`), on
+> crée un nouveau `rush-sylvestre` vide (réglages copiés, `rushUIConfig.seedSource=trame-enriched`), puis
+> on importe le seed **Touglie enrichi** via **God ▸ JSON** (dry-run → Appliquer). L'ancien guide, sa
+> progression et ses coches restent en base ; le nouveau démarre à zéro. **Aucune migration.**
+
+### Local
+
+```bash
+node scripts/archive-rush-guide.mjs --dry-run     # 108/492 -> archive + nouveau vide
+node scripts/archive-rush-guide.mjs --apply       # écrit (transaction)
+# God ▸ Rush Sylvestre ▸ JSON ▸ src/temp/rush-seed/tougli-enriched.json
+#   Analyser (36 blocs / 591 séquences) -> Appliquer
+node scripts/archive-rush-guide.mjs --list-archives
+# nettoyage final seulement : node scripts/archive-rush-guide.mjs --delete-archive rush-sylvestre-archive-<date> --apply
+```
+
+### VPS (bêta puis prod)
+
+```bash
+./scripts/deploy-cd.sh beta
+# sauvegarde (lecture) — le fichier reste dans le conteneur db
+docker compose exec -T db pg_dump -U user -d sigilos -Fc -f /tmp/sigilos-rush-$(date +%F-%H%M).dump
+docker compose exec app node scripts/archive-rush-guide.mjs --dry-run
+docker compose exec app node scripts/archive-rush-guide.mjs --apply
+# God bêta ▸ JSON ▸ tougli-enriched.json (le fichier reste LOCAL : le navigateur l'envoie)
+#   Analyser -> Appliquer ; vérifier le guide (36/591, 68 succès, 33 blocs donjons, 16 DofusDex)
+# après validation :
+docker compose exec app node scripts/archive-rush-guide.mjs --delete-archive rush-sylvestre-archive-<date> --apply
+```
+
+- **Lecture seule** : la clé `agent-ro` ne permet **ni** `docker compose exec app`, **ni** `pg_dump`,
+  **ni** l'import God, **ni** `--delete-archive` : ce sont des actions **humaines**. `counts` (les
+  `GuideSequence` du guide) et `logs` restent les vérifications agent.
+- **Legacy** : `src/data/rush-sylvestre-guide.json` + `seed-rush-sylvestre-cli.mjs` sont **obsolètes**
+  sur le nouveau guide (ils resynchronisent l'ancien dataset et suppriment les blocs absents) ; le bouton
+  God est refusé par `seedSource`. Le seed du nouveau guide est `tougli-enriched.json` (généré par
+  `build-rush-trame-seed.ts --spine tougli --enrich-yelle`).
+- **Effets** : progression/ressources/donjons des membres **remis à zéro** (nouveaux ids) ; l'archive
+  conserve l'ancien ; les pages `/q/<slug>` restent 404 tant qu'elles ne sont pas publiées ; la page
+  publique est ISR 1 h (revalidation ou attente).
+- **Rollback** : l'archive est la sauvegarde ; un dump PostgreSQL est la ceinture ; le renommage inverse
+  (archive → `rush-sylvestre`) est une intervention manuelle (pas de `--restore` dans le script).
 
 

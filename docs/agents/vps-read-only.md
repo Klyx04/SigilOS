@@ -52,6 +52,10 @@ répond `Commande non autorisée` (code 2) et est journalisé (`logger -t sigilo
 > total `GameQuest`. Ajouter un verbe `dungeons` (ou `game_counts`) serait une **nouvelle
 > capacité** : revue + ce document + test de la matrice (`status`, `logs`, `migrations`,
 > `whoami` refusé).
+>
+> **Rush — remplacer/archiver** : action **humaine** (`scripts/archive-rush-guide.mjs --apply`,
+> `pg_dump`, import God `JSON`, `--delete-archive`). Aucun verbe `agent-ro` ne l'expose ; `counts`/`logs`
+> restent les seules vérifications. Détail : `docs/MAINTENANCE.md` § Rush — remplacer/archiver.
 
 ## 3. Le rôle `sigil_ro` (une fois, sur la bêta)
 

@@ -94,6 +94,9 @@ export type TrameInput = {
   dofusyelle?: { steps?: TrameStep[]; correlation?: TrameCorrelation[] };
 };
 
+/** Succès officiel (`public/game-data/achievements.json`) : id, nom, quêtes couvertes. */
+export type RushAchievementInput = { id: number; name: string; questIds?: number[] };
+
 /** Objectif officiel d'un Dofus (`public/game-data/dofusdex.json`). */
 export type RushDofusDexObjective = {
   order?: number;
@@ -153,6 +156,8 @@ export type RushTrameSeedOptions = {
    * de sa branche. `false` pour ne tester que le graphe du jeu (prérequis officiels).
    */
   routeOrderLock?: boolean;
+  /** Succès officiels : leur présence pose un tag `succes` sur les quêtes qu'ils couvrent. */
+  achievements?: RushAchievementInput[];
 };
 
 export type RushTrameSeedReport = {
@@ -178,6 +183,12 @@ export type RushTrameSeedReport = {
   prereqSkipped: number;
   /** Prérequis d'**ordre** posés par la route (chaque quête exige la précédente de sa branche). */
   routePrereqs: number;
+  /** Succès officiels attachés (au moins une quête couverte). */
+  successAchievements: number;
+  /** Tags `succes` posés sur des quêtes. */
+  successTags: number;
+  /** Quêtes distinctes portant au moins un succès. */
+  successQuests: number;
   unmatched: Array<{ step: number | null; title: string; reason: string }>;
   tipsToWrite: Array<{ step: number | null; title: string; category: string; lines: number }>;
   blockTypes: Record<string, number>;
@@ -689,6 +700,56 @@ function attachQuestPrerequisites(
 }
 
 /**
+ * Succès officiels (`public/game-data/achievements.json`) → tag `succes` sur **chaque quête**
+ * que le succès couvre.
+ *
+ * Un succès n'est **jamais** une case à cocher : sa progression est celle de ses quêtes
+ * (mesure du 18/11/2026 : les 68 lignes `isSuccess` étaient 68 doublons cochables, sans
+ * aucune quête liée). Une quête pleine (30 tags) n'en reçoit pas — les ressources passent avant.
+ */
+function attachSuccessTags(
+  blocks: RushImportBlock[],
+  achievements: RushAchievementInput[] | undefined
+): { achievements: number; tags: number; quests: number } {
+  if (!achievements?.length) return { achievements: 0, tags: 0, quests: 0 };
+
+  const byQuest = new Map<number, RushImportSequence>();
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      for (const questId of sequence.questDbIds ?? []) {
+        if (!byQuest.has(questId)) byQuest.set(questId, sequence);
+      }
+    }
+  }
+
+  const touched = new Set<RushImportSequence>();
+  let attached = 0;
+  let tags = 0;
+  for (const achievement of achievements) {
+    const name = text(achievement.name, 200);
+    if (!name) continue;
+    const id = String(achievement.id);
+    let used = false;
+    for (const questId of achievement.questIds ?? []) {
+      const sequence = byQuest.get(questId);
+      if (!sequence) continue;
+      const current = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+      if (current.some((tag) => tag.type === "succes" && tag.id === id)) {
+        used = true;
+        continue;
+      }
+      if (current.length >= MAX_ACTIVITY_TAGS) continue;
+      sequence.activityTags = [...current, { type: "succes", name, id }];
+      touched.add(sequence);
+      tags += 1;
+      used = true;
+    }
+    if (used) attached += 1;
+  }
+  return { achievements: attached, tags, quests: touched.size };
+}
+
+/**
  * Verrou d'**ORDRE** de la route (option C, 18/11/2026) — chaque quête exige la **précédente
  * de sa branche**, sauf :
  *  · une quête **« à prendre à l'avance »** (`takeEarly`) : elle se prend tôt et ne sert pas
@@ -933,6 +994,9 @@ function buildTougliBlocks(
     prereqTags: 0,
     prereqSkipped: 0,
     routePrereqs: 0,
+    successAchievements: 0,
+    successTags: 0,
+    successQuests: 0,
     unmatched: [],
     tipsToWrite,
     blockTypes,
@@ -1422,6 +1486,9 @@ function buildYelleBlocks(
       prereqTags: 0,
       prereqSkipped: 0,
       routePrereqs: 0,
+      successAchievements: 0,
+      successTags: 0,
+      successQuests: 0,
       unmatched,
       tipsToWrite,
       blockTypes,
@@ -1443,12 +1510,13 @@ export function buildRushSeedFromTrame(
   const spine: RushTrameSpine = options.spine ?? "tougli";
   const resolved = {
     includeClasses: options.includeClasses ?? true,
-    includeSuccesses: options.includeSuccesses ?? true,
+    includeSuccesses: options.includeSuccesses ?? false,
     includeResources: options.includeResources ?? true,
     maxSequencesPerBlock: Math.max(1, Math.min(120, options.maxSequencesPerBlock ?? 120)),
     dofusdex: options.dofusdex ?? null,
     enrichFromYelle: options.enrichFromYelle ?? false,
     routeOrderLock: options.routeOrderLock ?? true,
+    achievements: options.achievements ?? [],
   };
 
   if (!trame || typeof trame !== "object") {
@@ -1469,6 +1537,9 @@ export function buildRushSeedFromTrame(
         prereqTags: 0,
         prereqSkipped: 0,
         routePrereqs: 0,
+        successAchievements: 0,
+        successTags: 0,
+        successQuests: 0,
         unmatched: [],
         tipsToWrite: [],
         blockTypes: {},
@@ -1503,6 +1574,12 @@ export function buildRushSeedFromTrame(
       );
     }
   }
+
+  // Succès officiels : tags sur les quêtes qu'ils couvrent (jamais une ligne cochable).
+  const success = attachSuccessTags(built.blocks, resolved.achievements);
+  built.report.successAchievements = success.achievements;
+  built.report.successTags = success.tags;
+  built.report.successQuests = success.quests;
 
   // Filet de sécurité inter-blocs : l'import apparie les blocs par titre normalisé.
   const seen = new Set<string>();

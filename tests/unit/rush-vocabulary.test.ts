@@ -30,6 +30,9 @@ describe("vocabulaire du Rush — un mot par chose", () => {
 
   it("le compteur de blocs dit « blocs » (il compte des jalons, pas des quêtes)", () => {
     expect(LEGACY_GUIDE).toContain("{milestones.length} blocs complétés");
+    // En-tête de progression du dashboard : `completedIds` porte des ids de BLOCS
+    // (`playerProgress.isCompleted`), jamais des ids de quêtes.
+    expect(DASHBOARD).toContain("{completedCount} / {tMs} blocs");
   });
 
   it("plus aucun compteur ne dit « étapes » suivi d'un pourcentage", () => {

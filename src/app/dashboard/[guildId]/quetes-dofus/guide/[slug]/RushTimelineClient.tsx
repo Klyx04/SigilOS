@@ -2417,7 +2417,7 @@ const timelineItems=useMemo(()=>{
         <div className="flex flex-wrap items-center gap-3 px-1 pt-1">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
           <span className="text-sm font-mono tabular-nums text-foreground">{overallPercent} %</span>
-          <span className="text-xs text-muted-foreground font-mono tabular-nums">({completedCount} / {tMs} étapes)</span>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">({completedCount} / {tMs} blocs)</span>
           <div className="h-1.5 bg-elevated rounded-[2px] flex-1 max-w-[320px] ml-auto overflow-hidden">
             <div className="h-full rounded-[2px] bg-success transition-all duration-300" style={{width:`${overallPercent}%`}}/>
           </div>

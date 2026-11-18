@@ -4839,7 +4839,7 @@ const RushImportBlockSchema = z.object({
     .optional(),
   dofusId: z.string().trim().max(64).nullish(),
   isOptional: z.boolean().optional(),
-  sequences: z.array(RushImportSequenceSchema).max(80),
+  sequences: z.array(RushImportSequenceSchema).max(120),
 });
 
 const RushImportPayloadSchema = z.object({

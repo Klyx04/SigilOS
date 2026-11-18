@@ -46,6 +46,8 @@ type TrameQuest = {
   /** Ids locaux de la Trame (cuid) — **non portables**, conservés pour mémoire. */
   dungeonOurIds?: string[];
   dungeonNames?: string[];
+  /** Prérequis **entre quêtes** (Touglie) : ids des quêtes à terminer avant celle-ci. */
+  prereqIds?: number[];
 };
 
 type TrameCondition = { kind?: string; raw?: string; value?: string | null };
@@ -160,6 +162,10 @@ export type RushTrameSeedReport = {
   yelleDungeonBlocks: number;
   /** Blocs `DOFUS` enrichis avec la checklist officielle + le `dofusId`. */
   dofusDexTagged: number;
+  /** Tags `prereq_text` posés depuis les `prereqIds` de la Trame (442 sur 492 le 17/11/2026). */
+  prereqTags: number;
+  /** Arêtes de prérequis écartées : cible absente, autre branche, soi-même, plafond de tags. */
+  prereqSkipped: number;
   unmatched: Array<{ step: number | null; title: string; reason: string }>;
   tipsToWrite: Array<{ step: number | null; title: string; category: string; lines: number }>;
   blockTypes: Record<string, number>;
@@ -556,7 +562,116 @@ function pushUnique(sequences: RushImportSequence[], sequence: RushImportSequenc
   return true;
 }
 
+/** Plafond du schéma d'import (`RushImportSequenceSchema`) : au-delà, l'import est refusé. */
+const MAX_ACTIVITY_TAGS = 30;
+
+/**
+ * Prérequis **entre quêtes** — `quests[id].prereqIds` (Touglie) → tags `prereq_text` par nom.
+ *
+ * La Trame porte **492 arêtes** sur 430 quêtes, **sans opérateur** : la liste est plate, donc
+ * chaque arête est lue en **ET** par `isSequenceBlockedByPrereqs`. Trois gardes :
+ *
+ *  · **branche** : une cible conditionnée par une autre cité ou une autre classe n'est
+ *    jamais posée — elle filtrerait la quête à vie pour un joueur de l'autre branche
+ *    (mesure du 17/11/2026 : 19 arêtes de classe sur `1960`, 1 arête de cité) ;
+ *  · **cible absente** du guide (ou nom vide) : rien n'est inventé, l'arête est comptée ;
+ *  · **plafond** : le schéma d'import borne `activityTags` à 30 — les prérequis prennent la
+ *    place restante, jamais celle des ressources (une ressource effacée serait une perte).
+ *
+ * Le nom est le seul lien disponible **avant** l'import (les ids de séquence n'existent pas
+ * encore) : c'est exactement ce que `resolvePrereqTag` sait résoudre ; T-2c backfillera l'id
+ * une fois les lignes créées. `1960` (« Ça sent le gaz ») n'est jamais posé : ses 19 arêtes
+ * visent des quêtes de classe, déjà couvertes par `classReq` + `resolveRushRoute`.
+ */
+function attachQuestPrerequisites(
+  trame: TrameInput,
+  blocks: RushImportBlock[]
+): { tags: number; skipped: number } {
+  type PrereqTarget = {
+    sequence: RushImportSequence;
+    name: string;
+    alignReq: string;
+    classReq: string;
+  };
+
+  const byQuest = new Map<number, PrereqTarget>();
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      const name = text(sequence.subGuideName, 200);
+      if (!name) continue;
+      for (const questId of sequence.questDbIds ?? []) {
+        if (byQuest.has(questId)) continue;
+        byQuest.set(questId, {
+          sequence,
+          name,
+          alignReq: text(sequence.alignReq, 60),
+          classReq: text(sequence.classReq, 60),
+        });
+      }
+    }
+  }
+
+  let tags = 0;
+  let skipped = 0;
+  for (const block of blocks) {
+    for (const sequence of block.sequences) {
+      const ownAlign = text(sequence.alignReq, 60);
+      const ownClass = text(sequence.classReq, 60);
+      const wanted: string[] = [];
+      const seen = new Set<string>();
+
+      for (const questId of sequence.questDbIds ?? []) {
+        for (const prereqId of trame.quests?.[String(questId)]?.prereqIds ?? []) {
+          const target = byQuest.get(prereqId);
+          if (!target || target.sequence === sequence) {
+            skipped += 1;
+            continue;
+          }
+          if (target.classReq && target.classReq !== ownClass) {
+            skipped += 1;
+            continue;
+          }
+          if (target.alignReq && target.alignReq !== ownAlign) {
+            skipped += 1;
+            continue;
+          }
+          const key = target.name.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          wanted.push(target.name);
+        }
+      }
+      if (wanted.length === 0) continue;
+
+      const existingTags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+      const existingNames = new Set(
+        existingTags
+          .filter((tag) => tag.type === "prereq_text")
+          .map((tag) => text(tag.name, 200).toLowerCase())
+      );
+      const room = MAX_ACTIVITY_TAGS - existingTags.length;
+      if (room <= 0) {
+        skipped += wanted.length;
+        continue;
+      }
+
+      const added: RushImportActivityTag[] = [];
+      for (const name of wanted.slice(0, room)) {
+        if (existingNames.has(name.toLowerCase())) continue;
+        added.push({ type: "prereq_text", name });
+      }
+      if (added.length === 0) continue;
+      sequence.activityTags = [...existingTags, ...added];
+      tags += added.length;
+      skipped += wanted.length - added.length;
+    }
+  }
+
+  return { tags, skipped };
+}
+
 /** Un bloc Tougli : 36 blocs, conditions, ressources, Ordres à 5 paliers. */
+
 function buildTougliBlocks(
   trame: TrameInput,
   meta: Map<number, QuestRouteMeta>,
@@ -718,6 +833,8 @@ function buildTougliBlocks(
     yelleDofusDexMerged: 0,
     yelleDungeonBlocks: 0,
     dofusDexTagged,
+    prereqTags: 0,
+    prereqSkipped: 0,
     unmatched: [],
     tipsToWrite,
     blockTypes,
@@ -1204,6 +1321,8 @@ function buildYelleBlocks(
       yelleDofusDexMerged: 0,
       yelleDungeonBlocks: 0,
       dofusDexTagged,
+      prereqTags: 0,
+      prereqSkipped: 0,
       unmatched,
       tipsToWrite,
       blockTypes,
@@ -1247,6 +1366,8 @@ export function buildRushSeedFromTrame(
         yelleDofusDexMerged: 0,
         yelleDungeonBlocks: 0,
         dofusDexTagged: 0,
+        prereqTags: 0,
+        prereqSkipped: 0,
         unmatched: [],
         tipsToWrite: [],
         blockTypes: {},
@@ -1264,6 +1385,12 @@ export function buildRushSeedFromTrame(
       "enrichFromYelle est ignoré pour le spine yelle : ce spine est déjà la source Yelle."
     );
   }
+
+  // Prérequis entre quêtes : après l'enrichissement (toutes les séquences sont là),
+  // avant le filet de titres — les noms posés sont ceux du payload final.
+  const prereq = attachQuestPrerequisites(trame, built.blocks);
+  built.report.prereqTags = prereq.tags;
+  built.report.prereqSkipped = prereq.skipped;
 
   // Filet de sécurité inter-blocs : l'import apparie les blocs par titre normalisé.
   const seen = new Set<string>();

@@ -154,6 +154,8 @@ const lines = [
   `| Quêtes avec id DofusDB | ${report.questsWithIds} |`,
   `| Ressources (tags item) | ${report.resources} |`,
   `| Succès | ${report.successes} |`,
+  `| Prérequis (prereq_text) | ${report.prereqTags} |`,
+  `| Arêtes de prérequis écartées | ${report.prereqSkipped} |`,
   `| Succès Yelle fusionnés | ${report.yelleSuccesses} |`,
   `| Conseils Yelle fusionnés | ${report.yelleTipsMerged} |`,
   `| Blocs DofusDex Yelle | ${report.yelleDofusDexMerged} |`,
@@ -196,6 +198,9 @@ console.log(
 );
 console.log(
   `  Yelle : ${report.yelleSuccesses} succès fusionné(s) · ${report.yelleTipsMerged} conseil(s) · ${report.yelleDofusDexMerged} bloc(s) DofusDex · ${report.yelleDungeonBlocks} bloc(s) avec donjons`
+);
+console.log(
+  `  prérequis : ${report.prereqTags} posé(s) · ${report.prereqSkipped} arête(s) écartée(s)`
 );
 console.log(`  non appariées : ${report.unmatched.length} · conseils à rédiger : ${report.tipsToWrite.length}`);
 console.log(`  payload : ${path.relative(process.cwd(), outPath)}`);

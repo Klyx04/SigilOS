@@ -93,16 +93,15 @@
 >   sans ressource, quête d'Ordre sans palier — chaque ligne **ouvre** la quête ou le bloc)
 >   avec **pastille de compte** dans la barre ; et **menu « … »** par ligne de quête
 >   (jumelle, 3 Ordres, suppression). Verrou `rush-editor-problems` **11**.
-> · **E3c — à faire** : sélection multiple (route / déplacer / supprimer en masse). Bloqué
->   par une **action serveur en masse** qui n'existe pas encore (`updateRushBlockRoute` est
->   par bloc) : Zod borné, rate limit, `logGodWrite`, contrôle d'appartenance à la guilde.
-> · **E2a-reste — à faire** : découpe des trois formulaires dans `forms/` par **déplacement
->   pur**. Le verrou `rush-route-tooling` lit désormais le **dossier** `rush-editor/**` : un
->   déplacement ne casse plus la garde.
+> · **E3c — livré le 12/11/2026** : sélection multiple (route / déplacer / supprimer en masse)
+>   via **trois actions bornées** (Zod, rate limit, `logGodWrite`, appartenance à la guilde,
+>   plafond **200** ids, transaction) — voir `docs/ROADMAP.md` ligne 59.
+> · **E2a-reste — abandonné** (décision du 12/11/2026) : les verrous lisent le **dossier**
+>   `rush-editor/**`, le découpage des trois formulaires est invisible pour l'utilisateur.
 
 **Reste de E1, rattaché aux lots suivants** (à ne pas perdre de vue) :
-- **Édition inline du séparateur** encore dans la liste → **E3** (l'inspecteur de bloc doit couvrir les 10 types).
-- **Monolithe non découpé** (`SequenceEditForm` 1 552 l., `AddSequenceForm` 451 l., `BlockInspectorForm`, champs) → **E2/E3/E4**, par déplacement pur, jamais par réécriture.
+- **Édition inline du séparateur** : ✅ **livré (E3a)** — l'inspecteur de bloc couvre les 10 types.
+- **Monolithe non découpé** (`SequenceEditForm` 1 552 l., `AddSequenceForm` 451 l., `BlockInspectorForm`, champs) — **E2a-reste abandonné** ; ne pas rouvrir sans mesure.
 - **Tenu par E1 et à ne pas régresser** : aucun formulaire dans la liste, sélection unique, garde de saisie, `Ctrl+K`, seuils 1024/768, `77/77` fichiers God.
 
 ## 4. Contraintes non négociables

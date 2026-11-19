@@ -201,6 +201,11 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 ## 10. Touglie enrichi — un seul guide, trame Touglie + tout Dofusyelle (17/11/2026)
 
+> **Mise à jour du 19/11/2026** : le seed régénéré et le guide importé font **536 séquences**
+> (le `591` ci-dessous est la génération du 17/11). Le rapport du 18/11 liste **55 conseils**,
+> **4 étapes sans cible** et **3 succès** dans « Compléments ». Les compteurs du §10 restent la
+> mesure du 17/11 ; les lignes d'état (§12) sont, elles, alignées sur 536.
+
 > **Besoin** : garder la **trame Touglie** (35 blocs, 523 quêtes, 2 cités, Ordres, conditions,
 > ressources, donjons) et y fusionner **tout Dofusyelle** (81 succès, conseils, donjons, DofusDex).
 > Les deux spines `tougli.json` / `yelle.json` ne répondaient pas à ce besoin : ils sont séparés.
@@ -234,7 +239,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
   §5.1/§6 ; il ne réécrit pas les 55 conseils ; les descriptions de blocs gardent le compte **avant**
   l'enrichissement (« Incarnam · 8 quêtes » alors que 12 séquences avec les 4 succès) — petit correctif
   du générateur à faire.
-- **Suite** : l'import local a été fait (36/591) ; le remplacement/archivage est décrit au §11 ;
+- **Suite** : l'import local a été fait (36/536) ; le remplacement/archivage est décrit au §11 ;
   les retours du test sont au §12 ; la reprise propre au §13.
 
 ## 11. Remplacement du guide — archivage local / VPS (17/11/2026)
@@ -250,7 +255,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
   Il refuse toute suppression hors `rush-sylvestre-archive-*` ; la suppression cascade (`OptimizedGuide`
   → blocs → séquences → progression, coches de ressources, états de donjons).
 - **Local (fait)** : `rush-sylvestre` archivé **108/492** → `rush-sylvestre-archive-20261117T224935` ;
-  nouveau guide **0/0** ; import God **36/591** ; l'ancien guide est conservé, le nouveau est actif
+  nouveau guide **0/0** ; import God **36/536** ; l'ancien guide est conservé, le nouveau est actif
   (pas en construction, public ouvert, `TIMELINE`).
 - **VPS (à faire)** : `./scripts/deploy-cd.sh beta` (code + script) → `pg_dump` de sauvegarde →
   `docker compose exec app node scripts/archive-rush-guide.mjs --dry-run` puis `--apply` → God bêta
@@ -279,10 +284,10 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Retour | Cause | Lot |
 |---|---|---|
 | Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | ✅ **livré 18/11/2026** : siphon client (`startCriterion` : 990 quêtes / 1 187 arêtes, ET-only) + verrou d'**ordre** (`Réponses à tout` → `Sous le regard des dieux`) ; **451 prérequis du jeu + 76 d'ordre** | — |
-| Prérequis **« au choix »** (ex. « Supermilicien » : 272, 273 **ou** 274) | ✅ **livré 18/11/2026** : tag `prereq_expr` (alternatives par id DofusDB, **aucune migration**), évaluation « au moins une » ; une alternative **hors guide** ne bloque jamais ; seed enrichi depuis `quest-prerequisites.json`. **Archivage + import requis** | — |
-| Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (aucun id dans les tags) |
+| Prérequis **« au choix »** (ex. « Supermilicien » : 272, 273 **ou** 274) | ✅ **livré 18/11/2026** : tag `prereq_expr` (alternatives par id DofusDB, **aucune migration**), évaluation « au moins une » ; une alternative **hors guide** ne bloque jamais ; seed enrichi depuis `quest-prerequisites.json`. **Archivage + import requis** (mesuré le 19/11 : **0** tag `prereq_expr` en base) | — |
+| Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (**742** tags combat sans id, mesure du 19/11) |
 | 68 succès cochables | ✅ **livré 18/11/2026** : un succès est un **groupe de quêtes** — 68 lignes supprimées, **303 tags** sur 284 quêtes, pastille + fiche `SuccessChip` (dashboard + overlay, icône officielle du client) | — |
-| Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; ⏸ le « 448 » reste **non reproduit** (payload local **536**, 0 info, 0 choix) | **UI** (à reproduire) |
+| Compteur 0/448 vs 536 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; ⏸ le « 448 » reste **non reproduit** (payload local **536**, 0 info, 0 choix) | **UI** (à reproduire) |
 | 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | ✅ **déjà livré** : panneau + fiche partagée |
 | Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | ✅ **livré 19/11/2026** : médaillon du bloc (overlay) + liste des chapitres |
 | Pastille Succès sur le guide **public** | absente : `SuccessChip` n'était montée que dans le dashboard et l'overlay | ✅ **livré 19/11/2026** : même `SuccessChip`, mêmes `questDbIds` |
@@ -294,8 +299,8 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | **Succès de donjon : bouton `+`/modale** | **feature demandée** : voir `MODULE-RUSH-SYLVESTRE.md` **Bloc I** (guide navigateur + mini overlay interne/connecté) | **Bloc I** |
 | 55 conseils | `tipsToWrite` ; 6 paraphrases posées | **éditorial** |
 | Descriptions de blocs (8 vs 12) | description calculée avant l'enrichissement | **seed** (petit) |
-| 3 donjons inconnus | 95/98 résolus ; 3 alias | **data** (petit) |
-| 4 étapes / 10 succès | « Compléments — succès hors trame » | **normal** |
+| 3 donjons inconnus | ✅ **soldé le 19/11/2026** : 3 alias mesurés (`rush-dungeon-names`) ; rapport à re-générer | — |
+| 4 étapes / **3 succès** (rapport du 18/11) | « Compléments — succès hors trame » | **normal** |
 | Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
 | Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |
 | Pages `/q/<slug>` | 0 publiée | **ops/édition** |
@@ -321,7 +326,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
    `docs/plans/MODULE-RUSH-SYLVESTRE.md` **Bloc I** (succès de donjon) + **§5** (retours UI/UX).
 3. Les **prérequis** : `docs/reference/QUEST-PREREQUISITES.md` §5.1/§6.
 4. Les **ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; `docs/agents/vps-read-only.md`.
-5. **État local** : `rush-sylvestre` **36/591** (importé), archive **108/492** ;
+5. **État local** : `rush-sylvestre` **36/536** (importé), archive **108/492** ;
    `src/temp/rush-seed/tougli-enriched.json` (volatile) ; le code + les docs sont **non commités** ;
    la branche est `dev`.
 6. **Prochaine session** : choisir le lot (prérequis, UX, UI, Bloc I) ; la PR du seed peut être préparée

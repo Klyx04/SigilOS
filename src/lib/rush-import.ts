@@ -19,6 +19,7 @@
  */
 
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
+import { normalizeRushDungeonName, rushDungeonAliasSlug } from "@/lib/rush-dungeon-names";
 import { safeExternalUrl } from "@/lib/security";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -262,8 +263,16 @@ export function planRushImport(
                 }
             }
             for (const dungeonName of sequence.dungeonNames ?? []) {
-                const key = importKey(dungeonName);
-                if (key && options.knownDungeonNames && !options.knownDungeonNames.has(key)) {
+                // Même clé que la résolution (`normalizeRushDungeonName`) : un nom que
+                // l'import sait résoudre ne doit pas être annoncé « inconnu ». Un alias
+                // mesuré (`rush-dungeon-names`) est résolu par slug — donc pas inconnu.
+                const key = normalizeRushDungeonName(dungeonName);
+                if (
+                    key &&
+                    options.knownDungeonNames &&
+                    !options.knownDungeonNames.has(key) &&
+                    !rushDungeonAliasSlug(dungeonName)
+                ) {
                     sequenceWarnings.push(`Donjon « ${dungeonName} » inconnu : il sera ignoré.`);
                 }
             }

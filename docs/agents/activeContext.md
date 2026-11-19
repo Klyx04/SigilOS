@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 32) — **Rush · alias de donjons : 18 fantômes → 21 ids** — branche `fix/rush-donjons-alias` (PR **#1460**)
+
+> **Demande user (verbatim)** : « on continue les chantiers rush sylvestre » — ordre posé : **18 alias → Bloc J → 55 conseils → VPS**.
+> **Mesure** : Maïmane = **29 alternatives** (6 tags « A / B / C »), **11** dans `dungeonIds` ; sur 18 : **17 donjons du catalogue non liés** + **1 alias** (`Sanctuaire de Torkélonia` → `Torkélonia`). 2 autres alias : `Bibliothèque du Maître Corbac` → `maitre-corbac`, `Donjon de la mine de Sakaï` → `grolloum`. **Cause racine** : seed tronqué à **12** noms (`slice` + schéma Zod) et import par **égalité stricte**.
+> **Fait** : ① règle pure `src/lib/rush-dungeon-names.ts` (découpe « / » + précision, `(niv. N)`, **3 alias mesurés**, nom exact > alias, union d'ids idempotente, plafond partagé **40**) ; ② import God — plafond 12 → 40, résolution **nom → boss → alias (slug)**, `knownDungeonNames` sur la même clé ; ③ seed Trame sur le plafond partagé ; ④ `scripts/fix-rush-dungeon-ids.ts` (dry-run → `--apply`, **sans retrait**, aucun donjon inventé) : **4 quêtes, 21 ids**, second passage **0**.
+> **Preuves** : **768 fichiers / 8 082 tests ✅** · `tsc` 0 · lint 0 erreur · `rush-dungeon-names` **11** · `rush-import` **16** · `rush-trame-seed` **37** · `rush-import-typed-blocks` **6** · **139** tests donjons/parité · base locale : Maïmane **29 ids**, **6 groupes (4 + 5×5)**, `requiredBlocks` **6**, **0 fantôme**.
+> **Reste / ops** : PR #1460 (CI à vérifier puis merge) ; **rejouer le script sur la bêta puis la prod** après déploiement ; régénérer `tougli-enriched.json` (hors dépôt) ; puis **Bloc J** → 55 conseils → VPS.
+> **Rotation** : bloc « suite 26 » (`prereq_expr`) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/11/2026 (suite 31) — **Rush · Bloc I (succès de donjon) + coches unifiées** — branches `fix/succes-canonique` + `feat/rush-bloc-i-succes-donjon` + `fix/rush-succes-panneau-deslop`
 
 > **Décisions user** : Q1 **unifier sur « Mes Succès »** ; Q2 **séparé** (guide interne = profil de guilde, guide public = profil visiteur) ; Q3 **sélecteur** si le personnage du guide n'est pas déclaré ; Q4 le faux « Donjon validé » **jamais listé** (les boss d'anomalie, les 4 doubles boss Frigost et la quête de Qu'Tan ne sont pas des donjons du rush) ; Q5 **guest en lecture seule** ; Q6 **RBAC strict** ; Q7 **2 PR**.
@@ -52,16 +62,6 @@
 > **Preuves** : `tests/unit/da-wakfu.test.ts` **66/66** · `tests/unit/rush-rich-text.test.ts` **22/22** · **152 tests ciblés** (DA, parité, repères verrouillés, finitions, markdown) · `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** (7 791 warnings préexistants) · `npm run test:run` **761 fichiers / 7 992 tests ✅** · `git diff --check` propre.
 > **Reste / ops** : **PR #1450** ouverte (branche `feat/rush-da-retouches`, 6 commits, CI à vérifier puis merge) ; l'œuf Dofus à 5 stades reste **hors lot** (UI-2 Dofus, avec le panneau DofusDex) ; UI-1 assets/compteur, Bloc I, Bloc J, 55 conseils, VPS ; archivage + import `prereq_expr` (local et VPS), 3 alias de donjons.
 > **Rotation** : bloc « suite 21 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 18/11/2026 (suite 26) — **Rush · prérequis « au choix » (`prereq_expr`)** — branche `feat/rush-prereq-or` (PR **#1448** mergée, `dev ec9bd234`)
-
-> **Demande user (verbatim)** : « Reste : … le `prereq_expr`, puis UI / Bloc I / 55 conseils / VPS. » — avec la règle posée : « jamais de blocage si une alternative n'est pas vérifiable dans le guide ».
-> **Mesure** : « Supermilicien » (275) exige `(Qf=272|Qf=273|Qf=274)` dans le client ; la Trame est **plate** (`prereqIds: [272,273,274]`) et ne connaît ni 272 ni 274 ; le guide ne contient que 273 → il était exigé en **ET**.
-> **Fait** : ① `src/lib/rush-prereq-expr.ts` — lecture bornée (**4 groupes × 8 alternatives**), résolution par **`questDbIds`**, évaluation « au moins une », **non bloquant dès qu'une alternative est hors guide** ; intégration dans `isSequenceBlockedByPrereqs`. ② Seed : `--prereq-or` lit `quest-prerequisites.json`, émet `prereq_expr`, **retire** les `prereq_text` déjà posés sur une alternative et **neutralise le verrou d'ordre** sur ces mêmes alternatives. ③ Schéma d'import borné (`alternatives` ≤ 8). ④ Ligne « Au choix : … » sur dashboard, guide public et overlay ; **le verrou de l'overlay appelle enfin la règle serveur** (palier + OU), au lieu de sa liste locale.
-> **Preuves** : **761 fichiers / 7 977 tests ✅** · `tsc` 0 · lint 0 erreur · **16 tests** (13 `rush-prereq-or` + 3 seed : groupe posé, arête ET retirée, alternative unique ignorée, verrou d'ordre neutralisé) · seed réel : **3 `prereq_expr`** (Supermilicien 272/273/274, Malédiction 710/711/1316, Ça sent le gaz borné à 8) et **plus aucun `prereq_text`** en doublon.
-> **Reste / ops** : **archivage + import** (local et VPS) pour que les tags `prereq_expr` arrivent au guide ; puis **UI**, **Bloc I** (succès de donjon), **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs — cadré dans `MODULE` §J), 55 conseils. `git status` propre, `dev` = `ec9bd234`.
-> **Rotation** : bloc « suite 20 » (route iso Tougli × Yelle) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

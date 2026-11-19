@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { buildRushSeedFromTrame, type TrameInput } from "@/lib/rush-trame-seed";
+import { MAX_RUSH_DUNGEONS_PER_SEQUENCE } from "@/lib/rush-dungeon-names";
 
 const TRAME: TrameInput = {
   referentials: {
@@ -712,5 +713,35 @@ describe("pureté et bornes du générateur", () => {
     for (const token of ["tougli", "touglie", "dofusyelle", "laniyelle", "marcellusito", "barbofus"]) {
       expect(dataset).not.toContain(token);
     }
+  });
+
+  it("transporte les 29 alternatives d'un tag multi, pas 12", () => {
+    const names = Array.from({ length: 29 }, (_, index) => `Donjon ${index + 1}`);
+    const trame: TrameInput = {
+      ...TRAME,
+      blocks: [
+        {
+          title: "Zone Guerre",
+          items: [{ kind: "quest", questId: 2425, name: "Les totems de Maïmane" }],
+        },
+      ],
+      quests: {
+        ...TRAME.quests,
+        "2425": {
+          id: 2425,
+          name: "Les totems de Maïmane",
+          dungeonIds: Array.from({ length: 29 }, (_, index) => 100 + index),
+          dungeonNames: names,
+        },
+      },
+    };
+
+    const result = buildRushSeedFromTrame(trame, { spine: "tougli" });
+    const sequence = result.payload.blocks[0].sequences[0];
+
+    // L'ancien plafond de 12 perdait 17 donjons : la quête se débloquait avec 3 totems.
+    expect(sequence.dungeonNames).toHaveLength(29);
+    expect(sequence.dungeonDbIds).toHaveLength(29);
+    expect(MAX_RUSH_DUNGEONS_PER_SEQUENCE).toBeGreaterThanOrEqual(29);
   });
 });

@@ -20,6 +20,7 @@
  */
 
 import type { RushImportActivityTag, RushImportBlock, RushImportSequence } from "@/lib/rush-import";
+import { MAX_RUSH_DUNGEONS_PER_SEQUENCE } from "@/lib/rush-dungeon-names";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -576,11 +577,15 @@ function sequenceForQuest(
     ...(quest?.dnpl ? { dofuspourlesnoobsUrl: quest.dnpl } : {}),
     // ⚠️ `dungeonOurIds` est un cuid **local** : il ne survit pas à l'import sur le VPS.
     // On transporte l'id DofusDB, que le serveur résout par `Dungeon.dofusdbId`.
-    ...(quest?.dungeonIds?.length ? { dungeonDbIds: quest.dungeonIds.slice(0, 12) } : {}),
+    // Plafond partagé avec le schéma d'import (29 alternatives mesurées sur Maïmane ;
+    // l'ancien 12 en perdait 17).
+    ...(quest?.dungeonIds?.length
+      ? { dungeonDbIds: quest.dungeonIds.slice(0, MAX_RUSH_DUNGEONS_PER_SEQUENCE) }
+      : {}),
     ...(quest?.dungeonNames?.length
       ? {
           dungeonNames: quest.dungeonNames
-            .slice(0, 12)
+            .slice(0, MAX_RUSH_DUNGEONS_PER_SEQUENCE)
             .map((name) => text(name, 200))
             .filter(Boolean),
         }

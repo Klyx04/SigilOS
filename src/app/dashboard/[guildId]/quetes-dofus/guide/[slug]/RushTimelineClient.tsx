@@ -82,10 +82,10 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
-import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
-import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import { doneDungeonKeysForSequence, missingRequiredDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import {
   buildAlignmentSeries,
@@ -106,6 +106,7 @@ import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
+import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -310,13 +311,19 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
-  const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
+  // Donjons : la MÊME source que les trois surfaces (`getDungeons` applique les groupes
+  // « au choix » et complète les noms non résolus en base). Le compteur de la pastille
+  // annonce des EXIGENCES (un groupe = 1), jamais le nombre brut de donjons.
+  const allDungeons = getDungeons(seq as any);
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
   const dungeonActions = React.useContext(RushDungeonActionsCtx);
   const [dungeonsOpen, setDungeonsOpen] = useState(false);
-  const doneDungeonsForSeq = allDungeons.length > 0
-    ? resolveSequenceDungeons(seq as any, doneDungeonKeysForSequence(dungeonActions.states, seq.id)).requirements.filter(r => r.isDone).length
-    : 0;
+  const dungeonProgress = sequenceDungeonProgress(
+    seq as any,
+    doneDungeonKeysForSequence(dungeonActions.states, seq.id)
+  );
+  const dungeonBlocks = dungeonProgress.requiredBlocks;
+  const doneDungeonBlocks = dungeonProgress.requiredBlocks - dungeonProgress.missingBlocks;
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
   // Camp requis (quête d'alignement) : seul un camp CONNU est annoncé.
   //
@@ -557,21 +564,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               EN LOCAL (brandIconForUrl) : plus aucune requête google.com/s2/favicons
               depuis le navigateur du membre. */}
           <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
-            {allDungeons.length > 0 && (
+            {dungeonBlocks > 0 && (
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); setDungeonsOpen(v => !v); }}
                 aria-expanded={dungeonsOpen}
-                aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${allDungeons.length} faits)`}
+                aria-label={`Donjons de cette quête (${doneDungeonBlocks}/${dungeonBlocks} exigences faites)`}
                 title="Donjons de cette quête — cliquer pour cocher fait / à faire"
                 className="inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
               >
                 {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />
-                Donjon ×{allDungeons.length}
-                {doneDungeonsForSeq > 0 && (
-                  <span className="text-[10px] font-mono text-success">{doneDungeonsForSeq}/{allDungeons.length}</span>
+                Donjon ×{dungeonBlocks}
+                {doneDungeonBlocks > 0 && (
+                  <span className="text-[10px] font-mono text-success">{doneDungeonBlocks}/{dungeonBlocks}</span>
                 )}
               </button>
             )}
@@ -674,16 +681,22 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             capturedOcreNames={capturedMonsterNames}
             onOpenOcre={onOpenOcre}
             footer={
-              allDungeons[0] ? (
-                <button
-                  type="button"
-                  onClick={() => onDungeonClick(allDungeons[0].id, questName)}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <GameIcon src="crossed-swords.png" className="h-3 w-3" />
-                  Chercher un groupe
-                </button>
-              ) : undefined
+              (() => {
+                // Un donjon du tag peut ne pas être résolu en base (alternative « au
+                // choix » sans id) : « Chercher un groupe » vise le premier RÉSOLU.
+                const searchable = allDungeons.find((d) => !!d.id);
+                if (!searchable?.id) return undefined;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => onDungeonClick(searchable.id as string, questName)}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <GameIcon src="crossed-swords.png" className="h-3 w-3" />
+                    Chercher un groupe
+                  </button>
+                );
+              })()
             }
           />
         )}
@@ -1067,12 +1080,16 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         {/* Expanded content */}
         <RushCollapse open={expanded}>
           <div className="p-4 space-y-2">
-{ms.tips && (
+{ms.tips && (splitDofusDexTip(ms.tips).official ? (
+                  <div className="mb-1">
+                    <RushDofusDexTip text={ms.tips} />
+                  </div>
+                ) : (
                   <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
                     <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
                   </div>
-                )}
+                ))}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
@@ -1819,8 +1836,7 @@ const timelineItems=useMemo(()=>{
       if(seqObj){
         const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
         if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
-          const names=resolveSequenceDungeons(seqObj as any,doneKeys)
-            .requirements.filter(r=>!r.isOptional&&!r.isDone).map(r=>r.name);
+          const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
           toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait");
           return;
         }

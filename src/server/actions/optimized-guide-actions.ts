@@ -24,7 +24,7 @@ import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuid
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
 import { resourceKeysForTags } from "@/lib/rush-resource-checks";
-import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
+import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, missingRequiredDungeons, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
@@ -622,9 +622,10 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
         dungeonStates
       );
       if (blocked) {
+        const n = blocked.missing.length;
         return {
           success: false as const,
-          error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+          error: `« ${blocked.name} » : ${n} donjon${n > 1 ? "s" : ""} requis non fait${n > 1 ? "s" : ""}`,
           blockedSequenceId: blocked.id,
           missingDungeons: blocked.missing,
         };
@@ -1172,6 +1173,9 @@ async function findSequenceBlockedByMissingDungeon(
       dungeonId: true,
       dungeonIds: true,
       dungeonOptionalIds: true,
+      /** Les tags portent les groupes « au choix » (Sufokia, Maïmane) : sans eux, le
+       *  serveur exigeait TOUS les donjons d'un tag de 5 alors qu'un seul suffit. */
+      activityTags: true,
       dungeon: { select: { id: true, name: true, slug: true, bossName: true } },
     },
   });
@@ -1201,12 +1205,22 @@ async function findSequenceBlockedByMissingDungeon(
       refs.unshift({ ...row.dungeon, isOptional: optional.has(row.dungeon.id) });
     }
 
-    const progress = sequenceDungeonProgress(
-      { dungeons: refs } as unknown as RushSequence,
-      doneDungeonKeysForSequence(states, row.id)
-    );
+    // ⚠️ La séquence telle que la voit le VERROU doit porter les `activityTags` :
+    // `getDungeons` y lit les groupes « au choix » (un seul donjon du tag suffit).
+    // Sans eux, le serveur exigeait les 11 donjons de Maïmane au lieu des 6 totems.
+    const seqLike = {
+      dungeons: refs,
+      activityTags: Array.isArray(row.activityTags) ? row.activityTags : [],
+    } as unknown as RushSequence;
+    const doneKeys = doneDungeonKeysForSequence(states, row.id);
+    const progress = sequenceDungeonProgress(seqLike, doneKeys);
     if (progress.blocked) {
-      return { id: row.id, name: row.subGuideName, missing: progress.missingRequired };
+      return {
+        id: row.id,
+        name: row.subGuideName,
+        // Une entrée par EXIGENCE (un groupe = 1), pas une par alternative.
+        missing: missingRequiredDungeons(seqLike, doneKeys).map((d) => d.key),
+      };
     }
   }
 
@@ -1297,9 +1311,10 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
       dungeonStates
     );
     if (blocked) {
+      const n = blocked.missing.length;
       return {
         success: false as const,
-        error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+        error: `« ${blocked.name} » : ${n} donjon${n > 1 ? "s" : ""} requis non fait${n > 1 ? "s" : ""}`,
         blockedSequenceId: blocked.id,
         missingDungeons: blocked.missing,
       };

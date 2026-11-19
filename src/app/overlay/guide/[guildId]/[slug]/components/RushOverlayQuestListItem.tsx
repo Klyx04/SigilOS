@@ -21,7 +21,7 @@ import type {
   RushDungeonState,
   RushDungeonStateMap,
 } from "@/lib/rush-dungeons";
-import { dungeonKeyOf, type RushMissingDungeon } from "@/lib/rush-dungeons";
+import { dungeonKeyOf, sequenceDungeonProgress, type RushMissingDungeon } from "@/lib/rush-dungeons";
 
 /**
  * Vignette cliquable d'un donjon **manquant** : la vraie image du donjon, ou **rien**.
@@ -169,6 +169,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   const hasDungeon = isDungeonSequence(seq);
   // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
   const dungeons = React.useMemo(() => (hasDungeon ? getDungeons(seq) : []), [hasDungeon, seq]);
+  // Compteur d'EXIGENCES : un groupe « au choix » compte pour 1 (pas ses 5 donjons).
+  const requiredDungeonBlocks = React.useMemo(
+    () => (hasDungeon ? sequenceDungeonProgress(seq).requiredBlocks : 0),
+    [hasDungeon, seq]
+  );
   const name = seq.subGuideName || seq.subGuideRef || "—";
   const alignmentSet = getAlignmentSet(seq);
   const alignLabel = alignmentSet
@@ -358,7 +363,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                       className="h-3 w-3 shrink-0 object-contain"
                       aria-hidden="true"
                     />
-                    Donjon ×{dungeons.length}
+                    Donjon ×{requiredDungeonBlocks}
                   </span>
                 </RushOverlayDungeonPopover>
               )}

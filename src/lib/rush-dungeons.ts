@@ -357,11 +357,32 @@ export function missingRequiredDungeons(
 ): RushMissingDungeon[] {
   if (!seq) return [];
   const done = new Set(doneKeys ?? []);
-  // La règle des GROUPES est celle de `sequenceDungeonProgress` : un groupe satisfait ne
-  // doit lister AUCUNE de ses alternatives comme manquante (sinon la quête reste
-  // verrouillée par une alternative non jouée).
-  const blocking = new Set(sequenceDungeonProgress(seq, done).missingRequired);
-  return resolveSequenceDungeons(seq, done)
-    .requirements.filter((req) => blocking.has(req.key))
-    .map((req) => ({ key: req.key, name: req.name }));
+  const { requirements } = resolveSequenceDungeons(seq, done);
+  const progress = sequenceDungeonProgress(seq, done);
+  const blocking = new Set(progress.missingRequired);
+  const blockedGroups = new Map(
+    progress.choiceGroups.filter((group) => !group.satisfied).map((group) => [group.key, group])
+  );
+
+  // **Une entrée par EXIGENCE** : un donjon simple, ou **un** groupe de choix (sa première
+  // alternative, avec le libellé du groupe). Sans cela, Sufokia affichait 4 vignettes et
+  // Maïmane 10 pour un seul choix à faire.
+  const out: RushMissingDungeon[] = [];
+  const seenGroups = new Set<string>();
+  for (const req of requirements) {
+    if (!blocking.has(req.key)) continue;
+    if (req.choiceGroup) {
+      if (seenGroups.has(req.choiceGroup)) continue;
+      const group = blockedGroups.get(req.choiceGroup);
+      if (!group) continue;
+      seenGroups.add(req.choiceGroup);
+      out.push({
+        key: group.keys[0] ?? req.key,
+        name: `${group.label} · ${group.keys.length} au choix`,
+      });
+      continue;
+    }
+    out.push({ key: req.key, name: req.name });
+  }
+  return out;
 }

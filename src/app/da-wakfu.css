@@ -402,6 +402,18 @@ details.da-conseil[open] .da-conseil-body {
 
 .da-toast-desc { font-size: 10px; color: var(--da-muted, #a3afa1); }
 
+/* Accent sémantique : le filet de gauche dit le type, sans repeindre la plaque
+   (la matière reste `--da-panel`). Mêmes règles pour les toasts globaux et la PiP. */
+[data-sonner-toaster].da-toaster [data-sonner-toast][data-type="error"] {
+  box-shadow: inset 3px 0 0 var(--da-warn) !important;
+}
+[data-sonner-toaster].da-toaster [data-sonner-toast][data-type="success"] {
+  box-shadow: inset 3px 0 0 var(--da-ok) !important;
+}
+[data-sonner-toaster].da-toaster [data-sonner-toast][data-type="warning"] {
+  box-shadow: inset 3px 0 0 var(--da-amber) !important;
+}
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;

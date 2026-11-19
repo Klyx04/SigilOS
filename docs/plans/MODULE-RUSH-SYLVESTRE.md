@@ -532,7 +532,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 >
 > **Mesures du 19/11/2026 (base locale)** : **36 blocs / 536 séquences** · **0** page `/q`
 > publiée · **0** `constraints` · **0** tag `prereq_expr` (le seed importé est antérieur à l'OU) ·
-> **6** tips de quête / **23** de bloc · **742** tags combat sans id · **0** conseil à rédiger (55 écrits : 50 Yelle + 5 blocs)
+> **6** tips de quête / **23** de bloc · **742** tags combat sans id · **515** positions DPLN · **0** conseil à rédiger (55 écrits : 50 Yelle + 5 blocs)
 > (5 blocs + 50 quêtes). Le `591` du §10 de `ROUTE-RUSH` est la génération du 17/11 ; le guide
 > importé fait **536**.
 
@@ -557,6 +557,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | 55 conseils | ✅ **livrés 19/11/2026** : 50 paraphrases Yelle + 5 notes de blocs Tougli (`src/data/rush-guide-tips.json`), **0 à rédiger** ; 3 étapes partageant une quête sont ajoutées à la suite | `YELLE_DEMO_TIPS`, `TOUGLI_BLOCK_TIPS` |
 | Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
 | 3 donjons inconnus | ✅ **soldé le 19/11/2026** : les 3 alias mesurés (`rush-dungeon-names`) ; re-générer le rapport pour 98/98 | `dungeonNames`, `Dungeon`/`bossName` |
+| Positions de lancement | ✅ **siphon DPLN 19/11/2026** : **515 / 530** quêtes (97,2 %), Sufokia `[-25,-36]` ; 15 pages sans position (non inventées) ; tag `pos_tags` **après** les ressources (863 intactes), **516** séquences équipées | `siphon-rush-quest-positions.ts`, `rush-quest-positions.json`, `RushCoordinateChip` |
 | 4 étapes / **3 succès** (rapport du 18/11) | Normal | « Compléments — succès hors trame » |
 | Cache public | Code | ISR 1 h, `revalidatePath`/`updateRushSylvestreSettings` |
 | Progression au déplacement | Backend | `moveRushSequence`, `PlayerGuideProgress`, `deleteRushMilestone` |

@@ -200,6 +200,12 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
     expect(unknown?.monsters).toBeUndefined();
   });
 
+  it("pose la position de lancement DPLN en tag pos_tags", () => {
+    const q1 = result.payload.blocks[0].sequences[0];
+    const tag = (q1.activityTags ?? []).find((candidate) => candidate.type === "pos_tags");
+    expect(tag).toEqual({ type: "pos_tags", name: "[6,-19]" });
+  });
+
   it("transporte l'id DofusDB du donjon, jamais le cuid local", () => {
     const sequence = result.payload.blocks[0].sequences[0];
     expect(sequence.dungeonDbIds).toEqual([13]);

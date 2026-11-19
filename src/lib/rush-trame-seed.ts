@@ -24,10 +24,15 @@ import { MAX_RUSH_DUNGEONS_PER_SEQUENCE } from "@/lib/rush-dungeon-names";
 import { resolveRushCombatMonsters } from "@/lib/rush-combat-monsters";
 import RUSH_MONSTER_MAP from "@/data/rush-monster-map.json";
 import RUSH_GUIDE_TIPS from "@/data/rush-guide-tips.json";
+import RUSH_QUEST_POSITIONS from "@/data/rush-quest-positions.json";
+import type { RushQuestPositionMap } from "@/lib/rush-quest-positions";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
 export type RushTrameSpine = "tougli" | "yelle";
+
+/** La carte JSON a des clés connues ; l'accès par `questId` est un index dynamique. */
+const RUSH_QUEST_POSITION_MAP = RUSH_QUEST_POSITIONS as RushQuestPositionMap;
 
 type TrameConstraint = {
   type?: string;
@@ -500,10 +505,20 @@ function buildQuestMeta(trame: TrameInput): Map<number, QuestRouteMeta> {
   return meta;
 }
 
-/** Tags d'activité d'une quête : ressources + contraintes, bornés et dédoublonnés. */
+/** Plafond du schéma d'import (`RushImportSequenceSchema`) : au-delà, l'import est refusé. */
+const MAX_ACTIVITY_TAGS = 30;
+
+/** Tags d'activité d'une quête : position, ressources et contraintes, bornés et dédoublonnés. */
 function tagsForQuest(quest: TrameQuest | undefined, includeResources: boolean): RushImportActivityTag[] {
-  if (!quest || !includeResources) return [];
   const tags: RushImportActivityTag[] = [];
+  // Position de lancement DPLN (fait mesuré) — lue par `getSequenceCoord`.
+  const position = quest?.id != null ? RUSH_QUEST_POSITION_MAP[String(quest.id)] : undefined;
+  if (!quest || !includeResources) {
+    if (position && Number.isSafeInteger(position.x) && Number.isSafeInteger(position.y)) {
+      tags.push({ type: "pos_tags", name: `[${position.x},${position.y}]` });
+    }
+    return tags;
+  }
   const seenNonItem = new Set<string>();
 
   for (const item of (quest.items ?? []).slice(0, 30)) {
@@ -561,7 +576,17 @@ function tagsForQuest(quest: TrameQuest | undefined, includeResources: boolean):
     }
   }
 
-  return tags.slice(0, 30);
+  // La position est un tag **technique** : elle ne prend jamais la place d'une ressource.
+  if (
+    position &&
+    Number.isSafeInteger(position.x) &&
+    Number.isSafeInteger(position.y) &&
+    tags.length < MAX_ACTIVITY_TAGS
+  ) {
+    tags.push({ type: "pos_tags", name: `[${position.x},${position.y}]` });
+  }
+
+  return tags.slice(0, MAX_ACTIVITY_TAGS);
 }
 
 /** Une quête de la Trame → une séquence d'import (nom, liens, ressources, route). */
@@ -612,9 +637,6 @@ function pushUnique(sequences: RushImportSequence[], sequence: RushImportSequenc
   sequences.push(sequence);
   return true;
 }
-
-/** Plafond du schéma d'import (`RushImportSequenceSchema`) : au-delà, l'import est refusé. */
-const MAX_ACTIVITY_TAGS = 30;
 
 /**
  * Prérequis **entre quêtes** — `quests[id].prereqIds` (Touglie) → tags `prereq_text` par nom.

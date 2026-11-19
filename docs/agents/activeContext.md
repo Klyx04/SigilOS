@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 29) — **Rush · donjons « au choix » (Sufokia, Maïmane)** — branche `fix/rush-donjons-choix`
+
+> **Demande user (verbatim)** : « https://www.dofuspourlesnoobs.com/le-disparu-de-sufokia.html **condition** et celle-ci …/les-totems-de-maimane.html **choix** — les 2 quêtes sont mal gérées actuellement, overlay et navigateur ».
+> **Mesure** : payload = **7 tags `donjon` multi sur 174**, tous sur ces **deux** quêtes. Le seed écrit **un tag par groupe** (« A / B / C » + précision après `—`) et `dungeonIds` **à plat** (5 pour Sufokia, 12 pour Maïmane) : le verrou exigeait donc **tous** les donjons. Sufokia = 1 donjon **selon le niveau** (5 listés) ; Maïmane = **6 totems**, 3 à 5 donjons au choix par totem.
+> **Fait** : ① règle pure `attachDungeonChoices` (overlay-utils) — un tag multi devient un **groupe** (`choix:N`, libellé = la précision), rapprochement **par nom normalisé**, fail-open si moins de 2 donjons résolus ; ② `sequenceDungeonProgress` expose `requiredBlocks` / `missingBlocks` / `choiceGroups`, un groupe étant satisfait dès **une** coche ; `missingRequiredDungeons` ne liste plus les alternatives d'un groupe satisfait ; ③ UI : le panneau compte les **exigences** (« N requis restants »), la carte donjon pose « … — un seul suffit » avant le groupe ; ④ **aucune migration, aucun réimport** (le groupement vit dans `activityTags`, déjà en base).
+> **Preuves** : `rush-dungeons-choix` **13/13** · **118 tests ciblés** (donjons, parité, Ocre) · **762 fichiers / 8 008 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
+> **Reste / ops** : PR ; sur Maïmane, **12/30 donjons sont résolus** ⇒ 3 groupes sur 6 sont ignorés (fail-open) : la quête peut être débloquée avec 3 donjons — à finir avec les **alias de donjons** (data) ; puis Bloc I → Bloc J → 55 conseils → VPS.
+> **Rotation** : bloc « suite 23 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/11/2026 (suite 28) — **Rush · UI-1 (Succès public + Dofus du bloc)** — branche `feat/rush-ui-1`
 
 > **Demande user (verbatim)** : « commencer la prochaine session par `gh pr checks 1450`, merger si vert, puis `git fetch origin dev`… » ; « Ensuite : **UI-1 → Bloc I → Bloc J → 55 conseils → VPS** ».
@@ -52,12 +62,3 @@
 > **Preuves** : **759 fichiers / 7 956 tests ✅** · `tsc` 0 · lint 0 erreur · base réelle : **100/102 sans discontinuité**, 6 Ordres en rangs 1→5, bloc 2/4 → **2 sections 45/45** (Ali 20→64 / Ali 21→65).
 > **Reste / ops** : prérequis **OU** non modélisés (`prereq_expr`) — mesuré sur « Supermilicien » (275) : le jeu accepte 272/273/274, le guide n'exige que 273 ; puis les **3 autres points UX**, UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
 > **Rotation** : bloc « suite 18 » (God D6/D7) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 18/11/2026 (suite 23) — **Rush · prérequis client, succès en tags, verrou d'ordre et verrouillage lisible** — `dev` (`269805fb`)
-
-> **Demandes user (verbatim)** : « c'est pas vide » · « on affiche ça comment dans le guide et l'overlay ? » · « les succès sont des listes de quêtes, pas des coches » · « je peux cocher Réponses à tout alors que Sous le regard des dieux n'est pas faite » · « le repère n'a pas à être dispo si la quête n'est pas possible » · « fais et pose plus de question ».
-> **Fait (14 PR #1431 → #1444)** : prérequis **client** siphonnés (`QuestsDataRoot.startCriterion` : 990 quêtes / 1 187 arêtes, ET-only, `Qf!` écarté) + **verrou d'ORDRE** (par branche, `takeEarly`/parallèles exempts, anti-cycle) → **451 prérequis du jeu + 76 d'ordre** ; **succès = tags de quêtes** (les 68 fausses cases sont supprimées, `public/game-data/achievements.json` = 2 777 succès / 259 avec quêtes, **303 tags sur 284 quêtes**, pastille + fiche `SuccessChip` dashboard/overlay, icône officielle du client) ; guide local **36 / 536** ; **quête verrouillée lisible** (rouge franc, opacité `.92`, libellé « Verrouillée ») et **plus de repère dessus** (navigateur + overlay, retrait conservé) ; overlay **sombre uniquement** ; icône de quête sur la ligne du nom ; **scroll « Mon Ocre »** réparé ; plafond 80 → 120 (10 quêtes brâkmariennes récupérées).
-> **Preuves** : **758 fichiers / 7 945 tests ✅** · `tsc` 0 · lint 0 erreur · CI verte sur chaque PR · `git status` propre · base locale **536 séquences** (importée).
-> **Reste / ops** : **UX** (« Ali 1 / Ali 2 » Bonta/Brâkmar, alignement visible après enregistrement, clic quête, message changement de perso) ; **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide **public**) ; **Bloc I** (succès de donjon) ; **55 conseils** ; 3 donjons à aliasser ; cache public ; `/q/<slug>` ; **VPS** (`deploy-cd.sh beta` → `pg_dump` → archivage → import → `--delete-archive`). Détail : `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5.
-> **Rotation** : blocs « suite 17 », « suite 16 » et « suite 15 » sortis (≥ 6 blocs) — récupérables via `git log -p -- docs/agents/activeContext.md`.

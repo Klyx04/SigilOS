@@ -33,6 +33,25 @@ export type RushDungeonRequirement = {
   isOcre: boolean;
   /** Déjà coché par le joueur. */
   isDone: boolean;
+  /**
+   * Groupe d'**alternatives** (« au choix ») : un seul donjon du groupe suffit.
+   * `null` = exigence simple. Voir `attachDungeonChoices` (overlay-utils).
+   */
+  choiceGroup: string | null;
+  /** Libellé humain du groupe (« Donjon en fonction de votre niveau »…). */
+  choiceLabel: string | null;
+};
+
+/** Un groupe de donjons « au choix » : satisfait dès qu'**un** membre est coché. */
+export type RushDungeonChoiceGroup = {
+  key: string;
+  label: string;
+  /** Toutes les alternatives du groupe (clés stables). */
+  keys: string[];
+  /** Celles déjà cochées. */
+  doneKeys: string[];
+  /** Au moins une alternative cochée. */
+  satisfied: boolean;
 };
 
 export type RushDungeonResolution = {
@@ -48,7 +67,7 @@ export type RushDungeonProgress = {
   required: number;
   /** Dont cochés (tous confondus). */
   done: number;
-  /** Clés des donjons **requis** non cochés : c'est ce qui bloque. */
+  /** Clés des donjons **requis** non cochés qui bloquent (groupes non satisfaits inclus). */
   missingRequired: string[];
   /** Clés des donjons optionnels non cochés (informatif). */
   missingOptional: string[];
@@ -57,6 +76,15 @@ export type RushDungeonProgress = {
   complete: boolean;
   /** La quête est verrouillée par au moins un donjon requis. */
   blocked: boolean;
+  /**
+   * Exigences réelles : donjons simples + **un** par groupe de choix.
+   * C'est ce nombre que l'UI doit annoncer (« 3 requis »), pas le nombre de donjons.
+   */
+  requiredBlocks: number;
+  /** Exigences non satisfaites (simples + groupes sans aucune coche). */
+  missingBlocks: number;
+  /** Détail des groupes « au choix » (vide s'il n'y en a pas). */
+  choiceGroups: RushDungeonChoiceGroup[];
 };
 
 /** Normalise un nom de donjon pour servir de clé de repli (stable, insensible à la casse). */
@@ -120,6 +148,8 @@ export function resolveSequenceDungeons(
       isOptional: dungeon.isOptional === true,
       isOcre: dungeon.isOcre === true,
       isDone: done.has(key),
+      choiceGroup: dungeon.choiceGroup ?? null,
+      choiceLabel: dungeon.choiceLabel ?? null,
     });
   }
 
@@ -135,6 +165,11 @@ export function resolveSequenceDungeons(
  * | tous les requis cochés | `true` | `false` |
  * | un requis manquant (même si les optionnels sont cochés) | `false` | `true` |
  * | seul un optionnel manque | `true` | `false` |
+ *
+ * **Groupes de choix** (un tag `donjon` qui liste N donjons) : le groupe compte pour
+ * **une** exigence et est satisfait dès qu'**une** alternative est cochée. Sans cette
+ * règle, « Le disparu de Sufokia » (1 donjon selon le niveau) et « Les totems de
+ * Maïmane » (6 totems, 3 à 5 donjons par totem) restaient verrouillées à vie.
  */
 export function sequenceDungeonProgress(
   seq: RushSequence,
@@ -143,18 +178,46 @@ export function sequenceDungeonProgress(
   const { requirements, unresolved } = resolveSequenceDungeons(seq, doneKeys);
 
   const required = requirements.filter((r) => !r.isOptional);
-  const missingRequired = required.filter((r) => !r.isDone).map((r) => r.key);
+  const simpleRequired = required.filter((r) => !r.choiceGroup);
+  const missingSimple = simpleRequired.filter((r) => !r.isDone).map((r) => r.key);
+
+  const groupKeys: string[] = [];
+  for (const req of required) {
+    if (req.choiceGroup && !groupKeys.includes(req.choiceGroup)) groupKeys.push(req.choiceGroup);
+  }
+  const choiceGroups: RushDungeonChoiceGroup[] = groupKeys.map((key) => {
+    const members = required.filter((r) => r.choiceGroup === key);
+    const doneKeysInGroup = members.filter((r) => r.isDone).map((r) => r.key);
+    return {
+      key,
+      label: members[0]?.choiceLabel ?? "Au choix",
+      keys: members.map((r) => r.key),
+      doneKeys: doneKeysInGroup,
+      satisfied: doneKeysInGroup.length > 0,
+    };
+  });
+  const missingGroups = choiceGroups.filter((group) => !group.satisfied);
+
+  const unresolvedKeys = new Set(missingSimple);
+  for (const group of missingGroups) {
+    for (const key of group.keys) unresolvedKeys.add(key);
+  }
+
   const missingOptional = requirements.filter((r) => r.isOptional && !r.isDone).map((r) => r.key);
+  const missingBlocks = missingSimple.length + missingGroups.length;
 
   return {
     total: requirements.length,
     required: required.length,
     done: requirements.filter((r) => r.isDone).length,
-    missingRequired,
+    missingRequired: [...unresolvedKeys],
     missingOptional,
     unresolved,
-    complete: missingRequired.length === 0,
-    blocked: missingRequired.length > 0,
+    complete: missingBlocks === 0,
+    blocked: missingBlocks > 0,
+    requiredBlocks: simpleRequired.length + choiceGroups.length,
+    missingBlocks,
+    choiceGroups,
   };
 }
 
@@ -294,7 +357,11 @@ export function missingRequiredDungeons(
 ): RushMissingDungeon[] {
   if (!seq) return [];
   const done = new Set(doneKeys ?? []);
+  // La règle des GROUPES est celle de `sequenceDungeonProgress` : un groupe satisfait ne
+  // doit lister AUCUNE de ses alternatives comme manquante (sinon la quête reste
+  // verrouillée par une alternative non jouée).
+  const blocking = new Set(sequenceDungeonProgress(seq, done).missingRequired);
   return resolveSequenceDungeons(seq, done)
-    .requirements.filter((req) => !req.isOptional && !req.isDone)
+    .requirements.filter((req) => blocking.has(req.key))
     .map((req) => ({ key: req.key, name: req.name }));
 }

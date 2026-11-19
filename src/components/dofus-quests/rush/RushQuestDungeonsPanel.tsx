@@ -82,9 +82,14 @@ export function RushQuestDungeonsPanel({
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold text-muted-foreground">
             Donjons de la quête · {progress.done}/{progress.total} fait{progress.done > 1 ? "s" : ""}
-            {progress.missingRequired.length > 0 ? (
+            {progress.missingBlocks > 0 ? (
               <span className="text-warning">
-                {` · ${progress.missingRequired.length} requis restant${progress.missingRequired.length > 1 ? "s" : ""}`}
+                {` · ${progress.missingBlocks} requis restant${progress.missingBlocks > 1 ? "s" : ""}`}
+              </span>
+            ) : null}
+            {progress.choiceGroups.length > 0 ? (
+              <span className="text-muted-foreground">
+                {` · ${progress.choiceGroups.length} au choix`}
               </span>
             ) : null}
           </p>
@@ -101,7 +106,7 @@ export function RushQuestDungeonsPanel({
             <div
               className={cn(
                 "h-full transition-all",
-                progress.missingRequired.length > 0 ? "bg-warning" : "bg-emerald-500"
+                progress.missingBlocks > 0 ? "bg-warning" : "bg-emerald-500"
               )}
               style={{
                 width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,

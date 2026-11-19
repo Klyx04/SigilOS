@@ -31,6 +31,12 @@ import { z } from "zod";
 import { resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, missingRequiredDungeons, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
+import RUSH_QUEST_POSITIONS from "@/data/rush-quest-positions.json";
+import {
+  planRushPositionSync,
+  summarizeRushPositionSyncPlan,
+  type RushQuestPositionMap,
+} from "@/lib/rush-quest-positions";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
 import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
@@ -40,6 +46,9 @@ import { rushSplitMetaOf } from "@/server/rush-split-data";
 import { isRushNonQuestBlock } from "@/lib/rush-block-types";
 import { safeImageUrl } from "@/lib/security";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+
+/** La carte DPLN a des clés connues ; l'accès par `questId` est un index dynamique. */
+const RUSH_POSITION_MAP = RUSH_QUEST_POSITIONS as RushQuestPositionMap;
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -5199,6 +5208,96 @@ export async function importRushGuide(raw: unknown, apply = false) {
   return {
     success: true as const,
     data: { dryRun: false as const, applied: { blocks: createdBlocks, sequences: createdSequences }, plan },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Positions DPLN — synchro des séquences existantes (l'import est additif)
+// ---------------------------------------------------------------------------
+
+/**
+ * **Synchro des positions DPLN** — l'import consolidé ajoute les blocs et quêtes
+ * manquants, mais ne réécrit **jamais** une séquence existante : les tags
+ * `pos_tags` du seed ne peuvent donc pas atteindre un guide déjà en base.
+ *
+ * Cette action comble ce trou pour le seul tag technique `pos_tags` :
+ * - résolution par `questDbIds` (fait mesuré : 533/536 en local) ;
+ * - textes, ressources, succès et contraintes ne sont **pas** touchés ;
+ * - un zaap manuel (`zaapX`/`zaapY`) reste prioritaire ;
+ * - dry-run par défaut ; un second passage est un no-op (0 mise à jour).
+ */
+export async function syncRushPositions(apply = false) {
+  await requireRushAccess();
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
+
+  const plan = planRushPositionSync(
+    guide.milestones.flatMap((milestone) =>
+      milestone.sequences.map((sequence) => ({
+        id: sequence.id,
+        name: sequence.subGuideName,
+        questDbIds: sequence.questDbIds,
+        activityTags: sequence.activityTags,
+      }))
+    ),
+    RUSH_POSITION_MAP
+  );
+  const summary = summarizeRushPositionSyncPlan(plan);
+
+  if (!apply) return { success: true as const, data: { dryRun: true as const, plan: summary } };
+
+  const session = await auth();
+  const { success: rateOk } = await rateLimit(
+    `guide-sync-rush-positions:${session?.user?.id ?? "anon"}`,
+    3,
+    60_000
+  );
+  if (!rateOk) {
+    return { success: false as const, error: "Trop de synchronisations d'affilée, veuillez patienter." };
+  }
+
+  if (plan.updates.length === 0) {
+    return {
+      success: true as const,
+      data: { dryRun: false as const, applied: { updated: 0 }, plan: summary },
+    };
+  }
+
+  // Plus de 500 lignes d'un coup dépasseraient le délai d'une transaction ; chaque
+  // lot de 100 est atomique et l'action reste idempotente si un lot échoue.
+  let updated = 0;
+  for (let index = 0; index < plan.updates.length; index += 100) {
+    const chunk = plan.updates.slice(index, index + 100);
+    await db.$transaction(
+      chunk.map((update) =>
+        db.guideSequence.update({
+          where: { id: update.sequenceId },
+          data: { activityTags: update.activityTags },
+        })
+      )
+    );
+    updated += chunk.length;
+  }
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guide.id,
+    metadata: {
+      op: "sync-rush-positions",
+      updated,
+      unchanged: plan.unchanged,
+      withoutPosition: plan.withoutPosition,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/guides/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return {
+    success: true as const,
+    data: { dryRun: false as const, applied: { updated }, plan: summary },
   };
 }
 

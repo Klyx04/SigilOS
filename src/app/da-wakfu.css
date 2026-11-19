@@ -942,6 +942,14 @@ details.da-conseil[open] .da-conseil-body {
   .da-hero[data-density="wide"] { min-height: 112px; }
 }
 
+/* Retouche 19/11/2026 — la PiP garde un header compact même agrandie : le
+   plafond ne dépend plus de la hauteur de l'écran. Le guide page n'est pas
+   concerné (il n'est pas `.da-window`, et `data-host="pip"` est explicite). */
+.da-window[data-host="pip"] .da-hero[data-density="wide"],
+.da-window[data-host="pip"] .da-hero[data-density="normal"] {
+  min-height: 0;
+}
+
 .da-hero-img {
   position: absolute;
   inset: 0;

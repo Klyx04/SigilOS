@@ -69,6 +69,20 @@ describe("splitRichText — découpage du texte enrichi", () => {
     expect(splitRichText("puis /travel -55 15 pour se déplacer")[1]).toMatchObject({ kind: "coord", x: -55, y: 15 });
   });
 
+  it("le gras **…** et l'italique *…* sont rendus, sans astérisques", () => {
+    expect(splitRichText("**DofusDex officiel** — X")).toEqual([
+      { kind: "bold", value: "DofusDex officiel" },
+      { kind: "text", value: " — X" },
+    ]);
+    expect(splitRichText("Un *rappel* utile")).toEqual([
+      { kind: "text", value: "Un " },
+      { kind: "em", value: "rappel" },
+      { kind: "text", value: " utile" },
+    ]);
+    expect(html("**DofusDex officiel** — X")).toContain("<strong");
+    expect(html("**DofusDex officiel** — X")).not.toContain("**");
+  });
+
   it("un lien non sûr n'est pas rendu comme lien (fail-closed)", () => {
     expect(splitRichText("[clic](javascript:alert(1))")[0]).toEqual({ kind: "text", value: "clic" });
     expect(splitRichText('https://x.fr/a"onmouseover=1')[0]).toEqual({ kind: "text", value: 'https://x.fr/a"onmouseover=1' });
@@ -127,6 +141,18 @@ describe("splitTipLines — les conseils se lisent en puces", () => {
     ]);
   });
 
+  it("nettoie les listes markdown et coupe sur le séparateur « > »", () => {
+    expect(
+      splitTipLines("**DofusDex officiel** — X\n- Objectif A\n- Objectif B\n**Prérequis** : Y")
+    ).toEqual([
+      "**DofusDex officiel** — X",
+      "Objectif A",
+      "Objectif B",
+      "**Prérequis** : Y",
+    ]);
+    expect(splitTipLines("Section A > Section B")).toEqual(["Section A", "Section B"]);
+  });
+
   it("préserve les liens nommés et les commandes de déplacement", () => {
     expect(
       splitTipLines("[Eternelle Moisson](https://www.dofuspourlesnoobs.com/x.html) puis /travel -55 15")
@@ -147,6 +173,15 @@ describe("splitTipLines — les conseils se lisent en puces", () => {
     expect(out).toContain("Prendre la quête");
     // La position reste copiable à l'intérieur d'une puce (même rendu que hors puce).
     expect(out).toContain("Copier la commande /travel -55,15");
+  });
+
+  it("rendu réel : le gras du markdown ne laisse pas les astérisques", () => {
+    const out = renderToStaticMarkup(
+      React.createElement(RushTipLines, { text: "**DofusDex officiel** — X\n- Objectif" })
+    );
+    expect(out).toContain("<strong");
+    expect(out).not.toContain("**DofusDex");
+    expect(out).toContain("Objectif");
   });
 
   it("ne rend rien du tout quand il n'y a aucun conseil", () => {

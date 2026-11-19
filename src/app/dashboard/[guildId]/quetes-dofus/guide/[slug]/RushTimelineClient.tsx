@@ -938,7 +938,7 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
       imageUrl={milestone.imageUrl}
       accentColor={milestone.accentColor}
     >
-      <RushRichText text={content} normalizeMeta />
+      <RushTipLines text={content} />
     </RushInfoBanner>
   );
 }

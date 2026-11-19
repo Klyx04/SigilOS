@@ -168,6 +168,14 @@ describe("DA Gouache Wakfu — le hero ne mange pas la liste en fenêtre courte"
     it("le grand écran garde sa hauteur (la règle générale n'est pas touchée)", () => {
         expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*min\(276px,\s*30vh\)/);
     });
+
+    it("en PiP, le hero s'ajuste au contenu même au-dessus de 700 px", () => {
+        // Mesure du 19/11/2026 : au-dessus de 700 px, la règle `wide` reprenait
+        // 276 px pour ~100 px de contenu — une bande vide en haut de la PiP.
+        expect(css).toMatch(
+            /\.da-window\[data-host="pip"\] \.da-hero\[data-density="wide"\],\s*\.da-window\[data-host="pip"\] \.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*0/
+        );
+    });
 });
 
 describe("DA Gouache Wakfu — coût de rendu", () => {

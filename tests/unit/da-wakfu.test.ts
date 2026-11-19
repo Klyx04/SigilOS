@@ -688,6 +688,9 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
     const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
     const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
     const CHIP = "src/components/dofus-quests/rush/RushCoordinateChip.tsx";
+    const SUCCESS_CHIP = "src/components/dofus-quests/rush/SuccessChip.tsx";
+    const OVERLAY_ITEM = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx";
+    const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 
     it("la PiP et le guide public portent leur surface (`pip` / `page`)", () => {
         expect(readFileSync(OVERLAY, "utf8")).toMatch(/data-host="pip"/);
@@ -747,6 +750,29 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
         expect(css).toMatch(
             /\.da-row\[data-state="locked"\] \.da-card::before\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--da-field\) 70%, var\(--da-card\)\)/
         );
+    });
+
+    it("la fiche de succès est portée hors de la carte (fin du z-index et du barré)", () => {
+        const src = readFileSync(SUCCESS_CHIP, "utf8");
+        expect(src).toContain("createPortal");
+        expect(src).toContain("da-portal");
+        expect(src).toContain("ownerDocument.body");
+        // Le nom complet reste accessible en compact (icône seule).
+        expect(src).toContain("Succès : ${successes.map");
+    });
+
+    it("l'icône de quête ne double pas le nœud ✓ et une image cassée disparaît", () => {
+        const src = readFileSync(OVERLAY_ITEM, "utf8");
+        expect(src.match(/\{!isDone && titleIcon\}/g)?.length).toBe(2);
+        expect(src).toContain("onError={() => setTitleIconBroken(true)}");
+    });
+
+    it("le dashboard regroupe les pastilles dans le bloc d'actions", () => {
+        const src = readFileSync(DASHBOARD, "utf8");
+        expect(src).toContain(
+            "<SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />"
+        );
+        expect(src).toMatch(/ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1/);
     });
 });
 

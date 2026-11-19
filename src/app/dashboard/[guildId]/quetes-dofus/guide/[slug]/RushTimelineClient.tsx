@@ -471,7 +471,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         >
         <div className="flex min-w-0 flex-1 flex-col gap-2">
         {/* ── Ligne principale ── */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {/* Nom + position + tags */}
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {resolveRushSeqIcon(seq.icon) ? (
@@ -502,27 +502,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <RushAlignmentBadge label={alignmentLabel} />{" "}
               {questName}
             </button>
-            {/* Pastille donjon : ouvre les DEUX coches (fait / à faire) de CETTE quête.
-                Même geste que l'overlay et le guide public — jamais un onglet global. */}
-            {allDungeons.length > 0 && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); setDungeonsOpen(v => !v); }}
-                aria-expanded={dungeonsOpen}
-                aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${allDungeons.length} faits)`}
-                title="Donjons de cette quête — cliquer pour cocher fait / à faire"
-                className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
-              >
-                {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />
-                Donjon ×{allDungeons.length}
-                {doneDungeonsForSeq > 0 && (
-                  <span className="text-[10px] font-mono text-success">{doneDungeonsForSeq}/{allDungeons.length}</span>
-                )}
-              </button>
-            )}
-            <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} />
             {(() => {
               const npc = getSequenceNpc(seq);
               if (!npc || (!npc.name && npc.id === null)) return null;
@@ -576,7 +555,45 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               Même groupe segmenté que le guide public, et logos de marque servis
               EN LOCAL (brandIconForUrl) : plus aucune requête google.com/s2/favicons
               depuis le navigateur du membre. */}
-          <div className="flex items-center gap-0.5 shrink-0 ml-auto rounded-[4px] border border-border bg-surface p-0.5">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
+            {allDungeons.length > 0 && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setDungeonsOpen(v => !v); }}
+                aria-expanded={dungeonsOpen}
+                aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${allDungeons.length} faits)`}
+                title="Donjons de cette quête — cliquer pour cocher fait / à faire"
+                className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+              >
+                {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />
+                Donjon ×{allDungeons.length}
+                {doneDungeonsForSeq > 0 && (
+                  <span className="text-[10px] font-mono text-success">{doneDungeonsForSeq}/{allDungeons.length}</span>
+                )}
+              </button>
+            )}
+            <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />
+            {!isSeqCompleted && seqMembers.length > 0 && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setMembersModalOpen(true); }}
+                className="flex items-center gap-1.5 cursor-pointer rounded-[3px] px-1 py-0.5 transition-colors hover:bg-warning/10"
+                title={`Voir les membres ici : ${seqMembers.length}`}
+                aria-label={`Voir les membres ici : ${seqMembers.length}`}
+              >
+                <div className="flex -space-x-1">
+                  {seqMembers.slice(0, 5).map(m => (
+                    <div key={m.profileId} className="w-4 h-4 rounded-full overflow-hidden bg-surface border border-background ring-1 ring-warning/30 flex-shrink-0" title={m.userName}>
+                      <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-[7px] font-semibold text-warning" />
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-warning/60">{seqMembers.length}</span>
+              </button>
+            )}
+            <div className="flex items-center gap-0.5 shrink-0 rounded-[4px] border border-border bg-surface p-0.5">
             {(() => {
               const icon = brandIconForUrl(noobsUrl);
               if (!noobsUrl || !icon) return null;
@@ -636,31 +653,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <Info className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-        {/* ── Membres ici : qui a posé son repère sur CETTE quête (guilde) ──
-            Affiché dès qu'un membre y est — le repère d'un coéquipier doit se voir
-            sans que J'AIE posé le mien (même règle que l'overlay). Cliquable : la
-            rangée ouvre la liste des pseudos présents sur cette quête. */}
-        {!isSeqCompleted && seqMembers.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); setMembersModalOpen(true); }}
-              className="flex items-center gap-1.5 cursor-pointer rounded-[3px] px-1 py-0.5 transition-colors hover:bg-warning/10"
-              title={`Voir les membres ici : ${seqMembers.length}`}
-              aria-label={`Voir les membres ici : ${seqMembers.length}`}
-            >
-              <div className="flex -space-x-1">
-                {seqMembers.slice(0, 5).map(m => (
-                  <div key={m.profileId} className="w-4 h-4 rounded-full overflow-hidden bg-surface border border-background ring-1 ring-warning/30 flex-shrink-0" title={m.userName}>
-                    <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-[7px] font-semibold text-warning" />
-                  </div>
-                ))}
-              </div>
-              <span className="text-[10px] font-bold text-warning/60">{seqMembers.length}</span>
-            </button>
           </div>
-        )}
+        </div>
+
         {/* ── Tougli callout ── */}
         {(() => {
           const t = seq.activityTags?.find((x: any) => x.type === "tougli_box");

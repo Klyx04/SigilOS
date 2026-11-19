@@ -162,6 +162,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   const [dungeonTarget, setDungeonTarget] = useState<string | null>(null);
   // Mini-modale des prérequis (un seul encadré dans la ligne, la liste s'ouvre au clic).
   const [prereqsOpen, setPrereqsOpen] = useState(false);
+  // Une icône de quête cassée laissait un cadre carré vide devant le titre : on la
+  // retire (règle « pas d'image ⇒ rien », comme les vignettes de donjon).
+  const [titleIconBroken, setTitleIconBroken] = useState(false);
   // (le chip « ressources » a été retiré : le détail vit dans la fiche « i »)
   const hasDungeon = isDungeonSequence(seq);
   // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
@@ -206,15 +209,16 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
    * la rangée de l'état (`items-start`), elle flottait à côté de « À faire / Verrouillée »
    * au lieu de la quête (retour user du 18/11/2026). Même repli que le dashboard.
    */
-  const titleIcon = (
+  const titleIcon = seqIcon && !titleIconBroken ? (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
-      src={seqIcon ?? "/assets/icons/icone-quete.png"}
+      src={seqIcon}
       alt=""
       className="w-4 h-4 shrink-0 object-contain opacity-90"
       loading="lazy"
+      onError={() => setTitleIconBroken(true)}
     />
-  );
+  ) : null;
 
   return (
     <div
@@ -274,7 +278,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               className="da-qtitle block w-full text-left transition-colors hover:text-accent hover:underline"
             >
               <span className="flex min-w-0 items-center gap-2">
-                {titleIcon}
+                {!isDone && titleIcon}
                 <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 <span className="line-clamp-2">{name}</span>
               </span>
@@ -290,7 +294,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               className="da-qtitle block w-full cursor-pointer text-left transition-colors hover:text-accent hover:underline"
             >
               <span className="flex min-w-0 items-center gap-2">
-                {titleIcon}
+                {!isDone && titleIcon}
                 <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 <span className="line-clamp-2">{name}</span>
               </span>

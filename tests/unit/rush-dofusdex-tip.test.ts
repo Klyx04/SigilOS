@@ -96,4 +96,15 @@ describe("Câblage — les deux surfaces qui affichaient le pavé passent par le
       expect(src, `${name} ne rend pas le repli`).toContain("<RushDofusDexTip");
     }
   });
+
+  it("le tips de BLOC du dashboard (cadre `ms.tips`) passe par le repli", () => {
+    // Chemin réel mesuré sur la capture du 19/11 : le pavé n'est ni un tips de quête ni
+    // un encart INFO — c'est le cadre `ms.tips` du bloc ZONE/DOFUS.
+    const DASH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+    const src = readFileSync(DASH, "utf8");
+    expect(src).toContain('import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip"');
+    expect(src).toMatch(
+      /splitDofusDexTip\(ms\.tips\)\.official \? \(\s*<div className="mb-1">\s*<RushDofusDexTip text=\{ms\.tips\} \/>/
+    );
+  });
 });

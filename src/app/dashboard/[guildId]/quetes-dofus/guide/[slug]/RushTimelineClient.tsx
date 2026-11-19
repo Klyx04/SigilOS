@@ -106,6 +106,7 @@ import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
+import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -1067,12 +1068,16 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         {/* Expanded content */}
         <RushCollapse open={expanded}>
           <div className="p-4 space-y-2">
-{ms.tips && (
+{ms.tips && (splitDofusDexTip(ms.tips).official ? (
+                  <div className="mb-1">
+                    <RushDofusDexTip text={ms.tips} />
+                  </div>
+                ) : (
                   <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
                     <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
                   </div>
-                )}
+                ))}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>

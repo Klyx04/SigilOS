@@ -433,6 +433,10 @@ describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
     expect(byTitle("Astrub")?.tips ?? "").not.toContain("Prends toutes les quêtes");
   });
 
+  it("pose le conseil d'une étape sans quête cible sur le bloc de sa catégorie", () => {
+    expect(byTitle("Astrub")?.tips).toContain("Éternelle Moisson");
+  });
+
   it("ajoute le conseil d'une deuxième étape sur la même quête, sans écraser le premier", () => {
     const q1 = byTitle("Astrub")?.sequences.find((sequence) => sequence.subGuideName === "Q1");
     expect(q1?.tips).toContain("Prends toutes les quêtes");

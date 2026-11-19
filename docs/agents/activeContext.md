@@ -10,8 +10,8 @@
 
 > **Demande user (verbatim)** : « toutes les conseils c quoi ? tougli ou dofusyelle? » ; « oui étape par étape go ».
 > **Mesure** : le rapport listait **55** conseils — **50 étapes Dofusyelle** + **5 notes de blocs Tougli** ; 3 étapes (7, 35, 53) partageaient une quête et étaient comptées « à rédiger ».
-> **Fait** : contenu dans `src/data/rush-guide-tips.json` (`yelle` = 50 paraphrases, `blocks` = 5 notes) ; `YELLE_DEMO_TIPS` / `TOUGLI_BLOCK_TIPS` branchés sur le seed ; les conseils d'une même quête sont **ajoutés à la suite** (pas d'écrasement) ; `tipsToWrite` ne liste plus un conseil écrit ; `blockTip` alimente les 5 blocs.
-> **Preuves** : rapport **0 conseil à rédiger** · **52 conseils Yelle fusionnés** + **5 blocs** · **771 fichiers / 8 111 tests ✅** · `tsc` 0 · `rush-trame-seed` **39** · aucune migration.
+> **Fait** : contenu dans `src/data/rush-guide-tips.json` (`yelle` = 50 paraphrases, `blocks` = 5 notes) ; `YELLE_DEMO_TIPS` / `TOUGLI_BLOCK_TIPS` branchés sur le seed ; les conseils d'une même quête sont **ajoutés à la suite** (pas d'écrasement) ; les étapes sans cible (1, 41, 46, 50) sont posées sur le bloc de leur catégorie ; `tipsToWrite` ne liste plus un conseil écrit ; `blockTip` alimente les 5 blocs.
+> **Preuves** : rapport **0 conseil à rédiger** · **56 fusions Yelle** (55 conseils, 3 partagés) + **5 blocs** · **771 fichiers / 8 112 tests ✅** · `tsc` 0 · `rush-trame-seed` **40** · aucune migration.
 > **Reste** : positions (2c — siphon DPLN à décider) ; import du guide (itération 3) pour voir les conseils en base.
 > **Rotation** : bloc « suite 30 » (DofusDex, 6 totems, toasts DA) sorti (7ᵉ).
 

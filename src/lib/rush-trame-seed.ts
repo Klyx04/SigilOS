@@ -1219,9 +1219,34 @@ function enrichTougliWithYelle(
         }
       }
       // Conseil non rattaché : il reste listé **seulement s'il n'est pas écrit**.
+      // S'il est écrit mais que l'étape n'a pas de quête cible, on le pose sur le
+      // **bloc de sa catégorie** (ou le premier bloc) au lieu de le perdre.
       const tip = YELLE_DEMO_TIPS[n];
       const bodyLines = Array.isArray(step.body) ? step.body.length : 0;
-      if (!tip && bodyLines > 0) {
+      if (tip) {
+        const categoryKey = category.toLowerCase();
+        const categoryTokens = categoryKey
+          .split(/[^a-z0-9àâäéèêëîïôöùûüç]+/)
+          .filter((token) => token.length >= 4);
+        const fallbackBlock =
+          blocks.find((block) => block.title === title) ??
+          blocks.find((block) => block.title.toLowerCase().includes(title.toLowerCase())) ??
+          blocks.find((block) => block.title.toLowerCase().includes(categoryKey)) ??
+          blocks.find((block) =>
+            categoryTokens.some((token) => block.title.toLowerCase().includes(token))
+          ) ??
+          blocks[0];
+        if (fallbackBlock) {
+          const current = fallbackBlock.tips;
+          if (!current) {
+            fallbackBlock.tips = tip;
+            report.yelleTipsMerged += 1;
+          } else if (current !== tip && !current.includes(tip)) {
+            fallbackBlock.tips = `${current}\n${tip}`;
+            report.yelleTipsMerged += 1;
+          }
+        }
+      } else if (bodyLines > 0) {
         report.tipsToWrite.push({ step: n, title, category, lines: bodyLines });
       }
       const dexEntry = findDofusDexEntry(title, options.dofusdex);

@@ -46,6 +46,7 @@ import {
   seedRushSylvestreFromGuide,
   importRushGuide,
   syncRushPositions,
+  syncRushGuideContent,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
@@ -81,6 +82,7 @@ import type { RushQuestConstraints } from "@/types/rush-constraints";
 import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 import type { RushPositionSyncSummary } from "@/lib/rush-quest-positions";
+import type { RushContentSyncSummary } from "@/lib/rush-content-sync";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
@@ -3614,11 +3616,12 @@ function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) 
 
 /** Corps du dialogue d'import : fichier + zone JSON + plan lisible. */
 function RushImportDialogBody({
-  text, setText, plan, issues, onTextChange,
+  text, setText, plan, contentPlan, issues, onTextChange,
 }: {
   text: string;
   setText: (value: string) => void;
   plan: RushImportPlan | null;
+  contentPlan: RushContentSyncSummary | null;
   issues: string[];
   onTextChange: () => void;
 }) {
@@ -3697,6 +3700,33 @@ function RushImportDialogBody({
           )}
         </div>
       )}
+
+      {contentPlan && (
+        <div className="space-y-2 border-t border-border pt-2">
+          <p className="text-caption font-medium text-foreground">Enrichissement de l&apos;existant</p>
+          <div className="flex flex-wrap gap-2 text-caption">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
+              {contentPlan.tips} conseil(s)
+            </span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
+              {contentPlan.tags} tag(s) · {contentPlan.monsters} monstre(s)
+            </span>
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
+              {contentPlan.tipsProtected} conseil(s) God conservé(s) · {contentPlan.tagsAlready} tag(s) déjà rempli(s)
+            </span>
+          </div>
+          {contentPlan.tagsWithoutSource > 0 && (
+            <p className="text-caption text-muted-foreground">
+              {contentPlan.tagsWithoutSource} groupe(s) non résolu(s) : laissés tels quels, jamais devinés.
+            </p>
+          )}
+          {contentPlan.updates === 0 && (
+            <p className="text-caption text-muted-foreground">
+              Rien à enrichir : les conseils et les monstres sont déjà en base.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3713,6 +3743,7 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [text, setText] = useState("");
   const [analysedFor, setAnalysedFor] = useState<string | null>(null);
   const [plan, setPlan] = useState<RushImportPlan | null>(null);
+  const [contentPlan, setContentPlan] = useState<RushContentSyncSummary | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [busy, startTransition] = useTransition();
 
@@ -3729,21 +3760,34 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
     if (!parsed.ok) {
       setIssues([parsed.error]);
       setPlan(null);
+      setContentPlan(null);
       return;
     }
     startTransition(async () => {
       try {
         const res = await importRushGuide(parsed.value, false);
-        if (res.success) {
-          setPlan(res.data.plan);
-          setIssues(res.data.plan.warnings);
-          setAnalysedFor(text);
-        } else {
+        if (!res.success) {
           setPlan(null);
+          setContentPlan(null);
           setIssues(res.issues ?? [res.error]);
+          return;
+        }
+        setPlan(res.data.plan);
+        setAnalysedFor(text);
+        // Le même payload porte les conseils (2b) et les monstres (2a) : l'analyse
+        // d'enrichissement part dans la foulée, sans seconde saisie ni second collage.
+        const content = await syncRushGuideContent(parsed.value, false);
+        if (content.success) {
+          setContentPlan(content.data.plan);
+          setIssues(res.data.plan.warnings);
+        } else {
+          setContentPlan(null);
+          setIssues([...res.data.plan.warnings, content.error]);
         }
       } catch (error) {
         setIssues([error instanceof Error ? error.message : "Erreur d'analyse"]);
+        setPlan(null);
+        setContentPlan(null);
       }
     });
   }, [payload, text]);
@@ -3768,7 +3812,30 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
     });
   }, [payload, onClose, router]);
 
+  const applyContent = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) return;
+    startTransition(async () => {
+      try {
+        const res = await syncRushGuideContent(parsed.value, true);
+        if (res.success) {
+          const applied = ("applied" in res.data ? res.data.applied : null) ?? { updated: 0, tips: 0, monsters: 0 };
+          toast.success(
+            `Contenu enrichi : ${applied.tips} conseil(s), ${applied.monsters} monstre(s) sur ${applied.updated} quête(s)`
+          );
+          onClose();
+          router.refresh();
+        } else {
+          toast.error(res.error);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Erreur d'enrichissement");
+      }
+    });
+  }, [payload, onClose, router]);
+
   const canApply = analysedFor !== null && analysedFor === text && !!plan && !isRushImportNoop(plan);
+  const canEnrich = analysedFor !== null && analysedFor === text && !!contentPlan && contentPlan.updates > 0;
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -3777,12 +3844,14 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <DialogTitle>Import consolidé — dry-run d&apos;abord</DialogTitle>
           <DialogDescription>
             Colle un <code>export-god.json</code> (ou le JSON d&apos;un bloc). L&apos;analyse liste ce qui serait
-            créé ; rien n&apos;est écrit avant « Appliquer ». Aucun bloc ni aucune quête existants ne sont modifiés.
+            créé ; rien n&apos;est écrit avant « Appliquer ». L&apos;import ne modifie aucun bloc ni aucune quête
+            existants ; « Enrichir l&apos;existant » ne remplit que les conseils vides et les monstres manquants,
+            jamais un texte God.
           </DialogDescription>
         </DialogHeader>
         <RushImportDialogBody
-          text={text} setText={setText} plan={plan} issues={issues}
-          onTextChange={() => { setAnalysedFor(null); setPlan(null); }}
+          text={text} setText={setText} plan={plan} contentPlan={contentPlan} issues={issues}
+          onTextChange={() => { setAnalysedFor(null); setPlan(null); setContentPlan(null); }}
         />
         <DialogFooter>
           <button
@@ -3792,6 +3861,19 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
             className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-caption font-bold text-primary disabled:opacity-40"
           >
             {busy ? "Analyse…" : "Analyser (dry-run)"}
+          </button>
+          <button
+            type="button"
+            onClick={applyContent}
+            disabled={busy || !canEnrich}
+            className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-caption font-bold text-primary disabled:opacity-40"
+            title={
+              canEnrich
+                ? "Remplit les conseils vides et ajoute les monstres des tags de combat — aucun texte God écrasé"
+                : "Analyse d'abord le même contenu (aucun enrichissement à appliquer sinon)"
+            }
+          >
+            Enrichir l&apos;existant{contentPlan && contentPlan.updates > 0 ? ` (${contentPlan.updates})` : ""}
           </button>
           <button
             type="button"

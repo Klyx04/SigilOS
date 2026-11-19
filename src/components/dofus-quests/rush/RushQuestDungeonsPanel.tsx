@@ -68,6 +68,9 @@ export function RushQuestDungeonsPanel({
     () => sequenceDungeonProgress(seq, doneDungeonKeysForSequence(states, seq.id)),
     [seq, states]
   );
+  // Le compteur du panneau parle la MÊME langue que la pastille : des exigences
+  // (un groupe « au choix » = 1), pas le nombre brut de donjons listés.
+  const doneBlocks = progress.requiredBlocks - progress.missingBlocks;
 
   return (
     <div
@@ -81,7 +84,7 @@ export function RushQuestDungeonsPanel({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold text-muted-foreground">
-            Donjons de la quête · {progress.done}/{progress.total} fait{progress.done > 1 ? "s" : ""}
+            Donjons de la quête · {doneBlocks}/{progress.requiredBlocks} exigence{doneBlocks > 1 ? "s" : ""}
             {progress.missingBlocks > 0 ? (
               <span className="text-warning">
                 {` · ${progress.missingBlocks} requis restant${progress.missingBlocks > 1 ? "s" : ""}`}
@@ -99,9 +102,9 @@ export function RushQuestDungeonsPanel({
             className="mt-1 h-1 w-full overflow-hidden rounded-[2px] bg-elevated"
             role="progressbar"
             aria-valuemin={0}
-            aria-valuemax={Math.max(progress.total, 1)}
-            aria-valuenow={progress.done}
-            aria-label="Donjons faits dans cette quête"
+            aria-valuemax={Math.max(progress.requiredBlocks, 1)}
+            aria-valuenow={doneBlocks}
+            aria-label="Exigences de donjons faites dans cette quête"
           >
             <div
               className={cn(
@@ -109,7 +112,7 @@ export function RushQuestDungeonsPanel({
                 progress.missingBlocks > 0 ? "bg-warning" : "bg-emerald-500"
               )}
               style={{
-                width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
+                width: `${progress.requiredBlocks > 0 ? Math.round((doneBlocks / progress.requiredBlocks) * 100) : 0}%`,
               }}
             />
           </div>

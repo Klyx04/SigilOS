@@ -148,20 +148,30 @@ export function RushOverlayDungeonCard({
           const href = dungeonFicheHref(isPublic ? "public" : guildId, dj);
           const key = sequenceId ? dungeonKeyOf(dj) : null;
           const state = key && sequenceId ? occurrenceState(states, sequenceId, key) : null;
+          // Groupe « au choix » : un seul donjon du groupe suffit (règle de
+          // `rush-dungeons`). L'en-tête est posé AVANT la première alternative.
+          const previousGroup = i > 0 ? dungeons[i - 1]?.choiceGroup ?? null : null;
+          const startsChoiceGroup = !!dj.choiceGroup && dj.choiceGroup !== previousGroup;
           return (
-            <DungeonRow
-              key={key ?? `dj-${i}`}
-              dj={dj}
-              href={href}
-              isPublic={isPublic}
-              state={state}
-              busy={!!key && busyKey === `${sequenceId}::${key}`}
-              todo={key ? todoByKey.get(key) ?? [] : []}
-              highlighted={!!key && key === highlightKey}
-              onSet={onSet && key ? (next) => onSet(key, next) : undefined}
-              ocreState={dj.isOcre ? ocreDungeonCapture(dj, capturedOcreNames) : null}
-              onOpenOcre={onOpenOcre}
-            />
+            <React.Fragment key={key ?? `dj-${i}`}>
+              {startsChoiceGroup && (
+                <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  {dj.choiceLabel || "Au choix"} — un seul suffit
+                </p>
+              )}
+              <DungeonRow
+                dj={dj}
+                href={href}
+                isPublic={isPublic}
+                state={state}
+                busy={!!key && busyKey === `${sequenceId}::${key}`}
+                todo={key ? todoByKey.get(key) ?? [] : []}
+                highlighted={!!key && key === highlightKey}
+                onSet={onSet && key ? (next) => onSet(key, next) : undefined}
+                ocreState={dj.isOcre ? ocreDungeonCapture(dj, capturedOcreNames) : null}
+                onOpenOcre={onOpenOcre}
+              />
+            </React.Fragment>
           );
         })}
       </div>

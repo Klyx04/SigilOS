@@ -286,6 +286,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | ✅ **déjà livré** : panneau + fiche partagée |
 | Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | ✅ **livré 19/11/2026** : médaillon du bloc (overlay) + liste des chapitres |
 | Pastille Succès sur le guide **public** | absente : `SuccessChip` n'était montée que dans le dashboard et l'overlay | ✅ **livré 19/11/2026** : même `SuccessChip`, mêmes `questDbIds` |
+| Donjons « au choix » (Sufokia, Maïmane) | un tag `donjon` multi était lu comme N exigences (`dungeonIds` à plat) | ✅ **livré 19/11/2026** : un groupe = une exigence, un seul donjon suffit ; sans migration (`activityTags`) |
 | Quêtes non cliquables dans le guide navigateur | ✅ **livré 18/11/2026** : la **ligne de quête** (nom) ouvre la fiche détaillée sur le dashboard et le guide public ; le picto « i » reste | — |
 | Changement d'alignement : refresh ? | ✅ **livré 18/11/2026** — cause mesurée : le PiP recevait un **instantané figé** ; l'overlay ouvert est resynchronisé (`sync`) à chaque rafraîchissement, et la cité/Ordre du personnage pré-remplit sa modale | — |
 | Changement de personnage : aucun message | ✅ **livré 18/11/2026** : toast « Personnage actif : <nom> » + resynchronisation de l'overlay | — |

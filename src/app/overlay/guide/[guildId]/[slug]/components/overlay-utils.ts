@@ -283,7 +283,98 @@ export type DungeonInfo = {
   isOcreQuest?: boolean;
   /** Optionnel : ne bloque pas la validation de la quête (verrou `rush-dungeons`). */
   isOptional?: boolean;
+  /**
+   * Groupe de donjons **au choix** (`null` = exigence simple). Un tag `donjon` qui liste
+   * plusieurs donjons séparés par « / » désigne des **alternatives** : un seul suffit.
+   */
+  choiceGroup?: string | null;
+  /** Libellé humain du groupe (« Donjon en fonction de votre niveau »…). */
+  choiceLabel?: string | null;
 };
+
+/** Normalisation d'un libellé pour rapprocher un nom de tag d'un nom de donjon. */
+function normalizeChoiceName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Découpe un tag `donjon` multi : « A / B / C — précision ».
+ *
+ * La précision après le tiret cadratin n'est **pas** un nom de donjon (« Donjon en
+ * fonction de votre niveau ») : elle sert de libellé au groupe.
+ */
+export function splitDungeonChoiceTag(name: string | null | undefined): {
+  segments: string[];
+  label: string | null;
+} {
+  const raw = typeof name === "string" ? name.trim() : "";
+  if (!raw || !raw.includes(" / ")) return { segments: [], label: null };
+  const segments: string[] = [];
+  let label: string | null = null;
+  for (const part of raw.split(" / ")) {
+    const [head, ...rest] = part.trim().split(/\s+—\s+/);
+    const segment = (head ?? "").trim();
+    if (segment) segments.push(segment);
+    if (!label && rest.length > 0) label = rest.join(" — ").trim() || null;
+  }
+  return { segments, label };
+}
+
+/**
+ * Rattache les donjons d'un même tag `donjon` multi à un **groupe de choix**.
+ *
+ * Mesure du 19/11/2026 sur le guide Touglie : **7 tags multi sur 174**, tous sur deux
+ * quêtes — « Le disparu de Sufokia » (1 donjon selon le niveau, 5 listés) et « Les
+ * totems de Maïmane » (6 totems, 3 à 5 donjons par totem). Le seed écrit **un tag par
+ * groupe** et `dungeonIds` **à plat** : sans cette règle, la quête exige les 5 / 12
+ * donjons au lieu d'un par groupe, et reste verrouillée à vie.
+ *
+ * Le rapprochement se fait **par nom normalisé** (les tags portent les noms, `dungeons`
+ * les ids). Un groupe qui ne résout pas au moins **deux** donjons est ignoré : on ne
+ * fige jamais une quête sur une donnée absente (fail-open, comme le reste du module).
+ */
+export function attachDungeonChoices(
+  dungeons: DungeonInfo[],
+  tags: readonly RushActivityTag[] | null | undefined
+): DungeonInfo[] {
+  if (dungeons.length === 0) return dungeons;
+  const tagList = Array.isArray(tags) ? tags : [];
+  const out = dungeons.map((d) => ({ ...d }));
+  const normalized = out.map((d) => normalizeChoiceName(d.name ?? ""));
+  const grouped = new Set<number>();
+  let groupIndex = 0;
+
+  for (const tag of tagList) {
+    if (tag?.type !== "donjon") continue;
+    const { segments, label } = splitDungeonChoiceTag(tag.name);
+    if (segments.length < 2) continue;
+    const segmentNames = segments.map(normalizeChoiceName).filter((s) => s.length >= 4);
+    if (segmentNames.length < 2) continue;
+
+    const matched: number[] = [];
+    for (let i = 0; i < out.length; i++) {
+      if (grouped.has(i)) continue;
+      const name = normalized[i];
+      if (!name || name.length < 4) continue;
+      if (segmentNames.some((segment) => segment.includes(name) || name.includes(segment))) {
+        matched.push(i);
+      }
+    }
+    if (matched.length < 2) continue;
+
+    const key = `choix:${groupIndex++}`;
+    for (const i of matched) {
+      grouped.add(i);
+      out[i] = { ...out[i], choiceGroup: key, choiceLabel: label ?? "Au choix" };
+    }
+  }
+  return out;
+}
 
 export function getDungeons(seq: RushSequence): DungeonInfo[] {
   const seqAny = seq as any;
@@ -348,7 +439,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
     });
   }
 
-  return result;
+  return attachDungeonChoices(result, seq.activityTags);
 }
 
 /**

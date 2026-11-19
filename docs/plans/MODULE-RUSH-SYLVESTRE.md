@@ -516,6 +516,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | 16 DofusDex sans panneau | ✅ **déjà livré** : `PublicDofusProgressPanel` + `RushDofusDetailModal` partagée avec l'interne | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
 | Icône Dofus discrète | ✅ **livré 19/11/2026** : le médaillon de la barre de chapitre porte le **Dofus du bloc** (overlay), et la liste nomme chaque Dofus — parité dashboard/public | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
 | Pastille Succès absente du guide **public** | ✅ **livré 19/11/2026** : `SuccessChip` + `guideQuests` (mêmes `questDbIds`), verrouillé par `rush-public-parity` | `SuccessChip`, `getSequenceSuccesses` |
+| Donjons « au choix » (Sufokia, Maïmane) | ✅ **livré 19/11/2026** : un tag `donjon` multi = **un groupe** (`attachDungeonChoices`), un seul donjon suffit ; `requiredBlocks`/`missingBlocks` ; **aucune migration** (groupes lus dans `activityTags`). Maïmane : **12/30** donjons résolus (18 à aliasser) | `overlay-utils`, `rush-dungeons`, `RushOverlayDungeonCard`, `RushQuestDungeonsPanel` |
 | Quêtes non cliquables | ✅ livré 18/11/2026 | la ligne (nom) ouvre la fiche sur le dashboard et le guide public ; picto « i » conservé |
 | Changement perso sans message | ✅ livré 18/11/2026 | toast « Personnage actif : <nom> » + `sync` de l'overlay ouvert |
 | Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |

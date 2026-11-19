@@ -36,6 +36,13 @@ export type RushImportActivityTag = {
     iconId?: number;
     /** Groupe « au choix » (`prereq_expr`) : alternatives par id DofusDB. */
     alternatives?: Array<{ questId: number; name?: string }>;
+    /** Tag `pos_tags` : monde Dofus (1 = classique). */
+    worldId?: number;
+    /** Tag `pos_tags` : détour zaap proposé ; l'auto résout le plus proche. */
+    allowZaap?: boolean;
+    /** Tag `pos_tags` : zaap manuel (God), prioritaire sur l'auto. */
+    zaapX?: number;
+    zaapY?: number;
     /**
      * Monstres d'un tag de combat — un tag porte un **groupe** (« A, B, C ») :
      * chaque nom est résolu contre le bestiaire local ; un nom inconnu reste

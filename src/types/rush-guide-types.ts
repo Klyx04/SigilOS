@@ -61,6 +61,13 @@ export type RushActivityTag = {
   quantity?: number;
   /** Tag `npc` : identifiant client du PNJ (portrait par convention). */
   npcId?: number;
+  /** Tag `pos_tags` : monde Dofus (1 = classique). */
+  worldId?: number;
+  /** Tag `pos_tags` : détour zaap proposé ; l'auto résout le plus proche. */
+  allowZaap?: boolean;
+  /** Tag `pos_tags` : zaap manuel (God), prioritaire sur l'auto. */
+  zaapX?: number;
+  zaapY?: number;
   /**
    * Tag de combat — monstres du groupe, résolus par nom au seed. Un nom inconnu
    * reste nommé, sans slug : le rendu ne devine jamais la fiche.

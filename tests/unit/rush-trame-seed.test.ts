@@ -203,7 +203,7 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
   it("pose la position de lancement DPLN en tag pos_tags", () => {
     const q1 = result.payload.blocks[0].sequences[0];
     const tag = (q1.activityTags ?? []).find((candidate) => candidate.type === "pos_tags");
-    expect(tag).toEqual({ type: "pos_tags", name: "[6,-19]" });
+    expect(tag).toMatchObject({ type: "pos_tags", name: "[6,-19]", allowZaap: true, worldId: 1 });
   });
 
   it("transporte l'id DofusDB du donjon, jamais le cuid local", () => {

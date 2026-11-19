@@ -4907,6 +4907,11 @@ const RushImportActivityTagSchema = z.object({
     )
     .max(20)
     .optional(),
+  // Tag `pos_tags` : position de lancement + détour zaap (les champs du studio God).
+  worldId: z.number().int().min(1).max(999).optional(),
+  allowZaap: z.boolean().optional(),
+  zaapX: z.number().int().min(-1000).max(1000).optional(),
+  zaapY: z.number().int().min(-1000).max(1000).optional(),
 });
 
 const RushImportSequenceSchema = z.object({

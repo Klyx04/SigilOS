@@ -11,6 +11,15 @@ export type RushQuestPosition = {
     zone?: string;
     /** URL source, pour re-vérifier une mesure. */
     url?: string;
+    /** Ligne « Position de lancement » du haut (`top`), premier chip du corps (`body`) ou fiche Dofus (`guide`). */
+    source?: "top" | "body" | "guide";
+    /** Détour zaap proposé ; le zaap le plus proche est résolu par l'interface. */
+    allowZaap?: boolean;
+    /** Monde Dofus (1 = monde classique). */
+    worldId?: number;
+    /** Zaap manuel saisi en God, prioritaire sur l'auto le plus proche. */
+    zaapX?: number;
+    zaapY?: number;
 };
 
 export type RushQuestPositionMap = Readonly<Record<string, RushQuestPosition>>;

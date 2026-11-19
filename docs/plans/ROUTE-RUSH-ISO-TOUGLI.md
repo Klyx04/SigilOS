@@ -300,7 +300,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | 55 conseils | ✅ **livrés 19/11/2026** : 50 Yelle + 5 blocs Tougli, **0 à rédiger** | — |
 | Descriptions de blocs (8 vs 12) | description calculée avant l'enrichissement | **seed** (petit) |
 | 3 donjons inconnus | ✅ **soldé le 19/11/2026** : 3 alias mesurés (`rush-dungeon-names`) ; rapport à re-générer | — |
-| Positions de lancement | ✅ **siphon DPLN 19/11/2026** : **515 / 530** (97,2 %), Sufokia `[-25,-36]` ; 15 pages sans position (non inventées) ; tag `pos_tags` après les ressources | — |
+| Positions de lancement | ✅ **siphon DPLN 19/11/2026** : **524 / 530** (515 haut + **9 corps**, dont **1859 Faire le mort `[-26,36]`**) ; 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) ; `allowZaap` vrai, source haut/corps ; alignement 233/233, Ordres 30/30, classes 19/19 | — |
 | 4 étapes / **3 succès** (rapport du 18/11) | « Compléments — succès hors trame » | **normal** |
 | Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
 | Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |

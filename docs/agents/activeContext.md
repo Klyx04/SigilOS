@@ -9,10 +9,10 @@
 ## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
 
 > **Demande user (verbatim)** : « toutes les positions de lancement de quete? on les affiche pas actuellement ».
-> **Mesure** : la trame Tougli n'a aucune position ; `DofusQuestEntry` ne couvre que 199/552 quêtes (17 positions monde, 125 PNJ) ; DPLN expose « Position de lancement : zone [x,y] ».
-> **Fait** : siphon `siphon-rush-quest-positions.ts` (lecture seule, 1,1 s/page, carte fusionnée) ⇒ **515 / 530** quêtes (97,2 %), Sufokia `[-25,-36]` ; 15 pages sans ligne (non inventées) ; `tagsForQuest` pose un tag `pos_tags` (`[x,y]`) **après** les ressources (jamais de ressource perdue) ⇒ **516** séquences équipées ; `getSequenceCoord` l'affiche sur les 3 surfaces.
-> **Preuves** : carte 515 · **771 fichiers / 8 115 tests ✅** · `tsc` 0 · `rush-trame-seed` **41** · `rush-quest-positions` **2** · ressources **863** intactes · aucune migration.
-> **Reste** : 15 pages DPLN sans position (manuel si besoin) ; import du guide (itération 3) pour voir les positions en base.
+> **Mesure** : la trame Tougli n'a aucune position ; `DofusQuestEntry` ne couvre que 199/552 quêtes (17 positions monde, 125 PNJ) ; DPLN expose la position en ligne du haut **ou dans le corps** (ex. 1859 « Faire le mort » → `[-26,36]`) ; 6 pages n'ont aucune position écrite (622, 623, 1528, 1629, 1630, 1938) ; **alignement 233/233, Ordres 30/30, classes 19/19**.
+> **Fait** : siphon `--only` sur les 15 pages + fallback `.paragraph` + `DofusQuestEntry` ⇒ **524 / 530** (515 ligne du haut + **9 reprises corps**, dont Faire le mort) ; `allowZaap` vrai + `worldId` 1 (les champs du studio God), zaap le plus proche résolu par `resolveMapWorldAction` ; `showIcon` + zaap sur les 3 surfaces ; `pos_tags` après les ressources (863 intactes), **525 tags** (une jumelle).
+> **Preuves** : carte 524 · **772 fichiers / 8 118 tests ✅** · `tsc` 0 · `rush-trame-seed` **41** · `rush-quest-positions` **5** · ressources **863** intactes · aucune migration.
+> **Reste** : 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) — à compléter à la main ; import du guide (itération 3) pour voir les positions en base.
 > **Rotation** : bloc « suite 31 » (Bloc I) sorti (7ᵉ).
 
 

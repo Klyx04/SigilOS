@@ -129,7 +129,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, rushChapterNumbers, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, getSequenceSuccesses, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, rushChapterNumbers, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -142,6 +142,7 @@ import {
 } from "@/lib/rush-alignment-series";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
 import { DaRail } from "@/components/da/da-rail";
 import { DaThemeProvider } from "@/components/da/da-theme";
@@ -955,6 +956,25 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     completedStepsByMs.forEach((ids) => ids.forEach((id) => set.add(id)));
     return set;
   }, [completedStepsByMs]);
+
+  // Quêtes du guide (id DofusDB → nom + état) pour la fiche d'un succès.
+  // MÊME construction que le guide interne (`RushTimelineClient`) : la pastille
+  // Succès du public liste exactement les quêtes que le dashboard nomme.
+  const guideQuests = useMemo<RushGuideQuestRef[]>(() => {
+    const out: RushGuideQuestRef[] = [];
+    for (const milestone of milestones) {
+      for (const sequence of milestone.sequences ?? []) {
+        for (const id of sequence.questDbIds ?? []) {
+          out.push({
+            id,
+            name: sequence.subGuideName || `Quête ${id}`,
+            done: completedSeqIds.has(sequence.id),
+          });
+        }
+      }
+    }
+    return out;
+  }, [milestones, completedSeqIds]);
 
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
 
@@ -3052,6 +3072,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                             )}
                                           </button>
                                         )}
+                                        {/* Pastille Succès : le MÊME composant que le dashboard et
+                                            l'overlay. Un succès est un groupe de quêtes, jamais une
+                                            coche ; la fiche liste leurs noms et leur état. */}
+                                        <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} />
                                         {parsedCoord && (
                                           <RushCoordinateChip coordText={parsedCoord.raw} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
                                         )}

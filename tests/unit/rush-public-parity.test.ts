@@ -61,6 +61,27 @@ describe("Prérequis — le public refuse EXACTEMENT ce que l'interne refuse", (
   });
 });
 
+describe("Succès — la MÊME pastille que le guide interne", () => {
+  it("les deux surfaces rendent `SuccessChip` sur la ligne de quête", () => {
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      expect(code, `${name} n'importe pas la pastille Succès`).toMatch(
+        /import \{ SuccessChip \} from "@\/components\/dofus-quests\/rush\/SuccessChip"/
+      );
+      expect(code, `${name} ne la rend pas sur la quête`).toMatch(
+        /<SuccessChip successes=\{getSequenceSuccesses\(seq\)\} quests=\{guideQuests\}/
+      );
+    }
+  });
+
+  it("la fiche d'un succès nomme les quêtes par leurs ids DofusDB, avec leur état", () => {
+    // Même source dans les deux surfaces : `questDbIds` → `RushGuideQuestRef`.
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      expect(code, `${name} ne lit pas les ids DofusDB`).toMatch(/questDbIds/);
+      expect(code, `${name} ne porte pas l'état de la quête`).toMatch(/done: /);
+    }
+  });
+});
+
 describe("Panneau de droite — le MÊME composant dans les deux guides", () => {
   it("la sidebar est partagée (hors du dossier dashboard) et existe", () => {
     expect(existsSync(SIDEBAR)).toBe(true);

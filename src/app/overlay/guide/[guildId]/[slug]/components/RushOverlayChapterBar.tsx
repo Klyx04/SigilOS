@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isNonCheckableBlock } from "@/lib/rush-guide-utils";
+import { getDofusMeta } from "@/lib/rush-dofus-meta";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
@@ -134,10 +135,16 @@ export function RushOverlayChapterBar({
             canSelect && "cursor-pointer"
           )}
         >
-          {/* Médaillon 26 px (DA) : le picto de QUÊTE du jeu, pas un glyphe. */}
+          {/* Médaillon 26 px (DA) : le Dofus du bloc quand il en a un — le MÊME
+              asset que le dashboard et le guide public —, sinon le picto de
+              quête du jeu (jamais un glyphe inventé). */}
           <span className="da-medal" aria-hidden="true">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 object-contain" />
+            <img
+              src={getDofusMeta(activeMs?.dofusId)?.imageUrl ?? "/assets/dofus-ui/pictos/etape.png"}
+              alt=""
+              className="h-4 w-4 object-contain"
+            />
           </span>
           <span className="da-dock-label min-w-0 flex-1 text-left">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
@@ -250,6 +257,20 @@ export function RushOverlayChapterBar({
                       {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
                     </span>
                     <span className="shrink-0 opacity-70">{idx + 1}.</span>
+                    {(() => {
+                      const meta = getDofusMeta(ms.dofusId);
+                      if (!meta) return null;
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={meta.imageUrl}
+                          alt=""
+                          title={meta.label}
+                          loading="lazy"
+                          className="h-4 w-4 shrink-0 object-contain"
+                        />
+                      );
+                    })()}
                     <span className="min-w-0 flex-1 truncate">{ms.title || `Chapitre ${idx + 1}`}</span>
                     <span
                       className={cn(

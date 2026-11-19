@@ -280,11 +280,12 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 |---|---|---|
 | Prérequis absents (ex. « Destination Astrub » : 1635, niveau 10, guilde) | ✅ **livré 18/11/2026** : siphon client (`startCriterion` : 990 quêtes / 1 187 arêtes, ET-only) + verrou d'**ordre** (`Réponses à tout` → `Sous le regard des dieux`) ; **451 prérequis du jeu + 76 d'ordre** | — |
 | Prérequis **« au choix »** (ex. « Supermilicien » : 272, 273 **ou** 274) | ✅ **livré 18/11/2026** : tag `prereq_expr` (alternatives par id DofusDB, **aucune migration**), évaluation « au moins une » ; une alternative **hors guide** ne bloque jamais ; seed enrichi depuis `quest-prerequisites.json`. **Archivage + import requis** | — |
-| Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — agrandir, assets réels |
+| Détail de quête trop petit / pas de vrais monstres/items | `RushOverlayQuestDetailModal` + `RushOverlayTagSection`/`RushTagBadge` ; `Monster` 4 728 / `GameItem` 21 886 disponibles | **UI** — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (aucun id dans les tags) |
 | 68 succès cochables | ✅ **livré 18/11/2026** : un succès est un **groupe de quêtes** — 68 lignes supprimées, **303 tags** sur 284 quêtes, pastille + fiche `SuccessChip` (dashboard + overlay, icône officielle du client) | — |
-| Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; le « 448 » d'un écran non identifié reste **à reproduire** | **UI** (petit) |
-| 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | **UI** — panneau/badge DofusDex |
-| Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | **UI** — icône du Dofus |
+| Compteur 0/448 vs 591 séquences | ✅ en-tête du dashboard : « **blocs** » (il comptait des blocs) ; ⏸ le « 448 » reste **non reproduit** (payload local **536**, 0 info, 0 choix) | **UI** (à reproduire) |
+| 16 DofusDex : où ? | dans les `tips` des blocs Dofus (repli « Conseils »), pas de panneau dédié | ✅ **déjà livré** : panneau + fiche partagée |
+| Icône du Dofus discrète | `dofusId` + `RUSH_DOFUS_META` existent ; l'icône est dans l'en-tête/overlay/public mais peu visible | ✅ **livré 19/11/2026** : médaillon du bloc (overlay) + liste des chapitres |
+| Pastille Succès sur le guide **public** | absente : `SuccessChip` n'était montée que dans le dashboard et l'overlay | ✅ **livré 19/11/2026** : même `SuccessChip`, mêmes `questDbIds` |
 | Quêtes non cliquables dans le guide navigateur | ✅ **livré 18/11/2026** : la **ligne de quête** (nom) ouvre la fiche détaillée sur le dashboard et le guide public ; le picto « i » reste | — |
 | Changement d'alignement : refresh ? | ✅ **livré 18/11/2026** — cause mesurée : le PiP recevait un **instantané figé** ; l'overlay ouvert est resynchronisé (`sync`) à chaque rafraîchissement, et la cité/Ordre du personnage pré-remplit sa modale | — |
 | Changement de personnage : aucun message | ✅ **livré 18/11/2026** : toast « Personnage actif : <nom> » + resynchronisation de l'overlay | — |
@@ -306,7 +307,8 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 **Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
-**UI** (assets/compteur, DofusDex, icône Dofus) → **Bloc I** (succès de donjon) →
+**UI-1** ✅ 19/11/2026 (Succès public, Dofus du bloc ; DofusDex déjà livré ; compteur à reproduire) →
+**Bloc I** (succès de donjon) →
 **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs) →
 **55 conseils** → **VPS**.
 

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 28) — **Rush · UI-1 (Succès public + Dofus du bloc)** — branche `feat/rush-ui-1`
+
+> **Demande user (verbatim)** : « commencer la prochaine session par `gh pr checks 1450`, merger si vert, puis `git fetch origin dev`… » ; « Ensuite : **UI-1 → Bloc I → Bloc J → 55 conseils → VPS** ».
+> **Fait** : ① **#1450 mergée** (`dev 2d70019c`, CI **6/6 verte**, branche supprimée) ; ② **pastille Succès du guide public** — `SuccessChip` + `guideQuests` construit sur les **mêmes `questDbIds`** que le dashboard, verrouillé par `rush-public-parity` ; ③ **icône Dofus de l'overlay** — le médaillon de la barre de chapitre porte le **Dofus du bloc** (`getDofusMeta`, repli `etape.png`) et la liste des chapitres nomme chaque Dofus (parité dashboard/public) ; ④ **points fermés par la mesure** : DofusDex **déjà livré** (`PublicDofusProgressPanel` + `RushDofusDetailModal`), items **déjà couverts** (`ResourceImage` par id, **1 898 WebP**) ; ⑤ **compteur 448** : payload local **536 séquences / 0 info / 0 choix** ⇒ le public affiche **536** ; aucun chemin ne produit 448 — **à reproduire sur l'écran exact** ; ⑥ **monstres** : **742 tags de combat sans id**, **31 PNG** locaux ⇒ **lot data** (seed + proxy), pas UI.
+> **Preuves** : `rush-public-parity` **51/51** · `rush-overlay-chapitre-bulles` **14/14** · `da-wakfu` **66/66** · **761 fichiers / 7 995 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
+> **Reste / ops** : PR de `feat/rush-ui-1` ; **Bloc I** (succès de donjon) → **Bloc J** → **55 conseils** → **VPS** ; archivage + import `prereq_expr` (local **et** VPS) ; 3 alias de donjons.
+> **Rotation** : bloc « suite 22 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/11/2026 (suite 27) — **Rush · retouches DA Wakfu (PiP + guide)** — branche `feat/rush-da-retouches`
 
 > **Demande user (verbatim)** : « tout sauf l'œuf » — appliquer les 8 retouches UI/UX des deux briefs `src/temp/debug2.md` (PiP + guide), puis le 3ᵉ bloc (nettoyage des cartes verrouillées), le rendu des blocs DofusDex/Donjons/Prérequis/Personnages et le header PiP, sans l'œuf Dofus à 5 stades.
@@ -52,20 +61,3 @@
 > **Preuves** : **758 fichiers / 7 945 tests ✅** · `tsc` 0 · lint 0 erreur · CI verte sur chaque PR · `git status` propre · base locale **536 séquences** (importée).
 > **Reste / ops** : **UX** (« Ali 1 / Ali 2 » Bonta/Brâkmar, alignement visible après enregistrement, clic quête, message changement de perso) ; **UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide **public**) ; **Bloc I** (succès de donjon) ; **55 conseils** ; 3 donjons à aliasser ; cache public ; `/q/<slug>` ; **VPS** (`deploy-cd.sh beta` → `pg_dump` → archivage → import → `--delete-archive`). Détail : `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5.
 > **Rotation** : blocs « suite 17 », « suite 16 » et « suite 15 » sortis (≥ 6 blocs) — récupérables via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 18/11/2026 (suite 22) — **Rush · Touglie enrichi mergé + quick win prérequis** — `dev` (`928c1d18`)
-
-> **Demande user (verbatim)** : « enchaine 1 2 3 » (PR du seed, prérequis, puis UX/UI).
-> **Fait** : PR **#1431** (Touglie enrichi + archivage) et **#1432** (prérequis) **mergées** ; `dev @ 928c1d18`. La suite entière a d'abord détecté une régression : `ROADMAP.md` à **62 162 o** pour un garde-fou à **61 440** → doc resserrée à **61 247 o** (le test n'a pas été touché).
-> **Prérequis mesurés** : 492 arêtes `prereqIds` → **442 tags `prereq_text`** posés (règle pure `attachQuestPrerequisites`) ; écartées : **19** quêtes de classe (`1960`), **1** autre cité, **30** cibles absentes, 7 doublons de nom ; plafond **30 tags** du schéma d'import respecté. L'import est **additif** : les tags n'apparaissent qu'au prochain **archivage + import** (bêta/prod), pas sur le guide local déjà importé.
-> **Correctif mesuré (même jour)** : le plafond de **80** (seed + Zod) coupait les **10 dernières quêtes** de « Alignement - Partie 2/4 » (**90 quêtes**) ; « Une faille dans sa carapace » ne pouvait donc pas afficher « Retour aux origines ». Plafond porté à **120**, payload **36 blocs / 601 séquences / 451 `prereq_text`**, chaîne **307 → 308 → 309** vérifiée (toutes brâkmariennes). Le compteur d'en-tête du dashboard disait « étapes » pour des **blocs** (`completedIds` = ids de jalons) → « blocs », verrouillé par `rush-vocabulary`.
-> **Overlay (18/11)** : **light mode retiré** (état + `localStorage.sigil_overlay_theme` + bouton de l'en-tête) ; **icône de quête** dans la liste avec le repli `icone-quete.png` du dashboard. Backlog ajouté : quêtes d'alignement numérotées « Ali 1 / Ali 2 » séparées Bonta/Brâkmar, et visibilité de l'alignement après enregistrement (`router.refresh()` existe, l'overlay ne se met pas à jour → **à reproduire**).
-> **UI — non livré, mesuré** : le « 0/448 vs 591 » n'est produit par **aucun chemin** du code (seed : **0** tag `info_sequence`, **0** `choice_group` ; `buildRushGuideView().counters` n'est consommé que par le guide public). Le garde-fou `rush-vocabulary` impose « quêtes » pour un compteur de lignes cochables : l'alignement de l'overlay sur `stepCounts` a été **reverté**. **Reproduire l'écran avant de corriger.**
-> **Preuves** : **757 fichiers / 7 937 tests ✅** · `tsc` 0 · lint 0 erreur · audit sécurité vert (exception picomatch datée du 24/11) · CI verte sur les deux PR · `git status` propre.
-> **Reste / ops** : reproduire le compteur 448 ; UX (clic quête, message perso, alignement/`resolveRushScenario`) ; UI (détail/assets, succès, DofusDex, icône) ; **Bloc I** ; 55 conseils ; `deploy-cd.sh beta` puis archive → import → vérifier → `--delete-archive` (humains).
-
-
-
-
-
-

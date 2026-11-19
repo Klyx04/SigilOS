@@ -58,6 +58,18 @@ describe("overlay — changer de chapitre à tout moment (sélecteur partagé un
   it("le mode compact n'existe plus (aucun code mort)", () => {
     expect(existsSync("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx")).toBe(false);
   });
+
+  it("le médaillon porte le Dofus du bloc, avec le picto de quête en repli", () => {
+    const tree = codeOf(TREE);
+    // Parité dashboard / guide public : l'ancre du bloc est l'ASSET du Dofus,
+    // jamais un glyphe générique — et un bloc sans Dofus garde le picto de quête.
+    expect(tree).toContain('import { getDofusMeta } from "@/lib/rush-dofus-meta"');
+    expect(tree).toMatch(
+      /getDofusMeta\(activeMs\?\.dofusId\)\?\.imageUrl \?\? "\/assets\/dofus-ui\/pictos\/etape\.png"/
+    );
+    // La liste déroulante nomme aussi le Dofus de chaque chapitre.
+    expect(tree).toMatch(/getDofusMeta\(ms\.dofusId\)/);
+  });
 });
 
 describe("overlay — bulles profil sur CHAQUE quête (pas seulement le chapitre courant)", () => {

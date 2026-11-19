@@ -539,8 +539,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Retour | Lot | Points d'entrée |
 |---|---|---|
 | Prérequis absents | ✅ livré | siphon client (`startCriterion`) + verrou d'ordre ; 451 jeu + 76 ordre |
-| Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** pour que la donnée arrive au guide |
-| Détail trop petit / vrais monstres/items | UI — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (0 id sur 742 tags de combat, 31 PNG locaux) | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
+| Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** ; le seed régénéré du 19/11 porte **3 groupes** (20 quêtes), la base locale en a **0** tant que le guide n'est pas réimporté |
+| Détail trop petit / vrais monstres/items | ✅ **code + seed livrés 19/11/2026 (monstres)** : 742 tags → **1 518** monstres, **100 %** résolus (carte `rush-monster-map`, 3 alias mesurés) ; image + fiche interne / publique `/bestiaire/<slug>` ; items ✅ (`ResourceImage`, 1 898 WebP) | `RushOverlayTagSection`, `RushTagBadge`, `RushMonsterFicheModal`, `rush-combat-monsters`, `build-rush-monster-map.ts` |
 | 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
 | Compteur 0/448 vs 536 séquences | ⏸ **à reproduire** : payload local = **536** séquences, **0** info, **0** choix ⇒ le public affiche 536 ; aucun chemin ne produit 448 | `RushGuideView`/`stepCounts` (étapes ≠ 536 séquences ; succès/donjons/infos) |
 | 16 DofusDex sans panneau | ✅ **déjà livré** : `PublicDofusProgressPanel` + `RushDofusDetailModal` partagée avec l'interne | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |

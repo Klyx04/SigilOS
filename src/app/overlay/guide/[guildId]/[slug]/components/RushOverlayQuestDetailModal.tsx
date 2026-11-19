@@ -6,6 +6,7 @@ import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
+import type { RushTagViewer } from "@/components/dofus-quests/rush/RushTagBadge";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type DungeonInfo, type TagClassification } from "./overlay-utils";
@@ -57,6 +58,8 @@ interface RushOverlayQuestDetailModalProps {
   ) => void;
   /** Bloc I — ouvre les succès du donjon (requis + résolu uniquement). */
   onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
+  /** Surface : fiche monstre interne pour un membre, lien public pour un visiteur. */
+  viewer?: RushTagViewer;
 }
 
 /**
@@ -91,6 +94,7 @@ export function RushOverlayQuestDetailModal({
   dungeonOthers = [],
   onSetDungeon,
   onOpenAchievements,
+  viewer = "preview",
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -285,7 +289,7 @@ export function RushOverlayQuestDetailModal({
             {(badgesTags.nature.length > 0 || badgesTags.condition.length > 0 || badgesTags.tool.length > 0) && (
               <section className="py-3">
                 <p className={sectionLabel}>Badges</p>
-                <RushOverlayTagSection tags={badgesTags} />
+                <RushOverlayTagSection tags={badgesTags} viewer={viewer} />
               </section>
             )}
 

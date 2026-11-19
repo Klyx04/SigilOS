@@ -1922,6 +1922,7 @@ export default function GuideOverlayClient({
               ? (key, dungeon) => achievementHandler(detailSeq.seq.id, key, dungeon)
               : undefined
           }
+          viewer={isGuest ? "visitor" : "member"}
           onClose={() => setDetailSeq(null)}
         />
       )}

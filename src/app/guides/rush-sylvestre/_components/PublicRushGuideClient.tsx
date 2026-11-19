@@ -3633,6 +3633,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           capturedOcreNames={capturedOcreNames}
           onOpenOcre={() => setMetamobOpen(true)}
           onOpenAchievements={(key, dungeon) => openDungeonAchievements(detailModalSeq.sequence.id, key, dungeon)}
+          viewer="visitor"
           onClose={() => setDetailModalSeq(null)}
         />
       )}

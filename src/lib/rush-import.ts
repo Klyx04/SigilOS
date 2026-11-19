@@ -20,6 +20,7 @@
 
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { normalizeRushDungeonName, rushDungeonAliasSlug } from "@/lib/rush-dungeon-names";
+import type { RushCombatMonster } from "@/lib/rush-combat-monsters";
 import { safeExternalUrl } from "@/lib/security";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -35,6 +36,12 @@ export type RushImportActivityTag = {
     iconId?: number;
     /** Groupe « au choix » (`prereq_expr`) : alternatives par id DofusDB. */
     alternatives?: Array<{ questId: number; name?: string }>;
+    /**
+     * Monstres d'un tag de combat — un tag porte un **groupe** (« A, B, C ») :
+     * chaque nom est résolu contre le bestiaire local ; un nom inconnu reste
+     * nommé, sans slug ni fiche (règle `rush-combat-monsters`).
+     */
+    monsters?: RushCombatMonster[];
 };
 
 export type RushImportSequence = {

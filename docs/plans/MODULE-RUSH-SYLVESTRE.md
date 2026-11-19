@@ -536,5 +536,6 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Retouches DA PiP + guide + verrou (17) | ✅ livré 19/11/2026 | bord gauche « faire maintenant », titre verrouillé, copie 900 ms, compression PiP, dégradé d'arc, respiration ≥ 1024 px, `#da-rough` focalisé, conseil ouvert, cartes verrouillées (ligne compacte ambre, fond discret, sans badge ni sous-boîte), blocs DofusDex en markdown, header PiP ajusté au contenu, fiche Succès portée hors carte, pastilles Donjon/Succès/présence dans le même bloc segmenté, icône Succès normalisée `succes.png` |
 
 **Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
-UI (détail/assets, DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) →
+**retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
+UI (assets/compteur, DofusDex, icône) → **Bloc I** (succès de donjon) →
 **Bloc J** (donjons : qui a fait quoi) → 55 conseils → VPS.

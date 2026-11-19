@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 36) — **Rush · 55 conseils (itération 2b)** — branche `feat/rush-conseils-2026-11-19`
+
+> **Demande user (verbatim)** : « toutes les conseils c quoi ? tougli ou dofusyelle? » ; « oui étape par étape go ».
+> **Mesure** : le rapport listait **55** conseils — **50 étapes Dofusyelle** + **5 notes de blocs Tougli** ; 3 étapes (7, 35, 53) partageaient une quête et étaient comptées « à rédiger ».
+> **Fait** : contenu dans `src/data/rush-guide-tips.json` (`yelle` = 50 paraphrases, `blocks` = 5 notes) ; `YELLE_DEMO_TIPS` / `TOUGLI_BLOCK_TIPS` branchés sur le seed ; les conseils d'une même quête sont **ajoutés à la suite** (pas d'écrasement) ; `tipsToWrite` ne liste plus un conseil écrit ; `blockTip` alimente les 5 blocs.
+> **Preuves** : rapport **0 conseil à rédiger** · **52 conseils Yelle fusionnés** + **5 blocs** · **771 fichiers / 8 111 tests ✅** · `tsc` 0 · `rush-trame-seed` **39** · aucune migration.
+> **Reste** : positions (2c — siphon DPLN à décider) ; import du guide (itération 3) pour voir les conseils en base.
+> **Rotation** : bloc « suite 30 » (DofusDex, 6 totems, toasts DA) sorti (7ᵉ).
+
+
+
 ## 📝 Session 19/11/2026 (suite 35) — **Rush · monstres des combats (itération 2a)** — branche `feat/rush-monstres-2026-11-19`
 
 > **Demande user (verbatim)** : « avec la maj des monstres et leur images fiche cliquable etc, pour l'interne vers l'interne pour le visiteur faire fiche visiteur » ; « oui étape par étape go ».
@@ -57,14 +68,7 @@
 > **Reste / ops** : **PR #1456 + #1457 + #1458 mergées** ; mesurer `UserDungeonAchievement` / `UserDungeonProgress` sur la bêta **et** la prod (la clé lecture seule ne les expose pas ; requête humaine ou verbe `counts-succes` à revoir) ; **après déploiement**, `npx -y tsx scripts/backfill-dungeon-achievements.ts` (dry-run → `--apply`) si les compteurs legacy > 0 ; deploy bêta puis re-mesure 494/238/32/19 ; **18 alias de donjons** (data) avant **Bloc J** ; puis 55 conseils, VPS.
 > **Rotation** : bloc « suite 25 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 19/11/2026 (suite 30) — **Rush · DofusDex supprimé, 6 totems, toasts DA** — branche `fix/rush-dofusdex-bloc`
 
-> **Demandes user (verbatim)** : « je ne veux plus des dofusdex explicatifs dans les guides c'est juste infect et inutile supprime » · « il y a 6 totems à récupérer, avec une liste de dj avec un dj au choix parmi les 6 totems » · « ça affiche bien 6/6 fait mais la notif est bugé non ? » · « TOUTES les notif toast coté navigateur (hors overlay) sont tjres pas à la DA ».
-> **Mesures** : ① **13 blocs** portaient un tips « DofusDex officiel » de **463 à 1 956 caractères** (**228 lignes**) ; le pavé du bloc est rendu par le **cadre `ms.tips`** (pas par les tips de quête) ; ② Maïmane = **6 tags multi** (29 noms, **11 résolus en base**) → **3 groupes** seulement ; le **serveur** ne lisait pas `activityTags` → « **8 donjon(s) requis non fait(s)** » alors que 6/6 était fait ; ③ `AppToaster` global : `bg-card/90`, `rounded-2xl`, `backdrop-blur`.
-> **Fait** : ① `RushDofusDexTip` **masque** la section officielle (plus de `<details>`) et garde Prérequis/Donjons ; ② `attachDungeonChoices` complète les groupes avec les **noms non résolus** (clé stable `nom:…`) → **6 groupes / 6 exigences** ; les compteurs des 3 surfaces annoncent `requiredBlocks` ; ③ serveur : `activityTags` chargé et transmis, `missingRequiredDungeons` (1 entrée par groupe) ; ④ `AppToaster` sous `[data-da="wakfu"]` + `.da-toaster`, CSS DA (matière + filet sémantique), idem route overlay.
-> **Preuves** : `rush-dungeons-choix` **15/15** · `rush-dofusdex-tip` **9/9** · `toasts-da` **3/3** · **764 fichiers / 8 022 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
-> **Reste / ops** : PR #1455 ; **18 noms** de donjons restent non résolus en base (alias data) mais le verrou est **correct** (6 totems) ; puis Bloc I → Bloc J → 55 conseils → VPS.
-> **Rotation** : bloc « suite 24 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

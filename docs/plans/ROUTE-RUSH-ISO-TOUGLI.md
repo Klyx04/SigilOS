@@ -202,8 +202,8 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 ## 10. Touglie enrichi — un seul guide, trame Touglie + tout Dofusyelle (17/11/2026)
 
 > **Mise à jour du 19/11/2026** : le seed régénéré et le guide importé font **536 séquences**
-> (le `591` ci-dessous est la génération du 17/11). Le rapport du 18/11 liste **55 conseils**,
-> **4 étapes sans cible** et **3 succès** dans « Compléments ». Les compteurs du §10 restent la
+> (le `591` ci-dessous est la génération du 17/11). Le rapport du 19/11 ne liste **0 conseil à rédiger**
+> (55 écrits), **4 étapes sans cible** et **3 succès** dans « Compléments ». Les compteurs du §10 restent la
 > mesure du 17/11 ; les lignes d'état (§12) sont, elles, alignées sur 536.
 
 > **Besoin** : garder la **trame Touglie** (35 blocs, 523 quêtes, 2 cités, Ordres, conditions,
@@ -297,7 +297,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Changement d'alignement : refresh ? | ✅ **livré 18/11/2026** — cause mesurée : le PiP recevait un **instantané figé** ; l'overlay ouvert est resynchronisé (`sync`) à chaque rafraîchissement, et la cité/Ordre du personnage pré-remplit sa modale | — |
 | Changement de personnage : aucun message | ✅ **livré 18/11/2026** : toast « Personnage actif : <nom> » + resynchronisation de l'overlay | — |
 | **Succès de donjon : bouton `+`/modale** | **feature demandée** : voir `MODULE-RUSH-SYLVESTRE.md` **Bloc I** (guide navigateur + mini overlay interne/connecté) | **Bloc I** |
-| 55 conseils | `tipsToWrite` ; 6 paraphrases posées | **éditorial** |
+| 55 conseils | ✅ **livrés 19/11/2026** : 50 Yelle + 5 blocs Tougli, **0 à rédiger** | — |
 | Descriptions de blocs (8 vs 12) | description calculée avant l'enrichissement | **seed** (petit) |
 | 3 donjons inconnus | ✅ **soldé le 19/11/2026** : 3 alias mesurés (`rush-dungeon-names`) ; rapport à re-générer | — |
 | 4 étapes / **3 succès** (rapport du 18/11) | « Compléments — succès hors trame » | **normal** |
@@ -317,7 +317,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 **UI-1** ✅ 19/11/2026 (Succès public, Dofus du bloc ; DofusDex déjà livré ; compteur à reproduire) →
 **Bloc I** (succès de donjon) →
 **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs) →
-**55 conseils** → **VPS**.
+**VPS** (conseils écrits le 19/11).
 
 ## 13. Reprise propre — la porte d'entrée
 

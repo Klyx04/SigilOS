@@ -532,7 +532,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 >
 > **Mesures du 19/11/2026 (base locale)** : **36 blocs / 536 séquences** · **0** page `/q`
 > publiée · **0** `constraints` · **0** tag `prereq_expr` (le seed importé est antérieur à l'OU) ·
-> **6** tips de quête / **23** de bloc · **742** tags combat sans id · **55** conseils à rédiger
+> **6** tips de quête / **23** de bloc · **742** tags combat sans id · **0** conseil à rédiger (55 écrits : 50 Yelle + 5 blocs)
 > (5 blocs + 50 quêtes). Le `591` du §10 de `ROUTE-RUSH` est la génération du 17/11 ; le guide
 > importé fait **536**.
 
@@ -554,7 +554,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |
 | Succès de donjon | ✅ **livré 19/11/2026 (Bloc I)** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
 | Donjons du guide : qui a fait quoi | ✅ **livré 19/11/2026 (Bloc J)** | `PlayerGuideDungeonState`, `PublicRushProgress.dungeonChecks`, `dungeonKeyOf`, `resolveRushRoute` (route **avant** l'agrégat) |
-| 55 conseils | Éditorial | `tipsToWrite` |
+| 55 conseils | ✅ **livrés 19/11/2026** : 50 paraphrases Yelle + 5 notes de blocs Tougli (`src/data/rush-guide-tips.json`), **0 à rédiger** ; 3 étapes partageant une quête sont ajoutées à la suite | `YELLE_DEMO_TIPS`, `TOUGLI_BLOCK_TIPS` |
 | Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
 | 3 donjons inconnus | ✅ **soldé le 19/11/2026** : les 3 alias mesurés (`rush-dungeon-names`) ; re-générer le rapport pour 98/98 | `dungeonNames`, `Dungeon`/`bossName` |
 | 4 étapes / **3 succès** (rapport du 18/11) | Normal | « Compléments — succès hors trame » |
@@ -573,4 +573,4 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
 **UI-1** ✅ 19/11/2026 (Succès public + Dofus du bloc ; DofusDex déjà livré ; compteur 448 à reproduire ;
 monstres = lot data) → **Bloc I** (succès de donjon) →
-**Bloc J** (donjons : qui a fait quoi) → 55 conseils → VPS.
+**Bloc J** (donjons : qui a fait quoi) → **VPS** (conseils écrits le 19/11).

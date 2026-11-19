@@ -366,7 +366,7 @@ const ENRICH_TRAME: TrameInput = {
     steps: [
       ...(TRAME.dofusyelle?.steps ?? []),
       {
-        n: 13,
+        n: 99,
         category: "Pandala",
         title: "Quêtes Pandala - Domakuro",
         body: ["une ligne"],
@@ -374,10 +374,20 @@ const ENRICH_TRAME: TrameInput = {
         succes: [{ t: "Succès Domakuro" }],
         donjons: [{ name: "Donjon Domakuro" }],
       },
+      {
+        n: 23,
+        category: "Départ",
+        title: "Q1 encore",
+        body: [],
+        quetes: [{ t: "Q1" }],
+        succes: [],
+        donjons: [],
+      },
     ],
     correlation: [
       ...(TRAME.dofusyelle?.correlation ?? []),
-      { step: 13, title: "Q Domakuro", questIds: [500], matched: true },
+      { step: 99, title: "Q Domakuro", questIds: [500], matched: true },
+      { step: 23, title: "Q1", questIds: [1958], matched: true },
     ],
   },
 };
@@ -423,6 +433,12 @@ describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
     expect(byTitle("Astrub")?.tips ?? "").not.toContain("Prends toutes les quêtes");
   });
 
+  it("ajoute le conseil d'une deuxième étape sur la même quête, sans écraser le premier", () => {
+    const q1 = byTitle("Astrub")?.sequences.find((sequence) => sequence.subGuideName === "Q1");
+    expect(q1?.tips).toContain("Prends toutes les quêtes");
+    expect(q1?.tips).toContain("Un seul Kanigroula");
+  });
+
   it("applique le DofusDex d'une étape à un bloc Tougli dont le titre diffère", () => {
     const pandala = byTitle("Pandala");
     expect(pandala?.tips).toContain("DofusDex officiel");
@@ -437,7 +453,7 @@ describe("Touglie enrichi — la trame Tougli + les données Yelle", () => {
   });
 
   it("laisse dans « conseils à rédiger » ce qui n'a pas été rédigé", () => {
-    expect(result.report.tipsToWrite.some((tip) => tip.step === 13)).toBe(true);
+    expect(result.report.tipsToWrite.some((tip) => tip.step === 99)).toBe(true);
   });
 
   it("n'expose aucun nom de source dans le payload enrichi", () => {

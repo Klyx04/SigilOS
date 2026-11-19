@@ -734,5 +734,11 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
             /details\.da-conseil\[open\] \.da-conseil-body\s*\{[^}]*border-radius:\s*6px/
         );
     });
+
+    it("la carte verrouillée garde un fond discret, sans boîte", () => {
+        expect(css).toMatch(
+            /\.da-row\[data-state="locked"\] \.da-card::before\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--da-field\) 70%, var\(--da-card\)\)/
+        );
+    });
 });
 

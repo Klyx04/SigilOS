@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Check,
   Users,
-  ArrowRight,
   Search,
   X,
   Target,
@@ -2994,7 +2993,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                               // est le SEUL élément compressible — il s'écrasait à un caractère par
                                               // ligne (mesure du 05/11/2026). Une base de 12 rem force les chips à
                                               // passer à la ligne suivante, jamais à manger le titre.
-                                              const cls = "text-[13px] font-semibold leading-snug break-words min-w-[12rem] flex-1";
+                                              const cls = `text-[13px] font-semibold leading-snug break-words min-w-[12rem] flex-1 ${stepLocked ? "text-muted-foreground" : "text-foreground"}`;
                                               if (primaryUrl) {
                                                 return (
                                                   <a
@@ -3002,7 +3001,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className={`${cls} text-foreground hover:text-warning transition-colors`}
+                                                    className={`${cls} hover:text-warning transition-colors`}
                                                     title={`Ouvrir sur ${(seq as any).dofuspourlesnoobsUrl || block.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}
                                                   >
                                                     {block.questName}
@@ -3013,7 +3012,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                                 <button
                                                   type="button"
                                                   onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
-                                                  className={`${cls} cursor-pointer text-left text-foreground transition-colors hover:text-warning`}
+                                                  className={`${cls} cursor-pointer text-left transition-colors hover:text-warning`}
                                                   aria-label={`Voir les détails de ${block.questName}`}
                                                 >
                                                   {block.questName}
@@ -3226,8 +3225,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       </>
                                     ) : prereqRefs.length === 0 ? (
                                       <>
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                                          <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                        <span className="text-[11px] text-muted-foreground">
                                           {"À terminer avant :"}
                                         </span>
                                         <span className="text-[11px] text-muted-foreground">
@@ -3240,15 +3238,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                         onClick={() => setPrereqModal(prereqRefs)}
                                         aria-haspopup="dialog"
                                         title={prereqRefs.map((p) => p.name).join(" · ")}
-                                        className="inline-flex max-w-full items-center gap-1.5 rounded-[3px] border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
+                                        className="group inline-flex max-w-full items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                                       >
-                                        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                        <span className="min-w-0 truncate">
+                                        <span aria-hidden="true" className="shrink-0">↳</span>
+                                        <span className="shrink-0">À terminer avant :</span>
+                                        <span className="min-w-0 truncate font-semibold text-warning group-hover:underline">
                                           {prereqRefs.length > 1
-                                            ? `${prereqRefs.length} quêtes à terminer avant`
+                                            ? `${prereqRefs.length} quêtes`
                                             : prereqRefs[0].name}
                                         </span>
-                                        <ArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                        <span aria-hidden="true" className="shrink-0">›</span>
                                       </button>
                                     )}
                                   </div>

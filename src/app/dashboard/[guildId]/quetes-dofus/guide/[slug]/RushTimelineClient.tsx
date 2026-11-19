@@ -363,9 +363,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">
             <RushAlignmentBadge label={alignmentLabel} /> {questName}
           </p>
-          <span className="shrink-0 rounded-[3px] border border-danger/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-danger">
-            Verrouillée
-          </span>
           {/* 18/11/2026 — une quête verrouillée n'est pas jouable : on n'y pose plus de repère.
               S'il en existait un avant le verrou, il reste retirable (sinon il serait collé). */}
           {isThisBookmarked && (
@@ -380,42 +377,36 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </button>
           )}
         </div>
-        {totalPrereqs === 1 && singleName ? (
-          <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);}}
-            className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/45 bg-danger/[0.07] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/60 focus-visible:outline-2 focus-visible:outline-danger/50"
-            aria-label={`Voir la quête requise : ${singleName}`}
-            data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
-          >
-            {/* Le rouge dit le verrou d'un coup d'œil (retour user du 18/11/2026 : la carte
-                neutralisée ne se lisait plus comme bloquée). Franc, pas criard : filet + teinte. */}
-            <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
-              <p className="text-[13px] font-semibold text-danger truncate">{singleName}</p>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-danger/60 group-hover:text-danger/90 transition-colors shrink-0" />
-          </button>
-        ) : totalPrereqs > 0 ? (
+        {totalPrereqs > 0 ? (
           <>
-            {/* F6 — une seule ligne, la liste s'ouvre dans la modale de l'overlay. */}
+            {/* 19/11/2026 — une seule ligne compacte, sans badge ni sous-boîte :
+                le cadenas du nœud suffit à dire le verrou, la ligne dit quoi faire.
+                Le clic mène à la quête (un seul prérequis) ou ouvre la liste (plusieurs). */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setPrereqModal(prereqRefs);
+                if (totalPrereqs === 1 && singleName) {
+                  scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);
+                } else {
+                  setPrereqModal(prereqRefs);
+                }
               }}
-              aria-haspopup="dialog"
-              aria-label={`Voir les ${totalPrereqs} quêtes à terminer avant`}
-              className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-[4px] border border-danger/45 bg-danger/[0.07] px-3 py-2 text-left group cursor-pointer transition-colors hover:bg-danger/10 hover:border-danger/60 focus-visible:outline-2 focus-visible:outline-danger/50"
+              aria-haspopup={totalPrereqs > 1 ? "dialog" : undefined}
+              aria-label={
+                totalPrereqs === 1 && singleName
+                  ? `Voir la quête requise : ${singleName}`
+                  : `Voir les ${totalPrereqs} quêtes à terminer avant`
+              }
+              data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
+              className="group mt-1 inline-flex max-w-full items-center gap-1 self-start px-3 pb-3 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-warning/50"
             >
-              <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
-                <p className="text-[13px] font-semibold text-danger truncate">
-                  {totalPrereqs} quêtes à terminer
-                </p>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-danger/60 group-hover:text-danger/90 transition-colors shrink-0" />
+              <span aria-hidden="true" className="shrink-0">↳</span>
+              <span className="shrink-0">À terminer avant :</span>
+              <span className="min-w-0 truncate font-semibold text-warning group-hover:underline">
+                {singleName ?? `${totalPrereqs} quêtes`}
+              </span>
+              <span aria-hidden="true" className="shrink-0">›</span>
             </button>
             {prereqModal ? (
               <RushOverlayPrereqModal
@@ -430,14 +421,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             ) : null}
           </>
         ) : (
-          <div className="px-3 pb-3 pt-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
-              <p className="text-[11px] text-muted-foreground">
-                {palierLocked ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité` : "Verrouillée"}
-              </p>
-            </div>
-          </div>
+          <p className="px-3 pb-3 pt-1 text-[11px] text-muted-foreground">
+            {palierLocked ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité` : "Verrouillée"}
+          </p>
         )}
         {choiceGroups.length > 0 && (
           <div className="px-3 pb-3">

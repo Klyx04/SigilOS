@@ -693,6 +693,12 @@ details.da-conseil[open] .da-conseil-body {
 
 .da-row[data-state="locked"] .da-card { opacity: .92; }
 
+/* Retouche 19/11/2026 — une carte verrouillée reste discrète : fond de champ
+   légèrement plus sombre que la carte, sans boîte ni badge supplémentaire. */
+.da-row[data-state="locked"] .da-card::before {
+  background: color-mix(in srgb, var(--da-field) 70%, var(--da-card));
+}
+
 .da-state {
   display: inline-block;
   margin-bottom: .3rem;

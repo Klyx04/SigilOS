@@ -33,8 +33,10 @@ describe("F6 — les prérequis s'ouvrent dans la modale de l'overlay", () => {
         expect(pub).toContain("<RushOverlayPrereqModal");
         expect(member).toContain("<RushOverlayPrereqModal");
         // Une seule ligne cliquable, comme l'overlay : plus de mur de chips.
-        expect(pub).toContain("quêtes à terminer avant");
-        expect(member).toContain("quêtes à terminer");
+        expect(pub).toContain("À terminer avant :");
+        expect(pub).toContain("quêtes");
+        expect(member).toContain("À terminer avant :");
+        expect(member).toContain("quêtes");
     });
 
     it("plus aucun mur de chips : le repli `<details>` a disparu", () => {

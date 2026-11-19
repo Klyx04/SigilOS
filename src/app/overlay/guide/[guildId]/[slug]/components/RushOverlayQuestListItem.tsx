@@ -368,18 +368,18 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             </div>
           )}
           {isLocked && prereqs.length > 0 && (
-            /* UN SEUL encadré (retour user du 22/10/2026 : « si on a plusieurs prérequis
-               on empile plusieurs blocs rouges, c'est moche ») → ouvre la liste. */
+            /* 19/11/2026 — une seule ligne, sans cadre : le cadenas du nœud dit
+               le verrou, la ligne dit quoi faire. */
             <button
               type="button"
               onClick={() => setPrereqsOpen(true)}
               aria-haspopup="dialog"
               aria-expanded={prereqsOpen}
               title={`Aller à : ${prereqs.map((p) => p.name).join(", ")}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] font-semibold text-danger transition-colors hover:bg-danger/10"
+              className="group inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
-              <span className="shrink-0 text-danger/80">Terminer :</span>
-              <span className="min-w-0 truncate">
+              <span className="shrink-0">Terminer :</span>
+              <span className="min-w-0 truncate font-semibold text-warning group-hover:underline">
                 {prereqs[0].name}
                 {prereqs.length > 1 ? ` +${prereqs.length - 1}` : ""}
               </span>

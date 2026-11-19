@@ -78,7 +78,7 @@ describe("RushQuestDungeonsPanel — les deux coches, par quête", () => {
 
   it("dit où en est la quête (compteur) et signale l'optionnel", () => {
     const out = render({ states: { "s1::dj-1": "done" } });
-    expect(out).toContain("Donjons de la quête · 1/2 fait");
+    expect(out).toContain("Donjons de la quête · 1/1 exigence");
     // « dj-2 » est optionnel : il ne bloque rien, donc aucun requis restant.
     expect(out).not.toContain("requis restant");
     expect(out).toContain("optionnel");

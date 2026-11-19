@@ -51,6 +51,7 @@ import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { isRushCombatBlock } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
@@ -1404,11 +1405,13 @@ export default function GuideOverlayClient({
         <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
           {ms.title}
         </h3>
-        {(ms.description || ms.tips) && (
+        {ms.description ? (
           <p className="text-[12px] leading-relaxed text-muted-foreground">
-            <RushRichText text={ms.description || ms.tips} />
+            <RushRichText text={ms.description} />
           </p>
-        )}
+        ) : ms.tips ? (
+          <RushDofusDexTip text={ms.tips} className="text-[12px] leading-relaxed text-muted-foreground" />
+        ) : null}
         <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${ms.accentColor || "#a3e635"})` }} />
       </div>
     );

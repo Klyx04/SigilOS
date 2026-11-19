@@ -105,6 +105,7 @@ import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparato
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
+import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -827,7 +828,7 @@ function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; n
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <RushTipLines text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
+            <RushDofusDexTip text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
           )}
           {note && (
             <p className="text-[11px] leading-relaxed text-muted-foreground">Note : {note}</p>

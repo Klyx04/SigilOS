@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 30) — **Rush · pavés DofusDex repliés** — branche `feat/rush-dofusdex-repli`
+
+> **Demande user (verbatim)** : « je ne comprends pas non plus tout ces pavés dans le guide… » (capture : bloc « Zone Guerre », 0/2 quêtes, tips « DofusDex officiel »).
+> **Mesure** : **13 blocs** portent un tips « DofusDex officiel » de **463 à 1 956 caractères** (13 à 51 lignes) ; rendu entier dans le dashboard (`RushTipLines`) et dans la bannière « Dofus obtenu » de l'overlay (`ms.description || ms.tips`). **228 lignes** sont du DofusDex pur (Zone Guerre : **45** objectifs pour 5 lignes utiles).
+> **Fait** : ① règle pure `splitDofusDexTip` — en-tête + puces d'objectifs isolés du reste, fail-open si pas de section reconnaissable ; ② composant `RushDofusDexTip` — `<details>` **fermé** « DofusDex officiel — <Dofus> · N objectifs », corps accessible à l'ouverture, **Prérequis / Donjons restent visibles** ; ③ câblé sur le dashboard et la bannière DOFUS_OBTAINED de l'overlay ; ④ sans pavé, le rendu existant est conservé (aucune régression sur les quêtes).
+> **Preuves** : `rush-dofusdex-tip` **7/7** (dont rendu réel du dépliable) · **763 fichiers / 8 015 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
+> **Reste / ops** : PR ; le guide public n'affiche pas ces tips (blocs INFO seulement) ; puis Bloc I → Bloc J → 55 conseils → VPS.
+> **Rotation** : bloc « suite 24 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/11/2026 (suite 29) — **Rush · donjons « au choix » (Sufokia, Maïmane)** — branche `fix/rush-donjons-choix`
 
 > **Demande user (verbatim)** : « https://www.dofuspourlesnoobs.com/le-disparu-de-sufokia.html **condition** et celle-ci …/les-totems-de-maimane.html **choix** — les 2 quêtes sont mal gérées actuellement, overlay et navigateur ».
@@ -52,13 +62,3 @@
 > **Preuves** : **760 fichiers / 7 961 tests ✅** · `tsc` 0 · lint 0 erreur · 5 tests `rush-ux-trois` (sync conserve fenêtre et reste du payload, no-op sans overlay, câblage des 3 surfaces).
 > **Reste / ops** : `prereq_expr` (OU) — mesuré sur « Supermilicien » (275) : le client accepte 272/273/274, le guide n'exige que 273 ; puis UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
 > **Rotation** : bloc « suite 19 » (Missions & sondages) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 18/11/2026 (suite 24) — **Rush · séries d'alignement numérotées** — branche `feat/rush-alignement-series`
-
-> **Demandes user (verbatim)** : « oui il faut afficher séparément de 1 à X bonta et idem brak, idem ordre aussi » · « pour brak il y a une quête qui a en prérequis plusieurs quêtes au choix, c'est pris en compte dans le backend et l'ui ? ».
-> **Mesure** : **aucune** séquence ne porte le préfixe « Brâkmarien : » (0/536) ; les deux cités vivent **mêlées** dans les 4 blocs « Alignement » (17/19 · 45/45 · 15/15 · 15/15), « Ordres » (15/15) et 3 blocs Dofus ; 117 brâkmariennes / 115 bontariennes / 304 sans cité. Le rang existe dans la source (`cites[].series[].index`) mais n'était pas transporté.
-> **Fait** : règle pure `src/lib/rush-alignment-series.ts` — rang **par cité** dans l'ordre du guide (**Bonta 1→100**, **Brâkmar 1→102**, Ordres **1→5** par palier), regroupement **fail-closed** (une ligne sans série annule le réordonnancement) ; pastille `RushAlignmentBadge` ; sections par cité sur dashboard, guide public et overlay. Le nom stocké n'est **jamais** préfixé : les prérequis sont résolus par nom (`resolvePrereqTag`).
-> **Preuves** : **759 fichiers / 7 956 tests ✅** · `tsc` 0 · lint 0 erreur · base réelle : **100/102 sans discontinuité**, 6 Ordres en rangs 1→5, bloc 2/4 → **2 sections 45/45** (Ali 20→64 / Ali 21→65).
-> **Reste / ops** : prérequis **OU** non modélisés (`prereq_expr`) — mesuré sur « Supermilicien » (275) : le jeu accepte 272/273/274, le guide n'exige que 273 ; puis les **3 autres points UX**, UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
-> **Rotation** : bloc « suite 18 » (God D6/D7) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

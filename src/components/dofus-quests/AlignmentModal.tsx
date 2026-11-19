@@ -45,7 +45,7 @@ export default function AlignmentModal({
       <DialogContent
         {...daScope}
         overlayClassName="da-modal-scrim"
-        className="da-modal da-portal max-w-md max-h-[85vh] gap-0 p-0"
+        className="da-modal da-portal w-[min(620px,calc(100vw-2rem))] max-h-[85svh] gap-0 p-0"
       >
         <DialogHeader className="da-modal-head">
           <DialogTitle className="da-modal-title">Alignement &amp; Ordre</DialogTitle>

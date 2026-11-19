@@ -88,6 +88,15 @@ import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resol
 import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
+import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
+import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
+import {
+  buildRushDungeonsOverview,
+  rushDungeonsCounter,
+  type RushOverviewDungeon,
+  type RushOverviewMember,
+} from "@/lib/rush-dungeons-overview";
+import { getRushDungeonsCommunity } from "@/server/actions/rush-dungeons-overview-actions";
 import { getRushDungeonAchievementPanel, toggleDungeonAchievement } from "@/server/actions/dungeon-achievement-actions";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import {
@@ -1621,6 +1630,61 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
   // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
   const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
+  // ── Bloc J — vue « Progression Donjons » (tuile + panneau) ─────────────
+  const [dungeonsOverviewOpen, setDungeonsOverviewOpen] = useState(false);
+  const [dungeonsCommunity, setDungeonsCommunity] = useState<RushOverviewMember[] | null>(null);
+  const [overviewAchievement, setOverviewAchievement] = useState<{
+    sequenceId: string;
+    dungeonKey: string;
+    dungeon: DungeonAchievementDungeon;
+  } | null>(null);
+  // Bloc J — clic sur un donjon : création d'un post donjon / quête (Dungeon Finder).
+  const dungeonsCommunityLoaded = useRef(false);
+  const openDungeonsOverview = useCallback(() => {
+    setDungeonsOverviewOpen(true);
+    if (dungeonsCommunityLoaded.current) return;
+    dungeonsCommunityLoaded.current = true;
+    void getRushDungeonsCommunity(guildId, guide.slug, effectiveAltPseudo)
+      .then((res) => {
+        if (res.success) setDungeonsCommunity(res.members);
+        else dungeonsCommunityLoaded.current = false;
+      })
+      .catch(() => {
+        dungeonsCommunityLoaded.current = false;
+      });
+  }, [guildId, guide.slug, effectiveAltPseudo]);
+  const dungeonsOverviewMe = useMemo(
+    () => ({
+      doneKeys: Object.entries(dungeonsState.states)
+        .filter(([, state]) => state === "done")
+        .map(([key]) => key),
+      flags: [...bookmarksByMs.values()],
+    }),
+    [dungeonsState.states, bookmarksByMs]
+  );
+  const dungeonsCounter = useMemo(
+    () =>
+      rushDungeonsCounter(
+        buildRushDungeonsOverview({ milestones, me: dungeonsOverviewMe })
+      ),
+    [milestones, dungeonsOverviewMe]
+  );
+  const openOverviewAchievements = useCallback((row: RushOverviewDungeon) => {
+    const occurrence = row.occurrences.find((entry) => !entry.isOptional) ?? row.occurrences[0];
+    if (!occurrence || !row.dungeonId) return;
+    setOverviewAchievement({
+      sequenceId: occurrence.sequenceId,
+      dungeonKey: row.key,
+      dungeon: {
+        id: row.dungeonId,
+        name: row.name,
+        bossName: row.bossName,
+        imageUrl: row.imageUrl,
+        level: row.level,
+      },
+    });
+  }, []);
+  // Clic sur un donjon : la modale EXISTANTE de post donjon / quête (Dungeon Finder).
   // S0-7 : une décoche de donjon peut DÉVALIDER la quête côté serveur. On la décoche ici
   // aussi — l'état optimiste du guide ne doit pas afficher « validée » si la base ne l'a plus.
   const handleSetDungeon=useCallback(async(sequenceId:string,dungeonKey:string,state:RushDungeonState|null)=>{
@@ -1661,6 +1725,17 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const selectedClassDeclared=useMemo(()=>{if(!effectiveAltPseudo)return Boolean(localProfile?.dofusClass);const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return Boolean(m?.classe);},[effectiveAltPseudo,localProfile]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
+  // Bloc J — même modale que la pastille de quête, préremplie avec le donjon ET la quête
+  // de la première occurrence (« post dj quête aussi ») ; on ferme la vue d'ensemble.
+  const openDungeonPost = useCallback(
+    (row: RushOverviewDungeon) => {
+      if (!row.dungeonId) return;
+      const occurrence = row.occurrences.find((entry) => !entry.isOptional) ?? row.occurrences[0];
+      setDungeonsOverviewOpen(false);
+      handleDungeonClick(row.dungeonId, occurrence?.sequenceName ?? "");
+    },
+    [handleDungeonClick]
+  );
   // ─── Modale d'accueil : elle DOIT survivre au changement de personnage ────────
   // Choisir un personnage navigue (`?character=…`) et le guide est REMONTÉ
   // (`key={character}` dans `page.tsx`) : sans mémoire, la modale se fermait au
@@ -2523,7 +2598,7 @@ const timelineItems=useMemo(()=>{
             </div>
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 md:ml-auto">
             {/* Asset du jeu posé NU, comme l'Ocre et l'Ordre : plus de tuile teintée. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/dofus/modules/guild.png" alt="" className="w-7 h-7 object-contain shrink-0" />
@@ -2562,6 +2637,13 @@ const timelineItems=useMemo(()=>{
               </button>
             </div>
           </div>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          {/* Bloc J — « Progression Donjons », entre « Rush Live » et « Ouvrir Overlay ». */}
+          <RushDungeonsProgressTile
+            done={dungeonsCounter.done}
+            total={dungeonsCounter.total}
+            onClick={openDungeonsOverview}
+          />
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           {/* Overlay : même rangée que « Rush Live » — c'est le geste de la session
               (« je regarde qui est là, puis j'ouvre l'overlay par-dessus le jeu »),
@@ -2995,6 +3077,56 @@ const timelineItems=useMemo(()=>{
       guildId={guildId}
       requiredCopies={ocreStats?.parallelQuests ?? 1}
     />
+
+    <RushDungeonsOverviewModal
+      open={dungeonsOverviewOpen}
+      onClose={() => setDungeonsOverviewOpen(false)}
+      milestones={milestones}
+      me={dungeonsOverviewMe}
+      members={dungeonsCommunity}
+      mode="member"
+      daScope={daScope}
+      onGoToStep={(sequenceId) => {
+        setDungeonsOverviewOpen(false);
+        handleFocusSequence(sequenceId);
+      }}
+      onOpenAchievements={canViewSucces ? openOverviewAchievements : undefined}
+      onOpenPost={openDungeonPost}
+    />
+
+    {overviewAchievement && (
+      <DungeonAchievementsModal
+        dungeon={overviewAchievement.dungeon}
+        dungeonKey={overviewAchievement.dungeonKey}
+        dungeonState={occurrenceState(
+          dungeonsState.states,
+          overviewAchievement.sequenceId,
+          overviewAchievement.dungeonKey
+        )}
+        onSetDungeon={(state) =>
+          dungeonsState.setState(overviewAchievement.sequenceId, overviewAchievement.dungeonKey, state)
+        }
+        mode="member"
+        loadPanel={(input) =>
+          getRushDungeonAchievementPanel({
+            guildId,
+            sequenceId: overviewAchievement.sequenceId,
+            dungeonId: input.dungeonId,
+            characterSlot: input.characterSlot ?? (selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter),
+          })
+        }
+        toggle={(input) =>
+          toggleDungeonAchievement({
+            guildId,
+            dungeonId: input.dungeonId,
+            achievementId: input.achievementId,
+            characterSlot: input.characterSlot ?? (selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter),
+          })
+        }
+        characterSlot={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}
+        onClose={() => setOverviewAchievement(null)}
+      />
+    )}
 
     <RushPenseBeteModal
       open={penseBeteOpen}

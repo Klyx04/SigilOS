@@ -56,6 +56,13 @@ interface RushOverlayHeaderProps {
   /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
   onOpenAlignment?: () => void;
   /**
+   * Bloc J — vue « Progression Donjons » : ouvre le panneau transversal. Sans ce
+   * callback, le bouton n'est pas rendu. `dungeonsPending` = exigences restantes
+   * (badge discret, jamais affiché à 0).
+   */
+  onOpenDungeons?: () => void;
+  dungeonsPending?: number;
+  /**
    * Bloc actif de la DA « Gouache Wakfu » : donne l'image d'ambiance de l'en-tête
    * et la teinte de l'accent (`data-block`). Absent ⇒ Émeraude.
    */
@@ -91,6 +98,8 @@ export function RushOverlayHeader({
   onOpenMetamob,
   metamobVerified = false,
   onOpenAlignment,
+  onOpenDungeons,
+  dungeonsPending,
   block = "emeraude",
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
@@ -293,6 +302,34 @@ export function RushOverlayHeader({
                   <span className="text-[9px] font-bold leading-none">!</span>
                 )}
               </span>
+            </button>
+          )}
+
+          {/* Bloc J — « Progression Donjons » : entre le compte (Ocre/Metamob) et les
+              réglages d'affichage. Badge = exigences restantes, jamais à 0. */}
+          {onOpenDungeons && (
+            <button
+              type="button"
+              onClick={onOpenDungeons}
+              aria-label={
+                dungeonsPending && dungeonsPending > 0
+                  ? `Progression Donjons : ${dungeonsPending} exigences restantes`
+                  : "Progression Donjons"
+              }
+              title="Progression Donjons — ce qui est fait, ce qui reste, par étape et par membre"
+              className={cn(actionBtn, "relative")}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/dofus-ui/pictos/donjon.png"
+                alt=""
+                className="w-3.5 h-3.5 object-contain"
+              />
+              {dungeonsPending && dungeonsPending > 0 ? (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-danger text-background text-[9px] font-semibold tabular-nums leading-[15px] text-center">
+                  {dungeonsPending > 99 ? "99+" : dungeonsPending}
+                </span>
+              ) : null}
             </button>
           )}
 

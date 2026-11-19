@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 33) — **Rush · Bloc J « Progression Donjons »** — branche `feat/rush-bloc-j-progression-donjons`
+
+> **Demandes user (verbatim)** : « bloc j / tu décales rush live et ouvrir overlay à droite et tu le mets entre les 2 / responsive / idem guides visiteurs connecté / non connecté / même chose dans l'overlay / oublie pas les assets » ; puis « pk tu manges l'écran en bas ? où est le skill responsive ? ».
+> **Fait** : ① règle pure `rush-dungeons-overview` — **occurrences** `sequenceId::dungeonKey`, groupes « au choix » = **1 exigence**, rollups `x/y étapes`, `m/M membres`, filtres état/étape/repères/recherche, **option A** = bloc du repère + « Tout déplier » ; ② action bornée `getRushDungeonsCommunity` (3 requêtes plafonnées, fail-closed) + couture `_actions/public-rush-dungeons` (le client public n'importe **aucun** `@/server/`) ; ③ tuile **« Progression Donjons »** entre Rush Live et Ouvrir Overlay (dashboard + public), icône d'overlay **entre le compte et l'œil** (badge d'exigences restantes), panneau partagé desktop / mobile / PiP (`data-quality`) ; ④ responsive corrigé après retour : `flex` + `100dvh` mobile, `min-h-0` + `flex-1` (liste qui scrolle **dans** la modale), `pr-12` (croix ≠ compteur), cibles 44 px.
+> **Preuves** : **770 fichiers / 8 098 tests ✅** (avant la passe DA) · `tsc` 0 · lint 0 erreur · `rush-dungeons-overview` **10** · `-ui` **8** · `da-wakfu` **66** · Playwright **390/768/1024/1440** : `overflowBottom` **0**, overflow horizontal **0**, liste scrollable partout. Route testée : 94 donjons / 176 occurrences / 149 exigences (global : 100 / 202 / 175). **Correctif 19/11** : groupement **par bloc** (un donjon multi-blocs apparaît dans chaque accordéon, plus de faux sous-blocs), sélecteur d'étape DA (plus de `<select>` natif), modale d'alignement élargie.
+> **Reste** : PR ; 55 conseils → VPS. Le bruit console « script / hydratation » de la page publique est **préexistant** (au chargement, hors modale).
+> **Rotation** : bloc « suite 27 » (retouches DA) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/11/2026 (suite 32) — **Rush · alias de donjons : 18 fantômes → 21 ids** — branche `fix/rush-donjons-alias` (PR **#1460**)
 
 > **Demande user (verbatim)** : « on continue les chantiers rush sylvestre » — ordre posé : **18 alias → Bloc J → 55 conseils → VPS**.
@@ -53,15 +62,6 @@
 > **Preuves** : `rush-public-parity` **51/51** · `rush-overlay-chapitre-bulles` **14/14** · `da-wakfu` **66/66** · **761 fichiers / 7 995 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
 > **Reste / ops** : PR de `feat/rush-ui-1` ; **Bloc I** (succès de donjon) → **Bloc J** → **55 conseils** → **VPS** ; archivage + import `prereq_expr` (local **et** VPS) ; 3 alias de donjons.
 > **Rotation** : bloc « suite 22 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 19/11/2026 (suite 27) — **Rush · retouches DA Wakfu (PiP + guide)** — branche `feat/rush-da-retouches`
-
-> **Demande user (verbatim)** : « tout sauf l'œuf » — appliquer les 8 retouches UI/UX des deux briefs `src/temp/debug2.md` (PiP + guide), puis le 3ᵉ bloc (nettoyage des cartes verrouillées), le rendu des blocs DofusDex/Donjons/Prérequis/Personnages et le header PiP, sans l'œuf Dofus à 5 stades.
-> **Fait** : ① PiP : bord gauche 3,5 px sur « faire maintenant », titre verrouillé en `--da-muted`, feedback de copie `.da-coord` 900 ms (`data-copied`), compression `max-height: 580px` (`.da-blockdesc` masqué, carte `.6rem .75rem`) ; `data-host="pip"` posé sur la coque. ② Guide : dégradé d'ambiance `.da-guide[data-host="page"]`, respiration `.da-row` ≥ 1024 px, `#da-rough` réservé aux cartes focales (`next`/`here`), fond des conseils ouverts ; `data-host="page"` posé sur la coque. ③ `RushCoordinateChip` : classe `da-coord` + `data-copied`, 900 ms. ④ Test DA : 7 cas neufs, 66/66. ⑤ Cartes verrouillées (dashboard, overlay, guide public) : badge et sous-boîte supprimés, ligne compacte `↳ À terminer avant : nom ›` (ambre/muted), fond de carte discret ; les gardes `rush-quest-state-colors` et `rush-finitions-anonymes` sont réécrites, pas affaiblies. ⑥ Blocs DofusDex : `RushRichText` parse `**gras**`/`*italique*`, `splitTipLines` retire les puces `- ` et coupe sur `>` ; les blocs info du dashboard et `RushInfoSequenceBanner` passent par `RushTipLines` (les `**` ne s'affichent plus en brut). ⑦ Header PiP : `min-height: 0` sous `data-host="pip"` (wide/normal), plus de bande vide au-dessus de 700 px. ⑧ Fiche Succès : `SuccessSheet` portée hors de `.da-card` via `createPortal` (+ wrapper `da-portal` et `ownerDocument.body` pour la PiP) ; fin du chevauchement sous les cartes et du `line-through` hérité. ⑨ Dashboard : pastille Donjon, `SuccessChip` compact et bulle de présence regroupés dans le bloc d'actions à droite (`flex-wrap`) ; l'icône de quête est masquée sur les quêtes validées de l'overlay et disparaît si l'image est cassée. ⑩ Pastilles : Donjon, Succès et présence sont dans le **même bloc segmenté** que les favicons DPLN/DofusDB, le drapeau et l'info (dashboard), sans cadre interne ; la pastille Succès utilise l'icône normalisée `/assets/icons/succes.png` (la fiche garde l'icône du succès).
-> **Preuves** : `tests/unit/da-wakfu.test.ts` **66/66** · `tests/unit/rush-rich-text.test.ts` **22/22** · **152 tests ciblés** (DA, parité, repères verrouillés, finitions, markdown) · `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** (7 791 warnings préexistants) · `npm run test:run` **761 fichiers / 7 992 tests ✅** · `git diff --check` propre.
-> **Reste / ops** : **PR #1450** ouverte (branche `feat/rush-da-retouches`, 6 commits, CI à vérifier puis merge) ; l'œuf Dofus à 5 stades reste **hors lot** (UI-2 Dofus, avec le panneau DofusDex) ; UI-1 assets/compteur, Bloc I, Bloc J, 55 conseils, VPS ; archivage + import `prereq_expr` (local et VPS), 3 alias de donjons.
-> **Rotation** : bloc « suite 21 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

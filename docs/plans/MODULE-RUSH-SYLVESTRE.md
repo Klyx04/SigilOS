@@ -495,9 +495,18 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   consentement absent) ; actions (auth, guilde, `characterSlot`, lecture seule, rate limit) ;
   parité des 3 surfaces ; verrous existants `rush-dungeons`, `rush-overlay-dungeon-gate`,
   `dungeon-no-achievement`.
-- **Statut** : **cadré, à faire** — après **I**, avant les 55 conseils. Aucune migration prévue
-  (les tables existent) ; **prérequis de données levé le 19/11/2026** : 3 alias + `dungeonIds`
-  complétés (`scripts/fix-rush-dungeon-ids.ts`, dry-run → `--apply`, idempotent).
+- **Statut** : **livré le 19/11/2026** (branche `feat/rush-bloc-j-progression-donjons`). Décisions validées :
+  ① **option A** — seul le bloc du repère est ouvert, « Tout déplier » + recherche ;
+  ② **liste par donjon ET par bloc** (un donjon multi-blocs — Belvédère d'Ilyzaelle —
+  apparaît dans chaque accordéon avec **ses** seules étapes), jamais un « fait » global ;
+  ③ filtres **Tous / À faire / Fait** (un donjon `4/6` apparaît dans les deux), **étape**
+  (les 141 qui portent un donjon), **repères**, recherche ; ④ public : agrégat des visiteurs
+  **consentants**, mode perso sans agrégat ; ⑤ overlay : icône entre le compte et l'œil,
+  badge d'exigences restantes, `data-quality` en PiP ; ⑥ compteur en **exigences** (un groupe
+  « au choix » = 1) ; ⑦ **aucune migration**, aucune écriture depuis la vue.
+  Verrous : `rush-dungeons-overview` **8** · `rush-dungeons-overview-ui` **8**.
+  Responsive **vérifié** 390/768/1024/1440 : 0 débordement bas, 0 débordement horizontal,
+  liste qui scrolle à l'intérieur.
 
 ## 3. Ordre d'exécution
 

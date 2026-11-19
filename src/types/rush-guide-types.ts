@@ -5,6 +5,7 @@
  */
 
 import type { RushQuestConstraints } from "@/types/rush-constraints";
+import type { RushCombatMonster } from "@/lib/rush-combat-monsters";
 
 export type RushActivityTagType =
   | "combat_tactique"
@@ -60,6 +61,11 @@ export type RushActivityTag = {
   quantity?: number;
   /** Tag `npc` : identifiant client du PNJ (portrait par convention). */
   npcId?: number;
+  /**
+   * Tag de combat — monstres du groupe, résolus par nom au seed. Un nom inconnu
+   * reste nommé, sans slug : le rendu ne devine jamais la fiche.
+   */
+  monsters?: RushCombatMonster[];
 };
 
 export type RushDungeonRef = {

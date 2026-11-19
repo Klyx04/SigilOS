@@ -4728,6 +4728,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           milestone={previewMilestone}
           seq={previewSeq}
           isDone={false}
+          viewer="preview"
           onClose={() => setShowPreviewModal(false)}
         />
       )}

@@ -806,6 +806,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           dungeonOthers={dungeonActions.others}
           onSetDungeon={dungeonActions.onSet}
           onOpenAchievements={canViewSucces ? openDungeonAchievements : undefined}
+          viewer="member"
           onClose={() => setDetailOpen(false)}
         />,
         document.body

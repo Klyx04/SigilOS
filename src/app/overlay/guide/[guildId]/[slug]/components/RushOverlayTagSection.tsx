@@ -3,12 +3,14 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RushTagBadge } from "@/components/dofus-quests/rush/RushTagBadge";
+import { RushTagBadge, type RushTagViewer } from "@/components/dofus-quests/rush/RushTagBadge";
 import type { TagClassification } from "./overlay-utils";
 
 interface RushOverlayTagSectionProps {
   tags: TagClassification;
   className?: string;
+  /** `member` = fiche interne, `visitor` = fiche publique, `preview` = aucun lien. */
+  viewer?: RushTagViewer;
 }
 
 /**
@@ -21,7 +23,7 @@ interface RushOverlayTagSectionProps {
  * surface du thème. Les étiquettes portent des icônes de jeu (`RushTagBadge`
  * résout l'icône officielle) — c'est l'immersion, sans couleur ajoutée.
  */
-export function RushOverlayTagSection({ tags, className }: RushOverlayTagSectionProps) {
+export function RushOverlayTagSection({ tags, className, viewer = "preview" }: RushOverlayTagSectionProps) {
   const [showConditions, setShowConditions] = useState(false);
   const [showTools, setShowTools] = useState(false);
 
@@ -37,7 +39,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
       {hasNature && (
         <div className="flex min-w-0 max-w-full flex-wrap gap-1">
           {tags.nature.slice(0, 4).map((tag, i) => (
-            <RushTagBadge key={i} tag={tag} size="sm" />
+            <RushTagBadge key={i} tag={tag} size="sm" viewer={viewer} />
           ))}
           {tags.nature.length > 4 && (
             <span className="inline-flex items-center rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground">
@@ -67,7 +69,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
           {showConditions && (
             <div className="mt-1.5 flex min-w-0 max-w-full flex-wrap gap-1">
               {tags.condition.map((tag, i) => (
-                <RushTagBadge key={i} tag={tag} size="sm" />
+                <RushTagBadge key={i} tag={tag} size="sm" viewer={viewer} />
               ))}
             </div>
           )}
@@ -94,7 +96,7 @@ export function RushOverlayTagSection({ tags, className }: RushOverlayTagSection
           {showTools && (
             <div className="mt-1.5 flex min-w-0 max-w-full flex-wrap gap-1">
               {tags.tool.map((tag, i) => (
-                <RushTagBadge key={i} tag={tag} size="sm" />
+                <RushTagBadge key={i} tag={tag} size="sm" viewer={viewer} />
               ))}
             </div>
           )}

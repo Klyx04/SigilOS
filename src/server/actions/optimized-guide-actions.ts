@@ -4894,6 +4894,19 @@ const RushImportActivityTagSchema = z.object({
     )
     .max(8)
     .optional(),
+  // Monstres d'un tag de combat : groupes découpés au seed, résolus par nom
+  // contre le bestiaire local. Un nom inconnu reste nommé (pas de slug inventé).
+  monsters: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        slug: z.string().trim().min(1).max(150).optional(),
+        monsterId: z.number().int().positive().max(9_999_999).optional(),
+        gfxId: z.number().int().positive().max(9_999_999).optional(),
+      })
+    )
+    .max(20)
+    .optional(),
 });
 
 const RushImportSequenceSchema = z.object({

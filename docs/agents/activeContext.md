@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 35) — **Rush · monstres des combats (itération 2a)** — branche `feat/rush-monstres-2026-11-19`
+
+> **Demande user (verbatim)** : « avec la maj des monstres et leur images fiche cliquable etc, pour l'interne vers l'interne pour le visiteur faire fiche visiteur » ; « oui étape par étape go ».
+> **Mesures** : 742 tags de combat = **1 443 noms bruts**, **1 518 noms individuels** après nettoyage ; la source écrit des groupes (`A, B, C`, préfixes `groupe ·` / `soloV ·`) ; carte générée depuis `unity-bestiary.json` (5 129 monstres, **4 612 clés**) ⇒ **1 518 monstres, 100 % résolus** (3 alias mesurés : Chaffoin le Sourn, Garde Bwork Élémental d'Ai, Aventurier injuri) ; **737 / 742** tags portent leur liste.
+> **Fait** : règle pure `rush-combat-monsters` + carte `src/data/rush-monster-map.json` (script `build-rush-monster-map.ts`) ; le seed écrit `monsters` (schéma d'import borné) ; badge « Groupe · N monstres », images proxy, **fiche interne** (`RushMonsterFicheModal` → `MonsterFicheView`, chargée à la demande) et **fiche publique** `/bestiaire/<slug>` ; `viewer` member / visitor / preview sur les 4 surfaces.
+> **Preuves** : **771 fichiers / 8 110 tests ✅** · `tsc` 0 · lint 0 erreur · `rush-combat-monsters` **8** · `rush-trame-seed` **38** · `rush-tag-overflow` **4** · `harness-config` **9** · ROADMAP **61 376 o** (< 60 Kio).
+> **Reste** : 55 conseils (2b) puis positions (2c — siphon DPLN à décider) ; l'import du guide (itération 3) est requis pour voir les monstres en base.
+> **Rotation** : bloc « suite 29 » (donjons au choix) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 19/11/2026 (suite 34) — **Rush · itération 1 : état documentaire aligné** — branche `docs/rush-etat-aligne-2026-11-19`
 
 > **Demande user (verbatim)** : « fais 1 et 2 pour commencer » — itération 1 = docs, itération 2 = contenu (55 conseils + monstres + positions).
@@ -54,16 +65,6 @@
 > **Preuves** : `rush-dungeons-choix` **15/15** · `rush-dofusdex-tip` **9/9** · `toasts-da` **3/3** · **764 fichiers / 8 022 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
 > **Reste / ops** : PR #1455 ; **18 noms** de donjons restent non résolus en base (alias data) mais le verrou est **correct** (6 totems) ; puis Bloc I → Bloc J → 55 conseils → VPS.
 > **Rotation** : bloc « suite 24 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 19/11/2026 (suite 29) — **Rush · donjons « au choix » (Sufokia, Maïmane)** — branche `fix/rush-donjons-choix`
-
-> **Demande user (verbatim)** : « https://www.dofuspourlesnoobs.com/le-disparu-de-sufokia.html **condition** et celle-ci …/les-totems-de-maimane.html **choix** — les 2 quêtes sont mal gérées actuellement, overlay et navigateur ».
-> **Mesure** : payload = **7 tags `donjon` multi sur 174**, tous sur ces **deux** quêtes. Le seed écrit **un tag par groupe** (« A / B / C » + précision après `—`) et `dungeonIds` **à plat** (5 pour Sufokia, 12 pour Maïmane) : le verrou exigeait donc **tous** les donjons. Sufokia = 1 donjon **selon le niveau** (5 listés) ; Maïmane = **6 totems**, 3 à 5 donjons au choix par totem.
-> **Fait** : ① règle pure `attachDungeonChoices` (overlay-utils) — un tag multi devient un **groupe** (`choix:N`, libellé = la précision), rapprochement **par nom normalisé**, fail-open si moins de 2 donjons résolus ; ② `sequenceDungeonProgress` expose `requiredBlocks` / `missingBlocks` / `choiceGroups`, un groupe étant satisfait dès **une** coche ; `missingRequiredDungeons` ne liste plus les alternatives d'un groupe satisfait ; ③ UI : le panneau compte les **exigences** (« N requis restants »), la carte donjon pose « … — un seul suffit » avant le groupe ; ④ **aucune migration, aucun réimport** (le groupement vit dans `activityTags`, déjà en base).
-> **Preuves** : `rush-dungeons-choix` **13/13** · **118 tests ciblés** (donjons, parité, Ocre) · **762 fichiers / 8 008 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
-> **Reste / ops** : PR ; sur Maïmane, **11/30 donjons sont en base** (12 au seed : G1 = 5, G2 = 4, G3 = 2) ⇒ 3 groupes sur 6 sont pris en compte (les 3 autres ignorés, fail-open) : la quête peut être débloquée avec **3 donjons** — à finir avec les **alias de donjons** (data, 19 à résoudre) ; puis Bloc I → Bloc J → 55 conseils → VPS.
-> **Rotation** : bloc « suite 23 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

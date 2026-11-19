@@ -21,6 +21,8 @@
 
 import type { RushImportActivityTag, RushImportBlock, RushImportSequence } from "@/lib/rush-import";
 import { MAX_RUSH_DUNGEONS_PER_SEQUENCE } from "@/lib/rush-dungeon-names";
+import { resolveRushCombatMonsters } from "@/lib/rush-combat-monsters";
+import RUSH_MONSTER_MAP from "@/data/rush-monster-map.json";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -539,7 +541,9 @@ function tagsForQuest(quest: TrameQuest | undefined, includeResources: boolean):
             : mode === "solo"
               ? "combat_solo"
               : "combat_plusieurs";
-      pushOnce({ type: tag, ...(name ? { name } : {}) });
+      const monsters = resolveRushCombatMonsters(name, RUSH_MONSTER_MAP);
+      const hasResolved = monsters.some((monster) => monster.slug);
+      pushOnce({ type: tag, ...(name ? { name } : {}), ...(hasResolved ? { monsters } : {}) });
     } else if (type === "needplayer") {
       pushOnce({ type: "plusieurs_personnes", ...(name ? { name } : {}) });
     } else if (type === "job") {
@@ -553,7 +557,9 @@ function tagsForQuest(quest: TrameQuest | undefined, includeResources: boolean):
     } else if (type === "dungeon" || type === "dungeonchoice") {
       pushOnce({ type: "donjon", ...(name ? { name } : {}) });
     } else if (type === "bashmobs") {
-      pushOnce({ type: "combat_solo", ...(name ? { name } : {}) });
+      const monsters = resolveRushCombatMonsters(name, RUSH_MONSTER_MAP);
+      const hasResolved = monsters.some((monster) => monster.slug);
+      pushOnce({ type: "combat_solo", ...(name ? { name } : {}), ...(hasResolved ? { monsters } : {}) });
     }
   }
 

@@ -95,7 +95,10 @@ const TRAME: TrameInput = {
       id: 1958,
       name: "Q1",
       items: [{ id: 421, name: "Ortie", count: 50 }],
-      constraints: [{ type: "combat", detail: "solo · X", refs: { mode: "solo" } }],
+      constraints: [
+        { type: "combat", detail: "solo · X", refs: { mode: "solo" } },
+        { type: "combat", detail: "Piou Rouge", refs: { mode: "solo" } },
+      ],
       dungeonIds: [13],
       dungeonOurIds: ["cmolalham001zccog1jauzddn"],
       dungeonNames: ["Donjon des Bworks"],
@@ -185,6 +188,16 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
       ])
     );
     expect(result.report.resources).toBe(1);
+  });
+
+  it("résout les monstres d'un combat contre le bestiaire, sans inventer les inconnus", () => {
+    const tags = result.payload.blocks[0].sequences[0].activityTags ?? [];
+    const piou = tags.find((tag) => tag.type === "combat_solo" && tag.name === "Piou Rouge");
+    expect(piou?.monsters).toEqual([
+      { name: "Piou Rouge", slug: "piou-rouge", monsterId: 489, gfxId: 273 },
+    ]);
+    const unknown = tags.find((tag) => tag.type === "combat_solo" && tag.name === "solo · X");
+    expect(unknown?.monsters).toBeUndefined();
   });
 
   it("transporte l'id DofusDB du donjon, jamais le cuid local", () => {

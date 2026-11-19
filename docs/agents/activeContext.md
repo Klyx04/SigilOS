@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 31) — **Rush · Bloc I (succès de donjon) + coches unifiées** — branches `fix/succes-canonique` + `feat/rush-bloc-i-succes-donjon`
+
+> **Décisions user** : Q1 **unifier sur « Mes Succès »** ; Q2 **séparé** (guide interne = profil de guilde, guide public = profil visiteur) ; Q3 **sélecteur** si le personnage du guide n'est pas déclaré ; Q4 le faux « Donjon validé » **jamais listé** (les boss d'anomalie, les 4 doubles boss Frigost et la quête de Qu'Tan ne sont pas des donjons du rush) ; Q5 **guest en lecture seule** ; Q6 **RBAC strict** ; Q7 **2 PR**.
+> **Fait — PR 1 (`fix/succes-canonique`)** : `toggleDungeonAchievement` / `getDungeonAchievementStates` basculés sur **`UserDungeonProgress`** (`source: MANUAL`, `dungeonId`) ; `canViewSucces` en lecture + `canEditOwnSucces` en écriture ; `scripts/backfill-dungeon-achievements.ts` (dry-run par défaut, idempotent, sans suppression) ; fiche boss alignée (`canEdit`).
+> **Fait — PR 2 (`feat/rush-bloc-i-succes-donjon`)** : règle pure `rush-dungeon-achievements` ; catalogue public unique `src/server/dungeon-achievements.ts` ; panneau interne `getRushDungeonAchievementPanel` (séquence/donjon requis, personnage validé) + panneau visiteur `public-rush-achievements` + couture `_actions/public-dungeon-achievements` ; `DungeonAchievementsPanel` partagé, modale pleine Radix + mini-modale PiP (`data-quality` high/low, largeurs `min()`) ; `+` sur la carte donjon (requis + résolu uniquement, règle `canOpenDungeonAchievements`) câblé dans le dashboard, le guide public et l'overlay ; le guest voit le catalogue sans cocher ; le sélecteur visiteur résout le personnage déclaré.
+> **Preuves** : **767 fichiers / 8 067 tests ✅** · `tsc` 0 · lint 0 erreur · `boss-achievement-check` **17** · `rush-dungeon-achievements` **16** · `-public` **6** · `-ui` **16**.
+> **Reste / ops** : mesurer `UserDungeonAchievement` / `UserDungeonProgress` sur la bêta **et** la prod (la clé lecture seule ne les expose pas ; requête humaine ou verbe `counts-succes` à revoir) ; **après déploiement**, `npx -y tsx scripts/backfill-dungeon-achievements.ts` (dry-run → `--apply`) si les compteurs legacy > 0 ; deploy bêta puis re-mesure 494/238/32/19 ; **18 alias de donjons** (data) avant **Bloc J** ; puis 55 conseils, VPS.
+> **Rotation** : bloc « suite 25 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 19/11/2026 (suite 30) — **Rush · DofusDex supprimé, 6 totems, toasts DA** — branche `fix/rush-dofusdex-bloc`
 
 > **Demandes user (verbatim)** : « je ne veux plus des dofusdex explicatifs dans les guides c'est juste infect et inutile supprime » · « il y a 6 totems à récupérer, avec une liste de dj avec un dj au choix parmi les 6 totems » · « ça affiche bien 6/6 fait mais la notif est bugé non ? » · « TOUTES les notif toast coté navigateur (hors overlay) sont tjres pas à la DA ».
@@ -54,11 +63,4 @@
 > **Rotation** : bloc « suite 20 » (route iso Tougli × Yelle) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 18/11/2026 (suite 25) — **Rush · les 3 derniers points UX** — branche `feat/rush-ux-trois`
 
-> **Demande user (verbatim)** : « Reste : les 3 autres points UX (alignement visible, clic quête, message perso), le `prereq_expr`, puis UI / Bloc I / 55 conseils / VPS. »
-> **Cause mesurée (alignement)** : le PiP ne se rafraîchissait **jamais** — `RushTimelineClient` figeait `milestones` dans `openOverlay(...)` (« payload figé à l'ouverture ») ; `router.refresh()` rafraîchissait le dashboard, pas l'instantané du PiP. Le payload n'y portait pas non plus `selfAlignment`/`selfOrder`.
-> **Fait** : ① store `sync(patch)` + `overlayData` mémoïsé (ouverture **et** resynchronisation) + cité/Ordre du personnage dans le payload/host ; ② le **nom de quête** ouvre la fiche détaillée (dashboard + guide public, `aria-label`, picto « i » conservé) ; ③ toast « Personnage actif : <nom> » au changement de slot (progression séparée).
-> **Preuves** : **760 fichiers / 7 961 tests ✅** · `tsc` 0 · lint 0 erreur · 5 tests `rush-ux-trois` (sync conserve fenêtre et reste du payload, no-op sans overlay, câblage des 3 surfaces).
-> **Reste / ops** : `prereq_expr` (OU) — mesuré sur « Supermilicien » (275) : le client accepte 272/273/274, le guide n'exige que 273 ; puis UI, Bloc I, 55 conseils, VPS. **PR à ouvrir**.
-> **Rotation** : bloc « suite 19 » (Missions & sondages) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

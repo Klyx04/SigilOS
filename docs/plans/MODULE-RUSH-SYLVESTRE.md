@@ -429,8 +429,15 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   la modale pleine, la mini, le guest, la parité des 3 surfaces, la DA/responsive/a11y) ; les verrous
   existants (`rush-overlay-dungeon-gate` 12, `dungeon-invalidation`, `rush-dungeons`,
   `dungeon-no-achievement`, `dungeon-completion` 7, `succes-ui-deslop` 4).
-- **Statut** : **à faire** ; ordre dans `docs/ROADMAP.md` ; priorité après les prérequis et l'UX de
-  navigation, avant les 55 conseils.
+- **Statut** : **implémenté le 19/11/2026** (branches `fix/succes-canonique` puis
+  `feat/rush-bloc-i-succes-donjon` ; PR à merger). **Décisions tranchées** : ① source canonique =
+  `UserDungeonProgress` (legacy `UserDungeonAchievement` backfillé puis gelé) ; ② guide interne
+  et guide public = deux profils **séparés** ; ③ visiteur connecté : coche du donjon
+  locale/miroir, succès `PublicDungeonAchievement`, **sélecteur** si le personnage du guide
+  n'est pas déclaré ; ④ le faux « Donjon validé » n'est **jamais** listé dans ce panneau (la
+  coche du donjon le remplace ; la fiche boss garde son fallback) ; ⑤ guest = catalogue en
+  **lecture seule** ; ⑥ RBAC strict : `+` seulement avec `canViewSucces`, coche avec
+  `canEditOwnSucces` (la fiche boss est alignée) ; ⑦ **aucune migration de schéma**.
 
 ### J — Donjons du guide : vue transversale « qui a fait quoi » · cadré le 18/11/2026
 

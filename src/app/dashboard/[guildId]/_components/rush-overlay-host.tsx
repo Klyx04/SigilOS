@@ -26,6 +26,7 @@ export function RushOverlayHost() {
     <OverlayToastProvider>
       <GuideOverlayClient
         guildId={payload.guildId}
+        canViewSucces={payload.canViewSucces ?? false}
         guide={payload.guide}
         milestones={payload.milestones}
         allProgress={payload.allProgress}

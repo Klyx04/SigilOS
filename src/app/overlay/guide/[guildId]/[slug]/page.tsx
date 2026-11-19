@@ -149,6 +149,7 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
   return (
     <GuideOverlayClient
       guildId={guildId}
+      canViewSucces={user.canViewSucces}
       guide={{
         id: guide.id,
         name: guide.name,

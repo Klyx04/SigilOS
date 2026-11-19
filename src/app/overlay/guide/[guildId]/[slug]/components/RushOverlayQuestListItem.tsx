@@ -3,7 +3,7 @@
 import React, { memo, useState } from "react";
 import { Check, Flag, BookmarkCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getDungeons, isDungeonSequence } from "./overlay-utils";
+import { getSequenceCoord, getDungeons, isDungeonSequence, type DungeonInfo } from "./overlay-utils";
 import { RushOverlayPrereqModal } from "./RushOverlayPrereqModal";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
@@ -115,6 +115,8 @@ interface RushOverlayQuestListItemProps {
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
   onOpenOcre?: () => void;
+  /** Bloc I — ouvre les succès du donjon (la quête est transmise avec le donjon). */
+  onOpenAchievements?: (sequenceId: string, dungeonKey: string, dungeon: DungeonInfo) => void;
   /** Série d'alignement dérivée (« Ali 12 », « Rang 2 ») — jamais persistée. */
   alignmentLabel?: string | null;
   /** Groupes « au choix » (`prereq_expr`) : une seule alternative suffit. */
@@ -152,6 +154,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   dungeonActions,
   capturedOcreNames,
   onOpenOcre,
+  onOpenAchievements,
   alignmentLabel = null,
   choiceGroups = [],
 }: RushOverlayQuestListItemProps) {
@@ -352,6 +355,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   onEnsureLoaded={dungeonActions?.ensureLoaded}
                   capturedOcreNames={capturedOcreNames}
                   onOpenOcre={onOpenOcre}
+                  onOpenAchievements={
+                    onOpenAchievements
+                      ? (key, dungeon) => onOpenAchievements(seq.id, key, dungeon)
+                      : undefined
+                  }
                 >
                   <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — cliquer pour cocher fait / à faire">
                     {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le

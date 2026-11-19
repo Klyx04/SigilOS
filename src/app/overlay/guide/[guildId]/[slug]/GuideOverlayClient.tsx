@@ -27,11 +27,22 @@ import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
   missingRequiredDungeons,
+  occurrenceState,
   type RushDungeonMemberState,
   type RushDungeonState,
   type RushDungeonStateMap,
   type RushMissingDungeon,
 } from "@/lib/rush-dungeons";
+import {
+  achievementPanelMode,
+  type DungeonAchievementDungeon,
+  type DungeonAchievementPanelLoadInput,
+  type DungeonAchievementPanelLoader,
+  type DungeonAchievementToggleInput,
+  type DungeonAchievementToggler,
+} from "@/lib/rush-dungeon-achievements";
+import { getRushDungeonAchievementPanel, toggleDungeonAchievement as toggleDungeonAchievementAction } from "@/server/actions/dungeon-achievement-actions";
+import { RushOverlayDungeonAchievementsModal } from "./components/RushOverlayDungeonAchievementsModal";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
@@ -93,6 +104,12 @@ type Props = {
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
+  /** Bloc I — le membre peut-il ouvrir le module Succès ? (aucun `+` sinon). */
+  canViewSucces?: boolean;
+  /** Bloc I — coutures publiques (PiP du guide public) : catalogue et coches visiteur. */
+  loadDungeonAchievementPanel?: DungeonAchievementPanelLoader;
+  toggleDungeonAchievement?: DungeonAchievementToggler;
+  dungeonAchievementGuestPseudo?: string | null;
   /**
    * Un **compte** est-il connecté sur cette surface ? Distinct de `isGuest`, que le
    * guide public code en dur à `true` : un membre connecté y lit le même overlay.
@@ -157,6 +174,10 @@ export default function GuideOverlayClient({
   altPseudo = null,
   character,
   isGuest = false,
+  canViewSucces = false,
+  loadDungeonAchievementPanel,
+  toggleDungeonAchievement,
+  dungeonAchievementGuestPseudo = null,
   feedbackSignedIn = false,
   metamobPseudo,
   metamobVerified = false,
@@ -170,6 +191,60 @@ export default function GuideOverlayClient({
   selfOrder = null,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
+  // ─── Bloc I — succès de donjon (mini-modale) ────────────────────────────────
+  // Le mode est déduit de la surface : membre (guildId réel), visiteur connecté
+  // (PiP publique + session), invité. Le guest reste en lecture seule.
+  const achievementMode = achievementPanelMode({ guildId, isGuest, feedbackSignedIn });
+  const [achievementTarget, setAchievementTarget] = useState<{
+    sequenceId: string;
+    dungeonKey: string;
+    dungeon: DungeonAchievementDungeon;
+  } | null>(null);
+  const openDungeonAchievements = useCallback(
+    (sequenceId: string, dungeonKey: string, dungeon: { id?: string; name?: string; bossName?: string; imageUrl?: string }) => {
+      if (!dungeon.id) return;
+      setAchievementTarget({
+        sequenceId,
+        dungeonKey,
+        dungeon: {
+          id: dungeon.id,
+          name: dungeon.name ?? "Donjon",
+          bossName: dungeon.bossName ?? null,
+          imageUrl: dungeon.imageUrl ?? null,
+        },
+      });
+    },
+    []
+  );
+  const achievementHandler = achievementMode === "member" && !canViewSucces ? undefined : openDungeonAchievements;
+  const internalAchievementLoader = useCallback(
+    (input: DungeonAchievementPanelLoadInput) => {
+      if (!achievementTarget) return Promise.resolve({ success: false as const, error: "Donjon introuvable" });
+      return getRushDungeonAchievementPanel({
+        guildId,
+        sequenceId: achievementTarget.sequenceId,
+        dungeonId: input.dungeonId,
+        characterSlot: input.characterSlot ?? effectiveAltPseudo,
+      });
+    },
+    [achievementTarget, guildId, effectiveAltPseudo]
+  );
+  const internalAchievementToggler = useCallback(
+    (input: DungeonAchievementToggleInput) => {
+      if (!achievementTarget) return Promise.resolve({ success: false as const, error: "Donjon introuvable" });
+      return toggleDungeonAchievementAction({
+        guildId,
+        dungeonId: input.dungeonId,
+        achievementId: input.achievementId,
+        characterSlot: input.characterSlot ?? effectiveAltPseudo,
+      });
+    },
+    [achievementTarget, guildId, effectiveAltPseudo]
+  );
+  const activeAchievementLoader =
+    achievementMode === "member" ? internalAchievementLoader : loadDungeonAchievementPanel;
+  const activeAchievementToggler =
+    achievementMode === "member" ? internalAchievementToggler : toggleDungeonAchievement;
   // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
   const toast = useOverlayToast();
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
@@ -1604,6 +1679,7 @@ export default function GuideOverlayClient({
                         seq={seq}
                         guildId={guildId}
                         dungeonActions={dungeonActions}
+                        onOpenAchievements={achievementHandler}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
                         isLocked={gate.locked}
@@ -1674,6 +1750,7 @@ export default function GuideOverlayClient({
                       seq={seq}
                       guildId={guildId}
                       dungeonActions={dungeonActions}
+                      onOpenAchievements={achievementHandler}
                       isDone={isSeqDone}
                       isNext={nextSeqId === seq.id}
                       isBookmarked={isBookmarked}
@@ -1757,9 +1834,43 @@ export default function GuideOverlayClient({
           dungeonBusyKey={dungeonActions?.busyKey}
           dungeonOthers={dungeonActions?.others}
           onSetDungeon={dungeonActions?.onSet}
+          onOpenAchievements={
+            achievementHandler
+              ? (key, dungeon) => achievementHandler(detailSeq.seq.id, key, dungeon)
+              : undefined
+          }
           onClose={() => setDetailSeq(null)}
         />
       )}
+
+      {/* ══ MINI-MODALE SUCCÈS D'UN DONJON (Bloc I) ══ */}
+      {achievementTarget && activeAchievementLoader ? (
+        <RushOverlayDungeonAchievementsModal
+          dungeon={achievementTarget.dungeon}
+          dungeonKey={achievementTarget.dungeonKey}
+          dungeonState={occurrenceState(
+            dungeonActions?.states ?? {},
+            achievementTarget.sequenceId,
+            achievementTarget.dungeonKey
+          )}
+          onSetDungeon={
+            dungeonActions
+              ? (state) =>
+                  dungeonActions.onSet(
+                    achievementTarget.sequenceId,
+                    achievementTarget.dungeonKey,
+                    state
+                  )
+              : undefined
+          }
+          mode={achievementMode}
+          loadPanel={activeAchievementLoader}
+          toggle={achievementMode === "guest" ? undefined : activeAchievementToggler}
+          guestPseudo={dungeonAchievementGuestPseudo}
+          characterSlot={achievementMode === "member" ? effectiveAltPseudo : undefined}
+          onClose={() => setAchievementTarget(null)}
+        />
+      ) : null}
 
       {/* ══ MODALE TUTORIEL ══ */}
       {showTutorial && (

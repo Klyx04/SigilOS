@@ -207,7 +207,7 @@ export function SuccesClient({
             {view === "moi" ? (
                 <SuccesTracker guildId={guildId} canEdit={canEditOwnSucces} />
             ) : view === "fiches" && activeFiche === "boss" ? (
-                <SuccesBossGuide guildId={guildId} />
+                <SuccesBossGuide guildId={guildId} canEdit={canEditOwnSucces} />
             ) : view === "fiches" && activeFiche === "anomalies" ? (
                 <SuccesBossGuide guildId={guildId} scope="anomalie" />
             ) : view === "fiches" && activeFiche === "raids" ? (

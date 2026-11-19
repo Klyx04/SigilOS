@@ -277,7 +277,16 @@ const SCOPE_RULES: Record<
     },
 };
 
-export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; scope?: BossGuideScope }) {
+export function SuccesBossGuide({
+    guildId,
+    scope = "boss",
+    canEdit = false,
+}: {
+    guildId: string;
+    scope?: BossGuideScope;
+    /** Droit de cocher ses propres succès (`canEditOwnSucces`), fail-closed par défaut. */
+    canEdit?: boolean;
+}) {
     const { openBossOverlay, isOpen: isOverlayOpen } = useBossOverlay(guildId);
     const scopeRule = SCOPE_RULES[scope];
     const [dungeons, setDungeons] = useState<BossDungeon[]>([]);
@@ -1161,7 +1170,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 description: a.challenge?.description ?? null,
                             }))}
                             bossName={selected.bossName}
-                            onToggle={scope === "boss" ? handleToggleAchievement : undefined}
+                            onToggle={scope === "boss" && canEdit ? handleToggleAchievement : undefined}
                             doneIds={scope === "boss" ? doneAchievements : undefined}
                             pendingId={pendingAchievement}
                         />

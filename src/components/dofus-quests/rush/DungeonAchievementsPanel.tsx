@@ -63,18 +63,13 @@ function AchievementRow({
     <>
       <AchievementIcon achievement={achievement} />
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-2">
-          <span
-            className={cn(
-              "truncate font-semibold text-foreground",
-              variant === "overlay" ? "text-[11px]" : "text-sm"
-            )}
-          >
-            {achievement.name}
-          </span>
-          <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted-foreground">
-            +{achievement.points}
-          </span>
+        <span
+          className={cn(
+            "block truncate font-semibold text-foreground",
+            variant === "overlay" ? "text-[11px]" : "text-sm"
+          )}
+        >
+          {achievement.name}
         </span>
         {description ? (
           <span
@@ -87,15 +82,17 @@ function AchievementRow({
           </span>
         ) : null}
       </span>
-      <span
-        className={cn(
-          "grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border",
-          done ? "border-success bg-success text-white" : "border-border text-transparent"
-        )}
-        aria-hidden="true"
-      >
-        <Check className="h-3 w-3 stroke-[3]" />
-      </span>
+      {canEdit ? (
+        <span
+          className={cn(
+            "grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border",
+            done ? "border-success bg-success text-white" : "border-border text-transparent"
+          )}
+          aria-hidden="true"
+        >
+          <Check className="h-3 w-3 stroke-[3]" />
+        </span>
+      ) : null}
     </>
   );
 

@@ -108,6 +108,12 @@ describe("Panneau partagé — lecture seule et DA", () => {
         expect(read(PANEL_UI)).toContain('mode !== "guest"');
     });
 
+    it("n'affiche ni les points +10 ni de case au lecteur seul", () => {
+        const code = read(PANEL_UI);
+        expect(code).not.toContain("+{achievement.points}");
+        expect(code).toContain("{canEdit ? (");
+    });
+
     it("réutilise les deux boutons d'état partagés", () => {
         expect(read(PANEL_UI)).toContain('import { DungeonStateButton } from "./DungeonStateButton"');
         expect(read(PANEL_UI)).toContain("<DungeonStateButton");

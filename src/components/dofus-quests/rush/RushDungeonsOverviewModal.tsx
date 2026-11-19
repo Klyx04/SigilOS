@@ -44,6 +44,7 @@ type PanelLabels = {
   optional: string;
   achievements: string;
   goTo: string;
+  post: string;
 };
 
 const LABELS: Record<"fr" | "en", PanelLabels> = {
@@ -69,6 +70,7 @@ const LABELS: Record<"fr" | "en", PanelLabels> = {
     optional: "Optionnel",
     achievements: "Succès du donjon",
     goTo: "Aller à l'étape",
+    post: "Créer un post donjon / quête",
   },
   en: {
     title: "Dungeon progress",
@@ -92,6 +94,7 @@ const LABELS: Record<"fr" | "en", PanelLabels> = {
     optional: "Optional",
     achievements: "Dungeon achievements",
     goTo: "Go to the step",
+    post: "Create a dungeon / quest post",
   },
 };
 
@@ -171,6 +174,7 @@ function DungeonRow({
   membersByKey,
   onGoToStep,
   onOpenAchievements,
+  onOpenPost,
 }: {
   row: RushOverviewDungeon;
   mode: Mode;
@@ -178,43 +182,62 @@ function DungeonRow({
   membersByKey: Map<string, RushOverviewMember>;
   onGoToStep?: (sequenceId: string) => void;
   onOpenAchievements?: (dungeon: RushOverviewDungeon) => void;
+  onOpenPost?: (dungeon: RushOverviewDungeon) => void;
 }) {
+  const identity = (
+    <>
+      <DungeonImage row={row} />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-[13px] font-semibold text-foreground">{row.name}</span>
+          {row.isOcre ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/assets/icons/ocre.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+          ) : null}
+        </span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {[row.bossName, row.level != null ? `niv. ${row.level}` : null].filter(Boolean).join(" · ")}
+        </span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+          <span className="tabular-nums">
+            {row.doneOccurrences} / {row.totalOccurrences} {labels.steps}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="tabular-nums">
+            {row.membersDone} / {row.membersTotal} {labels.members}
+          </span>
+        </span>
+      </span>
+    </>
+  );
+
   return (
     <li className="border-t border-border/60 px-3 py-2 first:border-t-0">
       <div className="flex items-start gap-2">
-        <DungeonImage row={row} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-[13px] font-semibold text-foreground">{row.name}</span>
-            {row.isOcre ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src="/assets/icons/ocre.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
-            ) : null}
-            {onOpenAchievements && (row.dungeonId || row.slug) ? (
-              <button
-                type="button"
-                onClick={() => onOpenAchievements(row)}
-                aria-label={`${labels.achievements} — ${row.name}`}
-                title={labels.achievements}
-                className="ml-auto grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border border-border text-muted-foreground transition-colors hover:border-success/40 hover:text-success"
-              >
-                <Plus className="h-3 w-3" aria-hidden="true" />
-              </button>
-            ) : null}
-          </div>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {[row.bossName, row.level != null ? `niv. ${row.level}` : null].filter(Boolean).join(" · ")}
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-            <span className="tabular-nums">
-              {row.doneOccurrences} / {row.totalOccurrences} {labels.steps}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">
-              {row.membersDone} / {row.membersTotal} {labels.members}
-            </span>
-          </p>
-        </div>
+        {onOpenPost && row.dungeonId ? (
+          <button
+            type="button"
+            onClick={() => onOpenPost(row)}
+            aria-label={`${labels.post} — ${row.name}`}
+            title={labels.post}
+            className="flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-[4px] text-left transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:outline-success/50 sm:min-h-0"
+          >
+            {identity}
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-start gap-2">{identity}</div>
+        )}
+        {onOpenAchievements && (row.dungeonId || row.slug) ? (
+          <button
+            type="button"
+            onClick={() => onOpenAchievements(row)}
+            aria-label={`${labels.achievements} — ${row.name}`}
+            title={labels.achievements}
+            className="grid h-5 w-5 shrink-0 place-items-center rounded-[3px] border border-border text-muted-foreground transition-colors hover:border-success/40 hover:text-success"
+          >
+            <Plus className="h-3 w-3" aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       <ul className="mt-1 space-y-0.5 pl-10">
@@ -278,6 +301,7 @@ export function RushDungeonsOverviewModal({
   portalContainer,
   onGoToStep,
   onOpenAchievements,
+  onOpenPost,
 }: {
   open: boolean;
   onClose: () => void;
@@ -295,6 +319,8 @@ export function RushDungeonsOverviewModal({
   portalContainer?: HTMLElement | null;
   onGoToStep?: (sequenceId: string) => void;
   onOpenAchievements?: (dungeon: RushOverviewDungeon) => void;
+  /** Ouvre la création d'un post donjon/quête (contexte guilde uniquement). */
+  onOpenPost?: (dungeon: RushOverviewDungeon) => void;
 }) {
   const labels = LABELS[locale];
   const [filter, setFilter] = useState<RushOverviewFilter>(EMPTY_OVERVIEW_FILTER);
@@ -538,6 +564,7 @@ export function RushDungeonsOverviewModal({
                           membersByKey={membersByKey}
                           onGoToStep={onGoToStep}
                           onOpenAchievements={onOpenAchievements}
+                          onOpenPost={onOpenPost}
                         />
                       ))}
                     </ul>

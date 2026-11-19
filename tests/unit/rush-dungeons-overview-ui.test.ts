@@ -64,6 +64,14 @@ describe("bloc J — entrée dans les trois surfaces", () => {
     expect(source).toContain("Progression Donjons");
     expect(source).toContain("/assets/dofus-ui/pictos/donjon.png");
   });
+
+  it("un clic sur un donjon ouvre la modale de post donjon / quête (Dungeon Finder)", () => {
+    const dashboard = read(DASHBOARD);
+    expect(dashboard).toContain("onOpenPost={openDungeonPost}");
+    expect(dashboard).toContain("handleDungeonClick(row.dungeonId");
+    expect(dashboard).toContain("<DjPostCreateModal");
+    expect(read(MODAL)).toContain("onOpenPost && row.dungeonId");
+  });
 });
 
 describe("bloc J — panneau (option A, filtres et coût de rendu)", () => {

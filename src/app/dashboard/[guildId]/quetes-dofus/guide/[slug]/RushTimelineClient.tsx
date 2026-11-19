@@ -1638,6 +1638,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     dungeonKey: string;
     dungeon: DungeonAchievementDungeon;
   } | null>(null);
+  // Bloc J — clic sur un donjon : création d'un post donjon / quête (Dungeon Finder).
   const dungeonsCommunityLoaded = useRef(false);
   const openDungeonsOverview = useCallback(() => {
     setDungeonsOverviewOpen(true);
@@ -1683,6 +1684,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       },
     });
   }, []);
+  // Clic sur un donjon : la modale EXISTANTE de post donjon / quête (Dungeon Finder).
   // S0-7 : une décoche de donjon peut DÉVALIDER la quête côté serveur. On la décoche ici
   // aussi — l'état optimiste du guide ne doit pas afficher « validée » si la base ne l'a plus.
   const handleSetDungeon=useCallback(async(sequenceId:string,dungeonKey:string,state:RushDungeonState|null)=>{
@@ -1723,6 +1725,17 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const selectedClassDeclared=useMemo(()=>{if(!effectiveAltPseudo)return Boolean(localProfile?.dofusClass);const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return Boolean(m?.classe);},[effectiveAltPseudo,localProfile]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
+  // Bloc J — même modale que la pastille de quête, préremplie avec le donjon ET la quête
+  // de la première occurrence (« post dj quête aussi ») ; on ferme la vue d'ensemble.
+  const openDungeonPost = useCallback(
+    (row: RushOverviewDungeon) => {
+      if (!row.dungeonId) return;
+      const occurrence = row.occurrences.find((entry) => !entry.isOptional) ?? row.occurrences[0];
+      setDungeonsOverviewOpen(false);
+      handleDungeonClick(row.dungeonId, occurrence?.sequenceName ?? "");
+    },
+    [handleDungeonClick]
+  );
   // ─── Modale d'accueil : elle DOIT survivre au changement de personnage ────────
   // Choisir un personnage navigue (`?character=…`) et le guide est REMONTÉ
   // (`key={character}` dans `page.tsx`) : sans mémoire, la modale se fermait au
@@ -3078,6 +3091,7 @@ const timelineItems=useMemo(()=>{
         handleFocusSequence(sequenceId);
       }}
       onOpenAchievements={canViewSucces ? openOverviewAchievements : undefined}
+      onOpenPost={openDungeonPost}
     />
 
     {overviewAchievement && (

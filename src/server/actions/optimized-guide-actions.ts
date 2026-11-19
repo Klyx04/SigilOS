@@ -14,6 +14,11 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
+import {
+  MAX_RUSH_DUNGEONS_PER_SEQUENCE,
+  normalizeRushDungeonName,
+  resolveRushDungeonByName,
+} from "@/lib/rush-dungeon-names";
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
 import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
@@ -4904,11 +4909,19 @@ const RushImportSequenceSchema = z.object({
   // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
   dofusdbUrl: z.string().trim().max(500).nullish(),
   dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
-  dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  dungeonIds: z.array(z.string().trim().min(1).max(64)).max(MAX_RUSH_DUNGEONS_PER_SEQUENCE).optional(),
   // Ids DofusDB **portables** : le serveur les résout vers `Dungeon.id` par `dofusdbId`.
-  dungeonDbIds: z.array(z.number().int().positive()).max(12).optional(),
-  dungeonNames: z.array(z.string().trim().min(1).max(200)).max(12).optional(),
-  dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  dungeonDbIds: z.array(z.number().int().positive()).max(MAX_RUSH_DUNGEONS_PER_SEQUENCE).optional(),
+  // Repli portable par **nom** : 29 alternatives mesurées sur « Les totems de
+  // Maïmane » (19/11/2026) — l'ancien plafond de 12 en perdait 17.
+  dungeonNames: z
+    .array(z.string().trim().min(1).max(200))
+    .max(MAX_RUSH_DUNGEONS_PER_SEQUENCE)
+    .optional(),
+  dungeonOptionalIds: z
+    .array(z.string().trim().min(1).max(64))
+    .max(MAX_RUSH_DUNGEONS_PER_SEQUENCE)
+    .optional(),
   takeEarly: z.boolean().optional(),
   isOptional: z.boolean().optional(),
   /** Étape de succès (icône trophée) — jamais une règle de blocage. */
@@ -4989,7 +5002,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
   if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
 
   const allDungeons = await db.dungeon.findMany({
-    select: { id: true, dofusdbId: true, name: true, bossName: true },
+    select: { id: true, dofusdbId: true, name: true, bossName: true, slug: true },
   });
   const knownDungeonIds = new Set(allDungeons.map((d) => d.id));
   const dungeonByDofusDbId = new Map(
@@ -4997,9 +5010,12 @@ export async function importRushGuide(raw: unknown, apply = false) {
   );
   const knownDungeonDbIds = new Set(dungeonByDofusDbId.keys());
   // Repli **portable** : les ids DofusDB ne sont remplis que sur une petite partie des
-  // donjons locaux ; le nom / le boss, lui, existe toujours. On résout dans cet ordre.
-  const dungeonByName = new Map(allDungeons.map((d) => [importKey(d.name), d.id]));
-  const dungeonByBoss = new Map(allDungeons.map((d) => [importKey(d.bossName), d.id]));
+  // donjons locaux ; le nom / le boss, lui, existe toujours. On résout dans cet ordre :
+  // nom → boss → **alias mesuré** (slug), règle pure `rush-dungeon-names`.
+  const dungeonByName = new Map(allDungeons.map((d) => [normalizeRushDungeonName(d.name), d.id]));
+  const dungeonByBoss = new Map(allDungeons.map((d) => [normalizeRushDungeonName(d.bossName), d.id]));
+  const dungeonBySlug = new Map(allDungeons.map((d) => [normalizeRushDungeonName(d.slug), d.id]));
+  const dungeonLookup = { byName: dungeonByName, byBoss: dungeonByBoss, bySlug: dungeonBySlug };
   const knownDungeonNames = new Set([...dungeonByName.keys(), ...dungeonByBoss.keys()]);
   const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
 
@@ -5119,7 +5135,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
             .map((id) => dungeonByDofusDbId.get(id))
             .filter((id): id is string => Boolean(id));
           const resolvedByName = (sequence.dungeonNames ?? [])
-            .map((name) => dungeonByName.get(importKey(name)) ?? dungeonByBoss.get(importKey(name)))
+            .map((name) => resolveRushDungeonByName(name, dungeonLookup))
             .filter((id): id is string => Boolean(id));
           const uniqueDungeonIds = [
             ...new Set([

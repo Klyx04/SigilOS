@@ -119,13 +119,18 @@ describe("verrou de source — l'enum Prisma et l'import ne divergent pas", () =
     expect(ACTIONS).toContain("RushImportActivityTagSchema");
     expect(ACTIONS).toContain("...(sequence.activityTags ?? [])");
     // Les donjons passent par l'id **DofusDB** puis sont résolus en `Dungeon.id`.
-    expect(ACTIONS).toContain("dungeonDbIds: z.array(z.number().int().positive()).max(12).optional()");
-    expect(ACTIONS).toContain("dungeonNames: z.array(z.string().trim().min(1).max(200)).max(12).optional()");
+    // Plafond **partagé** avec le seed (`rush-dungeon-names`) : 29 alternatives mesurées
+    // sur « Les totems de Maïmane » — l'ancien 12 en perdait 17 (19/11/2026).
+    expect(ACTIONS).toContain("dungeonDbIds: z.array(z.number().int().positive()).max(MAX_RUSH_DUNGEONS_PER_SEQUENCE).optional()");
+    expect(ACTIONS).toContain(".array(z.string().trim().min(1).max(200))");
+    expect(ACTIONS).toContain(".max(MAX_RUSH_DUNGEONS_PER_SEQUENCE)");
     expect(ACTIONS).toContain("dungeonByDofusDbId");
     expect(ACTIONS).toContain("dungeonByBoss");
+    expect(ACTIONS).toContain("dungeonBySlug");
     expect(ACTIONS).toContain("knownDungeonDbIds");
     expect(ACTIONS).toContain("knownDungeonNames");
     expect(ACTIONS).toContain("resolvedByName");
+    expect(ACTIONS).toContain("resolveRushDungeonByName");
     expect(ACTIONS).toContain("dungeonDbIds,");
   });
 

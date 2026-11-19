@@ -465,8 +465,11 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
     « Donjon validé » (`Dungeon.isNoAchievement` → `visibleDungeonAchievements`) reste le fallback :
     il ne doit pas être compté deux fois avec la coche de donjon.
   - **Clé de donjon** : `dungeonKeyOf` (stable) — jamais l'id local ni le nom brut ; la résolution
-    des noms passe par `Dungeon.dofusdbId` (3 donjons encore non aliasés sur 98 : **à compléter
-    avant de promettre une liste exhaustive**).
+    des noms passe par `Dungeon.dofusdbId`. **Les alias sont livrés le 19/11/2026** : les **3**
+    libellés client mesurés (« Bibliothèque du Maître Corbac », « Donjon de la mine de Sakaï »,
+    « Sanctuaire de Torkélonia ») pointent vers `maitre-corbac`, `grolloum`, `torkelonia`
+    (`src/lib/rush-dungeon-names.ts`) et les `dungeonIds` ont été complétés (4 quêtes, **21 ids**,
+    dont les **18 fantômes** de Maïmane).
   - **Contrainte d'alignement** : `Dungeon` ne porte **aucune** cité/Ordre/classe. La seule source
     est la **quête requérante** (`GuideSequence.alignReq`, `alignOrderCode`, `classReq`, filtrés par
     `resolveRushRoute`). Un donjon dont **toutes** les quêtes requérantes sont hors route disparaît ;
@@ -493,7 +496,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   parité des 3 surfaces ; verrous existants `rush-dungeons`, `rush-overlay-dungeon-gate`,
   `dungeon-no-achievement`.
 - **Statut** : **cadré, à faire** — après **I**, avant les 55 conseils. Aucune migration prévue
-  (les tables existent) ; les 3 alias de donjons sont un prérequis de données.
+  (les tables existent) ; **prérequis de données levé le 19/11/2026** : 3 alias + `dungeonIds`
+  complétés (`scripts/fix-rush-dungeon-ids.ts`, dry-run → `--apply`, idempotent).
 
 ## 3. Ordre d'exécution
 

@@ -131,6 +131,37 @@ describe("rush-import — plan (dry-run)", () => {
     expect(plan.blocks[0].sequences[0].warnings).toEqual([]);
   });
 
+  it("ne signale pas comme inconnu un donjon résolu par alias mesuré", () => {
+    const plan = planRushImport(
+      {
+        blocks: [
+          {
+            title: "Bloc",
+            sequences: [
+              {
+                subGuideName: "Les totems de Maïmane",
+                dungeonNames: ["Torkélonia", "Sanctuaire de Torkélonia"],
+              },
+            ],
+          },
+        ],
+      },
+      EMPTY,
+      { knownDungeonNames: new Set(["torkelonia"]) }
+    );
+    expect(plan.blocks[0].sequences[0].warnings).toEqual([]);
+  });
+
+  it("signale un donjon ni connu ni aliasé, sans bloquer l'import", () => {
+    const plan = planRushImport(
+      { blocks: [{ title: "Bloc", sequences: [{ subGuideName: "Quête", dungeonNames: ["Donjon imaginaire"] }] }] },
+      EMPTY,
+      { knownDungeonNames: new Set(["torkelonia"]) }
+    );
+    expect(plan.blocks[0].sequences[0].warnings.join(" ")).toMatch(/Donjon « Donjon imaginaire » inconnu/);
+    expect(plan.totals.sequencesNew).toBe(1);
+  });
+
   it("écarte un nom vide et un bloc sans titre", () => {
     const plan = planRushImport(
       { blocks: [{ title: "   ", sequences: [{ subGuideName: "x" }] }, { title: "Bloc", sequences: [{ subGuideName: "  " }] }] },

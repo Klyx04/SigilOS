@@ -166,4 +166,48 @@ describe("rush-dungeons-overview — filtres", () => {
     expect(groups.map((group) => group.block.id)).toEqual(["ms-a", "ms-b"]);
     expect(groups[0]?.rows.map((row) => row.key).sort()).toEqual(["c1", "c2"]);
   });
+
+  it("éclate un donjon demandé par plusieurs blocs : une section par bloc, ses étapes seulement", () => {
+    const shared = dungeon("x1", "Belvédère d'Ilyzaelle");
+    const cross = buildRushDungeonsOverview({
+      milestones: [
+        milestone("blk-a", "Alignement - Partie 4/4", 0, [
+          sequence("sa", "Lettre à Ilyz", [shared], [{ type: "donjon", name: "Belvédère d'Ilyzaelle" }]),
+        ]),
+        milestone("blk-b", "Archipel de Valonia", 1, [
+          sequence("sb", "Une dernière volonté", [shared], [{ type: "donjon", name: "Belvédère d'Ilyzaelle" }]),
+        ]),
+      ],
+      me: { doneKeys: [], flags: [] },
+    });
+
+    const groups = groupRushDungeonsByBlock(
+      cross,
+      filterRushDungeonsOverview(cross, filter({ query: "ily" }))
+    );
+
+    // Deux accordéons, pas un seul avec l'autre bloc en sous-ligne.
+    expect(groups.map((group) => group.block.id)).toEqual(["blk-a", "blk-b"]);
+    expect(groups[0]?.rows[0]?.occurrences.map((occurrence) => occurrence.sequenceId)).toEqual(["sa"]);
+    expect(groups[1]?.rows[0]?.occurrences.map((occurrence) => occurrence.sequenceId)).toEqual(["sb"]);
+    expect(groups[0]?.rows[0]?.totalOccurrences).toBe(1);
+    expect(groups[1]?.rows[0]?.totalOccurrences).toBe(1);
+  });
+
+  it("ouvre le bloc de l'occurrence repérée, même si le donjon apparaît d'abord ailleurs", () => {
+    const shared = dungeon("x1", "Belvédère d'Ilyzaelle");
+    const cross = buildRushDungeonsOverview({
+      milestones: [
+        milestone("blk-a", "Alignement - Partie 4/4", 0, [
+          sequence("sa", "Lettre à Ilyz", [shared], [{ type: "donjon", name: "Belvédère d'Ilyzaelle" }]),
+        ]),
+        milestone("blk-b", "Archipel de Valonia", 1, [
+          sequence("sb", "Une dernière volonté", [shared], [{ type: "donjon", name: "Belvédère d'Ilyzaelle" }]),
+        ]),
+      ],
+      me: { doneKeys: [], flags: ["sb"] },
+    });
+
+    expect(defaultOpenBlockId(cross, { doneKeys: [], flags: ["sb"] })).toBe("blk-b");
+  });
 });

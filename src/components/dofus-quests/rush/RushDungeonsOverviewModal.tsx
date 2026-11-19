@@ -227,9 +227,7 @@ function DungeonRow({
               title={`${labels.goTo} : ${occurrence.sequenceName}`}
               className="min-w-0 flex-1 truncate text-left text-[10px] text-muted-foreground transition-colors hover:text-foreground disabled:hover:text-muted-foreground"
             >
-              <span className="text-foreground/80">{occurrence.milestoneTitle}</span>
-              <span aria-hidden="true"> · </span>
-              {occurrence.sequenceName}
+              <span className="text-foreground/80">{occurrence.sequenceName}</span>
             </button>
             {occurrence.choiceGroup ? (
               <span

@@ -497,7 +497,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   `dungeon-no-achievement`.
 - **Statut** : **livré le 19/11/2026** (branche `feat/rush-bloc-j-progression-donjons`). Décisions validées :
   ① **option A** — seul le bloc du repère est ouvert, « Tout déplier » + recherche ;
-  ② **liste par donjon** (identité + sous-lignes d'étapes), jamais un « fait » global ;
+  ② **liste par donjon ET par bloc** (un donjon multi-blocs — Belvédère d'Ilyzaelle —
+  apparaît dans chaque accordéon avec **ses** seules étapes), jamais un « fait » global ;
   ③ filtres **Tous / À faire / Fait** (un donjon `4/6` apparaît dans les deux), **étape**
   (les 141 qui portent un donjon), **repères**, recherche ; ④ public : agrégat des visiteurs
   **consentants**, mode perso sans agrégat ; ⑤ overlay : icône entre le compte et l'œil,

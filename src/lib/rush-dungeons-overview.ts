@@ -358,17 +358,49 @@ export function filterRushDungeonsOverview(
   return out;
 }
 
-/** Regroupe des lignes par bloc (l'ordre vient de `overview.blocks`). */
+/**
+ * Regroupe des lignes par bloc — **une ligne par donjon ET par bloc**.
+ *
+ * Un donjon peut être demandé par plusieurs blocs (mesure : Belvédère d'Ilyzaelle
+ * dans Alignement 4/4, Archipel de Valonia et Zone Guerre). Le rattacher au bloc de
+ * sa **première** occurrence faisait apparaître les autres blocs comme des
+ * sous-lignes d'un seul accordéon. Ici, chaque bloc porte sa propre section, avec
+ * **ses** occurrences et son rollup `x/y` ; l'identité (image, nom, `+`) est répétée.
+ */
 export function groupRushDungeonsByBlock(
   overview: RushOverview,
   rows: readonly RushOverviewDungeon[]
 ): Array<{ block: RushOverviewBlock; rows: RushOverviewDungeon[] }> {
   const byBlock = new Map<string, RushOverviewDungeon[]>();
+
   for (const row of rows) {
-    const list = byBlock.get(row.blockId) ?? [];
-    list.push(row);
-    byBlock.set(row.blockId, list);
+    const byMilestone = new Map<string, RushOverviewOccurrence[]>();
+    for (const occurrence of row.occurrences) {
+      const list = byMilestone.get(occurrence.milestoneId) ?? [];
+      list.push(occurrence);
+      byMilestone.set(occurrence.milestoneId, list);
+    }
+
+    for (const [milestoneId, occurrences] of byMilestone) {
+      const required = occurrences.filter((occurrence) => !occurrence.isOptional);
+      const done = required.filter((occurrence) => occurrence.isDone).length;
+      const list = byBlock.get(milestoneId) ?? [];
+      list.push({
+        ...row,
+        blockId: milestoneId,
+        blockTitle: occurrences[0]?.milestoneTitle ?? row.blockTitle,
+        occurrences,
+        doneOccurrences: done,
+        totalOccurrences: required.length,
+        doneByMe: done > 0,
+        pendingByMe: occurrences.some(
+          (occurrence) => !occurrence.isOptional && !occurrence.isDone && !occurrence.groupSatisfied
+        ),
+      });
+      byBlock.set(milestoneId, list);
+    }
   }
+
   const out: Array<{ block: RushOverviewBlock; rows: RushOverviewDungeon[] }> = [];
   for (const block of overview.blocks) {
     const list = byBlock.get(block.id);
@@ -383,12 +415,17 @@ export function groupRushDungeonsByBlock(
  */
 export function defaultOpenBlockId(overview: RushOverview, me: RushOverviewMe): string | null {
   const flagged = new Set(me.flags);
-  const flaggedRow = overview.rows.find((row) =>
-    row.occurrences.some((occurrence) => flagged.has(occurrence.sequenceId))
-  );
-  if (flaggedRow) return flaggedRow.blockId;
-  const pendingRow = overview.rows.find((row) => row.pendingByMe);
-  return pendingRow?.blockId ?? overview.blocks[0]?.id ?? null;
+  for (const row of overview.rows) {
+    const occurrence = row.occurrences.find((entry) => flagged.has(entry.sequenceId));
+    if (occurrence) return occurrence.milestoneId;
+  }
+  for (const row of overview.rows) {
+    const occurrence = row.occurrences.find(
+      (entry) => !entry.isOptional && !entry.isDone && !entry.groupSatisfied
+    );
+    if (occurrence) return occurrence.milestoneId;
+  }
+  return overview.blocks[0]?.id ?? null;
 }
 
 /** Compteur de la tuile : exigences satisfaites / exigences (occurrences, groupes = 1). */

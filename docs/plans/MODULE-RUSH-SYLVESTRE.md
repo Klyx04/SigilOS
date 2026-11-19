@@ -430,7 +430,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   existants (`rush-overlay-dungeon-gate` 12, `dungeon-invalidation`, `rush-dungeons`,
   `dungeon-no-achievement`, `dungeon-completion` 7, `succes-ui-deslop` 4).
 - **Statut** : **implémenté le 19/11/2026** (branches `fix/succes-canonique` puis
-  `feat/rush-bloc-i-succes-donjon` ; PR à merger). **Décisions tranchées** : ① source canonique =
+  `feat/rush-bloc-i-succes-donjon` ; **PR #1456 + #1457 mergées**). **Décisions tranchées** : ① source canonique =
   `UserDungeonProgress` (legacy `UserDungeonAchievement` backfillé puis gelé) ; ② guide interne
   et guide public = deux profils **séparés** ; ③ visiteur connecté : coche du donjon
   locale/miroir, succès `PublicDungeonAchievement`, **sélecteur** si le personnage du guide

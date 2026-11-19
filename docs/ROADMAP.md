@@ -10,7 +10,7 @@
 
 ## 0. Reprise immédiate
 
-- 🎯 **Démo Rush** — #1431 → #1455 : guide **36/536**, prérequis **451 + 76**, succès **303 / 284**, donjons **au choix**, **UI-1**, DA PiP + guide, DofusDex **supprimés**, toasts DA, **Bloc I** ; reste **18 alias → Bloc J → 55 conseils → VPS** · bêta 494/238/32/19, code à déployer.
+- 🎯 **Démo Rush** — #1431 → #1457 : guide **36/536**, prérequis **451 + 76**, succès **303 / 284**, donjons **au choix**, **UI-1**, DA PiP + guide, DofusDex **supprimés**, toasts DA, **Bloc I** ; reste **18 alias → Bloc J → 55 conseils → VPS** · bêta 494/238/32/19, code à déployer.
 - 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
   **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).

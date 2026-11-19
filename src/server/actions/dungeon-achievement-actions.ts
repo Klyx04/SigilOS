@@ -29,6 +29,11 @@ import {
     type SuccesCharacter,
 } from "@/lib/succes-characters";
 import { SUCCES_DUNGEONS_TAKE } from "@/lib/succes-level-brackets";
+import {
+    listableDungeonAchievements,
+    type DungeonAchievementPanelData,
+} from "@/lib/rush-dungeon-achievements";
+import { loadDungeonAchievementCatalogue } from "@/server/dungeon-achievements";
 import { getUserContext } from "./user-actions";
 
 const ToggleSchema = z.object({
@@ -47,16 +52,21 @@ const ReadSchema = z.object({
 
 type ToggleResponse = { success: boolean; error?: string; done?: boolean };
 
-/** Personnages du profil interne (principal + mules) et slot demandé, fail-closed. */
-async function resolveCharacterSlot(
-    profileId: string,
-    raw: string | undefined
-): Promise<string | null> {
+/** Personnages du profil interne (principal + mules) — une seule lecture. */
+async function readProfileCharacters(profileId: string): Promise<SuccesCharacter[]> {
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
         select: { pseudoDofus: true, classe: true, altPseudos: true },
     });
-    return resolveSuccesCharacterSlotOrNull(raw, readSuccesCharacters(profile ?? {}));
+    return readSuccesCharacters(profile ?? {});
+}
+
+/** Slot demandé, validé contre les personnages déclarés (fail-closed). */
+async function resolveCharacterSlot(
+    profileId: string,
+    raw: string | undefined
+): Promise<string | null> {
+    return resolveSuccesCharacterSlotOrNull(raw, await readProfileCharacters(profileId));
 }
 
 /** Bascule « fait » / « à faire » d'un succès de donjon pour le profil courant. */
@@ -161,6 +171,102 @@ export async function getDungeonAchievementStates(
     }
 }
 
+const PanelSchema = z.object({
+    guildId: z.string().min(1).max(32),
+    /** La quête de l'étape : le donjon doit y être **requis** (pas optionnel). */
+    sequenceId: z.string().min(1).max(64),
+    dungeonId: z.string().min(1).max(64),
+    characterSlot: z.string().max(SUCCES_SLOT_MAX).optional(),
+});
+
+/**
+ * Panneau des succès d'un donjon — **un** aller-retour pour le guide navigateur.
+ *
+ * Vérifie la cible côté serveur : la séquence existe, le donjon fait partie de ses
+ * `dungeonIds` et n'est **pas** optionnel. Le catalogue est public ; les coches sont
+ * celles du profil courant, par personnage.
+ */
+export async function getRushDungeonAchievementPanel(
+    raw: unknown
+): Promise<{ success: boolean; error?: string; data?: DungeonAchievementPanelData }> {
+    const parsed = PanelSchema.safeParse(raw);
+    if (!parsed.success) return { success: false, error: "Données invalides" };
+    const { guildId, sequenceId, dungeonId } = parsed.data;
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
+    if (!ctx.canViewSucces) return { success: false, error: "Module Succès non activé" };
+
+    try {
+        const characters = await readProfileCharacters(ctx.profileId);
+        const characterSlot = resolveSuccesCharacterSlotOrNull(
+            parsed.data.characterSlot,
+            characters
+        );
+        if (!characterSlot) return { success: false, error: "Personnage inconnu." };
+
+        const sequence = await db.guideSequence.findUnique({
+            where: { id: sequenceId },
+            select: { id: true, dungeonIds: true, dungeonOptionalIds: true },
+        });
+        if (!sequence) return { success: false, error: "Quête introuvable" };
+        if (!sequence.dungeonIds.includes(dungeonId)) {
+            return { success: false, error: "Donjon absent de cette quête" };
+        }
+        if (sequence.dungeonOptionalIds.includes(dungeonId)) {
+            return { success: false, error: "Donjon optionnel" };
+        }
+
+        const dungeon = await db.dungeon.findUnique({
+            where: { id: dungeonId },
+            select: {
+                id: true,
+                name: true,
+                bossName: true,
+                slug: true,
+                imageUrl: true,
+                level: true,
+                isNoAchievement: true,
+            },
+        });
+        if (!dungeon) return { success: false, error: "Donjon introuvable" };
+
+        const [catalogue, doneRows] = await Promise.all([
+            loadDungeonAchievementCatalogue(dungeon.id),
+            db.userDungeonProgress.findMany({
+                where: {
+                    profileId: ctx.profileId,
+                    characterSlot,
+                    achievement: { dungeonId: dungeon.id },
+                },
+                select: { achievementId: true },
+                take: 100,
+            }),
+        ]);
+
+        const character = characters.find((row) => row.slot === characterSlot);
+        return {
+            success: true,
+            data: {
+                dungeon,
+                achievements: listableDungeonAchievements(catalogue),
+                doneIds: doneRows.map((row) => row.achievementId),
+                slot: characterSlot,
+                characterName: character?.name ?? characterSlot,
+                characters: characters.map((row) => ({
+                    slot: row.slot,
+                    name: row.name,
+                    isMain: row.isMain,
+                })),
+                canEdit: ctx.canEditOwnSucces,
+            },
+        };
+    } catch (error) {
+        logger.error("[getRushDungeonAchievementPanel] Erreur", { error });
+        return { success: false, error: "Impossible de charger les succès du donjon" };
+    }
+}
+
 /** Personnages sélectionnables pour les coches : principal + mules déclarées. */
 export async function getMySuccesCharacters(
     rawGuildId: string
@@ -171,11 +277,7 @@ export async function getMySuccesCharacters(
     const ctx = await getUserContext(parsed.data);
     if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
 
-    const profile = await db.userProfile.findUnique({
-        where: { id: ctx.profileId },
-        select: { pseudoDofus: true, classe: true, altPseudos: true },
-    });
-    return { success: true, characters: readSuccesCharacters(profile ?? {}) };
+    return { success: true, characters: await readProfileCharacters(ctx.profileId) };
 }
 
 const BountyReadSchema = z.object({

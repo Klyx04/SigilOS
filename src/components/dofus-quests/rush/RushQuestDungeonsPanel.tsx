@@ -18,7 +18,10 @@
 import { useMemo } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import {
+  getDungeons,
+  type DungeonInfo,
+} from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { RushOverlayDungeonCard } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard";
 import {
   doneDungeonKeysForSequence,
@@ -42,6 +45,7 @@ export function RushQuestDungeonsPanel({
   highlightKey = null,
   capturedOcreNames,
   onOpenOcre,
+  onOpenAchievements,
 }: {
   /** La quête concernée — la coche ne vaut QUE pour elle. */
   seq: RushSequence;
@@ -62,6 +66,8 @@ export function RushQuestDungeonsPanel({
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
   onOpenOcre?: () => void;
+  /** Bloc I — ouvre les succès du donjon (requis + résolu uniquement). */
+  onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
 }) {
   const dungeons = useMemo(() => getDungeons(seq), [seq]);
   const progress = useMemo(
@@ -141,6 +147,7 @@ export function RushQuestDungeonsPanel({
         onSet={onSet ? (dungeonKey, state) => onSet(seq.id, dungeonKey, state) : undefined}
         capturedOcreNames={capturedOcreNames}
         onOpenOcre={onOpenOcre}
+        onOpenAchievements={onOpenAchievements}
       />
 
       {footer ? <div className="mt-1.5 border-t border-border pt-1.5">{footer}</div> : null}

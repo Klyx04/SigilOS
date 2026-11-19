@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { loadDungeonAchievementCatalogue } from "@/server/dungeon-achievements";
 
 // ─── TYPES PUBLICS ─────────────────────────────────────────────────────────────
 // Pas d'auth — données 100 % publiques (aucune donnée membre ni guilde).
@@ -128,34 +129,11 @@ export async function getPublicDungeonAchievements(
     dungeonId: string
 ): Promise<{ success: boolean; data?: PublicDungeonAchievement[]; error?: string }> {
     try {
-        const rows = await (db as any).dungeonAchievement.findMany({
-            where: { dungeonId },
-            include: {
-                challenge: {
-                    select: {
-                        name: true,
-                        slug: true,
-                        iconUrl: true,
-                        description: true,
-                    },
-                },
-            },
-            orderBy: { points: "desc" },
-        });
-
-        const data: PublicDungeonAchievement[] = rows.map((r: any) => ({
-            id: r.id,
-            name: r.challenge?.name ?? "Succès",
-            slug: r.challenge?.slug ?? null,
-            iconUrl: r.challenge?.iconUrl ?? null,
-            imageUrl: r.imageUrl ?? null,
-            points: r.points ?? 0,
-            // Le texte **propre au donjon** (mécanique du succès « Spécial ») prime : le challenge
-            // visé est la ligne **partagée** « Spécial », dont la description ne peut pas dépendre du
-            // boss (cf. `achievement-details-siphon.ts` et la colonne `DungeonAchievement.description`).
-            description: r.description ?? r.challenge?.description ?? null,
-        }));
-
+        // Une seule requête catalogue, partagée avec le panneau du guide Rush.
+        // Le texte **propre au donjon** (mécanique du succès « Spécial ») prime : le
+        // challenge visé est la ligne **partagée** « Spécial », dont la description ne
+        // peut pas dépendre du boss (cf. `achievement-details-siphon.ts`).
+        const data: PublicDungeonAchievement[] = await loadDungeonAchievementCatalogue(dungeonId);
         return { success: true, data };
     } catch (error) {
         logger.error("[getPublicDungeonAchievements] Error:", error);

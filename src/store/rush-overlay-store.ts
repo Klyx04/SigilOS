@@ -12,6 +12,8 @@ import type { OcrePanelData } from "@/lib/ocre-soul-stones";
  */
 export interface RushOverlayPayload {
   guildId: string;
+  /** Bloc I — le membre peut-il ouvrir le module Succès ? (aucun `+` sinon). */
+  canViewSucces?: boolean;
   guide: { id: string; name: string; slug: string; description?: string; imageUrl?: string };
   milestones: RushMilestone[];
   allProgress: GuideProgressRow[];

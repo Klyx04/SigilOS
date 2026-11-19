@@ -85,7 +85,10 @@ import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/
 import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
-import { doneDungeonKeysForSequence, missingRequiredDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
+import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
+import { getRushDungeonAchievementPanel, toggleDungeonAchievement } from "@/server/actions/dungeon-achievement-actions";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import {
   buildAlignmentSeries,
@@ -127,7 +130,7 @@ const TARGET_HIGHLIGHT_MS = 1200;
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
-type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; };
+type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; canViewSucces?:boolean; };
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec le
 // studio God, le guide public et l'overlay (cinq copies divergentes avant le
 // 08/10/2026 — cf. l'en-tête du module).
@@ -279,6 +282,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
               const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
               const guildId = React.useContext(GuildIdCtx);
+  const canViewSucces = React.useContext(CanViewSuccesCtx);
+  const achievementCharacter = React.useContext(AchievementCharacterCtx);
   const resourceChecks = React.useContext(ResourceChecksCtx);
   const onToggleResourceCheck = React.useContext(OnToggleResourceCheckCtx);
   /**
@@ -318,6 +323,38 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
   const dungeonActions = React.useContext(RushDungeonActionsCtx);
   const [dungeonsOpen, setDungeonsOpen] = useState(false);
+  // Bloc I — succès du donjon : cible locale à la ligne, panneau plein.
+  const [achievementTarget, setAchievementTarget] = useState<{ dungeonKey: string; dungeon: DungeonAchievementDungeon } | null>(null);
+  const openDungeonAchievements = useCallback((dungeonKey: string, dungeon: { id?: string; name?: string; bossName?: string; imageUrl?: string }) => {
+    if (!dungeon.id) return;
+    setAchievementTarget({
+      dungeonKey,
+      dungeon: {
+        id: dungeon.id,
+        name: dungeon.name ?? "Donjon",
+        bossName: dungeon.bossName ?? null,
+        imageUrl: dungeon.imageUrl ?? null,
+      },
+    });
+  }, []);
+  const loadAchievementPanel = useCallback((input: DungeonAchievementPanelLoadInput) => {
+    if (!achievementTarget) return Promise.resolve({ success: false as const, error: "Donjon introuvable" });
+    return getRushDungeonAchievementPanel({
+      guildId,
+      sequenceId: seq.id,
+      dungeonId: input.dungeonId,
+      characterSlot: input.characterSlot ?? achievementCharacter,
+    });
+  }, [achievementTarget, guildId, seq.id, achievementCharacter]);
+  const toggleAchievement = useCallback((input: DungeonAchievementToggleInput) => {
+    if (!achievementTarget) return Promise.resolve({ success: false as const, error: "Donjon introuvable" });
+    return toggleDungeonAchievement({
+      guildId,
+      dungeonId: input.dungeonId,
+      achievementId: input.achievementId,
+      characterSlot: input.characterSlot ?? achievementCharacter,
+    });
+  }, [achievementTarget, guildId, achievementCharacter]);
   const dungeonProgress = sequenceDungeonProgress(
     seq as any,
     doneDungeonKeysForSequence(dungeonActions.states, seq.id)
@@ -680,6 +717,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             onClose={() => setDungeonsOpen(false)}
             capturedOcreNames={capturedMonsterNames}
             onOpenOcre={onOpenOcre}
+            onOpenAchievements={canViewSucces ? openDungeonAchievements : undefined}
             footer={
               (() => {
                 // Un donjon du tag peut ne pas être résolu en base (alternative « au
@@ -758,9 +796,23 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           dungeonBusyKey={dungeonActions.busyKey}
           dungeonOthers={dungeonActions.others}
           onSetDungeon={dungeonActions.onSet}
+          onOpenAchievements={canViewSucces ? openDungeonAchievements : undefined}
           onClose={() => setDetailOpen(false)}
         />,
         document.body
+      )}
+      {achievementTarget && (
+        <DungeonAchievementsModal
+          dungeon={achievementTarget.dungeon}
+          dungeonKey={achievementTarget.dungeonKey}
+          dungeonState={occurrenceState(dungeonActions.states, seq.id, achievementTarget.dungeonKey)}
+          onSetDungeon={(state) => dungeonActions.onSet(seq.id, achievementTarget.dungeonKey, state)}
+          mode="member"
+          loadPanel={loadAchievementPanel}
+          toggle={toggleAchievement}
+          characterSlot={achievementCharacter}
+          onClose={() => setAchievementTarget(null)}
+        />
       )}
     </>
   );
@@ -1263,6 +1315,10 @@ const GuildProgressBySeqCtx=React.createContext<Map<string,GuildMemberProgress[]
 const GuildIdCtx=React.createContext<string>("");
 const ResourceChecksCtx=React.createContext<Set<string>>(new Set);
 const OnToggleResourceCheckCtx=React.createContext<(key:string)=>void>(()=>{});
+/** Bloc I — le membre peut-il ouvrir le module Succès ? (aucun `+` sinon). */
+const CanViewSuccesCtx=React.createContext<boolean>(false);
+/** Bloc I — personnage sélectionné (`?character=`), `undefined` pour le principal. */
+const AchievementCharacterCtx=React.createContext<string|undefined>(undefined);
 
 // ─── ContextualHelp ──────────────────────────────────────────────────────────
 function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
@@ -1325,7 +1381,7 @@ function ContextualHelp({ label, children, className }: { label: string; childre
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks }: RushTimelineClientProps) {
+export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks, canViewSucces=false }: RushTimelineClientProps) {
 const reduceMotion=useReducedMotion();
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
@@ -1350,6 +1406,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
    */
   const overlayData = useMemo<Omit<RushOverlayPayload, "pinned">>(() => ({
     guildId,
+    canViewSucces,
     guide: {
       id: guide.id,
       name: guide.name,
@@ -1388,7 +1445,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
           }
         : null
     ),
-  }), [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters]);
+  }), [guildId, canViewSucces, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters]);
 
   const handleOverlayClick = useCallback(async () => {
     // Déjà ouvert → on le referme.
@@ -2733,7 +2790,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {blockPages.length} blocs sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<CanViewSuccesCtx.Provider value={canViewSucces}><AchievementCharacterCtx.Provider value={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}><ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/></AchievementCharacterCtx.Provider></CanViewSuccesCtx.Provider>)}</div>}
         {/* Pager de bas de page : on enchaîne les blocs sans remonter. */}
         {blockPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

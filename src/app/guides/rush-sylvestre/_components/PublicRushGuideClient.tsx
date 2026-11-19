@@ -84,10 +84,24 @@ import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
   missingRequiredDungeons,
+  occurrenceState,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
   type RushDungeonState,
 } from "@/lib/rush-dungeons";
+import {
+  achievementPanelMode,
+  type DungeonAchievementDungeon,
+  type DungeonAchievementPanelData,
+  type DungeonAchievementPanelLoadInput,
+  type DungeonAchievementToggleInput,
+} from "@/lib/rush-dungeon-achievements";
+import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
+import {
+  getMyRushDungeonAchievementPanel,
+  getRushDungeonAchievementCatalogue,
+  toggleMyRushDungeonAchievement,
+} from "@/app/guides/rush-sylvestre/_actions/public-dungeon-achievements";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
 import { PublicDofusProgressPanel } from "./PublicDofusProgressPanel";
@@ -795,6 +809,71 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
   // Quelle quête a SON panneau donjon ouvert (`null` = aucun). Aucune fenêtre globale.
   const [openDungeonPanel, setOpenDungeonPanel] = useState<string | null>(null);
+  // ─── Bloc I — succès de donjon (modale pleine + mini PiP) ──────────────────
+  // Le catalogue est public ; les coches sont celles du profil visiteur. Sans profil
+  // public (`visitor === null`), on reste en lecture seule même si un compte est connecté.
+  const achievementSignedIn = !!visitor;
+  const achievementMode = achievementPanelMode({
+    guildId: "public",
+    isGuest: true,
+    feedbackSignedIn: achievementSignedIn,
+  });
+  const [achievementTarget, setAchievementTarget] = useState<{
+    sequenceId: string;
+    dungeonKey: string;
+    dungeon: DungeonAchievementDungeon;
+  } | null>(null);
+  const openDungeonAchievements = useCallback(
+    (sequenceId: string, dungeonKey: string, dungeon: { id?: string; name?: string; bossName?: string; imageUrl?: string }) => {
+      if (!dungeon.id) return;
+      setAchievementTarget({
+        sequenceId,
+        dungeonKey,
+        dungeon: {
+          id: dungeon.id,
+          name: dungeon.name ?? "Donjon",
+          bossName: dungeon.bossName ?? null,
+          imageUrl: dungeon.imageUrl ?? null,
+        },
+      });
+    },
+    []
+  );
+  const loadAchievementPanel = useCallback(
+    async (input: DungeonAchievementPanelLoadInput) => {
+      if (!achievementSignedIn) {
+        const result = await getRushDungeonAchievementCatalogue(input.dungeonId);
+        if (!result.success || !result.data) {
+          return {
+            success: false,
+            error: result.error ?? "Impossible de charger les succès de ce donjon.",
+          };
+        }
+        const data: DungeonAchievementPanelData = {
+          dungeon: input.dungeon,
+          achievements: result.data,
+          doneIds: [],
+          slot: null,
+          characterName: null,
+          characters: [],
+          canEdit: false,
+        };
+        return { success: true, data };
+      }
+      return getMyRushDungeonAchievementPanel({
+        dungeonId: input.dungeonId,
+        characterSlot: input.characterSlot,
+        guestPseudo: input.guestPseudo ?? character?.pseudo ?? undefined,
+      });
+    },
+    [achievementSignedIn, character]
+  );
+  const toggleAchievement = useCallback((input: DungeonAchievementToggleInput) => {
+    return toggleMyRushDungeonAchievement({
+      dungeonAchievementId: input.achievementId,
+      characterSlot: input.characterSlot,
+    });
+  }, []);
   // V-H — progression Ocre du visiteur connecté, chargée **à la demande** (pont voisin).
   // Le guide public ne monte jamais la modale Ocre interne ; il ouvre `PublicMetamobModal`.
   const [capturedOcreNames, setCapturedOcreNames] = useState<string[]>([]);
@@ -3303,6 +3382,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                     onSet={handleSetDungeonState}
                                     capturedOcreNames={capturedOcreNames}
                                     onOpenOcre={() => setMetamobOpen(true)}
+                                    onOpenAchievements={(key, dungeon) => openDungeonAchievements(seq.id, key, dungeon)}
                                     onClose={() => setOpenDungeonPanel(null)}
                                   />
                                 )}
@@ -3472,7 +3552,29 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           onSetDungeon={handleSetDungeonState}
           capturedOcreNames={capturedOcreNames}
           onOpenOcre={() => setMetamobOpen(true)}
+          onOpenAchievements={(key, dungeon) => openDungeonAchievements(detailModalSeq.sequence.id, key, dungeon)}
           onClose={() => setDetailModalSeq(null)}
+        />
+      )}
+
+      {/* ── MODALE SUCCÈS D'UN DONJON (Bloc I) ── */}
+      {achievementTarget && (
+        <DungeonAchievementsModal
+          dungeon={achievementTarget.dungeon}
+          dungeonKey={achievementTarget.dungeonKey}
+          dungeonState={occurrenceState(
+            dungeonStates,
+            achievementTarget.sequenceId,
+            achievementTarget.dungeonKey
+          )}
+          onSetDungeon={(state) =>
+            handleSetDungeonState(achievementTarget.sequenceId, achievementTarget.dungeonKey, state)
+          }
+          mode={achievementMode}
+          loadPanel={loadAchievementPanel}
+          toggle={achievementSignedIn ? toggleAchievement : undefined}
+          guestPseudo={character?.pseudo ?? null}
+          onClose={() => setAchievementTarget(null)}
         />
       )}
 
@@ -3598,6 +3700,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             }}
             milestones={milestones}
             isGuest={true}
+            loadDungeonAchievementPanel={loadAchievementPanel}
+            toggleDungeonAchievement={achievementSignedIn ? toggleAchievement : undefined}
+            dungeonAchievementGuestPseudo={character?.pseudo ?? null}
             // Le visiteur de CETTE page est connu (session) : le panneau de retour doit
             // proposer le formulaire complet, pas seulement le Discord. Mesure du
             // 08/11/2026 : `isGuest={true}` est codé en dur ici, il ne dit donc RIEN de

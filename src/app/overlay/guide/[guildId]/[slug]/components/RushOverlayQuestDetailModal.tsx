@@ -8,7 +8,7 @@ import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemR
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
-import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
+import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type DungeonInfo, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -55,6 +55,8 @@ interface RushOverlayQuestDetailModalProps {
     dungeonKey: string,
     state: RushDungeonState | null
   ) => void;
+  /** Bloc I — ouvre les succès du donjon (requis + résolu uniquement). */
+  onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
 }
 
 /**
@@ -88,6 +90,7 @@ export function RushOverlayQuestDetailModal({
   dungeonBusyKey = null,
   dungeonOthers = [],
   onSetDungeon,
+  onOpenAchievements,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -242,6 +245,7 @@ export function RushOverlayQuestDetailModal({
                   }
                   capturedOcreNames={capturedOcreNames}
                   onOpenOcre={onOpenOcre}
+                  onOpenAchievements={onOpenAchievements}
                 />
               </section>
             )}

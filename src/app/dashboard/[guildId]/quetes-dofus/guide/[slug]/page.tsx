@@ -221,6 +221,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             milestones={routeMilestones as any}
                             guildProgress={allProgress}
                             initialResourceChecks={resourceChecks}
+                            canViewSucces={user.canViewSucces}
                             guildId={guildId}
                             selectedCharacter={character}
                             mules={mules}

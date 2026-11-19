@@ -16,6 +16,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
     db: {
         dungeonAchievement: { findFirst: vi.fn() },
+        guideSequence: { findUnique: vi.fn() },
+        dungeon: { findUnique: vi.fn() },
         userProfile: { findUnique: vi.fn() },
         userDungeonProgress: {
             findUnique: vi.fn(),
@@ -30,12 +32,17 @@ vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/lib/logger", () => ({
     logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+vi.mock("@/server/dungeon-achievements", () => ({
+    loadDungeonAchievementCatalogue: vi.fn(),
+}));
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
 import { rateLimit } from "@/lib/ratelimit";
+import { loadDungeonAchievementCatalogue } from "@/server/dungeon-achievements";
 import {
     getDungeonAchievementStates,
+    getRushDungeonAchievementPanel,
     toggleDungeonAchievement,
 } from "@/server/actions/dungeon-achievement-actions";
 
@@ -215,5 +222,109 @@ describe("getDungeonAchievementStates", () => {
 
         expect(res.success).toBe(false);
         expect(db.userDungeonProgress.findMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("getRushDungeonAchievementPanel — cible et droits", () => {
+    const panelArgs = { guildId: "guild-1", sequenceId: "seq-1", dungeonId: "dungeon-1" };
+
+    beforeEach(() => {
+        vi.mocked(db.guideSequence.findUnique).mockResolvedValue({
+            id: "seq-1",
+            dungeonIds: ["dungeon-1"],
+            dungeonOptionalIds: [],
+        } as never);
+        vi.mocked(db.dungeon.findUnique).mockResolvedValue({
+            id: "dungeon-1",
+            name: "Donjon du test",
+            bossName: "Boss",
+            slug: "donjon-du-test",
+            imageUrl: null,
+            level: 100,
+            isNoAchievement: false,
+        } as never);
+        vi.mocked(loadDungeonAchievementCatalogue).mockResolvedValue([
+            {
+                id: "ach-1",
+                name: "Sans mort",
+                slug: "sans-mort",
+                iconUrl: null,
+                imageUrl: null,
+                points: 10,
+                description: null,
+            },
+            {
+                id: "ach-pseudo",
+                name: "Donjon validé",
+                slug: "donjon-valide",
+                iconUrl: null,
+                imageUrl: null,
+                points: 0,
+                description: null,
+            },
+        ] as never);
+        vi.mocked(db.userDungeonProgress.findMany).mockResolvedValue([
+            { achievementId: "ach-1" },
+        ] as never);
+    });
+
+    it("rend le catalogue filtré et les coches du personnage", async () => {
+        const res = await getRushDungeonAchievementPanel(panelArgs);
+
+        expect(res.success).toBe(true);
+        expect(res.data?.achievements.map((achievement) => achievement.id)).toEqual(["ach-1"]);
+        expect(res.data?.doneIds).toEqual(["ach-1"]);
+        expect(res.data?.slot).toBe("PRINCIPAL");
+        expect(res.data?.canEdit).toBe(true);
+    });
+
+    it("refuse sans accès au module Succès", async () => {
+        vi.mocked(getUserContext).mockResolvedValue({
+            isAuthenticated: true,
+            profileId: "profile-1",
+            canViewSucces: false,
+            canEditOwnSucces: false,
+        } as never);
+
+        const res = await getRushDungeonAchievementPanel(panelArgs);
+
+        expect(res.success).toBe(false);
+        expect(db.guideSequence.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("refuse un donjon absent de la quête", async () => {
+        vi.mocked(db.guideSequence.findUnique).mockResolvedValue({
+            id: "seq-1",
+            dungeonIds: ["autre"],
+            dungeonOptionalIds: [],
+        } as never);
+
+        const res = await getRushDungeonAchievementPanel(panelArgs);
+
+        expect(res.success).toBe(false);
+        expect(db.dungeon.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("refuse un donjon optionnel", async () => {
+        vi.mocked(db.guideSequence.findUnique).mockResolvedValue({
+            id: "seq-1",
+            dungeonIds: ["dungeon-1"],
+            dungeonOptionalIds: ["dungeon-1"],
+        } as never);
+
+        const res = await getRushDungeonAchievementPanel(panelArgs);
+
+        expect(res.success).toBe(false);
+        expect(db.dungeon.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("refuse un personnage non déclaré avant toute lecture de quête", async () => {
+        const res = await getRushDungeonAchievementPanel({
+            ...panelArgs,
+            characterSlot: "Forgé",
+        });
+
+        expect(res.success).toBe(false);
+        expect(db.guideSequence.findUnique).not.toHaveBeenCalled();
     });
 });

@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, DoorOpen, ExternalLink } from "lucide-react";
+import { Check, DoorOpen, ExternalLink, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DungeonStateButton } from "@/components/dofus-quests/rush/DungeonStateButton";
+import { canOpenDungeonAchievements } from "@/lib/rush-dungeon-achievements";
 import type { DungeonInfo } from "./overlay-utils";
 import { isPublicOverlay } from "./overlay-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
@@ -62,49 +64,15 @@ interface RushOverlayDungeonCardProps {
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre ; sans callback, le badge reste informatif. */
   onOpenOcre?: () => void;
+  /**
+   * Bloc I — ouvre les succès du donjon. Sans callback (ou donjon optionnel / non
+   * résolu), le bouton `+` n'est pas rendu : aucune écriture sans cible réelle.
+   */
+  onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
 }
 
-/** Un bouton d'état, style commun aux deux valeurs. */
-function StateButton({
-  active,
-  tone,
-  label,
-  ariaLabel,
-  disabled,
-  onClick,
-}: {
-  active: boolean;
-  tone: "emerald" | "amber";
-  label: string;
-  ariaLabel: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  // Actif = **aplat** (on lit l'état d'un coup d'œil dans une petite fenêtre de jeu),
-  // inactif = contour discret. Deux teintes sémantiques seulement : vert = fait,
-  // ambre = à faire.
-  const activeCls =
-    tone === "emerald"
-      ? "border-emerald-500 bg-emerald-500 text-white"
-      : "border-amber-500 bg-amber-500 text-black";
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-pressed={active}
-      aria-label={ariaLabel}
-      onClick={onClick}
-      className={cn(
-        "rounded-md border px-2 py-1 text-[10px] font-bold transition-colors disabled:opacity-50",
-        active
-          ? activeCls
-          : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
+// Les deux boutons d'état vivent dans le composant partagé `DungeonStateButton`
+// (même rendu dans la carte et dans le panneau des succès).
 
 export function RushOverlayDungeonCard({
   dungeons,
@@ -119,6 +87,7 @@ export function RushOverlayDungeonCard({
   highlightKey = null,
   capturedOcreNames,
   onOpenOcre,
+  onOpenAchievements,
 }: RushOverlayDungeonCardProps) {
   if (dungeons.length === 0) return null;
   const isPublic = isPublicOverlay(guildId);
@@ -170,6 +139,11 @@ export function RushOverlayDungeonCard({
                 onSet={onSet && key ? (next) => onSet(key, next) : undefined}
                 ocreState={dj.isOcre ? ocreDungeonCapture(dj, capturedOcreNames) : null}
                 onOpenOcre={onOpenOcre}
+                onOpenAchievements={
+                  onOpenAchievements && key && canOpenDungeonAchievements(dj)
+                    ? () => onOpenAchievements(key, dj)
+                    : undefined
+                }
               />
             </React.Fragment>
           );
@@ -191,6 +165,7 @@ function DungeonRow({
   onSet,
   ocreState = null,
   onOpenOcre,
+  onOpenAchievements,
 }: {
   dj: DungeonInfo;
   href: string | null;
@@ -205,6 +180,8 @@ function DungeonRow({
   ocreState?: OcreDungeonCaptureState | null;
   /** V-H — ouvre la fenêtre Ocre (le bouton n'est rendu que si l'état est connu). */
   onOpenOcre?: () => void;
+  /** Bloc I — ouvre le panneau des succès (rendu seulement pour un donjon requis/résolu). */
+  onOpenAchievements?: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const rowRef = React.useRef<HTMLDivElement>(null);
@@ -351,11 +328,25 @@ function DungeonRow({
         </button>
       ) : null}
 
+      {/* Bloc I — les succès du donjon (requis + résolu uniquement). Icône d'action
+          compacte : la PiP n'a pas de largeur pour un libellé. */}
+      {onOpenAchievements ? (
+        <button
+          type="button"
+          onClick={onOpenAchievements}
+          aria-label={`Voir les succès de ${bossDisplayName}`}
+          title="Voir les succès du donjon"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-[4px] border border-border bg-surface text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      ) : null}
+
       {/* Les DEUX états : « fait » débloque la quête, « à faire » dit aux autres
           qu'on compte le faire. Aucune case binaire : l'absence = pas décidé. */}
       {onSet && (
         <div className="flex shrink-0 items-center gap-1">
-          <StateButton
+          <DungeonStateButton
             active={state === "done"}
             tone="emerald"
             label="Fait"
@@ -363,7 +354,7 @@ function DungeonRow({
             disabled={busy}
             onClick={() => onSet(state === "done" ? null : "done")}
           />
-          <StateButton
+          <DungeonStateButton
             active={state === "todo"}
             tone="amber"
             label="À faire"

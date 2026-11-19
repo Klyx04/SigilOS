@@ -23,7 +23,7 @@ import {
   BookOpen, AlertCircle, Info, GripVertical,
   Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
   ClipboardList, Hammer, RotateCcw, Scissors, Maximize2, Minimize2,
-  Globe, GlobeLock,
+  RefreshCw, Globe, GlobeLock,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -45,6 +45,7 @@ import {
   duplicateRushSequenceAsOrderTwins,
   seedRushSylvestreFromGuide,
   importRushGuide,
+  syncRushPositions,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
@@ -79,6 +80,7 @@ import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-
 import type { RushQuestConstraints } from "@/types/rush-constraints";
 import { type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
+import type { RushPositionSyncSummary } from "@/lib/rush-quest-positions";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
@@ -491,6 +493,8 @@ export function RushSylvestreAdminClient({
   const [pendingDelete, setPendingDelete] = useState<Milestone | null>(null);
   /** S4-4 — dialogue d'import consolidé (dry-run obligatoire avant d'écrire). */
   const [importJsonOpen, setImportJsonOpen] = useState(false);
+  /** Itération 3 — synchro des positions DPLN sur les séquences existantes. */
+  const [syncPositionsOpen, setSyncPositionsOpen] = useState(false);
 
   const runSeed = useCallback(async (apply: boolean) => {
     startImport(async () => {
@@ -1235,6 +1239,11 @@ export function RushSylvestreAdminClient({
           problemsCount={problemsCount}
           actions={
             <>
+              <button onClick={() => setSyncPositionsOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong"
+                title="Synchroniser les positions de lancement DPLN sur les quêtes existantes — analyse (dry-run) avant écriture">
+                <MapPin className="w-3 h-3" aria-hidden /> Positions
+              </button>
               <button onClick={() => setImportJsonOpen(true)}
                 className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption font-medium text-foreground transition-colors hover:border-border-strong"
                 title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
@@ -1892,6 +1901,7 @@ export function RushSylvestreAdminClient({
       </div>
       {/* S4-4 — import consolidé : dry-run obligatoire, jamais destructif. */}
       <RushImportDialog open={importJsonOpen} onClose={() => setImportJsonOpen(false)} />
+      <RushPositionSyncDialog open={syncPositionsOpen} onClose={() => setSyncPositionsOpen(false)} />
 
       {/* Confirmation de suppression — `Dialog` Radix (Échap, focus piégé, `aria-*`) au lieu
           du `confirm()` natif : on peut enfin dire ce qui part avec le bloc (`E4`). */}
@@ -3791,6 +3801,160 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
             title={canApply ? "Crée les blocs et quêtes manquants" : "Analyse d'abord le même contenu"}
           >
             Appliquer
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── RushPositionSyncDialog (itération 3 : positions DPLN en base) ────────────
+/**
+ * L'import consolidé est **additif** : il ne réécrit jamais une séquence existante.
+ * Cette modale pose donc le tag `pos_tags` sur les quêtes **déjà en base**, après un
+ * dry-run obligatoire. Aucun texte, aucune ressource ni aucun succès n'est modifié ;
+ * un zaap saisi en God reste prioritaire.
+ */
+function RushPositionSyncDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [plan, setPlan] = useState<RushPositionSyncSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, startTransition] = useTransition();
+
+  const analyse = useCallback(() => {
+    startTransition(async () => {
+      setPlan(null);
+      setError(null);
+      try {
+        const res = await syncRushPositions(false);
+        if (res.success) setPlan(res.data.plan);
+        else setError(res.error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erreur d'analyse");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open) analyse();
+  }, [open, analyse]);
+
+  const apply = useCallback(() => {
+    startTransition(async () => {
+      try {
+        const res = await syncRushPositions(true);
+        if (res.success) {
+          const updated = ("applied" in res.data ? res.data.applied : null)?.updated ?? 0;
+          setPlan(res.data.plan);
+          toast.success(
+            updated > 0
+              ? `${updated} position(s) synchronisée(s)`
+              : "Toutes les positions sont déjà à jour"
+          );
+          onClose();
+          router.refresh();
+        } else {
+          toast.error(res.error);
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erreur de synchronisation");
+      }
+    });
+  }, [onClose, router]);
+
+  const canApply = !busy && !!plan && plan.updated > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" aria-hidden />
+            Positions de lancement DPLN
+          </DialogTitle>
+          <DialogDescription>
+            Ajoute la position mesurée sur DPLN aux quêtes existantes. Aucun texte, aucune
+            ressource ni aucun succès n&apos;est modifié ; un zaap saisi en God reste prioritaire.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {busy && !plan ? (
+            <p className="text-caption text-muted-foreground">Analyse des séquences…</p>
+          ) : null}
+          {error ? <p className="text-caption text-warning">{error}</p> : null}
+          {plan ? (
+            <>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: "Quêtes", value: plan.total },
+                  { label: "Avec position", value: plan.withPosition },
+                  { label: "À mettre à jour", value: plan.updated },
+                  { label: "Déjà à jour", value: plan.unchanged },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-lg border border-border bg-surface px-3 py-2">
+                    <p className="text-caption text-muted-foreground">{item.label}</p>
+                    <p className="text-sm font-semibold text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              {plan.sample.length > 0 ? (
+                <div className="rounded-lg border border-border bg-surface px-3 py-2">
+                  <p className="text-caption font-medium text-foreground">Exemples</p>
+                  <ul className="mt-1 space-y-1">
+                    {plan.sample.map((item) => (
+                      <li
+                        key={item.sequenceId}
+                        className="flex items-center justify-between gap-2 text-caption"
+                      >
+                        <span className="truncate text-muted-foreground">{item.name}</span>
+                        <span className="shrink-0 font-mono text-foreground">
+                          [{item.x},{item.y}]
+                        </span>
+                        {item.manualZaap ? (
+                          <span className="shrink-0 text-primary">zaap manuel</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {plan.warnings.length > 0 ? (
+                <details className="rounded-lg border border-border bg-surface px-3 py-2">
+                  <summary className="cursor-pointer text-caption font-medium text-foreground">
+                    {plan.withoutPosition} quête(s) sans position mesurée
+                  </summary>
+                  <ul className="mt-1 space-y-1 text-caption text-muted-foreground">
+                    {plan.warnings.map((warning, index) => (
+                      <li key={`${index}-${warning}`}>{warning}</li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={analyse}
+            disabled={busy}
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-caption font-medium text-foreground disabled:opacity-40"
+          >
+            <RefreshCw className={busy ? "w-3 h-3 animate-spin" : "w-3 h-3"} aria-hidden />
+            Relancer l&apos;analyse
+          </button>
+          <button
+            type="button"
+            onClick={apply}
+            disabled={!canApply}
+            className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-caption font-bold text-primary disabled:opacity-40"
+            title={
+              canApply
+                ? "Écrit le tag pos_tags des quêtes existantes"
+                : "Analyse d'abord, ou rien à mettre à jour"
+            }
+          >
+            Appliquer {plan?.updated ?? 0} position(s)
           </button>
         </DialogFooter>
       </DialogContent>

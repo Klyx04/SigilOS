@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 38) — **Rush · synchro des positions DPLN en base (itération 3a)** — branche `feat/rush-positions-sync-2026-11-20`
+
+> **Demande user (verbatim)** : « on est bloqué partout ? on fait comment? » — l'import God restait sur « Rien à créer » et les icônes position/zaap ne s'affichaient pas.
+> **Mesure (base locale, lecture seule)** : guide **536 séquences · 533 `questDbIds` · 0 `pos_tags`** ; plan de synchro **527 à mettre à jour**, **0 déjà à jour**, **9 sans position** — 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) + 3 séquences sans id (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) ; « Faire le mort » → `[-26,36]`.
+> **Fait** : règle pure `rush-quest-positions` (`buildRushPositionTag`, `planRushPositionSync`, `summarize…`) — tag remplacé/ajouté **en place**, `allowZaap` explicite et **zaap manuel** `zaapX/zaapY` conservés, entrées non mutées, idempotente ; action God `syncRushPositions` (**dry-run par défaut**, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; bouton **Positions** + modale dans `RushEditorStudio` (aucun fichier God neuf) ; le seed consomme la même règle.
+> **Preuves** : **13 tests** `rush-position-sync` ✅ · ciblés **91/91** · `tsc` 0 · ESLint 0 erreur · plan local **527/9** · « Faire le mort » `[-26,36]` · aucune migration.
+> **Reste** : **Positions → Appliquer** en God (local, puis bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif.
+> **Rotation** : bloc « suite 32 » (alias de donjons) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
 
 > **Demande user (verbatim)** : « toutes les positions de lancement de quete? on les affiche pas actuellement ».
@@ -57,21 +66,3 @@
 > **Preuves** : **770 fichiers / 8 098 tests ✅** (avant la passe DA) · `tsc` 0 · lint 0 erreur · `rush-dungeons-overview` **10** · `-ui` **8** · `da-wakfu` **66** · Playwright **390/768/1024/1440** : `overflowBottom` **0**, overflow horizontal **0**, liste scrollable partout. Route testée : 94 donjons / 176 occurrences / 149 exigences (global : 100 / 202 / 175). **Correctif 19/11** : groupement **par bloc** (un donjon multi-blocs apparaît dans chaque accordéon, plus de faux sous-blocs), sélecteur d'étape DA (plus de `<select>` natif), modale d'alignement élargie.
 > **Reste** : **PR #1461 mergée** (`dev 971b26d2`, CI 6/6, branche supprimée) ; prochaine session : **55 conseils → VPS**. Décision user : **pas de post donjon/quête dans l'overlay PiP** (« trop lourd », `DjPostCreateModal` n'a pas de `portalContainer`) — le clic donjon → post existe sur le **dashboard** (donjon + quête préremplis). Le bruit console « script / hydratation » de la page publique est **préexistant** (au chargement, hors modale).
 > **Rotation** : bloc « suite 27 » (retouches DA) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 19/11/2026 (suite 32) — **Rush · alias de donjons : 18 fantômes → 21 ids** — branche `fix/rush-donjons-alias` (PR **#1460**)
-
-> **Demande user (verbatim)** : « on continue les chantiers rush sylvestre » — ordre posé : **18 alias → Bloc J → 55 conseils → VPS**.
-> **Mesure** : Maïmane = **29 alternatives** (6 tags « A / B / C »), **11** dans `dungeonIds` ; sur 18 : **17 donjons du catalogue non liés** + **1 alias** (`Sanctuaire de Torkélonia` → `Torkélonia`). 2 autres alias : `Bibliothèque du Maître Corbac` → `maitre-corbac`, `Donjon de la mine de Sakaï` → `grolloum`. **Cause racine** : seed tronqué à **12** noms (`slice` + schéma Zod) et import par **égalité stricte**.
-> **Fait** : ① règle pure `src/lib/rush-dungeon-names.ts` (découpe « / » + précision, `(niv. N)`, **3 alias mesurés**, nom exact > alias, union d'ids idempotente, plafond partagé **40**) ; ② import God — plafond 12 → 40, résolution **nom → boss → alias (slug)**, `knownDungeonNames` sur la même clé ; ③ seed Trame sur le plafond partagé ; ④ `scripts/fix-rush-dungeon-ids.ts` (dry-run → `--apply`, **sans retrait**, aucun donjon inventé) : **4 quêtes, 21 ids**, second passage **0**.
-> **Preuves** : **768 fichiers / 8 082 tests ✅** · `tsc` 0 · lint 0 erreur · `rush-dungeon-names` **11** · `rush-import` **16** · `rush-trame-seed` **37** · `rush-import-typed-blocks` **6** · **139** tests donjons/parité · base locale : Maïmane **29 ids**, **6 groupes (4 + 5×5)**, `requiredBlocks` **6**, **0 fantôme**.
-> **Reste / ops** : PR #1460 (CI à vérifier puis merge) ; **rejouer le script sur la bêta puis la prod** après déploiement ; régénérer `tougli-enriched.json` (hors dépôt) ; puis **Bloc J** → 55 conseils → VPS.
-> **Rotation** : bloc « suite 26 » (`prereq_expr`) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-

@@ -23,6 +23,7 @@ import type { RushImportActivityTag, RushImportBlock, RushImportSequence } from 
 import { MAX_RUSH_DUNGEONS_PER_SEQUENCE } from "@/lib/rush-dungeon-names";
 import { resolveRushCombatMonsters } from "@/lib/rush-combat-monsters";
 import RUSH_MONSTER_MAP from "@/data/rush-monster-map.json";
+import RUSH_GUIDE_TIPS from "@/data/rush-guide-tips.json";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -225,20 +226,17 @@ const ORDER_LEVELS = [20, 40, 60, 80, 100] as const;
 const PARALLEL_NOTE = "Quête parallèle — l'ordre interne n'a pas d'importance.";
 
 /**
- * Conseils **rédigés pour SigilOS** sur les étapes où le guide source porte un
- * avertissement mesuré (cf. `docs/plans/MAPPING-RUSH-SYLvestre.md` et les captures du
- * 17/11/2026). Aucun texte tiers n'est recopié : ce sont des paraphrases courtes.
- * Les autres étapes restent sans conseil et sont listées dans `tipsToWrite`.
+ * Conseils **rédigés pour SigilOS** — paraphrases courtes, jamais le texte source.
+ * Le contenu vit dans `src/data/rush-guide-tips.json` : `yelle` (les étapes) et
+ * `blocks` (les 5 notes de blocs Tougli). Seuls les conseils présents ici sont
+ * posés ; les autres restent listés dans `tipsToWrite`.
  */
-const YELLE_DEMO_TIPS: Record<number, string> = {
-  1: "Lance « Éternelle Moisson » tôt et garde la première ouverture pour un Kralamoure ; lance « Chaque chose en son temps » dès qu'une anomalie ouvre (Pixel Perpétuel).",
-  2: "Prends toutes les quêtes des PNJ d'Incarnam et d'Astrub. Le Dofus Argenté n'est pas nécessaire tout de suite, mais garde-en un dans l'inventaire pour plus tard.",
-  23: "Un seul Kanigroula peut couvrir le Dofus Turquoise et l'alignement : arrête-toi au Korriandre et termine « Chachnée de vie ».",
-  37: "Avant les dialogues avec les Sages, vérifie que tout est prêt : une erreur peut bloquer environ 30 minutes.",
-  40: "Parle à Rathrosk avant Thanatena pour « L'ovis de la mort », puis enchaîne jusqu'à « Prise de conscience ».",
-  52: "Pour « Une voie de cristal », parle au Pichon extérieur.",
-  54: "Ne lance pas « Le Silence est d'Aure » : cette quête est hors route.",
-};
+const YELLE_DEMO_TIPS: Record<number, string> = Object.fromEntries(
+  Object.entries(RUSH_GUIDE_TIPS.yelle).map(([step, tip]) => [Number(step), tip])
+);
+
+/** Notes de blocs Tougli (Introduction, Incarnam, prérequis, Veilleurs, Frigost). */
+const TOUGLI_BLOCK_TIPS: Record<string, string> = RUSH_GUIDE_TIPS.blocks;
 
 /**
  * ⚠️ Aucune couleur dans le seed : `accentColor` reste `null` et la **DA / le type**
@@ -1056,7 +1054,9 @@ function buildTougliBlocks(
     while (seenTitles.has(uniqueTitle.toLowerCase())) uniqueTitle = `${title} (${suffix++})`;
     seenTitles.add(uniqueTitle.toLowerCase());
 
-    if (notes.length > 0) {
+    const blockTip = TOUGLI_BLOCK_TIPS[uniqueTitle] ?? TOUGLI_BLOCK_TIPS[title] ?? null;
+
+    if (notes.length > 0 && !blockTip) {
       tipsToWrite.push({ step: null, title: uniqueTitle, category: "Route Sylvestre", lines: notes.length });
     }
 
@@ -1064,7 +1064,7 @@ function buildTougliBlocks(
       resources += (sequence.activityTags ?? []).filter((tag) => tag.type === "item").length;
     }
 
-    const description = `Route Sylvestre — ${title} · ${sequences.length} quête(s)${notes.length ? ` · ${notes.length} note(s) à réécrire` : ""}.`;
+    const description = `Route Sylvestre — ${title} · ${sequences.length} quête(s)${notes.length && !blockTip ? ` · ${notes.length} note(s) à réécrire` : ""}.`;
     const block: RushImportBlock = {
       title: uniqueTitle,
       type,
@@ -1074,7 +1074,7 @@ function buildTougliBlocks(
       description,
       accentColor: null,
       imageUrl: null,
-      tips: null,
+      tips: blockTip,
       links: [],
       dofusId: null,
       isOptional: false,
@@ -1218,11 +1218,36 @@ function enrichTougliWithYelle(
           fallbackSuccesses.set(key, name);
         }
       }
-      // Conseil non rattaché : il reste listé, jamais recopié.
+      // Conseil non rattaché : il reste listé **seulement s'il n'est pas écrit**.
+      // S'il est écrit mais que l'étape n'a pas de quête cible, on le pose sur le
+      // **bloc de sa catégorie** (ou le premier bloc) au lieu de le perdre.
       const tip = YELLE_DEMO_TIPS[n];
       const bodyLines = Array.isArray(step.body) ? step.body.length : 0;
-      if (tip || bodyLines > 0) {
-        report.tipsToWrite.push({ step: n, title, category, lines: tip ? 1 : bodyLines });
+      if (tip) {
+        const categoryKey = category.toLowerCase();
+        const categoryTokens = categoryKey
+          .split(/[^a-z0-9àâäéèêëîïôöùûüç]+/)
+          .filter((token) => token.length >= 4);
+        const fallbackBlock =
+          blocks.find((block) => block.title === title) ??
+          blocks.find((block) => block.title.toLowerCase().includes(title.toLowerCase())) ??
+          blocks.find((block) => block.title.toLowerCase().includes(categoryKey)) ??
+          blocks.find((block) =>
+            categoryTokens.some((token) => block.title.toLowerCase().includes(token))
+          ) ??
+          blocks[0];
+        if (fallbackBlock) {
+          const current = fallbackBlock.tips;
+          if (!current) {
+            fallbackBlock.tips = tip;
+            report.yelleTipsMerged += 1;
+          } else if (current !== tip && !current.includes(tip)) {
+            fallbackBlock.tips = `${current}\n${tip}`;
+            report.yelleTipsMerged += 1;
+          }
+        }
+      } else if (bodyLines > 0) {
+        report.tipsToWrite.push({ step: n, title, category, lines: bodyLines });
       }
       const dexEntry = findDofusDexEntry(title, options.dofusdex);
       if (dexEntry) fallbackDex.push({ entry: dexEntry, title });
@@ -1278,13 +1303,16 @@ function enrichTougliWithYelle(
     }
 
     // 2. Conseil Yelle : seulement s'il a été rédigé pour SigilOS ; sinon il reste à écrire.
+    //    Plusieurs étapes peuvent viser la même quête : on **ajoute** le conseil à la
+    //    suite au lieu d'écraser le premier (aucun des deux ne se perd).
     const tip = YELLE_DEMO_TIPS[n];
     if (tip) {
       if (!target.sequence.tips) {
         target.sequence.tips = tip;
         report.yelleTipsMerged += 1;
-      } else if (target.sequence.tips !== tip) {
-        report.tipsToWrite.push({ step: n, title, category, lines: 1 });
+      } else if (target.sequence.tips !== tip && !target.sequence.tips.includes(tip)) {
+        target.sequence.tips = `${target.sequence.tips}\n${tip}`;
+        report.yelleTipsMerged += 1;
       }
     } else {
       const bodyLines = Array.isArray(step.body) ? step.body.length : 0;

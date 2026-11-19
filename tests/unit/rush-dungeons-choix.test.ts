@@ -23,7 +23,7 @@ import {
   getDungeons,
   splitDungeonChoiceTag,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { missingRequiredDungeons, sequenceDungeonProgress } from "@/lib/rush-dungeons";
+import { dungeonKeyOf, missingRequiredDungeons, sequenceDungeonProgress } from "@/lib/rush-dungeons";
 
 const seq = (over: Partial<RushSequence> = {}): RushSequence => ({
   id: "seq-1",
@@ -95,49 +95,62 @@ describe("Sufokia — un seul donjon, selon le niveau", () => {
   });
 });
 
-describe("Totems de Maïmane — un donjon par groupe, pas les 30", () => {
-  const G1 = "Salons privés de Klime / Aquadôme de Merkator / Palais du roi Nidas";
-  const G2 = "Vaisseau du Capitaine Meno / Souvenir d'Imagiro / Transporteur de Sylargh";
+describe("Totems de Maïmane — les 6 totems, un donjon au choix par totem", () => {
+  const TAGS = [
+    "Salons privés de Klime / Aquadôme de Merkator / Palais du roi Nidas / Fers de la Tyrannie / Mémoire d'Orukam",
+    "Vaisseau du Capitaine Meno / Souvenir d'Imagiro / Transporteur de Sylargh / Sanctuaire de Torkélonia / Œil de Vortex",
+    "Manoir des Katrepat / Belvédère d'Ilyzaelle / Temple de Koutoulou / Sentence de la Balance",
+    "Brasserie du roi Dazak / Trône de Sang / Forgefroide de Missiz Frizz / Tour de Solar / Chambre de Tal Kasha",
+    "Tour de Bethel / Arbre de Mort / Palais de Dantinéa / Laboratoire de Nileza / Ventre de la Baleine",
+    "Défi du Chalœil / Donjon du Comte Harebourg / Rituel de Kabahal / Temple du dieu Kao / Trône de la Cour Sombre",
+  ];
+  // Mesure en base du 19/11/2026 : 11 donjons résolus sur les 29 noms des 6 tags.
+  const RESOLVED = [
+    dj("k1", "Salons privés de Klime"),
+    dj("k2", "Aquadôme de Merkator"),
+    dj("k3", "Palais du roi Nidas"),
+    dj("k4", "Fers de la Tyrannie"),
+    dj("k5", "Mémoire d'Orukam"),
+    dj("m1", "Vaisseau du Capitaine Meno"),
+    dj("m2", "Souvenir d'Imagiro"),
+    dj("m3", "Transporteur de Sylargh"),
+    dj("v1", "Œil de Vortex"),
+    dj("i1", "Manoir des Katrepat"),
+    dj("i2", "Belvédère d'Ilyzaelle"),
+  ];
   const totems = seq({
-    dungeons: [
-      dj("a1", "Salons privés de Klime"),
-      dj("a2", "Aquadôme de Merkator"),
-      dj("a3", "Palais du roi Nidas"),
-      dj("b1", "Vaisseau du Capitaine Meno"),
-      dj("b2", "Souvenir d'Imagiro"),
-      dj("b3", "Transporteur de Sylargh"),
-    ] as never,
-    activityTags: [
-      { type: "donjon", name: G1 },
-      { type: "donjon", name: G2 },
-    ],
+    dungeons: RESOLVED as never,
+    activityTags: TAGS.map((name) => ({ type: "donjon", name })),
   });
 
-  it("deux tags = deux exigences (choix:0 et choix:1)", () => {
+  it("les 6 tags deviennent 6 groupes, même quand des donjons ne sont pas résolus", () => {
+    const dungeons = getDungeons(totems);
+    // 11 donjons réels + 18 noms du tag (clé stable `nom:<…>`) = les 29 du guide.
+    expect(dungeons).toHaveLength(29);
+    expect(new Set(dungeons.map((d) => d.choiceGroup)).size).toBe(6);
     const p = sequenceDungeonProgress(totems);
-    expect(p.choiceGroups).toHaveLength(2);
-    expect(p.requiredBlocks).toBe(2);
-    expect(p.missingBlocks).toBe(2);
-    expect(p.total).toBe(6);
+    expect(p.choiceGroups).toHaveLength(6);
+    expect(p.requiredBlocks).toBe(6);
+    expect(p.missingBlocks).toBe(6);
   });
 
-  it("un donjon dans le premier groupe ne suffit pas : le second reste requis", () => {
-    const p = sequenceDungeonProgress(totems, ["a1"]);
+  it("un donjon dans chaque groupe débloque la quête (6 donjons, pas 29)", () => {
+    const keys = sequenceDungeonProgress(totems).choiceGroups.map((g) => g.keys[0]);
+    const p = sequenceDungeonProgress(totems, keys);
+    expect(p.blocked).toBe(false);
+    expect(p.missingBlocks).toBe(0);
+    expect(p.choiceGroups.every((g) => g.satisfied)).toBe(true);
+  });
+
+  it("cinq donjons ne suffisent pas : le sixième totem reste requis et est nommé", () => {
+    const groups = sequenceDungeonProgress(totems).choiceGroups;
+    const five = groups.slice(0, 5).map((g) => g.keys[0]);
+    const p = sequenceDungeonProgress(totems, five);
     expect(p.blocked).toBe(true);
     expect(p.missingBlocks).toBe(1);
-    expect(p.choiceGroups.map((g) => g.satisfied)).toEqual([true, false]);
-    expect(missingRequiredDungeons(totems, ["a1"]).map((d) => d.key).sort()).toEqual([
-      "b1",
-      "b2",
-      "b3",
-    ]);
-  });
-
-  it("un donjon coché dans chaque groupe débloque la quête", () => {
-    const p = sequenceDungeonProgress(totems, ["a1", "b2"]);
-    expect(p.blocked).toBe(false);
-    expect(p.missingRequired).toEqual([]);
-    expect(p.choiceGroups.map((g) => g.satisfied)).toEqual([true, true]);
+    const missing = missingRequiredDungeons(totems, five);
+    expect(missing).toHaveLength(1);
+    expect(missing[0].name).toContain("au choix");
   });
 });
 
@@ -152,13 +165,20 @@ describe("Groupes et exigences simples cohabitent", () => {
     expect(sequenceDungeonProgress(s, ["85", "simple"]).blocked).toBe(false);
   });
 
-  it("fail-open : un tag multi qui ne résout qu'un donjon ne crée pas de groupe", () => {
+  it("un tag multi crée un groupe même si un seul donjon est résolu (les autres sont des noms du tag)", () => {
     const s = seq({
       dungeons: [dj("77", "Fabrique de Malléfisk")] as never,
       activityTags: [{ type: "donjon", name: SUFOKIA_TAG }],
     });
-    expect(getDungeons(s)[0].choiceGroup).toBeUndefined();
-    expect(sequenceDungeonProgress(s).requiredBlocks).toBe(1);
+    const dungeons = getDungeons(s);
+    expect(dungeons).toHaveLength(5);
+    expect(dungeons.every((d) => d.choiceGroup === "choix:0")).toBe(true);
+    const ghost = dungeons.find((d) => !d.id);
+    expect(ghost).toBeTruthy();
+    const ghostKey = dungeonKeyOf(ghost!);
+    expect(ghostKey).toBeTruthy();
+    expect(sequenceDungeonProgress(s).blocked).toBe(true);
+    expect(sequenceDungeonProgress(s, [ghostKey!]).blocked).toBe(false);
   });
 
   it("`attachDungeonChoices` ne mute pas l'entrée", () => {
@@ -186,5 +206,24 @@ describe("Câblage — le panneau et la carte disent le choix", () => {
     expect(card).toContain("un seul suffit");
     expect(card).toContain("choiceGroup");
     expect(card).toContain("startsChoiceGroup");
+  });
+
+  it("le SERVEUR vérifie les groupes : il charge et transmet `activityTags`", () => {
+    // Sans ces tags, `sequenceDungeonProgress` ne voyait que les donjons résolus et
+    // exigeait les 11 donjons de Maïmane au lieu des 6 totems (« 8 donjon(s)… » mesuré).
+    const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
+    const actions = readFileSync(ACTIONS, "utf8");
+    expect(actions).toContain("activityTags: true");
+    expect(actions).toContain("activityTags: Array.isArray(row.activityTags)");
+    expect(actions).toContain("missingRequiredDungeons(seqLike, doneKeys)");
+  });
+
+  it("les compteurs des trois surfaces annoncent les EXIGENCES", () => {
+    const DASH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+    const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+    const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx";
+    expect(readFileSync(DASH, "utf8")).toContain("Donjon ×{dungeonBlocks}");
+    expect(readFileSync(PUBLIC, "utf8")).toContain("const seqDungeonCount = dungeonProgress.requiredBlocks");
+    expect(readFileSync(OVERLAY, "utf8")).toContain("Donjon ×{requiredDungeonBlocks}");
   });
 });

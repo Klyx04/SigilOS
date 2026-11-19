@@ -83,6 +83,7 @@ import {
 import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
+  missingRequiredDungeons,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
   type RushDungeonState,
@@ -2879,11 +2880,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                               seq,
                               doneDungeonKeysForSequence(dungeonStates, seq.id)
                             ).requirements;
-                            const seqDungeonCount = seqDungeonReqs.length;
-                            const doneDungeonsForSeq = seqDungeonReqs.filter((r) => r.isDone).length;
-                            // Donjons REQUIS manquants de CETTE quête (nommés, cliquables).
+                            // Le compteur annonce des EXIGENCES : un groupe « au choix »
+                            // compte pour 1, même s'il liste 3 à 5 donjons.
+                            const dungeonProgress = sequenceDungeonProgress(
+                              seq,
+                              doneDungeonKeysForSequence(dungeonStates, seq.id)
+                            );
+                            const seqDungeonCount = dungeonProgress.requiredBlocks;
+                            const doneDungeonsForSeq =
+                              dungeonProgress.requiredBlocks - dungeonProgress.missingBlocks;
+                            // Donjons REQUIS manquants de CETTE quête : une entrée par
+                            // exigence (le groupe est nommé, pas ses 5 alternatives).
                             const missingDungeons = dungeonLocked
-                              ? seqDungeonReqs.filter((r) => !r.isOptional && !r.isDone)
+                              ? missingRequiredDungeons(
+                                  seq,
+                                  doneDungeonKeysForSequence(dungeonStates, seq.id)
+                                )
                               : [];
                             const parsedCoord = getSequenceCoord(seq);
 

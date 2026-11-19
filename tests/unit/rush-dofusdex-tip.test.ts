@@ -58,17 +58,24 @@ describe("splitDofusDexTip — la section officielle est isolée, le reste reste
   });
 });
 
-describe("RushDofusDexTip — le dépliable dit ce qu'il cache", () => {
-  it("rend un `<details>` fermé par défaut, avec le compte d'objectifs et les sections visibles", () => {
+describe("RushDofusDexTip — la section officielle est MASQUÉE", () => {
+  it("ne rend ni `<details>` ni les objectifs, et garde Prérequis / Donjons", () => {
     const html = renderToStaticMarkup(React.createElement(RushDofusDexTip, { text: TIP }));
-    expect(html).toContain("<details");
-    expect(html).not.toContain("<details open");
-    expect(html).toContain("DofusDex officiel — Dofus du Cauchemar (180–200)");
-    expect(html).toContain("2 objectifs");
-    // Le contenu replié est présent (accessible à l'ouverture)…
-    expect(html).toContain("Eliocalypse : Résonance");
-    // …et les sections utiles restent hors du dépliable.
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain("Eliocalypse : Résonance");
+    expect(html).not.toContain("DofusDex officiel");
     expect(html).toContain("Prérequis");
+    expect(html).toContain("Benjamin");
+  });
+
+  it("un tips qui ne portait QUE le pavé ne rend rien", () => {
+    const onlyOfficial = `**DofusDex officiel** — Dofus X
+- Objectif A
+- Objectif B`;
+    const html = renderToStaticMarkup(
+      React.createElement(RushDofusDexTip, { text: onlyOfficial })
+    );
+    expect(html).toBe("");
   });
 
   it("sans pavé, il délègue au rendu de tips existant (aucune régression)", () => {

@@ -91,9 +91,11 @@ const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
 describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
   const code = codeOf(ITEM);
 
-  it("affiche le NOMBRE de donjons requis (×1, ×2…)", () => {
-    expect(code).toMatch(/Donjon ×\{dungeons\.length\}/);
-    expect(code).toMatch(/const dungeons = React\.useMemo\(\(\) => \(hasDungeon \? getDungeons\(seq\) : \[\]\)/);
+  it("affiche le NOMBRE d'EXIGENCES de donjons (×1, ×2… ; un groupe au choix = 1)", () => {
+    // Mesure du 19/11/2026 : « ×29 » sur Maïmane alors qu'il n'y a que 6 totems à faire.
+    expect(code).toMatch(/Donjon ×\{requiredDungeonBlocks\}/);
+    expect(code).toMatch(/const requiredDungeonBlocks = React\.useMemo\(/);
+    expect(code).toContain("getDungeons(seq)");
   });
 
   it("porte le picto du donjon du jeu, pas un glyphe d'interface", () => {

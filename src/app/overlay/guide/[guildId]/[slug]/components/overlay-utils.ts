@@ -342,10 +342,14 @@ export function attachDungeonChoices(
   dungeons: DungeonInfo[],
   tags: readonly RushActivityTag[] | null | undefined
 ): DungeonInfo[] {
-  if (dungeons.length === 0) return dungeons;
   const tagList = Array.isArray(tags) ? tags : [];
+  const hasChoiceTag = tagList.some(
+    (tag) => tag?.type === "donjon" && splitDungeonChoiceTag(tag.name).segments.length >= 2
+  );
+  if (dungeons.length === 0 && !hasChoiceTag) return dungeons;
   const out = dungeons.map((d) => ({ ...d }));
   const normalized = out.map((d) => normalizeChoiceName(d.name ?? ""));
+  const normalizedNames = new Set(normalized.filter(Boolean));
   const grouped = new Set<number>();
   let groupIndex = 0;
 
@@ -353,24 +357,47 @@ export function attachDungeonChoices(
     if (tag?.type !== "donjon") continue;
     const { segments, label } = splitDungeonChoiceTag(tag.name);
     if (segments.length < 2) continue;
-    const segmentNames = segments.map(normalizeChoiceName).filter((s) => s.length >= 4);
-    if (segmentNames.length < 2) continue;
-
-    const matched: number[] = [];
-    for (let i = 0; i < out.length; i++) {
-      if (grouped.has(i)) continue;
-      const name = normalized[i];
-      if (!name || name.length < 4) continue;
-      if (segmentNames.some((segment) => segment.includes(name) || name.includes(segment))) {
-        matched.push(i);
-      }
-    }
-    if (matched.length < 2) continue;
-
     const key = `choix:${groupIndex++}`;
-    for (const i of matched) {
-      grouped.add(i);
-      out[i] = { ...out[i], choiceGroup: key, choiceLabel: label ?? "Au choix" };
+    const used = new Set<number>();
+
+    for (const segment of segments) {
+      const normalizedSegment = normalizeChoiceName(segment);
+      if (normalizedSegment.length < 4) continue;
+
+      let matchIndex = -1;
+      for (let i = 0; i < out.length; i++) {
+        if (grouped.has(i) || used.has(i)) continue;
+        const name = normalized[i];
+        if (!name || name.length < 4) continue;
+        if (name.includes(normalizedSegment) || normalizedSegment.includes(name)) {
+          matchIndex = i;
+          break;
+        }
+      }
+      if (matchIndex >= 0) {
+        used.add(matchIndex);
+        grouped.add(matchIndex);
+        out[matchIndex] = { ...out[matchIndex], choiceGroup: key, choiceLabel: label ?? "Au choix" };
+        continue;
+      }
+      // Donjon du tag **non résolu en base** (mesure du 19/11 : Maïmane n'a que 11 des
+      // 30 donjons) : on garde son nom comme alternative, avec une clé stable `nom:<…>`.
+      // Sans cela, les totems 4 à 6 disparaissaient du verrou et la quête se débloquait
+      // avec 3 donjons au lieu de 6.
+      if (normalizedNames.has(normalizedSegment)) continue;
+      normalizedNames.add(normalizedSegment);
+      out.push({
+        name: segment,
+        bossName: undefined,
+        imageUrl: undefined,
+        isOcre: false,
+        choiceGroup: key,
+        choiceLabel: label ?? "Au choix",
+      });
+      const ghostIndex = out.length - 1;
+      normalized.push(normalizedSegment);
+      used.add(ghostIndex);
+      grouped.add(ghostIndex);
     }
   }
   return out;

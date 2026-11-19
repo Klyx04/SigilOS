@@ -6,13 +6,13 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 19/11/2026 (suite 30) — **Rush · pavés DofusDex repliés** — branche `feat/rush-dofusdex-repli`
+## 📝 Session 19/11/2026 (suite 30) — **Rush · DofusDex supprimé, 6 totems, toasts DA** — branche `fix/rush-dofusdex-bloc`
 
-> **Demande user (verbatim)** : « je ne comprends pas non plus tout ces pavés dans le guide… » (capture : bloc « Zone Guerre », 0/2 quêtes, tips « DofusDex officiel »).
-> **Mesure** : **13 blocs** portent un tips « DofusDex officiel » de **463 à 1 956 caractères** (13 à 51 lignes) ; rendu entier dans le dashboard (`RushTipLines`) et dans la bannière « Dofus obtenu » de l'overlay (`ms.description || ms.tips`). **228 lignes** sont du DofusDex pur (Zone Guerre : **45** objectifs pour 5 lignes utiles).
-> **Fait** : ① règle pure `splitDofusDexTip` — en-tête + puces d'objectifs isolés du reste, fail-open si pas de section reconnaissable ; ② composant `RushDofusDexTip` — `<details>` **fermé** « DofusDex officiel — <Dofus> · N objectifs », corps accessible à l'ouverture, **Prérequis / Donjons restent visibles** ; ③ câblé sur le **cadre `ms.tips` du bloc** (dashboard) et la bannière DOFUS_OBTAINED de l'overlay — le premier câblage visait les tips de **quête** (`CollapsibleHints`), pas le pavé du bloc : corrigé et verrouillé par un test de chemin ; ④ sans pavé, le rendu existant est conservé (aucune régression sur les quêtes).
-> **Preuves** : `rush-dofusdex-tip` **8/8** (dont rendu réel du dépliable et chemin du cadre `ms.tips`) · **763 fichiers / 8 016 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
-> **Reste / ops** : PR ; le guide public n'affiche pas ces tips (blocs INFO seulement) ; puis Bloc I → Bloc J → 55 conseils → VPS.
+> **Demandes user (verbatim)** : « je ne veux plus des dofusdex explicatifs dans les guides c'est juste infect et inutile supprime » · « il y a 6 totems à récupérer, avec une liste de dj avec un dj au choix parmi les 6 totems » · « ça affiche bien 6/6 fait mais la notif est bugé non ? » · « TOUTES les notif toast coté navigateur (hors overlay) sont tjres pas à la DA ».
+> **Mesures** : ① **13 blocs** portaient un tips « DofusDex officiel » de **463 à 1 956 caractères** (**228 lignes**) ; le pavé du bloc est rendu par le **cadre `ms.tips`** (pas par les tips de quête) ; ② Maïmane = **6 tags multi** (29 noms, **11 résolus en base**) → **3 groupes** seulement ; le **serveur** ne lisait pas `activityTags` → « **8 donjon(s) requis non fait(s)** » alors que 6/6 était fait ; ③ `AppToaster` global : `bg-card/90`, `rounded-2xl`, `backdrop-blur`.
+> **Fait** : ① `RushDofusDexTip` **masque** la section officielle (plus de `<details>`) et garde Prérequis/Donjons ; ② `attachDungeonChoices` complète les groupes avec les **noms non résolus** (clé stable `nom:…`) → **6 groupes / 6 exigences** ; les compteurs des 3 surfaces annoncent `requiredBlocks` ; ③ serveur : `activityTags` chargé et transmis, `missingRequiredDungeons` (1 entrée par groupe) ; ④ `AppToaster` sous `[data-da="wakfu"]` + `.da-toaster`, CSS DA (matière + filet sémantique), idem route overlay.
+> **Preuves** : `rush-dungeons-choix` **15/15** · `rush-dofusdex-tip` **9/9** · `toasts-da` **3/3** · **764 fichiers / 8 022 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
+> **Reste / ops** : PR #1455 ; **18 noms** de donjons restent non résolus en base (alias data) mais le verrou est **correct** (6 totems) ; puis Bloc I → Bloc J → 55 conseils → VPS.
 > **Rotation** : bloc « suite 24 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

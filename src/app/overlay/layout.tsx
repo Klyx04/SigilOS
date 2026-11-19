@@ -52,7 +52,9 @@ export default function OverlayLayout({ children }: { children: React.ReactNode 
       <body className={`${inter.variable} ${barlow.variable} ${sourceSans.variable} ${sourceSerif.variable} ${plexMono.variable} bg-background text-foreground antialiased overflow-hidden`}>
         <DaWakfuFilters />
         {children}
-        <Toaster position="top-center" richColors />
+        <div data-da="wakfu" data-theme="dark" className="contents">
+          <Toaster className="da-toaster" position="top-center" />
+        </div>
       </body>
     </html>
   );

@@ -128,7 +128,7 @@ export function RushCoordinateChip({
       description: "Colle cette commande dans le chat Dofus pour te déplacer.",
       duration: 2500,
     });
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 900);
   };
 
   const handleCopyZaap = async (e: React.MouseEvent) => {
@@ -185,9 +185,11 @@ export function RushCoordinateChip({
       <button
         type="button"
         onClick={handleCopy}
+        data-copied={copied ? "true" : undefined}
         title={`Cliquer pour copier ${parsed.travelCommand}`}
         aria-label={`Copier la commande ${parsed.travelCommand}`}
         className={cn(
+          "da-coord",
           "inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[3px] border border-border bg-surface px-1.5 py-0.5",
           "font-mono text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors",
           "hover:border-border-strong hover:text-foreground",

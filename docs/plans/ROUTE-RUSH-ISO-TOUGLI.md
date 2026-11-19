@@ -302,10 +302,12 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Quête verrouillée peu lisible | ✅ **livré 18/11/2026** : rouge franc, opacité `.92`, libellé « Verrouillée » ; **plus de repère** sur une quête verrouillée (navigateur + overlay) | — |
 | Liste « Mon Ocre » rognée | ✅ **livré 18/11/2026** : défilement natif borné (`min(440px,55svh)`), barre visible | — |
 | Changement d'alignement visible immédiatement | ✅ **livré 18/11/2026** : cause = payload PiP figé ; `sync` du store à chaque rafraîchissement + cité/Ordre pré-remplis dans la modale | — |
+| Retouches DA (PiP, guide, verrou, DofusDex, fiche Succès, pastilles) | ✅ **livré 19/11/2026** : 17 retouches ; fiche Succès portée hors carte, pastilles dans le bloc segmenté, icône `succes.png`, markdown des blocs DofusDex ; `da-wakfu` 66/66, suite 7 992 ; **PR #1450** | — |
 
-**Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** →
-**UI** (détail/assets, DofusDex, icône Dofus, pastille succès sur le guide public) → **Bloc I**
-(succès de donjon) → **Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs) →
+**Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
+**retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
+**UI** (assets/compteur, DofusDex, icône Dofus) → **Bloc I** (succès de donjon) →
+**Bloc J** (donjons : quêtes/étapes, qui a fait quoi, succès de guilde/visiteurs) →
 **55 conseils** → **VPS**.
 
 ## 13. Reprise propre — la porte d'entrée

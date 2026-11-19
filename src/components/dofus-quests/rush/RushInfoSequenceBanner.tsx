@@ -3,7 +3,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { RushSequence } from "@/types/rush-guide-types";
-import { RushRichText } from "./RushRichText";
 import { RushTipLines } from "./RushTipLines";
 import {
   infoBannerTone,
@@ -88,8 +87,8 @@ export function RushInfoSequenceBanner({
           <ToneIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
           {tone.label}
         </span>
-        <div className="text-xs leading-relaxed text-foreground/90 font-medium">
-          <RushRichText text={text} />
+        <div className="whitespace-pre-line text-xs leading-relaxed text-foreground/90 font-medium">
+          <RushTipLines text={text} />
         </div>
       </div>
     </div>

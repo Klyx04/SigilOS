@@ -44,13 +44,19 @@ describe("Dashboard — quête bloquée ≠ quête repérée (deux attributs, de
     expect(DASH).not.toMatch(/bg-warning\/\[0\.04\] border-warning\/25/);
   });
 
-  it("cadenas, nom du prérequis et bouton restent rouges (même état, même couleur)", () => {
-    expect(DASH).toMatch(/Lock className="w-3\.5 h-3\.5 text-danger/);
-    expect(DASH).toMatch(/text-danger truncate">\{singleName\}/);
-    // F6 (11/11/2026) : les chips ont laissé place à UN bouton qui ouvre la liste.
-    expect(DASH).toMatch(/font-semibold text-danger/);
-    expect(DASH).toMatch(/hover:bg-danger\/10/);
-    expect(DASH).toMatch(/outline-danger\/50/);
+  it("le prérequis est un lien ambre, le cadenas reste sur le nœud", () => {
+    // 19/11/2026 — décision : la carte verrouillée ne crie plus en rouge.
+    // Le cadenas du nœud porte le verrou, la ligne compacte porte l'action.
+    expect(DASH).not.toMatch(/border-danger\/45/);
+    expect(DASH).not.toMatch(/bg-danger\/\[0\.07\]/);
+    expect(DASH).toMatch(/font-semibold text-warning group-hover:underline/);
+    expect(DASH).toMatch(/À terminer avant :/);
+    expect(DASH).toMatch(/focus-visible:outline-warning\/50/);
+    // Le cadenas du nœud est conservé.
+    expect(DASH).toMatch(/<Lock className="h-3\.5 w-3\.5" \/>/);
+    // Le clic mène à la quête unique ou ouvre la liste des prérequis.
+    expect(DASH).toMatch(/scrollToPrereq\(singleName, prereqRefs\[0\]\?\.seqId \?\? null\)/);
+    expect(DASH).toMatch(/setPrereqModal\(prereqRefs\)/);
   });
 
   it("la carte repérée a SON attribut (`data-here`), distinct du verrou", () => {
@@ -80,10 +86,11 @@ describe("Overlay — verrou (danger) ≠ repère (ambre), pour l'interne comme 
     expect(ITEM).not.toMatch(/data-here=\{isBookmarked && !isDone && !isLocked/);
   });
 
-  it("le blocage nomme le prérequis, en danger, sans second cadenas", () => {
+  it("le blocage nomme le prérequis, en ambre, sans second cadenas", () => {
     expect(ITEM).not.toMatch(/border-warning\/40 bg-warning\/10 px-1\.5 py-0\.5/);
     expect(ITEM).toContain("Terminer :");
-    expect(ITEM).toMatch(/text-left text-\[11px\] font-semibold text-danger/);
+    expect(ITEM).toMatch(/text-left text-\[11px\] text-muted-foreground/);
+    expect(ITEM).toMatch(/font-semibold text-warning group-hover:underline/);
     expect(ITEM).not.toContain("Quête à terminer avant");
   });
 });

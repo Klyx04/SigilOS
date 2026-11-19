@@ -1429,6 +1429,9 @@ export default function GuideOverlayClient({
       data-da="wakfu"
       data-theme="dark"
       data-block={daBlock}
+      /* La PiP est la surface « pip » : la compression verticale et les règles
+         de fenêtre s'y accrochent sans dépendre de la qualité. */
+      data-host="pip"
       /* F7 (chantier 4) — la PiP flotte AU-DESSUS du jeu : `data-quality="low"` coupe le grain
          et les bords « rough » (règle `[data-quality="low"]` de `da-wakfu.css`, déjà écrite
          mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa

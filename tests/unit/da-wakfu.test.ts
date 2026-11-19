@@ -168,6 +168,14 @@ describe("DA Gouache Wakfu — le hero ne mange pas la liste en fenêtre courte"
     it("le grand écran garde sa hauteur (la règle générale n'est pas touchée)", () => {
         expect(css).toMatch(/\.da-hero\[data-density="wide"\]\s*\{\s*min-height:\s*min\(276px,\s*30vh\)/);
     });
+
+    it("en PiP, le hero s'ajuste au contenu même au-dessus de 700 px", () => {
+        // Mesure du 19/11/2026 : au-dessus de 700 px, la règle `wide` reprenait
+        // 276 px pour ~100 px de contenu — une bande vide en haut de la PiP.
+        expect(css).toMatch(
+            /\.da-window\[data-host="pip"\] \.da-hero\[data-density="wide"\],\s*\.da-window\[data-host="pip"\] \.da-hero\[data-density="normal"\]\s*\{\s*min-height:\s*0/
+        );
+    });
 });
 
 describe("DA Gouache Wakfu — coût de rendu", () => {
@@ -183,7 +191,16 @@ describe("DA Gouache Wakfu — coût de rendu", () => {
     });
 
     it("aucun filtre sur les bords de carte hors qualité haute", () => {
-        expect(css).toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{\s*filter:\s*url\(#da-rough\)/);
+        // Le filtre « rough » coûte une rastérisation PAR CARTE au défilement :
+        // en haute qualité il est réservé aux cartes focales (« faire
+        // maintenant » et « je suis ici »). Le reste garde le `clip-path`.
+        expect(css).toMatch(
+            /\[data-quality="high"\]\s+\.da-row\[data-state="next"\]\s+\.da-card::before[\s\S]*?filter:\s*url\(#da-rough\)/
+        );
+        expect(css).toMatch(
+            /\[data-quality="high"\]\s+\.da-row\[data-here="true"\]\s+\.da-card::before[\s\S]*?filter:\s*url\(#da-rough\)/
+        );
+        expect(css).not.toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{[^}]*filter:/);
         const cardRule = css.match(/\.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
         expect(cardRule).not.toMatch(/filter:/);
     });
@@ -655,6 +672,111 @@ describe("DA Gouache Wakfu — le reste des guides (E3d)", () => {
         for (const path of [GUIDE, PUBLIC]) {
             expect(code(path), path).not.toMatch(/\bitalic\b/);
         }
+    });
+});
+
+/**
+ * Retouches UI/UX du 19/11/2026 — huit règles d'habillage (DA Wakfu).
+ *
+ * Elles ne changent aucun libellé, aucun bouton, aucune logique : elles
+ * rendent lisibles l'étape active, la quête verrouillée, la copie d'une
+ * coordonnée, les petites PiP, l'ambiance du guide et le conseil ouvert.
+ * Le filtre `#da-rough` reste interdit sur la liste : il est réservé aux
+ * deux cartes focales en haute qualité.
+ */
+describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
+    const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+    const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+    const CHIP = "src/components/dofus-quests/rush/RushCoordinateChip.tsx";
+    const SUCCESS_CHIP = "src/components/dofus-quests/rush/SuccessChip.tsx";
+    const OVERLAY_ITEM = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx";
+    const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+
+    it("la PiP et le guide public portent leur surface (`pip` / `page`)", () => {
+        expect(readFileSync(OVERLAY, "utf8")).toMatch(/data-host="pip"/);
+        expect(readFileSync(PUBLIC, "utf8")).toMatch(/data-host="page"/);
+    });
+
+    it("l'étape active porte un bord gauche franc", () => {
+        const rule =
+            css.match(/\.da-row\[data-state="next"\] \.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(rule).toMatch(/border-left:\s*3\.5px solid var\(--da-acc\)/);
+    });
+
+    it("le titre d'une quête verrouillée passe au texte secondaire", () => {
+        expect(css).toMatch(
+            /\.da-row\[data-state="locked"\] \.da-card h3,[\s\S]*?\.da-row\[data-state="locked"\] \.da-qtitle\s*\{[^}]*color:\s*var\(--da-muted\)/
+        );
+    });
+
+    it("la copie d'une coordonnée se voit 900 ms", () => {
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*border-color:\s*var\(--da-ok\)/
+        );
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*background:\s*var\(--da-ok-soft\)/
+        );
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*color:\s*var\(--da-ok\)/
+        );
+        const chip = readFileSync(CHIP, "utf8");
+        expect(chip).toMatch(/data-copied=\{copied \? "true" : undefined\}/);
+        expect(chip).toMatch(/setTimeout\(\(\) => setCopied\(false\), 900\)/);
+    });
+
+    it("les petites PiP masquent la description et serrent la carte", () => {
+        expect(css).toMatch(
+            /@media \(max-height: 580px\)\s*\{[\s\S]*?\.da-window\[data-host="pip"\] \.da-blockdesc\s*\{\s*display:\s*none/
+        );
+        expect(css).toMatch(
+            /\.da-window\[data-host="pip"\] \.da-card\s*\{\s*padding:\s*\.6rem \.75rem/
+        );
+    });
+
+    it("le guide public porte le dégradé d'ambiance et respire à partir de 1024 px", () => {
+        expect(css).toMatch(/\.da-guide\[data-host="page"\]\s*\{[^}]*linear-gradient\(/);
+        expect(css).toMatch(
+            /@media \(min-width: 1024px\)\s*\{[\s\S]*?\.da-guide \.da-row\s*\{[^}]*gap:\s*1\.1rem/
+        );
+    });
+
+    it("le conseil ouvert a un fond léger et un rayon ≤ 12 px", () => {
+        expect(css).toMatch(
+            /details\.da-conseil\[open\] \.da-conseil-body\s*\{[^}]*border-radius:\s*6px/
+        );
+    });
+
+    it("la carte verrouillée garde un fond discret, sans boîte", () => {
+        expect(css).toMatch(
+            /\.da-row\[data-state="locked"\] \.da-card::before\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--da-field\) 70%, var\(--da-card\)\)/
+        );
+    });
+
+    it("la fiche de succès est portée hors de la carte (fin du z-index et du barré)", () => {
+        const src = readFileSync(SUCCESS_CHIP, "utf8");
+        expect(src).toContain("createPortal");
+        expect(src).toContain("da-portal");
+        expect(src).toContain("ownerDocument.body");
+        // L'icône de la pastille est normalisée (le trophée générique).
+        expect(src).toContain("/assets/icons/succes.png");
+        // Le nom complet reste accessible en compact (icône seule).
+        expect(src).toContain("Succès : ${successes.map");
+    });
+
+    it("l'icône de quête ne double pas le nœud ✓ et une image cassée disparaît", () => {
+        const src = readFileSync(OVERLAY_ITEM, "utf8");
+        expect(src.match(/\{!isDone && titleIcon\}/g)?.length).toBe(2);
+        expect(src).toContain("onError={() => setTitleIconBroken(true)}");
+    });
+
+    it("le dashboard regroupe les pastilles dans le bloc d'actions", () => {
+        const src = readFileSync(DASHBOARD, "utf8");
+        expect(src).toContain(
+            "<SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />"
+        );
+        expect(src).toMatch(
+            /ml-auto flex min-w-0 flex-wrap items-center justify-end gap-0\.5 rounded-\[4px\] border border-border bg-surface p-0\.5/
+        );
     });
 });
 

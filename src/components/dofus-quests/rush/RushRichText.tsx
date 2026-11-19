@@ -61,6 +61,14 @@ export function RushRichText({
       {parts.map((part, i) => {
         if (part.kind === "text") return <React.Fragment key={i}>{part.value}</React.Fragment>;
         if (part.kind === "link") return <RushTextLink key={i} label={part.label} href={part.href} />;
+        if (part.kind === "bold") {
+          return (
+            <strong key={i} className="font-semibold text-foreground">
+              {part.value}
+            </strong>
+          );
+        }
+        if (part.kind === "em") return <em key={i}>{part.value}</em>;
         return <RushCoordinateChip key={i} coordText={`${part.x}, ${part.y}`} showIcon />;
       })}
     </span>
@@ -82,8 +90,8 @@ export function RushRichText({
 export function splitTipLines(rawText: string | null | undefined): string[] {
   return (rawText ?? "")
     .split("\n")
-    .flatMap((line) => line.split(/\s+[+·]\s+/))
-    .map((line) => line.trim())
+    .flatMap((line) => line.split(/\s+[+·>]\s+/))
+    .map((line) => line.trim().replace(/^[-*]\s+/, ""))
     .filter((line) => line.length > 0);
 }
 
@@ -102,11 +110,13 @@ function RushTextLink({ label, href }: { label: string; href: string }) {
   );
 }
 
-/** Un morceau de texte enrichi : du texte nu, un lien nommé, ou une position copiable. */
+/** Un morceau de texte enrichi : du texte nu, un lien nommé, une position copiable, du gras. */
 type RushRichTextPart =
   | { kind: "text"; value: string }
   | { kind: "link"; label: string; href: string }
-  | { kind: "coord"; x: number; y: number };
+  | { kind: "coord"; x: number; y: number }
+  | { kind: "bold"; value: string }
+  | { kind: "em"; value: string };
 
 /**
  * Exemples de syntaxe du texte enrichi — **SOURCE UNIQUE** de l'aide affichée en God
@@ -148,6 +158,8 @@ export function splitRichText(text: string): RushRichTextPart[] {
       /(https?:\/\/[^\s]+)/.source, // 3 · url brute
       /\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(\d+))?\s*\]/.source, // 4 · x  5 · y  6 · world
       /\/(?:w|travel)\s+(-?\d+)\s*[,;]?\s*(-?\d+)(?:\s*,\s*(\d+))?(?!\d)/.source, // 7 · x  8 · y  9 · world
+      /\*\*([^*]+)\*\*/.source, // 10 · gras
+      /\*([^*]+)\*/.source, // 11 · italique
     ].join("|"),
     "gi"
   );
@@ -183,6 +195,14 @@ export function splitRichText(text: string): RushRichTextPart[] {
       // La dimension (3ᵉ nombre de `[x, y, world]`) n'est pas rendue ici : la puce copie la
       // commande 2D du jeu. Le monde reste utile aux chips de la ligne d'étape (dashboard).
       parts.push({ kind: "coord", x: parseInt(rawX, 10), y: parseInt(rawY, 10) });
+      continue;
+    }
+    if (m[10]) {
+      parts.push({ kind: "bold", value: m[10] });
+      continue;
+    }
+    if (m[11]) {
+      parts.push({ kind: "em", value: m[11] });
     }
   }
   if (last < text.length) parts.push({ kind: "text", value: text.slice(last) });

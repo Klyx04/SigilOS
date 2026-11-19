@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
 import { successIconUrl } from "@/lib/achievement-icon";
+import { useDaTheme } from "@/components/da/da-theme";
+import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
 import { cn } from "@/lib/utils";
 
@@ -142,36 +145,68 @@ export function SuccessChip({
   successes,
   quests,
   className,
+  compact = false,
+  iconSrc = "/assets/icons/succes.png",
 }: {
   successes: RushSuccessRef[];
   quests: RushGuideQuestRef[];
   className?: string;
+  /** Dashboard : icône seule, le nom complet reste en infobulle. */
+  compact?: boolean;
+  /** Icône normalisée de la pastille (la fiche garde l'icône du succès). */
+  iconSrc?: string;
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);
+  const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const daScope = daScopeProps(useDaTheme());
+
   if (successes.length === 0) return null;
 
   const first = successes[0];
   const label = successes.length > 1 ? `${successes.length} succès` : first.name;
+  // ⚠️ La fiche doit sortir du contexte d'empilement de `.da-card` (`isolation:
+  // isolate`) : sinon les cartes suivantes passent au-dessus et le `line-through`
+  // d'une quête validée tombe sur son titre. On vise le document du bouton pour
+  // que la PiP ouvre la fiche dans SA fenêtre, pas dans la page parente.
+  const portalRoot =
+    anchorRef.current?.ownerDocument.body ??
+    (typeof document !== "undefined" ? document.body : null);
 
   return (
     <>
       <button
+        ref={anchorRef}
         type="button"
         onClick={(event) => {
           event.stopPropagation();
           setOpen(first);
         }}
         title={successes.map((success) => success.name).join(" · ")}
+        aria-label={
+          compact
+            ? `Succès : ${successes.map((success) => success.name).join(", ")}`
+            : undefined
+        }
         className={cn(
-          "inline-flex max-w-[16rem] items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          "inline-flex max-w-[16rem] items-center gap-1 rounded-[3px] border border-border bg-surface text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          compact
+            ? "border-0 bg-transparent px-1 py-0.5 hover:bg-elevated"
+            : "px-1.5 py-0.5",
           className
         )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={successIconUrl(first.iconId)} alt="" className="h-3 w-3 shrink-0 object-contain" />
-        <span className="truncate">{label}</span>
+        <img src={iconSrc} alt="" className="h-3 w-3 shrink-0 object-contain" />
+        {!compact && <span className="truncate">{label}</span>}
       </button>
-      {open && <SuccessSheet success={open} quests={quests} onClose={() => setOpen(null)} />}
+      {open && portalRoot
+        ? createPortal(
+            <div className="da-portal" {...daScope}>
+              <SuccessSheet success={open} quests={quests} onClose={() => setOpen(null)} />
+            </div>,
+            portalRoot
+          )
+        : null}
     </>
   );
 }

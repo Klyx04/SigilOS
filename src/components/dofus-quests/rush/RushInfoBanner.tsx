@@ -112,7 +112,7 @@ export function RushInfoBanner({
           {tone.label}
         </span>
         {title && <h3 className="font-serif text-[15px] font-semibold leading-tight text-foreground">{title}</h3>}
-        <div className="text-xs leading-relaxed text-muted-foreground sm:text-[13px]">{children}</div>
+        <div className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground sm:text-[13px]">{children}</div>
       </div>
       {src && (
         // eslint-disable-next-line @next/next/no-img-element

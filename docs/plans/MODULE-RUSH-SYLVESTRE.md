@@ -533,7 +533,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Alignement modifié mais guide inchangé | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store, cité/Ordre pré-remplis |
 | Quête verrouillée peu lisible / repère posable | ✅ livré | rouge franc, opacité `.92`, libellé « Verrouillée » ; repère retiré sur une quête verrouillée |
 | Liste « Mon Ocre » rognée | ✅ livré | `OcreQuestPanel` : défilement natif `min(440px,55svh)`, barre visible |
-| Retouches DA PiP + guide + verrou (16) | ✅ livré 19/11/2026 | bord gauche « faire maintenant », titre verrouillé, copie 900 ms, compression PiP, dégradé d'arc, respiration ≥ 1024 px, `#da-rough` focalisé, conseil ouvert, cartes verrouillées (ligne compacte ambre, fond discret, sans badge ni sous-boîte), blocs DofusDex en markdown, header PiP ajusté au contenu, fiche Succès portée hors carte, pastilles Donjon/Succès/présence regroupées à droite, icône de quête masquée sur les validées |
+| Retouches DA PiP + guide + verrou (17) | ✅ livré 19/11/2026 | bord gauche « faire maintenant », titre verrouillé, copie 900 ms, compression PiP, dégradé d'arc, respiration ≥ 1024 px, `#da-rough` focalisé, conseil ouvert, cartes verrouillées (ligne compacte ambre, fond discret, sans badge ni sous-boîte), blocs DofusDex en markdown, header PiP ajusté au contenu, fiche Succès portée hors carte, pastilles Donjon/Succès/présence dans le même bloc segmenté, icône Succès normalisée `succes.png` |
 
 **Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 UI (détail/assets, DofusDex, icône, pastille sur le guide public) → **Bloc I** (succès de donjon) →

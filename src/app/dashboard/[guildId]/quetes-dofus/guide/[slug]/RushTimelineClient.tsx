@@ -555,7 +555,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               Même groupe segmenté que le guide public, et logos de marque servis
               EN LOCAL (brandIconForUrl) : plus aucune requête google.com/s2/favicons
               depuis le navigateur du membre. */}
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
             {allDungeons.length > 0 && (
               <button
                 type="button"
@@ -563,7 +563,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 aria-expanded={dungeonsOpen}
                 aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${allDungeons.length} faits)`}
                 title="Donjons de cette quête — cliquer pour cocher fait / à faire"
-                className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+                className="inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
               >
                 {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -593,7 +593,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 <span className="text-[10px] font-bold text-warning/60">{seqMembers.length}</span>
               </button>
             )}
-            <div className="flex items-center gap-0.5 shrink-0 rounded-[4px] border border-border bg-surface p-0.5">
             {(() => {
               const icon = brandIconForUrl(noobsUrl);
               if (!noobsUrl || !icon) return null;
@@ -652,7 +651,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             >
               <Info className="w-3.5 h-3.5" />
             </button>
-          </div>
           </div>
         </div>
 

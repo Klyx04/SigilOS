@@ -146,12 +146,15 @@ export function SuccessChip({
   quests,
   className,
   compact = false,
+  iconSrc = "/assets/icons/succes.png",
 }: {
   successes: RushSuccessRef[];
   quests: RushGuideQuestRef[];
   className?: string;
   /** Dashboard : icône seule, le nom complet reste en infobulle. */
   compact?: boolean;
+  /** Icône normalisée de la pastille (la fiche garde l'icône du succès). */
+  iconSrc?: string;
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
@@ -186,12 +189,14 @@ export function SuccessChip({
         }
         className={cn(
           "inline-flex max-w-[16rem] items-center gap-1 rounded-[3px] border border-border bg-surface text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-          compact ? "px-1 py-0.5" : "px-1.5 py-0.5",
+          compact
+            ? "border-0 bg-transparent px-1 py-0.5 hover:bg-elevated"
+            : "px-1.5 py-0.5",
           className
         )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={successIconUrl(first.iconId)} alt="" className="h-3 w-3 shrink-0 object-contain" />
+        <img src={iconSrc} alt="" className="h-3 w-3 shrink-0 object-contain" />
         {!compact && <span className="truncate">{label}</span>}
       </button>
       {open && portalRoot

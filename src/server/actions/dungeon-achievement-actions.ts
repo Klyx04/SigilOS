@@ -7,11 +7,14 @@
  * **public** (`PublicBossAchievementsTab`), donc en lecture seule, y compris pour les donjons à
  * **double boss** — impossible de marquer un succès comme fait.
  *
- * Persistance : `UserDungeonAchievement` (table existante, clé unique `(userId, dungeonAchievementId)`,
- * `userId` = **profil** de guilde). **Aucune migration.**
+ * Persistance : `UserDungeonProgress` (table **canonique** de « Mes Succès », clé unique
+ * `(profileId, achievementId, characterSlot)` — `profileId` = profil de guilde). L'ancienne
+ * table `UserDungeonAchievement` est **legacy** : elle est backfillée une fois puis gelée
+ * (voir `scripts/backfill-dungeon-achievements.ts`). **Aucune migration.**
  *
- * Gardes : `getUserContext(guildId)` (auth + guilde), appartenance du succès au donjon demandé
- * (isolation de la cible), `rateLimit` Redis, Zod borné, écriture idempotente.
+ * Gardes : `getUserContext(guildId)` (auth + guilde), `canViewSucces` en lecture,
+ * `canEditOwnSucces` en écriture, appartenance du succès au donjon demandé (isolation de
+ * la cible), `rateLimit` Redis, Zod borné, écriture idempotente.
  */
 
 import { z } from "zod";
@@ -64,6 +67,7 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
+    if (!ctx.canEditOwnSucces) return { success: false, error: "Accès refusé" };
 
     const characterSlot = await resolveCharacterSlot(ctx.profileId, parsed.data.characterSlot);
     if (!characterSlot) return { success: false, error: "Personnage inconnu." };
@@ -79,11 +83,11 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
         });
         if (!achievement) return { success: false, error: "Succès introuvable pour ce donjon" };
 
-        const existing = await db.userDungeonAchievement.findUnique({
+        const existing = await db.userDungeonProgress.findUnique({
             where: {
-                userId_dungeonAchievementId_characterSlot: {
-                    userId: ctx.profileId,
-                    dungeonAchievementId: achievement.id,
+                profileId_achievementId_characterSlot: {
+                    profileId: ctx.profileId,
+                    achievementId: achievement.id,
                     characterSlot,
                 },
             },
@@ -91,13 +95,19 @@ export async function toggleDungeonAchievement(raw: unknown): Promise<ToggleResp
         });
 
         if (existing) {
-            await db.userDungeonAchievement.delete({ where: { id: existing.id } });
+            await db.userDungeonProgress.delete({ where: { id: existing.id } });
             return { success: true, done: false };
         }
 
         try {
-            await db.userDungeonAchievement.create({
-                data: { userId: ctx.profileId, dungeonAchievementId: achievement.id, characterSlot },
+            await db.userDungeonProgress.create({
+                data: {
+                    profileId: ctx.profileId,
+                    dungeonId,
+                    achievementId: achievement.id,
+                    characterSlot,
+                    source: "MANUAL",
+                },
             });
         } catch (err) {
             // Course : deux clics rapprochés → la contrainte unique tranche, l'état reste « fait ».
@@ -129,21 +139,22 @@ export async function getDungeonAchievementStates(
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.profileId) return { success: false, error: "Non autorisé" };
+    if (!ctx.canViewSucces) return { success: false, error: "Accès refusé" };
 
     const characterSlot = await resolveCharacterSlot(ctx.profileId, parsed.data.characterSlot);
     if (!characterSlot) return { success: false, error: "Personnage inconnu." };
 
     try {
-        const rows = await db.userDungeonAchievement.findMany({
+        const rows = await db.userDungeonProgress.findMany({
             where: {
-                userId: ctx.profileId,
+                profileId: ctx.profileId,
                 characterSlot,
-                dungeonAchievement: { dungeonId },
+                achievement: { dungeonId },
             },
-            select: { dungeonAchievementId: true },
+            select: { achievementId: true },
             take: 500,
         });
-        return { success: true, doneIds: rows.map((r) => r.dungeonAchievementId) };
+        return { success: true, doneIds: rows.map((r) => r.achievementId) };
     } catch (error) {
         logger.error("[getDungeonAchievementStates] Erreur", { error });
         return { success: false, error: "Impossible de lire les coches" };

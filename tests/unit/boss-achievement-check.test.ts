@@ -17,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
     db: {
         dungeonAchievement: { findFirst: vi.fn() },
         userProfile: { findUnique: vi.fn() },
-        userDungeonAchievement: {
+        userDungeonProgress: {
             findUnique: vi.fn(),
             create: vi.fn(),
             delete: vi.fn(),
@@ -46,6 +46,8 @@ beforeEach(() => {
     vi.mocked(getUserContext).mockResolvedValue({
         isAuthenticated: true,
         profileId: "profile-1",
+        canViewSucces: true,
+        canEditOwnSucces: true,
     } as never);
     vi.mocked(rateLimit).mockResolvedValue({ success: true } as never);
     vi.mocked(db.userProfile.findUnique).mockResolvedValue({
@@ -54,9 +56,9 @@ beforeEach(() => {
         altPseudos: [],
     } as never);
     vi.mocked(db.dungeonAchievement.findFirst).mockResolvedValue({ id: "ach-1" } as never);
-    vi.mocked(db.userDungeonAchievement.findUnique).mockResolvedValue(null as never);
-    vi.mocked(db.userDungeonAchievement.create).mockResolvedValue({ id: "row-1" } as never);
-    vi.mocked(db.userDungeonAchievement.delete).mockResolvedValue({ id: "row-1" } as never);
+    vi.mocked(db.userDungeonProgress.findUnique).mockResolvedValue(null as never);
+    vi.mocked(db.userDungeonProgress.create).mockResolvedValue({ id: "row-1" } as never);
+    vi.mocked(db.userDungeonProgress.delete).mockResolvedValue({ id: "row-1" } as never);
 });
 
 describe("toggleDungeonAchievement — gardes", () => {
@@ -66,8 +68,24 @@ describe("toggleDungeonAchievement — gardes", () => {
         const res = await toggleDungeonAchievement(baseArgs);
 
         expect(res.success).toBe(false);
-        expect(db.userDungeonAchievement.create).not.toHaveBeenCalled();
-        expect(db.userDungeonAchievement.delete).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.create).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.delete).not.toHaveBeenCalled();
+    });
+
+    it("refuse sans le droit de cocher ses succès (fail-closed)", async () => {
+        vi.mocked(getUserContext).mockResolvedValue({
+            isAuthenticated: true,
+            profileId: "profile-1",
+            canViewSucces: true,
+            canEditOwnSucces: false,
+        } as never);
+
+        const res = await toggleDungeonAchievement(baseArgs);
+
+        expect(res.success).toBe(false);
+        expect(db.dungeonAchievement.findFirst).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.create).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.delete).not.toHaveBeenCalled();
     });
 
     it("refuse quand le rate limit tombe (fail-closed)", async () => {
@@ -88,7 +106,7 @@ describe("toggleDungeonAchievement — gardes", () => {
         expect(db.dungeonAchievement.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: { id: "ach-1", dungeonId: "dungeon-1" } }),
         );
-        expect(db.userDungeonAchievement.create).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.create).not.toHaveBeenCalled();
     });
 });
 
@@ -97,11 +115,13 @@ describe("toggleDungeonAchievement — deux états", () => {
         const res = await toggleDungeonAchievement(baseArgs);
 
         expect(res).toEqual({ success: true, done: true });
-        expect(db.userDungeonAchievement.create).toHaveBeenCalledWith({
+        expect(db.userDungeonProgress.create).toHaveBeenCalledWith({
             data: {
-                userId: "profile-1",
-                dungeonAchievementId: "ach-1",
+                profileId: "profile-1",
+                dungeonId: "dungeon-1",
+                achievementId: "ach-1",
                 characterSlot: "PRINCIPAL",
+                source: "MANUAL",
             },
         });
     });
@@ -116,11 +136,13 @@ describe("toggleDungeonAchievement — deux états", () => {
         const res = await toggleDungeonAchievement({ ...baseArgs, characterSlot: "Mule" });
 
         expect(res).toEqual({ success: true, done: true });
-        expect(db.userDungeonAchievement.create).toHaveBeenCalledWith({
+        expect(db.userDungeonProgress.create).toHaveBeenCalledWith({
             data: {
-                userId: "profile-1",
-                dungeonAchievementId: "ach-1",
+                profileId: "profile-1",
+                dungeonId: "dungeon-1",
+                achievementId: "ach-1",
                 characterSlot: "Mule",
+                source: "MANUAL",
             },
         });
     });
@@ -129,21 +151,21 @@ describe("toggleDungeonAchievement — deux états", () => {
         const res = await toggleDungeonAchievement({ ...baseArgs, characterSlot: "Forgé" });
 
         expect(res.success).toBe(false);
-        expect(db.userDungeonAchievement.create).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.create).not.toHaveBeenCalled();
     });
 
-    it("décoche : supprime la ligne existante et renvoie done=false", async () => {
-        vi.mocked(db.userDungeonAchievement.findUnique).mockResolvedValue({ id: "row-9" } as never);
+    it("décoche : supprime la ligne canonique et renvoie done=false", async () => {
+        vi.mocked(db.userDungeonProgress.findUnique).mockResolvedValue({ id: "row-9" } as never);
 
         const res = await toggleDungeonAchievement(baseArgs);
 
         expect(res).toEqual({ success: true, done: false });
-        expect(db.userDungeonAchievement.delete).toHaveBeenCalledWith({ where: { id: "row-9" } });
-        expect(db.userDungeonAchievement.create).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.delete).toHaveBeenCalledWith({ where: { id: "row-9" } });
+        expect(db.userDungeonProgress.create).not.toHaveBeenCalled();
     });
 
     it("deux clics simultanés : la contrainte unique tranche en « fait »", async () => {
-        vi.mocked(db.userDungeonAchievement.create).mockRejectedValue({ code: "P2002" } as never);
+        vi.mocked(db.userDungeonProgress.create).mockRejectedValue({ code: "P2002" } as never);
 
         const res = await toggleDungeonAchievement(baseArgs);
 
@@ -153,20 +175,20 @@ describe("toggleDungeonAchievement — deux états", () => {
 
 describe("getDungeonAchievementStates", () => {
     it("ne lit que les succès du donjon, pour le profil courant", async () => {
-        vi.mocked(db.userDungeonAchievement.findMany).mockResolvedValue([
-            { dungeonAchievementId: "ach-1" },
-            { dungeonAchievementId: "ach-2" },
+        vi.mocked(db.userDungeonProgress.findMany).mockResolvedValue([
+            { achievementId: "ach-1" },
+            { achievementId: "ach-2" },
         ] as never);
 
         const res = await getDungeonAchievementStates("guild-1", "dungeon-1");
 
         expect(res).toEqual({ success: true, doneIds: ["ach-1", "ach-2"] });
-        expect(db.userDungeonAchievement.findMany).toHaveBeenCalledWith(
+        expect(db.userDungeonProgress.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
-                    userId: "profile-1",
+                    profileId: "profile-1",
                     characterSlot: "PRINCIPAL",
-                    dungeonAchievement: { dungeonId: "dungeon-1" },
+                    achievement: { dungeonId: "dungeon-1" },
                 },
             }),
         );
@@ -178,6 +200,20 @@ describe("getDungeonAchievementStates", () => {
         const res = await getDungeonAchievementStates("guild-1", "dungeon-1");
 
         expect(res.success).toBe(false);
-        expect(db.userDungeonAchievement.findMany).not.toHaveBeenCalled();
+        expect(db.userDungeonProgress.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuse la lecture sans accès au module Succès (fail-closed)", async () => {
+        vi.mocked(getUserContext).mockResolvedValue({
+            isAuthenticated: true,
+            profileId: "profile-1",
+            canViewSucces: false,
+            canEditOwnSucces: false,
+        } as never);
+
+        const res = await getDungeonAchievementStates("guild-1", "dungeon-1");
+
+        expect(res.success).toBe(false);
+        expect(db.userDungeonProgress.findMany).not.toHaveBeenCalled();
     });
 });

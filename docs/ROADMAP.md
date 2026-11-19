@@ -48,8 +48,8 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
 | 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1 → T-4 livrés** (T-4a le 12/11 : G8, O15, G9 tokenisée) | **G7 (hero) + composition G9** (captures) → **T-5** (O9/O10/O11/O12/O13) → **T-6** (G6, `useOptimistic`) | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B, V-G, V-F partiel, V-H livrés** · bloc B (route publique) 12/11 · route à 3 étages corrigée 12/11 · **25 conseils** (194 restants) | **V-C** (purge WebP, ops VPS) · **V-D2** (clos) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `MAPPING-RUSH-SYLVESTRE.md` | — |
-| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1460** : guide **536**, **451 + 76 prérequis**, **303 succès en tags** ; verrouillage lisible ; **séries Ali**, **UX 4/4**, **prérequis OU**, **DA PiP + guide**, **UI-1 + donjons + DofusDex supprimé**, **Bloc I** | Bloc J → 55 conseils → VPS | `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5 | — |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B, V-G, V-F partiel, V-H livrés** · bloc B (route publique) 12/11 · route à 3 étages corrigée 12/11 · **25 conseils écrits** (55 restants sur le guide 536) | **V-C** (purge WebP, ops VPS) · **V-D2** (à re-mesurer sur 536 puis trancher) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `MAPPING-RUSH-SYLVESTRE.md` | — |
+| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1460** : guide **536**, **451 + 76 prérequis**, **303 succès en tags** ; verrouillage lisible ; **séries Ali**, **UX 4/4**, **prérequis OU**, **DA PiP + guide**, **UI-1 + donjons + DofusDex supprimé**, **Bloc I** | 55 conseils → VPS (Bloc J livré le 19/11) | `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5 | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |
@@ -76,7 +76,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 62 | `da-wakfu` | DA « Gouache Wakfu » : habillage du Rush, puis passation dashboard | **E0→E3e livrés** 05/11 : overlay · guides · 12 modales · bandeau+panneau unifiés ; panneau public aligné 07/11 · **hero plafonné** en fenêtre courte 09/11 | **E4 reporté** (chantier dédié) | skill | — |
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
-| 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | **N1→N4 + N2-bis livrés 15/11** (page compte, hub signalements, changelog, opt-out) | Rush v2 reporté (toasts live) | — | — |
+| 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | **N1→N4 + N2-bis livrés 15/11** (page compte, hub signalements, changelog, opt-out) | Rush v2 (toasts live) — **à vérifier** : V2c a livré le live entre visiteurs le 11/11 | — | — |
 
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : aucun appel réseau pour servir une image | **S1 + S1b + S2 livrés** · 2 294 apparences (`remaining: 0`) · hybride `ASSETS_REMOTE_FETCH` (défaut `false`) | **S3** (couverture) → **S4** (cron + alerte) | `docs/plans/PLAN-SOUVERAINETE-IMAGES.md` | — |
 
@@ -105,7 +105,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 **Ordre** : **D1 → D7 livrés** (D1–D3 le 16/11/2026, D4 le 25/09/2026, D5–D7 le 17/11/2026) ; reste **D8/D9**, vérifications humaines à faire dès que possible.
 
-**Visiteurs** : **V4 → V9 livrés côté code** ; les migrations V4 (`PublicBountyCompletion`, `UserBountyCompletion`, `characterSlot`) restent à jouer en **bêta puis prod**.
+**Visiteurs** : **V4 → V9 livrés côté code** ; les migrations V4 (`PublicBountyCompletion`, `UserBountyCompletion`, `characterSlot`) sont **à jour en bêta** (mesure du 17/11, dernière `20270207000001`) ; **prod** : à vérifier avant déploiement.
 
 ## 2 quater. Visiteurs — avis, personnages et personnalisation (V4→V9, livrés les 16-17/11/2026)
 
@@ -174,7 +174,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 9 | T-5 — overlay avancé (O9, O10, O11, O13, O12) | 9 | L |
 | 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
 | 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
-| 12 | Données Tougli / Dofusyelle (V-D2, ou acter la cible 517) | 10 | ? |
+| 12 | Données Tougli / Dofusyelle (V-D2 — re-mesurer sur 536 puis trancher) | 10 | ? |
 | 13 | ~~Tour guidé (reste V2a-4)~~ ✅ **livré le 16/11/2026** (profil + guide Rush, connecté/anonyme) · V3 (God visiteurs) — **V2d abandonné** · **reste** : contrôle visuel 390/768/1024/1440 (bulle + parcours anonyme/connecté) | 57 | ? |
 
 

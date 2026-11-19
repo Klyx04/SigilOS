@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 34) — **Rush · itération 1 : état documentaire aligné** — branche `docs/rush-etat-aligne-2026-11-19`
+
+> **Demande user (verbatim)** : « fais 1 et 2 pour commencer » — itération 1 = docs, itération 2 = contenu (55 conseils + monstres + positions).
+> **Mesures (base locale, 19/11)** : guide **36 blocs / 536 séquences** · **0** page `/q` publiée · **0** `constraints` · **0** tag `prereq_expr` (seed importé antérieur à l'OU) · **6** tips de quête / **23** de bloc · **742** tags combat sans id (404 `combat_solo` + 338 `combat_plusieurs`) · **55** conseils à rédiger (50 quêtes + 5 blocs). Bêta : **494/238/32/19**, migrations à jour (`20270207000001`), code non déployé.
+> **Fait** : #1462 **déjà mergée** (`dev 88146076`) ; docs recalées — ROADMAP (55 conseils, V-D2, file V-D2, notifications, migrations V4), MODULE §T/§5 (O15/G8 livrés, 3 donjons soldés, 4 étapes/3 succès, cache = code, mesures), ROUTE §10/§12 (536, `prereq_expr` = 0, monstres 742), REFONTE (E3c livré, E2a abandonné).
+> **Preuves** : `git status` propre · docs uniquement · aucun code, aucune migration.
+> **Reste** : itération 2 — 55 conseils (Dofusyelle, paraphrases), monstres (742 tags → ids + images + fiches interne/visiteur), positions de lancement (`GameQuest.posX/posY/npcName` via `questDbIds`), puis VPS.
+> **Rotation** : bloc « suite 28 » (UI-1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 19/11/2026 (suite 33) — **Rush · Bloc J « Progression Donjons »** — branche `feat/rush-bloc-j-progression-donjons`
 
 > **Demandes user (verbatim)** : « bloc j / tu décales rush live et ouvrir overlay à droite et tu le mets entre les 2 / responsive / idem guides visiteurs connecté / non connecté / même chose dans l'overlay / oublie pas les assets » ; puis « pk tu manges l'écran en bas ? où est le skill responsive ? ».
@@ -53,15 +64,6 @@
 > **Preuves** : `rush-dungeons-choix` **13/13** · **118 tests ciblés** (donjons, parité, Ocre) · **762 fichiers / 8 008 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
 > **Reste / ops** : PR ; sur Maïmane, **11/30 donjons sont en base** (12 au seed : G1 = 5, G2 = 4, G3 = 2) ⇒ 3 groupes sur 6 sont pris en compte (les 3 autres ignorés, fail-open) : la quête peut être débloquée avec **3 donjons** — à finir avec les **alias de donjons** (data, 19 à résoudre) ; puis Bloc I → Bloc J → 55 conseils → VPS.
 > **Rotation** : bloc « suite 23 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 19/11/2026 (suite 28) — **Rush · UI-1 (Succès public + Dofus du bloc)** — branche `feat/rush-ui-1`
-
-> **Demande user (verbatim)** : « commencer la prochaine session par `gh pr checks 1450`, merger si vert, puis `git fetch origin dev`… » ; « Ensuite : **UI-1 → Bloc I → Bloc J → 55 conseils → VPS** ».
-> **Fait** : ① **#1450 mergée** (`dev 2d70019c`, CI **6/6 verte**, branche supprimée) ; ② **pastille Succès du guide public** — `SuccessChip` + `guideQuests` construit sur les **mêmes `questDbIds`** que le dashboard, verrouillé par `rush-public-parity` ; ③ **icône Dofus de l'overlay** — le médaillon de la barre de chapitre porte le **Dofus du bloc** (`getDofusMeta`, repli `etape.png`) et la liste des chapitres nomme chaque Dofus (parité dashboard/public) ; ④ **points fermés par la mesure** : DofusDex **déjà livré** (`PublicDofusProgressPanel` + `RushDofusDetailModal`), items **déjà couverts** (`ResourceImage` par id, **1 898 WebP**) ; ⑤ **compteur 448** : payload local **536 séquences / 0 info / 0 choix** ⇒ le public affiche **536** ; aucun chemin ne produit 448 — **à reproduire sur l'écran exact** ; ⑥ **monstres** : **742 tags de combat sans id**, **31 PNG** locaux ⇒ **lot data** (seed + proxy), pas UI.
-> **Preuves** : `rush-public-parity` **51/51** · `rush-overlay-chapitre-bulles` **14/14** · `da-wakfu` **66/66** · **761 fichiers / 7 995 tests ✅** · `npx tsc --noEmit` **0** · lint **0 erreur** (7 791 warnings préexistants).
-> **Reste / ops** : PR de `feat/rush-ui-1` ; **Bloc I** (succès de donjon) → **Bloc J** → **55 conseils** → **VPS** ; archivage + import `prereq_expr` (local **et** VPS) ; 3 alias de donjons.
-> **Rotation** : bloc « suite 22 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

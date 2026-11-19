@@ -197,7 +197,7 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
 - **Éditeur God** : la refonte UI/UX du studio a son plan dédié — `docs/plans/REFONTE-EDITEUR-RUSH.md` (E1→E5).
-- **Reste** : **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits · **DA « Carnet de campagne » livrée le 02/11** (matières, en-tête, chapitre, cartes, fiches, bandeaux, alignement, filtre Toutes/En cours/Verrouillées, ressources à prévoir, footer et portails ; verrou `rush-da-grimoire` **23**), restent **O15** motion sobre, **G7** hero complet, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Reste** : **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits · **DA « Carnet de campagne » livrée le 02/11** (matières, en-tête, chapitre, cartes, fiches, bandeaux, alignement, filtre Toutes/En cours/Verrouillées, ressources à prévoir, footer et portails ; verrou `rush-da-grimoire` **23**), **O15** et **G8** sont livrés le 12/11 (T-4a) ; restent **G7** hero complet et la composition **G9** (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
 - **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136) · **T2 consolidé** le 27/10/2026 (composant mort supprimé, verrou sur le code rendu) · **T-2c livré le 20/10/2026** (prérequis par id stable — il était encore listé en reste ici par erreur).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
@@ -267,7 +267,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Livré le 04/11/2026 (`V-D1`, branche `feat/rush-ressources`)** : règle pure `src/lib/rush-resource-tags.ts` (`mergeItemTags` : ajoute les ids absents, ne réécrit ni ne supprime, nom **canonique** réutilisé) + `scripts/enrich-rush-guide-resources.ts` (appariement `questDbIds` → URL → nom, dry-run, `--apply --db`, `--sql` additif) ⇒ **81 séquences**, **252 tags**, **173 ids** dont **95 nouveaux** : **390 → 485**. Brâkmarien **1 → 151 ids**, **65** séquences avec objets. **2ᵉ passage = 0 écriture** ; dataset **inchangé** (ces séquences ne sont pas dans le seed) ; **aucune migration**.
   **Jamais de re-seed** (il écraserait les éditions God) : le script, idempotent, fait foi — le rejouer sur la bêta (`--sql`), puis pré-chauffer les **95** icônes nouvelles.
 - **Défaut mesuré et corrigé le 04/11/2026** : la trame Tougli a poussé l'id **7696** (« Dragofesse en Cuir Violet de Bwork ») que DofusDB **ne connaît pas** (elle renvoie l'item de repli **666**) et qui est absent de `GameItem` ⇒ **garde catalogue** dans le script (un id inconnu n'est jamais écrit) + retrait ciblé (`--drop-ids 7696`, appliqué en local et sur la bêta). Sur les **485** ids du guide, **2** sont absents du catalogue : **7696** (fautif) et **10000000001** (Kamas, icône locale, whitelisté).
-- **Reste (`V-D2`, à trancher)** : **51** ids Tougli dont la quête est absente de notre base (530 quêtes Tougli vs 492 séquences) + **67** ids Dofusyelle par étape. `preparation.items` (391 noms, sans id, non lu par l'UI) n'est pas reconstruit.
+- **Reste (`V-D2`, à trancher)** : **51** ids Tougli dont la quête est absente de notre base (530 quêtes Tougli vs 492 séquences) + **67** ids Dofusyelle par étape — **chiffres de l'ancien guide 492** : à re-mesurer sur le guide **536** avant de trancher. `preparation.items` (391 noms, sans id, non lu par l'UI) n'est pas reconstruit.
 - **Dépendances** : **B** (livré) · **Statut** : **V-D1 livré**, V-D2 ouvert.
 
 ### E — Vérifications + docs
@@ -526,9 +526,15 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 ## 5. Retours du test local (17/11/2026) — backlog UI/UX
 
-> Le guide **Touglie enrichi** est importé (36/591) et bon ; les retours portent sur le **rendu** ou le
+> Le guide **Touglie enrichi** est importé (36/536) et bon ; les retours portent sur le **rendu** ou le
 > **contenu non importé**. Détail route/seed/archive : `ROUTE-RUSH-ISO-TOUGLI.md` §10-13 ; prérequis :
 > `QUEST-PREREQUISITES.md` §5.1/§6 ; feature succès de donjon : **Bloc I**.
+>
+> **Mesures du 19/11/2026 (base locale)** : **36 blocs / 536 séquences** · **0** page `/q`
+> publiée · **0** `constraints` · **0** tag `prereq_expr` (le seed importé est antérieur à l'OU) ·
+> **6** tips de quête / **23** de bloc · **742** tags combat sans id · **55** conseils à rédiger
+> (5 blocs + 50 quêtes). Le `591` du §10 de `ROUTE-RUSH` est la génération du 17/11 ; le guide
+> importé fait **536**.
 
 | Retour | Lot | Points d'entrée |
 |---|---|---|
@@ -536,7 +542,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** pour que la donnée arrive au guide |
 | Détail trop petit / vrais monstres/items | UI — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (0 id sur 742 tags de combat, 31 PNG locaux) | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
 | 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
-| Compteur 0/448 vs 591 séquences | ⏸ **à reproduire** : payload local = **536** séquences, **0** info, **0** choix ⇒ le public affiche 536 ; aucun chemin ne produit 448 | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
+| Compteur 0/448 vs 536 séquences | ⏸ **à reproduire** : payload local = **536** séquences, **0** info, **0** choix ⇒ le public affiche 536 ; aucun chemin ne produit 448 | `RushGuideView`/`stepCounts` (étapes ≠ 536 séquences ; succès/donjons/infos) |
 | 16 DofusDex sans panneau | ✅ **déjà livré** : `PublicDofusProgressPanel` + `RushDofusDetailModal` partagée avec l'interne | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
 | Icône Dofus discrète | ✅ **livré 19/11/2026** : le médaillon de la barre de chapitre porte le **Dofus du bloc** (overlay), et la liste nomme chaque Dofus — parité dashboard/public | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
 | Pastille Succès absente du guide **public** | ✅ **livré 19/11/2026** : `SuccessChip` + `guideQuests` (mêmes `questDbIds`), verrouillé par `rush-public-parity` | `SuccessChip`, `getSequenceSuccesses` |
@@ -546,13 +552,13 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Quêtes non cliquables | ✅ livré 18/11/2026 | la ligne (nom) ouvre la fiche sur le dashboard et le guide public ; picto « i » conservé |
 | Changement perso sans message | ✅ livré 18/11/2026 | toast « Personnage actif : <nom> » + `sync` de l'overlay ouvert |
 | Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |
-| Succès de donjon | **Bloc I** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
-| Donjons du guide : qui a fait quoi | **Bloc J** | `PlayerGuideDungeonState`, `PublicRushProgress.dungeonChecks`, `dungeonKeyOf`, `resolveRushRoute` (route **avant** l'agrégat) |
+| Succès de donjon | ✅ **livré 19/11/2026 (Bloc I)** | `RushOverlayDungeonCard`, `setRushDungeonState`, `DungeonAchievement`, `UserDungeonAchievement` |
+| Donjons du guide : qui a fait quoi | ✅ **livré 19/11/2026 (Bloc J)** | `PlayerGuideDungeonState`, `PublicRushProgress.dungeonChecks`, `dungeonKeyOf`, `resolveRushRoute` (route **avant** l'agrégat) |
 | 55 conseils | Éditorial | `tipsToWrite` |
 | Descriptions de blocs (8 vs 12) | Seed | `enrichTouglieWithYelle` (mettre à jour `description` après les succès) |
-| 3 donjons inconnus | Data | `dungeonNames` 98/95, `Dungeon`/`bossName` |
-| 4 étapes/10 succès | Normal | « Compléments — succès hors trame » |
-| Cache public | Ops | ISR 1 h, `revalidatePath`/`updateRushSylvestreSettings` |
+| 3 donjons inconnus | ✅ **soldé le 19/11/2026** : les 3 alias mesurés (`rush-dungeon-names`) ; re-générer le rapport pour 98/98 | `dungeonNames`, `Dungeon`/`bossName` |
+| 4 étapes / **3 succès** (rapport du 18/11) | Normal | « Compléments — succès hors trame » |
+| Cache public | Code | ISR 1 h, `revalidatePath`/`updateRushSylvestreSettings` |
 | Progression au déplacement | Backend | `moveRushSequence`, `PlayerGuideProgress`, `deleteRushMilestone` |
 | Pages `/q/<slug>` | Ops | 0 publiée |
 | Quêtes d'alignement numérotées (« Ali 1 », « Ali 2 »…), séparées Bonta / Brâkmar | ✅ livré 18/11/2026 | `buildAlignmentSeries` (rangs 1→100/102, Ordres 1→5) · `RushAlignmentBadge` · sections par cité sur dashboard / guide public / overlay |

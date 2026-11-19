@@ -462,9 +462,13 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
   });
 
   it("aucun onglet ni fenêtre globale : la coche est DANS la quête", () => {
-    // L'overlay n'a plus de bouton donjon dans sa barre d'actions.
-    expect(codeOf(OVERLAY_HEADER)).not.toMatch(/onOpenDungeons/);
-    // Ni le dashboard ni le public n'ont de bouton / modale « Donjons du guide ».
+    // Bloc J (19/11/2026) — la barre d'actions de l'overlay porte une vue d'ENSEMBLE
+    // **en lecture** (« Progression Donjons ») : la question « qui a fait quoi » n'a
+    // pas de sens enfermée dans une quête. La COCHE, elle, reste dans la quête :
+    // l'overview n'écrit jamais (aucun setter de donjon dans l'en-tête).
+    expect(codeOf(OVERLAY_HEADER)).toMatch(/onOpenDungeons/);
+    expect(codeOf(OVERLAY_HEADER)).not.toMatch(/onSetDungeon|setRushDungeonState/);
+    // Ni le dashboard ni le public n'ont de bouton / modale « Donjons du guide » legacy.
     expect(DASH).not.toMatch(/dungeonsModalOpen|RushDungeonsModalShell/);
     expect(PUB).not.toMatch(/setShowDungeons|RushDungeonsModalShell/);
     // L'ancienne liste globale a disparu (aucun code mort).

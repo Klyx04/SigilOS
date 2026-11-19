@@ -97,6 +97,15 @@ import {
   type DungeonAchievementToggleInput,
 } from "@/lib/rush-dungeon-achievements";
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
+import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
+import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
+import {
+  buildRushDungeonsOverview,
+  rushDungeonsCounter,
+  type RushOverviewDungeon,
+  type RushOverviewMember,
+} from "@/lib/rush-dungeons-overview";
+import { getMyRushDungeonsCommunity } from "@/app/guides/rush-sylvestre/_actions/public-rush-dungeons";
 import {
   getMyRushDungeonAchievementPanel,
   getRushDungeonAchievementCatalogue,
@@ -908,6 +917,52 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // Le navigateur reste la **source** (D1) ; la base est un **miroir**, pour que la suite
   // (V2a : « qui a coché quoi ») puisse la lire. Non connecté ⇒ aucun appel réseau.
   const characterSlot = guestCharacterSlot(character) ?? PUBLIC_SLOT_PRINCIPAL;
+  // ── Bloc J — vue « Progression Donjons » (tuile + panneau) ─────────────
+  const [dungeonsOverviewOpen, setDungeonsOverviewOpen] = useState(false);
+  const [dungeonsCommunity, setDungeonsCommunity] = useState<RushOverviewMember[] | null>(null);
+  const dungeonsCommunityLoaded = useRef(false);
+  const openDungeonsOverview = useCallback(() => {
+    setDungeonsOverviewOpen(true);
+    if (!visitor || dungeonsCommunityLoaded.current) return;
+    dungeonsCommunityLoaded.current = true;
+    void getMyRushDungeonsCommunity(characterSlot)
+      .then((res) => {
+        if (res.success) setDungeonsCommunity(res.members);
+        else dungeonsCommunityLoaded.current = false;
+      })
+      .catch(() => {
+        dungeonsCommunityLoaded.current = false;
+      });
+  }, [visitor, characterSlot]);
+  const dungeonsOverviewMe = useMemo(
+    () => ({
+      doneKeys: Object.entries(dungeonStates)
+        .filter(([, state]) => state === "done")
+        .map(([key]) => key),
+      flags: [...bookmarksByMs.values()],
+    }),
+    [dungeonStates, bookmarksByMs]
+  );
+  const dungeonsCounter = useMemo(
+    () =>
+      rushDungeonsCounter(
+        buildRushDungeonsOverview({ milestones, me: dungeonsOverviewMe })
+      ),
+    [milestones, dungeonsOverviewMe]
+  );
+  const openOverviewAchievements = useCallback(
+    (row: RushOverviewDungeon) => {
+      const occurrence = row.occurrences.find((entry) => !entry.isOptional) ?? row.occurrences[0];
+      if (!occurrence || !row.dungeonId) return;
+      openDungeonAchievements(occurrence.sequenceId, row.key, {
+        id: row.dungeonId,
+        name: row.name,
+        bossName: row.bossName ?? undefined,
+        imageUrl: row.imageUrl ?? undefined,
+      });
+    },
+    [openDungeonAchievements]
+  );
 
   const buildProgressSnapshot = useCallback(
     () => ({
@@ -2021,6 +2076,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             selfPseudo={visitor?.pseudo ?? null}
             locale={locale}
           />
+          <RushDungeonsOverviewModal
+            open={dungeonsOverviewOpen}
+            onClose={() => setDungeonsOverviewOpen(false)}
+            milestones={milestones}
+            me={dungeonsOverviewMe}
+            members={visitor ? dungeonsCommunity : null}
+            mode={visitor ? "visitor" : "guest"}
+            locale={locale}
+            daScope={daScope}
+            routeLabel={rushView.alignment?.label ?? null}
+            onGoToStep={(sequenceId) => {
+              setDungeonsOverviewOpen(false);
+              scrollToStep(sequenceId);
+            }}
+            onOpenAchievements={openOverviewAchievements}
+          />
           {/* F6 — la liste des prérequis, dans la MÊME modale que l'overlay. */}
           {prereqModal ? (
             <RushOverlayPrereqModal
@@ -2226,6 +2297,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         {visitor ? (
           <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
         ) : null}
+
+        {/* Bloc J — « Progression Donjons », entre « Rush Live » et « Ouvrir Overlay ». */}
+        <RushDungeonsProgressTile
+          done={dungeonsCounter.done}
+          total={dungeonsCounter.total}
+          onClick={openDungeonsOverview}
+          locale={locale}
+        />
+        <span aria-hidden="true" className="hidden w-px self-stretch bg-border md:block" />
 
         {/* Lancer l'overlay en jeu — une seule action mise en avant par écran. Plus de
             `ml-auto` : il créait un grand vide entre « Rush Live » et le bouton (retour

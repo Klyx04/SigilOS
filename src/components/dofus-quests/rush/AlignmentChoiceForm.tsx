@@ -52,7 +52,7 @@ export function AlignmentChoiceForm({
 
   const opt = (active: boolean) =>
     cn(
-      "rounded-[4px] border px-2 py-1.5 text-[11px] font-semibold transition-colors",
+      "min-h-11 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors",
       active
         ? "border-accent/60 bg-accent/10 text-foreground"
         : "border-border bg-surface text-muted-foreground hover:text-foreground"

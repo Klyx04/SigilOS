@@ -21,6 +21,16 @@ import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
+import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
+import {
+  buildRushDungeonsOverview,
+  rushDungeonsCounter,
+  type RushOverviewMember,
+} from "@/lib/rush-dungeons-overview";
+import {
+  getPublicRushDungeonsCommunity,
+  getRushDungeonsCommunity,
+} from "@/server/actions/rush-dungeons-overview-actions";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { readDungeonStates, writeDungeonState } from "@/lib/rush-dungeon-storage";
 import {
@@ -499,6 +509,45 @@ export default function GuideOverlayClient({
     guildDungeons.ensureLoaded,
   ]);
 
+  // ── Bloc J — « Progression Donjons » (bouton d'en-tête + panneau) ───────
+  const isPublicSurface = guildId === "public";
+  const [dungeonsOverviewOpen, setDungeonsOverviewOpen] = useState(false);
+  const [dungeonsCommunity, setDungeonsCommunity] = useState<RushOverviewMember[] | null>(null);
+  const dungeonsCommunityLoaded = useRef(false);
+  const openDungeonsOverview = useCallback(() => {
+    setDungeonsOverviewOpen(true);
+    if (dungeonsCommunityLoaded.current) return;
+    if (isPublicSurface && !feedbackSignedIn) return;
+    dungeonsCommunityLoaded.current = true;
+    const request = isPublicSurface
+      ? getPublicRushDungeonsCommunity()
+      : getRushDungeonsCommunity(guildId, guide.slug, effectiveAltPseudo);
+    void request
+      .then((res) => {
+        if (res.success) setDungeonsCommunity(res.members);
+        else dungeonsCommunityLoaded.current = false;
+      })
+      .catch(() => {
+        dungeonsCommunityLoaded.current = false;
+      });
+  }, [guildId, guide.slug, effectiveAltPseudo, isPublicSurface, feedbackSignedIn]);
+  const dungeonsOverviewMe = useMemo(
+    () => ({
+      doneKeys: Object.entries(dungeonActions.states)
+        .filter(([, state]) => state === "done")
+        .map(([key]) => key),
+      flags: [...bookmarksByMs.values()],
+    }),
+    [dungeonActions.states, bookmarksByMs]
+  );
+  const dungeonsCounter = useMemo(
+    () =>
+      rushDungeonsCounter(
+        buildRushDungeonsOverview({ milestones, me: dungeonsOverviewMe })
+      ),
+    [milestones, dungeonsOverviewMe]
+  );
+
   // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
   // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay.
   useGuideProgressSync(
@@ -879,6 +928,16 @@ export default function GuideOverlayClient({
       }, 90);
     },
     [milestones, currentMsIndex]
+  );
+
+  const handleGoToDungeonStep = useCallback(
+    (seqId: string) => {
+      const milestone = milestones.find((ms) =>
+        Array.isArray(ms.sequences) && ms.sequences.some((seq) => seq.id === seqId)
+      );
+      handleGoToPrereq(seqId, milestone?.id ?? "");
+    },
+    [milestones, handleGoToPrereq]
   );
 
   // ─── Présence communauté : membres ayant un repère sur ce chapitre ─────────
@@ -1555,6 +1614,30 @@ export default function GuideOverlayClient({
             }
             metamobVerified={metamobVerified}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
+            onOpenDungeons={openDungeonsOverview}
+            dungeonsPending={Math.max(0, dungeonsCounter.total - dungeonsCounter.done)}
+          />
+
+          <RushDungeonsOverviewModal
+            open={dungeonsOverviewOpen}
+            onClose={() => setDungeonsOverviewOpen(false)}
+            milestones={milestones}
+            me={dungeonsOverviewMe}
+            members={
+              isPublicSurface
+                ? feedbackSignedIn
+                  ? dungeonsCommunity
+                  : null
+                : dungeonsCommunity
+            }
+            mode={isPublicSurface ? (feedbackSignedIn ? "visitor" : "guest") : "member"}
+            variant="overlay"
+            quality={overlayDensity === "tight" ? "low" : "high"}
+            portalContainer={rootRef.current?.ownerDocument.body ?? null}
+            onGoToStep={(seqId) => {
+              setDungeonsOverviewOpen(false);
+              handleGoToDungeonStep(seqId);
+            }}
           />
 
           {/* ══ RECHERCHE ══ */}

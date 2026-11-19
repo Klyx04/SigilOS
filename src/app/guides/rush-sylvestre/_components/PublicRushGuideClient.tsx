@@ -3248,7 +3248,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                             coche ; la fiche liste leurs noms et leur état. */}
                                         <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} />
                                         {parsedCoord && (
-                                          <RushCoordinateChip coordText={parsedCoord.raw} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
+                                          <RushCoordinateChip coordText={parsedCoord.raw} showIcon showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
                                         )}
                                         {(() => {
                                           const npc = getSequenceNpc(seq as any);

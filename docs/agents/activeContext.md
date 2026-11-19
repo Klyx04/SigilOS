@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
+
+> **Demande user (verbatim)** : « toutes les positions de lancement de quete? on les affiche pas actuellement ».
+> **Mesure** : la trame Tougli n'a aucune position ; `DofusQuestEntry` ne couvre que 199/552 quêtes (17 positions monde, 125 PNJ) ; DPLN expose la position en ligne du haut **ou dans le corps** (ex. 1859 « Faire le mort » → `[-26,36]`) ; 6 pages n'ont aucune position écrite (622, 623, 1528, 1629, 1630, 1938) ; **alignement 233/233, Ordres 30/30, classes 19/19**.
+> **Fait** : siphon `--only` sur les 15 pages + fallback `.paragraph` + `DofusQuestEntry` ⇒ **524 / 530** (515 ligne du haut + **9 reprises corps**, dont Faire le mort) ; `allowZaap` vrai + `worldId` 1 (les champs du studio God), zaap le plus proche résolu par `resolveMapWorldAction` ; `showIcon` + zaap sur les 3 surfaces ; `pos_tags` après les ressources (863 intactes), **525 tags** (une jumelle).
+> **Preuves** : carte 524 · **772 fichiers / 8 118 tests ✅** · `tsc` 0 · `rush-trame-seed` **41** · `rush-quest-positions` **5** · ressources **863** intactes · aucune migration.
+> **Reste** : 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) — à compléter à la main ; import du guide (itération 3) pour voir les positions en base.
+> **Rotation** : bloc « suite 31 » (Bloc I) sorti (7ᵉ).
+
+
+
 ## 📝 Session 19/11/2026 (suite 36) — **Rush · 55 conseils (itération 2b)** — branche `feat/rush-conseils-2026-11-19`
 
 > **Demande user (verbatim)** : « toutes les conseils c quoi ? tougli ou dofusyelle? » ; « oui étape par étape go ».
@@ -58,15 +69,7 @@
 > **Rotation** : bloc « suite 26 » (`prereq_expr`) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 19/11/2026 (suite 31) — **Rush · Bloc I (succès de donjon) + coches unifiées** — branches `fix/succes-canonique` + `feat/rush-bloc-i-succes-donjon` + `fix/rush-succes-panneau-deslop`
 
-> **Décisions user** : Q1 **unifier sur « Mes Succès »** ; Q2 **séparé** (guide interne = profil de guilde, guide public = profil visiteur) ; Q3 **sélecteur** si le personnage du guide n'est pas déclaré ; Q4 le faux « Donjon validé » **jamais listé** (les boss d'anomalie, les 4 doubles boss Frigost et la quête de Qu'Tan ne sont pas des donjons du rush) ; Q5 **guest en lecture seule** ; Q6 **RBAC strict** ; Q7 **2 PR**.
-> **Fait — PR #1456 (`fix/succes-canonique`)** : `toggleDungeonAchievement` / `getDungeonAchievementStates` basculés sur **`UserDungeonProgress`** (`source: MANUAL`, `dungeonId`) ; `canViewSucces` en lecture + `canEditOwnSucces` en écriture ; `scripts/backfill-dungeon-achievements.ts` (dry-run par défaut, idempotent, sans suppression) ; fiche boss alignée (`canEdit`).
-> **Fait — PR #1457 (`feat/rush-bloc-i-succes-donjon`)** : règle pure `rush-dungeon-achievements` ; catalogue public unique `src/server/dungeon-achievements.ts` ; panneau interne `getRushDungeonAchievementPanel` (séquence/donjon requis, personnage validé) + panneau visiteur `public-rush-achievements` + couture `_actions/public-dungeon-achievements` ; `DungeonAchievementsPanel` partagé, modale pleine Radix + mini-modale PiP (`data-quality` high/low, largeurs `min()`) ; `+` sur la carte donjon (requis + résolu uniquement, règle `canOpenDungeonAchievements`) câblé dans le dashboard, le guide public et l'overlay ; le guest voit le catalogue sans cocher ; le sélecteur visiteur résout le personnage déclaré.
-> **Fait — PR #1458 (`fix/rush-succes-panneau-deslop`)** : retrait des points `+10` du panneau du guide (la fiche boss les garde) et de la case à cocher en lecture seule (guest / droit manquant) ; le verrou `rush-dungeon-achievements-ui` passe à **17**.
-> **Preuves** : **767 fichiers / 8 068 tests ✅** · `tsc` 0 · lint 0 erreur · `boss-achievement-check` **17** · `rush-dungeon-achievements` **16** · `-public` **6** · `-ui` **17**.
-> **Reste / ops** : **PR #1456 + #1457 + #1458 mergées** ; mesurer `UserDungeonAchievement` / `UserDungeonProgress` sur la bêta **et** la prod (la clé lecture seule ne les expose pas ; requête humaine ou verbe `counts-succes` à revoir) ; **après déploiement**, `npx -y tsx scripts/backfill-dungeon-achievements.ts` (dry-run → `--apply`) si les compteurs legacy > 0 ; deploy bêta puis re-mesure 494/238/32/19 ; **18 alias de donjons** (data) avant **Bloc J** ; puis 55 conseils, VPS.
-> **Rotation** : bloc « suite 25 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

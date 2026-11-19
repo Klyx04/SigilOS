@@ -1614,6 +1614,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         data-da="wakfu"
         data-theme="dark"
         data-block={daTheme.block}
+        /* Surface « page » : le guide public est le grand écran, pas la PiP. */
+        data-host="page"
         data-quality="high"
         className="rush-guide da-grain da-guide"
         style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}

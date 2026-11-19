@@ -183,7 +183,16 @@ describe("DA Gouache Wakfu — coût de rendu", () => {
     });
 
     it("aucun filtre sur les bords de carte hors qualité haute", () => {
-        expect(css).toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{\s*filter:\s*url\(#da-rough\)/);
+        // Le filtre « rough » coûte une rastérisation PAR CARTE au défilement :
+        // en haute qualité il est réservé aux cartes focales (« faire
+        // maintenant » et « je suis ici »). Le reste garde le `clip-path`.
+        expect(css).toMatch(
+            /\[data-quality="high"\]\s+\.da-row\[data-state="next"\]\s+\.da-card::before[\s\S]*?filter:\s*url\(#da-rough\)/
+        );
+        expect(css).toMatch(
+            /\[data-quality="high"\]\s+\.da-row\[data-here="true"\]\s+\.da-card::before[\s\S]*?filter:\s*url\(#da-rough\)/
+        );
+        expect(css).not.toMatch(/\[data-quality="high"\]\s+\.da-card::before\s*\{[^}]*filter:/);
         const cardRule = css.match(/\.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
         expect(cardRule).not.toMatch(/filter:/);
     });
@@ -655,6 +664,75 @@ describe("DA Gouache Wakfu — le reste des guides (E3d)", () => {
         for (const path of [GUIDE, PUBLIC]) {
             expect(code(path), path).not.toMatch(/\bitalic\b/);
         }
+    });
+});
+
+/**
+ * Retouches UI/UX du 19/11/2026 — huit règles d'habillage (DA Wakfu).
+ *
+ * Elles ne changent aucun libellé, aucun bouton, aucune logique : elles
+ * rendent lisibles l'étape active, la quête verrouillée, la copie d'une
+ * coordonnée, les petites PiP, l'ambiance du guide et le conseil ouvert.
+ * Le filtre `#da-rough` reste interdit sur la liste : il est réservé aux
+ * deux cartes focales en haute qualité.
+ */
+describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
+    const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+    const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+    const CHIP = "src/components/dofus-quests/rush/RushCoordinateChip.tsx";
+
+    it("la PiP et le guide public portent leur surface (`pip` / `page`)", () => {
+        expect(readFileSync(OVERLAY, "utf8")).toMatch(/data-host="pip"/);
+        expect(readFileSync(PUBLIC, "utf8")).toMatch(/data-host="page"/);
+    });
+
+    it("l'étape active porte un bord gauche franc", () => {
+        const rule =
+            css.match(/\.da-row\[data-state="next"\] \.da-card::before\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(rule).toMatch(/border-left:\s*3\.5px solid var\(--da-acc\)/);
+    });
+
+    it("le titre d'une quête verrouillée passe au texte secondaire", () => {
+        expect(css).toMatch(
+            /\.da-row\[data-state="locked"\] \.da-card h3,[\s\S]*?\.da-row\[data-state="locked"\] \.da-qtitle\s*\{[^}]*color:\s*var\(--da-muted\)/
+        );
+    });
+
+    it("la copie d'une coordonnée se voit 900 ms", () => {
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*border-color:\s*var\(--da-ok\)/
+        );
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*background:\s*var\(--da-ok-soft\)/
+        );
+        expect(css).toMatch(
+            /\.da-coord\[data-copied="true"\]\s*\{[^}]*color:\s*var\(--da-ok\)/
+        );
+        const chip = readFileSync(CHIP, "utf8");
+        expect(chip).toMatch(/data-copied=\{copied \? "true" : undefined\}/);
+        expect(chip).toMatch(/setTimeout\(\(\) => setCopied\(false\), 900\)/);
+    });
+
+    it("les petites PiP masquent la description et serrent la carte", () => {
+        expect(css).toMatch(
+            /@media \(max-height: 580px\)\s*\{[\s\S]*?\.da-window\[data-host="pip"\] \.da-blockdesc\s*\{\s*display:\s*none/
+        );
+        expect(css).toMatch(
+            /\.da-window\[data-host="pip"\] \.da-card\s*\{\s*padding:\s*\.6rem \.75rem/
+        );
+    });
+
+    it("le guide public porte le dégradé d'ambiance et respire à partir de 1024 px", () => {
+        expect(css).toMatch(/\.da-guide\[data-host="page"\]\s*\{[^}]*linear-gradient\(/);
+        expect(css).toMatch(
+            /@media \(min-width: 1024px\)\s*\{[\s\S]*?\.da-guide \.da-row\s*\{[^}]*gap:\s*1\.1rem/
+        );
+    });
+
+    it("le conseil ouvert a un fond léger et un rayon ≤ 12 px", () => {
+        expect(css).toMatch(
+            /details\.da-conseil\[open\] \.da-conseil-body\s*\{[^}]*border-radius:\s*6px/
+        );
     });
 });
 

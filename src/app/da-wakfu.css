@@ -182,6 +182,18 @@
   border-radius: 0;
 }
 
+/* Retouche 19/11/2026 — petites PiP : gagner une quête visible sans scroller.
+   La description de bloc est informative ; à moins de 580 px de haut, elle
+   coûte une ligne utile. Le padding de carte se resserre en même temps. */
+@media (max-height: 580px) {
+  .da-window[data-host="pip"] .da-blockdesc {
+    display: none;
+  }
+  .da-window[data-host="pip"] .da-card {
+    padding: .6rem .75rem;
+  }
+}
+
 /* Hors PiP (aperçu, guide) la fenêtre est encadrée : liseré, pas d'ombre molle. */
 .da-window[data-host="page"] {
   border-radius: 14px; /* exception mesurée à la règle « rayons ≤ 12 px » : signature de fenêtre */
@@ -322,6 +334,14 @@
   margin: .6rem .1rem .2rem;
   color: var(--da-muted);
   font: 500 12px/1.65 var(--da-font-text);
+}
+
+/* Retouche 19/11/2026 — un conseil ouvert se détache du fil : fond de champ
+   léger, respiration et rayon ≤ 12 px. Rien n'est déplacé. */
+details.da-conseil[open] .da-conseil-body {
+  padding: .65rem .8rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--da-field) 65%, transparent);
 }
 
 .da-conseil-body ul {
@@ -643,7 +663,14 @@
   clip-path: polygon(0 1%, 100% 0, 99.6% 99.2%, 0.5% 100%);
 }
 
-[data-quality="high"] .da-card::before { filter: url(#da-rough); }
+/* Le filtre « rough » coûte une rastérisation PAR CARTE au défilement. En
+   haute qualité, il est donc réservé aux cartes focales (« faire maintenant »
+   et « je suis ici ») : le reste garde le `clip-path`, gratuit. Mesure du
+   19/11/2026 : un chapitre de plus de 40 quêtes doit rester fluide. */
+[data-quality="high"] .da-row[data-state="next"] .da-card::before,
+[data-quality="high"] .da-row[data-here="true"] .da-card::before {
+  filter: url(#da-rough);
+}
 
 .da-row[data-state="done"] .da-card::before {
   background: color-mix(in srgb, var(--da-acc2) 12%, var(--da-card));
@@ -651,6 +678,9 @@
 
 .da-row[data-state="next"] .da-card::before {
   border-color: var(--da-acc2);
+  /* Retouche 19/11/2026 — l'étape active se lit d'un coup d'œil : bord gauche
+     franc à l'accent du bloc, sans toucher au fond teinté existant. */
+  border-left: 3.5px solid var(--da-acc);
   background: color-mix(in srgb, var(--da-acc) 12%, var(--da-card));
 }
 
@@ -695,6 +725,13 @@
   text-decoration-color: var(--da-ok);
 }
 
+/* Retouche 19/11/2026 — une quête verrouillée n'est pas une quête active :
+   le titre passe au texte secondaire, le prérequis reste en `--da-warn`. */
+.da-row[data-state="locked"] .da-card h3,
+.da-row[data-state="locked"] .da-qtitle {
+  color: var(--da-muted);
+}
+
 .da-chips {
   display: flex;
   flex-wrap: wrap;
@@ -711,6 +748,15 @@
   background: var(--da-field);
   font: 600 11px var(--da-font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Retouche 19/11/2026 — le clic de copie d'une commande `/travel` se voit :
+   fond, filet et encre de validation pendant 900 ms (le composant pose
+   `data-copied="true"`, puis le retire). */
+.da-coord[data-copied="true"] {
+  border-color: var(--da-ok);
+  background: var(--da-ok-soft);
+  color: var(--da-ok);
 }
 
 .da-req { color: var(--da-amber-ink); }
@@ -1099,6 +1145,26 @@
   background: var(--da-bg);
   padding-inline: 1rem;
   padding-block: 1.5rem 2.5rem;
+}
+
+/* Retouche 19/11/2026 — ambiance d'arc en tête : un dégradé de teinte de bloc,
+   jamais un halo. La coque du guide ne porte pas `.da-window` (voir ci-dessus) :
+   la surface « page » est donc `.da-guide[data-host="page"]`. */
+.da-guide[data-host="page"] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--da-tint) 16%, var(--da-bg)) 0%,
+    var(--da-bg) 280px
+  );
+}
+
+@media (min-width: 1024px) {
+  /* Respiration du fil de sève : le rail est mesuré (`useDaRail`), l'écart
+     peut donc grandir sans casser `--da-grow`. */
+  .da-guide .da-row {
+    gap: 1.1rem;
+    margin-bottom: .9rem;
+  }
 }
 
 @media (min-width: 900px) {

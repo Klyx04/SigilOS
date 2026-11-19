@@ -510,11 +510,12 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 |---|---|---|
 | Prérequis absents | ✅ livré | siphon client (`startCriterion`) + verrou d'ordre ; 451 jeu + 76 ordre |
 | Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** pour que la donnée arrive au guide |
-| Détail trop petit / vrais monstres/items | UI | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
+| Détail trop petit / vrais monstres/items | UI — items ✅ (`ResourceImage`, 1 898 WebP) ; **monstres = data** (0 id sur 742 tags de combat, 31 PNG locaux) | `RushOverlayQuestDetailModal`, `RushOverlayTagSection`, `RushTagBadge`, `Monster`, `GameItem`, `GameIcon` |
 | 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
-| Compteur 0/448 vs 591 séquences | UI | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
-| 16 DofusDex sans panneau | UI | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
-| Icône Dofus discrète | UI | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
+| Compteur 0/448 vs 591 séquences | ⏸ **à reproduire** : payload local = **536** séquences, **0** info, **0** choix ⇒ le public affiche 536 ; aucun chemin ne produit 448 | `RushGuideView`/`stepCounts` (étapes ≠ 591 séquences ; succès/donjons/infos) |
+| 16 DofusDex sans panneau | ✅ **déjà livré** : `PublicDofusProgressPanel` + `RushDofusDetailModal` partagée avec l'interne | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
+| Icône Dofus discrète | ✅ **livré 19/11/2026** : le médaillon de la barre de chapitre porte le **Dofus du bloc** (overlay), et la liste nomme chaque Dofus — parité dashboard/public | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
+| Pastille Succès absente du guide **public** | ✅ **livré 19/11/2026** : `SuccessChip` + `guideQuests` (mêmes `questDbIds`), verrouillé par `rush-public-parity` | `SuccessChip`, `getSequenceSuccesses` |
 | Quêtes non cliquables | ✅ livré 18/11/2026 | la ligne (nom) ouvre la fiche sur le dashboard et le guide public ; picto « i » conservé |
 | Changement perso sans message | ✅ livré 18/11/2026 | toast « Personnage actif : <nom> » + `sync` de l'overlay ouvert |
 | Alignement sans refresh/message | ✅ livré 18/11/2026 | cause : payload PiP figé ; `sync` du store + cité/Ordre pré-remplis |
@@ -537,5 +538,6 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 **Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
-UI (assets/compteur, DofusDex, icône) → **Bloc I** (succès de donjon) →
+**UI-1** ✅ 19/11/2026 (Succès public + Dofus du bloc ; DofusDex déjà livré ; compteur 448 à reproduire ;
+monstres = lot data) → **Bloc I** (succès de donjon) →
 **Bloc J** (donjons : qui a fait quoi) → 55 conseils → VPS.

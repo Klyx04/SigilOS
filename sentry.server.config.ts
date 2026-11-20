@@ -9,8 +9,9 @@ import {
     isSentryTunnelEvent,
 } from "./src/lib/sentry-ignores";
 import { SENTRY_DATA_COLLECTION } from "./src/lib/sentry-data-collection";
+import { registerSentryClient } from "./src/lib/perf-client";
 
-Sentry.init({
+const sentryClient = Sentry.init({
     dsn: process.env.SENTRY_DSN,
 
     // Only enable in production
@@ -52,3 +53,4 @@ Sentry.init({
         return event;
     },
 });
+registerSentryClient(sentryClient);

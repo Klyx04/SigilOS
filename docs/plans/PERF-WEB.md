@@ -141,15 +141,28 @@ Sous-spans : `userContext.redis.get`, `userContext.guildConfig.read`, `userConte
 `userGuilds.query`, `guildHeader.guildConfig.read`, `guildHeader.counts`,
 `guildModules.guildConfig.read`, `platformConfig.read`.
 
-- **Pas de `@prisma/instrumentation`** dans le projet : Prisma n'est pas tracé automatiquement.
-  Les spans explicites mesurent les lectures utiles **sans journaliser de SQL ni de paramètre**.
+- **Prisma est déjà tracé automatiquement** : une trace bêta du 20/11 montre
+  `prisma:client:operation`, le SQL et `pg-pool.connect` — Prisma 7 émet ses spans OTel,
+  `@prisma/instrumentation` est inutile. Sur 1 h, `pg-pool.connect` = p50 **1,1 ms**,
+  p95 **82 ms** (max 981 ms) : l'attente de pool n'explique pas les 2 s en général.
+- **Piège RSC corrigé** : dans le rendu d'un layout, le SDK Next isole la requête dans un
+  scope **sans client** (`commonObjectToIsolationScope` → `new Scope()`) ; `Sentry.startSpan`
+  rendait donc un span **non enregistré** (zéro donnée en bêta le 20/11). Le client rendu par
+  `Sentry.init` est **enregistré au démarrage** (`src/lib/perf-client.ts`) et `ensureSentryClient()`
+  le rattache au scope courant avant de démarrer le span.
+- **Première lecture d'une trace (bêta, 20/11)** : la transaction `GET /dashboard/[guildId]`
+  fait **1 964 ms** ; `getUserContext` touche Redis (`user:ctx…`, **3,9 ms**) et **n'appelle
+  pas Discord** (aucun `http.client` vers discord.com) ⇒ le layout n'est pas le coût principal.
+  Le `render route` porte ~20 opérations Prisma, dont plusieurs à **600–1 000 ms** — c'est là
+  que la suite devra regarder.
 - **Aucun `guildId` dans un nom de span** (cardinalité bornée, aucune donnée de guilde côté
   Sentry) ; verrouillé par `tests/unit/perf-span.test.ts`.
 - **POST > 1 s (Sentry 7 j, sous-ensemble `span.duration:>1000`)** : `POST /dashboard/[guildId]/quetes-dofus/guide/[slug]`
   (**100** événements), `…/profile` (**80**), `…/galerie-stuff` (20), `…/missions` (10) — ce sont des
   **server actions** (POST sur l'URL de la page). Le layout est re-rendu à chaque action : les six
   spans couvrent donc la part « re-rendu » du POST ; le temps du handler lui-même reste hors de ce lot.
-- **Lecture après déploiement bêta** : filtrer `GET /dashboard/[guildId]`, comparer le p95 de
+- **Lecture après déploiement bêta** (correctif #1480 : client Sentry rattaché au scope RSC) :
+  filtrer `GET /dashboard/[guildId]`, comparer le p95 de
   chaque span. `tracesSampleRate` serveur = **5 %** ; la route dashboard a reçu **1 980**
   transactions sur 7 jours (§0), soit ≈ **280/jour** — de quoi trancher sans changer le taux.
 - **Correction de diagnostic** : `getGuildHeaderData` (60 s, `guild-actions.ts:21-22`) et

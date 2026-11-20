@@ -145,6 +145,10 @@ Sous-spans : `userContext.redis.get`, `userContext.guildConfig.read`, `userConte
   Les spans explicites mesurent les lectures utiles **sans journaliser de SQL ni de paramètre**.
 - **Aucun `guildId` dans un nom de span** (cardinalité bornée, aucune donnée de guilde côté
   Sentry) ; verrouillé par `tests/unit/perf-span.test.ts`.
+- **POST > 1 s (Sentry 7 j, sous-ensemble `span.duration:>1000`)** : `POST /dashboard/[guildId]/quetes-dofus/guide/[slug]`
+  (**100** événements), `…/profile` (**80**), `…/galerie-stuff` (20), `…/missions` (10) — ce sont des
+  **server actions** (POST sur l'URL de la page). Le layout est re-rendu à chaque action : les six
+  spans couvrent donc la part « re-rendu » du POST ; le temps du handler lui-même reste hors de ce lot.
 - **Lecture après déploiement bêta** : filtrer `GET /dashboard/[guildId]`, comparer le p95 de
   chaque span. `tracesSampleRate` serveur = **5 %** ; la route dashboard a reçu **1 980**
   transactions sur 7 jours (§0), soit ≈ **280/jour** — de quoi trancher sans changer le taux.

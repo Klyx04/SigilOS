@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 41) — **Rush · revalidations du contenu (itération 4)** — branche `fix/rush-revalidations-2026-11-20`
+
+> **Demande user (verbatim)** : « avance sur l'itération 4 » — le public voyait l'ancien guide jusqu'à 1 h après une modification God.
+> **Mesure** : page publique en **ISR 1 h** (`revalidate = 3600`) ; sur 49 actions qui écrivent, **20 actions de contenu Rush** ne revalidaient pas la page publique (10 n'avaient que God + dashboard, 4 n'avaient rien, 6 avaient un triplet dupliqué) ; les actions de progression (14) n'ont pas à la revalider.
+> **Fait** : helper **non exporté** `revalidateRushContent()` (publique + dashboard + God) — un export dans un fichier `"use server"` casserait le build ; les **20 actions de contenu** l'utilisent (import, upsert, delete, reorder, seed, route, UI, settings, move, bulk ×3, split, sync ×2, duplicate ×2) ; doublons retirés ; `publishRushSequence` garde ses pages `/q` ; les actions de progression sont inchangées.
+> **Preuves** : `rush-revalidations` **5 tests** ✅ · ciblés Rush **51** ✅ · **777 fichiers / 8 165 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : 11 quêtes sans position (8 directes + 3 sans `questDbIds`) à saisir dans God ; itérations 5/6.
+> **Rotation** : bloc « suite 35 » (monstres 2a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 40) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
 
 > **Demande user (verbatim)** : « on peut arrêter le bricolage et statuer sur du long terme quand ya besoin de faire ce genre de manip sur le vps via un skills ou autre dans le harnais ? c'est quoi la best practice cutting edge ? » puis « livre oui ».
@@ -56,14 +66,6 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 35) — **Rush · monstres des combats (itération 2a)** — branche `feat/rush-monstres-2026-11-19`
-
-> **Demande user (verbatim)** : « avec la maj des monstres et leur images fiche cliquable etc, pour l'interne vers l'interne pour le visiteur faire fiche visiteur » ; « oui étape par étape go ».
-> **Mesures** : 742 tags de combat = **1 443 noms bruts**, **1 518 noms individuels** après nettoyage ; la source écrit des groupes (`A, B, C`, préfixes `groupe ·` / `soloV ·`) ; carte générée depuis `unity-bestiary.json` (5 129 monstres, **4 612 clés**) ⇒ **1 518 monstres, 100 % résolus** (3 alias mesurés : Chaffoin le Sourn, Garde Bwork Élémental d'Ai, Aventurier injuri) ; **737 / 742** tags portent leur liste.
-> **Fait** : règle pure `rush-combat-monsters` + carte `src/data/rush-monster-map.json` (script `build-rush-monster-map.ts`) ; le seed écrit `monsters` (schéma d'import borné) ; badge « Groupe · N monstres », images proxy, **fiche interne** (`RushMonsterFicheModal` → `MonsterFicheView`, chargée à la demande) et **fiche publique** `/bestiaire/<slug>` ; `viewer` member / visitor / preview sur les 4 surfaces.
-> **Preuves** : **771 fichiers / 8 110 tests ✅** · `tsc` 0 · lint 0 erreur · `rush-combat-monsters` **8** · `rush-trame-seed` **38** · `rush-tag-overflow` **4** · `harness-config` **9** · ROADMAP **61 376 o** (< 60 Kio).
-> **Reste** : 55 conseils (2b) puis positions (2c — siphon DPLN à décider) ; l'import du guide (itération 3) est requis pour voir les monstres en base.
-> **Rotation** : bloc « suite 29 » (donjons au choix) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

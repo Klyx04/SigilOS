@@ -112,6 +112,20 @@ async function requireRushAccess() {
 }
 
 /**
+ * Revalide les trois surfaces qui affichent le contenu du guide Rush.
+ *
+ * La page publique est en **ISR 1 h** (`revalidate = 3600`) : sans cet appel,
+ * une modification faite dans God reste invisible pour le public jusqu'à une
+ * heure. **Non exporté** : un fichier `"use server"` ne peut exporter que des
+ * fonctions async, et ce helper est volontairement synchrone.
+ */
+function revalidateRushContent() {
+  revalidatePath("/guides/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/god/rush-sylvestre");
+}
+
+/**
  * Guard des **écritures de masse** du Rush : accès brique + rate limit Redis.
  *
  * Même patron que `requireGuideWriteAccess` : une action qui touche 100 quêtes d'un
@@ -3744,8 +3758,7 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
     metadata: { op: "seed-unified-rush-sylvestre", dryRun: false, plan, stats },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   const created = {
     milestones: stats.milestonesCreated + stats.milestonesUpdated,
     sequences: stats.sequencesCreated + stats.sequencesUpdated,
@@ -3778,11 +3791,10 @@ export async function updateRushSylvestreSettings(data: {
     metadata: { op: "update-rush-settings", data },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
-  // La page **publique** `/guides/rush-sylvestre` lit `isPublicUnderConstruction` (ISR 1 h) :
-  // sans cette invalidation, le toggle God mettrait jusqu'à une heure à s'y voir.
-  revalidatePath("/guides/rush-sylvestre");
+  revalidateRushContent();
+  // Le helper couvre la page **publique** `/guides/rush-sylvestre` (qui lit
+  // `isPublicUnderConstruction` et est en ISR 1 h) : sans lui, le toggle God
+  // mettrait jusqu'à une heure à s'y voir.
   return { success: true, guide };
 }
 
@@ -3805,8 +3817,7 @@ export async function updateRushUIConfig(data: { rushUIConfig: unknown }) {
     metadata: { op: "update-rush-ui-config", data: data.rushUIConfig },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, guide };
 }
 
@@ -3930,8 +3941,7 @@ export async function upsertRushMilestone(data: {
     metadata: { op: data.id ? "update-rush-milestone" : "create-rush-milestone", label: data.label },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, milestone };
 }
 
@@ -3964,8 +3974,7 @@ export async function deleteRushMilestone(milestoneId: string) {
     targetId: milestoneId,
     metadata: { op: "delete-rush-milestone" },
   });
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, alreadyDeleted: false };
 }
 
@@ -3991,8 +4000,7 @@ export async function reorderRushMilestones(orderedIds: string[]) {
     metadata: { op: "reorder-rush-milestones", count: orderedIds.length },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true };
 }
 
@@ -4018,8 +4026,7 @@ export async function reorderRushSequences(milestoneId: string, orderedIds: stri
     metadata: { op: "reorder-rush-sequences", count: orderedIds.length },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true };
 }
 
@@ -4185,8 +4192,7 @@ export async function upsertRushSequence(data: {
     metadata: { op: data.id ? "update-rush-sequence" : "create-rush-sequence", subGuideRef: data.subGuideRef },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, sequence: seq };
 }
 
@@ -4287,9 +4293,7 @@ export async function moveRushSequence(sequenceId: string, targetMilestoneId: st
       metadata: { op: "move-rush-sequence", toMilestoneId: parsed.data.targetMilestoneId },
     });
 
-    revalidatePath("/god/rush-sylvestre");
-    revalidatePath("/dashboard");
-    revalidatePath("/guides/rush-sylvestre");
+    revalidateRushContent();
   }
 
   return { success: true, moved: result.moved, sequence: result.sequence };
@@ -4468,9 +4472,7 @@ export async function splitRushSequence(sequenceId: string) {
     metadata: { op: "split-rush-sequence", created: createdIds.length },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
-  revalidatePath("/guides/rush-sylvestre");
+  revalidateRushContent();
 
   return { success: true, created: createdIds.length, ids: createdIds, droppedDungeons };
 }
@@ -4579,8 +4581,7 @@ export async function updateRushBlockRoute(data: {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, count };
 }
 // ---------------------------------------------------------------------------
@@ -4670,9 +4671,7 @@ export async function bulkUpdateRushSequencesRoute(data: {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
-  revalidatePath("/guides/rush-sylvestre");
+  revalidateRushContent();
   return { success: true, count };
 }
 /**
@@ -4738,9 +4737,7 @@ export async function bulkMoveRushSequences(data: {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
-  revalidatePath("/guides/rush-sylvestre");
+  revalidateRushContent();
   return { success: true, moved };
 }
 
@@ -4782,9 +4779,7 @@ export async function bulkDeleteRushSequences(data: { sequenceIds: string[] }) {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
-  revalidatePath("/guides/rush-sylvestre");
+  revalidateRushContent();
   return { success: true, count };
 }
 
@@ -4872,8 +4867,7 @@ export async function deleteRushSequence(sequenceId: string) {
     targetId: sequenceId,
     metadata: { op: "delete-rush-sequence" },
   });
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return { success: true, alreadyDeleted: false };
 }
 
@@ -5204,8 +5198,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return {
     success: true as const,
     data: { dryRun: false as const, applied: { blocks: createdBlocks, sequences: createdSequences }, plan },
@@ -5293,9 +5286,7 @@ export async function syncRushPositions(apply = false) {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/guides/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return {
     success: true as const,
     data: { dryRun: false as const, applied: { updated }, plan: summary },
@@ -5407,9 +5398,7 @@ export async function syncRushGuideContent(raw: unknown, apply = false) {
     },
   });
 
-  revalidatePath("/god/rush-sylvestre");
-  revalidatePath("/guides/rush-sylvestre");
-  revalidatePath("/dashboard");
+  revalidateRushContent();
   return {
     success: true as const,
     data: {
@@ -5475,6 +5464,7 @@ export async function duplicateRushSequenceAsTwin(sequenceId: string) {
     select: { id: true },
   });
 
+  revalidateRushContent();
   return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
 }
 
@@ -5551,5 +5541,6 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
     created += 1;
   }
 
+  revalidateRushContent();
   return { success: true as const, data: { created } };
 }

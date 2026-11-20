@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 39) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
+
+> **Demande user (verbatim)** : « on peut arrêter le bricolage et statuer sur du long terme quand ya besoin de faire ce genre de manip sur le vps via un skills ou autre dans le harnais ? c'est quoi la best practice cutting edge ? » puis « livre oui ».
+> **Mesure (incident réel)** : `docker compose exec app-beta node scripts/archive-rush-guide.mjs` échoue sur `@prisma/driver-adapter-utils`, puis `postgres-array` — l'image `runner` est un standalone Next, elle n'embarque pas les dépendances des outils d'admin. Deux commandes ad hoc avaient aussi échoué sur les noms de services (`db`, `app` au lieu de `db-beta`, `app-beta`).
+> **Fait** : stage Docker `ops` (deps + `prisma generate`, sans build Next) · services `ops-beta`/`ops-prod` (profil `ops`, jamais démarrés par `up`) · `scripts/ops/vps.sh` (verbes fermés : `dump`, `rush-archive`, `rush-delete-archive`, `rush-verify` ; dry-run par défaut, `--apply` seul mot qui écrit, garde `rush-sylvestre-archive-*`, refus d'un dump vide, journal `~/backups/ops.log`) · skill `.cline/skills/vps-ops/` (routeur : interdit `exec app-*`, impose dump → dry-run → apply → verify → rollback) · `docs/agents/vps-ops.md` · `AGENTS.md` §2 · `MAINTENANCE.md` § Rush réécrit · `vps-read-only.md` recalé.
+> **Preuves** : `ops-runbook` **10 tests** ✅ · `bash -n` OK (script converti en LF) · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : le runbook n'est pas encore utilisé sur la bêta (la remise à zéro s'est faite via SQL testé) ; au prochain déploiement bêta, `./scripts/ops/vps.sh rush-archive beta` remplace les commandes manuelles.
+> **Rotation** : bloc « suite 33 » (Bloc J) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 38) — **Rush · synchro des positions DPLN en base (itération 3a)** — branche `feat/rush-positions-sync-2026-11-20`
 
 > **Demande user (verbatim)** : « on est bloqué partout ? on fait comment? » — l'import God restait sur « Rien à créer » et les icônes position/zaap ne s'affichaient pas.
@@ -59,10 +69,3 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 33) — **Rush · Bloc J « Progression Donjons »** — branche `feat/rush-bloc-j-progression-donjons`
-
-> **Demandes user (verbatim)** : « bloc j / tu décales rush live et ouvrir overlay à droite et tu le mets entre les 2 / responsive / idem guides visiteurs connecté / non connecté / même chose dans l'overlay / oublie pas les assets » ; puis « pk tu manges l'écran en bas ? où est le skill responsive ? ».
-> **Fait** : ① règle pure `rush-dungeons-overview` — **occurrences** `sequenceId::dungeonKey`, groupes « au choix » = **1 exigence**, rollups `x/y étapes`, `m/M membres`, filtres état/étape/repères/recherche, **option A** = bloc du repère + « Tout déplier » ; ② action bornée `getRushDungeonsCommunity` (3 requêtes plafonnées, fail-closed) + couture `_actions/public-rush-dungeons` (le client public n'importe **aucun** `@/server/`) ; ③ tuile **« Progression Donjons »** entre Rush Live et Ouvrir Overlay (dashboard + public), icône d'overlay **entre le compte et l'œil** (badge d'exigences restantes), panneau partagé desktop / mobile / PiP (`data-quality`) ; ④ responsive corrigé après retour : `flex` + `100dvh` mobile, `min-h-0` + `flex-1` (liste qui scrolle **dans** la modale), `pr-12` (croix ≠ compteur), cibles 44 px.
-> **Preuves** : **770 fichiers / 8 098 tests ✅** (avant la passe DA) · `tsc` 0 · lint 0 erreur · `rush-dungeons-overview` **10** · `-ui` **8** · `da-wakfu` **66** · Playwright **390/768/1024/1440** : `overflowBottom` **0**, overflow horizontal **0**, liste scrollable partout. Route testée : 94 donjons / 176 occurrences / 149 exigences (global : 100 / 202 / 175). **Correctif 19/11** : groupement **par bloc** (un donjon multi-blocs apparaît dans chaque accordéon, plus de faux sous-blocs), sélecteur d'étape DA (plus de `<select>` natif), modale d'alignement élargie.
-> **Reste** : **PR #1461 mergée** (`dev 971b26d2`, CI 6/6, branche supprimée) ; prochaine session : **55 conseils → VPS**. Décision user : **pas de post donjon/quête dans l'overlay PiP** (« trop lourd », `DjPostCreateModal` n'a pas de `portalContainer`) — le clic donjon → post existe sur le **dashboard** (donjon + quête préremplis). Le bruit console « script / hydratation » de la page publique est **préexistant** (au chargement, hors modale).
-> **Rotation** : bloc « suite 27 » (retouches DA) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

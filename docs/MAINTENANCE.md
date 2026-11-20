@@ -1365,16 +1365,21 @@ node scripts/archive-rush-guide.mjs --list-archives
 
 ### VPS (bêta puis prod)
 
+> **Voie unique** : `scripts/ops/vps.sh` (verbes fermés) + conteneur `ops-*` (stage `ops`
+> du Dockerfile). Ne **jamais** lancer ces outils dans `app-*` : l'image standalone
+> n'embarque pas leurs dépendances (mesuré le 20/11/2026). Détail et rollback :
+> `docs/agents/vps-ops.md`.
+
 ```bash
-./scripts/deploy-cd.sh beta
-# sauvegarde (lecture) — le fichier reste dans le conteneur db
-docker compose exec -T db pg_dump -U user -d sigilos -Fc -f /tmp/sigilos-rush-$(date +%F-%H%M).dump
-docker compose exec app node scripts/archive-rush-guide.mjs --dry-run
-docker compose exec app node scripts/archive-rush-guide.mjs --apply
+cd ~/SigilOS
+./scripts/ops/vps.sh dump beta                 # sauvegarde dans ~/backups — refuse un dump vide
+./scripts/ops/vps.sh rush-archive beta         # dry-run (aucune écriture)
+./scripts/ops/vps.sh rush-archive beta --apply # archive + guide vide
 # God bêta ▸ JSON ▸ tougli-enriched.json (le fichier reste LOCAL : le navigateur l'envoie)
-#   Analyser -> Appliquer ; vérifier le guide (36/591, 68 succès, 33 blocs donjons, 16 DofusDex)
-# après validation :
-docker compose exec app node scripts/archive-rush-guide.mjs --delete-archive rush-sylvestre-archive-<date> --apply
+#   Analyser -> Appliquer ; vérifier le guide (36 blocs / 536 quêtes)
+./scripts/ops/vps.sh rush-verify beta          # séquences / conseils / pos_tags / monstres
+# après validation seulement :
+./scripts/ops/vps.sh rush-delete-archive beta rush-sylvestre-archive-<date> --apply
 ```
 
 - **Lecture seule** : la clé `agent-ro` ne permet **ni** `docker compose exec app`, **ni** `pg_dump`,

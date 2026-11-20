@@ -35,6 +35,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
+| **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.cline/skills/vps-ops/` — jamais `docker compose exec app-*` |
 | **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
 | **Toute UI** (layout, composant, correctif d'affichage) | skill `.cline/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |

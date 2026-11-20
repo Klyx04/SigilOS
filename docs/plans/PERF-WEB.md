@@ -45,6 +45,27 @@ CSS **72 Ko** (gzip depuis 614 Ko). Aucun `5xx`, aucun timeout ; la bêta est re
 | `/dashboard/:guildId/admin` | 596 ms | 200 ms | 630 |
 | `/dashboard/:guildId/calendar` | 382 ms | 160 ms | 2 940 |
 
+## 0 bis. Après P0 (bêta `02070473`, 20/11/2026)
+
+Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
+
+| Cible | Concurrence | Avant | Après | Gain |
+|---|---:|---:|---:|---:|
+| Guide Rush | 10 | 2,5 req/s | **3,2 req/s** | +28 % |
+| Guide Rush | 25 | 2,5 req/s | **3,1–3,3 req/s** | +24–32 % |
+| Guide Rush | 50 | 2,1 req/s | **2,4 req/s** | +14 % |
+| Guide Rush | 100 | 1,6 req/s | **1,9 req/s** | +19 % |
+| Accueil | 25 | 19,6 req/s | **21,9 req/s** | +12 % |
+| CSS statique | 50 | 34,5 req/s | **69 req/s** | ×2 |
+
+- Compression : `Content-Encoding: zstd` (**145 Ko**) ou gzip (**151 Ko**) ; avant, Node gzip faisait **143 Ko**.
+  La taille est quasi identique : le gain P0 est **CPU** (compression sortie de Node), pas réseau.
+- Un client qui n'envoie **que** `br` reçoit **1,13 Mo non compressé** (Caddy standard n'a pas Brotli) ;
+  les navigateurs réels envoient `gzip`/`zstd`, donc le cas est théorique.
+- L'accueil mesuré à **0,4 req/s** au premier passage était un artefact : la file du test 100 se vidait
+  encore. Isolé, il est à **21,9 req/s**.
+- Le guide reste **limité par le rendu** (2,4–3,3 req/s) : le seul vrai saut reste **P2** (statique/PPR + CDN).
+
 ## 1. Diagnostic
 
 ### 1.1 Public — tout est dynamique

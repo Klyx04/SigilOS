@@ -164,7 +164,9 @@ describe("F1 — progression personnelle par Dofus, et l'Ocre en deux mesures", 
         const modal = stripComments(read(DETAIL_MODAL));
         expect(internal).toContain("<RushDofusDetailModal");
         expect(internal).toContain("questStatusForMembers");
-        expect(modal).toContain("icone-quete.png");
+        // L'asset de quête vient du sprite de type : le seed ne porte aucune icône
+        // de séquence (0/536 mesuré le 20/11/2026), `icone-quete.png` s'affichait partout.
+        expect(modal).toContain('questTypeIconPath("secondaire")');
         for (const label of ["Validée", "En cours", "À faire", "Membres engagés"]) {
             expect(modal, label).toContain(label);
         }

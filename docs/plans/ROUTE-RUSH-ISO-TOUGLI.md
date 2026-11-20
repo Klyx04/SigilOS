@@ -317,6 +317,10 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Fiche Dofus / bandeau figés après validation | `guildProgress` = prop serveur ; le WS ne nourrissait que le ticker | ✅ **livré 20/11/2026** : refresh serveur débouncé (900 ms) après validation locale **et** sur `step:validated`/`batch`/`milestone:completed` | — |
 | Blocs repliés à l'ouverture | état initial = premier bloc seulement | ✅ **livré 20/11/2026** : **tous** les blocs ouverts (public + interne, reset et restauration compris) — verrou `rush-blocks-expanded` | — |
 | Icônes succès / quête génériques | `succes.png` / `icone-quete.png` | ✅ **livré 20/11/2026** : `icone-succes.png` ; sprite de type de quête (**0/536** séquences du seed n'ont d'icône) | — |
+| 1629 / 1630 sans position | DPLN n'écrit aucune position ; `DofusQuestEntry` porte `coords [-3,-3] monde 2` (Incarnam) | ✅ **livré 20/11/2026** : `positionFromDofusQuestEntry` (repli `coords`, refuse `0,0`) + siphon `--only 1629,1630 --apply` → **529 positions** | — |
+| 1938 « La colère des dieux » sans position | la quête se lance au **temple de votre classe** : 20 positions, aucune unique | ✅ **expliqué 20/11/2026** : `RUSH_POSITION_EXPLANATIONS` (1938) ; le plan l'affiche « temple de votre classe », jamais une coordonnée inventée | — |
+| 3 succès hors trame sans `questDbIds` | ce sont des succès, pas des quêtes : Démons et merveilles **5165**, Quêtes de Silvosse → **L'arbre qui cache la forêt 7760**, En attendant le printemps **7761** | ✅ **corrélé 20/11/2026** : `rush-success-placeholders` branché dans les **4** créations du seed ; **case 🏆 Succès officiel** dans le studio God pour les 3 lignes existantes | God |
+| 173 vs 143 donjons | la tuile compte des **exigences** (un groupe « au choix » = 1), pas des donjons distincts : public = tous les blocs (**175**) ; interne = route **Bontarien + Ordre** (**145**) — écart **30** = filtre `resolveRushRoute`. Modale locale : **99 donjons / 202 occurrences / 175 exigences** | ✅ **expliqué 20/11/2026** (mesure locale) : aucun bug, la modale affiche déjà le libellé de route | — |
 
 **Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
@@ -327,11 +331,9 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 ## 13. Reprise propre — la porte d'entrée
 
-1. Lire `docs/agents/activeContext.md` (**bloc suite 42**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
-2. **État (20/11/2026)** : guide **536** · **49** conseils · **525** positions · **737** tags avec monstres ; bêta **536/232/30/19** (archive `rush-sylvestre-archive-20261120T083104`) ; **#1473** à merger puis **redéployer la bêta**.
-3. **Prochains lots** : ① **173 vs 143 donjons** (fournir l'écran exact) ; ② **3 succès** (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) à marquer dans God ; ③ **6 quêtes sans position** (5 des 11 traitées) ; ④ **itérations 5/6**.
-4. **Règles clés** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed (`RUSH-DEVELOPPEMENT-SUITE.md` §donjons). WebSocket local = `npm run ws` (port 3001), **pas** `npm run dev`.
+1. Lire `docs/agents/activeContext.md` (**bloc suite 43**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
+2. **État (20/11/2026, suite 43)** : guide **536** · **49** conseils · **529** positions · **737** tags avec monstres ; bêta mesurée **f2e9c07f** (PR #1470, conteneurs sains), **dev 96ddd29f** (#1471→#1473 mergés) → **redéployer la bêta**. Plan Positions : **533 quêtes / 532 avec position / 1 sans (1938) / 6 mises à jour**.
+3. **Prochains gestes** : ① appliquer **Positions** dans God (6 mises à jour) ; ② cocher 🏆 **Succès officiel** (5165, 7760, 7761) sur les 3 lignes existantes ; ③ **redéployer la bêta** ; ④ **itérations 5/6**. Le **173 vs 143** est expliqué : écart de **route** (public 175 / Bontarien+Ordre 145), pas un bug.
+4. **Règles clés** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed (`RUSH-DEVELOPPEMENT-SUITE.md` §donjons). Un **succès** n'est pas une quête : aucune position attendue. WebSocket local = `npm run ws` (port 3001), **pas** `npm run dev`.
 5. **Ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; runbook `scripts/ops/vps.sh` (`docs/agents/vps-ops.md`) ; lecture seule `vps-read-only.md`.
-6. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer sans dry-run ; archiver sans dump ; supprimer l'archive avant validation.
-7. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer le seed sans dry-run ; déplacer/
-   supprimer des quêtes cochées ; oublier `npm run test:run` avant la PR.
+6. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer sans dry-run ; archiver sans dump ; supprimer l'archive avant validation ; déplacer/supprimer des quêtes cochées ; oublier `npm run test:run` avant la PR.

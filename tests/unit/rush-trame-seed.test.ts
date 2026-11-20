@@ -221,6 +221,33 @@ describe("spine Tougli — conditions, ressources, Ordres", () => {
   });
 });
 
+describe("spine Yelle — succès hors trame", () => {
+  it("pose la pastille officielle sur « Démons et merveilles »", () => {
+    const trame = JSON.parse(JSON.stringify(TRAME));
+    trame.dofusyelle.steps[1].succes = [{ t: "Démons et merveilles" }];
+    const result = buildRushSeedFromTrame(trame, { spine: "yelle", includeSuccesses: true });
+    const sequence = result.payload.blocks
+      .flatMap((block) => block.sequences)
+      .find((row) => row.subGuideName === "Démons et merveilles");
+    expect(sequence?.isSuccess).toBe(true);
+    expect(sequence?.activityTags).toEqual([
+      { type: "succes", name: "Démons et merveilles", id: "5165", iconId: 203 },
+    ]);
+  });
+
+  it("corrèle « Quêtes de Silvosse » au succès officiel « L'arbre qui cache la forêt »", () => {
+    const trame = JSON.parse(JSON.stringify(TRAME));
+    trame.dofusyelle.steps[1].succes = [{ t: "Quêtes de Silvosse" }];
+    const result = buildRushSeedFromTrame(trame, { spine: "yelle", includeSuccesses: true });
+    const sequence = result.payload.blocks
+      .flatMap((block) => block.sequences)
+      .find((row) => row.subGuideName === "Quêtes de Silvosse");
+    expect(sequence?.activityTags).toEqual([
+      { type: "succes", name: "L'arbre qui cache la forêt", id: "7760", iconId: 203 },
+    ]);
+  });
+});
+
 describe("spine Yelle — liste de quêtes, succès, classes et neutre", () => {
   const result = buildRushSeedFromTrame(TRAME, { spine: "yelle", includeSuccesses: true });
 

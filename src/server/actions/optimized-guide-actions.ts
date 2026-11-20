@@ -5186,6 +5186,8 @@ export async function syncRushPositions(apply = false) {
         name: sequence.subGuideName,
         questDbIds: sequence.questDbIds,
         activityTags: sequence.activityTags,
+        // Un succès hors trame n'a pas de position : le plan le compte à part.
+        isSuccess: sequence.isSuccess,
       }))
     ),
     RUSH_POSITION_MAP

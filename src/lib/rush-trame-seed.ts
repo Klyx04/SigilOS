@@ -26,6 +26,7 @@ import RUSH_MONSTER_MAP from "@/data/rush-monster-map.json";
 import RUSH_GUIDE_TIPS from "@/data/rush-guide-tips.json";
 import RUSH_QUEST_POSITIONS from "@/data/rush-quest-positions.json";
 import { buildRushPositionTag, type RushQuestPositionMap } from "@/lib/rush-quest-positions";
+import { successPlaceholderTag } from "@/lib/rush-success-placeholders";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import type { RushMilestoneType } from "@/types/rush-guide-types";
 
@@ -800,6 +801,24 @@ function attachQuestPrerequisites(
 }
 
 /**
+ * Succès **hors trame** : la Trame nomme le succès, `achievements.json` porte son id, son
+ * icône et ses quêtes. On pose le tag `succes` sur la séquence pour que la pastille
+ * s'affiche — sans jamais inventer un succès inconnu (`successPlaceholderTag` rend `null`).
+ */
+function attachPlaceholderSuccessTag(
+  sequence: RushImportSequence,
+  name: string
+): boolean {
+  const tag = successPlaceholderTag(name);
+  if (!tag) return false;
+  const current = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+  if (current.some((entry) => entry.type === "succes" && entry.id === tag.id)) return false;
+  if (current.length >= MAX_ACTIVITY_TAGS) return false;
+  sequence.activityTags = [...current, tag];
+  return true;
+}
+
+/**
  * Succès officiels (`public/game-data/achievements.json`) → tag `succes` sur **chaque quête**
  * que le succès couvre.
  *
@@ -1018,7 +1037,15 @@ function buildTougliBlocks(
       if (node.kind === "achievement") {
         const name = text(node.name ?? node.names?.[0] ?? node.title, 200);
         if (name && sequences.length < options.maxSequencesPerBlock) {
-          if (pushUnique(sequences, { subGuideName: name, questDbIds: [], isSuccess: true, activityTags: [] })) {
+          const sequence: RushImportSequence = {
+            subGuideName: name,
+            questDbIds: [],
+            isSuccess: true,
+            activityTags: [],
+          };
+          // Succès hors trame connu : la pastille a besoin de son id et de son icône.
+          attachPlaceholderSuccessTag(sequence, name);
+          if (pushUnique(sequences, sequence)) {
             sequencesCount += 1;
             successes += 1;
           }
@@ -1282,12 +1309,14 @@ function enrichTougliWithYelle(
         const existing = findNamed(target.block, name);
         if (existing) {
           // Le succès porte le nom d'une quête déjà dans le bloc : on MARQUE la quête,
-          // on ne crée pas un doublon de libellé.
+          // on ne crée pas un doublon de libellé. Un succès hors trame connu reçoit en
+          // plus sa pastille (id + icône officiels), une seule fois.
           if (!existing.isSuccess) {
             existing.isSuccess = true;
             report.successes += 1;
             report.yelleSuccesses += 1;
           }
+          if (attachPlaceholderSuccessTag(existing, name)) report.successTags += 1;
           continue;
         }
         if (target.block.sequences.length >= options.maxSequencesPerBlock) {
@@ -1299,6 +1328,7 @@ function enrichTougliWithYelle(
               report.successes += 1;
               report.yelleSuccesses += 1;
             }
+            if (attachPlaceholderSuccessTag(anywhere, name)) report.successTags += 1;
           } else if (!fallbackSuccesses.has(key)) {
             fallbackSuccesses.set(key, name);
           }
@@ -1307,12 +1337,14 @@ function enrichTougliWithYelle(
           );
           continue;
         }
-        target.block.sequences.push({
+        const sequence: RushImportSequence = {
           subGuideName: name,
           questDbIds: [],
           isSuccess: true,
           activityTags: [],
-        });
+        };
+        if (attachPlaceholderSuccessTag(sequence, name)) report.successTags += 1;
+        target.block.sequences.push(sequence);
         report.sequences += 1;
         report.successes += 1;
         report.yelleSuccesses += 1;
@@ -1375,12 +1407,16 @@ function enrichTougliWithYelle(
       links: [],
       dofusId: null,
       isOptional: false,
-      sequences: [...fallbackSuccesses.values()].map((name) => ({
-        subGuideName: name,
-        questDbIds: [],
-        isSuccess: true,
-        activityTags: [],
-      })),
+      sequences: [...fallbackSuccesses.values()].map((name) => {
+        const sequence: RushImportSequence = {
+          subGuideName: name,
+          questDbIds: [],
+          isSuccess: true,
+          activityTags: [],
+        };
+        if (attachPlaceholderSuccessTag(sequence, name)) report.successTags += 1;
+        return sequence;
+      }),
     };
     for (const { entry, title } of fallbackDex) {
       if (applyDofusDexEntry(fallback, entry, title)) {
@@ -1570,7 +1606,14 @@ function buildYelleBlocks(
           200
         );
         if (!name) continue;
-        push({ subGuideName: name, questDbIds: [], isSuccess: true, activityTags: [] });
+        const sequence: RushImportSequence = {
+          subGuideName: name,
+          questDbIds: [],
+          isSuccess: true,
+          activityTags: [],
+        };
+        attachPlaceholderSuccessTag(sequence, name);
+        push(sequence);
       }
     }
 

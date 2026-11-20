@@ -89,4 +89,12 @@ describe("E4 — le studio et le kit God ne portent plus la dette DA", () => {
     expect(studio).toContain("border-border");
     expect(studio).toContain("bg-primary");
   });
+
+  it("permet de poser le tag `succes` des 3 succès hors trame", () => {
+    const studio = codeOf(`${STUDIO_DIR}/RushEditorStudio.tsx`);
+    expect(studio).toContain("successPlaceholderFor");
+    expect(studio).toContain("officialSuccess");
+    expect(studio).toContain('type: "succes"');
+    expect(studio).toContain("iconId: officialSuccess.iconId");
+  });
 });

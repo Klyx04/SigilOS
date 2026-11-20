@@ -10,17 +10,15 @@
 
 ## 0. Reprise immédiate
 
-- 🎯 **Rush Sylvestre (20/11/2026)** : **536** quêtes · **49** conseils · **525** positions · **737** tags avec monstres ; bêta **536/232/30/19**, archive `rush-sylvestre-archive-20261120T083104`. **#1464→#1472 mergés** ; **#1473** (temps réel, projection ids→clés, bloc sans verrou) **à merger** → **redéployer la bêta**.
-- 📌 **Prochains lots Rush** : ① **173 vs 143 donjons** (fournir l'écran exact) ; ② **3 succès** (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) à marquer dans God ; ③ **6 quêtes sans position** (5 des 11 traitées le 20/11) ; ④ **itérations 5/6**.
+- 🎯 **Rush (20/11/2026, suite 43)** : **536** quêtes · **49** conseils · **529** positions · **737** tags monstres ; bêta **f2e9c07f**, dev **96ddd29f** → **redéployer**. Positions : **533 / 532 avec position / 1 sans (1938) / 6 mises à jour**.
+- ✅ **173 vs 143** : public **175 exigences** (tous blocs) vs route **Bontarien + Ordre 145** → écart **30** = filtre `resolveRushRoute`, pas un bug.
+- 📌 **Gestes Rush** : ① appliquer **Positions** dans God (6) ; ② cocher 🏆 **Succès officiel** sur **5165 / 7760 / 7761** ; ③ **redéployer la bêta** ; ④ **itérations 5/6**.
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
-- 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`, PR #1366) ; **aucune date** (décision user) — ne pas la mettre dans l'ordre des lots.
-  **Migrations** : jusqu'à `20270207000001` en bêta (16/11) ; la prod les joue au deploy — détail : `docs/MAINTENANCE.md`.
-  **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
-  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` ✅ · stuff lot D (`siphon-item-sets` → `siphon-item-conditions` → `data-watch`) · succès spéciaux (`succes-speciaux siphon` → `retirer-donjon-valide`) — commandes : `MAINTENANCE.md`.
+- 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`) ; **aucune date** (décision user). **Migrations** jouées au deploy ; **ops** (ws, bot, intent, cAdvisor, crontabs, Node `24.22.1`) et **réglages** : `docs/MAINTENANCE.md`.
 
-- **Rétention** : lot A **livré** (bêta purgée le 17/11 : 15 296 `TelemetryEvent`, 11 audits, 2 sessions God ; `ServiceActivityLog` 0) ; **reste prod** (§2 bis D8) — mesure et tables bornées : `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md`.
+- **Rétention** : lot A **livré** (bêta purgée le 17/11) ; **reste prod** (§2 bis D8) — détail : `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md`.
 - **Décisions bloquantes** : `D-R1`, `D1`/`D2`, `D8`. `D7` **tranché** : `sigilos.fr` servira la landing React de la bêta ; refonte non cadrée.
-- **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
+- **Ops à confirmer** : `live-watch` · 4 crontabs · redéploiement bêta (Node `24.22.1`) — détail : `docs/MAINTENANCE.md`.
 - **Dépend de toi** : captures G7/G8/G9/O15 · nom de `33380` · 98 textes Brâkmarien · 2×100 + 30 quêtes.
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
@@ -48,7 +46,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 |---|---|---|---|---|---|---|
 | 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1 → T-4 livrés** (T-4a le 12/11 : G8, O15, G9 tokenisée) | **G7 (hero) + composition G9** (captures) → **T-5** (O9/O10/O11/O12/O13) → **T-6** (G6, `useOptimistic`) | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `MODULE-RUSH-SYLVESTRE.md` | — |
 | 10 | `rush-donnees` (V) | Rush Sylvestre : ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B, V-G, V-F partiel, V-H livrés** · bloc B (route publique) 12/11 · route à 3 étages corrigée 12/11 · **conseils écrits** (guide 536) | **V-C** (purge WebP, ops VPS) · **V-D2** (re-mesurer sur 536) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `MAPPING-RUSH-SYLVESTRE.md` | — |
-| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1469** : guide **536**, **451 + 76 prérequis**, **303 succès en tags**, **positions 527/536 en local**, synchro 3a (**527/9**), **enrichissement 3b** (374/43/737/1 518) · **bêta propre** (536/49/525/737) ; verrouillage lisible ; **séries Ali**, **UX 4/4**, **prérequis OU**, **DA PiP + guide**, **UI-1 + donjons** | 6 pages + 3 ids à la main · itérations 5/6 | `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5 | — |
+| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1473** : guide **536**, **451 + 76 prérequis**, **303 succès en tags**, **positions 529/536**, **enrichissement 3b** (374/43/737/1 518) · **bêta f2e9c07f** ; **séries Ali**, **UX 4/4**, **prérequis OU**, **DA PiP + guide**, **UI-1 + donjons** | 1 position (1938) + 3 tags `succes` · itérations 5/6 | `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5 | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |

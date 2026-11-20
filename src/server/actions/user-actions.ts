@@ -21,6 +21,7 @@ import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "
 import { resolveIsMember } from "@/lib/guild-membership";
 
 import { redis } from "@/lib/redis";
+import { withSpan } from "@/lib/perf-span";
 import { isCompleteCachedGuildConfig } from "@/lib/guild-config-cache";
 import { getAppBaseUrl } from "@/lib/utils";
 
@@ -501,15 +502,17 @@ async function getCachedGuildConfig(effectiveGuildId: string): Promise<CachedGui
     }
     if (cached) configCache.delete(cacheKey); // entrée de forme incomplète → relecture BDD
 
-    const guildConfig = await db.guildConfig.findFirst({
-        where: {
-            OR: [
-                { id: effectiveGuildId },
-                { discordGuildId: effectiveGuildId }
-            ]
-        },
-        select: GUILD_CONFIG_CACHE_SELECT
-    });
+    const guildConfig = await withSpan("userContext.guildConfig.read", "db", () =>
+        db.guildConfig.findFirst({
+            where: {
+                OR: [
+                    { id: effectiveGuildId },
+                    { discordGuildId: effectiveGuildId }
+                ]
+            },
+            select: GUILD_CONFIG_CACHE_SELECT
+        })
+    );
     if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
     return guildConfig;
 }
@@ -532,7 +535,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     // 1. Try Redis Cache first
     try {
-        const cached = await redis.get(redisKey);
+        const cached = await withSpan("userContext.redis.get", "cache.get", () => redis.get(redisKey));
         if (cached) {
             const data = JSON.parse(cached);
             // Verify session integrity (optional but safe)
@@ -757,17 +760,19 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     let memberFetchFailed = false;
-    const [member, guildInfo, allRoles] = await Promise.all([
-        fetchGuildMember(actualDiscordGuildId, discordUserId).catch((err) => {
-            // Discord API error (rate-limit, network, 5xx) — NOT a "member not found" case.
-            // We must NOT block the user: they are likely still a valid member.
-            logger.error("[UserContext] fetchGuildMember failed (Discord API error):", err?.message || err);
-            memberFetchFailed = true;
-            return null; // Treated as unknown, NOT as "absent"
-        }),
-        fetchGuild(actualDiscordGuildId).catch(() => null),
-        fetchGuildRoles(actualDiscordGuildId, { excludeManaged: false }).catch(() => [])
-    ]);
+    const [member, guildInfo, allRoles] = await withSpan("userContext.discord.fetch", "http.client", () =>
+        Promise.all([
+            fetchGuildMember(actualDiscordGuildId, discordUserId).catch((err) => {
+                // Discord API error (rate-limit, network, 5xx) — NOT a "member not found" case.
+                // We must NOT block the user: they are likely still a valid member.
+                logger.error("[UserContext] fetchGuildMember failed (Discord API error):", err?.message || err);
+                memberFetchFailed = true;
+                return null; // Treated as unknown, NOT as "absent"
+            }),
+            fetchGuild(actualDiscordGuildId).catch(() => null),
+            fetchGuildRoles(actualDiscordGuildId, { excludeManaged: false }).catch(() => [])
+        ])
+    );
 
     let memberRoles: string[] = [];
     let myRoles: any[] = [];
@@ -1524,27 +1529,33 @@ export const getUserGuilds = cache(async () => {
     const session = await auth();
     if (!session?.user?.id) return [];
 
+    // Capturé avant la closure du span : le narrowing de `session.user` ne survit pas
+    // dans une fonction de rappel (TS18048).
+    const userId = session.user.id;
+
     try {
-        const profiles = await db.userProfile.findMany({
-            where: {
-                userId: session.user.id,
-                status: "ACTIVE"
-            },
-            include: {
-                guild: {
-                    select: {
-                        discordGuildId: true,
-                        name: true,
-                        iconUrl: true
+        const profiles = await withSpan("userGuilds.query", "db", () =>
+            db.userProfile.findMany({
+                where: {
+                    userId,
+                    status: "ACTIVE"
+                },
+                include: {
+                    guild: {
+                        select: {
+                            discordGuildId: true,
+                            name: true,
+                            iconUrl: true
+                        }
+                    }
+                },
+                orderBy: {
+                    guild: {
+                        name: 'asc'
                     }
                 }
-            },
-            orderBy: {
-                guild: {
-                    name: 'asc'
-                }
-            }
-        });
+            })
+        );
 
         return profiles.map(p => ({
             id: p.guild.discordGuildId,

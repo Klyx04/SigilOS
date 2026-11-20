@@ -20,6 +20,7 @@ import {
     type ModuleLockState,
 } from "@/lib/module-lock";
 import { getPlatformModuleState, invalidatePlatformModuleStateCache } from "@/server/platform-module-state";
+import { withSpan } from "@/lib/perf-span";
 
 const UpdateModulesSchema = z.object({
     // Général
@@ -99,10 +100,12 @@ async function readGuildModules(discordGuildId: string): Promise<CachedGuildModu
     if (cached && cached.expiresAt > now) return cached;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId },
-            include: { modules: true },
-        });
+        const guildConfig = await withSpan("guildModules.guildConfig.read", "db", () =>
+            db.guildConfig.findUnique({
+                where: { discordGuildId },
+                include: { modules: true },
+            })
+        );
 
         const dbModules = guildConfig?.modules as any;
         

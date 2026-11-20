@@ -4,6 +4,7 @@
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
+import { withSpan } from "@/lib/perf-span";
 
 export type GuildHeaderData = {
     name: string;
@@ -26,15 +27,17 @@ export const getGuildHeaderData = cache(async (discordGuildId: string): Promise<
     if (cached && cached.expiresAt > now) return cached.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId },
-            select: {
-                id: true,
-                name: true,
-                iconUrl: true,
-                welcomeBadgeName: true,
-            }
-        });
+        const guildConfig = await withSpan("guildHeader.guildConfig.read", "db", () =>
+            db.guildConfig.findUnique({
+                where: { discordGuildId },
+                select: {
+                    id: true,
+                    name: true,
+                    iconUrl: true,
+                    welcomeBadgeName: true,
+                }
+            })
+        );
 
         if (!guildConfig) {
             const emptyData: GuildHeaderData = {
@@ -48,18 +51,20 @@ export const getGuildHeaderData = cache(async (discordGuildId: string): Promise<
         }
 
         // Count profiles in parallel
-        const [memberCount, activeCount] = await Promise.all([
-            db.userProfile.count({
-                where: { guildId: guildConfig.id, status: "ACTIVE" }
-            }),
-            db.userProfile.count({
-                where: {
-                    guildId: guildConfig.id,
-                    status: "ACTIVE",
-                    lastActivityAt: { gte: new Date(now - 2 * 60 * 1000) }
-                }
-            })
-        ]);
+        const [memberCount, activeCount] = await withSpan("guildHeader.counts", "db", () =>
+            Promise.all([
+                db.userProfile.count({
+                    where: { guildId: guildConfig.id, status: "ACTIVE" }
+                }),
+                db.userProfile.count({
+                    where: {
+                        guildId: guildConfig.id,
+                        status: "ACTIVE",
+                        lastActivityAt: { gte: new Date(now - 2 * 60 * 1000) }
+                    }
+                })
+            ])
+        );
 
         const data: GuildHeaderData = {
             name: guildConfig.name,

@@ -5,7 +5,7 @@
  * 1. **Contrat du helper** : `withSpan` rend exactement la promesse de
  *    `Sentry.startSpan` (aucun enrobage, aucun rejet avalé) et lui transmet un nom
  *    et une opération.
- * 2. **Verrou de source** : les cinq appels du layout et les accès Prisma/Redis qui
+ * 2. **Verrou de source** : les appels du layout et les accès Prisma/Redis qui
  *    les composent restent instrumentés, avec des **noms constants** — jamais un
  *    `guildId` dans un nom de span (explosion de cardinalité + donnée inutile côté
  *    Sentry, §5.11 d'`AGENTS.md`).
@@ -14,10 +14,18 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const { startSpanMock } = vi.hoisted(() => ({ startSpanMock: vi.fn() }));
+const { startSpanMock, currentClientMock, globalClientMock, setClientMock } = vi.hoisted(() => ({
+    startSpanMock: vi.fn(),
+    currentClientMock: vi.fn(),
+    globalClientMock: vi.fn(),
+    setClientMock: vi.fn(),
+}));
 
 vi.mock("@sentry/nextjs", () => ({
     startSpan: (...args: unknown[]) => startSpanMock(...args),
+    getClient: () => currentClientMock(),
+    getGlobalScope: () => ({ getClient: () => globalClientMock() }),
+    getCurrentScope: () => ({ setClient: setClientMock }),
 }));
 
 import { withSpan } from "@/lib/perf-span";
@@ -34,6 +42,9 @@ const USER_ACTIONS = read("src/server/actions/user-actions.ts");
 describe("withSpan — contrat", () => {
     beforeEach(() => {
         startSpanMock.mockReset();
+        currentClientMock.mockReset().mockReturnValue({ id: "client-courant" });
+        globalClientMock.mockReset();
+        setClientMock.mockReset();
     });
 
     it("rend exactement la promesse du SDK, sans l'enrober", () => {
@@ -66,6 +77,38 @@ describe("withSpan — contrat", () => {
                 throw new Error("Discord indisponible");
             }),
         ).rejects.toThrow("Discord indisponible");
+    });
+
+    it("rattache le client global quand le scope RSC n'en porte pas", () => {
+        const globalClient = { id: "client-global" };
+        currentClientMock.mockReturnValue(undefined);
+        globalClientMock.mockReturnValue(globalClient);
+        startSpanMock.mockReturnValue(Promise.resolve(1));
+
+        withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));
+
+        expect(setClientMock).toHaveBeenCalledWith(globalClient);
+        expect(startSpanMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("ne touche pas au scope quand le client est déjà présent", () => {
+        startSpanMock.mockReturnValue(Promise.resolve(1));
+
+        withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));
+
+        expect(setClientMock).not.toHaveBeenCalled();
+        expect(globalClientMock).not.toHaveBeenCalled();
+    });
+
+    it("reste inoffensif si aucun client n'est disponible (Sentry désactivé)", () => {
+        currentClientMock.mockReturnValue(undefined);
+        globalClientMock.mockReturnValue(undefined);
+        startSpanMock.mockReturnValue(Promise.resolve(1));
+
+        withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));
+
+        expect(setClientMock).not.toHaveBeenCalled();
+        expect(startSpanMock).toHaveBeenCalledTimes(1);
     });
 });
 

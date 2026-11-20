@@ -1,6 +1,23 @@
 import * as Sentry from "@sentry/nextjs";
 
 /**
+ * Dans le rendu RSC, le SDK Next isole la requête dans un **scope sans client**
+ * (`commonObjectToIsolationScope` → `new Scope()`). `Sentry.getClient()` y répond
+ * `undefined`, donc `hasSpansEnabled()` est faux et `startSpan` rend un span
+ * **non enregistré** — mesuré le 20/11/2026 : zéro span en bêta après déploiement,
+ * alors que la trace contient bien les spans OTel de Next et de Prisma.
+ *
+ * On rattache le client global (posé par `Sentry.init`) au scope courant avant de
+ * démarrer le span. Une action serveur ou une route a déjà son client : la fonction
+ * ne fait alors qu'une lecture. Aucun span n'est créé si Sentry est désactivé.
+ */
+function ensureSentryClient(): void {
+    if (Sentry.getClient()) return;
+    const client = Sentry.getGlobalScope().getClient();
+    if (client) Sentry.getCurrentScope().setClient(client);
+}
+
+/**
  * Mesure de performance — **span Sentry serveur** autour d'un appel.
  *
  * Pourquoi ce fichier : Sentry instrumente la requête HTTP et le `proxy`, mais **pas**
@@ -17,5 +34,6 @@ import * as Sentry from "@sentry/nextjs";
  *   avalé : il remonte, avec le statut `internal_error` posé par le SDK.
  */
 export function withSpan<T>(name: string, op: string, fn: () => Promise<T>): Promise<T> {
+    ensureSentryClient();
     return Sentry.startSpan({ name, op }, fn);
 }

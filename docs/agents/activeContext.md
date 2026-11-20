@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 21/11/2026 (suite 47) — **Perf web · P1-2, images servies à la taille d'affichage** — branche `perf/p1-2-images-2026-11-21` (PR #1482)
+
+> **Demande user (verbatim)** : « l'objectif c'est surtout de tout prendre en compte, interne public, tout le projet » puis « go ».
+> **Mesure avant** : `calendar_kralamour.png` **8,2 Mo**, `calendar_autres.png` 2 Mo, `songes.png` 1,3 Mo, `dofus-missions-thumb.png` 1,08 Mo, `Roublard.png` 1,6 Mo, `calendar_dungeon_farm.png` 892 Ko — servis tels quels au navigateur, souvent pour un rendu de 16 à 144 px.
+> **Fait** : `next/image` sur `event-card` (fill + `sizes`), `raid-hero-banner` (56 px), `SongesPicto` (16–32 px), `mission-settings` (144 px), `BombGame` (800 px). Les PNG restent la source des embeds Discord (`calendar-event-images.ts`).
+> **Gain mesuré (sharp, qualité 75)** : kralamour **31 Ko** @512, dungeon_farm **47 Ko**, autres **23 Ko**, songes **< 1 Ko** @32, vignette missions **7 Ko** @144, Roublard **84 Ko** @800 → **÷20 à ÷100**.
+> **Preuves** : **786 fichiers / 8 213 tests ✅** · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
+> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
+> **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 46) — **Perf web · P1-1, spans serveur du dashboard** — branche `perf/p1-1-spans-2026-11-20` (PR #1479)
 
 > **Demande user (verbatim)** : « reprenons : […] Si tu valides ce périmètre, je démarre par 1.1 immédiatement ; sinon dis-moi ce que tu veux prioriser ».
@@ -60,14 +71,7 @@
 > **Rotation** : bloc « suite 36 » (55 conseils) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 20/11/2026 (suite 41) — **Rush · revalidations du contenu (itération 4)** — branche `fix/rush-revalidations-2026-11-20`
 
-> **Demande user (verbatim)** : « avance sur l'itération 4 » — le public voyait l'ancien guide jusqu'à 1 h après une modification God.
-> **Mesure** : page publique en **ISR 1 h** (`revalidate = 3600`) ; sur 49 actions qui écrivent, **20 actions de contenu Rush** ne revalidaient pas la page publique (10 n'avaient que God + dashboard, 4 n'avaient rien, 6 avaient un triplet dupliqué) ; les actions de progression (14) n'ont pas à la revalider.
-> **Fait** : helper **non exporté** `revalidateRushContent()` (publique + dashboard + God) — un export dans un fichier `"use server"` casserait le build ; les **20 actions de contenu** l'utilisent (import, upsert, delete, reorder, seed, route, UI, settings, move, bulk ×3, split, sync ×2, duplicate ×2) ; doublons retirés ; `publishRushSequence` garde ses pages `/q` ; les actions de progression sont inchangées.
-> **Preuves** : `rush-revalidations` **5 tests** ✅ · ciblés Rush **51** ✅ · **777 fichiers / 8 165 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : 11 quêtes sans position (8 directes + 3 sans `questDbIds`) à saisir dans God ; itérations 5/6.
-> **Rotation** : bloc « suite 35 » (monstres 2a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

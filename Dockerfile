@@ -16,6 +16,20 @@ RUN \
   fi
 
 
+# ---------------------------------------------------------------------------
+# OPS — outils d'administration (Prisma, scripts d'ops). Aucun build Next.
+# Pourquoi un stage dédié : l'image `runner` (standalone) ne contient que les
+# paquets importés par l'app ; un script d'ops y échoue sur une dépendance
+# transitive absente (mesuré le 20/11/2026 : @prisma/driver-adapter-utils,
+# puis postgres-array). Ce stage porte toutes les dépendances ET le client
+# Prisma généré, sans payer le build Next.
+# ---------------------------------------------------------------------------
+FROM base AS ops
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npx prisma generate
+
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app

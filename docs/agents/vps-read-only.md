@@ -53,9 +53,9 @@ répond `Commande non autorisée` (code 2) et est journalisé (`logger -t sigilo
 > capacité** : revue + ce document + test de la matrice (`status`, `logs`, `migrations`,
 > `whoami` refusé).
 >
-> **Rush — remplacer/archiver** : action **humaine** (`scripts/archive-rush-guide.mjs --apply`,
-> `pg_dump`, import God `JSON`, `--delete-archive`). Aucun verbe `agent-ro` ne l'expose ; `counts`/`logs`
-> restent les seules vérifications. Détail : `docs/MAINTENANCE.md` § Rush — remplacer/archiver.
+> **Rush — remplacer/archiver** : action **humaine** via `scripts/ops/vps.sh` (conteneur
+> `ops-*`, dry-run par défaut, `--apply` explicite) puis import God `JSON`. Aucun verbe `agent-ro`
+> ne l'expose ; `counts`/`logs` restent les seules vérifications. Détail : `docs/agents/vps-ops.md`.
 
 ## 3. Le rôle `sigil_ro` (une fois, sur la bêta)
 

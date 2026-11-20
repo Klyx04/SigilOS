@@ -266,6 +266,43 @@ services:
     logging: *default-logging
     healthcheck: *db-healthcheck
 
+  # ===========================================================================
+  # 🛠️ OPS — outils d'administration (jamais démarrés par `up`)
+  # ===========================================================================
+  # L'image `runner` (standalone Next) ne contient que les paquets importés par
+  # l'app : un script d'ops y échoue sur une dépendance transitive absente
+  # (mesuré le 20/11/2026 : @prisma/driver-adapter-utils, puis postgres-array).
+  # Ces services ciblent le stage `ops` du Dockerfile (deps + client Prisma).
+  #
+  # Usage : ./scripts/ops/vps.sh rush-archive beta [--apply]
+  ops-beta:
+    image: sigilos-ops:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ops
+    profiles: ["ops"]
+    env_file: .env.beta
+    environment:
+      - NODE_ENV=production
+    working_dir: /app
+    networks:
+      - beta-net
+
+  ops-prod:
+    image: sigilos-ops:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ops
+    profiles: ["ops"]
+    env_file: .env.prod
+    environment:
+      - NODE_ENV=production
+    working_dir: /app
+    networks:
+      - prod-net
+
   discord-bot-beta:
     container_name: sigilos-discord-bot-beta
     build:

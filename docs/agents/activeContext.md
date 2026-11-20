@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 40) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
+
+> **Demande user (verbatim)** : « on peut arrêter le bricolage et statuer sur du long terme quand ya besoin de faire ce genre de manip sur le vps via un skills ou autre dans le harnais ? c'est quoi la best practice cutting edge ? » puis « livre oui ».
+> **Mesure (incident réel)** : `docker compose exec app-beta node scripts/archive-rush-guide.mjs` échoue sur `@prisma/driver-adapter-utils`, puis `postgres-array` — l'image `runner` est un standalone Next, elle n'embarque pas les dépendances des outils d'admin. Deux commandes ad hoc avaient aussi échoué sur les noms de services (`db`, `app` au lieu de `db-beta`, `app-beta`).
+> **Fait** : stage Docker `ops` (deps + `prisma generate`, sans build Next) · services `ops-beta`/`ops-prod` (profil `ops`, jamais démarrés par `up`) · `scripts/ops/vps.sh` (verbes fermés : `dump`, `rush-archive`, `rush-delete-archive`, `rush-verify` ; dry-run par défaut, `--apply` seul mot qui écrit, garde `rush-sylvestre-archive-*`, refus d'un dump vide, journal `~/backups/ops.log`) · skill `.cline/skills/vps-ops/` (routeur : interdit `exec app-*`, impose dump → dry-run → apply → verify → rollback) · `docs/agents/vps-ops.md` · `AGENTS.md` §2 · `MAINTENANCE.md` § Rush réécrit · `vps-read-only.md` recalé.
+> **Preuves** : `ops-runbook` **10 tests** ✅ · `bash -n` OK (script converti en LF) · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : le runbook n'est pas encore utilisé sur la bêta (la remise à zéro s'est faite via SQL testé) ; au prochain déploiement bêta, `./scripts/ops/vps.sh rush-archive beta` remplace les commandes manuelles.
+> **Rotation** : bloc « suite 34 » (itération 1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 20/11/2026 (suite 39) — **Rush · enrichissement du guide existant (itération 3b : conseils + monstres)** — branche `feat/rush-contenu-2026-11-20`
 
 > **Demande user (verbatim)** : « il faut le mode “mise à jour” de l'import (dry-run + apply, sans écraser les textes God) — c'est ce qui fera apparaître monstres et conseils sur les 494/536 existantes ».
@@ -58,14 +67,6 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 34) — **Rush · itération 1 : état documentaire aligné** — branche `docs/rush-etat-aligne-2026-11-19`
-
-> **Demande user (verbatim)** : « fais 1 et 2 pour commencer » — itération 1 = docs, itération 2 = contenu (55 conseils + monstres + positions).
-> **Mesures (base locale, 19/11)** : guide **36 blocs / 536 séquences** · **0** page `/q` publiée · **0** `constraints` · **0** tag `prereq_expr` (seed importé antérieur à l'OU) · **6** tips de quête / **23** de bloc · **742** tags combat sans id (404 `combat_solo` + 338 `combat_plusieurs`) · **55** conseils à rédiger (50 quêtes + 5 blocs). Bêta : **494/238/32/19**, migrations à jour (`20270207000001`), code non déployé.
-> **Fait** : #1462 **déjà mergée** (`dev 88146076`) ; docs recalées — ROADMAP (55 conseils, V-D2, file V-D2, notifications, migrations V4), MODULE §T/§5 (O15/G8 livrés, 3 donjons soldés, 4 étapes/3 succès, cache = code, mesures), ROUTE §10/§12 (536, `prereq_expr` = 0, monstres 742), REFONTE (E3c livré, E2a abandonné).
-> **Preuves** : `git status` propre · docs uniquement · aucun code, aucune migration.
-> **Reste** : itération 2 — 55 conseils (Dofusyelle, paraphrases), monstres (742 tags → ids + images + fiches interne/visiteur), positions de lancement (`GameQuest.posX/posY/npcName` via `questDbIds`), puis VPS.
-> **Rotation** : bloc « suite 28 » (UI-1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 42) — **Rush · UI (icônes, blocs, fiche Dofus), temps réel et verrou du bloc** — branche `fix/rush-live-progress-2026-11-20` (PR #1473)
+
+> **Demandes user (verbatim)** : « les blocs soient dépliés », « les dj doublés avec une icône placeholder », « laisse afficher le zaap », « la vraie icône succès », « ali 17 brak 3 quêtes au choix », « 173 dj public / 143 interne », « valider par bloc aussi, sans erreur ».
+> **Livré (mergé)** : **#1471** (5 positions : La fonte des glaces `[-60,-57]` zaap `-78,-41`, Lavomatique, C'est frais…, Une âme en peine, Temple Sadida ; icône succès `icone-succes.png` ; donjons « (niv. 50) » dédoublonnés par `mergeRushChapterDungeons`) · **#1472** (icône de quête réelle `questTypeIconPath("secondaire")` — **0/536** séquences du seed n'ont d'icône ; onglet **Quêtes/Avancement** ; Dofus terminé = bordure + pastille ; **blocs dépliés par défaut** public + interne).
+> **PR #1473** : temps réel (refresh serveur débouncé **900 ms** après validation locale et sur `step:validated`/`batch`/`milestone:completed`) · **projection ids de séquence → clés d'étape** (`projectRushStepKeys`, `rushStepKeysBySequenceId`) — la base stocke des ids, la modale attendait `GPx-N`, d'où **0/8 avec 4 blocs terminés** · **bloc sans verrou** : `toggleMilestoneProgress` ne consulte plus donjon/prérequis (décision user : 500+ coches sinon), la validation quête par quête garde les deux gardes ; le toast affiche `res.error` au lieu de « Erreur ».
+> **Mesures** : base locale **4 blocs terminés / 9 avec étapes** (Wylan) · compteurs donjons **99 / 202 / 175** (173/143 non reproduits) · Ali 17 = prérequis unique « D'égout pillé » (DPLN) · WebSocket local = `npm run ws` (port 3001), **non lancé** par `npm run dev`.
+> **Preuves** : `rush-chapter-dungeons` 6 · `rush-blocks-expanded` 2 · `rush-live-refresh` 3 · `rush-dofus-progress-projection` 4 · `rush-public-parity` 51 · `tsc` 0 · lint 0 erreur · aucune migration.
+> **Reste** : merger **#1473** puis **redéployer la bêta** · **173 vs 143** (écran exact à fournir) · **3 succès** à marquer dans God · **6 quêtes sans position** (5 des 11 traitées) · **itérations 5/6**.
+> **Rotation** : bloc « suite 36 » (55 conseils) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 41) — **Rush · revalidations du contenu (itération 4)** — branche `fix/rush-revalidations-2026-11-20`
 
 > **Demande user (verbatim)** : « avance sur l'itération 4 » — le public voyait l'ancien guide jusqu'à 1 h après une modification God.
@@ -55,14 +66,6 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 36) — **Rush · 55 conseils (itération 2b)** — branche `feat/rush-conseils-2026-11-19`
-
-> **Demande user (verbatim)** : « toutes les conseils c quoi ? tougli ou dofusyelle? » ; « oui étape par étape go ».
-> **Mesure** : le rapport listait **55** conseils — **50 étapes Dofusyelle** + **5 notes de blocs Tougli** ; 3 étapes (7, 35, 53) partageaient une quête et étaient comptées « à rédiger ».
-> **Fait** : contenu dans `src/data/rush-guide-tips.json` (`yelle` = 50 paraphrases, `blocks` = 5 notes) ; `YELLE_DEMO_TIPS` / `TOUGLI_BLOCK_TIPS` branchés sur le seed ; les conseils d'une même quête sont **ajoutés à la suite** (pas d'écrasement) ; les étapes sans cible (1, 41, 46, 50) sont posées sur le bloc de leur catégorie ; `tipsToWrite` ne liste plus un conseil écrit ; `blockTip` alimente les 5 blocs.
-> **Preuves** : rapport **0 conseil à rédiger** · **56 fusions Yelle** (55 conseils, 3 partagés) + **5 blocs** · **771 fichiers / 8 112 tests ✅** · `tsc` 0 · `rush-trame-seed` **40** · aucune migration.
-> **Reste** : positions (2c — siphon DPLN à décider) ; import du guide (itération 3) pour voir les conseils en base.
-> **Rotation** : bloc « suite 30 » (DofusDex, 6 totems, toasts DA) sorti (7ᵉ).
 
 
 

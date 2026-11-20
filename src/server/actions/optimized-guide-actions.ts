@@ -626,60 +626,13 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     }
   });
 
-  // ── Verrou de DONJONS (S0-5bis) ─────────────────────────────────────────────
-  // Cocher un BLOC entier ne doit pas contourner le verrou d'une quête : même règle
-  // que `setRushSequenceProgress` (source unique `rush-dungeons`), même fail-closed.
-  // Décocher reste toujours possible ; un donjon optionnel ne bloque jamais.
-  if (isCompleted) {
-    const before = await db.playerGuideProgress.findUnique({
-      where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
-      select: { isCompleted: true },
-    });
-    if (!before?.isCompleted && milestoneWithSequences?.guide?.id) {
-      const stateRows = await db.playerGuideDungeonState.findMany({
-        where: { profileId, guideId: milestoneWithSequences.guide.id, characterSlot },
-        select: { sequenceId: true, dungeonKey: true, state: true },
-      });
-      const dungeonStates: Record<string, "done" | "todo"> = {};
-      for (const row of stateRows) {
-        dungeonStates[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
-          row.state === "DONE" ? "done" : "todo";
-      }
-      const blocked = await findSequenceBlockedByMissingDungeon(
-        milestoneWithSequences.guide.id,
-        (milestoneWithSequences.sequences ?? []).map((seq) => seq.id),
-        dungeonStates
-      );
-      if (blocked) {
-        const n = blocked.missing.length;
-        return {
-          success: false as const,
-          error: `« ${blocked.name} » : ${n} donjon${n > 1 ? "s" : ""} requis non fait${n > 1 ? "s" : ""}`,
-          blockedSequenceId: blocked.id,
-          missingDungeons: blocked.missing,
-        };
-      }
-
-      // ── Verrou de PRÉREQUIS du bloc (fail-closed) ────────────────────────────
-      // Le bloc se valide d'un coup : ses propres quêtes comptent comme validées,
-      // seuls les prérequis EXTERNES peuvent le bloquer.
-      const blockSeqIds = (milestoneWithSequences.sequences ?? []).map((seq) => seq.id);
-      const blockedPrereq = await findSequenceBlockedByPrereq(
-        milestoneWithSequences.guide.id,
-        profileId,
-        characterSlot,
-        blockSeqIds,
-        blockSeqIds
-      );
-      if (blockedPrereq) {
-        return {
-          success: false as const,
-          error: `« ${blockedPrereq.name} » : prérequis non validé(s)`,
-          blockedSequenceId: blockedPrereq.id,
-        };
-      }
-    }
-  }
+  // ── Validation d'un BLOC : AUCUN verrou de donjon ni de prérequis ───────────
+  // Décision user du 20/11/2026 : un membre déjà en cours sur Sylvestre ne doit pas
+  // recocher 500+ quêtes à la main parce qu'un donjon n'est pas coché. Le bloc est un
+  // geste de **confort** : il valide tout, et la dévalidation reste toujours possible.
+  // Les gardes restent **fail-closed** sur la validation quête par quête
+  // (`setRushSequenceProgress`) — c'est là que le verrou de donjon et de prérequis
+  // protège réellement la progression.
 
   const completedSteps = isCompleted ? (milestoneWithSequences?.sequences.map((seq) => seq.id) ?? []) : [];
 

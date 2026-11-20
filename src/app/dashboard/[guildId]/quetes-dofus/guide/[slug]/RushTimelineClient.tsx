@@ -90,6 +90,7 @@ import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, Dunge
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
 import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
+import { rushStepKeysBySequenceId } from "@/lib/rush-dofus-progress";
 import {
   buildRushDungeonsOverview,
   rushDungeonsCounter,
@@ -1762,6 +1763,9 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
 // chaque page repartirait à 1 (défaut mesuré le 12/11/2026).
 const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
 const contentMilestones=useMemo(()=>milestones.filter(ms=>!isRushNonQuestBlock(ms.type)),[milestones]);
+// Table `sequenceId → clés d'étape` : la base stocke des ids de séquence, les règles
+// de statut Dofus attendent des clés (`<subGuideRef>-<n>`). Une seule projection.
+const stepKeysBySequenceId=useMemo(()=>rushStepKeysBySequenceId(milestones),[milestones]);
 /**
  * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
  * Le serveur ne transmet que des **clés d'étapes** (`<subGuideRef>-<n>` / `-all`) :
@@ -1957,6 +1961,21 @@ const timelineItems=useMemo(()=>{
     return out;
   }, [milestones, allCompletedSeqIds]);
 
+  // ─── Temps réel de la progression (fiche Dofus + bandeau) ───────────────────
+  // `guildProgress` est une **prop serveur** : un event WS (autre membre) ou une
+  // validation locale déclenche UN rendu serveur débouncé — pas de polling, pas de
+  // rechargement de page, et la logique de progression n'est pas dupliquée.
+  const liveRefreshTimer = React.useRef<number | null>(null);
+  const scheduleLiveRefresh = React.useCallback(() => {
+    if (typeof window === "undefined" || liveRefreshTimer.current != null) return;
+    liveRefreshTimer.current = window.setTimeout(() => {
+      liveRefreshTimer.current = null;
+      router.refresh();
+    }, 900);
+  }, [router]);
+  React.useEffect(() => () => {
+    if (liveRefreshTimer.current != null) window.clearTimeout(liveRefreshTimer.current);
+  }, []);
   const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{
     const cur=new Set(completedStepsByMs.get(ms.id)||[]);
     const was=cur.has(seqId);
@@ -2034,6 +2053,7 @@ const timelineItems=useMemo(()=>{
       // Verrou de donjons : le serveur refuse (donjon requis non fait) → on l'explique.
       if(!(res as any).success){ setResourceChecks(resourceBefore); toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
       if((res as any).success){
+        scheduleLiveRefresh();
         // Validation → le repère de cette quête est retiré (soit validée, soit repère).
         if(!was && bookmarksByMs.get(ms.id)===seqId){
           setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;});
@@ -2070,8 +2090,8 @@ const timelineItems=useMemo(()=>{
       setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,resourceChecks]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,resourceChecks,scheduleLiveRefresh]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -2223,6 +2243,20 @@ const timelineItems=useMemo(()=>{
     userName: currentUserProfile?.pseudoDofus || selectedCharacter,
     enabled: !incognito,
   });
+
+  // Un event de progression (autre membre) rafraîchit la fiche Dofus et le bandeau :
+  // même chemin que la validation locale, un seul rendu serveur débouncé.
+  React.useEffect(() => {
+    const last = guideLive.events[guideLive.events.length - 1];
+    if (!last) return;
+    if (
+      last.type === "step:validated" ||
+      last.type === "step:validated:batch" ||
+      last.type === "milestone:completed"
+    ) {
+      scheduleLiveRefresh();
+    }
+  }, [guideLive.events, scheduleLiveRefresh]);
 
   // ─── Présence HONNÊTE ────────────────────────────────────────────────────────
   // « En ligne » = connecté au WebSocket à l'instant T. Un membre de la base qui a touché
@@ -2830,7 +2864,7 @@ const timelineItems=useMemo(()=>{
     <AnimatePresence>
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
-    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
         C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers
         1 440 / 1 280 / 900) : la grille locale et son `<style>` sont SUPPRIMÉS,

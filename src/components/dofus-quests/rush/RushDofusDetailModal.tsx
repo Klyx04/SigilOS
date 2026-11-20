@@ -19,13 +19,15 @@
  * La modale sort de l'arbre (Radix) : elle réapplique la portée DA (`da-modal`, `da-portal`).
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CheckCircle2, Clock3, Circle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { DofusQuestStatus } from "@/lib/rush-dofus-progress";
+import { questTypeIconPath } from "@/lib/quest-type-icon";
+import { cn } from "@/lib/utils";
 
 export type DofusDetailQuest = DofusQuestStatus & {
     /** Asset de la quête (`icone-quete.png` par défaut côté appelant). */
@@ -56,7 +58,7 @@ export type DofusDetailTarget = {
     color: string;
 };
 
-const QUEST_ICON = "/assets/icons/icone-quete.png";
+const QUEST_ICON = questTypeIconPath("secondaire");
 
 const PILL = {
     done: "border-success/30 bg-success/10 text-success",
@@ -92,6 +94,11 @@ export function RushDofusDetailModal({
 }) {
     const en = locale === "en";
     const daScope = daScopeProps(useDaTheme());
+    const [tab, setTab] = useState<"quests" | "members">("quests");
+    // Un nouveau Dofus (ou une fermeture) repart sur les quêtes.
+    useEffect(() => {
+        if (!open) setTab("quests");
+    }, [open, dofus?.id]);
 
     return (
         <Dialog open={open && !!dofus} onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -113,6 +120,29 @@ export function RushDofusDetailModal({
                         </DialogHeader>
 
                         <div className="da-modal-body max-h-[60vh] space-y-3 overflow-y-auto custom-scrollbar pr-0.5">
+                            {members && members.length > 0 ? (
+                                <div className="flex gap-1" role="tablist">
+                                    {(["quests", "members"] as const).map((key) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={tab === key}
+                                            onClick={() => setTab(key)}
+                                            className={cn(
+                                                "rounded-[4px] px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                                                tab === key
+                                                    ? "bg-success/15 text-success"
+                                                    : "text-muted-foreground hover:bg-elevated"
+                                            )}
+                                        >
+                                            {key === "quests"
+                                                ? en ? "Quests" : "Quêtes"
+                                                : en ? "Member progress" : "Avancement"}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
                             {/* Ocre : bande Metamob, avec l'icône du Dofus. */}
                             {ocre || showOcreBand ? (
                                 <section className="rounded-[5px] border border-warning/30 bg-warning/[0.06] p-2.5">
@@ -140,7 +170,7 @@ export function RushDofusDetailModal({
                                 </section>
                             ) : null}
 
-                            <section>
+                            <section hidden={tab !== "quests"}>
                                 <div className="flex items-baseline justify-between gap-2">
                                     <p className="text-[11px] font-semibold text-foreground">
                                         {en ? "Quests" : "Quêtes"}
@@ -214,7 +244,7 @@ export function RushDofusDetailModal({
                             </section>
 
                             {members && members.length > 0 ? (
-                                <section>
+                                <section hidden={tab !== "members"}>
                                     <div className="flex items-baseline justify-between gap-2">
                                         <p className="text-[11px] font-semibold text-foreground">
                                             {en ? "Engaged members" : "Membres engagés"}

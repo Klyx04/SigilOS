@@ -7,6 +7,7 @@ import { successIconUrl } from "@/lib/achievement-icon";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
+import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -120,6 +121,16 @@ function SuccessSheet({
                     row.done ? "text-muted-foreground" : "text-foreground"
                   )}
                 >
+                  {/* L'asset de quête (sprite de type), jamais un carré générique : le
+                      seed ne porte aucune icône de séquence (0/536 mesuré le 20/11/2026). */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={questTypeIconPath("secondaire")}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    className="h-4 w-4 shrink-0 object-contain"
+                  />
                   <span
                     className={cn(
                       "grid h-4 w-4 shrink-0 place-items-center rounded-[3px] border",

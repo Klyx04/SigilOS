@@ -204,7 +204,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 onClick={() => setOpenDofusId(d.id)}
                 aria-label={`Voir où en sont les membres sur le Dofus ${d.label} — ${d.pct} %, ${d.membersInProgress.length} membre(s) engagé(s)`}
                 className={`relative flex flex-col items-center gap-1 p-1.5 text-center cursor-pointer shrink-0 w-[78px] rounded-[4px] border transition-colors ${
-                  isActive ? "border-success" : "border-transparent hover:border-border"
+                  isActive
+                    ? "border-success bg-success/5"
+                    : isAllDone
+                      ? "border-success/40 bg-success/5 hover:border-success/60"
+                      : "border-transparent hover:border-border"
                 }`}
                 title={`${d.label} — ${d.pct} % — cliquer pour le détail par membre`}
               >
@@ -215,6 +219,14 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                   alt={d.label}
                   className="w-7 h-7 object-contain"
                 />
+                {isAllDone ? (
+                  <span
+                    className="absolute right-1 top-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-success text-[8px] font-bold text-background"
+                    aria-hidden="true"
+                  >
+                    ✓
+                  </span>
+                ) : null}
 
                 {/* Label — casse normale, la couleur dit « terminé » */}
                 <span className={`text-[11px] truncate max-w-full leading-tight ${isAllDone ? "text-success" : "text-muted-foreground"}`}>

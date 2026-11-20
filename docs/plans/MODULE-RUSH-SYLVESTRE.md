@@ -91,6 +91,10 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.test.ts'`). **Ajoutés le 26/10/2026** : `rush-quest-identity` (identité de quête + borne des `questDbIds`), `rush-order-codes` (référentiel des 6 Ordres),
 `rush-import` (plan de dry-run + verrou « l'import n'efface rien »), `rush-dofus-accent` (contraste 4,5:1 des 24 accents + accessibilité du filtre), `rush-dofus-progress` (progression d'un membre **quête par quête** dans la modale par Dofus).
 
+**Ajoutés le 20/11/2026** : `rush-revalidations` (les 20 actions de contenu revalident la page publique), `rush-dofus-progress-projection` (ids de séquence → clés d'étape), `rush-blocks-expanded` (blocs ouverts par défaut), `rush-live-refresh` (refresh débouncé après validation locale/WS), `rush-chapter-dungeons` (donjons « (niv. N) » dédupliqués).
+
+> **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort, décision user — 500+ coches sinon) ; la validation **quête par quête** le garde, fail-closed (`RUSH-DEVELOPPEMENT-SUITE.md` §donjons).
+
 ## 1 bis. État mesuré le 02/11/2026 (soir) — la route, surface par surface
 
 > Mesuré sur la **base locale** (5433, lecture seule) + le code. À re-vérifier en bêta avant conclusion.

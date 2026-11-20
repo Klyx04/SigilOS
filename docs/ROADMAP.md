@@ -10,17 +10,16 @@
 
 ## 0. Reprise immédiate
 
-- 🎯 **Démo Rush** — #1431 → #1461 : guide **36/536**, prérequis **451 + 76**, succès **303 / 284**, donjons **au choix** (+**21 ids**), **UI-1**, DA PiP + guide, DofusDex **supprimés**, toasts DA, **Bloc I**, **Bloc J** ; reste **VPS** (conseils écrits) · bêta 494/238/32/19.
-- 📌 **Prod** : release du 13/11/2026 dans `main` (`c190f2c7`, PR #1366) ; déploiement humain → `./scripts/deploy-cd.sh prod`.
-  **Ops de base, bêta puis prod** : `20261112170000` (variantes de route) · `20270130000000` (conditions) · `20270201000000` → script → `20270201500000` → `20270202000000` → `20270203000000` → `20270204000000` (tickets God) · `20270205000000` (changelog) · `20270206000000` (opt-out) · `20270112000000` + `20270113000000` (portées par `deploy-cd.sh`).
+- 🎯 **Rush Sylvestre (20/11/2026)** : **536** quêtes · **49** conseils · **525** positions · **737** tags avec monstres ; bêta **536/232/30/19**, archive `rush-sylvestre-archive-20261120T083104`. **#1464→#1472 mergés** ; **#1473** (temps réel, projection ids→clés, bloc sans verrou) **à merger** → **redéployer la bêta**.
+- 📌 **Prochains lots Rush** : ① **173 vs 143 donjons** (fournir l'écran exact) ; ② **3 succès** (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) à marquer dans God ; ③ **6 quêtes sans position** (5 des 11 traitées le 20/11) ; ④ **itérations 5/6**.
+- 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
+- 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`, PR #1366) ; **aucune date** (décision user) — ne pas la mettre dans l'ordre des lots.
+  **Migrations** : jusqu'à `20270207000001` en bêta (16/11) ; la prod les joue au deploy — détail : `docs/MAINTENANCE.md`.
   **Opérations de déploiement** : rebuild `ws-beta`/`ws-prod` · redéployer le bot · couper l'intent `MessageContent` (portail Discord) · retirer cAdvisor · 4 crontabs · redéploiement bêta (Node `24.22.1`).
-  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` ✅ **posé le 16/11/2026** · **stuff lot D** : `siphon-item-sets?apply=1` → `siphon-item-conditions?apply=1` → `data-watch` → crontab conditions · **succès spéciaux** : `succes-speciaux siphon` puis `retirer-donjon-valide` (dry-run → `--apply`).
+  **Réglages** : `PUBLIC_VISITOR_ENTRY=1` ✅ · stuff lot D (`siphon-item-sets` → `siphon-item-conditions` → `data-watch`) · succès spéciaux (`succes-speciaux siphon` → `retirer-donjon-valide`) — commandes : `MAINTENANCE.md`.
 
 - **Rétention** : lot A **livré** (bêta purgée le 17/11 : 15 296 `TelemetryEvent`, 11 audits, 2 sessions God ; `ServiceActivityLog` 0) ; **reste prod** (§2 bis D8) — mesure et tables bornées : `docs/plans/PLAN-RETENTION-TELEMETRIE-JOURNAUX.md`.
-- **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D8` (Cloudflare).
-  **`D7` tranché le 16/11/2026** : à l'ouverture, `sigilos.fr` servira **la même landing React que la bêta**
-  (retrait du rewrite `maintenance.html`) ; une **nouvelle refonte de la landing** est prévue « un de ces
-  quatre », **sans cadrage pour l'instant** (décision user, aucun détail).
+- **Décisions bloquantes** : `D-R1`, `D1`/`D2`, `D8`. `D7` **tranché** : `sigilos.fr` servira la landing React de la bêta ; refonte non cadrée.
 - **Ops à confirmer** : `live-watch` · 4 crontabs (sondages/ancienneté/rappels **déjà posés** le 02/11) · redéploiement bêta (Node `24.22.1`, `docs/agents/node-runtime.md`) — détail : `docs/MAINTENANCE.md` § Tâches planifiées.
 - **Dépend de toi** : captures G7/G8/G9/O15 · nom de `33380` · 98 textes Brâkmarien · 2×100 + 30 quêtes.
 
@@ -205,7 +204,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `OPS-RUNBOOK` · `RUSH-REVALIDATIONS` | Ops VPS (`vps.sh` + `ops-*`) · 20 actions de contenu Rush revalidées (`revalidateRushContent`) — verrous **10** + **5** | 20/11/2026 |
+| `OPS-RUNBOOK` · `RUSH-REVALIDATIONS` · `RUSH-UI-LIVE` | Ops VPS · 20 actions revalidées · UI (icônes, blocs ouverts, projection, temps réel, bloc sans verrou) — verrous **10 + 5 + 7** | 20/11/2026 |
 | `MISSIONS-SONDAGES` | Visuels (Songes/Anomalies/familles), « Sans ping » publie l'annonce, embeds supprimés à la clôture, modale 3xl, éditeur UI (tokens/responsive/a11y) — verrous 18/6/4/9 | 17/11/2026 |
 | `ESSAI-NOTIF-DASHBOARD` | Fin d'essai — deux chemins couverts, idempotence corrigée (clé durable 90 j écrite après un envoi réussi), embed « Dashboard présent / pas de compte » (`buildTrialEndNotice`) — verrou `trial-end` **14** | 16/11/2026 |
 | `STATS-RESTES-404` | Stats Guilde — 4 derniers restes morts retirés (rafraîchissement `/stats`, « Stats Guilde » de la carte RBAC, libellé `GUILD_MODULE_LABELS.stats`, aperçu d'embed `stats`) · **308** `/dashboard/:guildId/stats` → accueil de la guilde · `getGuildStats` **autorise avant le cache Redis** · **404** : trois écrans chartés (public / dashboard / espace visiteur) + journal `warn` échantillonné (chemin sans query, hôte du Referer) — verrous `stats-page-removal` **15**, `not-found-log` **14**, `not-found-pages` **7** | 16/11/2026 |

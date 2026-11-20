@@ -525,22 +525,29 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).toMatch(/openDungeonPanel === seq\.id/);
   });
 
-  it("le verrou est SERVEUR pour la guilde — y compris « valider tout le bloc »", () => {
-    // Quête par quête (`setRushSequenceProgress`)…
+  it("le verrou de DONJONS reste SERVEUR sur la quête seule (le bloc est un confort)", () => {
+    // Quête par quête (`setRushSequenceProgress`) : la garde est appelée.
     expect(ACTIONS_CODE).toMatch(/findSequenceBlockedByMissingDungeon/);
     expect(ACTIONS_CODE).toMatch(/blockedSequenceId: blocked\.id/);
-    // …ET le chemin du bloc entier (`toggleMilestoneProgress`), qui écrivait sans verrou :
-    // définition + 2 appels (quête, bloc).
+    // Le bloc entier (`toggleMilestoneProgress`) ne consulte AUCUN verrou :
+    // décision user du 20/11/2026 (500+ coches sinon).
+    const start = ACTIONS_CODE.indexOf("export async function toggleMilestoneProgress");
+    const end = ACTIONS_CODE.indexOf("\n/**", start + 10);
+    const blockBody = ACTIONS_CODE.slice(start, end > start ? end : start + 6000);
+    expect(blockBody).not.toContain("findSequenceBlockedByMissingDungeon");
     const calls = ACTIONS_CODE.match(/findSequenceBlockedByMissingDungeon\(/g)?.length ?? 0;
-    expect(calls).toBeGreaterThanOrEqual(3);
+    expect(calls).toBeGreaterThanOrEqual(2); // définition + appel quête
   });
 
-  it("le verrou de PRÉREQUIS est SERVEUR aussi — quête seule et bloc entier", () => {
-    // La règle est appelée par l'action (pas seulement par les écrans) : une coche
-    // directe ne peut pas contourner un `prereq_text` non validé.
+  it("le verrou de PRÉREQUIS reste SERVEUR sur la quête seule", () => {
     const calls = ACTIONS_CODE.match(/findSequenceBlockedByPrereq\(/g)?.length ?? 0;
-    expect(calls).toBeGreaterThanOrEqual(3); // définition + 2 appels
+    expect(calls).toBeGreaterThanOrEqual(2); // définition + appel quête
     expect(ACTIONS_CODE).toMatch(/prérequis non validé\(s\)/);
+    // Le bloc entier ne refuse plus pour un prérequis externe (même décision).
+    const start = ACTIONS_CODE.indexOf("export async function toggleMilestoneProgress");
+    const end = ACTIONS_CODE.indexOf("\n/**", start + 10);
+    const blockBody = ACTIONS_CODE.slice(start, end > start ? end : start + 6000);
+    expect(blockBody).not.toContain("findSequenceBlockedByPrereq");
   });
 
   it("le dashboard bloque AVANT l'aller-retour et charge l'état au montage", () => {

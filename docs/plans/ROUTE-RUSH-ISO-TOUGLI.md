@@ -302,7 +302,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | 3 donjons inconnus | ✅ **soldé le 19/11/2026** : 3 alias mesurés (`rush-dungeon-names`) ; rapport à re-générer | — |
 | Positions de lancement | ✅ **siphon DPLN 19/11/2026** : **524 / 530** (515 haut + **9 corps**, dont **1859 Faire le mort `[-26,36]`**) ; 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) ; `allowZaap` vrai, source haut/corps ; alignement 233/233, Ordres 30/30, classes 19/19 | — |
 | 4 étapes / **3 succès** (rapport du 18/11) | « Compléments — succès hors trame » | **normal** |
-| Cache public | ISR 1 h ; tous les edits ne revalident pas | **petit lot** |
+| Cache public | ISR 1 h ; tous les edits ne revalidaient pas | ✅ **livré 20/11/2026** : `revalidateRushContent` (publique + dashboard + God) sur **20 actions de contenu** ; progression inchangée — verrou `rush-revalidations` | — |
 | Progression au déplacement/suppression | `PlayerGuideProgress` par bloc ; `moveRushSequence`/`deleteRushMilestone` | **backend** (avant éditions) |
 | Pages `/q/<slug>` | 0 publiée | **ops/édition** |
 | **Quêtes d'alignement numérotées** (« Ali 1 », « Ali 2 »…), séparées Bonta / Brâkmar | ✅ **livré 18/11/2026** : « Ali 1 → 100 » (Bonta) et « Ali 1 → 102 » (Brâkmar), rangs d'Ordre **1 → 5** ; **dérivés à l'affichage** (`buildAlignmentSeries`), blocs séparés par cité (dashboard, guide public, overlay). Aucun renommage, aucun réimport : les prérequis restent résolus par nom | — |
@@ -312,6 +312,11 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 | Liste « Mon Ocre » rognée | ✅ **livré 18/11/2026** : défilement natif borné (`min(440px,55svh)`), barre visible | — |
 | Changement d'alignement visible immédiatement | ✅ **livré 18/11/2026** : cause = payload PiP figé ; `sync` du store à chaque rafraîchissement + cité/Ordre pré-remplis dans la modale | — |
 | Retouches DA (PiP, guide, verrou, DofusDex, fiche Succès, pastilles) | ✅ **livré 19/11/2026** : 17 retouches ; fiche Succès portée hors carte, pastilles dans le bloc segmenté, icône `succes.png`, markdown des blocs DofusDex ; `da-wakfu` 66/66, suite 7 992 ; **PR #1450** | — |
+| Fiche Dofus à **0/8** alors que des blocs sont validés | `PlayerGuideProgress.completedSteps` stocke des **ids de séquence** ; les règles attendaient `GPx-N` | ✅ **livré 20/11/2026** : `projectRushStepKeys` + `rushStepKeysBySequenceId` (interne + communauté) — verrou `rush-dofus-progress-projection` | — |
+| Valider un **bloc** refusé (donjon/prérequis) | le bloc portait les verrous des quêtes | ✅ **livré 20/11/2026** : le bloc valide **tout** (confort, décision user) ; la validation quête par quête garde les 2 gardes ; toast = message serveur exact | — |
+| Fiche Dofus / bandeau figés après validation | `guildProgress` = prop serveur ; le WS ne nourrissait que le ticker | ✅ **livré 20/11/2026** : refresh serveur débouncé (900 ms) après validation locale **et** sur `step:validated`/`batch`/`milestone:completed` | — |
+| Blocs repliés à l'ouverture | état initial = premier bloc seulement | ✅ **livré 20/11/2026** : **tous** les blocs ouverts (public + interne, reset et restauration compris) — verrou `rush-blocks-expanded` | — |
+| Icônes succès / quête génériques | `succes.png` / `icone-quete.png` | ✅ **livré 20/11/2026** : `icone-succes.png` ; sprite de type de quête (**0/536** séquences du seed n'ont d'icône) | — |
 
 **Ordre proposé** : UX ✅ (séries Ali, alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
@@ -322,15 +327,11 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 
 ## 13. Reprise propre — la porte d'entrée
 
-1. Lire `docs/agents/activeContext.md` (bloc **suite 21**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
-2. Le **quoi** : `docs/plans/ROUTE-RUSH-ISO-TOUGLI.md` §10-13 (seed/archivage/retours) ;
-   `docs/plans/MODULE-RUSH-SYLVESTRE.md` **Bloc I** (succès de donjon) + **§5** (retours UI/UX).
-3. Les **prérequis** : `docs/reference/QUEST-PREREQUISITES.md` §5.1/§6.
-4. Les **ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; `docs/agents/vps-read-only.md`.
-5. **État local** : `rush-sylvestre` **36/536** (importé), archive **108/492** ;
-   `src/temp/rush-seed/tougli-enriched.json` (volatile) ; le code + les docs sont **non commités** ;
-   la branche est `dev`.
-6. **Prochaine session** : choisir le lot (prérequis, UX, UI, Bloc I) ; la PR du seed peut être préparée
-   en parallèle ; le VPS après la PR (backup → archive → import → vérifier → `--delete-archive`).
+1. Lire `docs/agents/activeContext.md` (**bloc suite 42**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
+2. **État (20/11/2026)** : guide **536** · **49** conseils · **525** positions · **737** tags avec monstres ; bêta **536/232/30/19** (archive `rush-sylvestre-archive-20261120T083104`) ; **#1473** à merger puis **redéployer la bêta**.
+3. **Prochains lots** : ① **173 vs 143 donjons** (fournir l'écran exact) ; ② **3 succès** (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) à marquer dans God ; ③ **6 quêtes sans position** (5 des 11 traitées) ; ④ **itérations 5/6**.
+4. **Règles clés** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed (`RUSH-DEVELOPPEMENT-SUITE.md` §donjons). WebSocket local = `npm run ws` (port 3001), **pas** `npm run dev`.
+5. **Ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; runbook `scripts/ops/vps.sh` (`docs/agents/vps-ops.md`) ; lecture seule `vps-read-only.md`.
+6. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer sans dry-run ; archiver sans dump ; supprimer l'archive avant validation.
 7. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer le seed sans dry-run ; déplacer/
    supprimer des quêtes cochées ; oublier `npm run test:run` avant la PR.

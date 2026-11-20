@@ -1515,7 +1515,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
  * Get all guilds where the user has an active profile.
  * Used for the guild switcher (multi-tenant support).
  */
-export async function getUserGuilds() {
+/**
+ * Cache **par requête** : le layout et les composants peuvent demander la même
+ * liste sans refaire `auth()` + la requête profils. Jamais de cache partagé
+ * (la liste est propre à l'utilisateur).
+ */
+export const getUserGuilds = cache(async () => {
     const session = await auth();
     if (!session?.user?.id) return [];
 
@@ -1550,7 +1555,7 @@ export async function getUserGuilds() {
         logger.error("Error fetching user guilds:", error);
         return [];
     }
-}
+});
 
 /**
  * Liste des serveurs Discord du membre — SANS cache partagé.

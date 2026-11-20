@@ -9,6 +9,16 @@
     header Referrer-Policy "strict-origin-when-cross-origin"
 }
 
+# 🗜️ Compression déléguée au proxy (Go, multi-thread) — mesuré le 20/11/2026 :
+# la page publique du guide Rush pesait 1,13 Mo et Node la gzippait sur son
+# thread unique. `encode` négocie zstd puis gzip ; Caddy ignore les réponses
+# déjà compressées et les WebSockets. `next.config.ts` doit rester à
+# `compress: false` : les deux réglages vont ensemble.
+(compression) {
+    encode zstd gzip
+}
+
+
 # ─── Rate-limit (F-14) — dernier rempart anti-DoS au niveau proxy ─────────────
 # ⚠️ Borne HAUTE par IP + exemption des assets statiques. Ce n'est PAS une
 # limitation fine du dashboard authentifié (la régulation par utilisateur est
@@ -74,6 +84,7 @@ www.sigilos.fr {
 # =============================================================================
 sigilos.fr {
     import security_headers
+    import compression
     import rate_limit_base
     import error_page_429
 
@@ -166,6 +177,7 @@ ROBOTS 200
 # =============================================================================
 beta.sigilos.fr {
     import security_headers
+    import compression
     import rate_limit_base
     import error_page_429
 

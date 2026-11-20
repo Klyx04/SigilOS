@@ -6,13 +6,23 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 39) — **Rush · enrichissement du guide existant (itération 3b : conseils + monstres)** — branche `feat/rush-contenu-2026-11-20`
+
+> **Demande user (verbatim)** : « il faut le mode “mise à jour” de l'import (dry-run + apply, sans écraser les textes God) — c'est ce qui fera apparaître monstres et conseils sur les 494/536 existantes ».
+> **Mesure (base locale, lecture seule)** : guide **536 séquences · 530 `tips` vides / 6 pleins · 742 tags de combat, 742 sans `monsters`** ; payload enrichi (`src/temp/rush-seed/tougli-enriched.json`) : **36 blocs / 536 séquences / 49 conseils / 742 tags combat dont 737 porteurs de monstres** ; rapprochement **(bloc, nom)** normalisé : **536/536**.
+> **Fait** : règle pure `rush-content-sync` (`planRushContentSync`, `summarize…`, `isRushContentSyncNoop`) — un conseil n'est écrit **que si `tips` est vide** (un texte God différent est compté « protégé »), un tag de combat qui porte **déjà** ses monstres n'est jamais remplacé, **aucun tag ajouté ni supprimé**, les 5 groupes non résolus restent **signalés** ; action God `syncRushGuideContent(raw, apply)` (**dry-run par défaut**, schéma Zod **partagé** avec l'import, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; **même payload** que l'import : la modale « JSON » analyse l'import **et** l'enrichissement, bouton **« Enrichir l'existant (N) »**. L'import garde sa garde « aucun `.update(` » (`rush-import.test.ts:241`), donc rien n'a été affaibli.
+> **Preuves** : dry-run réel sur la base locale : **374 séquences · 43 conseils · 737 tags · 1 518 monstres · 5 groupes non résolus · 0 non apparié** · `rush-content-sync` **17 tests** ✅ · **774 fichiers / 8 148 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
+> **Reste** : **bêta** (deploy `8a243ddf` → import → Positions → **Enrichir l'existant** → re-mesure) ; 6 pages sans position + 3 séquences sans `questDbIds` ; itérations 4/5/6 ; prod.
+> **Rotation** : bloc « suite 33 » (Bloc J) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 38) — **Rush · synchro des positions DPLN en base (itération 3a)** — branche `feat/rush-positions-sync-2026-11-20`
 
 > **Demande user (verbatim)** : « on est bloqué partout ? on fait comment? » — l'import God restait sur « Rien à créer » et les icônes position/zaap ne s'affichaient pas.
 > **Mesure (base locale, lecture seule)** : guide **536 séquences · 533 `questDbIds` · 0 `pos_tags`** ; plan de synchro **527 à mettre à jour**, **0 déjà à jour**, **9 sans position** — 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) + 3 séquences sans id (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) ; « Faire le mort » → `[-26,36]`.
 > **Fait** : règle pure `rush-quest-positions` (`buildRushPositionTag`, `planRushPositionSync`, `summarize…`) — tag remplacé/ajouté **en place**, `allowZaap` explicite et **zaap manuel** `zaapX/zaapY` conservés, entrées non mutées, idempotente ; action God `syncRushPositions` (**dry-run par défaut**, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; bouton **Positions** + modale dans `RushEditorStudio` (aucun fichier God neuf) ; le seed consomme la même règle.
 > **Preuves** : **13 tests** `rush-position-sync` ✅ · ciblés **91/91** · `tsc` 0 · ESLint 0 erreur · plan local **527/9** · « Faire le mort » `[-26,36]` · aucune migration.
-> **Reste** : **Positions → Appliquer** en God (local, puis bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif.
+> **Reste** : **Positions appliquées en local** (527 tags ; bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif, l'enrichissement de l'existant arrive en 3b (bloc 39).
 > **Rotation** : bloc « suite 32 » (alias de donjons) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
@@ -59,10 +69,3 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 33) — **Rush · Bloc J « Progression Donjons »** — branche `feat/rush-bloc-j-progression-donjons`
-
-> **Demandes user (verbatim)** : « bloc j / tu décales rush live et ouvrir overlay à droite et tu le mets entre les 2 / responsive / idem guides visiteurs connecté / non connecté / même chose dans l'overlay / oublie pas les assets » ; puis « pk tu manges l'écran en bas ? où est le skill responsive ? ».
-> **Fait** : ① règle pure `rush-dungeons-overview` — **occurrences** `sequenceId::dungeonKey`, groupes « au choix » = **1 exigence**, rollups `x/y étapes`, `m/M membres`, filtres état/étape/repères/recherche, **option A** = bloc du repère + « Tout déplier » ; ② action bornée `getRushDungeonsCommunity` (3 requêtes plafonnées, fail-closed) + couture `_actions/public-rush-dungeons` (le client public n'importe **aucun** `@/server/`) ; ③ tuile **« Progression Donjons »** entre Rush Live et Ouvrir Overlay (dashboard + public), icône d'overlay **entre le compte et l'œil** (badge d'exigences restantes), panneau partagé desktop / mobile / PiP (`data-quality`) ; ④ responsive corrigé après retour : `flex` + `100dvh` mobile, `min-h-0` + `flex-1` (liste qui scrolle **dans** la modale), `pr-12` (croix ≠ compteur), cibles 44 px.
-> **Preuves** : **770 fichiers / 8 098 tests ✅** (avant la passe DA) · `tsc` 0 · lint 0 erreur · `rush-dungeons-overview` **10** · `-ui` **8** · `da-wakfu` **66** · Playwright **390/768/1024/1440** : `overflowBottom` **0**, overflow horizontal **0**, liste scrollable partout. Route testée : 94 donjons / 176 occurrences / 149 exigences (global : 100 / 202 / 175). **Correctif 19/11** : groupement **par bloc** (un donjon multi-blocs apparaît dans chaque accordéon, plus de faux sous-blocs), sélecteur d'étape DA (plus de `<select>` natif), modale d'alignement élargie.
-> **Reste** : **PR #1461 mergée** (`dev 971b26d2`, CI 6/6, branche supprimée) ; prochaine session : **55 conseils → VPS**. Décision user : **pas de post donjon/quête dans l'overlay PiP** (« trop lourd », `DjPostCreateModal` n'a pas de `portalContainer`) — le clic donjon → post existe sur le **dashboard** (donjon + quête préremplis). Le bruit console « script / hydratation » de la page publique est **préexistant** (au chargement, hors modale).
-> **Rotation** : bloc « suite 27 » (retouches DA) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

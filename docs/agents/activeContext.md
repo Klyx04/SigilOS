@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 46) — **Perf web · P1-1, spans serveur du dashboard** — branche `perf/p1-1-spans-2026-11-20` (PR #1479)
+
+> **Demande user (verbatim)** : « reprenons : […] Si tu valides ce périmètre, je démarre par 1.1 immédiatement ; sinon dis-moi ce que tu veux prioriser ».
+> **Mesure avant code (Sentry 7 j, doc §0)** : `/dashboard/:guildId` = **1 980 transactions** (≈ 280/j), p95 **836 ms** ; prélèvement serveur **5 %**. `@prisma/instrumentation` **absent** du projet ⇒ Prisma n'est **pas** tracé automatiquement.
+> **Correction de diagnostic** : `getGuildHeaderData` (cache mémoire **60 s**) et `getGuildModules` (**30 s**) sont **déjà** cachés ; `getUserGuilds`/`getPlatformConfig` ont `cache()` depuis P0. Le « cache dashboard » restant à trancher est donc `getUserContext` (déjà Redis 60 s) et la requête `getUserGuilds` — la mesure décide.
+> **Fait (P1-1)** : helper `withSpan` (`src/lib/perf-span.ts` : serveur, no-op si Sentry off, rejet jamais avalé) ; **6 spans** sur le layout (`getUserContext`, `getGuildHeaderData`, `getUserGuilds`, `getGuildModules`, `getPlatformConfig`, `getUpcomingGuildEvents` **streamée**) ; sous-spans `userContext.redis.get`, `userContext.guildConfig.read`, `userContext.discord.fetch`, `userGuilds.query`, `guildHeader.*`, `guildModules.guildConfig.read`, `platformConfig.read` ; **aucun `guildId`** dans un nom de span (verrou `tests/unit/perf-span.test.ts`, 6 cas).
+> **Preuves** : **784 fichiers / 8 207 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
+> **Reste** : déployer la bêta puis lire les p95 par span (`GET /dashboard/[guildId]`) ; **P1-2** images (calendrier 913 Ko, logo 170 Ko) ; **P1-3** cache public ; **P2** statique/PPR ; **P3** CDN/WAF + DPA.
+> **Rotation** : bloc « suite 40 » (runbook VPS) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 20/11/2026 (suite 45) — **Perf web · mesure de charge et P0 (compression, cache config, dashboard)** — branche `perf/p0-web-2026-11-20` (PR #1476)
 
 > **Demande user (verbatim)** : « enchaine en autonomie , documente d'abord puis enchaine , fais des test de charge etc au fur et à mesure , n'(oublies rien ».
@@ -56,15 +67,6 @@
 > **Reste** : 11 quêtes sans position (8 directes + 3 sans `questDbIds`) à saisir dans God ; itérations 5/6.
 > **Rotation** : bloc « suite 35 » (monstres 2a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 20/11/2026 (suite 40) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
-
-> **Demande user (verbatim)** : « on peut arrêter le bricolage et statuer sur du long terme quand ya besoin de faire ce genre de manip sur le vps via un skills ou autre dans le harnais ? c'est quoi la best practice cutting edge ? » puis « livre oui ».
-> **Mesure (incident réel)** : `docker compose exec app-beta node scripts/archive-rush-guide.mjs` échoue sur `@prisma/driver-adapter-utils`, puis `postgres-array` — l'image `runner` est un standalone Next, elle n'embarque pas les dépendances des outils d'admin. Deux commandes ad hoc avaient aussi échoué sur les noms de services (`db`, `app` au lieu de `db-beta`, `app-beta`).
-> **Fait** : stage Docker `ops` (deps + `prisma generate`, sans build Next) · services `ops-beta`/`ops-prod` (profil `ops`, jamais démarrés par `up`) · `scripts/ops/vps.sh` (verbes fermés : `dump`, `rush-archive`, `rush-delete-archive`, `rush-verify` ; dry-run par défaut, `--apply` seul mot qui écrit, garde `rush-sylvestre-archive-*`, refus d'un dump vide, journal `~/backups/ops.log`) · skill `.cline/skills/vps-ops/` (routeur : interdit `exec app-*`, impose dump → dry-run → apply → verify → rollback) · `docs/agents/vps-ops.md` · `AGENTS.md` §2 · `MAINTENANCE.md` § Rush réécrit · `vps-read-only.md` recalé.
-> **Preuves** : `ops-runbook` **10 tests** ✅ · `bash -n` OK (script converti en LF) · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : le runbook n'est pas encore utilisé sur la bêta (la remise à zéro s'est faite via SQL testé) ; au prochain déploiement bêta, `./scripts/ops/vps.sh rush-archive beta` remplace les commandes manuelles.
-> **Rotation** : bloc « suite 34 » (itération 1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

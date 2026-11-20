@@ -118,7 +118,7 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | **P1-1** spans serveur (PR ouverte, branche `perf/p1-1-spans-2026-11-20`) : 6 appels du layout + Redis/Prisma ; **P1-2** images (calendrier 913 Ko, logo 170 Ko → WebP/`next/image`) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
+| **P1** | **P1-1** spans serveur (livrée, PR #1479) : 6 appels du layout + Redis/Prisma ; **P1-2** images (calendrier 913 Ko, logo 170 Ko → WebP/`next/image`) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
 

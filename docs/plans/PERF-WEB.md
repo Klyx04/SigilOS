@@ -96,7 +96,7 @@ CSS **72 Ko** (gzip depuis 614 Ko). Aucun `5xx`, aucun timeout ; la bêta est re
 
 | Lot | Contenu | État |
 |---|---|---|
-| **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré |
+| **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
 | **P1** | Cache cross-request des données **publiques** (guide, bestiaire) avec tags ; header/modules de guilde en Redis 30–60 s + invalidation ; image calendrier en WebP/`next/image` | à cadrer |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |

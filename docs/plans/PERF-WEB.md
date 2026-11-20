@@ -147,8 +147,9 @@ Sous-spans : `userContext.redis.get`, `userContext.guildConfig.read`, `userConte
   p95 **82 ms** (max 981 ms) : l'attente de pool n'explique pas les 2 s en général.
 - **Piège RSC corrigé** : dans le rendu d'un layout, le SDK Next isole la requête dans un
   scope **sans client** (`commonObjectToIsolationScope` → `new Scope()`) ; `Sentry.startSpan`
-  rendait donc un span **non enregistré** (zéro donnée en bêta le 20/11). `ensureSentryClient()`
-  rattache le client global au scope courant avant de démarrer le span.
+  rendait donc un span **non enregistré** (zéro donnée en bêta le 20/11). Le client rendu par
+  `Sentry.init` est **enregistré au démarrage** (`src/lib/perf-client.ts`) et `ensureSentryClient()`
+  le rattache au scope courant avant de démarrer le span.
 - **Première lecture d'une trace (bêta, 20/11)** : la transaction `GET /dashboard/[guildId]`
   fait **1 964 ms** ; `getUserContext` touche Redis (`user:ctx…`, **3,9 ms**) et **n'appelle
   pas Discord** (aucun `http.client` vers discord.com) ⇒ le layout n'est pas le coût principal.

@@ -14,18 +14,21 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const { startSpanMock, currentClientMock, globalClientMock, setClientMock } = vi.hoisted(() => ({
+const { startSpanMock, currentClientMock, registeredClientMock, setClientMock } = vi.hoisted(() => ({
     startSpanMock: vi.fn(),
     currentClientMock: vi.fn(),
-    globalClientMock: vi.fn(),
+    registeredClientMock: vi.fn(),
     setClientMock: vi.fn(),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
     startSpan: (...args: unknown[]) => startSpanMock(...args),
     getClient: () => currentClientMock(),
-    getGlobalScope: () => ({ getClient: () => globalClientMock() }),
     getCurrentScope: () => ({ setClient: setClientMock }),
+}));
+
+vi.mock("@/lib/perf-client", () => ({
+    getRegisteredSentryClient: () => registeredClientMock(),
 }));
 
 import { withSpan } from "@/lib/perf-span";
@@ -43,7 +46,7 @@ describe("withSpan — contrat", () => {
     beforeEach(() => {
         startSpanMock.mockReset();
         currentClientMock.mockReset().mockReturnValue({ id: "client-courant" });
-        globalClientMock.mockReset();
+        registeredClientMock.mockReset();
         setClientMock.mockReset();
     });
 
@@ -79,15 +82,15 @@ describe("withSpan — contrat", () => {
         ).rejects.toThrow("Discord indisponible");
     });
 
-    it("rattache le client global quand le scope RSC n'en porte pas", () => {
-        const globalClient = { id: "client-global" };
+    it("rattache le client enregistré au démarrage quand le scope RSC n'en porte pas", () => {
+        const registeredClient = { id: "client-serveur" };
         currentClientMock.mockReturnValue(undefined);
-        globalClientMock.mockReturnValue(globalClient);
+        registeredClientMock.mockReturnValue(registeredClient);
         startSpanMock.mockReturnValue(Promise.resolve(1));
 
         withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));
 
-        expect(setClientMock).toHaveBeenCalledWith(globalClient);
+        expect(setClientMock).toHaveBeenCalledWith(registeredClient);
         expect(startSpanMock).toHaveBeenCalledTimes(1);
     });
 
@@ -97,12 +100,12 @@ describe("withSpan — contrat", () => {
         withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));
 
         expect(setClientMock).not.toHaveBeenCalled();
-        expect(globalClientMock).not.toHaveBeenCalled();
+        expect(registeredClientMock).not.toHaveBeenCalled();
     });
 
     it("reste inoffensif si aucun client n'est disponible (Sentry désactivé)", () => {
         currentClientMock.mockReturnValue(undefined);
-        globalClientMock.mockReturnValue(undefined);
+        registeredClientMock.mockReturnValue(undefined);
         startSpanMock.mockReturnValue(Promise.resolve(1));
 
         withSpan("dashboard.layout.getUserContext", "function", () => Promise.resolve(1));

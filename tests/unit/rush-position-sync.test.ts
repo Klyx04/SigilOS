@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRushPositionTag,
   planRushPositionSync,
+  positionFromDofusQuestEntry,
   summarizeRushPositionSyncPlan,
   type RushQuestPositionMap,
 } from "@/lib/rush-quest-positions";
@@ -57,6 +58,58 @@ describe("buildRushPositionTag", () => {
     });
     expect(tag.zaapX).toBeUndefined();
     expect(tag.zaapY).toBeUndefined();
+  });
+});
+
+describe("positionFromDofusQuestEntry — repli mesuré du siphon", () => {
+  it("lit `coords` quand les colonnes historiques sont à 0,0 (Incarnam)", () => {
+    expect(
+      positionFromDofusQuestEntry({
+        posX: 0,
+        posY: 0,
+        coords: { x: -3, y: -3, worldId: 2 },
+        npcSubArea: "Salle des métiers",
+      })
+    ).toEqual({
+      x: -3,
+      y: -3,
+      zone: "Salle des métiers",
+      source: "guide",
+      allowZaap: true,
+      worldId: 2,
+    });
+  });
+
+  it("préfère `posX`/`posY` quand ils sont renseignés", () => {
+    expect(
+      positionFromDofusQuestEntry({
+        posX: 12,
+        posY: -5,
+        coords: { x: -3, y: -3, worldId: 2 },
+        zone: "Coin des Boos",
+      })
+    ).toMatchObject({ x: 12, y: -5, zone: "Coin des Boos" });
+  });
+
+  it("refuse un 0,0 nu : ce n'est pas une position", () => {
+    expect(positionFromDofusQuestEntry({ posX: 0, posY: 0, coords: { x: 0, y: 0 } })).toBeNull();
+    expect(positionFromDofusQuestEntry({})).toBeNull();
+    expect(positionFromDofusQuestEntry(null)).toBeNull();
+  });
+
+  it("refuse une valeur non entière ou hors carte", () => {
+    expect(positionFromDofusQuestEntry({ posX: "12", posY: 5 })).toBeNull();
+    expect(positionFromDofusQuestEntry({ posX: 12, posY: 5000 })).toBeNull();
+    expect(positionFromDofusQuestEntry({ coords: { x: 12.5, y: 5 } })).toBeNull();
+  });
+
+  it("nomme la zone par le sous-quartier, puis la zone, puis le PNJ", () => {
+    expect(positionFromDofusQuestEntry({ coords: { x: 1, y: 2 }, npcName: "Maître" })).toMatchObject({
+      zone: "Maître",
+    });
+    expect(
+      positionFromDofusQuestEntry({ coords: { x: 1, y: 2 }, zone: "Amakna", npcName: "Maître" })
+    ).toMatchObject({ zone: "Amakna" });
   });
 });
 
@@ -168,6 +221,30 @@ describe("planRushPositionSync", () => {
     expect("updates" in summary).toBe(false);
     expect(summary.sample).toHaveLength(1);
     expect(summary.sample[0]).toMatchObject({ x: -25, y: -36, allowZaap: true, manualZaap: false });
+  });
+
+  it("explique la quête 1938 : le temple de classe n'a pas une position unique", () => {
+    const plan = planRushPositionSync(
+      [{ id: "s1", name: "La colère des dieux", questDbIds: [1938] }],
+      POSITIONS
+    );
+    expect(plan.withoutPosition).toBe(1);
+    expect(plan.warnings.join(" ")).toContain("temple de votre classe");
+  });
+
+  it("écarte les succès hors trame : aucune position attendue, aucune alerte", () => {
+    const plan = planRushPositionSync(
+      [
+        { id: "s1", name: "Démons et merveilles", isSuccess: true, questDbIds: [] },
+        { id: "s2", name: "Quêtes de Silvosse", isSuccess: true, questDbIds: [] },
+        { id: "s3", name: "Sans position", questDbIds: [999999] },
+      ],
+      POSITIONS
+    );
+    expect(plan).toMatchObject({ total: 3, successes: 2, withoutPosition: 1, withPosition: 0 });
+    expect(plan.warnings.join(" ")).not.toContain("Démons et merveilles");
+    expect(plan.warnings.join(" ")).not.toContain("Quêtes de Silvosse");
+    expect(plan.warnings.join(" ")).toContain("Sans position");
   });
 });
 

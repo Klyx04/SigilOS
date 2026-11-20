@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 43) — **Rush · positions Incarnam, 3 succès hors trame, 173 vs 143 expliqué** — branche `fix/rush-reste-2026-11-20`
+
+> **Demande user (verbatim)** : « reprenons sur tous les chantier restant de près ou de loin sur le rush sylvestre, exhaustivement » + `src/temp/debug.md` (les 11 positions et les 3 succès).
+> **Mesure (base locale, lecture seule)** : 536 séquences · 3 sans `questDbIds` (succès hors trame) · 9 sans `pos_tags`, dont 622/623/1528 **déjà dans la carte** mais jamais synchronisés · `DofusQuestEntry` 1629/1630 = `coords [-3,-3] monde 2` (Incarnam), 1938 = `[0,0]` (20 temples selon la classe) · **173 vs 143** : la tuile compte des **exigences** (groupe au choix = 1), pas des donjons distincts ; public sans alignement **175**, route Bontarien+Ordre **145** → l'écart **30** est le filtre `resolveRushRoute`, pas un bug (modale locale : 99 donjons / 202 occurrences / 175 exigences).
+> **Fait** : `positionFromDofusQuestEntry` (repli `coords`, refuse `0,0`) + siphon `--only 1629,1630 --apply` → **529 positions** ; `planRushPositionSync` écarte les **succès** (`successes`, aucune alerte) et explique **1938** (temple de classe) → plan **533 quêtes / 532 avec position / 1 sans / 6 mises à jour** ; `rush-success-placeholders` (Démons **5165**, Quêtes de Silvosse → **L'arbre qui cache la forêt 7760**, En attendant le printemps **7761**) branché dans les **4** créations de succès du seed ; modale God : « N succès hors trame écarté(s) » ; **case 🏆 Succès officiel** dans le studio pour les 3 lignes existantes.
+> **Preuves** : `rush-position-sync` **20** · `rush-success-placeholders` **6** · `rush-trame-seed` **43** · `rush-quest-positions` **5** · **121 fichiers / 1 487 tests Rush ✅** · **782 fichiers / 8 196 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
+> **Reste** : appliquer **Positions** dans God (6 mises à jour → 1 seule quête sans position, 1938) ; poser les **3 tags `succes`** dans God (les 3 lignes existantes ne sont pas réécrites par l'import additif) ; **redéployer la bêta** (repo **f2e9c07f**, dev **96ddd29f**) ; itérations 5/6.
+> **Rotation** : bloc « suite 37 » (positions 2c) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 20/11/2026 (suite 42) — **Rush · UI (icônes, blocs, fiche Dofus), temps réel et verrou du bloc** — branche `fix/rush-live-progress-2026-11-20` (PR #1473)
 
 > **Demandes user (verbatim)** : « les blocs soient dépliés », « les dj doublés avec une icône placeholder », « laisse afficher le zaap », « la vraie icône succès », « ali 17 brak 3 quêtes au choix », « 173 dj public / 143 interne », « valider par bloc aussi, sans erreur ».
@@ -54,15 +63,6 @@
 > **Preuves** : **13 tests** `rush-position-sync` ✅ · ciblés **91/91** · `tsc` 0 · ESLint 0 erreur · plan local **527/9** · « Faire le mort » `[-26,36]` · aucune migration.
 > **Reste** : **Positions appliquées en local** (527 tags ; bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif, l'enrichissement de l'existant arrive en 3b (bloc 39).
 > **Rotation** : bloc « suite 32 » (alias de donjons) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
-
-> **Demande user (verbatim)** : « toutes les positions de lancement de quete? on les affiche pas actuellement ».
-> **Mesure** : la trame Tougli n'a aucune position ; `DofusQuestEntry` ne couvre que 199/552 quêtes (17 positions monde, 125 PNJ) ; DPLN expose la position en ligne du haut **ou dans le corps** (ex. 1859 « Faire le mort » → `[-26,36]`) ; 6 pages n'ont aucune position écrite (622, 623, 1528, 1629, 1630, 1938) ; **alignement 233/233, Ordres 30/30, classes 19/19**.
-> **Fait** : siphon `--only` sur les 15 pages + fallback `.paragraph` + `DofusQuestEntry` ⇒ **524 / 530** (515 ligne du haut + **9 reprises corps**, dont Faire le mort) ; `allowZaap` vrai + `worldId` 1 (les champs du studio God), zaap le plus proche résolu par `resolveMapWorldAction` ; `showIcon` + zaap sur les 3 surfaces ; `pos_tags` après les ressources (863 intactes), **525 tags** (une jumelle).
-> **Preuves** : carte 524 · **772 fichiers / 8 118 tests ✅** · `tsc` 0 · `rush-trame-seed` **41** · `rush-quest-positions` **5** · ressources **863** intactes · aucune migration.
-> **Reste** : 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) — à compléter à la main ; import du guide (itération 3) pour voir les positions en base.
-> **Rotation** : bloc « suite 31 » (Bloc I) sorti (7ᵉ).
 
 
 

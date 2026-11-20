@@ -19,7 +19,10 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { load } from "cheerio";
 import { Client } from "pg";
-import type { RushQuestPosition } from "../src/lib/rush-quest-positions";
+import {
+    positionFromDofusQuestEntry,
+    type RushQuestPosition,
+} from "../src/lib/rush-quest-positions";
 
 const SOURCE = path.join(process.cwd(), "src", "temp", "trame-rush", "data.json");
 const TARGET = path.join(process.cwd(), "src", "data", "rush-quest-positions.json");
@@ -139,33 +142,27 @@ for (let index = 0; index < selected.length; index += 1) {
             try {
                 await client.connect();
                 const result = await client.query(
-                    `SELECT "dofusdbId", "posX", "posY", "npcSubArea", "npcName"
+                    `SELECT "dofusdbId", "posX", "posY", "coords", "zone", "npcSubArea", "npcName"
                      FROM "DofusQuestEntry"
-                     WHERE "dofusdbId" = ANY($1)
-                       AND ("posX" <> 0 OR "posY" <> 0)`,
+                     WHERE "dofusdbId" = ANY($1)`,
                     [ids]
                 );
                 for (const row of result.rows as Array<{
                     dofusdbId: number;
                     posX: number;
                     posY: number;
+                    coords: unknown;
+                    zone: string | null;
                     npcSubArea: string | null;
                     npcName: string | null;
                 }>) {
-                    const x = Number(row.posX);
-                    const y = Number(row.posY);
-                    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) continue;
+                    // `posX/posY` d'abord, `coords` ensuite : les deux formes coexistent
+                    // en base (Incarnam n'a que `coords`, mesuré le 20/11/2026).
+                    const position = positionFromDofusQuestEntry(row);
+                    if (!position) continue;
                     const id = String(row.dofusdbId);
                     const miss = misses.find((candidate) => candidate.id === id);
-                    found[id] = {
-                        x,
-                        y,
-                        zone: String(row.npcSubArea ?? row.npcName ?? "").trim(),
-                        url: miss?.url ?? "",
-                        source: "guide",
-                        allowZaap: true,
-                        worldId: 1,
-                    };
+                    found[id] = { ...position, url: miss?.url ?? "" };
                     const index = misses.findIndex((candidate) => candidate.id === id);
                     if (index >= 0) misses.splice(index, 1);
                 }

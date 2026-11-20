@@ -51,6 +51,7 @@ import {
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
 import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
+import { successPlaceholderFor } from "@/lib/rush-success-placeholders";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
@@ -149,9 +150,10 @@ type ActivityTagType =
   | "metier"
   | "solver"
   | "quest_group"
-  | "item";
+  | "item"
+  | "succes";
 
-type ActivityTag = { type: ActivityTagType; name?: string; camp?: string | null; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
+type ActivityTag = { type: ActivityTagType; name?: string; camp?: string | null; level?: number; count?: number; color?: string; url?: string; id?: string; iconId?: number; imageUrl?: string; quantity?: number };
 
 /** Lot 4 — variante de texte par camp, sur une seule quête (vide ⇒ texte de base). */
 type SequenceRouteVariant = { name?: string; tips?: string };
@@ -3979,6 +3981,12 @@ function RushPositionSyncDialog({ open, onClose }: { open: boolean; onClose: () 
                   </div>
                 ))}
               </div>
+              {plan.successes > 0 ? (
+                <p className="text-caption text-muted-foreground">
+                  {plan.successes} succès hors trame écarté(s) : un succès n&apos;a pas de position
+                  de lancement.
+                </p>
+              ) : null}
               {plan.sample.length > 0 ? (
                 <div className="rounded-lg border border-border bg-surface px-3 py-2">
                   <p className="text-caption font-medium text-foreground">Exemples</p>
@@ -4116,6 +4124,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
   );
+  // Succès hors trame : la Trame nomme le succès, `achievements.json` porte son id.
+  // Le seed le pose déjà ; ce contrôle permet les 3 gestes sur les lignes existantes.
+  const officialSuccess = successPlaceholderFor(name);
+  const hasSuccessTag = activityTags.some((tag) => tag.type === "succes");
+  const syncSuccessTag = (on: boolean) => {
+    setActivityTags((prev) => {
+      const without = prev.filter((tag) => tag.type !== "succes");
+      if (!on || !officialSuccess) return without;
+      return [
+        ...without,
+        {
+          type: "succes" as const,
+          name: officialSuccess.name,
+          id: String(officialSuccess.id),
+          iconId: officialSuccess.iconId,
+        },
+      ];
+    });
+  };
   const [requiredItems, setRequiredItems] = useState<Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>>(() => {
     return (seq.activityTags as any[])?.filter(t => t.type === "item").map(t => ({
       id: t.id || (t.dofusdbId ? String(t.dofusdbId) : undefined),
@@ -4765,7 +4792,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     location: !positionsInput.trim() && !currentNpcTag,
     prereqs: prereqs.length === 0 && !selectedDofusId,
     conditions: isEmptyConstraints(constraints),
-    activities: !alignmentSet && !metierTag,
+    activities: !alignmentSet && !metierTag && !hasSuccessTag,
     resources: requiredItems.length === 0,
     links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
     route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
@@ -5718,7 +5745,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-info/90">
-            🎯 Alignement & Métier requis
+            🎯 Alignement, Métier & Succès
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
@@ -5835,6 +5862,38 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   </div>
                 )}
               </div>
+
+              {/* 🏆 Succès officiel — la pastille lit l'id + l'icône du client ; un
+                  succès n'est jamais une case à cocher. Les 3 succès hors trame du
+                  guide sont reconnus par leur libellé : un clic pose le tag exact,
+                  le seed le pose déjà sur les nouvelles lignes. */}
+              {(officialSuccess || hasSuccessTag) && (
+                <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="successTagToggle"
+                      checked={hasSuccessTag}
+                      disabled={!officialSuccess}
+                      onChange={e => syncSuccessTag(e.target.checked)}
+                      className="w-4 h-4 accent-warning rounded cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <label htmlFor="successTagToggle" className="flex items-center gap-1.5 text-xs font-bold text-warning cursor-pointer select-none">
+                      🏆 Succès officiel
+                      <span className="text-[10px] font-medium text-warning/60">
+                        {officialSuccess
+                          ? `— ${officialSuccess.name} (id ${officialSuccess.id})`
+                          : "— tag déjà posé"}
+                      </span>
+                    </label>
+                  </div>
+                  {officialSuccess ? (
+                    <p className="pl-6 text-caption text-warning/70">
+                      {officialSuccess.questIds.length} quête(s) couverte(s) · icône {officialSuccess.iconId}
+                    </p>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         )}

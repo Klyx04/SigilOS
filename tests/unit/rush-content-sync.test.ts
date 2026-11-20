@@ -307,7 +307,8 @@ describe("syncRushGuideContent — garde de l'action serveur", () => {
     it("limite le débit, trace l'écriture et revalide les surfaces", () => {
         expect(body).toContain("rateLimit(");
         expect(body).toContain("logGodWrite(");
-        expect(body).toContain('revalidatePath("/guides/rush-sylvestre")');
+        // Le helper est la source unique : il revalide la page publique (verrou `rush-revalidations`).
+        expect(body).toContain("revalidateRushContent()");
         expect(body).toContain("db.guideSequence.update({");
     });
 

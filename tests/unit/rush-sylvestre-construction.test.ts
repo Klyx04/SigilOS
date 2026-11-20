@@ -91,7 +91,8 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
             ACTIONS.indexOf("export async function updateRushUIConfig(")
         );
         expect(fn.length).toBeGreaterThan(0);
-        expect(fn).toMatch(/revalidatePath\("\/guides\/rush-sylvestre"\);/);
+        // Source unique : le helper revalide la page publique (verrou `rush-revalidations`).
+        expect(fn).toMatch(/revalidateRushContent\(\);/);
         // Garde d'accès conservée (écriture God).
         expect(fn).toMatch(/requireRushAccess\(\)/);
     });

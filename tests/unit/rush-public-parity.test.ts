@@ -516,12 +516,15 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).toMatch(/!isSeqBlockedByDungeon\(id\)/);
   });
 
-  it("le public nomme le donjon manquant et ouvre le panneau de CETTE quête", () => {
+  it("le public ouvre le panneau du donjon de CETTE quête (pastille compacte, comme l'interne)", () => {
     expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
     expect(PUB).toContain('"À terminer avant :"');
-    expect(PUB).toContain('"Donjon requis à faire :"');
+    // Plus de gros bloc « Donjon requis à faire » : la pastille compacte Donjon ×N
+    // de la barre d'actions porte le geste, exactement comme le guide interne.
+    expect(PUB).toContain("Donjon ×{seqDungeonCount}");
     // Le refus n'est pas muet : il mène au panneau de la quête concernée.
-    expect(PUB).toMatch(/onClick=\{\(\) => setOpenDungeonPanel\(seq\.id\)\}/);
+    expect(PUB).toContain("setOpenDungeonPanel");
+    expect(PUB).toContain("cur === seq.id ? null : seq.id");
     expect(PUB).toMatch(/openDungeonPanel === seq\.id/);
   });
 

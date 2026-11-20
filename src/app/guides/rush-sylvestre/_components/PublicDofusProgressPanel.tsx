@@ -160,7 +160,7 @@ export function PublicDofusProgressPanel({
             : undefined;
     const openSummary =
         view === "personal"
-            ? `${openPersonal?.done ?? 0}/${openPersonal?.total ?? 0} ${en ? "blocks validated" : "blocs validés"}`
+            ? `${openPersonal?.done ?? 0}/${openPersonal?.total ?? 0} ${en ? "quests validated" : "quêtes validées"}`
             : `${openCommunity?.completedMilestones ?? 0}/${openCommunity?.totalMilestones ?? 0} ${
                   en ? "blocks validated by at least one member" : "blocs validés par au moins un membre"
               } · ${openCommunity?.members.length ?? 0} ${en ? "engaged member(s)" : "membre(s) engagé(s)"}`;
@@ -188,7 +188,7 @@ export function PublicDofusProgressPanel({
                     </span>
                     {view === "personal" ? (
                         <span className="text-[11px] text-muted-foreground">
-                            {en ? "blocks validated in this guide" : "blocs validés dans ce guide"}
+                            {en ? "quests validated in this guide" : "quêtes validées dans ce guide"}
                         </span>
                     ) : null}
                 </div>

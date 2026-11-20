@@ -120,7 +120,7 @@ describe("F1 — progression personnelle par Dofus, et l'Ocre en deux mesures", 
 
     it("la page branche la règle sur le guide COMPLET, pas sur la route filtrée", () => {
         const pub = stripComments(read(PUBLIC));
-        expect(pub).toContain("dofusMilestoneStats(rawMilestones, completedIds)");
+        expect(pub).toContain("dofusQuestStats(rawMilestones, completedSeqIds)");
         expect(pub).toContain("<PublicDofusProgressPanel");
     });
 

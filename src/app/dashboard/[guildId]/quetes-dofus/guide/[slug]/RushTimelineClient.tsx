@@ -550,7 +550,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             <button
               type="button"
               onClick={() => setDetailOpen(true)}
-              className="min-w-0 cursor-pointer break-words text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-warning"
+              className="min-w-0 flex-1 cursor-pointer break-words text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-warning"
               aria-label={`Voir les détails de ${questName}`}
               title="Voir les détails complets de la quête"
             >
@@ -565,24 +565,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {isNext && !isSeqCompleted && (
               <span className="font-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
             )}
-            {/* Position — MÊME résolveur que le guide public et l'overlay
-                (`getSequenceCoord`) : `pos_tags` d'abord, puis le titre, les tips et la
-                note. La regex locale d'avant ne lisait QUE `pos_tags` : une quête dont la
-                position est écrite dans son nom (`La font de glaces [-60, -57]`) ou dans
-                ses conseils n'affichait rien ici alors qu'elle l'affiche côté public
-                (mesure du 22/10/2026). Chip mono NEUTRE partagée (clic = copie /travel,
-                survol = carte) : les coordonnées sont une donnée, pas une décoration. */}
-            {(() => {
-              const coord = getSequenceCoord(seq);
-              if (!coord) return null;
-              const zaapEnabled = isZaapCopyEnabled(seq);
-              const manualZaap = getSequenceManualZaap(seq);
-              return (
-                <MapPositionPopover posX={coord.x} posY={coord.y} worldId={coord.worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={zaapEnabled} manualZaap={manualZaap}>
-                  <RushCoordinateChip coordText={coord.raw} showIcon showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
-                </MapPositionPopover>
-              );
-            })()}
             {/* Quête d'alignement : donne un camp + niveau au perso quand cochée (détail complet en modale) */}
             {(() => {
               const align = getAlignmentSet(seq);
@@ -606,11 +588,23 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <span className="shrink-0 text-[11px] text-muted-foreground">Bonus</span>
             )}
           </div>
-          {/* Actions groupées : liens externes · repère · détails.
-              Même groupe segmenté que le guide public, et logos de marque servis
-              EN LOCAL (brandIconForUrl) : plus aucune requête google.com/s2/favicons
-              depuis le navigateur du membre. */}
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
+          {/* Actions groupées : position · liens externes · repère · détails.
+              Même anatomie que le guide public (mesure du 20/11/2026) : la position est
+              à DROITE, juste avant le bloc des favicons ; logos de marque servis EN LOCAL
+              (brandIconForUrl) : plus aucune requête google.com/s2/favicons. */}
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {(() => {
+              const coord = getSequenceCoord(seq);
+              if (!coord) return null;
+              const zaapEnabled = isZaapCopyEnabled(seq);
+              const manualZaap = getSequenceManualZaap(seq);
+              return (
+                <MapPositionPopover posX={coord.x} posY={coord.y} worldId={coord.worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={zaapEnabled} manualZaap={manualZaap}>
+                  <RushCoordinateChip coordText={coord.raw} showIcon showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
+                </MapPositionPopover>
+              );
+            })()}
+            <div className="flex items-center gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
             {dungeonBlocks > 0 && (
               <button
                 type="button"
@@ -706,6 +700,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             >
               <Info className="w-3.5 h-3.5" />
             </button>
+            </div>
           </div>
         </div>
 

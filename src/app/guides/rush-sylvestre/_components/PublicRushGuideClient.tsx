@@ -83,7 +83,6 @@ import {
 import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
-  missingRequiredDungeons,
   occurrenceState,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
@@ -182,7 +181,7 @@ import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharact
 import { CharacterSwitchModal } from "@/components/dofus-quests/rush/CharacterSwitchModal";
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
 import { PublicOcreDungeonBridge, type PublicOcreSnapshot } from "@/components/dofus-quests/rush/PublicOcreDungeonBridge";
-import { dofusMilestoneStats } from "@/lib/rush-dofus-progress";
+import { dofusQuestStats } from "@/lib/rush-dofus-progress";
 import { OverlayToastProvider } from "@/components/rush/overlay-toast";
 import { PublicAlignmentModal } from "./PublicAlignmentModal";
 import { PublicRushLiveModal } from "./PublicRushLiveModal";
@@ -1478,13 +1477,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   })();
 
   /**
-   * F1 — progression PERSONNELLE par Dofus, au grain du bloc (même règle que le panneau
-   * communautaire). Le guide complet (`rawMilestones`) et non la route filtrée : le total
-   * d'un Dofus ne doit pas changer quand on change de cité.
+   * F1 — progression PERSONNELLE par Dofus, **au grain de la quête** : le pourcentage
+   * doit grimper dès qu'une quête est cochée (mesure du 20/11/2026 : le compteur par
+   * blocs restait à 0 tant que les 8 quêtes du bloc n'étaient pas finies). Le guide
+   * complet (`rawMilestones`) et non la route filtrée : le total d'un Dofus ne doit pas
+   * changer quand on change de cité. Les succès et encarts INFO ne sont pas des quêtes.
    */
   const myDofusStats = useMemo(
-    () => dofusMilestoneStats(rawMilestones, completedIds),
-    [rawMilestones, completedIds]
+    () => dofusQuestStats(rawMilestones, completedSeqIds),
+    [rawMilestones, completedSeqIds]
   );
 
   // Remise à zéro : les CINQ clés de progression partent ensemble (étapes cochées,
@@ -3051,14 +3052,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             const seqDungeonCount = dungeonProgress.requiredBlocks;
                             const doneDungeonsForSeq =
                               dungeonProgress.requiredBlocks - dungeonProgress.missingBlocks;
-                            // Donjons REQUIS manquants de CETTE quête : une entrée par
-                            // exigence (le groupe est nommé, pas ses 5 alternatives).
-                            const missingDungeons = dungeonLocked
-                              ? missingRequiredDungeons(
-                                  seq,
-                                  doneDungeonKeysForSequence(dungeonStates, seq.id)
-                                )
-                              : [];
                             const parsedCoord = getSequenceCoord(seq);
 
                             // Encart informatif : jamais cochable, aucune progression — le
@@ -3166,7 +3159,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        {activeObjective?.id === seq.id && activeObjective?.blockId === ms.id && !stepDone && (
+                                        {!stepLocked && activeObjective?.id === seq.id && activeObjective?.blockId === ms.id && !stepDone && (
                                           <span className="reg-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
                                         )}
                                         {/* Icône de la quête : type choisi en God, repli glyphe générique */}
@@ -3217,49 +3210,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                         )}
                                         {/* Pastille donjon : ouvre les DEUX coches de CETTE quête.
                                             Même geste que l'overlay et le dashboard interne. */}
-                                        {seqDungeonCount > 0 && (
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setOpenDungeonPanel((cur) => (cur === seq.id ? null : seq.id));
-                                            }}
-                                            aria-expanded={openDungeonPanel === seq.id}
-                                            aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${seqDungeonCount} faits)`}
-                                            title="Donjons de cette quête — cliquer pour cocher fait / à faire"
-                                            className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
-                                          >
-                                            {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                              src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath}
-                                              alt=""
-                                              aria-hidden="true"
-                                              loading="lazy"
-                                              className="h-3 w-3 object-contain"
-                                            />
-                                            Donjon ×{seqDungeonCount}
-                                            {doneDungeonsForSeq > 0 && (
-                                              <span className="font-mono text-[10px] text-success">
-                                                {doneDungeonsForSeq}/{seqDungeonCount}
-                                              </span>
-                                            )}
-                                          </button>
-                                        )}
-                                        {/* Pastille Succès : le MÊME composant que le dashboard et
-                                            l'overlay. Un succès est un groupe de quêtes, jamais une
-                                            coche ; la fiche liste leurs noms et leur état. */}
-                                        <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} />
-                                        {parsedCoord && (
+                                        {/* Pastille Succès : déplacée dans le groupe des favicons,
+                                            comme le guide interne (parité du 20/11/2026). */}
+                                        {parsedCoord && !prereqLocked && (
                                           <RushCoordinateChip coordText={parsedCoord.raw} showIcon showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
                                         )}
-                                        {(() => {
+                                        {!prereqLocked && (() => {
                                           const npc = getSequenceNpc(seq as any);
                                           if (!npc || (!npc.name && npc.id === null)) return null;
                                           return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} size="md" />;
                                         })()}
                                         {/* Quête d'alignement (détail complet en modale) */}
-                                        {(() => {
+                                        {!prereqLocked && (() => {
                                           const align = getAlignmentSet(seq as any);
                                           if (!align) return null;
                                           const label = align.camp === "brakmarien" ? "Brakmarien" : align.camp === "bontarien" ? "Bontarien" : align.camp;
@@ -3279,20 +3241,20 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                           );
                                         })()}
 
-                                        {seq.isSuccess && (
+                                        {!prereqLocked && seq.isSuccess && (
                                           <span className="text-[11px] font-semibold text-warning">
                                             Succès
                                           </span>
                                         )}
 
-                                        {seq.isOptional && (
+                                        {!prereqLocked && seq.isOptional && (
                                           <span className="text-[11px] text-muted-foreground">
                                             Bonus
                                           </span>
                                         )}
 
                                         {/* Bouton condensé si des ressources sont requises */}
-                                        {hasManyItems && (
+                                        {!prereqLocked && hasManyItems && (
                                           <button
                                             type="button"
                                             onClick={() => {
@@ -3323,12 +3285,53 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                     </div>
                                   </div>
 
-                                  {/* Barre d'Actions d'Étape (Capture 4 : Coordonnées, Boss cliquable, Favicons DofusDB/DPNL, Bookmark, Détails) */}
+                                  {/* Barre d'Actions d'Étape (Capture 4 : Coordonnées, Boss cliquable, Favicons DofusDB/DPNL, Bookmark, Détails).
+                                      Sur une quête verrouillée, le guide interne ne garde que le repère
+                                      existant : on applique la même règle au public (parité 20/11/2026). */}
+                                  {(!prereqLocked || isBookmarked) && (
                                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
                                     {/* Groupe d'actions 4 boutons (comme le guide interne) */}
                                     <div className="flex items-center gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
+                                      {/* Donjon ×N — la MÊME pastille compacte que l'interne :
+                                          elle ouvre le panneau de coche, même quand la quête
+                                          est verrouillée par un donjon. Plus de gros bloc
+                                          « Donjon requis à faire » sous la ligne. */}
+                                      {!prereqLocked && seqDungeonCount > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenDungeonPanel((cur) => (cur === seq.id ? null : seq.id));
+                                          }}
+                                          aria-expanded={openDungeonPanel === seq.id}
+                                          aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${seqDungeonCount} faits)`}
+                                          title="Donjons de cette quête — cliquer pour cocher fait / à faire"
+                                          className="inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+                                        >
+                                          {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img
+                                            src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath}
+                                            alt=""
+                                            aria-hidden="true"
+                                            loading="lazy"
+                                            className="h-3 w-3 object-contain"
+                                          />
+                                          Donjon ×{seqDungeonCount}
+                                          {doneDungeonsForSeq > 0 && (
+                                            <span className="font-mono text-[10px] text-success">
+                                              {doneDungeonsForSeq}/{seqDungeonCount}
+                                            </span>
+                                          )}
+                                        </button>
+                                      )}
+                                      {/* Pastille Succès : le MÊME composant que le dashboard et
+                                          l'overlay, dans le groupe des favicons comme l'interne. */}
+                                      {!prereqLocked && (
+                                        <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />
+                                      )}
                                       {/* Soluce DofusPourLesNoobs — logo servi en local, aucune requête vers google.com/s2/favicons */}
-                                      {(() => {
+                                      {!prereqLocked && (() => {
                                         const icon = brandIconForUrl(seq.dofuspourlesnoobsUrl);
                                         if (!seq.dofuspourlesnoobsUrl || !icon) return null;
                                         return (
@@ -3346,7 +3349,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       })()}
 
                                       {/* Fiche DofusDB — même logo local */}
-                                      {(() => {
+                                      {!prereqLocked && (() => {
                                         const icon = brandIconForUrl(seq.dofusdbUrl);
                                         if (!seq.dofusdbUrl || !icon) return null;
                                         return (
@@ -3363,30 +3366,34 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                         );
                                       })()}
 
-                                      {/* Bouton Drapeau Repère (Je suis ici) */}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleBookmark(ms.id, seq.id)}
-                                        className={cn(
-                                          "p-1.5 rounded-[3px] transition-colors cursor-pointer",
-                                          isBookmarked
-                                            ? "text-warning bg-warning/15"
-                                            : "text-muted-foreground hover:text-warning hover:bg-elevated"
-                                        )}
-                                        title={isBookmarked ? "Retirer le repère" : "Je suis ici (Repère)"}
-                                      >
-                                        {isBookmarked ? (
-                                          <BookmarkCheck className="w-3.5 h-3.5" />
-                                        ) : (
-                                          <Flag className="w-3.5 h-3.5" />
-                                        )}
-                                      </button>
+                                      {/* Bouton Drapeau Repère (Je suis ici) — seul geste conservé
+                                          sur une quête verrouillée, et seulement pour retirer
+                                          un repère déjà posé (comme l'interne). */}
+                                      {(!prereqLocked || isBookmarked) && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleBookmark(ms.id, seq.id)}
+                                          className={cn(
+                                            "p-1.5 rounded-[3px] transition-colors cursor-pointer",
+                                            isBookmarked
+                                              ? "text-warning bg-warning/15"
+                                              : "text-muted-foreground hover:text-warning hover:bg-elevated"
+                                          )}
+                                          title={isBookmarked ? "Retirer le repère" : "Je suis ici (Repère)"}
+                                        >
+                                          {isBookmarked ? (
+                                            <BookmarkCheck className="w-3.5 h-3.5" />
+                                          ) : (
+                                            <Flag className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      )}
 
                                       {/* Bouton Détails (i) -> ouvre la modale dédiée.
                                           Masqué quand la quête est verrouillée : la seule
                                           action utile d'une carte bloquée est le lien vers
                                           la quête à terminer (retour user 21/10/2026). */}
-                                      {!stepLocked && (
+                                      {!prereqLocked && (
                                         <button
                                           type="button"
                                           onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
@@ -3398,30 +3405,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       )}
                                     </div>
                                   </div>
+                                  )}
                                 </div>
 
                                 {/* ── VERROU : prérequis non terminés ──
                                     F6 (11/11/2026) — la MÊME forme que l'overlay : **une seule
                                     ligne** cliquable ouvre la liste des prérequis (modale
                                     partagée), au lieu d'un mur de chips. */}
-                                {stepLocked && (
-                                  <div className="flex flex-wrap items-center gap-1.5 border-t border-danger/20 pt-2">
-                                    {!prereqLocked ? (
-                                      <>
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                                          <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                          {"Donjon requis à faire :"}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => setOpenDungeonPanel(seq.id)}
-                                          className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
-                                          title="Ouvrir les donjons du guide"
-                                        >
-                                          {missingDungeons.map((d) => d.name).join(", ") || "Donjon requis"}
-                                        </button>
-                                      </>
-                                    ) : prereqRefs.length === 0 ? (
+                                {prereqLocked && (
+                                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                    {prereqRefs.length === 0 ? (
                                       <>
                                         <span className="text-[11px] text-muted-foreground">
                                           {"À terminer avant :"}
@@ -3470,8 +3463,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   />
                                 )}
 
-                                {/* Conseils & notes dépliables (comme le guide interne) */}
-                                {(seq.tips || seq.note) && (() => {
+                                {/* Conseils & notes dépliables (comme le guide interne).
+                                    La ligne « Position de lancement » est retirée quand un tag
+                                    `pos_tags` existe : elle est déjà rendue par la puce de
+                                    coordonnées. Sans ce filtre, la barre du bloc Conseils
+                                    apparaissait sur des quêtes qui n'ont qu'une position
+                                    (mesure du 20/11/2026). */}
+                                {(() => {
+                                  // Un verrou de PRÉREQUIS ne garde que le lien vers la quête
+                                  // à terminer ; un verrou de DONJON garde la ligne normale
+                                  // (pastille Donjon ×N) — même règle que le guide interne.
+                                  if (prereqLocked) return null;
+                                  let tipsText = String(seq.tips || "");
+                                  const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((tag: any) => tag.type === "pos_tags");
+                                  if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
+                                  if (!tipsText && !seq.note) return null;
                                   const isHintsOpen = expandedHintsSteps.has(seq.id);
                                   const toggleHints = () => {
                                     setExpandedHintsSteps((prev) => {
@@ -3481,7 +3487,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       return next;
                                     });
                                   };
-                                  const parts = (seq.tips || "").split(/·?\s*Succès\s*:\s*/i);
+                                  const parts = tipsText.split(/·?\s*Succès\s*:\s*/i);
                                   const mainTip = parts[0]?.trim();
                                   const parsedTip = parseRushConstraints(mainTip);
                                   const structured =

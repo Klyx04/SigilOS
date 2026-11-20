@@ -13,6 +13,7 @@
 - 🎯 **Rush (20/11/2026, suite 43)** : **536** quêtes · **49** conseils · **529** positions · **737** tags monstres ; bêta **f2e9c07f**, dev **96ddd29f** → **redéployer**. Positions : **533 / 532 avec position / 1 sans (1938) / 6 mises à jour**.
 - ✅ **173 vs 143** : public **175 exigences** (tous blocs) vs route **Bontarien + Ordre 145** → écart **30** = filtre `resolveRushRoute`, pas un bug.
 - 📌 **Gestes Rush** : ① appliquer **Positions** dans God (6) ; ② cocher 🏆 **Succès officiel** sur **5165 / 7760 / 7761** ; ③ **redéployer la bêta** ; ④ **itérations 5/6**.
+- 🎛️ **Parité UI (suite 44)** : position à droite + succès/donjon dans le bloc favicons (public/interne) ; verrou donjon = ligne normale ; % Dofus au grain de la quête.
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
 - 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`) ; **aucune date** (décision user). **Migrations** jouées au deploy ; **ops** (ws, bot, intent, cAdvisor, crontabs, Node `24.22.1`) et **réglages** : `docs/MAINTENANCE.md`.
 

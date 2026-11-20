@@ -774,8 +774,11 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
         expect(src).toContain(
             "<SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />"
         );
+        // 20/11/2026 — la position est sortie dans un wrapper à droite (gap-2),
+        // DEVANT le bloc segmenté des pastilles : même anatomie que le public.
+        expect(src).toMatch(/ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2/);
         expect(src).toMatch(
-            /ml-auto flex min-w-0 flex-wrap items-center justify-end gap-0\.5 rounded-\[4px\] border border-border bg-surface p-0\.5/
+            /flex items-center gap-0\.5 rounded-\[4px\] border border-border bg-surface p-0\.5/
         );
     });
 });

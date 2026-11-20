@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/11/2026 (suite 44) — **Rush · parité UI public/interne et % Dofus au grain de la quête** — branche `fix/rush-ui-parity-2026-11-20` (PR #1475)
+
+> **Demandes user (verbatim)** : « pk il y a une barre horizontale […] sur le public et pas l'interne » · « afficher et aligner les positions à droite […] guide interne comme le public » · « guide public rentre l'icône succès dans le bloc des favicon comme l'interne » · « le % affiché par dofus ne grimpe pas […] quand on coche des quêtes » · « quête bloquée […] faire comme l'interne pour le public » · « même chose pour les dj côté public c'est moche, fais la même chose que l'interne ».
+> **Mesure (rendu local Playwright)** : succès public parent = groupe `border` des favicons ; quête verrouillée publique = **0 position, 0 donjon, 1 lien titre** (favicons disparus) ; panneau avec **1 quête Pourpre injectée → Pourpre 1/11** (le % est au grain de la quête).
+> **Fait** : position interne déplacée dans le wrapper droit devant le groupe segmenté ; `SuccessChip compact` public déplacé dans ce groupe ; **verrou donjon = ligne normale** (pastille `Donjon ×N` dans la barre, plus de gros bloc rouge), **verrou prérequis = carte épurée** ; barre des notes retirée sur le verrou prérequis et ligne « Position de lancement » retirée des tips ; `dofusQuestStats` (quêtes, hors succès/INFO) remplace `dofusMilestoneStats` pour la vue « Moi » (libellés « quêtes validées »).
+> **Preuves** : `rush-dofus-progress` **11** · `rush-public-parity` **51** · `da-wakfu` **66** · **121 fichiers / 1 490 tests Rush ✅** · **782 fichiers / 8 199 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : contrôles visuels 390/768/1024/1440 (les 6 points) · appliquer Positions/Succès dans God · redéployer la bêta · itérations 5/6.
+> **Rotation** : bloc « suite 38 » (synchro positions 3a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 20/11/2026 (suite 43) — **Rush · positions Incarnam, 3 succès hors trame, 173 vs 143 expliqué** — branche `fix/rush-reste-2026-11-20`
 
 > **Demande user (verbatim)** : « reprenons sur tous les chantier restant de près ou de loin sur le rush sylvestre, exhaustivement » + `src/temp/debug.md` (les 11 positions et les 3 succès).
@@ -54,15 +63,6 @@
 > **Reste** : **bêta** (deploy `8a243ddf` → import → Positions → **Enrichir l'existant** → re-mesure) ; 6 pages sans position + 3 séquences sans `questDbIds` ; itérations 4/5/6 ; prod.
 > **Rotation** : bloc « suite 33 » (Bloc J) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 20/11/2026 (suite 38) — **Rush · synchro des positions DPLN en base (itération 3a)** — branche `feat/rush-positions-sync-2026-11-20`
-
-> **Demande user (verbatim)** : « on est bloqué partout ? on fait comment? » — l'import God restait sur « Rien à créer » et les icônes position/zaap ne s'affichaient pas.
-> **Mesure (base locale, lecture seule)** : guide **536 séquences · 533 `questDbIds` · 0 `pos_tags`** ; plan de synchro **527 à mettre à jour**, **0 déjà à jour**, **9 sans position** — 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) + 3 séquences sans id (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) ; « Faire le mort » → `[-26,36]`.
-> **Fait** : règle pure `rush-quest-positions` (`buildRushPositionTag`, `planRushPositionSync`, `summarize…`) — tag remplacé/ajouté **en place**, `allowZaap` explicite et **zaap manuel** `zaapX/zaapY` conservés, entrées non mutées, idempotente ; action God `syncRushPositions` (**dry-run par défaut**, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; bouton **Positions** + modale dans `RushEditorStudio` (aucun fichier God neuf) ; le seed consomme la même règle.
-> **Preuves** : **13 tests** `rush-position-sync` ✅ · ciblés **91/91** · `tsc` 0 · ESLint 0 erreur · plan local **527/9** · « Faire le mort » `[-26,36]` · aucune migration.
-> **Reste** : **Positions appliquées en local** (527 tags ; bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif, l'enrichissement de l'existant arrive en 3b (bloc 39).
-> **Rotation** : bloc « suite 32 » (alias de donjons) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

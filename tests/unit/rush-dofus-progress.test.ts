@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  dofusQuestStats,
   isQuestDone,
   memberDofusProgress,
   questStepKeys,
@@ -32,6 +33,42 @@ describe("rush-dofus-progress — étapes d'une quête", () => {
     expect(isQuestDone(q("B", "B", 3), new Set(["B-1", "B-2", "B-3"]))).toBe(true);
     expect(isQuestDone(q("A", "A"), new Set(["A-all"]))).toBe(true);
     expect(isQuestDone(q("A", "A"), new Set(["A-1"]))).toBe(true);
+  });
+});
+
+describe("dofusQuestStats — % personnel au grain de la quête", () => {
+  const MILESTONES = [
+    {
+      id: "m1",
+      dofusId: "pourpre",
+      sequences: [
+        { id: "q1" },
+        { id: "q2" },
+        { id: "succes", isSuccess: true },
+        { id: "info", activityTags: [{ type: "info_sequence" }] },
+      ],
+    },
+    { id: "m2", dofusId: "pourpre", sequences: [{ id: "q3" }] },
+    { id: "m3", dofusId: "inconnu", sequences: [{ id: "q4" }] },
+  ];
+
+  it("compte les quêtes, écarte succès et encarts INFO", () => {
+    expect(dofusQuestStats(MILESTONES, [])).toEqual([
+      expect.objectContaining({ id: "pourpre", done: 0, total: 3, pct: 0 }),
+    ]);
+  });
+
+  it("grimpe dès qu'une seule quête est cochée", () => {
+    expect(dofusQuestStats(MILESTONES, ["q1"])[0]).toMatchObject({ done: 1, total: 3, pct: 33 });
+    expect(dofusQuestStats(MILESTONES, ["q1", "q2", "q3"])[0]).toMatchObject({
+      done: 3,
+      total: 3,
+      pct: 100,
+    });
+  });
+
+  it("ignore un Dofus inconnu au lieu d'inventer une ligne", () => {
+    expect(dofusQuestStats(MILESTONES, ["q4"]).some((stat) => stat.id === "inconnu")).toBe(false);
   });
 });
 

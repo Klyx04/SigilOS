@@ -144,6 +144,63 @@ export function dofusMilestoneStats(
     return out;
 }
 
+/**
+ * Progression **personnelle par Dofus**, au grain de la **quête**.
+ *
+ * Le panneau public affichait un pourcentage par **bloc** : cocher une quête ne le faisait
+ * pas bouger tant que les 8 quêtes du bloc n'étaient pas finies (mesure du 20/11/2026).
+ * Ici chaque séquence cochable compte pour 1, les succès (`isSuccess`) et les encarts
+ * `info_sequence` sont écartés — ce ne sont pas des quêtes. Un Dofus inconnu est ignoré.
+ */
+export function dofusQuestStats(
+    milestones: ReadonlyArray<{
+        id: string;
+        dofusId?: string | null;
+        sequences?: ReadonlyArray<{
+            id: string;
+            isSuccess?: boolean;
+            activityTags?: unknown;
+        }>;
+    }>,
+    completedSequenceIds: Iterable<string>
+): DofusMilestoneStat[] {
+    const completed = new Set(completedSequenceIds);
+    const counts = new Map<string, { done: number; total: number }>();
+
+    for (const milestone of milestones) {
+        const key = milestone.dofusId?.trim().toLowerCase();
+        if (!key || !getDofusMeta(key)) continue;
+        for (const sequence of milestone.sequences ?? []) {
+            if (!sequence || typeof sequence.id !== "string") continue;
+            if (sequence.isSuccess) continue;
+            const tags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
+            if (tags.some((tag) => tag && typeof tag === "object" && (tag as { type?: unknown }).type === "info_sequence")) {
+                continue;
+            }
+            const entry = counts.get(key) ?? { done: 0, total: 0 };
+            entry.total += 1;
+            if (completed.has(sequence.id)) entry.done += 1;
+            counts.set(key, entry);
+        }
+    }
+
+    const out: DofusMilestoneStat[] = [];
+    for (const meta of RUSH_DOFUS_META) {
+        const entry = counts.get(meta.id);
+        if (!entry || entry.total === 0) continue;
+        out.push({
+            id: meta.id,
+            label: meta.label,
+            color: meta.color,
+            imageUrl: meta.imageUrl,
+            done: entry.done,
+            total: entry.total,
+            pct: Math.round((entry.done / entry.total) * 100),
+        });
+    }
+    return out;
+}
+
 /** Clés d'étapes d'une quête (`-all` et `-1` coexistent pour une quête non découpée). */
 export function questStepKeys(quest: Pick<DofusQuestRef, "step" | "steps">): string[] {
     if (quest.steps <= 1) return [`${quest.step}-all`, `${quest.step}-1`];

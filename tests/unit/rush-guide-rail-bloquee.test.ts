@@ -95,7 +95,9 @@ describe("Carte bloquée — une quête reste une quête", () => {
     expect(DASH_CODE).toMatch(/data-state="locked"[\s\S]{0,700}icone-quete\.png/);
   });
 
-  it("côté public, le bouton info n'est pas rendu quand la quête est verrouillée", () => {
-    expect(PUB_CODE).toMatch(/\{!stepLocked && \(\s*<button[\s\S]{0,400}setDetailModalSeq/);
+  it("côté public, le bouton info n'est pas rendu quand la quête est verrouillée par un prérequis", () => {
+    // Un verrou de DONJON garde la ligne normale (pastille Donjon ×N, détails, favicons),
+    // comme l'interne ; seul le verrou de PRÉREQUIS épure la carte.
+    expect(PUB_CODE).toMatch(/\{!prereqLocked && \(\s*<button[\s\S]{0,400}setDetailModalSeq/);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useMemo } from "react";
+import Image from "next/image";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
@@ -142,9 +143,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
             {/* Bannière d'en-tête du module */}
             <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-950/20 to-surface/80 p-6 overflow-hidden">
                 <div className="absolute right-4 -bottom-6 w-36 h-36 opacity-15 pointer-events-none select-none">
-                    <img
+                    <Image
                         src="/assets/ui/dofus-missions-thumb.png"
                         alt=""
+                        width={144}
+                        height={144}
                         className="w-full h-full object-contain filter drop-shadow-xl"
                     />
                 </div>

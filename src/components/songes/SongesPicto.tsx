@@ -5,6 +5,7 @@
  * que celui utilisé par les embeds Discord et par les cartes. Plus d'emoji décoratif
  * (🎯💎🏆✨📜) : un picto Dofus officiel, partout, à la même échelle.
  */
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface SongesPictoProps {
@@ -20,13 +21,14 @@ interface SongesPictoProps {
 export function SongesPicto({ asset, size = 16, className, title }: SongesPictoProps) {
     if (!asset) return null;
     return (
-        <img
+        <Image
             src={asset}
             alt={title ?? ""}
             title={title}
+            width={size}
+            height={size}
             draggable={false}
             className={cn("object-contain select-none shrink-0", className)}
-            style={{ width: size, height: size }}
             aria-hidden={title ? undefined : true}
         />
     );

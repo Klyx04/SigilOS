@@ -758,7 +758,7 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
         expect(src).toContain("da-portal");
         expect(src).toContain("ownerDocument.body");
         // L'icône de la pastille est normalisée (le trophée générique).
-        expect(src).toContain("/assets/icons/succes.png");
+        expect(src).toContain("/assets/icons/icone-succes.png");
         // Le nom complet reste accessible en compact (icône seule).
         expect(src).toContain("Succès : ${successes.map");
     });

@@ -146,7 +146,7 @@ export function SuccessChip({
   quests,
   className,
   compact = false,
-  iconSrc = "/assets/icons/succes.png",
+  iconSrc = "/assets/icons/icone-succes.png",
 }: {
   successes: RushSuccessRef[];
   quests: RushGuideQuestRef[];

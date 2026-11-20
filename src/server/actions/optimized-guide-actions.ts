@@ -4999,7 +4999,7 @@ const RushImportBlockSchema = z.object({
   sequences: z.array(RushImportSequenceSchema).max(120),
 });
 
-export const RushImportPayloadSchema = z.object({
+const RushImportPayloadSchema = z.object({
   blocks: z.array(RushImportBlockSchema).min(1).max(80),
 });
 

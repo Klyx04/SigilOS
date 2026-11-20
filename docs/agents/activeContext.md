@@ -6,13 +6,22 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 20/11/2026 (suite 39) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
+## 📝 Session 20/11/2026 (suite 40) — **Harnais · runbook d'ops VPS (fin du bricolage)** — branche `ops/vps-runbook`
 
 > **Demande user (verbatim)** : « on peut arrêter le bricolage et statuer sur du long terme quand ya besoin de faire ce genre de manip sur le vps via un skills ou autre dans le harnais ? c'est quoi la best practice cutting edge ? » puis « livre oui ».
 > **Mesure (incident réel)** : `docker compose exec app-beta node scripts/archive-rush-guide.mjs` échoue sur `@prisma/driver-adapter-utils`, puis `postgres-array` — l'image `runner` est un standalone Next, elle n'embarque pas les dépendances des outils d'admin. Deux commandes ad hoc avaient aussi échoué sur les noms de services (`db`, `app` au lieu de `db-beta`, `app-beta`).
 > **Fait** : stage Docker `ops` (deps + `prisma generate`, sans build Next) · services `ops-beta`/`ops-prod` (profil `ops`, jamais démarrés par `up`) · `scripts/ops/vps.sh` (verbes fermés : `dump`, `rush-archive`, `rush-delete-archive`, `rush-verify` ; dry-run par défaut, `--apply` seul mot qui écrit, garde `rush-sylvestre-archive-*`, refus d'un dump vide, journal `~/backups/ops.log`) · skill `.cline/skills/vps-ops/` (routeur : interdit `exec app-*`, impose dump → dry-run → apply → verify → rollback) · `docs/agents/vps-ops.md` · `AGENTS.md` §2 · `MAINTENANCE.md` § Rush réécrit · `vps-read-only.md` recalé.
 > **Preuves** : `ops-runbook` **10 tests** ✅ · `bash -n` OK (script converti en LF) · `tsc` 0 · ESLint 0 erreur · aucune migration.
 > **Reste** : le runbook n'est pas encore utilisé sur la bêta (la remise à zéro s'est faite via SQL testé) ; au prochain déploiement bêta, `./scripts/ops/vps.sh rush-archive beta` remplace les commandes manuelles.
+> **Rotation** : bloc « suite 34 » (itération 1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+## 📝 Session 20/11/2026 (suite 39) — **Rush · enrichissement du guide existant (itération 3b : conseils + monstres)** — branche `feat/rush-contenu-2026-11-20`
+
+> **Demande user (verbatim)** : « il faut le mode “mise à jour” de l'import (dry-run + apply, sans écraser les textes God) — c'est ce qui fera apparaître monstres et conseils sur les 494/536 existantes ».
+> **Mesure (base locale, lecture seule)** : guide **536 séquences · 530 `tips` vides / 6 pleins · 742 tags de combat, 742 sans `monsters`** ; payload enrichi (`src/temp/rush-seed/tougli-enriched.json`) : **36 blocs / 536 séquences / 49 conseils / 742 tags combat dont 737 porteurs de monstres** ; rapprochement **(bloc, nom)** normalisé : **536/536**.
+> **Fait** : règle pure `rush-content-sync` (`planRushContentSync`, `summarize…`, `isRushContentSyncNoop`) — un conseil n'est écrit **que si `tips` est vide** (un texte God différent est compté « protégé »), un tag de combat qui porte **déjà** ses monstres n'est jamais remplacé, **aucun tag ajouté ni supprimé**, les 5 groupes non résolus restent **signalés** ; action God `syncRushGuideContent(raw, apply)` (**dry-run par défaut**, schéma Zod **partagé** avec l'import, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; **même payload** que l'import : la modale « JSON » analyse l'import **et** l'enrichissement, bouton **« Enrichir l'existant (N) »**. L'import garde sa garde « aucun `.update(` » (`rush-import.test.ts:241`), donc rien n'a été affaibli.
+> **Preuves** : dry-run réel sur la base locale : **374 séquences · 43 conseils · 737 tags · 1 518 monstres · 5 groupes non résolus · 0 non apparié** · `rush-content-sync` **17 tests** ✅ · **774 fichiers / 8 148 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
+> **Reste** : **bêta** (deploy `8a243ddf` → import → Positions → **Enrichir l'existant** → re-mesure) ; 6 pages sans position + 3 séquences sans `questDbIds` ; itérations 4/5/6 ; prod.
 > **Rotation** : bloc « suite 33 » (Bloc J) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
@@ -22,7 +31,7 @@
 > **Mesure (base locale, lecture seule)** : guide **536 séquences · 533 `questDbIds` · 0 `pos_tags`** ; plan de synchro **527 à mettre à jour**, **0 déjà à jour**, **9 sans position** — 6 pages sans position (622, 623, 1528, 1629, 1630, 1938) + 3 séquences sans id (Démons et merveilles, Quêtes de Silvosse, En attendant le printemps) ; « Faire le mort » → `[-26,36]`.
 > **Fait** : règle pure `rush-quest-positions` (`buildRushPositionTag`, `planRushPositionSync`, `summarize…`) — tag remplacé/ajouté **en place**, `allowZaap` explicite et **zaap manuel** `zaapX/zaapY` conservés, entrées non mutées, idempotente ; action God `syncRushPositions` (**dry-run par défaut**, rate limit, lots de 100, `logGodWrite`, revalidation `/god` + `/guides` + `/dashboard`) ; bouton **Positions** + modale dans `RushEditorStudio` (aucun fichier God neuf) ; le seed consomme la même règle.
 > **Preuves** : **13 tests** `rush-position-sync` ✅ · ciblés **91/91** · `tsc` 0 · ESLint 0 erreur · plan local **527/9** · « Faire le mort » `[-26,36]` · aucune migration.
-> **Reste** : **Positions → Appliquer** en God (local, puis bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif.
+> **Reste** : **Positions appliquées en local** (527 tags ; bêta après déploiement) ; 6 pages sans position à compléter à la main ; 3 séquences sans `questDbIds` à rattacher ; 2a/2b (monstres/conseils) non appliqués en base — l'import reste additif, l'enrichissement de l'existant arrive en 3b (bloc 39).
 > **Rotation** : bloc « suite 32 » (alias de donjons) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 19/11/2026 (suite 37) — **Rush · positions de lancement (itération 2c)** — branche `feat/rush-positions-2026-11-19`
@@ -58,14 +67,6 @@
 
 
 
-## 📝 Session 19/11/2026 (suite 34) — **Rush · itération 1 : état documentaire aligné** — branche `docs/rush-etat-aligne-2026-11-19`
-
-> **Demande user (verbatim)** : « fais 1 et 2 pour commencer » — itération 1 = docs, itération 2 = contenu (55 conseils + monstres + positions).
-> **Mesures (base locale, 19/11)** : guide **36 blocs / 536 séquences** · **0** page `/q` publiée · **0** `constraints` · **0** tag `prereq_expr` (seed importé antérieur à l'OU) · **6** tips de quête / **23** de bloc · **742** tags combat sans id (404 `combat_solo` + 338 `combat_plusieurs`) · **55** conseils à rédiger (50 quêtes + 5 blocs). Bêta : **494/238/32/19**, migrations à jour (`20270207000001`), code non déployé.
-> **Fait** : #1462 **déjà mergée** (`dev 88146076`) ; docs recalées — ROADMAP (55 conseils, V-D2, file V-D2, notifications, migrations V4), MODULE §T/§5 (O15/G8 livrés, 3 donjons soldés, 4 étapes/3 succès, cache = code, mesures), ROUTE §10/§12 (536, `prereq_expr` = 0, monstres 742), REFONTE (E3c livré, E2a abandonné).
-> **Preuves** : `git status` propre · docs uniquement · aucun code, aucune migration.
-> **Reste** : itération 2 — 55 conseils (Dofusyelle, paraphrases), monstres (742 tags → ids + images + fiches interne/visiteur), positions de lancement (`GameQuest.posX/posY/npcName` via `questDbIds`), puis VPS.
-> **Rotation** : bloc « suite 28 » (UI-1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

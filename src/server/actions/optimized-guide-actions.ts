@@ -37,6 +37,7 @@ import {
   summarizeRushPositionSyncPlan,
   type RushQuestPositionMap,
 } from "@/lib/rush-quest-positions";
+import { planRushContentSync, summarizeRushContentSyncPlan } from "@/lib/rush-content-sync";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
 import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
@@ -5298,6 +5299,124 @@ export async function syncRushPositions(apply = false) {
   return {
     success: true as const,
     data: { dryRun: false as const, applied: { updated }, plan: summary },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Contenu (conseils + monstres) — enrichissement des séquences existantes
+// ---------------------------------------------------------------------------
+
+/**
+ * **Enrichissement du contenu déjà en base** — l'import consolidé ajoute les blocs
+ * et les quêtes manquants, mais ne réécrit **jamais** une séquence existante : les
+ * conseils (2b) et les monstres des combats (2a) du seed ne peuvent donc pas
+ * l'atteindre. Mesure locale du 20/11/2026 : **530 conseils vides / 536**,
+ * **742 tags de combat sans monstres / 742**.
+ *
+ * Deux garde-fous, dans cet ordre :
+ * - un conseil déjà écrit dans God n'est **jamais** écrasé — seul un `tips` vide
+ *   reçoit le texte du seed (un texte différent est compté « protégé ») ;
+ * - un tag de combat qui porte déjà ses monstres n'est **jamais** remplacé ; aucun
+ *   tag n'est ajouté ni supprimé, et un tag que le payload ne sait pas résoudre
+ *   reste signalé dans le plan.
+ *
+ * Dry-run par défaut ; un second passage est un no-op (0 mise à jour).
+ */
+export async function syncRushGuideContent(raw: unknown, apply = false) {
+  await requireRushAccess();
+
+  const parsed = RushImportPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: "Payload invalide",
+      issues: parsed.error.issues.slice(0, 8).map((issue) => `${issue.path.join(".") || "(racine)"} : ${issue.message}`),
+    };
+  }
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
+
+  const plan = planRushContentSync(
+    parsed.data,
+    guide.milestones.flatMap((milestone) =>
+      milestone.sequences.map((sequence) => ({
+        id: sequence.id,
+        blockTitle: milestone.title,
+        name: sequence.subGuideName,
+        tips: sequence.tips,
+        activityTags: sequence.activityTags,
+      }))
+    )
+  );
+  const summary = summarizeRushContentSyncPlan(plan);
+
+  if (!apply) return { success: true as const, data: { dryRun: true as const, plan: summary } };
+
+  const session = await auth();
+  const { success: rateOk } = await rateLimit(
+    `guide-sync-rush-content:${session?.user?.id ?? "anon"}`,
+    3,
+    60_000
+  );
+  if (!rateOk) {
+    return { success: false as const, error: "Trop de synchronisations d'affilée, veuillez patienter." };
+  }
+
+  if (plan.updates.length === 0) {
+    return {
+      success: true as const,
+      data: { dryRun: false as const, applied: { updated: 0, tips: 0, monsters: 0 }, plan: summary },
+    };
+  }
+
+  // Même découpage que les positions : un lot de 100 est atomique et l'action reste
+  // idempotente si un lot échoue (le passage suivant repart d'un plan recalculé).
+  let updated = 0;
+  let tipsFilled = 0;
+  let monsters = 0;
+  for (let index = 0; index < plan.updates.length; index += 100) {
+    const chunk = plan.updates.slice(index, index + 100);
+    await db.$transaction(
+      chunk.map((update) =>
+        db.guideSequence.update({
+          where: { id: update.sequenceId },
+          data: {
+            ...(update.tipsFilled && update.tips !== null ? { tips: update.tips } : {}),
+            ...(update.activityTags ? { activityTags: update.activityTags as never } : {}),
+          },
+        })
+      )
+    );
+    updated += chunk.length;
+    tipsFilled += chunk.filter((update) => update.tipsFilled).length;
+    monsters += chunk.reduce((sum, update) => sum + update.monstersAdded, 0);
+  }
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guide.id,
+    metadata: {
+      op: "sync-rush-content",
+      updated,
+      tips: tipsFilled,
+      monsters,
+      tipsProtected: plan.tipsProtected,
+      tagsWithoutSource: plan.tagsWithoutSource,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/guides/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return {
+    success: true as const,
+    data: {
+      dryRun: false as const,
+      applied: { updated, tips: tipsFilled, monsters },
+      plan: summary,
+    },
   };
 }
 

@@ -59,7 +59,7 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> 
 export const NOTIFICATION_CATEGORY_ICONS: Record<string, string> = {
     ALL: "/assets/dofus/game-icons/bell-on.png",
     MISSION: "/assets/icons/icone-quete.png",
-    SUCCESS: "/assets/icons/succes.png",
+    SUCCESS: "/assets/icons/icone-succes.png",
     SONGES: "/assets/dofus-ui/pictos/songes.png",
     DONJONS: "/assets/dofus-ui/pictos/donjon.png",
     EVENT: "/assets/missions/event.png",

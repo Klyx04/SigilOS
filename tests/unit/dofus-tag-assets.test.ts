@@ -56,7 +56,7 @@ describe("🔔 Fenêtre de notifications — assets du jeu", () => {
         "/assets/dofus/game-icons/bell-on.png",
         "/assets/dofus/game-icons/bell-off.png",
         "/assets/icons/icone-quete.png",
-        "/assets/icons/succes.png",
+        "/assets/icons/icone-succes.png",
         "/assets/dofus-ui/pictos/songes.png",
         "/assets/dofus-ui/pictos/donjon.png",
         "/assets/missions/event.png",

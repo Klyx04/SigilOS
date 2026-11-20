@@ -14,6 +14,7 @@ import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 // MÊME source que l'overlay, la modale, les guides public/interne et le pré-chauffage.
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { mergeRushChapterDungeons, type RushChapterDungeon } from "@/lib/rush-chapter-dungeons";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 type Sequence = {
@@ -172,21 +173,23 @@ export function RushChapterSidebar({
   // ─── S7 : « Ce qu'il faut prévoir » — donjons & métiers requis du chapitre ────
   // Dérivés des séquences déjà passées au composant (aucun fetch supplémentaire).
   const chapterDungeons = useMemo(() => {
-    const seen = new Map<string, { id?: string; name: string; imageUrl?: string; bossName?: string }>();
+    const entries: RushChapterDungeon[] = [];
     for (const ms of currentMilestones) {
       for (const seq of ms.sequences) {
         const list: { id?: string; name?: string; imageUrl?: string; bossName?: string }[] =
           seq.dungeons && seq.dungeons.length > 0 ? seq.dungeons : seq.dungeon ? [seq.dungeon] : [];
         for (const d of list) {
-          if (d?.name) seen.set(d.name.trim().toLowerCase(), { id: d.id, name: d.name, imageUrl: (d as any).imageUrl, bossName: (d as any).bossName });
+          if (d?.name) entries.push({ id: d.id, name: d.name, imageUrl: (d as any).imageUrl, bossName: (d as any).bossName });
         }
         // donjons aussi via tag type "donjon"
         for (const tag of seq.activityTags || []) {
-          if (tag.type === "donjon" && tag.name) seen.set(tag.name.trim().toLowerCase(), { name: tag.name });
+          if (tag.type === "donjon" && tag.name) entries.push({ name: tag.name });
         }
       }
     }
-    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    // Une seule ligne par donjon : la variante « (niv. 50) » ne double plus la liste
+    // et ne remplace plus l'image par un picto de repli (mesure du 20/11/2026).
+    return mergeRushChapterDungeons(entries);
   }, [currentMilestones]);
 
   const chapterMetiers = useMemo(() => {

@@ -1,17 +1,21 @@
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLoading() {
     return (
-        <div className="flex h-[calc(100vh-80px)] w-full items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-                <div className="relative h-12 w-12">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-primary/20"></div>
-                    <div className="relative flex h-full w-full items-center justify-center rounded-full bg-black/50 border border-border backdrop-blur-xl">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
+        <div className="flex w-full flex-col gap-4 p-4 sm:p-6" aria-busy="true" aria-live="polite">
+            <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
                 </div>
-                <p className="text-muted-foreground font-bold text-sm animate-pulse uppercase tracking-widest">Chargement du module...</p>
             </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-40 w-full rounded-xl" />
+                ))}
+            </div>
+            <span className="sr-only">Chargement du module…</span>
         </div>
     );
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { db } from "@/lib/prisma";
 
 /**
@@ -18,7 +19,12 @@ import { db } from "@/lib/prisma";
  * Historique : ce lecteur vivait dans `god-roadmap-actions.ts`, supprimé avec la
  * Roadmap Pro (chantier « purge des onglets morts du God », 28/09/2026).
  */
-export async function getPlatformConfig() {
+/**
+ * Cache **par requête** uniquement (React `cache`) : le layout racine et celui du
+ * dashboard lisent la même ligne ; on la lit une fois. Pas de TTL/Redis :
+ * `maintenanceMode` doit couper immédiatement une session déjà ouverte.
+ */
+export const getPlatformConfig = cache(async () => {
     try {
         const config = await db.platformConfig.findUnique({
             where: { id: "singleton" }
@@ -27,4 +33,4 @@ export async function getPlatformConfig() {
     } catch (e: any) {
         return { success: false, error: e.message };
     }
-}
+});

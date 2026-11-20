@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Compression déléguée à Caddy (`encode zstd gzip`) : Node ne doit pas gzipper
+  // 1,13 Mo par requête sur son thread unique. Les deux réglages vont ensemble.
+  compress: false,
   // Empêche Next.js d'annoncer le framework via l'en-tête `X-Powered-By` : c'est une
   // empreinte inutile qui aide à cibler des vulnérabilités connues (AGENTS §5, « zéro empreinte »).
   poweredByHeader: false,

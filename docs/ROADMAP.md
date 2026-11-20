@@ -10,9 +10,10 @@
 
 ## 0. Reprise immédiate
 
-- 🎯 **Rush (20/11/2026, suite 43)** : **536** quêtes · **49** conseils · **529** positions · **737** tags monstres ; bêta **f2e9c07f**, dev **96ddd29f** → **redéployer**. Positions : **533 / 532 avec position / 1 sans (1938) / 6 mises à jour**.
+- 🎯 **Rush (20/11)** : 536 quêtes · 49 conseils · 532 positions (1 sans : 1938) · 737 tags monstres · 303 succès · 3 OU ; bêta 8d7528ff (ouverte), dev 8d7528ff.
 - ✅ **173 vs 143** : public **175 exigences** (tous blocs) vs route **Bontarien + Ordre 145** → écart **30** = filtre `resolveRushRoute`, pas un bug.
-- 📌 **Gestes Rush** : ① appliquer **Positions** dans God (6) ; ② cocher 🏆 **Succès officiel** sur **5165 / 7760 / 7761** ; ③ **redéployer la bêta** ; ④ **itérations 5/6**.
+- 📌 **Gestes Rush** : ① visuels 390/768/1024/1440 ; ② itérations 5/6 ; ③ doc/prod (`main` = `c190f2c7`).
+- ⚡ **Perf web (20/11)** : guide **2,5 req/s** (10–50), **1,6** à 100 ; accueil **19,6** ; CSS **34,5**. **P0 en cours** (Caddy+Next, `cache()` config/guildes) ; `docs/plans/PERF-WEB.md`.
 - 🎛️ **Parité UI (suite 44)** : position à droite + succès/donjon dans le bloc favicons (public/interne) ; verrou donjon = ligne normale ; % Dofus au grain de la quête.
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
 - 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`) ; **aucune date** (décision user). **Migrations** jouées au deploy ; **ops** (ws, bot, intent, cAdvisor, crontabs, Node `24.22.1`) et **réglages** : `docs/MAINTENANCE.md`.
@@ -75,6 +76,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 63 | `profil-refonte` | Profil dashboard : déslop, un accent, 8 onglets | **P1→P4 + P3-bis livrés** 08/11 | P2-ter : 5 fichiers (palette 30, slop 65) | `docs/plans/PLAN-REFONTE-PROFIL-DASHBOARD.md` | — |
 | 64 | `rush-contraintes` | Conditions de quête en **infos** (jamais blocage) : joueurs, métier, horaire, sort, note, combat, donjon au choix, monstres | **V3 livrée 12/11** — colonne `constraints` (migration `20270130000000`), Zod borné, éditeur + 3 surfaces | **backfill Tougli** (1 085 contraintes, dry-run/apply) + données éditoriales (4 donjons de Maïmane) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §4 | — |
 | 65 | `notifications` | Centre de notifications du compte (visiteur connecté) : réponses aux signalements, changelog, news | **N1→N4 + N2-bis livrés 15/11** (page compte, hub signalements, changelog, opt-out) | Rush v2 reporté (toasts live) | — | — |
+| 66 | `perf-web` | Performance web | **Mesuré 20/11** : guide **2,5 req/s** (10–50), **1,6** à 100 ; accueil **19,6** ; CSS **34,5** ; **P0 en cours** | P1/P2/P3 : `docs/plans/PERF-WEB.md` | — |
 
 | 61 | `souverainete-images` (SO) | Souveraineté **100 %** des visuels : aucun appel réseau pour servir une image | **S1 + S1b + S2 livrés** · 2 294 apparences (`remaining: 0`) · hybride `ASSETS_REMOTE_FETCH` (défaut `false`) | **S3** (couverture) → **S4** (cron + alerte) | `docs/plans/PLAN-SOUVERAINETE-IMAGES.md` | — |
 

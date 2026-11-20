@@ -135,7 +135,7 @@ export const viewport: Viewport = {
 
 import { auth } from "@/auth";
 import { SupportOrb } from "@/components/shared/support-orb";
-import { db } from "@/lib/prisma";
+import { getPlatformConfig } from "@/server/actions/platform-config-actions";
 import { headers } from "next/headers";
 import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
 
@@ -147,10 +147,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
   // #16 — kill-switch God « Forcer le mode sombre » : verrouille le thème en dark
   // pour TOUT le monde (fail-closed, bascule auto si un user était resté en clair).
-  const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true, forceDarkMode: true } }).catch(() => null);
+  // `getPlatformConfig` est caché **par requête** : le layout du dashboard lit la
+  // même ligne, elle n'est donc plus interrogée deux fois. Pas de TTL (maintenance).
+  const [session, platformConfigRes] = await Promise.all([auth(), getPlatformConfig()]);
+  const platformConfig = platformConfigRes.success ? platformConfigRes.data : null;
   const donationsEnabled = platformConfig?.donationsEnabled ?? true; // default true si pas de config
   const forcedTheme = platformConfig?.forceDarkMode ? "dark" : undefined;
 

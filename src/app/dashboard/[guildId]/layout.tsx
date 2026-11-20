@@ -66,8 +66,6 @@ export default async function DashboardLayout({
         import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig())
     ]);
 
-    const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
-
     // --- MAINTENANCE : verrouille les dashboards loggés (le proxy réécrit les
     // requêtes neuves, mais une session déjà posée sur un dashboard ne repasse
     // pas forcément par lui dans sa fenêtre de cache). Lecture BDD directe,

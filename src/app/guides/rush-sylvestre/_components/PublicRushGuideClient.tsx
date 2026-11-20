@@ -1041,7 +1041,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const [searchQuery, setSearchQuery] = useState("");
   const [hideDone, setHideDone] = useState(false);
   const [showResources, setShowResources] = useState(false);
-  const [expandedMs, setExpandedMs] = useState<Set<string>>(() => new Set([milestones[0]?.id].filter(Boolean)));
+  const [expandedMs, setExpandedMs] = useState<Set<string>>(() => new Set(milestones.map((ms) => ms.id)));
 
   // Global counts
   // Les séquences info (encarts) ne sont pas des étapes : elles ne comptent PAS dans la
@@ -1508,7 +1508,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     setBookmarksByMs(new Map());
     setDungeonStates({});
     setResourceChecks(new Set());
-    setExpandedMs(new Set(milestones[0]?.id ? [milestones[0].id] : []));
+    // Tous les blocs sont dépliés par défaut (retour du 20/11/2026) : replier un bloc
+    // reste possible, mais on ne force plus à déplier chaque bloc à la main.
+    setExpandedMs(new Set(milestones.map((ms) => ms.id)));
     setHideDone(false);
     setSearchQuery("");
     setContinueModalOpen(false);
@@ -1544,7 +1546,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       setCompletedIds(snapshot.completedIds);
       setCompletedStepsByMs(snapshot.completedStepsByMs);
       setBookmarksByMs(snapshot.bookmarksByMs);
-      setExpandedMs(new Set(milestones[0]?.id ? [milestones[0].id] : []));
+      // Même défaut qu'au premier rendu : tous les blocs ouverts.
+      setExpandedMs(new Set(milestones.map((ms) => ms.id)));
       setCharacterOpen(false);
 
       const who = normalized

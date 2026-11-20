@@ -1017,7 +1017,7 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 // `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
 // dashboard, le guide public et l'overlay).
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockNumber }: any) {
-  const [expanded,setExpanded]=useState(false);
+  const [expanded,setExpanded]=useState(true);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;

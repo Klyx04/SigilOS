@@ -10,6 +10,7 @@ import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
 
 import { getGuildModules } from "@/server/actions/module-actions";
+import { withSpan } from "@/lib/perf-span";
 import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -56,14 +57,20 @@ export default async function DashboardLayout({
         redirect("/auth/signout?reason=token_expired");
     }
 
-    const eventsPromise = import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId));
+    // Promesse **streamée** vers `TopNav` : elle ne bloque pas la coquille, mais elle fait
+    // partie de la transaction du layout — on la mesure pour ne pas l'oublier.
+    const eventsPromise = withSpan("dashboard.layout.getUpcomingGuildEvents", "function", () =>
+        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId)));
     
+    // Mesure `perf-web` P1-1 : cinq spans nommés (constantes, jamais `guildId`) pour
+    // savoir lequel des appels du layout porte les secondes de la navigation.
     const [user, guildData, userGuilds, modules, configRes] = await Promise.all([
-        getUserContext(guildId),
-        getGuildHeaderData(guildId),
-        getUserGuilds(),
-        getGuildModules(guildId),
-        import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig())
+        withSpan("dashboard.layout.getUserContext", "function", () => getUserContext(guildId)),
+        withSpan("dashboard.layout.getGuildHeaderData", "function", () => getGuildHeaderData(guildId)),
+        withSpan("dashboard.layout.getUserGuilds", "function", () => getUserGuilds()),
+        withSpan("dashboard.layout.getGuildModules", "function", () => getGuildModules(guildId)),
+        withSpan("dashboard.layout.getPlatformConfig", "function", () =>
+            import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig()))
     ]);
 
     // --- MAINTENANCE : verrouille les dashboards loggés (le proxy réécrit les

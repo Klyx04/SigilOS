@@ -118,9 +118,45 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | Cache cross-request des données **publiques** (guide, bestiaire) avec tags ; header/modules de guilde en Redis 30–60 s + invalidation ; image calendrier en WebP/`next/image` | à cadrer |
+| **P1** | **P1-1** spans serveur (livrée, PR #1479) : 6 appels du layout + Redis/Prisma ; **P1-2** images (calendrier 913 Ko, logo 170 Ko → WebP/`next/image`) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
+
+### 3.1 P1-1 — spans serveur du dashboard (20/11/2026)
+
+But : **nommer** les secondes du dashboard avant de cacher quoi que ce soit. Sentry instrumente
+la requête HTTP et le `proxy`, mais **pas** les appels d'un layout RSC ; sans span explicite,
+« Traces » ne dit pas lequel des six appels porte le temps.
+
+| Span (`dashboard/[guildId]/layout.tsx`) | Couvre |
+|---|---|
+| `dashboard.layout.getUserContext` | Redis → config guilde → bannissements → 3 appels Discord |
+| `dashboard.layout.getGuildHeaderData` | en-tête : config + 2 `count` — cache mémoire 60 s |
+| `dashboard.layout.getUserGuilds` | liste des guildes du compte — **BDD à chaque requête** |
+| `dashboard.layout.getGuildModules` | modules — cache mémoire 30 s |
+| `dashboard.layout.getPlatformConfig` | singleton plateforme — **BDD à chaque requête** |
+| `dashboard.layout.getUpcomingGuildEvents` | promesse **streamée** vers `TopNav` |
+
+Sous-spans : `userContext.redis.get`, `userContext.guildConfig.read`, `userContext.discord.fetch`,
+`userGuilds.query`, `guildHeader.guildConfig.read`, `guildHeader.counts`,
+`guildModules.guildConfig.read`, `platformConfig.read`.
+
+- **Pas de `@prisma/instrumentation`** dans le projet : Prisma n'est pas tracé automatiquement.
+  Les spans explicites mesurent les lectures utiles **sans journaliser de SQL ni de paramètre**.
+- **Aucun `guildId` dans un nom de span** (cardinalité bornée, aucune donnée de guilde côté
+  Sentry) ; verrouillé par `tests/unit/perf-span.test.ts`.
+- **POST > 1 s (Sentry 7 j, sous-ensemble `span.duration:>1000`)** : `POST /dashboard/[guildId]/quetes-dofus/guide/[slug]`
+  (**100** événements), `…/profile` (**80**), `…/galerie-stuff` (20), `…/missions` (10) — ce sont des
+  **server actions** (POST sur l'URL de la page). Le layout est re-rendu à chaque action : les six
+  spans couvrent donc la part « re-rendu » du POST ; le temps du handler lui-même reste hors de ce lot.
+- **Lecture après déploiement bêta** : filtrer `GET /dashboard/[guildId]`, comparer le p95 de
+  chaque span. `tracesSampleRate` serveur = **5 %** ; la route dashboard a reçu **1 980**
+  transactions sur 7 jours (§0), soit ≈ **280/jour** — de quoi trancher sans changer le taux.
+- **Correction de diagnostic** : `getGuildHeaderData` (60 s, `guild-actions.ts:21-22`) et
+  `getGuildModules` (30 s, `module-actions.ts:97-100`) ont déjà un cache mémoire, et
+  `getUserGuilds`/`getPlatformConfig` un `cache()` par requête (P0). Le cache cross-request
+  restant à trancher est donc **`getUserContext`** (déjà Redis 60 s) et la requête `getUserGuilds`
+  — la mesure P1-1 décide, pas la théorie.
 
 ## 4. Protocole de test de charge
 

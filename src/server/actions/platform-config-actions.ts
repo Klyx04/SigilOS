@@ -2,6 +2,7 @@
 
 import { cache } from "react";
 import { db } from "@/lib/prisma";
+import { withSpan } from "@/lib/perf-span";
 
 /**
  * 📖 Lecture **publique** du singleton `PlatformConfig`.
@@ -26,9 +27,11 @@ import { db } from "@/lib/prisma";
  */
 export const getPlatformConfig = cache(async () => {
     try {
-        const config = await db.platformConfig.findUnique({
-            where: { id: "singleton" }
-        });
+        const config = await withSpan("platformConfig.read", "db", () =>
+            db.platformConfig.findUnique({
+                where: { id: "singleton" }
+            })
+        );
         return { success: true, data: config };
     } catch (e: any) {
         return { success: false, error: e.message };

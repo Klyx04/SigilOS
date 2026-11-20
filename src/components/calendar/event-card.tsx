@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 
@@ -206,11 +207,13 @@ export function EventCard({
             {/* Top Image Background */}
             <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface/90 z-10" />
-                <img
+                <Image
                     src={resolveEventImagePath(event.type, event.metadata)}
-                    alt="Event type"
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className={cn(
-                        "w-full h-full object-cover transition-all duration-300 transform group-",
+                        "object-cover transition-all duration-300 transform group-",
                         isCompleted ? "grayscale" : "grayscale group-hover:grayscale-0"
                     )}
                 />

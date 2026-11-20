@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo, useLayoutEffect } from "react";
+import Image from "next/image";
 import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -683,8 +684,8 @@ export default function BombGame({
             
             {/* QUEEN OF THIEVES BACKGROUND */}
             <div className="absolute inset-0 opacity-5 pointer-events-none">
-                <img src="/images/sigil-king/incarnations/Roublard.png" className="absolute -right-20 -bottom-20 w-[800px] grayscale blur-sm" alt="" />
-                <img src="/images/sigil-king/incarnations/Roublard.png" className="absolute -left-20 -top-20 w-[800px] grayscale blur-sm rotate-180" alt="" />
+                <Image src="/images/sigil-king/incarnations/Roublard.png" width={800} height={1193} className="absolute -right-20 -bottom-20 w-[800px] h-auto grayscale blur-sm" alt="" />
+                <Image src="/images/sigil-king/incarnations/Roublard.png" width={800} height={1193} className="absolute -left-20 -top-20 w-[800px] h-auto grayscale blur-sm rotate-180" alt="" />
             </div>
 
             {/* CONTROLS */}

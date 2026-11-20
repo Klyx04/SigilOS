@@ -118,7 +118,7 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | **P1-1** spans serveur (livrée, PR #1479) : 6 appels du layout + Redis/Prisma ; **P1-2** images (calendrier 913 Ko, logo 170 Ko → WebP/`next/image`) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
+| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
 
@@ -170,6 +170,26 @@ Sous-spans : `userContext.redis.get`, `userContext.guildConfig.read`, `userConte
   `getUserGuilds`/`getPlatformConfig` un `cache()` par requête (P0). Le cache cross-request
   restant à trancher est donc **`getUserContext`** (déjà Redis 60 s) et la requête `getUserGuilds`
   — la mesure P1-1 décide, pas la théorie.
+
+### 3.2 P1-2 — images servies à la taille d'affichage (21/11/2026)
+
+Objectif : ne plus envoyer au navigateur les PNG source pleine résolution. Les **mêmes fichiers**
+restent la source des embeds Discord (`calendar-event-images.ts`), seul le rendu change.
+
+| Source | Taille | Rendu | WebP (q75) |
+|---|---:|---|---:|
+| `calendar_kralamour.png` | 8,2 Mo | 512 px | **31 Ko** |
+| `calendar_dungeon_farm.png` | 892 Ko | 512 px | **47 Ko** |
+| `calendar_autres.png` | 2,0 Mo | 512 px | **23 Ko** |
+| `missions/songes.png` | 1,3 Mo | 32 px | **< 1 Ko** |
+| `dofus-missions-thumb.png` | 1,08 Mo | 144 px | **7 Ko** |
+| `Roublard.png` | 1,6 Mo | 800 px | **84 Ko** |
+
+- `event-card` et `raid-hero-banner` : `<img>` → `next/image` (`fill` / 56 px) ;
+  `SongesPicto` : 16–32 px ; `mission-settings` : 144 px ; `BombGame` : 800 px.
+- Le poids réel dépend du viewport (`sizes`), mais l'ordre de grandeur est **÷20 à ÷100**.
+- Reste : `logo-v2.png` (**170 Ko**) sert de favicon/manifest — à remplacer par des icônes
+  32/192 px ; ce n'est pas un poste LCP, donc hors de ce lot.
 
 ## 4. Protocole de test de charge
 

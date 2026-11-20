@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Users, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -60,11 +61,12 @@ export function RaidHeroBanner({
                 {/* Visuel **réel** du raid — même source que les cartes du calendrier
                     (`resolveEventImagePath`), jamais un glyphe générique. */}
                 <div className="flex items-center gap-3 shrink-0">
-                    <img
+                    <Image
                         src={resolveEventImagePath("RAID_OFFICIAL", raid.metadata)}
                         alt=""
                         width={56}
                         height={56}
+                        sizes="56px"
                         className="h-14 w-14 rounded-lg border border-border object-cover"
                         onError={(e) => { e.currentTarget.src = "/assets/calendar/calendar_raid_official.png"; }}
                     />

@@ -7,9 +7,11 @@ const caddyfile = readFileSync(path.join(root, "Caddyfile"), "utf8");
 const nextConfig = readFileSync(path.join(root, "next.config.ts"), "utf8");
 
 function siteBlock(host: string): string {
-    const escaped = host.replace(/\./g, "\\.");
-    const match = caddyfile.match(new RegExp(`^${escaped} \\{[\\s\\S]*?^\\}`, "m"));
-    return match?.[0] ?? "";
+    const startMarker = `\n${host} {`;
+    const start = caddyfile.indexOf(startMarker);
+    if (start < 0) return "";
+    const end = caddyfile.indexOf("\n}", start);
+    return end < 0 ? caddyfile.slice(start) : caddyfile.slice(start, end + 2);
 }
 
 describe("compression web (P0)", () => {

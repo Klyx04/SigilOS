@@ -2,7 +2,7 @@
 import { useMemo, memo, useState } from "react";
 import { Users, ChevronRight } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
-import { memberDofusProgress, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
+import { memberDofusProgress, projectRushStepKeys, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
 import { RushDofusDetailModal } from "@/components/dofus-quests/rush/RushDofusDetailModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,6 +56,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   milestones,
   questsByDofus,
   guildProgress,
+  stepKeysBySequenceId,
   activeFilter,
   onFilterChange,
 }: {
@@ -63,6 +64,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   /** Quêtes ordonnées de chaque Dofus (`subGuideRef`, libellé, catégorie, nb d'étapes). */
   questsByDofus: Record<string, DofusQuestRef[]>;
   guildProgress: GuildMemberProgress[];
+  /** Table `sequenceId → clés d'étape` (calculée par le guide, qui porte les séquences). */
+  stepKeysBySequenceId: ReadonlyMap<string, readonly string[]>;
   activeFilter: string | null;
   onFilterChange: (id: string | null) => void;
 }) {
@@ -166,12 +169,20 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     for (const row of guildProgress) {
       if (!dofusMilestoneIds.has(row.milestoneId)) continue;
       const entry = byMember.get(row.profileId) ?? { completedSteps: new Set<string>(), currentStep: null };
-      for (const step of row.completedSteps ?? []) entry.completedSteps.add(step);
-      if (row.currentStep) entry.currentStep = row.currentStep;
+      // La base stocke des **ids de séquence** ; les règles de statut attendent des
+      // clés `<subGuideRef>-<n>`. Sans projection, aucune quête n'est jamais
+      // « Validée » (mesure du 20/11/2026 : 4 blocs terminés en base, modale à 0/8).
+      for (const key of projectRushStepKeys(row.completedSteps ?? [], stepKeysBySequenceId)) {
+        entry.completedSteps.add(key);
+      }
+      if (row.currentStep) {
+        const keys = stepKeysBySequenceId.get(row.currentStep);
+        entry.currentStep = keys?.[0] ?? row.currentStep;
+      }
       byMember.set(row.profileId, entry);
     }
     return questStatusForMembers(quests, [...byMember.values()]);
-  }, [selected, questsByDofus, milestones, guildProgress]);
+  }, [selected, questsByDofus, milestones, guildProgress, stepKeysBySequenceId]);
 
   if (dofusStats.length === 0) return null;
 

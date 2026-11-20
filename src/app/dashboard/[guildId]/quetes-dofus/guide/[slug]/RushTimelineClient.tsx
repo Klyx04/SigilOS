@@ -90,6 +90,7 @@ import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, Dunge
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
 import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
+import { rushStepKeysBySequenceId } from "@/lib/rush-dofus-progress";
 import {
   buildRushDungeonsOverview,
   rushDungeonsCounter,
@@ -1762,6 +1763,9 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
 // chaque page repartirait à 1 (défaut mesuré le 12/11/2026).
 const blockNumbers = useMemo(() => rushChapterNumbers(milestones), [milestones]);
 const contentMilestones=useMemo(()=>milestones.filter(ms=>!isRushNonQuestBlock(ms.type)),[milestones]);
+// Table `sequenceId → clés d'étape` : la base stocke des ids de séquence, les règles
+// de statut Dofus attendent des clés (`<subGuideRef>-<n>`). Une seule projection.
+const stepKeysBySequenceId=useMemo(()=>rushStepKeysBySequenceId(milestones),[milestones]);
 /**
  * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
  * Le serveur ne transmet que des **clés d'étapes** (`<subGuideRef>-<n>` / `-all`) :
@@ -2860,7 +2864,7 @@ const timelineItems=useMemo(()=>{
     <AnimatePresence>
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
-    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
         C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers
         1 440 / 1 280 / 900) : la grille locale et son `<style>` sont SUPPRIMÉS,

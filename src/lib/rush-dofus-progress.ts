@@ -13,6 +13,7 @@
  */
 
 import { RUSH_DOFUS_META, getDofusMeta } from "@/lib/rush-dofus-meta";
+import { buildMilestoneStepKeys } from "@/lib/guide-progress-helpers";
 
 export type DofusQuestRef = {
     /** Bloc qui porte la quête (catégorie affichée). */
@@ -183,4 +184,52 @@ export function memberDofusProgress(
 
     const currentIndex = current ? quests.indexOf(current) + 1 : 0;
     return { done, total, pct, current, currentIndex, lastDone };
+}
+
+/**
+ * Table `sequenceId → clés d'étape` pour un ensemble de blocs Rush.
+ *
+ * La base stocke `completedSteps` en **ids de séquence** pour le Rush (et en
+ * clés `<subGuideRef>-<n>` pour le legacy Ganymède). Les règles de statut
+ * (`questStatusForMembers`, `memberDofusProgress`) raisonnent en **clés** :
+ * cette table est la projection unique, partagée par l'interne et le public.
+ */
+export function rushStepKeysBySequenceId(
+    milestones: ReadonlyArray<{
+        sequences?: ReadonlyArray<{
+            id: string;
+            subGuideRef: string;
+            stepFrom?: number | null;
+            stepTo?: number | null;
+        }>;
+    }>
+): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    for (const milestone of milestones) {
+        for (const sequence of milestone.sequences ?? []) {
+            map.set(sequence.id, buildMilestoneStepKeys([sequence]));
+        }
+    }
+    return map;
+}
+
+/**
+ * Projette des `completedSteps` Rush (ids de séquence) vers les clés d'étape
+ * attendues par `questStatusForMembers`. Une valeur déjà au format clé
+ * (Ganymède) est conservée telle quelle — jamais devinée.
+ */
+export function projectRushStepKeys(
+    completedSteps: Iterable<string>,
+    stepKeysBySequenceId: ReadonlyMap<string, readonly string[]>
+): string[] {
+    const out = new Set<string>();
+    for (const raw of completedSteps) {
+        const keys = stepKeysBySequenceId.get(raw);
+        if (keys) {
+            for (const key of keys) out.add(key);
+        } else {
+            out.add(raw);
+        }
+    }
+    return [...out];
 }

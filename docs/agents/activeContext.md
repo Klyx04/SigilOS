@@ -10,10 +10,11 @@
 
 > **Demande user (verbatim)** : « enchaine en autonomie , documente d'abord puis enchaine , fais des test de charge etc au fur et à mesure , n'(oublies rien ».
 > **Mesure (bêta `8d7528ff`, autocannon v9, 10 s/palier, gzip)** : guide **2,5 req/s** (10 et 25), **2,1** (50), **1,6** (100) — p97,5 **9,9–10 s** ; accueil **19,6 req/s** ; CSS statique **34,5** (cache froid) ; 0 `5xx`, 0 timeout ; bêta `healthy` après. Sentry 7 j : `quetes-dofus` p95 **2 029 ms**, `profile` **1 531**, `services` **1 029**, accueil **836**.
+> **Après P0 (bêta `02070473`)** : guide **3,1–3,3 req/s** (+25–30 %), accueil **21,9** (+12 %), CSS **69** (×2) ; zstd **145 Ko** / gzip **151 Ko** (Node gzip avant : 143 Ko — gain CPU, pas réseau) ; `br` seul non compressé ; 0 erreur.
 > **Diagnostic** : tout le public est dynamique (nonce CSP `proxy.ts`, `auth`/`headers`/locale/`platformConfig` dans le layout, `auth`/`getUserContext`/`getServerI18n`/`JsonLd` dans la page) ; Node gzippe 1,13 Mo par requête ; dashboard = 5 appels + config lue deux fois + spinner + PNG 913 Ko.
 > **Fait (P0)** : Caddy `encode zstd gzip` + Next `compress: false` ; `getPlatformConfig` et `getUserGuilds` en `cache()` **par requête** (pas de TTL → maintenance immédiate) ; `donationsEnabled` mort retiré ; squelette de chargement ; `docs/plans/PERF-WEB.md` (mesures, diagnostic, lots P0→P3, protocole autocannon) + ROADMAP/README.
 > **Preuves** : **783 fichiers / 8 201 tests ✅** · `tsc` 0 · ESLint **0 erreur** · verrou `caddy-compression` **2/2** · Caddy validé par le verrou (l'image stock n'a pas le plugin `rate_limit` du VPS). Aucune migration.
-> **Reste** : **déployer la bêta** (Caddy + Next ensemble) puis re-mesurer §4 ; **P1** cache public + images ; **P2** statique/PPR (proxy + layout + page + thème/JSON-LD + session) ; **P3** CDN/WAF + DPA.
+> **Reste** : **P1** cache public + images ; **P2** statique/PPR (proxy + layout + page + thème/JSON-LD + session) ; **P3** CDN/WAF + DPA. Bêta `02070473` déployée et mesurée.
 > **Rotation** : bloc « suite 39 » (enrichissement 3b) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

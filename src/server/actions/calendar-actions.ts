@@ -18,6 +18,7 @@ import { decrypt } from "@/lib/encryption";
 import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
 import { shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { getInternalGuildId } from "@/server/guild-id";
+import { deriveDashboardCalendar } from "@/lib/dashboard-calendar";
 import {
     deleteEventDiscordMessage,
     deleteReminderMessageRefs,
@@ -600,6 +601,55 @@ export async function getActiveRaid(guildId: string) {
         return raid;
     } catch {
         return null;
+    }
+}
+
+/**
+ * Calendrier de la page d'accueil — **une seule lecture** `GuildEvent` pour les trois
+ * besoins historiques : événements de la semaine (widget), raid actif (bannière) et
+ * événement focal (carte Focus). La dérivation est pure (`deriveDashboardCalendar`).
+ *
+ * La requête ramène les événements publiés non terminés qui :
+ * - commencent dans la semaine en cours ;
+ * - commencent dans les prochaines 24 h (focus) ;
+ * - ou sont des raids officiels démarrés avant la semaine (raid toujours actif).
+ */
+export async function getDashboardCalendar(guildId: string) {
+    const empty = { success: false as const, events: [], activeRaid: null, focusEvent: null };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return empty;
+
+    try {
+        const internalGuildId = await getInternalGuildId(guildId);
+        if (!internalGuildId) return empty;
+
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        const weekEnd = addDays(weekStart, 7);
+        const focusHorizon = addDays(now, 1);
+
+        const events = await db.guildEvent.findMany({
+            where: {
+                guildId: internalGuildId,
+                status: "PUBLISHED",
+                endDate: { gte: now },
+                OR: [
+                    { startDate: { gte: weekStart, lt: weekEnd } },
+                    { startDate: { lte: focusHorizon } },
+                    { type: "RAID_OFFICIAL", startDate: { lt: weekStart } },
+                ],
+            },
+            include: { _count: { select: { participants: true } } },
+            orderBy: { startDate: "asc" },
+            take: 50,
+        });
+
+        const { weekEvents, activeRaid, focusEvent } = deriveDashboardCalendar(events, now);
+        return { success: true as const, events: weekEvents, activeRaid, focusEvent };
+    } catch (error) {
+        logger.error("[Calendar] getDashboardCalendar Error:", error);
+        return empty;
     }
 }
 

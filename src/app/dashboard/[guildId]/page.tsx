@@ -9,7 +9,7 @@ import { getUserProfile } from "@/server/actions/profile-actions";
 import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
-import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
+import { getDashboardCalendar } from "@/server/actions/calendar-actions";
 import { resolveEventDungeonImage } from "@/server/event-dungeon-image";
 import { getPolls } from "@/server/actions/poll-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
@@ -74,9 +74,8 @@ export default async function DashboardPage({
         almanaxItems,
         groupsResult,
         guildLogs,
-        calendarResult,
+        dashboardCalendar,
         pollsResult,
-        activeRaid,
         availabilityModuleEnabled,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
@@ -86,14 +85,18 @@ export default async function DashboardPage({
         getUpcomingAlmanax().catch(() => null),
         getUnifiedActiveGroups(guildId),
         getUnifiedGuildActivity(guildId, 12).catch(() => []),
-        getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
+        getDashboardCalendar(guildId).catch(() => ({ success: false, events: [], activeRaid: null, focusEvent: null })),
         user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
-        getActiveRaid(guildId).catch(() => null),
         isModuleEnabled(guildId, "availability"),
     ]);
 
     // Derived Data
-    const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
+    const focusData = await getDashboardFocus(
+        guildId,
+        user,
+        ocreProgress.success ? ocreProgress.data : undefined,
+        dashboardCalendar.focusEvent,
+    );
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
     const activeGroups = groupsResult.success ? groupsResult.groups : [];
 
@@ -115,7 +118,8 @@ export default async function DashboardPage({
         !!profile.hasSeenWelcome &&
         !isDismissedThisWeek &&
         !hasFilledAvailability(profileAvail);
-    const upcomingEvents = calendarResult.success ? calendarResult.events : [];
+    const upcomingEvents = dashboardCalendar.success ? dashboardCalendar.events : [];
+    const activeRaid = dashboardCalendar.activeRaid;
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
 

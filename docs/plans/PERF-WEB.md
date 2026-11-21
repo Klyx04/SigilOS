@@ -118,7 +118,7 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1** id de guilde résolu une fois (livrée, #1483) | en cours |
+| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1/B-2** dashboard : id + calendrier en une lecture (livrée, #1483/#1484) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
 
@@ -201,7 +201,16 @@ utilisent cette source unique — **4 lectures en moins** par rendu à froid, sa
 gardes ni les filtres.
 
 Reste identifié pour un prochain lot : `GuildEvent` est encore lu **3 fois** (événements de la
-semaine, raid actif, focus) — à fusionner en une requête et à passer au focus.
+semaine, raid actif, focus) — **traité en B-2 (§3.4)**.
+
+### 3.4 Dashboard — calendrier lu une fois (B-2, 21/11/2026)
+
+La page lisait `GuildEvent` **3 fois** (événements de la semaine, raid actif, focus 24 h).
+`getDashboardCalendar` fait **une** requête (publiés non terminés : semaine ∪ prochaines 24 h ∪
+raids commencés avant), puis la règle pure `src/lib/dashboard-calendar.ts` dérive les trois
+résultats. Le focus est **préchargé** dans `getDashboardFocus` (`prefetchedEvent`), qui ne requête
+plus. **2 requêtes `GuildEvent` en moins** par rendu, et la carte Focus n'est plus une étape
+séparée après le `Promise.all`.
 
 ## 4. Protocole de test de charge
 

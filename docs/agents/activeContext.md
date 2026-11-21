@@ -13,8 +13,9 @@
 > **Fait** : `next/image` sur `event-card` (fill + `sizes`), `raid-hero-banner` (56 px), `SongesPicto` (16–32 px), `mission-settings` (144 px), `BombGame` (800 px). Les PNG restent la source des embeds Discord (`calendar-event-images.ts`).
 > **Gain mesuré (sharp, qualité 75)** : kralamour **31 Ko** @512, dungeon_farm **47 Ko**, autres **23 Ko**, songes **< 1 Ko** @32, vignette missions **7 Ko** @144, Roublard **84 Ko** @800 → **÷20 à ÷100**.
 > **Fait (B-1, PR #1483)** : id de guilde résolu **une fois par requête** (`src/server/guild-id.ts`, React `cache` + mémoire 5 min) ; **4 lectures `GuildConfig` en double retirées** (calendrier, raid, activité, sondages, présence).
-> **Preuves** : **787 fichiers / 8 215 tests ✅** (dont `guild-id` 2/2) · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
-> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; **B-2** fusionner les 3 lectures `GuildEvent` ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
+> **Fait (B-2, PR #1484)** : calendrier du dashboard en **une lecture** (semaine + raid actif + focus 24 h, règle pure `dashboard-calendar`) ; focus préchargé, **2 requêtes `GuildEvent` en moins**.
+> **Preuves** : **788 fichiers / 8 219 tests ✅** (dont `guild-id` 2/2, `dashboard-calendar` 4/4) · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
+> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
 > **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

@@ -100,9 +100,11 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                     )}
                 </div>
                 <CardDescription className="text-muted-foreground mt-2 text-xs">
-                    Quand l&apos;échéance d&apos;un essai est passée <strong>sans validation</strong>, un embed est publié
-                    <strong> une seule fois</strong> dans ce salon (forum = un sujet, texte = un message). L&apos;essai
-                    n&apos;est jamais validé automatiquement : le staff tranche depuis la fiche du membre.
+                    Un rappel part <strong>3 jours avant</strong> l&apos;échéance, puis un embed est publié
+                    <strong> une seule fois</strong> quand elle est passée <strong>sans validation</strong>
+                    {" "}(forum = un sujet, texte = un message). Une <strong>prolongation</strong> est signalée au
+                    moment où elle est enregistrée. L&apos;essai n&apos;est jamais validé automatiquement : le staff
+                    tranche depuis la fiche du membre.
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-4">

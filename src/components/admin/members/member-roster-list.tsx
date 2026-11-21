@@ -27,6 +27,7 @@ import { rankRecruiters } from "@/lib/member-roster";
 import {
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
+    countTrialsAwaitingValidation,
     queryRoster,
     rosterDashboardCounts,
     rosterRoleOptions,
@@ -263,6 +264,8 @@ export function MemberRosterList({
     // qu'on obtient en cliquant, jamais un total global trompeur.
     const statusCounts = useMemo(() => rosterStatusCounts(rows, filters), [rows, filters]);
     const dashboardCounts = useMemo(() => rosterDashboardCounts(rows, filters), [rows, filters]);
+    /** File de décision du staff : essais échus non validés (badge du filtre). */
+    const toValidateCount = useMemo(() => countTrialsAwaitingValidation(rows), [rows]);
     const roleOptions = useMemo(
         () => rosterRoleOptions(roles, rows, dashboardRoleIds),
         [roles, rows, dashboardRoleIds]
@@ -431,6 +434,20 @@ export function MemberRosterList({
                         </button>
                     );
                 })}
+                <button
+                    type="button"
+                    onClick={() => patchFilters({ trial: filters.trial === "TO_VALIDATE" ? "ALL" : "TO_VALIDATE" })}
+                    aria-pressed={filters.trial === "TO_VALIDATE"}
+                    className={cn(
+                        "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                        filters.trial === "TO_VALIDATE"
+                            ? "border-accent-soft-border bg-accent-soft text-accent"
+                            : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    À valider
+                    <span className="tabular-nums text-caption text-muted-foreground">{toValidateCount}</span>
+                </button>
                 <span className="ml-auto tabular-nums text-caption text-muted-foreground">
                     {filtered.length} membre{filtered.length > 1 ? "s" : ""}
                 </span>

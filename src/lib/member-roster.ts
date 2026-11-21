@@ -12,6 +12,7 @@
 import {
     computeSeniorityDays,
     getTrialDecision,
+    isTrialAwaitingValidation,
     matchesDiscordRole,
     matchesRegistrySearch,
     registryRoleOptions,
@@ -311,6 +312,9 @@ export type RosterDashboardFilter = "ALL" | "DASHBOARD" | "MISSING";
  */
 export type RosterStatusFilter = "ALL" | RosterStatus;
 
+/** Filtre d'essai : tout, ou seulement les essais qui attendent une décision. */
+export type RosterTrialFilter = "ALL" | "TO_VALIDATE";
+
 /** État des filtres de la liste unifiée. */
 export interface RosterFilters {
     search: string;
@@ -318,6 +322,8 @@ export interface RosterFilters {
     status: RosterStatusFilter;
     /** `ALL` = tous ; sinon l'id du rôle Discord. */
     roleId: string;
+    /** `TO_VALIDATE` = essais échus non validés (file de décision du staff). */
+    trial: RosterTrialFilter;
 }
 
 export const DEFAULT_ROSTER_FILTERS: RosterFilters = {
@@ -325,6 +331,7 @@ export const DEFAULT_ROSTER_FILTERS: RosterFilters = {
     dashboard: "ALL",
     status: "ALL",
     roleId: "ALL",
+    trial: "ALL",
 };
 
 /** Durée d'essai par défaut si la guilde n'a jamais réglé `trialDurationDays` (même valeur que le schéma). */
@@ -355,7 +362,13 @@ export function matchesRosterFilters(row: RosterRow, filters: RosterFilters): bo
     if (filters.dashboard === "DASHBOARD" && !row.dashboard) return false;
     if (filters.dashboard === "MISSING" && row.dashboard) return false;
     if (filters.status !== "ALL" && row.status !== filters.status) return false;
+    if (filters.trial === "TO_VALIDATE" && !isTrialAwaitingValidation(row.trial)) return false;
     return true;
+}
+
+/** Nombre d'essais qui attendent une décision (badge du filtre « À valider »). */
+export function countTrialsAwaitingValidation(rows: readonly RosterRow[]): number {
+    return rows.reduce((count, row) => (isTrialAwaitingValidation(row.trial) ? count + 1 : count), 0);
 }
 
 /** Compteurs par statut (badges de filtres) + total, profils dashboard et hors dashboard. */

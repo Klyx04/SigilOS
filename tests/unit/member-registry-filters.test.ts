@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import {
     DEFAULT_REGISTRY_FILTERS,
     discordRoleColorHex,
+    isTrialAwaitingValidation,
     matchesDiscordOnlyFilters,
     matchesDiscordRole,
     matchesRegistryFilters,
@@ -123,6 +124,18 @@ describe("registre — filtres d'une ligne « hors dashboard »", () => {
     });
 });
 
+describe("essais à valider — file de décision", () => {
+    it("retenu seulement si l'échéance est atteinte et l'essai non validé", () => {
+        expect(isTrialAwaitingValidation({ validated: false, endsAt: "2026-11-20T00:00:00.000Z", remainingDays: -1 })).toBe(true);
+        // Dernier jour : `remainingDays` vaut 0 mais l'essai court encore → pas encore à valider.
+        expect(isTrialAwaitingValidation({ validated: false, endsAt: "2026-11-22T00:00:00.000Z", remainingDays: 0, remainingMinutes: 300 })).toBe(false);
+        // Échéance passée depuis 30 min → à valider.
+        expect(isTrialAwaitingValidation({ validated: false, endsAt: "2026-11-22T00:00:00.000Z", remainingDays: 0, remainingMinutes: -30 })).toBe(true);
+        expect(isTrialAwaitingValidation({ validated: true, endsAt: "2026-11-20T00:00:00.000Z", remainingDays: -1 })).toBe(false);
+        expect(isTrialAwaitingValidation({ validated: false, endsAt: null, remainingDays: null })).toBe(false);
+        expect(isTrialAwaitingValidation(null)).toBe(false);
+    });
+});
 describe("registre — options du filtre « rôle Discord »", () => {
     const ROLES = [
         { id: "chef", name: "Chef de guilde", color: 0x9b59b6, position: 10 },

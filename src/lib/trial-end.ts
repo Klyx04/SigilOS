@@ -94,3 +94,111 @@ export function buildTrialEndNotice(input: TrialEndNoticeInput): TrialEndNotice 
         color: 0xf59e0b,
     };
 }
+
+/** Fenêtre d'alerte **avant** l'échéance (« J-3 »). */
+export const TRIAL_ENDING_SOON_DAYS = 3;
+const DAY_MS = 86_400_000;
+
+/**
+ * Un essai **arrive bientôt à échéance** : non validé, échéance future, dans la fenêtre
+ * `days` (3 par défaut). Sert à l'alerte J-3 ; l'échéance passée reste `isTrialEnded`.
+ */
+export function isTrialEndingSoon(input: {
+    validated: boolean;
+    endsAt: Date | string | null | undefined;
+    now?: Date;
+    days?: number;
+}): boolean {
+    if (input.validated) return false;
+    if (!input.endsAt) return false;
+
+    const endsAt = input.endsAt instanceof Date ? input.endsAt : new Date(input.endsAt);
+    if (Number.isNaN(endsAt.getTime())) return false;
+
+    const now = input.now ?? new Date();
+    const remaining = endsAt.getTime() - now.getTime();
+    return remaining > 0 && remaining <= (input.days ?? TRIAL_ENDING_SOON_DAYS) * DAY_MS;
+}
+
+/**
+ * Clé d'idempotence de l'alerte J-3 : une par membre **et par échéance**, comme la fin
+ * d'essai (reprogrammer l'essai réautorise une alerte à la nouvelle date).
+ */
+export function trialEndingSoonNoticeKey(guildId: string, memberKey: string, endsAt: Date | string): string {
+    return trialEndNoticeKey(guildId, memberKey, endsAt).replace("trial-end:", "trial-soon:");
+}
+
+/** Contenu de l'embed « J-3 » — même faits que la fin d'essai, ton d'avertissement. */
+export function buildTrialEndingSoonNotice(
+    input: TrialEndNoticeInput & { daysRemaining: number }
+): TrialEndNotice {
+    return {
+        title: "⏰ Essai — échéance proche",
+        description: [
+            ...(input.staffMentions ? [input.staffMentions] : []),
+            `**Membre :** ${input.displayName}`,
+            `**Échéance :** ${input.endsAtLabel} (dans ${input.daysRemaining} j)`,
+            `**Dashboard :** ${
+                input.hasDashboardProfile ? "🟢 Présent sur le dashboard" : "🔴 Pas de compte dashboard"
+            }`,
+            `**Source :** ${input.scope}`,
+            "",
+            "L'essai n'est **pas** validé automatiquement : le staff tranche (valider ou reprogrammer).",
+        ].join("\n"),
+        color: 0x3b82f6,
+    };
+}
+
+/**
+ * Une **prolongation** : une échéance existait, la nouvelle est **plus tardive**, et l'essai
+ * n'est pas validé. Poser une première échéance n'est pas une prolongation (aucun bruit).
+ */
+export function isTrialExtension(input: {
+    previousEndsAt: Date | string | null | undefined;
+    nextEndsAt: Date | string | null | undefined;
+    validated: boolean;
+}): boolean {
+    if (input.validated) return false;
+    if (!input.previousEndsAt || !input.nextEndsAt) return false;
+
+    const previous = input.previousEndsAt instanceof Date ? input.previousEndsAt : new Date(input.previousEndsAt);
+    const next = input.nextEndsAt instanceof Date ? input.nextEndsAt : new Date(input.nextEndsAt);
+    if (Number.isNaN(previous.getTime()) || Number.isNaN(next.getTime())) return false;
+    return next.getTime() > previous.getTime();
+}
+
+/** Contenu de l'embed « essai prolongé » — dit l'ancienne et la nouvelle échéance. */
+export function buildTrialExtendedNotice(input: {
+    displayName: string;
+    previousEndsAtLabel: string;
+    endsAtLabel: string;
+    hasDashboardProfile: boolean;
+    staffMentions?: string;
+}): TrialEndNotice {
+    return {
+        title: "🔄 Essai prolongé",
+        description: [
+            ...(input.staffMentions ? [input.staffMentions] : []),
+            `**Membre :** ${input.displayName}`,
+            `**Ancienne échéance :** ${input.previousEndsAtLabel}`,
+            `**Nouvelle échéance :** ${input.endsAtLabel}`,
+            `**Dashboard :** ${
+                input.hasDashboardProfile ? "🟢 Présent sur le dashboard" : "🔴 Pas de compte dashboard"
+            }`,
+            "",
+            "Aucune validation automatique : la prolongation ne valide pas l'essai.",
+        ].join("\n"),
+        color: 0x3b82f6,
+    };
+}
+
+/**
+ * Mentions des rôles staff autorisés à gérer les membres (`staff:member_mgmt`), lues dans
+ * `GuildConfig.rolesMapping`. Aucun rôle nommé en dur, aucun ping si rien n'est configuré.
+ */
+export function resolveStaffMentions(rolesMapping: unknown): string {
+    return Object.entries((rolesMapping ?? {}) as Record<string, unknown>)
+        .filter(([, perms]) => Array.isArray(perms) && perms.includes("staff:member_mgmt"))
+        .map(([roleId]) => `<@&${roleId}>`)
+        .join(" ");
+}

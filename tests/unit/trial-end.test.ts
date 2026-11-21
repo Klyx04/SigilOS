@@ -10,11 +10,18 @@ import { describe, expect, it } from "vitest";
 
 import {
     buildTrialEndNotice,
+    buildTrialEndingSoonNotice,
+    buildTrialExtendedNotice,
     isTrialEnded,
+    isTrialEndingSoon,
+    isTrialExtension,
+    resolveStaffMentions,
     TRIAL_END_LOCK_TTL_SECONDS,
     TRIAL_END_NOTICE_TTL_SECONDS,
+    TRIAL_ENDING_SOON_DAYS,
     trialEndLockKey,
     trialEndNoticeKey,
+    trialEndingSoonNoticeKey,
 } from "@/lib/trial-end";
 
 const now = new Date("2026-10-25T12:00:00.000Z");
@@ -97,6 +104,85 @@ describe("contenu de l'embed — le staff voit si le membre est sur le dashboard
     it("n'invente pas de ping quand aucun rôle staff n'est configuré", () => {
         const notice = buildTrialEndNotice({ ...base, hasDashboardProfile: false });
         expect(notice.description).not.toContain("<@&");
+    });
+});
+
+describe("alerte J-3 — l'échéance approche", () => {
+    it("vraie dans la fenêtre, fausse au-delà, passée ou validée", () => {
+        expect(isTrialEndingSoon({ validated: false, endsAt: "2026-10-27T00:00:00.000Z", now })).toBe(true);
+        expect(isTrialEndingSoon({ validated: false, endsAt: "2026-10-29T00:00:00.000Z", now })).toBe(false);
+        expect(isTrialEndingSoon({ validated: false, endsAt: "2026-10-20T00:00:00.000Z", now })).toBe(false);
+        expect(isTrialEndingSoon({ validated: true, endsAt: "2026-10-27T00:00:00.000Z", now })).toBe(false);
+        expect(isTrialEndingSoon({ validated: false, endsAt: null, now })).toBe(false);
+        expect(TRIAL_ENDING_SOON_DAYS).toBe(3);
+    });
+
+    it("clé d'idempotence distincte de la fin d'essai, même jour", () => {
+        expect(trialEndingSoonNoticeKey("g1", "m1", "2026-10-27T00:00:00.000Z")).toBe(
+            "trial-soon:g1:m1:2026-10-27"
+        );
+        expect(trialEndingSoonNoticeKey("g1", "m1", "2026-10-27T18:00:00.000Z")).toBe(
+            trialEndingSoonNoticeKey("g1", "m1", "2026-10-27T02:00:00.000Z")
+        );
+    });
+
+    it("l'embed dit l'échéance, le nombre de jours et le ping staff", () => {
+        const notice = buildTrialEndingSoonNotice({
+            displayName: "Nami-Kho",
+            endsAtLabel: "27/10/2026",
+            hasDashboardProfile: true,
+            scope: "Profil dashboard",
+            staffMentions: "<@&123>",
+            daysRemaining: 2,
+        });
+        expect(notice.title).toContain("Essai");
+        expect(notice.description).toContain("**Échéance :** 27/10/2026 (dans 2 j)");
+        expect(notice.description).toContain("<@&123>");
+    });
+});
+
+describe("prolongation — message staff", () => {
+    it("seulement quand une échéance existait et que la nouvelle est plus tardive", () => {
+        expect(isTrialExtension({
+            previousEndsAt: "2026-11-20T00:00:00.000Z",
+            nextEndsAt: "2026-11-27T00:00:00.000Z",
+            validated: false,
+        })).toBe(true);
+        expect(isTrialExtension({
+            previousEndsAt: "2026-11-20T00:00:00.000Z",
+            nextEndsAt: "2026-11-20T00:00:00.000Z",
+            validated: false,
+        })).toBe(false);
+        expect(isTrialExtension({
+            previousEndsAt: null,
+            nextEndsAt: "2026-11-27T00:00:00.000Z",
+            validated: false,
+        })).toBe(false);
+        expect(isTrialExtension({
+            previousEndsAt: "2026-11-20T00:00:00.000Z",
+            nextEndsAt: "2026-11-27T00:00:00.000Z",
+            validated: true,
+        })).toBe(false);
+    });
+
+    it("l'embed dit l'ancienne et la nouvelle échéance", () => {
+        const notice = buildTrialExtendedNotice({
+            displayName: "Nami-Kho",
+            previousEndsAtLabel: "20/11/2026",
+            endsAtLabel: "27/11/2026",
+            hasDashboardProfile: false,
+            staffMentions: "<@&456>",
+        });
+        expect(notice.title).toBe("🔄 Essai prolongé");
+        expect(notice.description).toContain("**Ancienne échéance :** 20/11/2026");
+        expect(notice.description).toContain("**Nouvelle échéance :** 27/11/2026");
+        expect(notice.description).toContain("<@&456>");
+    });
+
+    it("ne ping que les rôles staff « Gérer les membres »", () => {
+        expect(resolveStaffMentions(null)).toBe("");
+        expect(resolveStaffMentions({})).toBe("");
+        expect(resolveStaffMentions({ r1: ["staff:member_mgmt"], r2: ["other"] })).toBe("<@&r1>");
     });
 });
 

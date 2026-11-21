@@ -192,6 +192,23 @@ export function describeMemberTrial(
     return { tone: "running", label: `Essai · ${amount}${suffix}`, endsAtLabel };
 }
 
+/**
+ * Un essai **attend une décision** : non validé, échéance posée, et échéance **atteinte**.
+ * Le reste exact en minutes prime quand il est connu (le dernier jour, `remainingDays` vaut 0
+ * alors que l'essai court encore). Sert au filtre « À valider » du module Membres.
+ */
+export function isTrialAwaitingValidation(trial: {
+    validated: boolean;
+    endsAt: string | null;
+    remainingDays: number | null;
+    remainingMinutes?: number | null;
+} | null | undefined): boolean {
+    if (!trial) return false;
+    if (trial.validated || !trial.endsAt) return false;
+    if (trial.remainingMinutes != null) return trial.remainingMinutes <= 0;
+    return trial.remainingDays != null && trial.remainingDays <= 0;
+}
+
 export interface RegistryCsvRow {
     displayName: string;
     pseudoDofus: string | null;

@@ -9,11 +9,15 @@ import { postServiceMessage } from "@/server/discord-services";
 import { getAppBaseUrl } from "@/lib/utils";
 import {
     buildTrialEndNotice,
+    buildTrialEndingSoonNotice,
     isTrialEnded,
+    isTrialEndingSoon,
     TRIAL_END_LOCK_TTL_SECONDS,
     TRIAL_END_NOTICE_TTL_SECONDS,
     trialEndLockKey,
     trialEndNoticeKey,
+    trialEndingSoonNoticeKey,
+    resolveStaffMentions,
 } from "@/lib/trial-end";
 import { DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
 import { z } from "zod";
@@ -154,11 +158,14 @@ export async function updateTrialEndSettings(
     }
 }
 /**
- * Publie l'embed « fin d'essai » des membres dont l'échéance est passée (une fois chacun).
+ * Publie les embeds d'essai d'une guilde (une fois par membre et par échéance) :
+ *  - `ended` : échéance **passée** (fin d'essai) ;
+ *  - `soon` : échéance dans les **3 jours** (J-3).
  * Appelé par le cron `sync-members` : pas de nouvelle tâche planifiée.
  */
-export async function notifyEndedTrialsForGuild(
-    discordGuildId: string
+async function notifyTrialsForGuild(
+    discordGuildId: string,
+    mode: "ended" | "soon"
 ): Promise<{ checked: number; notified: number }> {
     const result = { checked: 0, notified: 0 };
 
@@ -170,11 +177,7 @@ export async function notifyEndedTrialsForGuild(
 
     // Ping des **rôles staff autorisés** (permission « Gérer les membres ») : l'oubli de
     // validation tombe sur les bonnes personnes, sans nommer de rôle en dur.
-    // Demande du 29/10/2026 — pas de second rappel, on renforce celui qui existe déjà.
-    const staffMentions = Object.entries((guild.rolesMapping ?? {}) as Record<string, unknown>)
-        .filter(([, perms]) => Array.isArray(perms) && perms.includes("staff:member_mgmt"))
-        .map(([roleId]) => `<@&${roleId}>`)
-        .join(" ");
+    const staffMentions = resolveStaffMentions(guild.rolesMapping);
 
     const now = new Date();
     const appUrl = getAppBaseUrl();
@@ -218,10 +221,16 @@ export async function notifyEndedTrialsForGuild(
     ];
 
     for (const candidate of candidates) {
-        if (!candidate.endsAt || !isTrialEnded({ validated: false, endsAt: candidate.endsAt, now })) continue;
+        if (!candidate.endsAt) continue;
+        const relevant = mode === "ended"
+            ? isTrialEnded({ validated: false, endsAt: candidate.endsAt, now })
+            : isTrialEndingSoon({ validated: false, endsAt: candidate.endsAt, now });
+        if (!relevant) continue;
         result.checked += 1;
 
-        const noticeKey = trialEndNoticeKey(guild.id, candidate.memberKey, candidate.endsAt);
+        const noticeKey = mode === "ended"
+            ? trialEndNoticeKey(guild.id, candidate.memberKey, candidate.endsAt)
+            : trialEndingSoonNoticeKey(guild.id, candidate.memberKey, candidate.endsAt);
 
         // Déjà notifié ? La clé durable n'est écrite qu'après un envoi **réussi**.
         if (await redis.get(noticeKey).catch(() => null)) continue;
@@ -232,24 +241,40 @@ export async function notifyEndedTrialsForGuild(
         const locked = await redis.set(lockKey, "1", "EX", TRIAL_END_LOCK_TTL_SECONDS, "NX").catch(() => "OK");
         if (locked !== "OK") continue;
 
+        const daysRemaining = Math.max(
+            1,
+            Math.ceil((candidate.endsAt.getTime() - now.getTime()) / 86_400_000)
+        );
+
         try {
             const sent = await postServiceMessage(
                 guild.trialEndNotifyChannelId,
                 {
                     embeds: [{
-                        ...buildTrialEndNotice({
-                            displayName: candidate.displayName,
-                            endsAtLabel: candidate.endsAt.toLocaleDateString("fr-FR"),
-                            hasDashboardProfile: candidate.hasDashboardProfile,
-                            scope: candidate.scope,
-                            staffMentions,
-                        }),
+                        ...(mode === "ended"
+                            ? buildTrialEndNotice({
+                                displayName: candidate.displayName,
+                                endsAtLabel: candidate.endsAt.toLocaleDateString("fr-FR"),
+                                hasDashboardProfile: candidate.hasDashboardProfile,
+                                scope: candidate.scope,
+                                staffMentions,
+                            })
+                            : buildTrialEndingSoonNotice({
+                                displayName: candidate.displayName,
+                                endsAtLabel: candidate.endsAt.toLocaleDateString("fr-FR"),
+                                hasDashboardProfile: candidate.hasDashboardProfile,
+                                scope: candidate.scope,
+                                staffMentions,
+                                daysRemaining,
+                            })),
                         timestamp: now.toISOString(),
                         footer: { text: `SigilOS • ${guild.name}` },
                         url: `${appUrl}/dashboard/${discordGuildId}/admin/members`,
                     }],
                 },
-                `⏳ Fin d'essai — ${candidate.displayName}`
+                mode === "ended"
+                    ? `⏳ Fin d'essai — ${candidate.displayName}`
+                    : `⏰ Essai J-${daysRemaining} — ${candidate.displayName}`
             ).catch((error) => {
                 logger.warn("[trial-end] envoi impossible", { err: String(error) });
                 return null;
@@ -267,5 +292,19 @@ export async function notifyEndedTrialsForGuild(
     }
 
     return result;
+}
+
+/** Fin d'essai (échéance passée) — une fois par membre et par échéance. */
+export async function notifyEndedTrialsForGuild(
+    discordGuildId: string
+): Promise<{ checked: number; notified: number }> {
+    return notifyTrialsForGuild(discordGuildId, "ended");
+}
+
+/** Alerte J-3 (échéance dans les 3 jours) — une fois par membre et par échéance. */
+export async function notifyUpcomingTrialEndsForGuild(
+    discordGuildId: string
+): Promise<{ checked: number; notified: number }> {
+    return notifyTrialsForGuild(discordGuildId, "soon");
 }
 

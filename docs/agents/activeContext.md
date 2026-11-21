@@ -6,13 +6,22 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 21/11/2026 (suite 50) — **Essais : J-3, prolongation, filtre « à valider »** — branche `feat/essais-notifications-2026-11-21` (empilée sur #1490)
+
+> **Demande user (verbatim)** : « Notification Discord lors d'une prolongation d'essai · Alerte J-3 (la doc produit la promet, le code ne le fait pas) · Filtre/onglet « essais à valider » » puis « j'en ai marre que tu t'arrêtes à chaque point ».
+> **Fait** : ① **alerte J-3** (`isTrialEndingSoon`, fenêtre 3 jours) : le cron `sync-members` envoie un embed « ⏰ Essai — échéance proche » (une fois par membre + échéance, clé `trial-soon:`), en plus de la fin d'essai ; ② **prolongation** : `setMemberTrialState` lit l'ancienne échéance **avant** l'écriture et poste « 🔄 Essai prolongé » (ancienne → nouvelle) dans `trialEndNotifyChannelId`, fail-soft (l'état d'essai est écrit même si Discord refuse) ; ③ **filtre « À valider »** avec compteur dans la liste Membres (`isTrialAwaitingValidation`, échéance atteinte + non validé ; le reste exact en minutes prime sur `remainingDays`).
+> **Preuves** : `trial-end` 20 · `member-roster` 27 · `member-registry-filters` 19 · `membres-essai-fixes` 6 · `registre-membres-b2` 8 · **792 fichiers / 8 249 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : J-3 et prolongation ne partent que si le cron `sync-members` tourne **et** que `trialEndNotifyChannelId` est configuré (ops) ; « À valider » liste les essais **échus**, pas les J-3.
+> **Rotation** : bloc « suite 44 » (parité UI Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 21/11/2026 (suite 49) — **Succès lisibles · siphon God · essais en heures · icônes avec repli · déploiement** — branche `feat/succes-essais-2026-11-21`
 
 > **Demandes user (verbatim)** : « du mal à saisir ya trop de data technique » puis « 1. Go · 2. tu corriges toi même en siphonnant tout ce qui manque (la description du succès liberté est la même partout) spécial : diffère selon le dj · 3. que faire pour corriger ? · 4. [liste] ».
 > **Mesuré** : la fiche `Challenge` « Liberte » porte `description: "Challenge généré automatiquement"` (seed) et `displayAchievementDescription` ne reconnaissait que le gabarit « Vaincre tel boss… » ; God rendait `challenge.iconUrl` **brut** et `SuccesTracker` faisait `display:none` sur l'image cassée (case noire) ; `differenceInDays` affichait « 0 j » le dernier jour ; `game-data/achievements` était restauré par le déploiement alors que God y écrit.
 > **Fait** : ① texte générique → « Description pas encore disponible… » (+ repli vers la description partagée) ; ② heures le dernier jour (« 5 h », « moins d'1 h », « il y a 2 h ») ; ③ `DungeonAchievementIcon` (source unique, repli trophée) dans God + tracker + panneau Rush ; ④ **bouton God « Siphonner les succès »** (`siphonChallengeDetails` + `siphonSpecialAchievements`, sans borne, verrou Redis 10 min, super-admin/brique `game-data`) ; ⑤ `game-data/achievements` sort de `REPO_OWNED` → `SERVER_OWNED` (2 scripts + verrou) ; ⑥ **description officielle de « Liberté »** posée dans `prisma/seed-data/game-data.json` (entrées `liberte` **et** `libert`) — le seed étant un `upsert`, le prochain déploiement l'applique.
 > **Preuves** : `challenge-description` 10 · `member-trial-display` 11 · `achievement-siphon-guard` 5 · `deploy-source-sync` 9 · `game-data-seed-descriptions` 2 · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : lancer le bouton en bêta (budget DofusDB : relancer si `deferred`) · notification de **prolongation** d'essai (non codée) · filtre « essais à valider » · vérifier le cron `sync-members` + le salon d'alerte · J-3 non implémenté.
+> **Reste** : lancer le bouton en bêta (budget DofusDB : relancer si `deferred`) · vérifier le cron `sync-members` + le salon d'alerte (ops).
 > **Rotation** : bloc « suite 43 » (positions Incarnam) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
@@ -63,15 +72,6 @@
 > **Reste** : **P1** cache public + images ; **P2** statique/PPR (proxy + layout + page + thème/JSON-LD + session) ; **P3** CDN/WAF + DPA. Bêta `02070473` déployée et mesurée.
 > **Rotation** : bloc « suite 39 » (enrichissement 3b) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 20/11/2026 (suite 44) — **Rush · parité UI public/interne et % Dofus au grain de la quête** — branche `fix/rush-ui-parity-2026-11-20` (PR #1475)
-
-> **Demandes user (verbatim)** : « pk il y a une barre horizontale […] sur le public et pas l'interne » · « afficher et aligner les positions à droite […] guide interne comme le public » · « guide public rentre l'icône succès dans le bloc des favicon comme l'interne » · « le % affiché par dofus ne grimpe pas […] quand on coche des quêtes » · « quête bloquée […] faire comme l'interne pour le public » · « même chose pour les dj côté public c'est moche, fais la même chose que l'interne ».
-> **Mesure (rendu local Playwright)** : succès public parent = groupe `border` des favicons ; quête verrouillée publique = **0 position, 0 donjon, 1 lien titre** (favicons disparus) ; panneau avec **1 quête Pourpre injectée → Pourpre 1/11** (le % est au grain de la quête).
-> **Fait** : position interne déplacée dans le wrapper droit devant le groupe segmenté ; `SuccessChip compact` public déplacé dans ce groupe ; **verrou donjon = ligne normale** (pastille `Donjon ×N` dans la barre, plus de gros bloc rouge), **verrou prérequis = carte épurée** ; barre des notes retirée sur le verrou prérequis et ligne « Position de lancement » retirée des tips ; `dofusQuestStats` (quêtes, hors succès/INFO) remplace `dofusMilestoneStats` pour la vue « Moi » (libellés « quêtes validées »).
-> **Preuves** : `rush-dofus-progress` **11** · `rush-public-parity` **51** · `da-wakfu` **66** · **121 fichiers / 1 490 tests Rush ✅** · **782 fichiers / 8 199 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : contrôles visuels 390/768/1024/1440 (les 6 points) · appliquer Positions/Succès dans God · redéployer la bêta · itérations 5/6.
-> **Rotation** : bloc « suite 38 » (synchro positions 3a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

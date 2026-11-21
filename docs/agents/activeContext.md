@@ -12,7 +12,7 @@
 > **Mesuré** : 3 alertes CodeQL ouvertes — `js/request-forgery` `metamob-client.ts:1221` (#134) et `dofus-noobs-helper.ts:58` (#133), `js/resource-exhaustion` `service-feedback-actions.ts:152` (#132) ; Sentry `JAVASCRIPT-NEXTJS-31` (`useSession()` sans provider dans `galactic-footer`, POST `/`) et `JAVASCRIPT-NEXTJS-30` (« unexpected response » = ancien bundle après déploiement, bruit attendu).
 > **Fait** : ① `galactic-footer` lit `useSession()?.status` (plus de déstructuration d'`undefined`) ; ② gardes pures `outbound-url-guards` (slug Metamob ASCII borné + URL DPLN sur hôte fixe) utilisées avant `fetch` ; ③ `stars` borné à 1–5 avant `repeat` ; ④ test `outbound-url-guards` 2.
 > **Preuves** : **793 fichiers / 8 251 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Reste** : redéployer puis vérifier Sentry (une issue corrigée, l'autre est le bruit de déploiement) ; les alertes CodeQL se referment au prochain scan.
+> **Reste** : #136 remplacée par une table constante (PR #1494) et #137 (Metamob) fermée comme faux positif documenté ; redéployer puis vérifier Sentry (une issue corrigée, l'autre est le bruit de déploiement).
 > **Rotation** : bloc « suite 45 » (P0 perf) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

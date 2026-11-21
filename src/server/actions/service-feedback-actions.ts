@@ -24,6 +24,19 @@ const submitFeedbackSchema = z.object({
     comment: z.string().max(280, "Commentaire limité à 280 caractères").optional().nullable(),
 });
 
+/**
+ * Cinq notes possibles — **table constante**. Pas de `String.repeat` de longueur variable :
+ * CodeQL `js/resource-exhaustion` ne peut pas prouver qu'une valeur utilisateur est bornée,
+ * et une chaîne construite à partir d'elle reste un sink (alerte #136 du 21/11/2026).
+ */
+const STAR_TEXT: Record<number, string> = {
+    1: "⭐",
+    2: "⭐⭐",
+    3: "⭐⭐⭐",
+    4: "⭐⭐⭐⭐",
+    5: "⭐⭐⭐⭐⭐",
+};
+
 export type ServiceFeedbackWithProvider = {
     id: string;
     guildId: string;
@@ -76,6 +89,8 @@ export async function submitServiceFeedback(
     }
 
     const { providerProfileId, serviceListingId, serviceRequestId, serviceTitle, category, rating, comment } = parsed.data;
+    // Note affichée : table constante (voir STAR_TEXT), jamais une répétition variable.
+    const safeRating = Number.isFinite(rating) ? Math.trunc(rating) : 1;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -142,19 +157,14 @@ export async function submitServiceFeedback(
             providerProfile.userId,
             NotificationType.SERVICE_REPLY,
             "⭐ Nouvel avis reçu !",
-            `${clientName} vous a attribué la note de ${rating}/5 pour "${serviceTitle}".`,
+            `${clientName} vous a attribué la note de ${safeRating}/5 pour "${serviceTitle}".`,
             `/dashboard/${guildId}/services?tab=feedbacks`,
             guildId,
             NotificationCategory.SYSTEM
         ).catch(() => {});
 
         // 2. Publication d'un embed Discord dans le salon de service de la guilde
-        // CodeQL js/resource-exhaustion (#132) : `rating` est borné 1–5 par Zod ; cette garde
-        // de plage le prouve aussi à l'analyseur, avant `repeat` (aucun throw après écriture).
-        let safeRating = Number.isFinite(rating) ? Math.trunc(rating) : 1;
-        if (safeRating < 1) safeRating = 1;
-        if (safeRating > 5) safeRating = 5;
-        const stars = "⭐".repeat(safeRating);
+        const stars = STAR_TEXT[safeRating] ?? "⭐";
         const providerName = providerProfile.pseudoDofus || providerProfile.discordNickname || providerProfile.user?.name || "Prestataire";
         const appUrl = getAppBaseUrl();
 
@@ -166,7 +176,7 @@ export async function submitServiceFeedback(
                         requestsChannelId,
                         linkedRequest.discordMessageId,
                         {
-                            content: `⭐ **Avis client enregistré** — **${sanitizeMentions(clientName)}** a attribué ${stars} (${rating}/5) à **${sanitizeMentions(providerName)}** !`,
+                            content: `⭐ **Avis client enregistré** — **${sanitizeMentions(clientName)}** a attribué ${stars} (${safeRating}/5) à **${sanitizeMentions(providerName)}** !`,
                             components: [], // Supprime le bouton pour empêcher les doublons
                         }
                     );
@@ -180,11 +190,11 @@ export async function submitServiceFeedback(
             const reviewBody = {
                 content: `⭐ **Nouvel avis client** pour **${sanitizeMentions(providerName)}** !`,
                 embeds: [{
-                    title: `⭐ Avis Client — ${stars} (${rating}/5)`,
+                    title: `⭐ Avis Client — ${stars} (${safeRating}/5)`,
                     description: `**${sanitizeMentions(clientName)}** a laissé un avis sur la prestation de **${sanitizeMentions(providerName)}** :`,
                     fields: [
                         { name: "🛠️ Service", value: sanitizeMentions(serviceTitle), inline: true },
-                        { name: "⭐ Note", value: `${stars} **${rating}/5**`, inline: true },
+                        { name: "⭐ Note", value: `${stars} **${safeRating}/5**`, inline: true },
                         ...(comment ? [{ name: "💬 Commentaire", value: `"${sanitizeMentions(comment)}"`, inline: false }] : []),
                     ],
                     color: 0xf59e0b,

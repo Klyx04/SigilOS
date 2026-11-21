@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MAX_FILE_SIZE, detectMimeType } from "@/lib/image-security";
 import { safeFetch } from "@/lib/safe-fetch";
 import path from "node:path";
-import fs from "node:fs";
+import { promises as fsp } from "node:fs";
 import crypto from "node:crypto";
 
 // ─── Cache disque persistant ─────────────────────────────────────────────────
@@ -13,30 +13,33 @@ const CACHE_DIR = path.join(process.cwd(), "public", "uploads", "proxy-cache");
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 jours
 const MAX_CACHE_BYTES = 300 * 1024 * 1024; // 300 MB — plafond disque
 
-function ensureCacheDir() {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+async function ensureCacheDir(): Promise<void> {
+  // `recursive` est idempotent : un seul appel, pas de `exists` puis `mkdir`.
+  await fsp.mkdir(CACHE_DIR, { recursive: true });
 }
 
 /**
  * Éviction LRU : si le dossier cache dépasse MAX_CACHE_BYTES,
  * supprime les 20 % de fichiers les plus anciens (par date de modification).
  * Appelé uniquement avant une écriture, donc zéro overhead sur les lectures.
+ * `fs.promises` : le handler est déjà asynchrone, plus de blocage de l'event loop.
  */
-function evictCacheIfNeeded() {
+async function evictCacheIfNeeded(): Promise<void> {
   try {
-    const files = fs.readdirSync(CACHE_DIR).map(name => {
+    const names = await fsp.readdir(CACHE_DIR);
+    const files = await Promise.all(names.map(async (name) => {
       const fp = path.join(CACHE_DIR, name);
-      const stat = fs.statSync(fp);
+      const stat = await fsp.stat(fp);
       return { fp, size: stat.size, mtime: stat.mtimeMs };
-    });
+    }));
     const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
     if (totalBytes <= MAX_CACHE_BYTES) return;
     // Trier du plus ancien au plus récent, supprimer les 20% les plus vieux
     files.sort((a, b) => a.mtime - b.mtime);
     const toDelete = Math.max(1, Math.ceil(files.length * 0.2));
-    for (let i = 0; i < toDelete; i++) {
-      try { fs.unlinkSync(files[i].fp); } catch { /* ignore */ }
-    }
+    await Promise.all(
+      files.slice(0, toDelete).map((file) => fsp.unlink(file.fp).catch(() => undefined)),
+    );
   } catch { /* fail-open */ }
 }
 
@@ -52,11 +55,14 @@ function mimeToExt(mime: string): string {
   return ".jpg"; // fallback
 }
 
-function findCacheFile(hash: string): { filePath: string; ext: string } | null {
+async function findCacheFile(hash: string): Promise<{ filePath: string; ext: string } | null> {
   // AUD-05 : plus de `.svg` — le cache ne doit jamais resservir du contenu actif.
   for (const ext of [".webp", ".jpg", ".png", ".gif", ".avif"]) {
     const fp = path.join(CACHE_DIR, `${hash}${ext}`);
-    if (fs.existsSync(fp)) return { filePath: fp, ext };
+    try {
+      await fsp.stat(fp);
+      return { filePath: fp, ext };
+    } catch { /* extension absente : on essaie la suivante */ }
   }
   return null;
 }
@@ -130,14 +136,14 @@ export async function GET(req: NextRequest) {
 
   // ── Cache disque : lecture ───────────────────────────────────────────────
   const urlHash = urlToHash(url);
-  ensureCacheDir();
-  const cached = findCacheFile(urlHash);
+  await ensureCacheDir();
+  const cached = await findCacheFile(urlHash);
   if (cached) {
-    const stat = fs.statSync(cached.filePath);
+    const stat = await fsp.stat(cached.filePath);
     if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
-      const buf = fs.readFileSync(cached.filePath);
+      const buf = await fsp.readFile(cached.filePath);
       const ext = cached.ext;
-      const mime = ext === ".webp" ? "image/webp" : ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : ext === ".svg" ? "image/svg+xml" : ext === ".avif" ? "image/avif" : "image/jpeg";
+      const mime = ext === ".webp" ? "image/webp" : ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : ext === ".avif" ? "image/avif" : "image/jpeg";
       return new NextResponse(buf, {
         headers: {
           "Content-Type": mime,
@@ -148,7 +154,7 @@ export async function GET(req: NextRequest) {
       });
     }
     // TTL expiré → supprimer et re-fetcher
-    fs.unlinkSync(cached.filePath);
+    await fsp.unlink(cached.filePath).catch(() => undefined);
   }
 
   try {
@@ -271,10 +277,10 @@ export async function GET(req: NextRequest) {
 
     // ── Cache disque : écriture (fail-open) ───────────────────────────────────
     try {
-      evictCacheIfNeeded(); // purge si > 300 MB avant d'écrire
+      await evictCacheIfNeeded(); // purge si > 300 MB avant d'écrire
       const ext = mimeToExt(contentType);
       const cachePath = path.join(CACHE_DIR, `${urlHash}${ext}`);
-      fs.writeFileSync(cachePath, buffer);
+      await fsp.writeFile(cachePath, buffer);
     } catch { /* écriture disque non bloquante */ }
 
     return new NextResponse(buffer, {

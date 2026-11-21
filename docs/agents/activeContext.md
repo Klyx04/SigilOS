@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 21/11/2026 (suite 48) — **Sécurité #1485/#1486 · B-3 dashboard · `proxy-image` async · doc** — branche `chore/security-guards-infra-2026-11-21` (PR #1486)
+
+> **Demande user (verbatim)** : « tout ça est documenté / vérifier pour enchainer ? » puis « documente maj tout ce qui doit l'être puis choisi 5 chantiers à faire dans cette session ».
+> **Mesure (git + code)** : **#1485 mergé** (`a9fee50d`), `dev` local en retard (`7a74ff2e`) ; #1486 ouvert, CI verte, merge sans conflit ; **aucun `PERF-WEB` §6.3 bis** (le fichier s'arrête à §5) ; `getPolls` déjà en `select { id }` (B-1) ; `getUserProfile` = **4 lectures** pour 3 champs ; `proxy-image` 100 % synchrone ; **`game-data:ro` casse des écritures de l'app** (`sync-monster-stats` → `dungeon-monsters.json`, God upload/download, bascules « ignorer »).
+> **Fait** : ① #1486 corrigé (montages app-prod/app-beta **RW assumés**, commentaire mesuré) ; ② **B-3 profil allégé** (`getUserProfileSummary` + `DASHBOARD_PROFILE_SUMMARY_SELECT` — 1 lecture pour l'accueil, les autres écrans gardent `getUserProfile`) ; ③ **B-3 TTL stats 60 → 180 s** (`GUILD_STATS_CACHE_TTL_SECONDS`, clé `guild:stats:<guildId>`) ; ④ **`proxy-image` en `fs.promises`** (plus de `*Sync`, branche `.svg` morte retirée) ; ⑤ doc (ROADMAP, PERF-WEB §2/§3.5/§3.6, RUSH-DEV §5, ROUTE §13, `AGENTS.md`).
+> **Preuves** : `proxy-image-svg` 4 · `dashboard-profile-summary` 2 · `guild-stats-cache` 2 · `tsc` 0 · ESLint **0 erreur** · aucune migration.
+> **Reste** : merger #1486 → **redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 run `sync-monster-stats`) → P2 cadrage → P3 CDN (D8) ; requêtes 600–1 000 ms du dashboard à mesurer par `EXPLAIN ANALYZE` (à chaud) ; itérations 5/6 (définition absente) ; 3 tags `succes` + 6 positions (God).
+> **Rotation** : bloc « suite 42 » (UI Rush, PR #1473) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 21/11/2026 (suite 47) — **Perf web · P1-2, images servies à la taille d'affichage** — branche `perf/p1-2-images-2026-11-21` (PR #1482)
 
 > **Demande user (verbatim)** : « l'objectif c'est surtout de tout prendre en compte, interne public, tout le projet » puis « go ».
@@ -61,16 +71,6 @@
 > **Preuves** : `rush-position-sync` **20** · `rush-success-placeholders` **6** · `rush-trame-seed` **43** · `rush-quest-positions` **5** · **121 fichiers / 1 487 tests Rush ✅** · **782 fichiers / 8 196 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
 > **Reste** : appliquer **Positions** dans God (6 mises à jour → 1 seule quête sans position, 1938) ; poser les **3 tags `succes`** dans God (les 3 lignes existantes ne sont pas réécrites par l'import additif) ; **redéployer la bêta** (repo **f2e9c07f**, dev **96ddd29f**) ; itérations 5/6.
 > **Rotation** : bloc « suite 37 » (positions 2c) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 20/11/2026 (suite 42) — **Rush · UI (icônes, blocs, fiche Dofus), temps réel et verrou du bloc** — branche `fix/rush-live-progress-2026-11-20` (PR #1473)
-
-> **Demandes user (verbatim)** : « les blocs soient dépliés », « les dj doublés avec une icône placeholder », « laisse afficher le zaap », « la vraie icône succès », « ali 17 brak 3 quêtes au choix », « 173 dj public / 143 interne », « valider par bloc aussi, sans erreur ».
-> **Livré (mergé)** : **#1471** (5 positions : La fonte des glaces `[-60,-57]` zaap `-78,-41`, Lavomatique, C'est frais…, Une âme en peine, Temple Sadida ; icône succès `icone-succes.png` ; donjons « (niv. 50) » dédoublonnés par `mergeRushChapterDungeons`) · **#1472** (icône de quête réelle `questTypeIconPath("secondaire")` — **0/536** séquences du seed n'ont d'icône ; onglet **Quêtes/Avancement** ; Dofus terminé = bordure + pastille ; **blocs dépliés par défaut** public + interne).
-> **PR #1473** : temps réel (refresh serveur débouncé **900 ms** après validation locale et sur `step:validated`/`batch`/`milestone:completed`) · **projection ids de séquence → clés d'étape** (`projectRushStepKeys`, `rushStepKeysBySequenceId`) — la base stocke des ids, la modale attendait `GPx-N`, d'où **0/8 avec 4 blocs terminés** · **bloc sans verrou** : `toggleMilestoneProgress` ne consulte plus donjon/prérequis (décision user : 500+ coches sinon), la validation quête par quête garde les deux gardes ; le toast affiche `res.error` au lieu de « Erreur ».
-> **Mesures** : base locale **4 blocs terminés / 9 avec étapes** (Wylan) · compteurs donjons **99 / 202 / 175** (173/143 non reproduits) · Ali 17 = prérequis unique « D'égout pillé » (DPLN) · WebSocket local = `npm run ws` (port 3001), **non lancé** par `npm run dev`.
-> **Preuves** : `rush-chapter-dungeons` 6 · `rush-blocks-expanded` 2 · `rush-live-refresh` 3 · `rush-dofus-progress-projection` 4 · `rush-public-parity` 51 · `tsc` 0 · lint 0 erreur · aucune migration.
-> **Reste** : merger **#1473** puis **redéployer la bêta** · **173 vs 143** (écran exact à fournir) · **3 succès** à marquer dans God · **6 quêtes sans position** (5 des 11 traitées) · **itérations 5/6**.
-> **Rotation** : bloc « suite 36 » (55 conseils) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

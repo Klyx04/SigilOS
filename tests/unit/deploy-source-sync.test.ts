@@ -61,9 +61,12 @@ function bashArray(source: string, name: string): string[] {
 }
 
 describe("scripts de déploiement — synchronisation de l'arbre de travail", () => {
-    it("① deploy-cd.sh restaure les médias suivis depuis le dépôt (classe REPO_OWNED)", () => {
+    it("① deploy-cd.sh ne restaure plus les icônes de succès écrites par God", () => {
         const source = deployCd();
-        expect(bashArray(source, "REPO_OWNED")).toContain("public/game-data/achievements");
+        // 21/11/2026 : la galerie God écrit dans `achievements` (upload/download) — la version
+        // du serveur fait foi, sinon un ré-upload d'un fichier suivi était écrasé au déploiement.
+        expect(bashArray(source, "REPO_OWNED")).not.toContain("public/game-data/achievements");
+        expect(bashArray(source, "SERVER_OWNED")).toContain("public/game-data/achievements");
         // La classe est réellement branchée sur la restauration, pas seulement déclarée.
         expect(source).toMatch(/for p in "\$\{GENERATED\[@\]\}" "\$\{REPO_OWNED\[@\]\}"/);
         expect(source).toMatch(/for f in "\$\{RESTORE\[@\]\}"\s*;\s*do/);
@@ -71,6 +74,7 @@ describe("scripts de déploiement — synchronisation de l'arbre de travail", ()
 
     it("② les `.webp` de la galerie God et les listes curées ne sont JAMAIS restaurés", () => {
         const godOwned = [
+            "public/game-data/achievements",
             "public/game-data/monsters",
             "public/game-data/dungeons",
             "public/game-data/legendary",

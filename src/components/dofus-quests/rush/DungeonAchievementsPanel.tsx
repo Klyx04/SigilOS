@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Trophy } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { displayAchievementDescription } from "@/lib/challenge-description";
+import { DungeonAchievementIcon } from "@/components/succes/achievement-icon";
 import {
   achievementPanelSummary,
   listableDungeonAchievements,
@@ -18,26 +18,6 @@ import {
 } from "@/lib/rush-dungeon-achievements";
 import type { RushDungeonState } from "@/lib/rush-dungeons";
 import { DungeonStateButton } from "./DungeonStateButton";
-
-/** Icône réelle du succès, avec repli trophée (jamais une case vide). */
-function AchievementIcon({ achievement }: { achievement: DungeonAchievementView }) {
-  const [broken, setBroken] = useState(false);
-  const src = getDungeonAchievementIconUrl(achievement);
-  if (!src || broken) {
-    return <Trophy className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />;
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      onError={() => setBroken(true)}
-      className="h-6 w-6 shrink-0 object-contain"
-    />
-  );
-}
 
 /** Une ligne de succès : icône, nom, points, explication, case. */
 function AchievementRow({
@@ -61,7 +41,7 @@ function AchievementRow({
   });
   const content = (
     <>
-      <AchievementIcon achievement={achievement} />
+      <DungeonAchievementIcon achievement={achievement} className="h-6 w-6" fallbackClassName="h-5 w-5" />
       <span className="min-w-0 flex-1">
         <span
           className={cn(

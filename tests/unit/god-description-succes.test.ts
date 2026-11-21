@@ -44,7 +44,10 @@ describe("description d'un succès — écrite par le siphon, corrigeable dans l
 
     it("le God AFFICHE la description de chaque succès (plus seulement l'icône)", () => {
         const client = read(CLIENT);
-        expect(client).toContain('a.description?.trim() || "aucune description siphonnée"');
+        // 21/11/2026 : la description passe par la règle partagée (texte générique masqué,
+        // repli sur la description du challenge), plus par un `a.description` brut.
+        expect(client).toContain("displayAchievementDescription({");
+        expect(client).toContain('description || "aucune description siphonnée"');
         expect(client).toContain("a.challenge.name");
         // Le type client porte la colonne : sans elle, l'affichage serait `undefined` silencieux.
         expect(client).toMatch(/achievements: \{ id: string;[^}]*description\?: string \| null;/);

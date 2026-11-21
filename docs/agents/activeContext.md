@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 21/11/2026 (suite 49) — **Succès lisibles · siphon God · essais en heures · icônes avec repli · déploiement** — branche `feat/succes-essais-2026-11-21`
+
+> **Demandes user (verbatim)** : « du mal à saisir ya trop de data technique » puis « 1. Go · 2. tu corriges toi même en siphonnant tout ce qui manque (la description du succès liberté est la même partout) spécial : diffère selon le dj · 3. que faire pour corriger ? · 4. [liste] ».
+> **Mesuré** : la fiche `Challenge` « Liberte » porte `description: "Challenge généré automatiquement"` (seed) et `displayAchievementDescription` ne reconnaissait que le gabarit « Vaincre tel boss… » ; God rendait `challenge.iconUrl` **brut** et `SuccesTracker` faisait `display:none` sur l'image cassée (case noire) ; `differenceInDays` affichait « 0 j » le dernier jour ; `game-data/achievements` était restauré par le déploiement alors que God y écrit.
+> **Fait** : ① texte générique → « Description pas encore disponible… » (+ repli vers la description partagée) ; ② heures le dernier jour (« 5 h », « moins d'1 h », « il y a 2 h ») ; ③ `DungeonAchievementIcon` (source unique, repli trophée) dans God + tracker + panneau Rush ; ④ **bouton God « Siphonner les succès »** (`siphonChallengeDetails` + `siphonSpecialAchievements`, sans borne, verrou Redis 10 min, super-admin/brique `game-data`) ; ⑤ `game-data/achievements` sort de `REPO_OWNED` → `SERVER_OWNED` (2 scripts + verrou).
+> **Preuves** : `challenge-description` 10 · `member-trial-display` 11 · `achievement-siphon-guard` 5 · `deploy-source-sync` 9 · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : lancer le bouton en bêta (budget DofusDB : relancer si `deferred`) · notification de **prolongation** d'essai (non codée) · filtre « essais à valider » · vérifier le cron `sync-members` + le salon d'alerte · J-3 non implémenté.
+> **Rotation** : bloc « suite 43 » (positions Incarnam) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 21/11/2026 (suite 48) — **Sécurité #1485/#1486 · B-3 dashboard · `proxy-image` async · doc** — branche `chore/security-guards-infra-2026-11-21` (PR #1486)
 
 > **Demande user (verbatim)** : « tout ça est documenté / vérifier pour enchainer ? » puis « documente maj tout ce qui doit l'être puis choisi 5 chantiers à faire dans cette session ».
@@ -62,15 +72,6 @@
 > **Preuves** : `rush-dofus-progress` **11** · `rush-public-parity` **51** · `da-wakfu` **66** · **121 fichiers / 1 490 tests Rush ✅** · **782 fichiers / 8 199 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
 > **Reste** : contrôles visuels 390/768/1024/1440 (les 6 points) · appliquer Positions/Succès dans God · redéployer la bêta · itérations 5/6.
 > **Rotation** : bloc « suite 38 » (synchro positions 3a) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 20/11/2026 (suite 43) — **Rush · positions Incarnam, 3 succès hors trame, 173 vs 143 expliqué** — branche `fix/rush-reste-2026-11-20`
-
-> **Demande user (verbatim)** : « reprenons sur tous les chantier restant de près ou de loin sur le rush sylvestre, exhaustivement » + `src/temp/debug.md` (les 11 positions et les 3 succès).
-> **Mesure (base locale, lecture seule)** : 536 séquences · 3 sans `questDbIds` (succès hors trame) · 9 sans `pos_tags`, dont 622/623/1528 **déjà dans la carte** mais jamais synchronisés · `DofusQuestEntry` 1629/1630 = `coords [-3,-3] monde 2` (Incarnam), 1938 = `[0,0]` (20 temples selon la classe) · **173 vs 143** : la tuile compte des **exigences** (groupe au choix = 1), pas des donjons distincts ; public sans alignement **175**, route Bontarien+Ordre **145** → l'écart **30** est le filtre `resolveRushRoute`, pas un bug (modale locale : 99 donjons / 202 occurrences / 175 exigences).
-> **Fait** : `positionFromDofusQuestEntry` (repli `coords`, refuse `0,0`) + siphon `--only 1629,1630 --apply` → **529 positions** ; `planRushPositionSync` écarte les **succès** (`successes`, aucune alerte) et explique **1938** (temple de classe) → plan **533 quêtes / 532 avec position / 1 sans / 6 mises à jour** ; `rush-success-placeholders` (Démons **5165**, Quêtes de Silvosse → **L'arbre qui cache la forêt 7760**, En attendant le printemps **7761**) branché dans les **4** créations de succès du seed ; modale God : « N succès hors trame écarté(s) » ; **case 🏆 Succès officiel** dans le studio pour les 3 lignes existantes.
-> **Preuves** : `rush-position-sync` **20** · `rush-success-placeholders` **6** · `rush-trame-seed` **43** · `rush-quest-positions` **5** · **121 fichiers / 1 487 tests Rush ✅** · **782 fichiers / 8 196 tests ✅** · `tsc` 0 · ESLint **0 erreur** · aucune migration.
-> **Reste** : appliquer **Positions** dans God (6 mises à jour → 1 seule quête sans position, 1938) ; poser les **3 tags `succes`** dans God (les 3 lignes existantes ne sont pas réécrites par l'import additif) ; **redéployer la bêta** (repo **f2e9c07f**, dev **96ddd29f**) ; itérations 5/6.
-> **Rotation** : bloc « suite 37 » (positions 2c) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

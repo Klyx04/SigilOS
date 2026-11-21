@@ -137,13 +137,14 @@ Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est clas
 | Classe | Contenu (suivi) | Décision |
 |---|---|---|
 | `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
-| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` — et la note `game-data/worldmap/.routes-2025-api` (ajoutée le 16/10/2026 : aucun code ne l'écrit, elle restait « M » à chaque passage) | **version du dépôt restaurée** (contenu **et** mode) |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` — et la note `game-data/worldmap/.routes-2025-api` (ajoutée le 16/10/2026 : aucun code ne l'écrit, elle restait « M » à chaque passage) | **version du dépôt restaurée** (contenu **et** mode) |
 | `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
-| `SERVER_OWNED` | écrits **par le serveur** : `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
+| `SERVER_OWNED` | écrits **par le serveur** : `game-data/achievements` (galerie God, ajouté le 21/11/2026) + `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
 
 🚫 **Ne jamais mettre dans `REPO_OWNED`** : `public/game-data/{monsters,dungeons,legendary}`,
-`invader`, `harvest-icons` ni les 7 JSON générés (classe `SERVER_OWNED` : le serveur y écrit —
-galerie God, panneau God, siphons), `public/uploads/**` (contenu utilisateur, **non suivi**),
+`invader`, `harvest-icons`, **`achievements`** (galerie God : un ré-upload d'un fichier suivi y
+était écrasé au déploiement suivant), ni les 7 JSON générés (classe `SERVER_OWNED` : le serveur y
+écrit — galerie God, panneau God, siphons), `public/uploads/**` (contenu utilisateur, **non suivi**),
 `ignored-*.json` (curation, classe `PRESERVED`). Seules les entrées de `git ls-files` sont
 examinées : un fichier **non suivi** n'est ni restauré ni rapporté, donc une **nouvelle** image
 déposée par la galerie God n'est jamais touchée.

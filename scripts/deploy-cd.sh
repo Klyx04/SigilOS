@@ -386,8 +386,10 @@ git_fetch() {
     # ➕ Un nouveau dossier de médias suivis sans écrivain runtime s'ajoute ICI — le test
     #    `tests/unit/deploy-source-sync.test.ts` verrouille cette liste et sa parité avec
     #    `deploy.sh` (les deux scripts appliquent la même règle).
+    # ⚠️ `public/game-data/achievements` a QUITTÉ cette liste le 21/11/2026 : la galerie God
+    #    y écrit aussi (upload/download, `src/lib/image-downloader.ts`), donc un ré-upload
+    #    d'un fichier suivi était écrasé par le dépôt au déploiement suivant. Voir SERVER_OWNED.
     local REPO_OWNED=(
-        "public/game-data/achievements"
         "public/images"
         "public/assets"
         "public/ordres"
@@ -439,6 +441,10 @@ git_fetch() {
     #    sur ces chemins ne s'applique pas toute seule ici — la donnée du serveur est
     #    prioritaire. À rouvrir si la propagation devient nécessaire (voir `docs/ROADMAP.md`).
     local SERVER_OWNED=(
+        # ➕ 21/11/2026 : la galerie God écrit dans `achievements` (upload/download d'icônes) —
+        #    mesuré sur la bêta : un upload y crée/réécrit des `.webp`. La version du serveur
+        #    fait donc foi ; sinon un ré-upload d'un fichier suivi était écrasé au déploiement.
+        "public/game-data/achievements"
         "public/game-data/monsters"
         "public/game-data/dungeons"
         "public/game-data/legendary"

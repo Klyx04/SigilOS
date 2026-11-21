@@ -249,7 +249,7 @@ export async function saveSystemAnnouncementSettings(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const { requireGuildConfigAccess } = await import("./guards");
+        const { requireGuildConfigAccess } = await import("@/server/guards");
         const guard = await requireGuildConfigAccess(guildId);
         if (!guard.isAuthorized) return { success: false, error: guard.error || "Admin required" };
 

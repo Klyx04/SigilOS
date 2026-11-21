@@ -34,7 +34,7 @@ export async function requestGuildDeletion(
         }
 
         // 🔒 RBAC fail-closed : propriétaire Discord **live**, avant toute écriture.
-        const { requireGuildOwner } = await import("./guards");
+        const { requireGuildOwner } = await import("@/server/guards");
         const guard = await requireGuildOwner(guildId, "Suppression de guilde (propriétaire)");
         if (!guard.isAuthorized) {
             return { success: false, error: guard.error ?? "Action réservée au propriétaire du serveur." };

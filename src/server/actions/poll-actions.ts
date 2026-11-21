@@ -52,7 +52,7 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId, "Lecture des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
@@ -122,7 +122,7 @@ export async function updatePollSettings(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId, "Mise à jour des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 

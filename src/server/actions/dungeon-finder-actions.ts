@@ -305,7 +305,7 @@ export type DjSettings = {
 };
 
 export async function getDungeonFinderConfig(guildId: string): Promise<ActionResponse<DjSettings>> {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
@@ -4285,7 +4285,7 @@ export async function findMissingAchievements(
  * RBAC: admin only.
  */
 export async function getDjSettings(guildId: string): Promise<ActionResponse<DjSettings>> {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
@@ -4339,7 +4339,7 @@ export async function updateDjSettings(
     guildId: string,
     data: { djNotifyChannelId: string | null }
 ): Promise<ActionResponse> {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 

@@ -21,7 +21,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
 
 const ACTION = read("src/server/actions/guild-lifecycle-actions.ts");
-const GUARDS = read("src/server/actions/guards.ts");
+const GUARDS = read("src/server/guards.ts");
 const PAGE = read("src/app/dashboard/[guildId]/admin/pilotage/page.tsx");
 
 describe("confirmation par le nom — une action grave ne part pas d'un clic", () => {

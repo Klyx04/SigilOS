@@ -33,7 +33,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/server/discord", () => ({ fetchGuild: vi.fn() }));
-vi.mock("@/server/actions/guards", () => ({ requireGuildAdmin: vi.fn() }));
+vi.mock("@/server/guards", () => ({ requireGuildAdmin: vi.fn() }));
 vi.mock("@/server/god-notifications", () => ({ notifyGod: vi.fn() }));
 vi.mock("@/server/actions/audit-actions", () => ({ logAction: vi.fn(), createAuditLog: vi.fn() }));
 vi.mock("@/server/actions/user-actions", () => ({
@@ -57,7 +57,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { fetchGuild } from "@/server/discord";
-import { requireGuildAdmin } from "@/server/actions/guards";
+import { requireGuildAdmin } from "@/server/guards";
 import { notifyGod } from "@/server/god-notifications";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import {

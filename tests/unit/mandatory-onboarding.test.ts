@@ -23,7 +23,7 @@ vi.mock("@/lib/platform-rbac", () => ({
 vi.mock("@/server/discord", () => ({
     fetchGuildRoles: vi.fn(),
 }));
-vi.mock("@/server/actions/guards", () => ({
+vi.mock("@/server/guards", () => ({
     requireGuildAdmin: vi.fn(),
     requireGuildConfigAccess: vi.fn(),
     requireRbacManagement: vi.fn(),
@@ -45,7 +45,7 @@ import {
     requireGuildAdmin,
     requireGuildConfigAccess,
     requireRbacManagement,
-} from "@/server/actions/guards";
+} from "@/server/guards";
 import { fetchGuildRoles } from "@/server/discord";
 import { completeMandatoryOnboarding } from "@/server/actions/admin-actions";
 import { PERMISSIONS } from "@/lib/permissions";

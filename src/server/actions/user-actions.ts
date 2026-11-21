@@ -362,7 +362,7 @@ async function getPendingOnboardingContext(
         const { isGuildAllowed } = await import("./super-admin-actions");
         if (!(await isGuildAllowed(discordGuildId))) return null;
 
-        const { requireGuildAdmin } = await import("./guards");
+        const { requireGuildAdmin } = await import("@/server/guards");
         const guard = await requireGuildAdmin(discordGuildId, "Onboarding en attente", { allowOnboarding: true });
         if (!guard.isAuthorized) return null;
 
@@ -1938,7 +1938,7 @@ export async function searchGuildMembers(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildMember } = await import("./guards");
+    const { requireGuildMember } = await import("@/server/guards");
     const guard = await requireGuildMember(discordGuildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
@@ -2105,7 +2105,7 @@ export async function getGuildMemberStats(guildId: string) {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
 
-    const { requireGuildMember } = await import("./guards");
+    const { requireGuildMember } = await import("@/server/guards");
     const guard = await requireGuildMember(guildId);
     if (!guard.isAuthorized) throw new Error(guard.error || "Prohibited");
 
@@ -2663,7 +2663,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Forbidden: Admin access required" };
 

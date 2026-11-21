@@ -34,7 +34,7 @@ vi.mock("@/server/actions/user-actions", () => ({
 }));
 
 // Import after mocks
-import { requireGuildAdmin, requireGuildMember, requireRbacManagement } from "@/server/actions/guards";
+import { requireGuildAdmin, requireGuildMember, requireRbacManagement } from "@/server/guards";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { isGuildAllowed, isSuperAdmin } from "@/server/actions/super-admin-actions";

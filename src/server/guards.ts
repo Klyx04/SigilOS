@@ -1,8 +1,6 @@
-"use server";
-
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { isGuildAllowed } from "./super-admin-actions";
+import { isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { logger } from "@/lib/logger";
 
 export type GuardResult = {
@@ -129,7 +127,7 @@ export async function requireGuildAdmin(
 
     try {
         const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const { isSuperAdmin } = await import("./super-admin-actions");
+        const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
 
         // Super-admin bypass (Platform God Mode)
         if (await isSuperAdmin()) return { isAuthorized: true, discordUserId };
@@ -250,7 +248,7 @@ export async function requireRbacManagement(guildId: string, context: string = "
     };
 
     try {
-        const { isSuperAdmin } = await import("./super-admin-actions");
+        const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
         if (await isSuperAdmin()) {
             const result: RbacManagementResult = { isAuthorized: true, discordUserId, rbacLevel: "discord-admin" };
             await cachePositive(result);
@@ -270,7 +268,7 @@ export async function requireRbacManagement(guildId: string, context: string = "
         // Permet à une guilde de nommer un « successeur » qui gère les permissions
         // SigilOS sans détenir le rôle Discord Admin (continuité si l'admin disparaît).
         try {
-            const { getUserContext } = await import("./user-actions");
+            const { getUserContext } = await import("@/server/actions/user-actions");
             const userCtx = await getUserContext(guildId);
             if (userCtx.canManageRBAC) {
                 const result: RbacManagementResult = { isAuthorized: true, discordUserId, rbacLevel: "delegated" };
@@ -340,7 +338,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
 
     try {
         const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
-        const { isSuperAdmin } = await import("./super-admin-actions");
+        const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
 
         // Super-admin bypass (Platform God Mode)
         if (await isSuperAdmin()) return { isAuthorized: true, discordUserId };
@@ -384,7 +382,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
         // This allows guild officers with delegated settings access via the RBAC matrix
         // to modify configurations without needing the full Discord Admin toggle.
         try {
-            const { getUserContext } = await import("./user-actions");
+            const { getUserContext } = await import("@/server/actions/user-actions");
             const userCtx = await getUserContext(guildId);
             if (userCtx.canViewSettings) {
                 // User has system:config RBAC — authorized for config actions

@@ -114,7 +114,7 @@ async function requireScheduledPollsStaff(discordGuildId: string): Promise<
  * accessible au rôle qui le gère, sans lui ouvrir tout l'écran Paramètres.
  */
 async function requireScheduledPollSettingsAccess(discordGuildId: string, context: string): Promise<{ ok: boolean; error?: string }> {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(discordGuildId, context);
     if (guard.isAuthorized) return { ok: true };
 

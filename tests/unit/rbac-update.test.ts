@@ -30,7 +30,7 @@ vi.mock("@/lib/platform-rbac", () => ({
     getRbacUsersMappingEnabled: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock("@/server/actions/guards", () => ({
+vi.mock("@/server/guards", () => ({
     requireRbacManagement: vi.fn(),
 }));
 
@@ -61,7 +61,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { getRbacUsersMappingEnabled } from "@/lib/platform-rbac";
-import { requireRbacManagement } from "@/server/actions/guards";
+import { requireRbacManagement } from "@/server/guards";
 import { invalidateGuildCache, flushGuildUserContextCache } from "@/server/actions/user-actions";
 import { logAction } from "@/server/actions/audit-actions";
 import { revalidatePath } from "next/cache";

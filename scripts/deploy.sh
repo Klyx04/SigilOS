@@ -96,9 +96,10 @@ CURATED=(
 # dépôt avant le pull : l'arbre redevient propre et le pull peut passer.
 # ⚠️ Ne pas y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp` SONT
 #    suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+# ⚠️ `public/game-data/achievements` a quitté cette liste le 21/11/2026 : la galerie God y
+#    écrit aussi (upload/download) — un ré-upload d'un fichier suivi était écrasé au déploiement.
 # Parité des deux listes verrouillée par `tests/unit/deploy-source-sync.test.ts`.
 REPO_OWNED=(
-    "public/game-data/achievements"
     "public/images"
     "public/assets"
     "public/ordres"

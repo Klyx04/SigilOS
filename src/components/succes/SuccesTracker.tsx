@@ -26,7 +26,7 @@ import {
 import { getMySuccesCharacters } from "@/server/actions/dungeon-achievement-actions";
 import type { SuccesCharacter } from "@/lib/succes-characters";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
-import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
+import { DungeonAchievementIcon } from "@/components/succes/achievement-icon";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -729,9 +729,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     {selectedDungeon.achievements.map((a) => {
                                         const isDone = completedIds.has(a.id);
-                                        // Icône résolue en source unique (proxy d'abord) — plus le
-                                        // chemin brut : l'interne affiche la même icône que le public.
-                                        const iconSrc = getDungeonAchievementIconUrl(a);
+                                        // Icône résolue en source unique (proxy d'abord) par
+                                        // `DungeonAchievementIcon` : même rendu que le public, avec repli.
                                         return (
                                             <button
                                                 key={a.id}
@@ -755,19 +754,11 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 </div>
 
                                                 <div className="w-8 h-8 rounded-lg bg-background border border-border/80 flex items-center justify-center p-1 shrink-0 overflow-hidden">
-                                                    {iconSrc ? (
-                                                        <img
-                                                            src={iconSrc}
-                                                            alt=""
-                                                            className="w-full h-full object-contain"
-                                                            loading="lazy"
-                                                            onError={(e) => {
-                                                                e.currentTarget.style.display = "none";
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <img src="/assets/dofus/icons/challenges.png" alt="" className="w-4 h-4 object-contain opacity-70" />
-                                                    )}
+                                                    <DungeonAchievementIcon
+                                                        achievement={a}
+                                                        className="w-full h-full"
+                                                        fallbackClassName="h-4 w-4"
+                                                    />
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">

@@ -8,8 +8,10 @@
 
 import { describe, it, expect } from "vitest";
 import {
+    GENERIC_CHALLENGE_DESCRIPTION,
     PLACEHOLDER_CHALLENGE_DESCRIPTION,
     displayAchievementDescription,
+    isGenericChallengeDescription,
     isPlaceholderChallengeDescription,
 } from "@/lib/challenge-description";
 
@@ -19,6 +21,14 @@ describe("description d'un succès — jamais un gabarit déguisé en mécanique
         expect(isPlaceholderChallengeDescription("Vaincre Tel Boss dans son donjon en validant le challenge Compagnon.")).toBe(true);
         expect(isPlaceholderChallengeDescription("À partir du tour 2, Mob l'éponge doit être poussé.")).toBe(false);
         expect(isPlaceholderChallengeDescription(null)).toBe(false);
+    });
+
+    it("reconnaît le texte générique du seed, accents et casse ignorés", () => {
+        expect(isGenericChallengeDescription(GENERIC_CHALLENGE_DESCRIPTION)).toBe(true);
+        expect(isGenericChallengeDescription("challenge genere automatiquement.")).toBe(true);
+        expect(isGenericChallengeDescription("CHALLENGE GÉNÉRÉ AUTOMATIQUEMENT")).toBe(true);
+        expect(isGenericChallengeDescription("Vaincre le boss sans mourir.")).toBe(false);
+        expect(isGenericChallengeDescription(null)).toBe(false);
     });
 
     it("le succès « Spécial » encore au gabarit dit qu'il n'est pas documenté", () => {
@@ -40,5 +50,38 @@ describe("description d'un succès — jamais un gabarit déguisé en mécanique
     it("hors « Spécial », le texte est rendu sans réécriture", () => {
         expect(displayAchievementDescription({ description: "Vaincre le boss sans mourir.", slug: "trio" }))
             .toBe("Vaincre le boss sans mourir.");
+    });
+
+    it("le texte générique n'est jamais présenté comme une description", () => {
+        expect(
+            displayAchievementDescription({ description: GENERIC_CHALLENGE_DESCRIPTION, slug: "liberte" })
+        ).toBe("Description pas encore disponible pour ce succès.");
+    });
+
+    it("le texte générique cède la place à la description partagée du challenge", () => {
+        const partagee = "Vaincre le gardien du donjon sans subir de dégâts.";
+        expect(
+            displayAchievementDescription({
+                description: GENERIC_CHALLENGE_DESCRIPTION,
+                slug: "liberte",
+                fallback: partagee,
+            })
+        ).toBe(partagee);
+    });
+
+    it("un repli lui-même générique ne sert à rien : l'écran reste honnête", () => {
+        expect(
+            displayAchievementDescription({
+                description: GENERIC_CHALLENGE_DESCRIPTION,
+                slug: "liberte",
+                fallback: GENERIC_CHALLENGE_DESCRIPTION,
+            })
+        ).toBe("Description pas encore disponible pour ce succès.");
+    });
+
+    it("sur « Spécial », le texte générique suit la règle du donjon", () => {
+        expect(
+            displayAchievementDescription({ description: GENERIC_CHALLENGE_DESCRIPTION, slug: "sp-cial" })
+        ).toBe("Mécanique non documentée pour ce donjon.");
     });
 });

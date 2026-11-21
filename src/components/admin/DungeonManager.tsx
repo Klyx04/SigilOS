@@ -29,6 +29,8 @@ import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { ambiguousDungeonImageIds } from "@/lib/dungeon-image-ambiguity";
+import { displayAchievementDescription } from "@/lib/challenge-description";
+import { DungeonAchievementIcon } from "@/components/succes/achievement-icon";
 import {
     Select,
     SelectContent,
@@ -71,7 +73,7 @@ interface Dungeon {
     /* Chantier « boss de raid » */
     isRaidBoss?: boolean | null;
     raidId?: string | null;
-    achievements: { id: string; challengeId: string; description?: string | null; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
+    achievements: { id: string; challengeId: string; description?: string | null; imageUrl?: string | null; challenge: { name: string; slug: string; iconUrl?: string | null; description?: string | null } }[];
 }
 
 interface Challenge {
@@ -559,18 +561,29 @@ export default function DungeonManager() {
                                 {/* Succès du donjon : nom + description SIPHONNÉE (corrigeable au survol) */}
                                 {dungeon.achievements.length > 0 && (
                                     <div className="space-y-1 pt-2 mt-auto border-t border-border/50">
-                                        {dungeon.achievements.map((a) => (
+                                        {dungeon.achievements.map((a) => {
+                                            const description = displayAchievementDescription({
+                                                description: a.description ?? null,
+                                                slug: a.challenge.slug,
+                                                fallback: a.challenge.description ?? null,
+                                            });
+                                            return (
                                             <div key={a.id} className="flex items-start gap-1.5 group">
-                                                <div className="w-4 h-4 rounded bg-elevated/80 border border-border shrink-0 mt-0.5" title={a.challenge.name}>
-                                                    {a.challenge.iconUrl && (
-                                                        <img src={a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
-                                                    )}
+                                                <div
+                                                    className="w-4 h-4 rounded bg-elevated/80 border border-border shrink-0 mt-0.5 flex items-center justify-center overflow-hidden"
+                                                    title={a.challenge.name}
+                                                >
+                                                    <DungeonAchievementIcon
+                                                        achievement={a}
+                                                        className="w-full h-full"
+                                                        fallbackClassName="h-3 w-3"
+                                                    />
                                                 </div>
                                                 <p className="flex-1 min-w-0 text-caption leading-snug">
                                                     <span className="font-semibold text-foreground">{a.challenge.name}</span>
                                                     <span className="text-muted-foreground">
                                                         {" — "}
-                                                        {a.description?.trim() || "aucune description siphonnée"}
+                                                        {description || "aucune description siphonnée"}
                                                     </span>
                                                 </p>
                                                 <button
@@ -587,7 +600,8 @@ export default function DungeonManager() {
                                                     <Pencil className="w-3 h-3" />
                                                 </button>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>

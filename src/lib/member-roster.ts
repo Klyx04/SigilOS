@@ -19,7 +19,7 @@ import {
     type RegistryComment,
     type TrialDecision,
 } from "./member-registry";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, differenceInMinutes } from "date-fns";
 import type { SeniorityRoleBadge } from "./seniority-roles";
 
 export type { DiscordRoleOption, RegistryComment, TrialDecision };
@@ -44,6 +44,8 @@ export interface RosterTrial {
     validated: boolean;
     endsAt: string | null;
     remainingDays: number | null;
+    /** Reste exact en minutes (heures affichées le dernier jour). */
+    remainingMinutes?: number | null;
     decision: TrialDecision;
 }
 
@@ -215,6 +217,9 @@ export function buildMemberRoster(input: {
                 validated: p.trialValidated,
                 endsAt: p.trialEndsAt,
                 remainingDays: p.trialRemainingDays,
+                remainingMinutes: p.trialEndsAt
+                    ? differenceInMinutes(new Date(p.trialEndsAt), now)
+                    : null,
                 decision: getTrialDecision({
                     trialValidated: p.trialValidated,
                     trialEndsAt: p.trialEndsAt,
@@ -268,6 +273,9 @@ export function buildMemberRoster(input: {
                       // Calculé comme pour un profil dashboard : un `null` en dur faisait
                       // retomber le badge sur « 0 j restant » (mesuré le 29/10/2026).
                       remainingDays: entry.trialEndsAt ? differenceInDays(new Date(entry.trialEndsAt), now) : null,
+                      remainingMinutes: entry.trialEndsAt
+                          ? differenceInMinutes(new Date(entry.trialEndsAt), now)
+                          : null,
                       decision: getTrialDecision({
                           trialValidated: entry.trialValidated,
                           trialEndsAt: entry.trialEndsAt,

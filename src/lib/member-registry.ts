@@ -143,6 +143,15 @@ export interface MemberTrialDescription {
     endsAtLabel: string | null;
 }
 
+/** Durée courte (« 5 h », « moins d'1 h ») — `null` au-delà de 24 h ou si inconnue. */
+function shortDurationLabel(minutes: number | null | undefined): string | null {
+    if (minutes == null) return null;
+    const abs = Math.abs(minutes);
+    if (abs < 60) return "moins d'1 h";
+    if (abs < 24 * 60) return `${Math.ceil(abs / 60)} h`;
+    return null;
+}
+
 /** jj/mm/aaaa d'un instant ISO — `null` si la date est illisible. */
 export function formatTrialEndsAt(iso: string | null): string | null {
     if (!iso) return null;
@@ -158,6 +167,8 @@ export function describeMemberTrial(
         validated: boolean;
         endsAt: string | null;
         remainingDays: number | null;
+        /** Reste exact en minutes : sert à afficher les heures le dernier jour. */
+        remainingMinutes?: number | null;
         decision: TrialDecision;
     } | null
 ): MemberTrialDescription | null {
@@ -168,14 +179,17 @@ export function describeMemberTrial(
     const endsAtLabel = formatTrialEndsAt(input.endsAt);
     const suffix = endsAtLabel ? ` (fin ${endsAtLabel})` : "";
     const remaining = input.remainingDays ?? 0;
+    const short = shortDurationLabel(input.remainingMinutes);
 
-    if (remaining < 0) {
-        return { tone: "expired", label: `Essai échu · ${Math.abs(remaining)} j${suffix}`, endsAtLabel };
+    if (remaining < 0 || (input.remainingMinutes != null && input.remainingMinutes < 0)) {
+        const amount = short ? `il y a ${short}` : `${Math.abs(remaining)} j`;
+        return { tone: "expired", label: `Essai échu · ${amount}${suffix}`, endsAtLabel };
     }
+    const amount = short ?? `${remaining} j`;
     if (input.decision === "prolonge") {
-        return { tone: "extended", label: `Essai prolongé · ${remaining} j${suffix}`, endsAtLabel };
+        return { tone: "extended", label: `Essai prolongé · ${amount}${suffix}`, endsAtLabel };
     }
-    return { tone: "running", label: `Essai · ${remaining} j${suffix}`, endsAtLabel };
+    return { tone: "running", label: `Essai · ${amount}${suffix}`, endsAtLabel };
 }
 
 export interface RegistryCsvRow {

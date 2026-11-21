@@ -10,6 +10,7 @@ import {
     getItemConditionsWatch,
     startGameDataSyncInBackground,
 } from "@/server/actions/game-data-sync-actions";
+import { siphonAllAchievements } from "@/server/actions/achievement-siphon-actions";
 import type { ItemConditionsWatchSummary } from "@/lib/item-conditions-watch";
 import {
     GAME_DATA_DATASET_LABEL,
@@ -59,6 +60,8 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [inlineBusy, setInlineBusy] = useState<string | null>(null);
+    /** 🏆 Siphon complet des succès (descriptions de challenges + « Spécial » par donjon). */
+    const [siphonBusy, setSiphonBusy] = useState(false);
     /** Couverture/dry-runs (ex-`DataHealthPanel`) : replié par défaut — une seule carte. */
     const [showCoverage, setShowCoverage] = useState(false);
     /**
@@ -111,6 +114,30 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
             await load();
         } finally {
             setBusy(null);
+        }
+    };
+
+    /**
+     * 🏆 Siphon complet des succès : le cron est borné à 25/nuit (budget DofusDB partagé),
+     * ce bouton laisse le mainteneur tout finir d'un coup. Si le budget se ferme, le
+     * rapport le dit (`deferred`) et il suffit de relancer.
+     */
+    const runAchievementSiphon = async () => {
+        setSiphonBusy(true);
+        try {
+            const res = await siphonAllAchievements();
+            if (!res.success || !res.data) {
+                toast.error(res.error || "Siphon impossible");
+                return;
+            }
+            const { challengesWritten, specialsWritten, deferred } = res.data;
+            toast.success(
+                `Succès : ${challengesWritten} description(s) et ${specialsWritten} spécial(aux) complétés`
+                    + (deferred ? " — budget DofusDB atteint, relancez le bouton." : "."),
+                { duration: 8000 },
+            );
+        } finally {
+            setSiphonBusy(false);
         }
     };
 
@@ -362,6 +389,28 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
                     onClose={() => setChangeLogDataset(null)}
                 />
             ) : null}
+
+            {/* 🏆 Succès — descriptions manquantes : le cron est borné à 25/nuit, ce bouton
+                laisse le mainteneur tout finir d'un coup (budget DofusDB partagé). */}
+            <div className="border-t border-border pt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-muted-foreground">🏆 Succès — descriptions manquantes</p>
+                    <p className="text-[10px] text-muted-foreground">
+                        Complète les descriptions de challenges et les succès « Spécial » par donjon (DofusDB).
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => void runAchievementSiphon()}
+                    disabled={siphonBusy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface disabled:opacity-50"
+                >
+                    {siphonBusy
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {siphonBusy ? "Siphon en cours…" : "Siphonner les succès"}
+                </button>
+            </div>
 
             {/* Couverture par source → cible + dry-runs : replié ici (une seule carte dans le
                 Tableau). C'était un 2ᵉ tableau empilé en dessous — l'utilisateur ne savait plus

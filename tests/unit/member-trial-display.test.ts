@@ -51,6 +51,59 @@ describe("describeMemberTrial — lisible sans ouvrir la fiche", () => {
         expect(described?.label).toBe("Essai échu · 3 j (fin 27/10/2026)");
     });
 
+    it("le dernier jour affiche les heures, jamais « 0 j »", () => {
+        expect(
+            describeMemberTrial({
+                ...base,
+                endsAt: "2026-11-22T00:00:00.000Z",
+                remainingDays: 0,
+                remainingMinutes: 5 * 60,
+            })
+        ).toEqual({ tone: "running", label: "Essai · 5 h (fin 22/11/2026)", endsAtLabel: "22/11/2026" });
+
+        expect(
+            describeMemberTrial({
+                ...base,
+                endsAt: "2026-11-22T00:00:00.000Z",
+                remainingDays: 0,
+                remainingMinutes: 30,
+            })?.label
+        ).toBe("Essai · moins d'1 h (fin 22/11/2026)");
+    });
+
+    it("une prolongation du dernier jour affiche aussi les heures", () => {
+        expect(
+            describeMemberTrial({
+                ...base,
+                endsAt: "2026-11-22T00:00:00.000Z",
+                remainingDays: 0,
+                remainingMinutes: 2 * 60,
+                decision: "prolonge",
+            })?.label
+        ).toBe("Essai prolongé · 2 h (fin 22/11/2026)");
+    });
+
+    it("un essai échu depuis quelques heures dit « il y a N h »", () => {
+        expect(
+            describeMemberTrial({
+                ...base,
+                endsAt: "2026-11-21T10:00:00.000Z",
+                remainingDays: 0,
+                remainingMinutes: -2 * 60,
+            })?.label
+        ).toBe("Essai échu · il y a 2 h (fin 21/11/2026)");
+    });
+
+    it("sans minutes (ancien payload), le libellé en jours reste inchangé", () => {
+        expect(
+            describeMemberTrial({
+                ...base,
+                endsAt: "2026-11-22T00:00:00.000Z",
+                remainingDays: 0,
+            })?.label
+        ).toBe("Essai · 0 j (fin 22/11/2026)");
+    });
+
     it("sans échéance → aucun état inventé", () => {
         expect(describeMemberTrial(base)).toEqual({
             tone: "undated",

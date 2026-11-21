@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
                 logger.warn(`[SyncMembersCron] alerte J-3: ${guildId} — ${(error as Error).message || "?"}`);
             }
         }
+        if (trialsNotified > 0) {
+            logger.info(`[SyncMembersCron] Fins d'essai notifiées : ${trialsNotified}`);
+        }
         if (trialsSoonNotified > 0) {
             logger.info(`[SyncMembersCron] Alertes J-3 envoyées : ${trialsSoonNotified}`);
         }
@@ -101,8 +104,15 @@ export async function GET(req: NextRequest) {
         await recordCronExecution("sync_members", {
             success: summary.failedGuilds.length === 0,
             durationMs,
-            summary: `Sync membres : ${summary.totalArchived} archivé(s), ${summary.totalReactivated} réactivé(s), ${summary.totalErrors} erreur(s)${failDetail ? ` — ${failDetail}` : ""}${warnDetail ? ` — ignorée(s): ${warnDetail}` : ""}`,
-            details: { ...summary, failedGuilds: failedGuilds.map(([gid]) => gid), failDetail, warnedGuilds },
+            summary: `Sync membres : ${summary.totalArchived} archivé(s), ${summary.totalReactivated} réactivé(s), ${summary.totalErrors} erreur(s) · essais : ${trialsNotified} fin(s), ${trialsSoonNotified} J-3${failDetail ? ` — ${failDetail}` : ""}${warnDetail ? ` — ignorée(s): ${warnDetail}` : ""}`,
+            details: {
+                ...summary,
+                trialsNotified,
+                trialsSoonNotified,
+                failedGuilds: failedGuilds.map(([gid]) => gid),
+                failDetail,
+                warnedGuilds,
+            },
         });
 
         return NextResponse.json({
@@ -110,6 +120,7 @@ export async function GET(req: NextRequest) {
             durationMs,
             guilds: Object.keys(results).length,
             trialsNotified,
+            trialsSoonNotified,
             ticketsRenamed,
             ticketErrors,
             ...summary,

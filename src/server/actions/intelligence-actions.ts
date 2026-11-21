@@ -21,10 +21,20 @@ export interface FocusCardData {
  * The Brain of SigilOS Dashboard.
  * Analyzes user state and returns the most relevant "Focus" action.
  */
+/** Événement déjà lu par `getDashboardCalendar` — évite une seconde requête `GuildEvent`. */
+type DashboardFocusEvent = {
+    id: string;
+    title: string;
+    type: string;
+    startDate: Date;
+    endDate: Date;
+};
+
 export async function getDashboardFocus(
     guildId: string, 
     user: UserContext,
-    prefetchedOcre?: OcreProgressData
+    prefetchedOcre?: OcreProgressData,
+    prefetchedEvent?: DashboardFocusEvent | null,
 ): Promise<FocusCardData> {
     const cards: FocusCardData[] = [];
 
@@ -92,17 +102,19 @@ export async function getDashboardFocus(
         // 3. Check for Active / Upcoming Official Raids or Guild Events
         if (user.canViewCalendar) {
             const now = new Date();
-            const upcomingEvents = await db.guildEvent.findMany({
-                where: {
-                    guild: { discordGuildId: guildId },
-                    startDate: { lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) }, // In next 24 hours
-                    endDate: { gte: now }, // Not ended yet
-                    status: "PUBLISHED",
-                    type: { in: ["RAID_OFFICIAL", "EVENT_GUILD"] }
-                },
-                orderBy: { startDate: "asc" },
-                take: 1
-            });
+            const upcomingEvents = prefetchedEvent !== undefined
+                ? (prefetchedEvent ? [prefetchedEvent] : [])
+                : await db.guildEvent.findMany({
+                    where: {
+                        guild: { discordGuildId: guildId },
+                        startDate: { lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) }, // In next 24 hours
+                        endDate: { gte: now }, // Not ended yet
+                        status: "PUBLISHED",
+                        type: { in: ["RAID_OFFICIAL", "EVENT_GUILD"] }
+                    },
+                    orderBy: { startDate: "asc" },
+                    take: 1
+                });
 
             if (upcomingEvents.length > 0) {
                 const event = upcomingEvents[0];

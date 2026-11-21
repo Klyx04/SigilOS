@@ -14,6 +14,7 @@ import {
     buildMemberRoster,
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
+    countTrialsAwaitingValidation,
     matchesRosterFilters,
     paginateRoster,
     queryRoster,
@@ -256,6 +257,21 @@ describe("matchesRosterFilters", () => {
         expect(matchesRosterFilters(onlyRow, filters({ status: "ACTIVE" }))).toBe(false);
         expect(matchesRosterFilters(dashboardRow, filters({ status: "ACTIVE" }))).toBe(true);
         expect(matchesRosterFilters(dashboardRow, filters({ status: "ARCHIVED" }))).toBe(false);
+    });
+
+    it("« À valider » ne garde que les essais échus non validés", () => {
+        const trialRows = build({
+            discordOnly: [],
+            profiles: [
+                profile({ profileId: "p1", displayName: "Échu", trialValidated: false, trialEndsAt: "2026-04-01T00:00:00.000Z", trialRemainingDays: -3 }),
+                profile({ profileId: "p2", displayName: "En cours", trialValidated: false, trialEndsAt: "2026-04-20T00:00:00.000Z", trialRemainingDays: 9 }),
+                profile({ profileId: "p3", displayName: "Validé", trialValidated: true, trialEndsAt: null, trialRemainingDays: null }),
+            ],
+        });
+
+        const kept = trialRows.filter((row) => matchesRosterFilters(row, filters({ trial: "TO_VALIDATE" })));
+        expect(kept.map((row) => row.displayName)).toEqual(["Échu"]);
+        expect(countTrialsAwaitingValidation(trialRows)).toBe(1);
     });
 });
 

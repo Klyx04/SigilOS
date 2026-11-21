@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllGuilds } from "@/server/actions/sync-actions";
-import { notifyEndedTrialsForGuild } from "@/server/actions/trial-end-actions";
+import { notifyEndedTrialsForGuild, notifyUpcomingTrialEndsForGuild } from "@/server/actions/trial-end-actions";
 import { syncTicketChannelNamesForGuild } from "@/server/ticket-channel-names";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
 
         // 🎓 Fin d'essai : un embed par membre dont l'échéance est passée (jamais de
         // validation automatique), idempotent via Redis (une clé par membre + échéance).
+        // ⏰ Puis l'alerte J-3 : échéance dans les 3 jours, même idempotence.
         let trialsNotified = 0;
+        let trialsSoonNotified = 0;
         for (const guildId of Object.keys(results)) {
             try {
                 const trialSync = await notifyEndedTrialsForGuild(guildId);
@@ -41,6 +43,15 @@ export async function GET(req: NextRequest) {
             } catch (error) {
                 logger.warn(`[SyncMembersCron] fin d'essai: ${guildId} — ${(error as Error).message || "?"}`);
             }
+            try {
+                const soonSync = await notifyUpcomingTrialEndsForGuild(guildId);
+                trialsSoonNotified += soonSync.notified;
+            } catch (error) {
+                logger.warn(`[SyncMembersCron] alerte J-3: ${guildId} — ${(error as Error).message || "?"}`);
+            }
+        }
+        if (trialsSoonNotified > 0) {
+            logger.info(`[SyncMembersCron] Alertes J-3 envoyées : ${trialsSoonNotified}`);
         }
 
         // 🏷️ Rattrapage des noms de salons de tickets : si le demandeur a changé de pseudo

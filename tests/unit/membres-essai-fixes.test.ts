@@ -65,9 +65,12 @@ describe("Durée d'essai réglable par le staff", () => {
     });
 
     it("l'embed de fin d'essai ping les rôles staff autorisés (jamais un ID en dur)", () => {
+        // 21/11/2026 : la résolution vit dans la règle pure `resolveStaffMentions`
+        // (`src/lib/trial-end.ts`), partagée par la fin d'essai, le J-3 et la prolongation.
+        const rule = read("src/lib/trial-end.ts");
+        expect(rule).toContain('perms.includes("staff:member_mgmt")');
+        expect(rule).toContain("<@&${roleId}>");
         const source = read("src/server/actions/trial-end-actions.ts");
-        expect(source).toContain('perms.includes("staff:member_mgmt")');
-        expect(source).toContain("<@&${roleId}>");
         // Aucun rôle codé en dur : la liste vient de `rolesMapping`.
         expect(source).toContain("rolesMapping: true");
     });

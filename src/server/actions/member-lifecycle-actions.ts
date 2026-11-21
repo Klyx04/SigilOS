@@ -9,6 +9,9 @@ import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
 import { revalidatePath } from "next/cache";
+import { postServiceMessage } from "@/server/discord-services";
+import { getAppBaseUrl } from "@/lib/utils";
+import { buildTrialExtendedNotice, isTrialExtension, resolveStaffMentions } from "@/lib/trial-end";
 import {
     ANKAMA_ID_PATTERN,
     MAX_REGISTRY_COMMENTS,
@@ -747,7 +750,16 @@ export async function setMemberTrialState(
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             // Rôles du cycle de vie : facultatifs (null = aucun geste Discord à cette étape).
-            select: { id: true, trialRoleId: true, confirmedRoleId: true, trialConfirmRoleChange: true }
+            // `name`/`rolesMapping`/`trialEndNotifyChannelId` servent au message de prolongation.
+            select: {
+                id: true,
+                name: true,
+                trialRoleId: true,
+                confirmedRoleId: true,
+                trialConfirmRoleChange: true,
+                trialEndNotifyChannelId: true,
+                rolesMapping: true,
+            }
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
@@ -773,6 +785,9 @@ export async function setMemberTrialState(
 
         // Snowflake Discord de la cible : seule valeur utilisable pour un geste de rôle.
         let targetDiscordId: string | null = null;
+        // 🔄 Prolongation : l'ancienne échéance et le nom servent au message staff.
+        let previousEndsAt: Date | null = null;
+        let displayName = "Membre";
 
         if (target.kind === "profile") {
             const profile = await db.userProfile.findFirst({
@@ -796,6 +811,8 @@ export async function setMemberTrialState(
             });
             if (!profile) return { success: false, error: "Profil membre introuvable" };
             targetDiscordId = profile.user?.accounts?.[0]?.providerAccountId ?? null;
+            previousEndsAt = profile.trialEndsAt;
+            displayName = profile.pseudoDofus || profile.discordNickname || "Membre";
 
             await db.userProfile.update({ where: { id: profile.id }, data });
 
@@ -815,11 +832,18 @@ export async function setMemberTrialState(
             });
         } else {
             targetDiscordId = target.discordId;
+            // L'ancienne échéance doit être lue AVANT l'upsert : `update` l'écraserait.
+            const existingEntry = await db.memberRegistryEntry.findUnique({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                select: { trialEndsAt: true },
+            });
+            previousEndsAt = existingEntry?.trialEndsAt ?? null;
             const entry = await db.memberRegistryEntry.upsert({
                 where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
                 create: { guildId: guild.id, discordId: target.discordId, ...data },
                 update: data,
             });
+            displayName = entry.pseudoDofus || target.discordId;
 
             await createAuditLog({
                 guildId,
@@ -860,16 +884,60 @@ export async function setMemberTrialState(
             roleOutcomes.push("⚠️ aucun compte Discord lié : rôle non appliqué");
         }
 
+        // 🔄 Prolongation : une échéance existait et la nouvelle est plus tardive → message staff.
+        // Poser une première échéance ne notifie pas. Fail-soft : l'état d'essai est déjà écrit.
+        let extensionOutcome = "";
+        const previousDate = previousEndsAt;
+        const nextDate = trialEndsAt;
+        if (
+            guild.trialEndNotifyChannelId
+            && previousDate
+            && nextDate
+            && isTrialExtension({
+                previousEndsAt: previousDate,
+                nextEndsAt: nextDate,
+                validated: validated.data.validated,
+            })
+        ) {
+            const sent = await postServiceMessage(
+                guild.trialEndNotifyChannelId,
+                {
+                    embeds: [{
+                        ...buildTrialExtendedNotice({
+                            displayName,
+                            previousEndsAtLabel: previousDate.toLocaleDateString("fr-FR"),
+                            endsAtLabel: nextDate.toLocaleDateString("fr-FR"),
+                            hasDashboardProfile: target.kind === "profile",
+                            staffMentions: resolveStaffMentions(guild.rolesMapping),
+                        }),
+                        timestamp: new Date().toISOString(),
+                        footer: { text: `SigilOS • ${guild.name}` },
+                        url: `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`,
+                    }],
+                },
+                `🔄 Essai prolongé — ${displayName}`
+            ).catch((error) => {
+                logger.warn("[setMemberTrialState] notification de prolongation impossible", {
+                    err: String(error),
+                });
+                return null;
+            });
+            extensionOutcome = sent
+                ? "🔄 prolongation notifiée au staff"
+                : "⚠️ notification de prolongation non envoyée";
+        }
+
         // Sans revalidation, la liste `/admin/members` reste servie depuis le cache de
         // rendu : la fiche rouvre l'ANCIENNE date et le bandeau n'affiche pas la
         // reprogrammation, même après `router.refresh()` (mesuré le 29/10/2026).
         revalidatePath(`/dashboard/${guildId}/admin/members`);
 
         const baseMessage = validated.data.validated ? "Essai validé" : "Essai mis à jour";
+        const outcomes = [...roleOutcomes, ...(extensionOutcome ? [extensionOutcome] : [])];
         return {
             success: true,
             data: {
-                message: roleOutcomes.length > 0 ? `${baseMessage} · ${roleOutcomes.join(" · ")}` : baseMessage,
+                message: outcomes.length > 0 ? `${baseMessage} · ${outcomes.join(" · ")}` : baseMessage,
             },
         };
     } catch (err: unknown) {

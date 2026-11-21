@@ -15,7 +15,7 @@
 > **Fait (B-1, PR #1483)** : id de guilde résolu **une fois par requête** (`src/server/guild-id.ts`, React `cache` + mémoire 5 min) ; **4 lectures `GuildConfig` en double retirées** (calendrier, raid, activité, sondages, présence).
 > **Fait (B-2, PR #1484)** : calendrier du dashboard en **une lecture** (semaine + raid actif + focus 24 h, règle pure `dashboard-calendar`) ; focus préchargé, **2 requêtes `GuildEvent` en moins**.
 > **Preuves** : **788 fichiers / 8 219 tests ✅** (dont `guild-id` 2/2, `dashboard-calendar` 4/4) · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
-> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
+> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; **P2 cadré** (`PERF-WEB.md` §6) ; P3 CDN/WAF.
 > **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

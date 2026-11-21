@@ -119,8 +119,8 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
 | **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1/B-2** dashboard : id + calendrier en une lecture (livrée, #1483/#1484) | en cours |
-| **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
-| **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
+| **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | **cadré (§6)**, à exécuter |
+| **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | **cadré (§6.3)**, décision CDN à prendre |
 
 ### 3.1 P1-1 — spans serveur du dashboard (20/11/2026)
 
@@ -238,5 +238,69 @@ npx autocannon -c 50 -d 10 -H "Accept-Encoding: gzip" \
 - Aucun changement de CSP/`proxy.ts` en P0.
 - Aucun cache partagé de données utilisateur.
 - Aucun CDN en P0.
+
+## 6. P2/P3 — plan d'exécution (public cacheable + CDN)
+
+> **But** : servir les pages **publiques anonymes** depuis un HTML préparé (ISR/PPR), puis depuis un
+> CDN. Le dashboard reste dynamique (données personnelles). **Critère d'acceptation** : guide à
+> 100 connexions, p97,5 < 1 s, origine quasi inactive ; zéro régression thème/SEO/connexion/sécurité.
+
+### 6.1 Les trois verrous (mesurés)
+
+| Étage | Fichier | Ce qui force le dynamique |
+|---|---|---|
+| Proxy | `src/proxy.ts:314-319` | `Content-Security-Policy` + `x-nonce` sur **toutes** les routes ; Next 16 lit le nonce (`getScriptNonceFromHeader`) → rendu dynamique même si le layout est propre |
+| Coque | `src/app/layout.tsx:154-167` | `auth()` + `getPlatformConfig()` (parallèles), puis `headers()` + `getServerLocale()` (séquentiels) ; `ThemeProvider nonce` et `AuthProvider session` |
+| Page | `src/app/guides/rush-sylvestre/page.tsx` | `auth()`, `getUserContext()`, `getServerI18n()`, `headers()`, `<JsonLd nonce>` |
+
+Un seul de ces verrous suffit à interdire l'ISR : les trois doivent tomber dans le même lot.
+
+> ⚠️ **Maintenance** : `getPlatformConfig` reste en cache **par requête** (pas de TTL/Redis) — le mode
+> maintenance doit couper immédiatement une session ouverte. Si un cache partagé est ajouté un jour,
+> il faudra l'invalider dans l'action God qui bascule `maintenanceMode`.
+
+### 6.2 Ordre d'exécution
+
+| Étape | Travail | Fichiers | Preuve |
+|---|---|---|---|
+| **2.1 Cadrage CSP** | Choisir hash fixe vs `strict-dynamic` ; inventorier les scripts inline (thème, JSON-LD) ; écrire la décision | doc | décision + liste des scripts |
+| **2.2 Proxy** | Routes publiques **sans nonce** (CSP hash/strict-dynamic) ; dashboard inchangé | `src/proxy.ts` | test en-têtes : public sans `x-nonce`, dashboard avec ; CSP valide |
+| **2.3 Coque** | Sortir `auth/headers/locale/platformConfig` de la coque publique ; session/thème côté client ; dashboard garde son layout | `src/app/layout.tsx`, route group public (spike 1–2 h avant) | test : page publique sans API dynamique ; dashboard inchangé |
+| **2.4 Page publique** | Retirer `auth/getUserContext/getServerI18n/headers/JsonLd nonce` ; état connecté en composant client ; JSON-LD statique/hash | `guides/rush-sylvestre/page.tsx` | `Cache-Control: public, s-maxage=…` ; thème + bouton connexion OK |
+| **2.5 Scripts inline** | Thème `next-themes` et JSON-LD en hash (ou externalisés) | layout + `JsonLd` | clair/sombre sans flash ; JSON-LD valide (Rich Results) |
+| **2.6 ISR/PPR + charge** | `revalidate`/`use cache` sur les pages publiques ; vérifier `revalidateRushContent` ; autocannon 10/50/100 | pages + tests | 100 conn., p97,5 < 1 s ; contenu à jour après action |
+
+**Rollback** : chaque étape est une PR indépendante ; un `git revert` suffit. Aucune migration.
+
+### 6.3 P3 — CDN (duo toi + moi)
+
+| Qui | Action | Quand |
+|---|---|---|
+| **Toi** | Choisir Cloudflare **ou** un acteur EU ; compte/zone ; DPA, politique de confidentialité, cookies | avant 3.2 |
+| **Toi** | Passer le DNS en proxy (nuage orange) sur **beta** d'abord ; rollback = nuage gris | 3.2 |
+| **Moi** | Règles de cache (public anonyme seulement), bypass `/dashboard/*`, `/api/*`, cookie de session ; IP réelle (`CF-Connecting-IP`), origine verrouillée, WAF ; doc + tests | 3.2 |
+| **Moi** | Purge à la publication (API CDN depuis les actions de contenu) + doc d'ops | 3.2 |
+| **Toi** | Valider sur bêta : OAuth Discord, WebSocket, webhooks, thème, connexion | 3.2 |
+
+**Garde-fou** : le CDN ne doit **jamais** cacher une réponse portant un cookie de session ou une
+route `/dashboard|/api|/god`. Le code envoie `private, no-store` sur ces routes ; la règle CDN le
+double (défense en profondeur).
+
+### 6.4 Checklist avant merge (2.2 → 2.6)
+
+- [ ] Thème clair/sombre sans flash, sur guide + accueil.
+- [ ] JSON-LD valide (Rich Results) et présent dans le HTML préparé.
+- [ ] Bouton « Se connecter / Mon compte » juste (anonyme et connecté).
+- [ ] Aucune réponse publique ne contient de donnée personnelle.
+- [ ] CSP : aucun script bloqué (console propre), nonce absent du public, présent sur le dashboard.
+- [ ] `npm run test:run`, `tsc`, `lint`, verrou `caddy-compression`.
+- [ ] Charge guide 10/50/100, 0 `5xx`, p97,5 < 1 s à 100.
+
+### 6.5 Décisions à prendre (toi)
+
+1. **CDN** : Cloudflare ou EU ? (DPA/RGPD)
+2. **Fraîcheur** : combien de secondes/minutes un contenu public peut rester en cache après une
+   modification ? (les actions revalident déjà ; le CDN ajoute son TTL)
+3. **Fenêtre** : passage DNS/CDN sur **bêta**, heure creuse, rollback en 1 clic (nuage gris).
 
 

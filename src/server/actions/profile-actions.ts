@@ -20,6 +20,8 @@ import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
 import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
 import { resetProgressOnAlignmentChange } from "@/server/rush-alignment";
+import { getInternalGuildId } from "@/server/guild-id";
+import { DASHBOARD_PROFILE_SUMMARY_SELECT, type DashboardProfileSummary } from "@/lib/dashboard-profile-summary";
 // Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
 import {
     PSEUDO_PATTERN,
@@ -402,6 +404,35 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
         };
     } catch (error) {
         logger.error("Get Profile Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Synthèse d'accueil — **trois champs, une lecture** (B-3, 21/11/2026).
+ *
+ * La page d'accueil n'utilise que `hasSeenWelcome`, `availability` et `pseudoDofus`.
+ * `getUserProfile` charge en plus le compte, les skins, les rôles accordés, les services
+ * actifs et la candidature en attente (4 lectures) : cette synthèse ne fait qu'une lecture
+ * `UserProfile`, avec un `select` borné. **Ne pas l'élargir sans mesure.**
+ */
+export async function getUserProfileSummary(guildId: string): Promise<ActionResponse<DashboardProfileSummary>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const internalGuildId = await getInternalGuildId(guildId);
+        if (!internalGuildId) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: internalGuildId } },
+            select: DASHBOARD_PROFILE_SUMMARY_SELECT,
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+        return { success: true, data: profile };
+    } catch (error) {
+        logger.error("Get Profile Summary Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

@@ -151,6 +151,7 @@ export interface GuildStats {
 // ============================================
 
 import { redis } from "@/lib/redis";
+import { GUILD_STATS_CACHE_TTL_SECONDS, guildStatsCacheKey } from "@/lib/guild-stats-cache";
 
 export async function getGuildStats(guildId: string): Promise<{
     success: boolean;
@@ -166,9 +167,9 @@ export async function getGuildStats(guildId: string): Promise<{
         return { success: false, error: "Non autorisé" };
     }
 
-    const cacheKey = `guild:stats:${guildId}`;
+    const cacheKey = guildStatsCacheKey(guildId);
 
-    // 2. Check Redis Cache (60s TTL)
+    // 2. Check Redis Cache (3 min — données de guilde, jamais personnelles ; B-3)
     try {
         const cached = await redis.get(cacheKey).catch(() => null);
         if (cached) {
@@ -724,7 +725,7 @@ export async function getGuildStats(guildId: string): Promise<{
         };
 
         // Cache for next time (60s)
-        await redis.set(cacheKey, JSON.stringify(stats), "EX", 60).catch(() => {});
+        await redis.set(cacheKey, JSON.stringify(stats), "EX", GUILD_STATS_CACHE_TTL_SECONDS).catch(() => {});
 
         return {
             success: true,

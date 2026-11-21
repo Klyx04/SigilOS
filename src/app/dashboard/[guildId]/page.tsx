@@ -5,7 +5,7 @@ import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
-import { getUserProfile } from "@/server/actions/profile-actions";
+import { getUserProfileSummary } from "@/server/actions/profile-actions";
 import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
@@ -79,7 +79,7 @@ export default async function DashboardPage({
         availabilityModuleEnabled,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
-        getUserProfile(guildId),
+        getUserProfileSummary(guildId),
         user.canViewOcre ? getMyOcreProgress(guildId) : Promise.resolve({ success: false, data: undefined }),
         getGuildStats(guildId),
         getUpcomingAlmanax().catch(() => null),

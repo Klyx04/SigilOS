@@ -112,13 +112,18 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
    session) **et 2 scripts inline** (thème `next-themes`, JSON-LD) avant d'espérer un ISR/PPR.
 4. **Compression** : `compress: false` dans Next **et** `encode zstd gzip` dans Caddy, livrés ensemble.
    Sinon on sert des réponses non compressées.
+5. **CSP en production** (#1485) : seule l'origine **exacte** du relais Dofusbook est autorisée
+   (`relayOrigin`, déduite de `DOFUSBOOK_CF_WORKER_URL`). `https://*.workers.dev` est **réservé au
+   dev/test** : en prod, le wildcard ouvrirait une exfiltration vers n'importe quel Worker tiers.
+   Corollaire ops : en production, `DOFUSBOOK_CF_WORKER_URL` doit être posée, sinon le navigateur est
+   bloqué dès `CSP_ENFORCE=true`.
 
 ## 3. Lots
 
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1/B-2** dashboard : id + calendrier en une lecture (livrée, #1483/#1484) | en cours |
+| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1/B-2** dashboard : id + calendrier en une lecture (livrée, #1483/#1484) ; **B-3** profil allégé + TTL stats 3 min + `proxy-image` `fs.promises` (livrée, ce lot) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
 
@@ -211,6 +216,45 @@ raids commencés avant), puis la règle pure `src/lib/dashboard-calendar.ts` dé
 résultats. Le focus est **préchargé** dans `getDashboardFocus` (`prefetchedEvent`), qui ne requête
 plus. **2 requêtes `GuildEvent` en moins** par rendu, et la carte Focus n'est plus une étape
 séparée après le `Promise.all`.
+
+### 3.5 Dashboard — profil allégé et TTL des statistiques (B-3, 21/11/2026)
+
+La page d'accueil appelait `getUserProfile` : `user`, `skins`, `roleGrants` (+ `role`),
+`serviceListing` actifs et `achievementSubmission` en attente — **4 lectures** pour un rendu qui ne
+lit que `hasSeenWelcome`, `availability` et `pseudoDofus`. `getUserProfileSummary` fait désormais
+**une** lecture `UserProfile` avec un `select` borné (`DASHBOARD_PROFILE_SUMMARY_SELECT`, verrouillé
+par `tests/unit/dashboard-profile-summary.test.ts`). Les autres écrans (profil, planning, missions)
+gardent `getUserProfile`.
+
+`getGuildStats` passe d'un TTL Redis de **60 s à 180 s** (`GUILD_STATS_CACHE_TTL_SECONDS`) : ce sont
+des agrégats de **guilde**, jamais personnels ; la clé reste `guild:stats:<guildId>`
+(`tests/unit/guild-stats-cache.test.ts`). Aucune invalidation ciblée n'existait auparavant : le TTL
+est la seule borne.
+
+`proxy-image` : `readdirSync`/`statSync`/`readFileSync`/`writeFileSync` remplacés par
+`fs.promises` dans un handler déjà asynchrone (plus de blocage de l'event loop sur le cache disque).
+
+Reste B-3 : `EXPLAIN ANALYZE` sur les requêtes à **600–1 000 ms** de la trace, **à chaud** (le p95
+`pg-pool.connect` est 82 ms ; la trace à 1,96 s était peut-être un démarrage à froid), puis index
+composites si la mesure le confirme.
+
+### 3.6 P3 — pré-requis avant un CDN (décision **D8**, rien n'est déployé)
+
+1. **Origine réelle des clients** : Caddy `trusted_proxies` + `CF-Connecting-IP`, puis `{client_ip}`
+   pour `X-Real-IP`, `X-Forwarded-For` et la clé du rate-limit. Sans ça, tous les visiteurs
+   partagent l'IP de l'edge → **429 global**.
+2. **WAF — exemptions explicites** : `/api/discord/interactions` (Discord < 3 s), `/api/cron/*`
+   (les crontabs appellent `beta.sigilos.fr`), `/api/webhooks/kofi|sentry`. Bot Fight Mode **off**
+   sur le plan gratuit, ou exceptions.
+3. **Cache rules** : public anonyme seulement ; **bypass** `/dashboard/*`, `/api/*`, `/god/*`,
+   cookie de session, POST. Le code envoie déjà `private, no-store` sur le privé.
+4. **CSP** : conserver l'origine **exacte** du relais (décision 5 du §2) ; `*.workers.dev` en
+   dev/test uniquement.
+5. **Purge** : appel API CDN depuis les actions de contenu (ou TTL court) pour que le guide se mette
+   à jour.
+6. **CORS Workers** : remplacer `Access-Control-Allow-Origin: *` par `https://sigilos.fr` /
+   `https://beta.sigilos.fr` (`wrangler deploy`, côté mainteneur).
+7. **Bascule bêta d'abord**, nuage orange ; rollback = nuage gris. Puis RUM/k6 (budgets CWV).
 
 ## 4. Protocole de test de charge
 

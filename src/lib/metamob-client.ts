@@ -1226,9 +1226,12 @@ export async function updateMonsterTradeParams(
         ? { trade_offer, trade_want: 0 }
         : { trade_offer, trade_want };
 
+    // Assainissement **inline** (CodeQL TaintedPath) : ne garde que [a-z0-9-], borné.
+    const pathSlug = slug.replace(/[^a-z0-9-]/g, "").slice(0, 100);
+
     try {
         const base = new URL(METAMOB_API_BASE.endsWith("/") ? METAMOB_API_BASE : `${METAMOB_API_BASE}/`);
-        const url = new URL(`v1/quests/${slug}/monsters/${monsterId}/trade`, base);
+        const url = new URL(`v1/quests/${pathSlug}/monsters/${monsterId}/trade`, base);
         if (url.origin !== base.origin) {
             throw new MetamobApiError("API_ERROR", "Identifiant de quête invalide.");
         }

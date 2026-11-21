@@ -149,9 +149,11 @@ export async function submitServiceFeedback(
         ).catch(() => {});
 
         // 2. Publication d'un embed Discord dans le salon de service de la guilde
-        // CodeQL js/resource-exhaustion (#132) : `rating` est borné par Zod (1–5), mais la
-        // répétition ne doit jamais dépendre d'une valeur non prouvée. On borne ici aussi.
-        const safeRating = Math.min(5, Math.max(1, Math.trunc(rating)));
+        // CodeQL js/resource-exhaustion (#132) : `rating` est borné 1–5 par Zod ; cette garde
+        // de plage le prouve aussi à l'analyseur, avant `repeat` (aucun throw après écriture).
+        let safeRating = Number.isFinite(rating) ? Math.trunc(rating) : 1;
+        if (safeRating < 1) safeRating = 1;
+        if (safeRating > 5) safeRating = 5;
         const stars = "⭐".repeat(safeRating);
         const providerName = providerProfile.pseudoDofus || providerProfile.discordNickname || providerProfile.user?.name || "Prestataire";
         const appUrl = getAppBaseUrl();

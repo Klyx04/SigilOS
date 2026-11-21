@@ -153,7 +153,8 @@ describe("CSP nonce-based", () => {
             const prod = buildCsp({ nonce: "abc", enforce: false });
             const prodDirective = prod.headerValue.split(";").find(d => d.trim().startsWith("connect-src"))!;
             expect(prodDirective).not.toContain("http://127.0.0.1:*");
-            expect(prodDirective).toContain("https://*.workers.dev");
+            // En production, pas de wildcard workers.dev : seule l'origine exacte du relais compte.
+            expect(prodDirective).not.toContain("https://*.workers.dev");
         });
 
         it("suit le relais Dofusbook configuré (DOFUSBOOK_CF_WORKER_URL → connect-src)", () => {
@@ -163,6 +164,15 @@ describe("CSP nonce-based", () => {
             // Seule l'ORIGINE est retenue (une CSP ne connaît pas les chemins).
             expect(directive).toContain("https://dofusbook.sigilos.fr");
             expect(directive).not.toContain("dofusbook.sigilos.fr/s/123");
+        });
+
+        it("en production, autorise l'origine exacte du relais mais jamais le wildcard", () => {
+            vi.stubEnv("NODE_ENV", "production");
+            vi.stubEnv("DOFUSBOOK_CF_WORKER_URL", "https://relay.example.workers.dev");
+            const { headerValue: csp } = buildCsp({ nonce: "abc", enforce: false });
+            const directive = csp.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(directive).toContain("https://relay.example.workers.dev");
+            expect(directive).not.toContain("https://*.workers.dev");
         });
 
         it("ignore une origine de relais invalide (aucune directive cassée)", () => {

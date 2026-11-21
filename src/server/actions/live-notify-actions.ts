@@ -44,7 +44,7 @@ export async function getLiveNotifySettings(guildId: string) {
     const session = await auth();
     if (!session?.user?.id) return { success: false as const, error: "Non connecté." };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) {
         return { success: false as const, error: guard.error ?? "Accès refusé." };
@@ -92,7 +92,7 @@ export async function saveLiveNotifySettings(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non connecté." };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error ?? "Accès refusé." };
 
@@ -162,7 +162,7 @@ export async function sendLiveNotifyTest(guildId: string): Promise<{ success: bo
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non connecté." };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error ?? "Accès refusé." };
 

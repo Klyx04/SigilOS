@@ -28,7 +28,7 @@ export async function getBlacklistConfig(guildId: string): Promise<ActionRespons
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
@@ -54,7 +54,7 @@ export async function updateBlacklistSettings(guildId: string, channelId: string
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Permission Administrateur requise" };
 

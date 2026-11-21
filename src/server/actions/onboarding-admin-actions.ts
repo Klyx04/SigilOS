@@ -34,7 +34,7 @@ const GrantBadgeSchema = z.object({
 });
 
 export async function getOnboardingSettings(guildId: string) {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
@@ -79,7 +79,7 @@ export async function getOnboardingSettings(guildId: string) {
 }
 
 export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettingsSchema>) {
-    const { requireGuildConfigAccess } = await import("./guards");
+    const { requireGuildConfigAccess } = await import("@/server/guards");
     const guard = await requireGuildConfigAccess(data.guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 

@@ -19,7 +19,7 @@ const userProfileCount = vi.fn();
 const userProfileGroupBy = vi.fn();
 
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => mockAuth(...args) }));
-vi.mock("@/server/actions/guards", () => ({
+vi.mock("@/server/guards", () => ({
     requireGuildMember: (...args: unknown[]) => mockRequireGuildMember(...args),
 }));
 vi.mock("@/lib/prisma", () => ({

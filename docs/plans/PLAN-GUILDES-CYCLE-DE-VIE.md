@@ -154,7 +154,7 @@ purge **pas** les caches. Un membre peut donc naviguer **jusqu'à 60 s** sur une
 
 | Affirmation | Où c'est vérifiable | Comment |
 |---|---|---|
-| Seul le propriétaire Discord **live** peut supprimer | `src/server/actions/guards.ts` (`requireGuildOwner` → `guildInfo.owner_id === discordUserId`) | lecture + test `guild-deletion` |
+| Seul le propriétaire Discord **live** peut supprimer | `src/server/guards.ts` (`requireGuildOwner` → `guildInfo.owner_id === discordUserId`) | lecture + test `guild-deletion` |
 | Grâce de **30 jours** | `src/lib/guild-deletion.ts` (`GUILD_DELETION_GRACE_DAYS = 30`) | lecture + test |
 | Purge **bornée** et **listée par état** | `src/server/guild-purge-core.ts` (`where: { deletedAt: { not: null }, scheduledDeletion: { lte: now } }`, `take: limit`) | lecture + test |
 | Cron **protégé** et **télémétré** | `src/app/api/cron/guild-purge/route.ts` (`verifyCronSecret`, `recordCronExecution("guild_purge"`) | lecture + test |

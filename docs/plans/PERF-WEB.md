@@ -118,7 +118,7 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 | Lot | Contenu | État |
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
-| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) | en cours |
+| **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1** id de guilde résolu une fois (livrée, #1483) | en cours |
 | **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
 | **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
 
@@ -190,6 +190,18 @@ restent la source des embeds Discord (`calendar-event-images.ts`), seul le rendu
 - Le poids réel dépend du viewport (`sizes`), mais l'ordre de grandeur est **÷20 à ÷100**.
 - Reste : `logo-v2.png` (**170 Ko**) sert de favicon/manifest — à remplacer par des icônes
   32/192 px ; ce n'est pas un poste LCP, donc hors de ce lot.
+
+### 3.3 Dashboard — id de guilde résolu une fois (21/11/2026)
+
+La page d'accueil lisait `GuildConfig` **5 à 6 fois** pour le même `id` (calendrier, raid,
+activité, présence, sondages). `src/server/guild-id.ts` le résout désormais **une fois par
+requête** (`cache()` React) et le mémorise **5 min** (id seul, `null` non mémorisé).
+`getUpcomingEvents`, `getActiveRaid`, `getUnifiedGuildActivity`, `getPolls` et la présence
+utilisent cette source unique — **4 lectures en moins** par rendu à froid, sans changer les
+gardes ni les filtres.
+
+Reste identifié pour un prochain lot : `GuildEvent` est encore lu **3 fois** (événements de la
+semaine, raid actif, focus) — à fusionner en une requête et à passer au focus.
 
 ## 4. Protocole de test de charge
 

@@ -4,6 +4,8 @@
  * Caches results in memory to avoid repeated network hits.
  */
 
+import { isSafeDplnQuestUrl } from "./outbound-url-guards";
+
 const dplnUrlCache = new Map<string, string>();
 
 /**
@@ -50,6 +52,9 @@ export async function getVerifiedDPLNUrl(questName: string): Promise<string> {
 
     for (const slug of slugs) {
         const url = `https://www.dofuspourlesnoobs.com/${slug}.html`;
+        // CodeQL js/request-forgery (#133) : le slug vient d'un nom de quête. L'hôte est
+        // constant ; cette garde ferme la seule partie variable (charset + longueur).
+        if (!isSafeDplnQuestUrl(url)) continue;
         try {
             // Fast HEAD request with timeout
             const controller = new AbortController();

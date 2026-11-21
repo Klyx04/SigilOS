@@ -9,6 +9,7 @@ import { z } from "zod";
 import { redis } from "./redis";
 import { CircuitBreaker } from "./circuit-breaker";
 import { logger } from "./logger";
+import { isSafeMetamobQuestSlug } from "./outbound-url-guards";
 
 // -----------------------------------------------------------------------------
 // CONFIGURATION
@@ -1212,13 +1213,26 @@ export async function updateMonsterTradeParams(
     };
     const trade_offer = clamp(params.trade_offer, 0);
     const trade_want = clamp(params.trade_want, 0);
+    // CodeQL js/request-forgery (#134) : le slug vient d'une action. On n'accepte qu'un
+    // identifiant ASCII borné, et l'URL est construite sur l'origine fixe de l'API.
+    if (!isSafeMetamobQuestSlug(slug)) {
+        throw new MetamobApiError("API_ERROR", "Identifiant de quête invalide.");
+    }
+    if (!Number.isSafeInteger(monsterId) || monsterId <= 0) {
+        throw new MetamobApiError("API_ERROR", "Identifiant de monstre invalide.");
+    }
     // Trade réciproque : un archi ne peut pas être à la fois offert ET voulu par le même joueur.
     const body = trade_offer > 0 && trade_want > 0
         ? { trade_offer, trade_want: 0 }
         : { trade_offer, trade_want };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}/monsters/${monsterId}/trade`, {
+        const base = new URL(METAMOB_API_BASE.endsWith("/") ? METAMOB_API_BASE : `${METAMOB_API_BASE}/`);
+        const url = new URL(`v1/quests/${slug}/monsters/${monsterId}/trade`, base);
+        if (url.origin !== base.origin) {
+            throw new MetamobApiError("API_ERROR", "Identifiant de quête invalide.");
+        }
+        const response = await fetch(url, {
             method: 'PATCH',
             headers,
             body: JSON.stringify(body)

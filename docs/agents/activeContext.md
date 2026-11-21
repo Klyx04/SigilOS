@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 21/11/2026 (suite 51) — **Sécurité CodeQL + Sentry (footer, URLs sortantes, avis)** — branche `fix/codeql-sentry-2026-11-21` (empilée sur #1492)
+
+> **Demandes user (verbatim)** : « Il y a par ailleurs des nouvelles erreurs sentry qui ont pop aujourd'hui + erreurs github security and quality — traite la totalité ».
+> **Mesuré** : 3 alertes CodeQL ouvertes — `js/request-forgery` `metamob-client.ts:1221` (#134) et `dofus-noobs-helper.ts:58` (#133), `js/resource-exhaustion` `service-feedback-actions.ts:152` (#132) ; Sentry `JAVASCRIPT-NEXTJS-31` (`useSession()` sans provider dans `galactic-footer`, POST `/`) et `JAVASCRIPT-NEXTJS-30` (« unexpected response » = ancien bundle après déploiement, bruit attendu).
+> **Fait** : ① `galactic-footer` lit `useSession()?.status` (plus de déstructuration d'`undefined`) ; ② gardes pures `outbound-url-guards` (slug Metamob ASCII borné + URL DPLN sur hôte fixe) utilisées avant `fetch` ; ③ `stars` borné à 1–5 avant `repeat` ; ④ test `outbound-url-guards` 2.
+> **Preuves** : **793 fichiers / 8 251 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Reste** : redéployer puis vérifier Sentry (une issue corrigée, l'autre est le bruit de déploiement) ; les alertes CodeQL se referment au prochain scan.
+> **Rotation** : bloc « suite 45 » (P0 perf) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 21/11/2026 (suite 50) — **Essais : J-3, prolongation, filtre « à valider »** — branche `feat/essais-notifications-2026-11-21` (empilée sur #1490)
 
 > **Demande user (verbatim)** : « Notification Discord lors d'une prolongation d'essai · Alerte J-3 (la doc produit la promet, le code ne le fait pas) · Filtre/onglet « essais à valider » » puis « j'en ai marre que tu t'arrêtes à chaque point ».
@@ -60,17 +70,6 @@
 > **Reste** : redéployer la bêta avec **#1480** puis lire les p95 par span (`GET /dashboard/[guildId]`) ; **P1-2** images (calendrier 913 Ko, logo 170 Ko) ; **P1-3** cache public ; **P2** statique/PPR ; **P3** CDN/WAF + DPA.
 > **Rotation** : bloc « suite 40 » (runbook VPS) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 20/11/2026 (suite 45) — **Perf web · mesure de charge et P0 (compression, cache config, dashboard)** — branche `perf/p0-web-2026-11-20` (PR #1476)
-
-> **Demande user (verbatim)** : « enchaine en autonomie , documente d'abord puis enchaine , fais des test de charge etc au fur et à mesure , n'(oublies rien ».
-> **Mesure (bêta `8d7528ff`, autocannon v9, 10 s/palier, gzip)** : guide **2,5 req/s** (10 et 25), **2,1** (50), **1,6** (100) — p97,5 **9,9–10 s** ; accueil **19,6 req/s** ; CSS statique **34,5** (cache froid) ; 0 `5xx`, 0 timeout ; bêta `healthy` après. Sentry 7 j : `quetes-dofus` p95 **2 029 ms**, `profile` **1 531**, `services` **1 029**, accueil **836**.
-> **Après P0 (bêta `02070473`)** : guide **3,1–3,3 req/s** (+25–30 %), accueil **21,9** (+12 %), CSS **69** (×2) ; zstd **145 Ko** / gzip **151 Ko** (Node gzip avant : 143 Ko — gain CPU, pas réseau) ; `br` seul non compressé ; 0 erreur.
-> **Diagnostic** : tout le public est dynamique (nonce CSP `proxy.ts`, `auth`/`headers`/locale/`platformConfig` dans le layout, `auth`/`getUserContext`/`getServerI18n`/`JsonLd` dans la page) ; Node gzippe 1,13 Mo par requête ; dashboard = 5 appels + config lue deux fois + spinner + PNG 913 Ko.
-> **Fait (P0)** : Caddy `encode zstd gzip` + Next `compress: false` ; `getPlatformConfig` et `getUserGuilds` en `cache()` **par requête** (pas de TTL → maintenance immédiate) ; `donationsEnabled` mort retiré ; squelette de chargement ; `docs/plans/PERF-WEB.md` (mesures, diagnostic, lots P0→P3, protocole autocannon) + ROADMAP/README.
-> **Preuves** : **783 fichiers / 8 201 tests ✅** · `tsc` 0 · ESLint **0 erreur** · verrou `caddy-compression` **2/2** · Caddy validé par le verrou (l'image stock n'a pas le plugin `rate_limit` du VPS). Aucune migration.
-> **Reste** : **P1** cache public + images ; **P2** statique/PPR (proxy + layout + page + thème/JSON-LD + session) ; **P3** CDN/WAF + DPA. Bêta `02070473` déployée et mesurée.
-> **Rotation** : bloc « suite 39 » (enrichissement 3b) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

@@ -4,6 +4,8 @@
  * Caches results in memory to avoid repeated network hits.
  */
 
+import { isSafeDplnQuestUrl } from "./outbound-url-guards";
+
 const dplnUrlCache = new Map<string, string>();
 
 /**
@@ -49,7 +51,11 @@ export async function getVerifiedDPLNUrl(questName: string): Promise<string> {
     const slugs = generateDPLNSlugs(trimmedName);
 
     for (const slug of slugs) {
-        const url = `https://www.dofuspourlesnoobs.com/${slug}.html`;
+        // Assainissement **inline** (CodeQL TaintedPath) : charset réduit + longueur bornée.
+        const pathSlug = slug.replace(/[^a-z0-9-]/g, "").slice(0, 120);
+        if (!pathSlug) continue;
+        const url = `https://www.dofuspourlesnoobs.com/${pathSlug}.html`;
+        if (!isSafeDplnQuestUrl(url)) continue;
         try {
             // Fast HEAD request with timeout
             const controller = new AbortController();

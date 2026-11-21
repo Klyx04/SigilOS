@@ -55,10 +55,11 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
     const { t } = useI18n();
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
-    // La session est fournie par le SessionProvider du layout racine : aucune
-    // requête supplémentaire, `useSession` lit simplement le contexte.
-    const { status } = useSession();
-    const isAuthenticated = status === "authenticated";
+    // 🐛 Mesure du 21/11/2026 (Sentry JAVASCRIPT-NEXTJS-31) : le footer est aussi rendu hors
+    // du provider de session (re-rendu d'une server action sur `/`) → `useSession()` renvoie
+    // `undefined` et la déstructuration plantait. Sans contexte, l'état est « non connecté ».
+    const session = useSession();
+    const isAuthenticated = session?.status === "authenticated";
 
     const platformLinks = [
         { label: t.footer.modules, href: "/modules" },

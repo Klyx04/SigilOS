@@ -214,12 +214,15 @@ et reprise éditoriale.
 
 ## 5. Bloc S3 — La trame (chronologie Dofusyelle)
 
-| Lot | Contenu | Source |
-|---|---|---|
-| **S3-1** | Bloc de préparation (21 piliers, options alternatives) | `prep` Dofusyelle |
-| **S3-2** | Saves de donjons (40) comme état par donjon, pas comme quête | `donjons.save` |
-| **S3-3** | Avertissements éditoriaux (spans `red` / `orange` = « contournable ») | `body` Dofusyelle |
-| **S3-4** | Succès (62) rattachés aux étapes | `succes` Dofusyelle |
+| Lot | Contenu | Source | État (21/11/2026) |
+|---|---|---|---|
+| **S3-1** | Bloc de préparation (21 piliers, options alternatives) | `prep` Dofusyelle | non mesuré |
+| **S3-2** | Saves de donjons (40) comme état par donjon, pas comme quête | `donjons.save` | non mesuré |
+| **S3-3** | Avertissements éditoriaux (spans `red` / `orange` = « contournable ») | `body` Dofusyelle | non mesuré |
+| **S3-4** | Succès (62) rattachés aux étapes | `succes` Dofusyelle | non mesuré |
+
+> Aucun de ces lots n'a de **statut mesuré** : la table ne portait que le contenu et la source.
+> À confirmer (existence en base, compteurs) avant de le traiter.
 
 ## 6. Bloc S4 — God (outillage de saisie)
 

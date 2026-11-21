@@ -73,7 +73,13 @@ services:
     volumes:
       - uploads-prod-data:/app/private_uploads # ✅ Persist private uploads
       - assets-prod-data:/app/public/uploads/assets-dofus # ✅ Persist siphoned WebP (sinon remis à ~0 à chaque deploy)
-      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data:ro # ✅ Game assets (bind mount — updated by sync-assets.sh)
+      # ⚠️ RW VOLONTAIRE (mesuré 21/11/2026) : l'APPLICATION écrit dans game-data —
+      # `sync-monster-stats` → `dungeon-monsters.json`, God upload/download d'images,
+      # bascules « ignorer » (monstres/familles/zones/primes). Un `:ro` casse ces
+      # écritures ; le cron les avale (`sync-monster-stats/route.ts:40-42`) et le
+      # dataset cesse de se mettre à jour **sans alerte**. `sync-assets.sh`, lui,
+      # tourne côté hôte : il n'a pas besoin de ce montage.
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — sync-assets.sh côté hôte, écritures app assumées)
     logging: *default-logging
     healthcheck: *app-healthcheck
 
@@ -191,7 +197,9 @@ services:
     volumes:
       - uploads-beta-data:/app/private_uploads # ✅ Persist private uploads
       - assets-beta-data:/app/public/uploads/assets-dofus # ✅ Persist siphoned WebP (sinon remis à ~0 à chaque deploy)
-      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data:ro # ✅ Game assets (bind mount — updated by sync-assets.sh)
+      # ⚠️ RW VOLONTAIRE (mesuré 21/11/2026) : voir app-prod — l'app écrit dans
+      # game-data (cron `sync-monster-stats`, God images, bascules « ignorer »).
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — sync-assets.sh côté hôte, écritures app assumées)
     logging: *default-logging
     healthcheck: *app-healthcheck
 

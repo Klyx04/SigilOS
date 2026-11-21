@@ -126,8 +126,9 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
-    # ⚠️ SECURITY: Exposed locally so 'npm run dev' on host can reach it. Production uses docker-compose.prod.yml.
+      - "127.0.0.1:5433:5432"
+    # ⚠️ SECURITY: boucle locale uniquement — `npm run dev` sur l'hôte y accède,
+    # mais la base n'est jamais exposée au réseau local. Production : docker-compose.prod.yml.
     networks:
       - internal-net
     healthcheck:

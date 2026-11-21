@@ -126,7 +126,10 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         // Sans cette entrée, la requête est bloquée dès que CSP_ENFORCE=true (et signalée sinon).
         // L'origine est déduite de DOFUSBOOK_CF_WORKER_URL pour suivre le relais réellement
         // configuré (worker CF, tunnel `cloudflared`/Tailscale, domaine perso).
-        "https://*.workers.dev",
+        // En production, seule l'origine EXACTE du relais est autorisée : le wildcard
+        // `https://*.workers.dev` ouvrirait une exfiltration vers n'importe quel Worker
+        // tiers. En dev/test, il couvre les relais de test (`wrangler dev`, workers.dev).
+        ...(isProd ? [] : ["https://*.workers.dev"]),
         ...(relayOrigin ? [relayOrigin] : []),
         // Worker local de développement (`wrangler dev`) — jamais en production.
         ...(isProd ? [] : ["http://127.0.0.1:* http://localhost:*"]),

@@ -14,7 +14,7 @@
 - ✅ **173 vs 143** : public **175 exigences** (tous blocs) vs route **Bontarien + Ordre 145** → écart **30** = filtre `resolveRushRoute`, pas un bug.
 - 📌 **Gestes Rush** : ① visuels 390/768/1024/1440 ; ② itérations 5/6 ; ③ doc/prod (`main` = `c190f2c7`).
 - ⚡ **Perf web (21/11)** : guide **2,5→3,1–3,3 req/s**, accueil **21,9**, CSS **34,5→69** ; **P0 (#1476)** → **B-3** (profil 3 champs, TTL stats 3 min, `proxy-image` async) livrés ; **bêta à redéployer**. P2/P3 : `docs/plans/PERF-WEB.md`.
-- 🔐 **Sécurité (21/11)** : **#1485 mergé** (CSP prod sans wildcard `*.workers.dev`, base dev en loopback) · **#1486** : guards hors `use server`, Caddy sans `.env.prod`, **`game-data` laissé RW** (l'app écrit) → **merger puis redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 cron).
+- 🔐 **Sécurité (21/11)** : **#1485/#1486/#1487 mergés** (CSP prod sans wildcard, base dev loopback, guards hors `use server`, Caddy sans `.env.prod`, **`game-data` RW** car l'app écrit) → **redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 cron).
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
 - 📌 **Prod** : `main` = release du 13/11/2026 (`c190f2c7`) ; **aucune date** (décision user). **Migrations** jouées au deploy ; **ops** (ws, bot, intent, cAdvisor, crontabs, Node `24.22.1`) et **réglages** : `docs/MAINTENANCE.md`.
 
@@ -35,7 +35,7 @@
 | 4e | `audit-passe2` (audit 13/11) | `/api/uploads`, DoS `/api/og/build`, IPv6 SSRF, chemin machine `cron-status`, rate-limit god-images | ✅ **livré 13/11** — inclus dans **#1362** | — (rien) | — | — |
 | 4f | `ws-revocation-membres` (audit 13/11) | Un membre exclu/banni gardait son WebSocket de guilde | ✅ **livré 13/11** — PR **#1367** | **ops** : rebuild `ws-beta`/`ws-prod` | — | — |
 | 4g | `bot-prisma-chiffrement` (audit 13/11) | Le bot utilise un `PrismaClient` brut | ✅ verrouillé 13/11 (`bot-prisma-safety`, 3 cas) | partager l'extension si le bot écrit Account/API keys | — | — |
-| 4h | `durcissements-21-11` | CSP prod sans wildcard, base dev loopback, guards hors `use server`, secrets Caddy | **#1485 mergé** · **#1486** : guards déplacés, Caddy sans `.env.prod`, `game-data` **RW assumé** (l'app écrit) | merger #1486 puis **redéployer la bêta** + smoke test | `PERF-WEB.md` §2 · `docs/agents/deploy-vps.md` | — |
+| 4h | `durcissements-21-11` | CSP prod sans wildcard, base dev loopback, guards hors `use server`, secrets Caddy | **#1485/#1486/#1487 mergés** : guards déplacés, Caddy sans `.env.prod`, `game-data` **RW assumé** (l'app écrit) | **redéployer la bêta** + smoke test | `PERF-WEB.md` §2 · `docs/agents/deploy-vps.md` | — |
 | 5 | `migrations-ops` | 2 migrations additives + bot + crontabs non déployés | `20270112000000` (GodNotification.details), `20270113000000` (DiscordMemberActivity) | jouer bêta puis prod ; redéployer le bot ; poser les 4 crontabs | `docs/MAINTENANCE.md` | — |
 | 6 | `caddy-post-503` | Pendant une maintenance, un POST reçoit du HTML au lieu d'un `503 text/plain` | cause racine du 16/10 | durcir le `Caddyfile` (POST → 503) | `docs/MAINTENANCE.md` | — |
 | 7 | `csp-enforce` (F10) | CSP en Report-Only : la protection XSS ne bloque rien | `CSP_ENFORCE` présent dans `src/proxy.ts` | poser `CSP_ENFORCE=true` après 48 h de rapports | `docs/SECURITY.md` | — |

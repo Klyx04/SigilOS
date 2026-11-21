@@ -6,23 +6,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * `<script>` et passait l'ancien filtre.
  */
 const m = vi.hoisted(() => ({
-    existsSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    readdirSync: vi.fn(),
-    unlinkSync: vi.fn(),
-    statSync: vi.fn(),
-    writeFileSync: vi.fn(),
+    mkdir: vi.fn(),
+    readdir: vi.fn(),
+    unlink: vi.fn(),
+    stat: vi.fn(),
+    writeFile: vi.fn(),
+    readFile: vi.fn(),
     safeFetch: vi.fn(),
 }));
 
 vi.mock("node:fs", () => {
     const api = {
-        existsSync: m.existsSync,
-        mkdirSync: m.mkdirSync,
-        readdirSync: m.readdirSync,
-        unlinkSync: m.unlinkSync,
-        statSync: m.statSync,
-        writeFileSync: m.writeFileSync,
+        promises: {
+            mkdir: m.mkdir,
+            readdir: m.readdir,
+            unlink: m.unlink,
+            stat: m.stat,
+            writeFile: m.writeFile,
+            readFile: m.readFile,
+        },
     };
     return { default: api, ...api };
 });
@@ -46,9 +48,13 @@ function fetchReturning(body: BodyInit, contentType: string, length: number) {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    m.existsSync.mockReturnValue(false);
-    m.mkdirSync.mockImplementation(() => undefined);
-    m.readdirSync.mockReturnValue([]);
+    // Cache froid : aucun fichier, dossier créé sans erreur, écriture fail-open.
+    m.stat.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+    m.mkdir.mockResolvedValue(undefined);
+    m.readdir.mockResolvedValue([]);
+    m.writeFile.mockResolvedValue(undefined);
+    m.unlink.mockResolvedValue(undefined);
+    m.readFile.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
     m.safeFetch.mockImplementation((input: unknown, init?: unknown) =>
         (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(input, init),
     );
@@ -86,5 +92,17 @@ describe("GET /api/proxy-image — refus du SVG actif", () => {
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toBe("image/png");
         expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    });
+
+    it("sert depuis le cache disque sans rappeler la source (chemin HIT, fs.promises)", async () => {
+        const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+        m.stat.mockResolvedValue({ size: png.length, mtimeMs: Date.now() });
+        m.readFile.mockResolvedValue(png);
+
+        const res = await GET(req("https://i.imgur.com/cached.png"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("x-cache")).toBe("HIT");
+        expect(m.safeFetch).not.toHaveBeenCalled();
     });
 });

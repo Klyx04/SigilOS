@@ -286,6 +286,29 @@ Un seul de ces verrous suffit à interdire l'ISR : les trois doivent tomber dans
 route `/dashboard|/api|/god`. Le code envoie `private, no-store` sur ces routes ; la règle CDN le
 double (défense en profondeur).
 
+### 6.3 bis — Effets de bord vérifiés (Workers, IP réelle, WAF)
+
+- **Workers Cloudflare** (`dofusbook-proxy`, `dofus-ladder-proxy`, `sigil-ladder-ankama`) :
+  **aucune route sur `sigilos.fr`** (pas de `routes` dans les `wrangler.toml`) ; ils vivent sur
+  `*.workers.dev`. Les appels VPS → Worker (sortants), navigateur → Worker (`/s/:id`, CORS `*`) et
+  le cache interne du Worker (`caches.default`) sont **indépendants** du CDN du site. Les pages
+  ladder/stuff lisent la base/Redis, pas les Workers en direct : le cache HTML ne change que la
+  fraîcheur (TTL).
+- **CSP** : `connect-src` doit conserver `https://*.workers.dev` + l'origine du relais
+  (`DOFUSBOOK_CF_WORKER_URL`) quand on passe au hash/strict-dynamic — sinon l'aperçu Dofusbook casse.
+- **IP réelle** : Caddy pose `X-Real-IP {remote_host}` et **écrase** `X-Forwarded-For` avec
+  `{remote_host}`. Derrière Cloudflare, c'est l'IP de l'edge : le `rate_limit` Caddy
+  (`key {remote_host}`) et le limiteur de `src/proxy.ts` (`x-real-ip`) mettraient **tous les
+  visiteurs dans le même seau** → 429 global. Prérequis : `servers { trusted_proxies … client_ip_headers CF-Connecting-IP }`
+  (Caddy ≥ 2.7), puis `{client_ip}` pour `X-Real-IP`/XFF et la clé du rate-limit.
+- **Serveur → serveur** : `/api/discord/interactions` (Discord), `/api/cron/*` (les crontabs
+  appellent `https://beta.sigilos.fr/...`), `/api/webhooks/kofi|sentry` traversent le WAF. Le Bot
+  Fight Mode / un challenge casserait Discord (< 3 s) et les crons : règles de **skip WAF** par
+  chemin, ou crons en localhost/Tunnel. À tester sur la bêta.
+- **Aperçu Dofusbook** : le navigateur renvoie le JSON via `storeClientDofusbookPreview` (server
+  action POST) → bypass cache POST/API/cookie, WAF standard ; tester un import sur la bêta.
+- **WebSocket / OAuth** : `/socket.io/*` et `/api/auth/*` sans cache ; valider sur la bêta.
+
 ### 6.4 Checklist avant merge (2.2 → 2.6)
 
 - [ ] Thème clair/sombre sans flash, sur guide + accueil.
@@ -293,6 +316,10 @@ double (défense en profondeur).
 - [ ] Bouton « Se connecter / Mon compte » juste (anonyme et connecté).
 - [ ] Aucune réponse publique ne contient de donnée personnelle.
 - [ ] CSP : aucun script bloqué (console propre), nonce absent du public, présent sur le dashboard.
+- [ ] `connect-src` garde `https://*.workers.dev` + l'origine du relais Dofusbook.
+- [ ] Deux IP clientes distinctes → rate-limit par IP réelle (pas par IP d'edge Cloudflare).
+- [ ] Discord interactions + un cron + un webhook passent sans challenge WAF.
+- [ ] Import Dofusbook sur la bêta OK ; WebSocket et OAuth Discord OK derrière le CDN.
 - [ ] `npm run test:run`, `tsc`, `lint`, verrou `caddy-compression`.
 - [ ] Charge guide 10/50/100, 0 `5xx`, p97,5 < 1 s à 100.
 

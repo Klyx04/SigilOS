@@ -12,8 +12,9 @@
 > **Mesure avant** : `calendar_kralamour.png` **8,2 Mo**, `calendar_autres.png` 2 Mo, `songes.png` 1,3 Mo, `dofus-missions-thumb.png` 1,08 Mo, `Roublard.png` 1,6 Mo, `calendar_dungeon_farm.png` 892 Ko — servis tels quels au navigateur, souvent pour un rendu de 16 à 144 px.
 > **Fait** : `next/image` sur `event-card` (fill + `sizes`), `raid-hero-banner` (56 px), `SongesPicto` (16–32 px), `mission-settings` (144 px), `BombGame` (800 px). Les PNG restent la source des embeds Discord (`calendar-event-images.ts`).
 > **Gain mesuré (sharp, qualité 75)** : kralamour **31 Ko** @512, dungeon_farm **47 Ko**, autres **23 Ko**, songes **< 1 Ko** @32, vignette missions **7 Ko** @144, Roublard **84 Ko** @800 → **÷20 à ÷100**.
-> **Preuves** : **786 fichiers / 8 213 tests ✅** · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
-> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
+> **Fait (B-1, PR #1483)** : id de guilde résolu **une fois par requête** (`src/server/guild-id.ts`, React `cache` + mémoire 5 min) ; **4 lectures `GuildConfig` en double retirées** (calendrier, raid, activité, sondages, présence).
+> **Preuves** : **787 fichiers / 8 215 tests ✅** (dont `guild-id` 2/2) · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
+> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; **B-2** fusionner les 3 lectures `GuildEvent` ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
 > **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

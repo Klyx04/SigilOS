@@ -8,26 +8,7 @@ import { PresenceManager } from "@/lib/presence";
 import { getDisplayName } from "@/lib/display-name";
 import { cache } from "react";
 import { assertGuildMemberAccess } from "@/server/guild-access";
-
-// In-memory cache for internal guild IDs (5min TTL)
-const guildIdCache = new Map<string, { id: string, expiresAt: number }>();
-
-async function getInternalGuildId(discordGuildId: string): Promise<string | null> {
-    const now = Date.now();
-    const cached = guildIdCache.get(discordGuildId);
-    if (cached && cached.expiresAt > now) return cached.id;
-
-    const guildConfig = await db.guildConfig.findUnique({
-        where: { discordGuildId },
-        select: { id: true }
-    });
-
-    if (guildConfig) {
-        guildIdCache.set(discordGuildId, { id: guildConfig.id, expiresAt: now + 300_000 });
-        return guildConfig.id;
-    }
-    return null;
-}
+import { getInternalGuildId } from "@/server/guild-id";
 
 /**
  * Returns a list of users who are online in the guild.

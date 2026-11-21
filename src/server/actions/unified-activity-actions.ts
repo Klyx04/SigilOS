@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { resolveGuildActivityKind, shouldNotifyGuildActivity } from "@/lib/guild-activity";
 import { isNotificationImageKind, sanitizeNotificationImageUrl } from "@/lib/notification-categories";
+import { getInternalGuildId } from "@/server/guild-id";
 
 export type ActivityType = 
     | "SERVICE" 
@@ -78,13 +79,8 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
         const cached = await redis.get(cacheKey).catch(() => null);
         if (cached) return JSON.parse(cached) as UnifiedLog[];
 
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return [];
-
-        const internalGuildId = guildConfig.id;
+        const internalGuildId = await getInternalGuildId(guildId);
+        if (!internalGuildId) return [];
 
         // Sequential queries or slim selects to avoid pool starvation
         const serviceLogs = await db.serviceActivityLog.findMany({

@@ -8,6 +8,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
+import { getInternalGuildId } from "@/server/guild-id";
 // Local types to avoid Prisma export issues
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
 import { deleteChannelMessage } from "@/server/discord";
@@ -331,14 +332,13 @@ export async function getPolls(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
-        const guildConfig = await db.guildConfig.findUniqueOrThrow({
-            where: { discordGuildId },
-        });
+        const internalGuildId = await getInternalGuildId(discordGuildId);
+        if (!internalGuildId) return { success: false, error: "Guilde introuvable" };
 
         // Lazy close expired polls
-        await lazyClosePollsForGuild(guildConfig.id);
+        await lazyClosePollsForGuild(internalGuildId);
 
-        const where: Record<string, unknown> = { guildId: guildConfig.id };
+        const where: Record<string, unknown> = { guildId: internalGuildId };
         if (filters?.status) where.status = filters.status;
         if (filters?.category) where.category = filters.category;
 

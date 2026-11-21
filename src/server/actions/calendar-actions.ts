@@ -17,6 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { decrypt } from "@/lib/encryption";
 import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
 import { shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import { getInternalGuildId } from "@/server/guild-id";
 import {
     deleteEventDiscordMessage,
     deleteReminderMessageRefs,
@@ -535,11 +536,8 @@ export async function getUpcomingEvents(guildId: string, _days: number = 7) {
     if (!ctx.isMember) return { success: false, error: "Membre requis", events: [] };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde non trouvée", events: [] };
+        const internalGuildId = await getInternalGuildId(guildId);
+        if (!internalGuildId) return { success: false, error: "Guilde non trouvée", events: [] };
 
         const now = new Date();
         // Widget « Agenda de Guilde » : on retourne TOUS les événements de la semaine
@@ -552,7 +550,7 @@ export async function getUpcomingEvents(guildId: string, _days: number = 7) {
 
         const events = await db.guildEvent.findMany({
             where: {
-                guildId: guildConfig.id,
+                guildId: internalGuildId,
                 startDate: { gte: weekStart, lt: weekEnd },
                 endDate: { gte: now },
                 status: "PUBLISHED"
@@ -580,17 +578,14 @@ export async function getActiveRaid(guildId: string) {
     if (!ctx.isAuthenticated || !ctx.isMember) return null;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return null;
+        const internalGuildId = await getInternalGuildId(guildId);
+        if (!internalGuildId) return null;
 
         const now = new Date();
 
         const raid = await db.guildEvent.findFirst({
             where: {
-                guildId: guildConfig.id,
+                guildId: internalGuildId,
                 type: "RAID_OFFICIAL",
                 status: "PUBLISHED",
                 startDate: { lte: now },

@@ -256,6 +256,7 @@ export function RushOverlayQuestDetailModal({
                   <RushCoordinateChip
                     coordText={`[${coord.x},${coord.y}]`}
                     className="h-5 border-0 bg-transparent px-0 font-semibold text-foreground"
+                    worldId={coord.worldId ?? null}
                     showZaap={isZaapCopyEnabled(seq)}
                     manualZaap={getSequenceManualZaap(seq)}
                   />

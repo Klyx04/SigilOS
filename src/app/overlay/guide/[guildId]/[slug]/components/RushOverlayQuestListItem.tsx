@@ -331,6 +331,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
                   className="text-[11px]"
                   showIcon
+                  worldId={parsedCoord.worldId ?? null}
                   showZaap={isZaapCopyEnabled(seq)}
                   manualZaap={getSequenceManualZaap(seq)}
                 />

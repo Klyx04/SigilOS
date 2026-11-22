@@ -6,7 +6,7 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 21/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 22/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -137,7 +137,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 40 | `admin-members-doc` | Doc vivante `admin-members` à mettre à jour | `docs-catalog.ts` figé | éditer dans `/god/docs` | — |
 | 41 | `captures-a3` | 3 captures 1440 / 1024 / 390 manquantes | session navigateur connectée | les prendre | — |
 | 42 | `active-context-rotation` | Purge effective des blocs ou abandon de la règle des 6 ? | 6 blocs | trancher | `docs/agents/activeContext.md` |
-| 43 | `harness-maintenance` | Harnais H0-H7 livré ; **adaptateur OpenCode** (skills partagés, permissions, `/reprise`/`/fin`, Sentry MCP) | 22/11/2026 | lot 2 : sous-agent `reviewer` + worktree + durcissement hooks Cline | `docs/agents/harnais.md` §12 |
+| 43 | `harness-maintenance` | Harnais H0-H7 + **adaptateur OpenCode** + **lot 2** (reviewer read-only, worktree, hooks testés) | 22/11/2026 | lot 3 : mesure sur 3 lots + migration `.agents/skills` | `docs/agents/harnais.md` §12-13 |
 | 44 | ~~`god-system-polish`~~ | **Résolu le 13/11/2026** : cAdvisor supprimé (SEC-04), carte « Conteneurs » retirée ; les autres métriques God restent | — | — | — | — |
 | 45 | `grafana-alerts-audit` | Règles d'alerte Grafana éventuelles dans `grafana_data` : plus exécutées | volume conservé, non audité | lister et recréer dans Sentry/webhook si nécessaire | `docs/MAINTENANCE.md` |
 | 46 | `deploy-sha-normalize` | `deploy-cd.sh` refuse un SHA 8/40 alors que la CI publie 7 caractères | `5b31ad0f` refusé, `5b31ad0` accepté | normaliser le SHA à 7 dans `deploy-cd.sh` et `rollback.sh` | `docs/agents/deploy-vps.md` |

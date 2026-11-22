@@ -36,7 +36,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `monitoring/` | Config Prometheus **unique** (dev **et** prod) | ✅ unifié le 20/09/2026 — l'ancien doublon `prometheus/prometheus.yml` est supprimé |
 | `.gemini/` | Brouillons d'un assistant IA — **n'existe plus** (nettoyé) | ❌ supprimé |
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
-| `.opencode/` | Adaptateur OpenCode : commandes `/reprise` et `/fin` | ✅ |
+| `.opencode/` | Adaptateur OpenCode : commandes `/reprise`, `/fin` et sous-agent `reviewer` | ✅ |
 | `node_modules/` `.next/` `dist/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
 ## 2. La racine, fichier par fichier (28 fichiers suivis)
@@ -85,7 +85,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.gitignore` / `.gitattributes` / `.dockerignore` | Exclusions git / normalisation des fins de ligne / exclusions Docker |
 | `.gitleaks.toml` | Règles de détection de secrets |
 | `.npmrc` | Config npm |
-| `opencode.json` | Adaptateur OpenCode : skills partagés (`.cline/skills`), permissions, `watcher.ignore`, MCP Sentry |
+| `opencode.json` | Adaptateur OpenCode : skills partagés (`.cline/skills`), permissions, `watcher.ignore`, `worktree.directory`, MCP Sentry |
 
 ## 2bis. `docs/` — l'arborescence de la documentation (une seule, depuis le 20/09/2026)
 

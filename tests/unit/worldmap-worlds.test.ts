@@ -12,6 +12,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
+import { DOFUS_WORLDS } from "@/lib/dofus-assets";
+
 const EXCLUDED_WORLD_IDS = [19, 29];
 
 const worlds = JSON.parse(readFileSync("public/game-data/worlds.json", "utf8")) as Array<{
@@ -20,13 +22,14 @@ const worlds = JSON.parse(readFileSync("public/game-data/worlds.json", "utf8")) 
     origineY?: number;
     mapWidth?: number;
     mapHeight?: number;
+    totalWidth?: number;
     zoom?: number[];
     name?: { fr?: string };
 }>;
 
 const worldmap = JSON.parse(readFileSync("public/game-data/worldmap.json", "utf8")) as {
-    maps: Array<{ worldMap: number }>;
-    worlds: Array<{ id: number }>;
+    maps: Array<{ id: number; worldMap: number; subAreaId?: number | null }>;
+    worlds?: Array<{ id: number }>;
 };
 
 describe("mondes de la carte", () => {
@@ -56,5 +59,23 @@ describe("mondes de la carte", () => {
             expect(world.mapHeight, `mapHeight du monde ${world.id}`).toBeGreaterThan(0);
             expect(world.zoom?.length, `échelles du monde ${world.id}`).toBeGreaterThan(0);
         }
+    });
+
+    it("la liste statique DOFUS_WORLDS suit worlds.json (éditeur God)", () => {
+        const declared = worlds.map((world) => world.id).sort((a, b) => a - b);
+        const listed = DOFUS_WORLDS.map((world) => world.id).sort((a, b) => a - b);
+        expect(listed).toEqual(declared);
+    });
+
+    it("le Temple Céleste (monde 41) est déclaré avec ses 3 cartes", () => {
+        const temple = worlds.find((world) => world.id === 41);
+        expect(temple?.name?.fr).toBe("Temple Céleste");
+        expect(temple?.totalWidth).toBeGreaterThan(0);
+
+        const maps = worldmap.maps.filter((map) => map.worldMap === 41);
+        expect(maps.map((map) => map.id).sort((a, b) => a - b)).toEqual([
+            241443329, 241444353, 241445377,
+        ]);
+        for (const map of maps) expect(map.subAreaId).toBe(446);
     });
 });

@@ -175,6 +175,9 @@ export default auth(async (req) => {
         // Géométrie des zones de la carte du monde (encarts « Localisation ») :
         // donnée publique, déjà servie telle quelle par `/game-data/worldmap.json`.
         nextUrl.pathname.startsWith("/api/worldmap") ||
+        // Carte HD des positions Rush : lecture seule, entiers bornés, aucun
+        // secret, asset déjà public (`/game-data/hd_maps/*.webp`).
+        nextUrl.pathname.startsWith("/api/rush/map-at") ||
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────

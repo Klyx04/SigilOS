@@ -6,6 +6,18 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 56) — **Rush : carte des quêtes — bon monde + accès visiteur** — branche `fix/rush-carte-monde-public-2026-11-22`
+
+> **Demande user (verbatim)** : « on oublie la vue de la map dans l'overlay pip et le point sur la map, on conserve l'existant et tu debug ce qui doit l'être (effectivement il y a beaucoup de positions qui sont dans le mauvais sous-monde) + debug visiteurs connecté/déconnecté ».
+> **Mesuré** : `/api/rush/map-at` absent de `isPublicApi` ⇒ **401** pour un visiteur non connecté ; **112 / 527** positions `pos_tags` tombent sur une case présente dans plusieurs mondes ; la branche `mapId` de God était **dans un commentaire** (`mapParam` jamais lu, ESLint le signalait) ; la puce ne transmettait que `parsed.worldId` (le texte `[x,y]` ne porte pas le monde).
+> **Fait** : ① proxy : `/api/rush/map-at` en **lecture publique** (asset déjà public, entiers bornés) ; ② `RushCoordinateChip` reçoit `worldId` (du `pos_tags`) et le transmet au menu **et** à `resolveMapWorldAction` (4ᵉ param, monde explicite prioritaire) ; ③ route : la carte `mapId` de God est **de nouveau prioritaire** ; ④ règle pure `buildRushMapAtUrl` (seul constructeur d'URL) ; ⑤ tests : route **7**, URL **3**, câblage **4** ; ⑥ **pas** de carte dans la PiP, **pas** de pion (décision user).
+> **Preuves** : **802 fichiers / 8 299 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
+> **Suite (même session) — Temple Céleste (monde 41)** : DofusDB l'a créé le 23/06/2026 (sous-zone 446, 3 cartes 241443329/241444353/241445377) ; `worldmap.json` datait du 16/04. Voie **ciblée** `scripts/sync-subworld.ts` (dry-run/`--apply`, refus 19/29, aucun écrasement) : **37 mondes / 14 706 cartes** ; `DOFUS_WORLDS` + test de parité ; images **3 HD + 160/84/40/12 tuiles** ; **cache serveur `getWorldmapData` invalidé par mtime** (`map-at?world=41` → 200 sans redémarrage) ; audit `--world 41` : **1 écart** « Réponses à tout » (1631) `worldId=1 → 41`, carte 241443329, à corriger dans God (« Bien débuter » déjà passé à 41). Doc : `docs/agents/siphon-worldmap.md` réécrite.
+> **Reste** : compteur « 448 » à reproduire dans l'en-tête PiP · **tag « Réponses à tout » (monde 41 / carte 241443329) à corriger dans God** · overlay étroit (3ᵉ palier) à décider · T-6/G6 à profiler · `useOptimistic` à supprimer.
+> **Rotation** : bloc « suite 48 » (sécurité #1486) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 22/11/2026 (suite 55) — **Rush : bandeaux Combat de séquence + « Dofus obtenu » partagé** — branche `feat/rush-finitions-2026-11-22` (PR #1497)
 
 > **Demandes user (verbatim)** : « combat tactique et semi tactique je veux pouvoir les mettre entre 2 quête dans un bloc pas que ça créé un bloc dédié, en + tu as mis des icones ia, pas de centrage rien etc » puis « pousse la totalité pr merge, full doc à jour ».
@@ -73,14 +85,7 @@
 > **Rotation** : bloc « suite 43 » (positions Incarnam) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 21/11/2026 (suite 48) — **Sécurité #1485/#1486 · B-3 dashboard · `proxy-image` async · doc** — branche `chore/security-guards-infra-2026-11-21` (PR #1486)
-
-> **Demande user (verbatim)** : « tout ça est documenté / vérifier pour enchainer ? » puis « documente maj tout ce qui doit l'être puis choisi 5 chantiers à faire dans cette session ».
-> **Mesure (git + code)** : **#1485 mergé** (`a9fee50d`), `dev` local en retard (`7a74ff2e`) ; #1486 ouvert, CI verte, merge sans conflit ; **aucun `PERF-WEB` §6.3 bis** (le fichier s'arrête à §5) ; `getPolls` déjà en `select { id }` (B-1) ; `getUserProfile` = **4 lectures** pour 3 champs ; `proxy-image` 100 % synchrone ; **`game-data:ro` casse des écritures de l'app** (`sync-monster-stats` → `dungeon-monsters.json`, God upload/download, bascules « ignorer »).
-> **Fait** : ① **#1486 mergé**, corrigé par **#1487** (montages app-prod/app-beta **RW assumés**, l'app écrit — commentaire mesuré) ; ② **B-3 profil allégé** (`getUserProfileSummary` + `DASHBOARD_PROFILE_SUMMARY_SELECT` — 1 lecture pour l'accueil, les autres écrans gardent `getUserProfile`) ; ③ **B-3 TTL stats 60 → 180 s** (`GUILD_STATS_CACHE_TTL_SECONDS`, clé `guild:stats:<guildId>`) ; ④ **`proxy-image` en `fs.promises`** (plus de `*Sync`, branche `.svg` morte retirée) ; ⑤ doc (ROADMAP, PERF-WEB §2/§3.5/§3.6, RUSH-DEV §5, ROUTE §13, `AGENTS.md`).
-> **Preuves** : `proxy-image-svg` 4 · `dashboard-profile-summary` 2 · `guild-stats-cache` 2 · `tsc` 0 · ESLint **0 erreur** · aucune migration.
-> **Reste** : **redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 run `sync-monster-stats`) → P2 cadrage → P3 CDN (D8) ; requêtes 600–1 000 ms du dashboard à mesurer par `EXPLAIN ANALYZE` (à chaud) ; itérations 5/6 (définition absente) ; 3 tags `succes` + 6 positions (God).
-> **Rotation** : bloc « suite 42 » (UI Rush, PR #1473) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+## 📝 Session 21/11/2026 (suite 48) — *bloc sorti le 22/11/2026 (rotation, 7ᵉ)* — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 ## 📝 Session 21/11/2026 (suite 46) — *bloc sorti le 22/11/2026 (rotation, 7ᵉ)* — récupérable via `git log -p -- docs/agents/activeContext.md`.

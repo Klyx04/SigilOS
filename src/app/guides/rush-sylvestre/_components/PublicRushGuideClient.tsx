@@ -3240,7 +3240,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                         {/* Pastille Succès : déplacée dans le groupe des favicons,
                                             comme le guide interne (parité du 20/11/2026). */}
                                         {parsedCoord && !prereqLocked && (
-                                          <RushCoordinateChip coordText={parsedCoord.raw} showIcon menuOnClick npc={getSequenceNpc(seq as any)} mapId={parsedCoord.mapId ?? null} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
+                                          <RushCoordinateChip coordText={parsedCoord.raw} showIcon menuOnClick npc={getSequenceNpc(seq as any)} mapId={parsedCoord.mapId ?? null} worldId={parsedCoord.worldId ?? null} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
                                         )}
                                         {!prereqLocked && (() => {
                                           const npc = getSequenceNpc(seq as any);

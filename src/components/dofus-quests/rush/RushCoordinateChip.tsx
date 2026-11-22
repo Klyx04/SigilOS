@@ -55,6 +55,12 @@ interface RushCoordinateChipProps {
   npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
   /** Carte HD imposee en God (`pos_tags.mapId`). */
   mapId?: number | null;
+  /**
+   * Monde du `pos_tags` (`worldId`) : le texte `[x,y]` ne le porte pas. Il prime
+   * sur le monde éventuellement écrit dans le texte (`[x,y,world]`), et sert au
+   * menu carte **et** au zaap le plus proche.
+   */
+  worldId?: number | null;
 }
 
 /** Zaap le plus proche (forme servie par `resolveMapWorldAction`). */
@@ -75,6 +81,7 @@ export function RushCoordinateChip({
   menuOnClick = false,
   npc = null,
   mapId = null,
+  worldId = null,
 }: RushCoordinateChipProps) {
   const toast = useOverlayToast();
   const [copied, setCopied] = useState(false);
@@ -92,6 +99,13 @@ export function RushCoordinateChip({
     return <span className={className}>{coordText}</span>;
   }
 
+  // Le monde vit à côté du texte (`pos_tags.worldId`) : `[x,y]` ne le porte pas.
+  // L'appelant prime, sinon on garde le monde éventuellement écrit (`[x,y,world]`).
+  const resolvedWorldId =
+    typeof worldId === "number" && Number.isSafeInteger(worldId) && worldId > 0
+      ? worldId
+      : parsed.worldId;
+
   const hasManualZaap =
     !!manualZaap &&
     Number.isSafeInteger(manualZaap.x) &&
@@ -102,7 +116,7 @@ export function RushCoordinateChip({
     hoverTimerRef.current = setTimeout(() => {
       setZaapState("loading");
       import("@/server/actions/optimized-guide-actions").then((mod) => {
-        mod.resolveMapWorldAction(parsed.x, parsed.y).then((res) => {
+        mod.resolveMapWorldAction(parsed.x, parsed.y, undefined, resolvedWorldId ?? null).then((res) => {
           if (res.success && res.nearestZaap?.sameWorld) {
             setZaap({
               name: res.nearestZaap.name,
@@ -260,7 +274,7 @@ export function RushCoordinateChip({
         mapId={mapId}
         x={parsed.x}
         y={parsed.y}
-        worldId={parsed.worldId}
+        worldId={resolvedWorldId ?? null}
         onClose={() => setMenuOpen(false)}
       />
     )}

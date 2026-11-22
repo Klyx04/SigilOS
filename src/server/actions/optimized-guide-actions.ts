@@ -3134,9 +3134,19 @@ export type ResolvedMapPosition = {
 export async function resolveMapWorldAction(
   x: number,
   y: number,
-  textContext?: string
+  textContext?: string,
+  worldId?: number | null
 ): Promise<ResolvedMapPosition> {
-  const base = await resolveMapWorldId(x, y, textContext);
+  // Monde explicite (`pos_tags.worldId`) : il prime sur la résolution par texte,
+  // qui ne lit que `[x,y]` et peut tomber sur une case présente dans plusieurs mondes.
+  const requestedWorld =
+    typeof worldId === "number" && Number.isSafeInteger(worldId) && worldId > 0
+      ? worldId
+      : null;
+  const base =
+    requestedWorld !== null
+      ? { success: true, worldId: requestedWorld }
+      : await resolveMapWorldId(x, y, textContext);
 
   // Position non numérique : aucune invention de GPS.
   const nearest = base.success && Number.isFinite(x) && Number.isFinite(y)

@@ -18,6 +18,7 @@ import { Copy, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
 import { safeImageUrl } from "@/lib/security";
+import { buildRushMapAtUrl } from "@/lib/rush-map-at";
 import { NpcBadge } from "./NpcBadge";
 
 type MapState =
@@ -62,7 +63,7 @@ export function RushPositionMenu({
 
   useEffect(() => {
     if (open) setMap({ status: "idle" });
-  }, [open, x, y]);
+  }, [open, x, y, worldId, mapId]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -85,8 +86,8 @@ export function RushPositionMenu({
   const handleMap = () => {
     if (map.status === "loading" || map.status === "ready") return;
     setMap({ status: "loading" });
-    const q = `${worldId ? `&world=${worldId}` : ""}${mapId ? `&mapId=${mapId}` : ""}`;
-    fetch(`/api/rush/map-at?x=${x}&y=${y}${q}`)
+    const mapUrl = buildRushMapAtUrl({ x, y, worldId, mapId });
+    fetch(mapUrl)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { imageUrl?: string } | null) => {
         const url = safeImageUrl(data?.imageUrl);

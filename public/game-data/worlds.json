@@ -2433,65 +2433,6 @@
     "updatedAt": "2026-03-03T17:13:47.123Z"
   },
   {
-    "_id": "6a3a7301cf287e5b73621344",
-    "id": 38,
-    "origineX": 9908,
-    "origineY": 9402,
-    "mapWidth": 510,
-    "mapHeight": 366,
-    "minScale": 0.25,
-    "maxScale": 1,
-    "startScale": 0.5,
-    "totalWidth": 4085,
-    "totalHeight": 2861,
-    "zoom": [
-      1,
-      0.75,
-      0.5,
-      0.25
-    ],
-    "visibleOnMap": true,
-    "name": {
-      "id": "1183119",
-      "de": "Dorf der Brigandiner",
-      "en": "Imp Village",
-      "es": "Pueblo de los salteadorillos",
-      "fr": "Village des Brigandins",
-      "pt": "Vilarejo dos Diabretes"
-    },
-    "className": "WorldMapData",
-    "m_id": 38,
-    "customScales": [
-      {
-        "x": 2.3607843137254902,
-        "y": 2.349726775956284,
-        "name": "custom2"
-      },
-      {
-        "x": 1,
-        "y": 1,
-        "name": "1"
-      },
-      {
-        "x": 0.75,
-        "y": 0.75,
-        "name": "0.75"
-      },
-      {
-        "x": 0.5,
-        "y": 0.5,
-        "name": "0.5"
-      },
-      {
-        "x": 0.25,
-        "y": 0.25,
-        "name": "0.25"
-      }
-    ],
-    "createdAt": "2026-06-23T11:50:25.606Z",
-    "updatedAt": "2026-06-23T11:50:25.606Z"
-  },
-  {
     "_id": "6a3a7301cf287e5b73621343",
     "id": 37,
     "origineX": -2,
@@ -2529,6 +2470,65 @@
       {
         "x": 2.195774647887324,
         "y": 2.173151750972763,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
+  },
+  {
+    "_id": "6a3a7301cf287e5b73621344",
+    "id": 38,
+    "origineX": 9908,
+    "origineY": 9402,
+    "mapWidth": 510,
+    "mapHeight": 366,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4085,
+    "totalHeight": 2861,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1183119",
+      "de": "Dorf der Brigandiner",
+      "en": "Imp Village",
+      "es": "Pueblo de los salteadorillos",
+      "fr": "Village des Brigandins",
+      "pt": "Vilarejo dos Diabretes"
+    },
+    "className": "WorldMapData",
+    "m_id": 38,
+    "customScales": [
+      {
+        "x": 2.3607843137254902,
+        "y": 2.349726775956284,
         "name": "custom2"
       },
       {
@@ -2595,6 +2595,60 @@
         "y": 2.166666666666667,
         "name": "custom2"
       },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
+  },
+  {
+    "_id": "6a3a7301cf287e5b73621347",
+    "id": 41,
+    "origineX": -395,
+    "origineY": -555,
+    "mapWidth": 910,
+    "mapHeight": 660,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 3763,
+    "totalHeight": 2263,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1188804",
+      "de": "Himmlischer Tempel",
+      "en": "Celestial Temple",
+      "es": "Templo Celeste",
+      "fr": "Temple Céleste",
+      "pt": "Templo Celeste"
+    },
+    "className": "WorldMapData",
+    "m_id": 41,
+    "customScales": [
       {
         "x": 1,
         "y": 1,

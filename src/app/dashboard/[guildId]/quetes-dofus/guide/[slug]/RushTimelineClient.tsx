@@ -105,6 +105,7 @@ import {
   type RushAlignmentSeriesMap,
 } from "@/lib/rush-alignment-series";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
@@ -1061,17 +1062,22 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   // (règle pure `groupByAlignmentSeries`). **Fail-closed** : si une seule ligne du bloc
   // n'a pas de série (encart info, quête commune), on ne réordonne RIEN — l'ordre du
   // guide est conservé, les pastilles restent affichées.
-  const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
-    ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
-    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
-  // Filtre d alignement : on ne montre que le camp du joueur (profil), puis son Ordre
-  // s il en a choisi un ici. Le tronc commun reste toujours visible.
-  const orderGroups = alignmentGroups.filter((g: any) => g.key.startsWith("ordre:") && (!profileAlign.camp || g.camp === profileAlign.camp));
-  const visibleAlignmentGroups = alignmentGroups.filter((g: any) => {
-    if (g.camp && profileAlign.camp && g.camp !== profileAlign.camp) return false;
-    if (orderKey && g.key.startsWith("ordre:") && g.key !== orderKey) return false;
-    return true;
+  // Ordres du camp du joueur (catalogue partage) : le selecteur est TOUJOURS visible
+  // quand le camp est connu, meme si le bloc ne contient qu un seul Ordre.
+  const orderOptions = profileAlign.camp
+    ? ((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[profileAlign.camp] ?? [])
+    : [];
+  const alignmentFiltered = visibleSeqs.filter((s: any) => {
+    if (!profileAlign.camp) return true;
+    const camp = s.alignReq ? normalizeAlignmentCamp(s.alignReq) : null;
+    return camp === null || camp === profileAlign.camp;
   });
+  const orderFiltered = orderKey
+    ? alignmentFiltered.filter((s: any) => !s.alignOrderCode || normalizeOrderCode(s.alignOrderCode) === normalizeOrderCode(orderKey))
+    : alignmentFiltered;
+  const alignmentGroups = orderFiltered.every((s:any)=>alignmentSeries.has(s.id))
+    ? groupByAlignmentSeries(orderFiltered, alignmentSeries)
+    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:orderFiltered }];
 
   return (
     <div>
@@ -1161,7 +1167,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (<>
                     {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
                         opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
-                    {orderGroups.length > 1 && (
+                    {orderOptions.length > 0 && (
                       <div className="mb-1 flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
                         <span>Mon ordre</span>
                         <select
@@ -1171,16 +1177,16 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                           className="rounded-[4px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
                         >
                           <option value="">Tous</option>
-                          {orderGroups.map((g: any) => (
-                            <option key={g.key} value={g.key}>{g.label}</option>
+                          {orderOptions.map((o) => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
                           ))}
                         </select>
                       </div>
                     )}
                     <DaRail>
-                    {visibleAlignmentGroups.map((group)=>(
+                    {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>
-                        {visibleAlignmentGroups.length>1&&group.label&&(
+                        {alignmentGroups.length>1&&group.label&&(
                           <p className="flex items-center gap-1.5 px-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                             <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
                             {group.label}

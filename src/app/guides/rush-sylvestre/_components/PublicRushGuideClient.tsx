@@ -2100,6 +2100,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           {prereqModal ? (
             <RushOverlayPrereqModal
               prereqs={prereqModal}
+              isDone={(id) => completedSeqIds.has(id)}
               onGoTo={(seqId) => {
                 scrollToStep(seqId);
                 setPrereqModal(null);

@@ -923,9 +923,25 @@ export default function GuideOverlayClient({
         setCurrentMsIndex(idx);
         setDetailSeq(null);
       }
-      window.setTimeout(() => {
-        document.getElementById(`overlay-seq-${seqId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 90);
+      // Meme bloc ou autre bloc : on scrolle ET on met la quete en evidence, avec
+      // quelques reprises (le bloc cible peut se monter apres le changement de page).
+      let attempts = 0;
+      const tryScroll = () => {
+        const el = document.getElementById(`overlay-seq-${seqId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+          window.setTimeout(() => {
+            el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+          }, 1800);
+          return;
+        }
+        if (attempts < 12) {
+          attempts++;
+          window.setTimeout(tryScroll, 120 + attempts * 80);
+        }
+      };
+      window.setTimeout(tryScroll, 90);
     },
     [milestones, currentMsIndex]
   );
@@ -1733,7 +1749,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main ref={listRef} className="flex-1 min-h-0 px-3 pt-3 pb-2 space-y-2 overlay-scroll">
+          <main ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pt-3 pb-2 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}

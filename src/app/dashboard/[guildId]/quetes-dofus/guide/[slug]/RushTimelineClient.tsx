@@ -332,6 +332,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
   const dungeonActions = React.useContext(RushDungeonActionsCtx);
   const [dungeonsOpen, setDungeonsOpen] = useState(false);
+  // « Donjon requis non fait » : le panneau des donjons de CETTE quete s ouvre tout seul.
+  React.useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<{ seqId?: string }>).detail?.seqId;
+      if (id && id === seq.id) setDungeonsOpen(true);
+    };
+    window.addEventListener("rush:open-dungeons", onOpen);
+    return () => window.removeEventListener("rush:open-dungeons", onOpen);
+  }, [seq.id]);
   // Bloc I — succès du donjon : cible locale à la ligne, panneau plein.
   const [achievementTarget, setAchievementTarget] = useState<{ dungeonKey: string; dungeon: DungeonAchievementDungeon } | null>(null);
   const openDungeonAchievements = useCallback((dungeonKey: string, dungeon: { id?: string; name?: string; bossName?: string; imageUrl?: string }) => {
@@ -465,10 +474,17 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {prereqModal ? (
               <RushOverlayPrereqModal
                 prereqs={prereqModal}
+                isDone={(id) => allCompletedSeqIds.has(id)}
                 onGoTo={(seqId) => {
                   const ref = prereqRefs.find((p) => p.seqId === seqId);
                   scrollToPrereq(ref?.name ?? "", seqId);
                   setPrereqModal(null);
+                  // Retour : le joueur a quitte sa quete d origine (souvent un autre bloc).
+                  toast("Retour a la quete d origine", {
+                    description: questName,
+                    action: { label: "Revenir", onClick: () => scrollToPrereq(questName, seq.id) },
+                    duration: 10000,
+                  });
                 }}
                 onClose={() => setPrereqModal(null)}
               />
@@ -1973,7 +1989,15 @@ const timelineItems=useMemo(()=>{
         const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
         if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
           const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
-          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait");
+          // On OUVRE le panneau des donjons de cette quete : cocher devient un geste,
+          // pas une chasse dans l interface.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("rush:open-dungeons", { detail: { seqId } }));
+          }
+          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait", {
+            description: "Le panneau des donjons s ouvre : coche-le(s) ici.",
+            duration: 4000,
+          });
           return;
         }
       }

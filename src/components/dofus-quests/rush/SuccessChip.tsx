@@ -23,21 +23,36 @@ import { cn } from "@/lib/utils";
 
 const ACHIEVEMENTS_URL = "/game-data/achievements.json";
 
-let achievementsPromise: Promise<Map<string, number[]>> | null = null;
+type AchievementQuestIndex = { byId: Map<string, number[]>; byName: Map<string, number[]> };
+let achievementsPromise: Promise<AchievementQuestIndex> | null = null;
 
-function loadAchievementQuests(): Promise<Map<string, number[]>> {
+/** Cle de repli par NOM (casse, accents, ponctuation) : l id du tag peut etre un id Dofus. */
+function normalizeAchievementName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function loadAchievementQuests(): Promise<AchievementQuestIndex> {
   if (!achievementsPromise) {
     achievementsPromise = fetch(ACHIEVEMENTS_URL)
       .then((response) => (response.ok ? response.json() : { achievements: [] }))
-      .then((data: { achievements?: Array<{ id?: number; questIds?: number[] }> }) => {
-        const map = new Map<string, number[]>();
+      .then((data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> }) => {
+        const byId = new Map<string, number[]>();
+        const byName = new Map<string, number[]>();
         for (const row of data.achievements ?? []) {
           if (row?.id == null) continue;
-          map.set(String(row.id), Array.isArray(row.questIds) ? row.questIds : []);
+          const questIds = Array.isArray(row.questIds) ? row.questIds : [];
+          byId.set(String(row.id), questIds);
+          const name = normalizeAchievementName(row.name);
+          if (name) byName.set(name, questIds);
         }
-        return map;
+        return { byId, byName };
       })
-      .catch(() => new Map<string, number[]>());
+      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>() }));
   }
   return achievementsPromise;
 }
@@ -56,7 +71,7 @@ function SuccessSheet({
   useEffect(() => {
     let alive = true;
     loadAchievementQuests().then((map) => {
-      if (alive) setIds(map.get(success.id ?? "") ?? []);
+      if (alive) setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
     });
     return () => {
       alive = false;
@@ -109,7 +124,7 @@ function SuccessSheet({
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
           ) : rows.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
-              Aucune quête de ce succès n'est dans le guide.
+              {ids.length > 0 ? `Les ${ids.length} quêtes de ce succès ne sont pas dans le guide.` : "Aucune quête de ce succès n est dans le guide."}
             </p>
           ) : (
             <ul className="space-y-1">

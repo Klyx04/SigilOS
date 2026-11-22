@@ -414,6 +414,23 @@ details.da-conseil[open] .da-conseil-body {
   box-shadow: inset 3px 0 0 var(--da-amber) !important;
 }
 
+/* Action d'un toast (ex. « Revenir » après un saut vers un prérequis) :
+   sans cette règle, Sonner garde son bouton inversé (fond clair). */
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-button] {
+  height: 24px !important;
+  padding: 0 8px !important;
+  border: 1px solid var(--da-outline, #0f1410) !important;
+  border-radius: 4px !important;
+  background: var(--da-amber, #e3a63c) !important;
+  color: var(--da-outline, #0f1410) !important;
+  font: 700 10px/1 var(--da-font-text, inherit) !important;
+}
+
+[data-sonner-toaster].da-toaster [data-sonner-toast] [data-button]:focus-visible {
+  outline: 2px solid var(--da-ink, #eceedf);
+  outline-offset: 1px;
+}
+
 /* ── Recherche ───────────────────────────────────────────────────────────── */
 .da-search {
   position: relative;

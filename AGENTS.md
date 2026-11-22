@@ -111,7 +111,7 @@ npx prisma migrate deploy          # joue les migrations en attente (5433) — v
 npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (8 338 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (8 349 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
@@ -165,4 +165,15 @@ changement qui l'a rendue fausse — même règle que pour les chemins cités : 
 - **Ne jamais écrire un fichier avec `>`** sous PowerShell 5.1 (UTF-16 → fichier corrompu) : utiliser l'éditeur.
 - `git grep -n "<nom-de-fichier>"` avant tout renommage ou suppression : **un renommage sans mise à jour des
   citations crée un pointeur mort** (dette immédiate).
+
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
 

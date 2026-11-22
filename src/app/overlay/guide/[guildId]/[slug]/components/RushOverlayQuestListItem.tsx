@@ -15,6 +15,7 @@ import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import type { RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
+import type { OverlayJumpOrigin } from "@/lib/rush-overlay-jump";
 import type { RushSequence } from "@/types/rush-guide-types";
 import type {
   RushDungeonMemberState,
@@ -86,6 +87,8 @@ interface RushOverlayQuestListItemProps {
   isLocked?: boolean;
   /** Les quêtes du guide (id → nom + état) : la fiche d'un succès les liste. */
   guideQuests?: RushGuideQuestRef[];
+  /** Bloc de la ligne : origine du retour après un saut vers un prérequis. */
+  milestoneId?: string;
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
   /**
@@ -94,7 +97,7 @@ interface RushOverlayQuestListItemProps {
    * partir un clic que le serveur refusera (mesure du 22/10/2026).
    */
   missingDungeons?: RushMissingDungeon[];
-  onGoToPrereq?: (seqId: string, milestoneId: string) => void;
+  onGoToPrereq?: (seqId: string, milestoneId: string, origin?: OverlayJumpOrigin) => void;
   /** Ouvre la modale listant les membres en attente ici (avatars cliquables). */
   onOpenBookmarkers?: () => void;
   /** Guilde de la surface : sert à construire le lien de la fiche donjon du module. */
@@ -145,6 +148,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   bookmarkers = [],
   isLocked = false,
   guideQuests = [],
+  milestoneId: blockId,
   prereqs = [],
   missingDungeons = [],
   onGoToPrereq,
@@ -391,9 +395,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                le verrou, la ligne dit quoi faire. */
             <button
               type="button"
-              onClick={() => setPrereqsOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={prereqsOpen}
+              onClick={() => {
+                if (prereqs.length === 1 && onGoToPrereq) {
+                  const target = prereqs[0];
+                  onGoToPrereq(
+                    target.seqId,
+                    target.milestoneId,
+                    blockId ? { milestoneId: blockId, seqId: seq.id, name } : undefined
+                  );
+                  return;
+                }
+                setPrereqsOpen(true);
+              }}
+              aria-haspopup={prereqs.length > 1 ? "dialog" : undefined}
+              aria-expanded={prereqs.length > 1 ? prereqsOpen : undefined}
               title={`Aller à : ${prereqs.map((p) => p.name).join(", ")}`}
               className="group inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -410,7 +425,13 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {prereqsOpen && (
             <RushOverlayPrereqModal
               prereqs={prereqs}
-              onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
+              onGoTo={(targetSeqId, targetMsId) =>
+                onGoToPrereq?.(
+                  targetSeqId,
+                  targetMsId,
+                  blockId ? { milestoneId: blockId, seqId: seq.id, name } : undefined
+                )
+              }
               onClose={() => setPrereqsOpen(false)}
             />
           )}

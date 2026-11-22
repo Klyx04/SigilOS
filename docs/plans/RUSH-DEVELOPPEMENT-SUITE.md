@@ -26,7 +26,6 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 |---|---|---|---|---|
 | 1 | **O13 mini-carte** | Dans la modale de quête : image HD de la case (`hd_maps`) + pion + zaap le plus proche **dans le bon monde** ; 518/536 couvertes ; 18 sans image ⇒ **aucune carte** ; jamais de pion sur (0,0) | `RushOverlayQuestDetailModal` (partagée overlay + guide public), `nearest-zaap.ts`, `GameQuest.imageUrl` | M |
 | 2 | **V-D2 Kamas + Dragofesse** | **60 tags « Kamas »** portent l'id invalide `10000000001` (hors Int32, sans `imageUrl`) ⇒ image placeholder ; **2 tags « Dragofesse en Cuir Violet de Bwork »** id 7696 **absent de `GameItem`** ; 1 seul id réel hors base | `rush-guide-utils.ts` (`resolveItemImage`), `QuestItemResourceGrid`, `overlay-utils.ts` | S |
-| 3 | **O7 callout Tougli** | `tougli_box` n'est rendu que dans le dashboard ; absent de la modale de l'overlay | `RushTimelineClient` (source), `RushOverlayQuestDetailModal` | S |
 | 4 | **O6 focus / scroll** | Aucun `autoFocus` ni verrou de scroll dans l'overlay (Échap PiP déjà livré) | modales overlay | S |
 | 5 | **E5 finitions studio** | 4 `prompt()` natifs (lien, position) + finitions `REFONTE-EDITEUR-RUSH.md` §3 | studio God | M |
 | 6 | **Compteur « 448 »** | Non reproduit : payload local = 536 ; à reproduire à l'écran avant de corriger | en-tête du guide | S |
@@ -45,10 +44,11 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 | 14 | **E2 `achievements[]`** | Migration Prisma | accord explicite |
 | 15 | **Sort de `questDbIds`** | Écrit en base ; seule la puce du studio God l'affiche (reste du 26/10) | faut-il l'afficher ailleurs ? |
 | 16 | **Accents Dofus** | O14 contrasté ; l'application générale « écran par écran » reste à poser | périmètre ? |
+| 17 | **Overlay étroit (3ᵉ palier)** | Deux paliers mesurés (`overlaySmall` < 580 px / h < 640, `overlayDensity` wide ≥ 900 h) ; au-delà (bandes latérales du client, 13–17″), la quête courante ne grossit plus | **largeur cible de la PiP** + quels blocs garder visibles |
 
 ### C. Déjà livré — à acter (ne plus compter comme reste)
 
-O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué).
+O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée).
 
 ### D. Bloqué par le mainteneur
 

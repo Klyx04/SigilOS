@@ -23,7 +23,10 @@ const LEGACY_GUIDE = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]
 describe("vocabulaire du Rush — un mot par chose", () => {
   it("les compteurs de quêtes disent « quêtes » (plus « étapes »)", () => {
     expect(OVERLAY_HEADER).toContain("{totalSteps} quêtes");
-    expect(DASHBOARD).toContain("{cs} / {totalQuests} quêtes");
+    // Compteur du BLOC : `cs`/`totalQuests` ont été renommés en `filteredDone`/`filteredTotal`
+    // (commit « compteur aligné sur l'affichage », 22/11/2026). La garde porte sur le MOT
+    // (« quêtes », jamais « étapes ») — on suit le nom réel, pas l'ancien.
+    expect(DASHBOARD).toMatch(/\{filteredDone\} \/ \{filteredTotal\} quêtes/);
     expect(DASHBOARD).toContain("{ci} / {ti} quêtes");
     expect(PUBLIC_GUIDE).toContain("{chapterSteps.length} quêtes");
   });

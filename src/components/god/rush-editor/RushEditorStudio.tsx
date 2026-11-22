@@ -90,9 +90,18 @@ import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/c
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { RushMarkdown } from "@/components/dofus-quests/rush/RushMarkdown";
 import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
-import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
+import {
+  RUSH_COMBAT_BLOCK_META,
+  RUSH_INFO_SEQUENCE_TAG,
+  isRushCombatBlock,
+  isRushSequenceBannerMarker,
+  rushSequenceBannerKind,
+  rushSequenceBannerTag,
+  type RushSequenceBannerKind,
+} from "@/lib/rush-block-types";
 import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
 import { parseRushMarkdown } from "@/lib/rush-markdown";
+import { safeExternalUrl } from "@/lib/security";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -1405,7 +1414,7 @@ export function RushSylvestreAdminClient({
                     <div>
                       <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Type de bloc</label>
                       <div className="flex flex-wrap gap-2">
-                        {MILESTONE_TYPES.map(t => (
+                        {MILESTONE_TYPES.filter(t => !isRushCombatBlock(t.value)).map(t => (
                           <button key={t.value} onClick={() => {
                             setNewStepType(t.value);
                             if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
@@ -3316,6 +3325,27 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
           )}
           <span className="text-xs text-foreground font-medium">{seq.subGuideName || seq.subGuideRef}</span>
+          {(() => {
+            // Bandeau de séquence (22/11/2026) : le studio doit le MONTRER, sinon une
+            // ligne correctement taguée ressemble à une quête ordinaire.
+            const kind = rushSequenceBannerKind(seq as any);
+            if (kind === "none") return null;
+            const label =
+              kind === "info_sequence"
+                ? "Conseil"
+                : kind === "combat_tactique"
+                  ? "Combat tactique"
+                  : "Combat semi-tactique";
+            return (
+              <span
+                title="Bandeau affiché entre deux quêtes — non cochable"
+                className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-caption font-bold text-primary"
+              >
+                <Sword className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                {label}
+              </span>
+            );
+          })()}
           {displayDungeons.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               {displayDungeons.map((dd: any, di: number) => (
@@ -4320,30 +4350,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     return existing?.color || "emerald";
   });
 
-  const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
-    return (seq.activityTags as any[])?.some(t => t.type === "info_sequence") ?? false;
-  });
+  // Bandeau de SÉQUENCE (22/11/2026) : conseil (`info_sequence`) ou combat
+  // (`combat_tactique` / `combat_semi_tactique`). Les trois tags vivent dans
+  // `activityTags` (JSON) : aucune migration. Une séquence marquée s'affiche comme un
+  // bandeau **dans le bloc** (entre deux quêtes), n'est jamais cochable et ne compte pas.
+  const [sequenceBannerKind, setSequenceBannerKind] = useState<RushSequenceBannerKind>(() =>
+    rushSequenceBannerKind(seq as any)
+  );
   const [infoBlockColor, setInfoBlockColor] = useState<string>(() => {
-    const existing = (seq.activityTags as any[])?.find(t => t.type === "info_sequence");
+    const existing = (seq.activityTags as any[])?.find(t => isRushSequenceBannerMarker(t));
     return existing?.color || "#10b981";
   });
 
-  const handleIsInfoBlockChange = (val: boolean) => {
-    setIsInfoBlock(val);
+  const handleSequenceBannerKindChange = (kind: RushSequenceBannerKind) => {
+    setSequenceBannerKind(kind);
     setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-      if (val) {
-        return [...filtered, { type: "info_sequence" as any, color: infoBlockColor }];
-      }
-      return filtered;
-    });
-  };
-
-  const handleInfoBlockColorChange = (color: string) => {
-    setInfoBlockColor(color);
-    setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-      return [...filtered, { type: "info_sequence" as any, color }];
+      // Un seul marqueur à la fois : on retire `info_sequence` ET `sequence_banner`.
+      const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+      const tag = rushSequenceBannerTag(kind, infoBlockColor);
+      return tag ? [...filtered, tag as any] : filtered;
     });
   };
 
@@ -4412,17 +4437,40 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     syncMetierTag(next);
   };
 
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; label: string; url: string }>({ open: false, label: "", url: "" });
+  const [posDialog, setPosDialog] = useState<{ open: boolean; x: string; y: string }>({ open: false, x: "", y: "" });
+
   const handleInsertLink = () => {
-    const label = prompt("Texte affiché pour le lien (ex: Le trésor de Totankama) :");
-    if (!label) return;
-    const url = prompt("URL du lien (ex: https://dofusdb.fr/...) :");
-    if (!url) return;
+    setLinkDialog({ open: true, label: "", url: "" });
+  };
+
+  const submitLink = () => {
+    const label = linkDialog.label.trim();
+    const url = safeExternalUrl(linkDialog.url.trim());
+    if (!label || !url) {
+      toast.error("Lien invalide", { description: "Un libelle et une URL http(s) sont requis." });
+      return;
+    }
     const markdown = `[${label}](${url})`;
     setTougliText(prev => {
       const newText = prev ? `${prev} ${markdown}` : markdown;
       handleTougliTextChange(newText);
       return newText;
     });
+    setLinkDialog({ open: false, label: "", url: "" });
+  };
+
+  const submitPosition = () => {
+    const xNum = parseInt(posDialog.x.trim(), 10);
+    const yNum = parseInt(posDialog.y.trim(), 10);
+    if (!Number.isSafeInteger(xNum) || !Number.isSafeInteger(yNum)) {
+      toast.error("Position invalide", { description: "Deux nombres entiers sont requis." });
+      return;
+    }
+    const pos = `/travel ${xNum},${yNum}`;
+    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
+    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+    setPosDialog({ open: false, x: "", y: "" });
   };
 
   // Détour zaap (choix God explicite) : le bouton `/zaap ; /travel` façon DPLN
@@ -5167,22 +5215,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">💡 Tips</label>
                 <button
                   type="button"
-                  onClick={() => {
-                    const x = prompt("Position X :");
-                    if (!x) return;
-                    const y = prompt("Position Y :");
-                    if (!y) return;
-                    const pos = `/travel ${x},${y}`;
-                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
-                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
-                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
-                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
-                  }}
+                  onClick={() => setPosDialog({ open: true, x: "", y: "" })}
                   className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
                 >
                   <MapPin className="w-3 h-3" /> Ajouter position (/travel)
                 </button>
               </div>
+              <Dialog open={posDialog.open} onOpenChange={(o) => setPosDialog(prev => ({ ...prev, open: o }))}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Ajouter une position</DialogTitle>
+                    <DialogDescription>La commande /travel part sur sa propre ligne.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-2 py-2">
+                    <input value={posDialog.x} onChange={(e) => setPosDialog(prev => ({ ...prev, x: e.target.value }))} inputMode="numeric" placeholder="X" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                    <input value={posDialog.y} onChange={(e) => setPosDialog(prev => ({ ...prev, y: e.target.value }))} inputMode="numeric" placeholder="Y" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                  </div>
+                  <DialogFooter>
+                    <button type="button" onClick={() => setPosDialog({ open: false, x: "", y: "" })} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                    <button type="button" onClick={submitPosition} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Ajouter</button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <TipsLinesEditor
                 value={tips}
                 onChange={setTips}
@@ -5213,6 +5267,22 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   🔗 Insérer un lien
                 </button>
               </div>
+              <Dialog open={linkDialog.open} onOpenChange={(o) => setLinkDialog(prev => ({ ...prev, open: o }))}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Insérer un lien</DialogTitle>
+                    <DialogDescription>Un libelle lisible et une URL http(s).</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 py-2">
+                    <input value={linkDialog.label} onChange={(e) => setLinkDialog(prev => ({ ...prev, label: e.target.value }))} placeholder="Texte affiche (ex: Le trésor de Totankama)" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs focus:outline-none" />
+                    <input value={linkDialog.url} onChange={(e) => setLinkDialog(prev => ({ ...prev, url: e.target.value }))} inputMode="url" placeholder="https://dofusdb.fr/..." className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                  </div>
+                  <DialogFooter>
+                    <button type="button" onClick={() => setLinkDialog({ open: false, label: "", url: "" })} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                    <button type="button" onClick={submitLink} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Insérer</button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <textarea
                 value={tougliText}
                 onChange={e => handleTougliTextChange(e.target.value)}
@@ -5935,26 +6005,31 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-destructive/90">
-            ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            ⚔️ Donjons ({selectedDungeons.length}), Bandeau (conseil/combat) & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
         {openSections.advanced && (
           <div className="p-3 pt-0 space-y-3 border-t border-border">
-            {/* Toggle Info Sequence */}
+            {/* Bandeau de la séquence : conseil ou combat, rendu ENTRE DEUX QUÊTES */}
             <div className="flex flex-col gap-2 p-2 rounded-xl bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isInfoBlockToggle"
-                  checked={isInfoBlock}
-                  onChange={e => handleIsInfoBlockChange(e.target.checked)}
-                  className="w-4 h-4 accent-primary rounded cursor-pointer"
-                />
-                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-primary cursor-pointer select-none">
-                  📌 Est un bloc d'information pur (non cochable)
-                </label>
-              </div>
+              <label htmlFor="sequenceBannerKind" className="text-xs font-bold text-primary">
+                Bandeau de cette séquence (non cochable)
+              </label>
+              <select
+                id="sequenceBannerKind"
+                value={sequenceBannerKind}
+                onChange={e => handleSequenceBannerKindChange(e.target.value as RushSequenceBannerKind)}
+                className="w-full rounded-lg border border-primary/30 bg-background px-2 py-1.5 text-xs text-foreground"
+              >
+                <option value="none">Aucun — quête cochable</option>
+                <option value={RUSH_INFO_SEQUENCE_TAG}>Conseil / information</option>
+                <option value="combat_tactique">Combat tactique</option>
+                <option value="combat_semi_tactique">Combat semi-tactique</option>
+              </select>
+              <p className="text-caption text-subtle-foreground">
+                Le bandeau s&apos;affiche à la place de la quête, dans le bloc : ni case à cocher, ni progression.
+              </p>
             </div>
 
             {/* Donjons liés */}
@@ -6158,9 +6233,19 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
 
-  // Info block state
-  const [isInfoBlockNew, setIsInfoBlockNew] = useState(false);
+  // Bandeau de l'étape (création) : conseil ou combat — même marqueur que l'éditeur
+  // d'une séquence existante (`sequence_banner`), donc aucune migration.
+  const [sequenceBannerKindNew, setSequenceBannerKindNew] = useState<RushSequenceBannerKind>("none");
   const [infoBlockColorNew, setInfoBlockColorNew] = useState("#10b981");
+
+  const handleSequenceBannerKindNewChange = (kind: RushSequenceBannerKind) => {
+    setSequenceBannerKindNew(kind);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+      const tag = rushSequenceBannerTag(kind, infoBlockColorNew);
+      return tag ? [...filtered, tag as any] : filtered;
+    });
+  };
 
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
@@ -6262,6 +6347,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
     setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
     setQuestDbIds([]);
     setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
+    setSequenceBannerKindNew("none");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
@@ -6284,6 +6370,50 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
+      </div>
+
+      {/* Bandeau : VISIBLE sans « Options avancées » (mesuré le 22/11/2026 — le geste
+          courant est d'insérer un combat tactique entre deux quêtes, pas une option). */}
+      <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
+        <label htmlFor="sequenceBannerKindNew" className="text-caption font-bold text-primary">
+          Bandeau de cette étape (non cochable)
+        </label>
+        <select
+          id="sequenceBannerKindNew"
+          value={sequenceBannerKindNew}
+          onChange={e => handleSequenceBannerKindNewChange(e.target.value as RushSequenceBannerKind)}
+          className="w-full rounded-lg border border-primary/30 bg-background px-2 py-1 text-xs text-foreground"
+        >
+          <option value="none">Aucun — quête cochable</option>
+          <option value={RUSH_INFO_SEQUENCE_TAG}>Conseil / information</option>
+          <option value="combat_tactique">Combat tactique</option>
+          <option value="combat_semi_tactique">Combat semi-tactique</option>
+        </select>
+        <span className="text-caption text-subtle-foreground italic">
+          {sequenceBannerKindNew === "none"
+            ? "Aucun bandeau : la ligne se coche et compte dans le bloc."
+            : "Bandeau : la ligne s'affiche entre deux quêtes, ni case à cocher, ni progression."}
+        </span>
+        {sequenceBannerKindNew !== "none" && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
+            <div className="flex gap-1">
+              {COLOR_PALETTE.map(c => (
+                <button key={c.value} onClick={() => {
+                  setInfoBlockColorNew(c.value);
+                  setActivityTags(prev => {
+                    const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+                    const tag = rushSequenceBannerTag(sequenceBannerKindNew, c.value);
+                    return tag ? [...filtered, tag as any] : filtered;
+                  });
+                }} title={c.label}
+                  className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Même identité assistée qu'à l'édition : le catalogue fournit le nom et l'id DofusDB. */}
@@ -6462,49 +6592,6 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   rows={2}
                   placeholder="Conseil pour le membre…"
                 />
-              </div>
-              <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isInfoBlockNew"
-                    checked={isInfoBlockNew}
-                    onChange={e => {
-                      setIsInfoBlockNew(e.target.checked);
-                      setActivityTags(prev => {
-                        const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-                        if (e.target.checked) {
-                          return [...filtered, { type: "info_sequence" as any, color: infoBlockColorNew }];
-                        }
-                        return filtered;
-                      });
-                    }}
-                    className="w-4 h-4 accent-primary rounded cursor-pointer"
-                  />
-          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-primary cursor-pointer select-none">
-            📌 Bloc d'info sans check ni bookmark
-          </label>
-          <span className="text-caption text-subtle-foreground ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
-                </div>
-                {isInfoBlockNew && (
-                  <div className="flex items-center gap-2 pl-6">
-                    <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
-                    <div className="flex gap-1">
-                      {COLOR_PALETTE.map(c => (
-                        <button key={c.value} onClick={() => {
-                          setInfoBlockColorNew(c.value);
-                          setActivityTags(prev => {
-                            const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-                            return [...filtered, { type: "info_sequence" as any, color: c.value }];
-                          });
-                        }} title={c.label}
-                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                          style={{ backgroundColor: c.value }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div>
                 <label className="text-caption text-subtle-foreground mb-1 block">⚠️ Note courte</label>

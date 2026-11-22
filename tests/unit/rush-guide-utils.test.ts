@@ -385,6 +385,9 @@ describe("rush-guide-utils", () => {
     it("normalise le nom de métier pour le chemin d'icône", () => {
       expect(getMetierIconPath("Façonneur")).toBe("/assets/rush-sylvestre/faconneur.png");
       expect(getMetierIconPath("Bûcheron")).toBe("/assets/rush-sylvestre/bucheron.png");
+    // Mesure du 22/11/2026 : le libelle porte un suffixe apres un middot (Bricoleur · Craft ...) ;
+    // sans le decouper, le chemin pointait vers un fichier inexistant (404).
+    expect(getMetierIconPath("Bricoleur · Craft cooperatif de niveau 137 ou +")).toBe("/assets/rush-sylvestre/bricoleur.png");
       // Sans nom : picto générique « professions » du référentiel partagé.
       expect(getMetierIconPath()).toBe("/assets/dofus-ui/pictos/metier.png");
     });

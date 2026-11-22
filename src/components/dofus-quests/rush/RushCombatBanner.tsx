@@ -75,88 +75,78 @@ export function RushCombatBanner({
   className?: string;
 }) {
   const meta = rushCombatBlockMeta(type) ?? RUSH_COMBAT_BLOCK_META.COMBAT_TACTIQUE;
-  const src = safeImageUrl(imageUrl || meta.image);
+  // Aucune illustration par défaut : les deux visuels du dépôt (`combat-*.webp`) sont
+  // des placeholders. Seule l'image importée dans God est affichée (22/11/2026).
+  const src = imageUrl ? safeImageUrl(imageUrl) : null;
   const parsedLinks = parseRushBlockLinks(links);
   const blocks = parseRushMarkdown(bodyText);
   const rail = meta.rail === "success" ? "bg-success" : "bg-warning";
+  /** Densité PiP : mêmes éléments, tailles réduites (la PiP descend à ~360 px). */
+  const pip = surface === "pip";
 
   const hideOnError = (event: SyntheticEvent<HTMLImageElement>) => {
     event.currentTarget.style.display = "none";
   };
 
-  if (surface === "pip") {
-    return (
-      <section
-        data-tone={meta.rail}
-        className={cn(
-          "rush-carnet relative my-3 select-none overflow-hidden rounded-[6px] bg-surface",
-          className,
-        )}
-      >
-        <div className="flex">
-          <span aria-hidden="true" className={cn("w-[2px] shrink-0", rail)} />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 py-3 pl-3 pr-3">
-            <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {meta.kicker}
-            </span>
-            {title && (
-              <h3 className="font-serif text-sm font-semibold leading-tight text-foreground">
-                {title}
-              </h3>
-            )}
-            {blocks.length > 0 && <RushMarkdown blocks={blocks} />}
-            {src && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={src}
-                alt=""
-                onError={hideOnError}
-                className="mt-1 h-28 w-full rounded-[4px] object-cover"
-              />
-            )}
-            {parsedLinks.length > 0 && <RushCombatLinks links={parsedLinks} compact />}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
+  // Composition CENTRÉE unique (22/11/2026) : même gabarit en `page` et en `pip`,
+  // seules les tailles changent. L'ancien bandeau collait le texte à gauche et
+  // poussait une illustration à droite — illisible en PiP et sans rapport avec la
+  // carte « Dofus obtenu ». Le corps markdown garde son alignement à gauche (listes,
+  // liens) mais dans une colonne centrée et bornée.
   return (
     <section
       data-tone={meta.rail}
       className={cn(
-        "rush-carnet relative my-3 flex min-h-[96px] select-none items-stretch overflow-hidden rounded-[6px] bg-surface sm:min-h-[112px]",
+        "rush-carnet relative my-3 w-full select-none overflow-hidden rounded-[6px] bg-surface",
         className,
       )}
     >
-      <span aria-hidden="true" className={cn("w-[2px] shrink-0", rail)} />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-4 py-3.5 sm:px-5">
-        <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {meta.kicker}
-        </span>
-        {title && (
-          <h3 className="font-serif text-[15px] font-semibold leading-tight text-foreground">
-            {title}
-          </h3>
-        )}
-        {blocks.length > 0 && <RushMarkdown blocks={blocks} />}
-        {parsedLinks.length > 0 && <RushCombatLinks links={parsedLinks} />}
+      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[2px]", rail)} />
+      <div className={cn("px-4", pip ? "py-3" : "py-4 sm:px-6 sm:py-5")}>
+        <div
+          className={cn(
+            "mx-auto flex w-full max-w-prose flex-col items-center text-center",
+            pip ? "gap-1.5" : "gap-2",
+          )}
+        >
+          <span className="flex items-center justify-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {meta.kicker}
+          </span>
+          {title && (
+            <h3
+              className={cn(
+                "font-[family-name:var(--da-font-title)] font-semibold leading-tight text-foreground",
+                pip ? "text-sm" : "text-base sm:text-lg",
+              )}
+            >
+              {title}
+            </h3>
+          )}
+          {blocks.length > 0 && (
+            <div className="w-full text-left">
+              <RushMarkdown blocks={blocks} />
+            </div>
+          )}
+          {parsedLinks.length > 0 && (
+            <div className="flex w-full flex-wrap justify-center">
+              <RushCombatLinks links={parsedLinks} compact={pip} />
+            </div>
+          )}
+          {src && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt=""
+              onError={hideOnError}
+              className={cn(
+                "mt-1 max-w-full rounded-[4px] object-contain",
+                pip ? "h-24" : "h-32 sm:h-40",
+              )}
+            />
+          )}
+        </div>
       </div>
-      {src && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt=""
-          onError={hideOnError}
-          className="my-auto h-[96px] w-auto max-w-[42%] shrink-0 self-center object-contain sm:h-[112px]"
-          style={{
-            maskImage: "linear-gradient(to left, rgba(0,0,0,1) 74%, rgba(0,0,0,0) 100%)",
-            WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1) 74%, rgba(0,0,0,0) 100%)",
-          }}
-        />
-      )}
     </section>
   );
 }

@@ -12,6 +12,7 @@
  */
 
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import { isRushNonQuestBlock } from "@/lib/rush-block-types";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { z } from "zod";
 
@@ -256,9 +257,10 @@ export function resolveRushRoute(
         .map((seq) => applyRouteVariant(seq, choice?.camp)),
     }))
     .filter(
-      (ms) =>
-        ms.type === "SEPARATEUR" ||
-        ms.type === "INFO" ||
-        ms.sequences.length > 0
+      // Un bloc **hors quête** n'a jamais de séquence : bandeau d'obtention, combat,
+      // séparateur, conseil. La liste vient de `isRushNonQuestBlock` (source unique
+      // partagée avec les trois surfaces) — la lister ici avait laissé tomber
+      // `DOFUS_OBTAINED` et les deux blocs Combat, invisibles dans le guide (22/11/2026).
+      (ms) => isRushNonQuestBlock(ms.type) || ms.sequences.length > 0
     );
 }

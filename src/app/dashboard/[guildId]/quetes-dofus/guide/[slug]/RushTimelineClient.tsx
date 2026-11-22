@@ -25,13 +25,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
-import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock, isRushSequenceBannerMarker, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -43,6 +44,7 @@ import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
 import { useRushOverlayStore, type RushOverlayPayload } from "@/store/rush-overlay-store";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
+import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
 import type { RushMilestone } from "@/types/rush-guide-types";
 import type { RushQuestConstraints } from "@/types/rush-constraints";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
@@ -104,6 +106,8 @@ import {
   groupByAlignmentSeries,
   type RushAlignmentSeriesMap,
 } from "@/lib/rush-alignment-series";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
@@ -116,9 +120,9 @@ import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushOrderSelect } from "@/components/dofus-quests/rush/RushOrderSelect";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
-import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -332,6 +336,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
   const dungeonActions = React.useContext(RushDungeonActionsCtx);
   const [dungeonsOpen, setDungeonsOpen] = useState(false);
+  // « Donjon requis non fait » : le panneau des donjons de CETTE quete s ouvre tout seul.
+  React.useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<{ seqId?: string }>).detail?.seqId;
+      if (id && id === seq.id) setDungeonsOpen(true);
+    };
+    window.addEventListener("rush:open-dungeons", onOpen);
+    return () => window.removeEventListener("rush:open-dungeons", onOpen);
+  }, [seq.id]);
   // Bloc I — succès du donjon : cible locale à la ligne, panneau plein.
   const [achievementTarget, setAchievementTarget] = useState<{ dungeonKey: string; dungeon: DungeonAchievementDungeon } | null>(null);
   const openDungeonAchievements = useCallback((dungeonKey: string, dungeon: { id?: string; name?: string; bossName?: string; imageUrl?: string }) => {
@@ -465,10 +478,17 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {prereqModal ? (
               <RushOverlayPrereqModal
                 prereqs={prereqModal}
+                isDone={(id) => allCompletedSeqIds.has(id)}
                 onGoTo={(seqId) => {
                   const ref = prereqRefs.find((p) => p.seqId === seqId);
                   scrollToPrereq(ref?.name ?? "", seqId);
                   setPrereqModal(null);
+                  // Retour : le joueur a quitte sa quete d origine (souvent un autre bloc).
+                  toast("Retour a la quete d origine", {
+                    description: questName,
+                    action: { label: "Revenir", onClick: () => scrollToPrereq(questName, seq.id) },
+                    duration: 10000,
+                  });
                 }}
                 onClose={() => setPrereqModal(null)}
               />
@@ -908,83 +928,10 @@ function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; n
 }
 
 
-// ─── DofusObtainedBanner (premium card style — high fantasy Dofus UI) ─────────
-function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
-  const dofusInfo = milestone.dofusId ? DOFUS_DEFS.find(d => d.id === milestone.dofusId) : null;
-  const color = milestone.accentColor || (dofusInfo?.color || "#e6b96b");
-  const message = milestone.description || milestone.title || (dofusInfo ? `Dofus ${dofusInfo.label}` : "Dofus obtenu !");
+// Bandeau « Obtention Dofus » : composant PARTAGÉ des trois surfaces (import en tête
+// de fichier). La copie locale affichait un titre codé en dur (« LE DOFUS  ! » sans
+// `dofusId`) et reléguait le titre du studio en petit texte — mesuré le 22/11/2026.
 
-  return (
-    <div className="relative my-6 mx-auto max-w-md select-none">
-      {/* Card frame — plate (zéro glow, bordure 1px) */}
-      <div className="relative rounded-[6px] overflow-hidden border"
-        style={{
-          borderColor: `${color}35`,
-          background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.5) 50%, ${color}06 100%)`,
-        }}
-      >
-        {/* Image du bloc — importée côté GOD : posée en tête de carte, NUE (l'œuf du Dofus
-            reste le picto du TYPE, l'image est l'illustration de l'obtention). */}
-        {milestone.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={safeImageUrl(milestone.imageUrl)}
-            alt=""
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-            className="max-h-40 w-full object-contain"
-          />
-        )}
-        {/* Inner content */}
-        <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
-          {/* Dofus icon — large egg */}
-          {dofusInfo && (
-            <div className="relative group">
-              {/* Icon container */}
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 flex items-center justify-center p-2"
-                style={{
-                  borderColor: `${color}50`,
-                  background: `rgba(0,0,0,0.6)`,
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={dofusInfo.imageUrl}
-                  alt={dofusInfo.label}
-                  className="w-full h-full object-contain scale-110"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Text content strictly inside card */}
-          <div className="space-y-2">
-            <h2
-              className="font-[family-name:var(--da-font-title)] text-lg sm:text-xl font-semibold uppercase tracking-[0.12em] leading-tight"
-              style={{ color }}
-            >
-              VOUS AVEZ OBTENU<br />
-              <span className="text-2xl sm:text-3xl">LE DOFUS {dofusInfo?.label?.toUpperCase() || ""} !</span>
-            </h2>
-            {message && (
-              <p className="text-sm text-muted-foreground/90 leading-relaxed font-medium max-w-xs mx-auto">
-                {message}
-              </p>
-            )}
-          </div>
-
-          {/* Bottom divider sparkles */}
-          <div className="flex items-center gap-2 opacity-60">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent to-current" style={{ color: `${color}60` }} />
-            <Sparkles className="w-3 h-3" style={{ color: `${color}80` }} />
-            <Sparkles className="w-4 h-4" style={{ color: `${color}90` }} />
-            <Sparkles className="w-3 h-3" style={{ color: `${color}80` }} />
-            <div className="h-px w-12 bg-gradient-to-l from-transparent to-current" style={{ color: `${color}60` }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
 function InfoBanner({ milestone }: { milestone: Milestone }) {
@@ -1009,6 +956,17 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 // Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
 // `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
 // dashboard, le guide public et l'overlay).
+/** Nom d Ordre normalise (« Ordre du Cœur Saignant » -> « coeur saignant »). */
+function normalizeOrderLabel(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/^ordre\s+(?:du\s+|de\s+la\s+|des\s+|de\s+|d[\u2019\u0027])?/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockNumber }: any) {
   const [expanded,setExpanded]=useState(true);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
@@ -1016,6 +974,12 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
+  const profileAlign = React.useContext(ProfileAlignmentCtx);
+  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
+  const router = useRouter();
+  const mulePseudo = React.useContext(AchievementCharacterCtx);
+  // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
+  React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -1041,9 +1005,79 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   // (règle pure `groupByAlignmentSeries`). **Fail-closed** : si une seule ligne du bloc
   // n'a pas de série (encart info, quête commune), on ne réordonne RIEN — l'ordre du
   // guide est conservé, les pastilles restent affichées.
-  const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
-    ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
-    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
+  // Ordres du camp du joueur (catalogue partage) : le selecteur est TOUJOURS visible
+  // quand le camp est connu, meme si le bloc ne contient qu un seul Ordre.
+  const orderOptions = profileAlign.camp
+    ? ((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[profileAlign.camp] ?? [])
+    : [];
+  const alignmentFilteredRaw = visibleSeqs.filter((s: any) => {
+    if (!profileAlign.camp) return true;
+    const camp = s.alignReq ? normalizeAlignmentCamp(s.alignReq) : null;
+    return camp === null || camp === profileAlign.camp;
+  });
+  // Un bloc ENTIEREMENT de l autre camp resterait vide : on ne cache jamais tout
+  // (le bloc existe dans le guide, il doit rester lisible).
+  const alignmentFiltered = alignmentFilteredRaw.length > 0 ? alignmentFilteredRaw : visibleSeqs;
+  // Cle EFFECTIVE : un Ordre absent du catalogue du camp courant est ignore (jamais affiche).
+  const effectiveOrderKey = orderKey && orderOptions.some((o) => o.id === orderKey) ? orderKey : null;
+  const selectedOrder = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
+  const [orderConfirm, setOrderConfirm] = React.useState<{ next: string | null; label: string; wouldUncheck: number } | null>(null);
+  const applyOrder = (next: string | null) => {
+    const previous = effectiveOrderKey;
+    setOrderKey(next);
+    if (!profileAlign.camp) return;
+    const payload = { alignment: profileAlign.camp, alignmentOrder: next };
+    const run = mulePseudo ? updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload }) : updateUserProfile({ guildId, ...payload });
+    void run.then((res) => {
+      if (!res?.success) { setOrderKey(previous); toast.error("Ordre non enregistré"); return; }
+      const cleared = res.data?.cleared ?? 0;
+      toast.success(cleared > 0 ? `Ordre mis à jour — ${cleared} quête${cleared > 1 ? "s" : ""} décochée${cleared > 1 ? "s" : ""}` : "Ordre mis à jour");
+      router.refresh();
+    }).catch(() => { setOrderKey(previous); toast.error("Ordre non enregistré"); });
+  };
+  const handleOrderChange = (next: string | null) => {
+    if (next === effectiveOrderKey) return;
+    const previousOption = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
+    const prevName = previousOption ? normalizeOrderLabel(previousOption.name) : "";
+    const prevCode = previousOption ? normalizeOrderCode(previousOption.id) : "";
+    const wouldUncheck = previousOption ? allMilestones.reduce((acc, m) => acc + (m.sequences ?? []).filter((s: any) => {
+      if (!allCompletedSeqIds.has(s.id)) return false;
+      const entry = alignmentSeries.get(s.id);
+      if (!entry || entry.kind !== "ordre") return false;
+      return normalizeOrderLabel(entry.orderName) === prevName || (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === prevCode);
+    }).length, 0) : 0;
+    if (wouldUncheck > 0) {
+      setOrderConfirm({ next, label: next ? orderOptions.find((o) => o.id === next)?.name ?? "cet Ordre" : "Tous les Ordres", wouldUncheck });
+      return;
+    }
+    applyOrder(next);
+  };
+  const orderFiltered = selectedOrder
+    ? (() => {
+        const want = normalizeOrderLabel(selectedOrder.name);
+        const wantCode = normalizeOrderCode(selectedOrder.id);
+        const matched = alignmentFiltered.filter((s: any) => {
+          const entry = alignmentSeries.get(s.id);
+          if (!entry || entry.kind !== "ordre") return true;
+          return (
+            normalizeOrderLabel(entry.orderName) === want ||
+            (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === wantCode)
+          );
+        });
+        // Aucune correspondance (code de source inconnu) : on garde le camp plutot
+        // que de vider le bloc — un filtre muet est pire qu un filtre large.
+        return matched.length > 0 ? matched : alignmentFiltered;
+      })()
+    : alignmentFiltered;
+  // Compteur du bloc aligne sur ce qui est AFFICHE (camp + Ordre filtres).
+  const filteredNonInfo = orderFiltered.filter((s:any)=>!isInfoSequence(s));
+  const filteredTotal = filteredNonInfo.length;
+  const filteredDone = filteredNonInfo.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
+  const allFiltered = isCompleted || (filteredTotal > 0 && filteredDone === filteredTotal);
+  const pctFiltered = filteredTotal > 0 ? Math.round((filteredDone / filteredTotal) * 100) : 0;
+  const alignmentGroups = orderFiltered.every((s:any)=>alignmentSeries.has(s.id))
+    ? groupByAlignmentSeries(orderFiltered, alignmentSeries)
+    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:orderFiltered }];
 
   return (
     <div>
@@ -1074,7 +1108,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">{cs} / {totalQuests} quêtes ({pct}%)</span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{filteredDone} / {filteredTotal} quêtes ({pctFiltered}%)</span>
               {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
               {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
             </div>
@@ -1116,34 +1150,46 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
-            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
+            {!allFiltered&&!orderKey&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
             {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id)&&!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
           </div>
         </div>
         {/* Barre de progression du bloc (la donnée, pas une décoration) */}
-        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
+        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pctFiltered} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
           <div className="h-full bg-success transition-all duration-300" style={{width:`${pct}%`}}/>
         </div>
         {/* Expanded content */}
         <RushCollapse open={expanded}>
           <div className="p-4 space-y-2">
-{ms.tips && (splitDofusDexTip(ms.tips).official ? (
-                  <div className="mb-1">
-                    <RushDofusDexTip text={ms.tips} />
-                  </div>
-                ) : (
-                  <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                    <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
-                    <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
-                  </div>
-                ))}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
-                  ) : (
-                    /* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
-                       opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */
+                  ) : (<>
+                    {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
+                        opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
+                    <RushOrderSelect
+                      options={orderOptions}
+                      value={effectiveOrderKey}
+                      onChange={handleOrderChange}
+                      className="mb-1 px-1"
+                    />
+                    {orderConfirm && (
+                      <Dialog open onOpenChange={(open) => { if (!open) setOrderConfirm(null); }}>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Changer pour {orderConfirm.label} ?</DialogTitle>
+                          </DialogHeader>
+                          <p className="text-sm text-muted-foreground">
+                            Cette action va décocher <strong className="text-foreground">{orderConfirm.wouldUncheck} quête{orderConfirm.wouldUncheck > 1 ? "s" : ""}</strong> validée{orderConfirm.wouldUncheck > 1 ? "s" : ""} de ton Ordre actuel. Elle est définitive.
+                          </p>
+                          <DialogFooter>
+                            <button type="button" onClick={() => setOrderConfirm(null)} className="rounded-[4px] border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                            <button type="button" onClick={() => { const next = orderConfirm.next; setOrderConfirm(null); applyOrder(next); }} className="rounded-[4px] border border-danger/50 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10">Décocher et changer</button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                     <DaRail>
                     {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>
@@ -1155,7 +1201,14 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                         )}
                         {group.sequences.map((s:any)=>(
                       isInfoSequence(s) ? (
-                        <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        // Combat tactique / semi-tactique POSÉ DANS LE BLOC (22/11/2026) :
+                        // même rangée qu'une quête, même bandeau que le bloc autonome —
+                        // marqueur `activityTags`, non cochable et hors progression.
+                        rushCombatSequenceType(s) ? (
+                          <RushCombatBanner key={s.id} type={rushCombatSequenceType(s)!} title={s.subGuideName} bodyText={s.tips} surface="page" className="my-2" />
+                        ) : (
+                          <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        )
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
@@ -1163,7 +1216,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                       </React.Fragment>
                     ))}
                     </DaRail>
-                  )}
+                  </>)}
                 </CompletedStepsCtx.Provider>
           </div>
         </RushCollapse>
@@ -1273,7 +1326,10 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function isInfoSequence(seq: Sequence): boolean {
-  return Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+  // Règle PARTAGÉE (22/11/2026) : `info_sequence` ET le marqueur `sequence_banner`
+  // (bandeau Combat posé entre deux quêtes). La copie locale testait uniquement
+  // `info_sequence` — le bandeau était donc rendu comme une quête cochable.
+  return Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => isRushSequenceBannerMarker(t));
 }
 
 // ─── Contexts ────────────────────────────────────────────────────────────────
@@ -1283,6 +1339,7 @@ const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
 // Un contexte évite de traverser `ChapterBlock` / `MilestoneRow` / `SequenceRow`.
 const OpenOcreCtx=React.createContext<(() => void) | undefined>(undefined);
 const ScrollToPrereqCtx=React.createContext<(name:string, targetSeqId?:string|null)=>void>(()=>{});
+const ProfileAlignmentCtx=React.createContext<{camp:"bontarien"|"brakmarien"|null;orderId:string|null}>({camp:null,orderId:null});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 /**
  * Séries d'alignement (« Ali 12 », « Rang 2 ») dérivées du guide ENTIER. Un seul
@@ -1974,7 +2031,15 @@ const timelineItems=useMemo(()=>{
         const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
         if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
           const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
-          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait");
+          // On OUVRE le panneau des donjons de cette quete : cocher devient un geste,
+          // pas une chasse dans l interface.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("rush:open-dungeons", { detail: { seqId } }));
+          }
+          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait", {
+            description: "Le panneau des donjons s ouvre : coche-le(s) ici.",
+            duration: 4000,
+          });
           return;
         }
       }
@@ -2134,6 +2199,25 @@ const timelineItems=useMemo(()=>{
       setTimeout(tryScroll, 300);
     }
   }, [milestones, ensureMsFor, seqToMs]);
+  // Le saut vers un prerequis doit ATTERRIR : on scrolle des que la ligne existe, y
+  // compris apres le changement de page (le bloc cible peut se monter tardivement).
+  React.useEffect(() => {
+    if (!focusedSeqId) return;
+    let alive = true;
+    let attempts = 0;
+    const tryScroll = () => {
+      if (!alive) return;
+      const el = document.querySelector(`[data-seq-id="${focusedSeqId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      if (attempts < 20) { attempts++; setTimeout(tryScroll, 150); }
+      else toast.error("Quête cible introuvable dans ce guide");
+    };
+    tryScroll();
+    return () => { alive = false; };
+  }, [focusedSeqId]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {
@@ -2455,8 +2539,12 @@ const timelineItems=useMemo(()=>{
 
   // Séries d'alignement (« Ali 12 », « Rang 2 ») : un seul calcul pour toute la page.
   const alignmentSeries = React.useMemo(() => buildAlignmentSeries(milestones), [milestones]);
+  const profileAlignment = React.useMemo(
+    () => ({ camp: normalizeAlignmentCamp(resolvedCharacterInfo.alignment), orderId: resolvedCharacterInfo.alignmentOrder ?? null }),
+    [resolvedCharacterInfo.alignment, resolvedCharacterInfo.alignmentOrder]
+  );
 
-  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AlignmentSeriesCtx.Provider value={alignmentSeries}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AlignmentSeriesCtx.Provider value={alignmentSeries}><ProfileAlignmentCtx.Provider value={profileAlignment}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
       `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
       `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
@@ -2892,7 +2980,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {blockPages.length} blocs sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<CanViewSuccesCtx.Provider value={canViewSucces}><AchievementCharacterCtx.Provider value={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}><ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/></AchievementCharacterCtx.Provider></CanViewSuccesCtx.Provider>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<CanViewSuccesCtx.Provider key={item.key} value={canViewSucces}><AchievementCharacterCtx.Provider value={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}><ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/></AchievementCharacterCtx.Provider></CanViewSuccesCtx.Provider>)}</div>}
         {/* Pager de bas de page : on enchaîne les blocs sans remonter. */}
         {blockPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
@@ -3154,7 +3242,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AlignmentSeriesCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
+   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></ProfileAlignmentCtx.Provider></AlignmentSeriesCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
 
 
 </>);}

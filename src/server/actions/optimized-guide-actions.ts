@@ -3,6 +3,7 @@
 
 
 import { db } from "@/lib/prisma";
+import { countQuestsInBlock, syncQuestCountInDescription } from "@/lib/rush-block-description";
 import fs from "node:fs";
 import path from "node:path";
 import { getUserContext } from "./user-actions";
@@ -44,7 +45,7 @@ import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-sl
 import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
-import { isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { isRushNonQuestBlock, isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 import { safeImageUrl } from "@/lib/security";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -334,8 +335,10 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
   // (seq-ids pour Rush ; step-keys Ganymède `GPx-N` pour le legacy/Duffus). On projette
   // une vue seq-id sur `playerProgress[0]` pour que l'overlay et le dashboard lisent
   // correctement l'état coché / repère (sinon `completedStepIds` était `undefined`).
+  // Règle PARTAGÉE : `info_sequence` (conseil) et `sequence_banner` (combat) ne sont pas
+  // des étapes — jamais comptées dans l'achèvement d'un bloc (22/11/2026).
   const isInfoSeqLocal = (seq: any) =>
-    Array.isArray(seq?.activityTags) && (seq.activityTags as any[]).some((t: any) => t.type === "info_sequence");
+    Array.isArray(seq?.activityTags) && (seq.activityTags as any[]).some((t: any) => isRushSequenceBannerMarker(t));
 
   for (const ms of guide.milestones) {
     const stepKeyToSeq = new Map<string, string>();
@@ -920,9 +923,9 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
   });
   const previousKeys = new Set((existingProgress?.completedSteps as string[] | undefined) ?? []);
 
-  // Exclude info_sequence from completion count (they are decorative banners, not checkable quests)
+  // Exclude info_sequence / sequence_banner from completion count (decorative banners)
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
-    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => isRushSequenceBannerMarker(t));
   const regularSeqs = milestone?.sequences.filter(s => !isInfoSeq(s)) || [];
   const totalSeqCount = regularSeqs.length;
 
@@ -1236,12 +1239,12 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     },
   });
   if (!milestone) throw new Error("Jalon introuvable");
-  if (["SEPARATEUR", "INFO", "DOFUS_OBTAINED"].includes(milestone.type || "")) {
+  if (isRushNonQuestBlock(milestone.type)) {
     throw new Error("Ce jalon n'est pas cochable");
   }
 
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
-    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => isRushSequenceBannerMarker(t));
 
   const contentSeqs = (milestone.sequences || []).filter((s) => !isInfoSeq(s));
   const contentIds = contentSeqs.map((s) => s.id);
@@ -1426,7 +1429,7 @@ export async function setRushBookmark(guildId: string, milestoneId: string, seqI
   });
 
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
-    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => isRushSequenceBannerMarker(t));
 
   let resolved: string | null = null;
   if (seqId) {
@@ -1654,7 +1657,7 @@ async function invalidateSequenceProgress(params: {
 
   const isInfo = (s: { activityTags?: unknown }) =>
     Array.isArray(s.activityTags) &&
-    (s.activityTags as Array<{ type?: string }>).some((t) => t?.type === "info_sequence");
+    (s.activityTags as Array<{ type?: string; kind?: string }>).some((t) => isRushSequenceBannerMarker(t));
   const contentIds = (sequence.milestone?.sequences ?? [])
     .filter((s) => !isInfo(s))
     .map((s) => s.id);
@@ -3606,7 +3609,7 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
           chapter: ms.chapter ?? (mIdx + 1),
           chapterLabel: ms.chapterLabel || ms.title.slice(0, 48),
           title: ms.title,
-          description: ms.description || null,
+          description: syncQuestCountInDescription(ms.description, countQuestsInBlock(ms.sequences)),
           tips: ms.tips || null,
           order: ms.order ?? mIdx,
           dofusId: ms.dofusId || null,
@@ -3628,7 +3631,7 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
           type: (ms.type as any) || milestoneRecord.type,
           chapter: ms.chapter !== undefined ? ms.chapter : milestoneRecord.chapter,
           chapterLabel: ms.chapterLabel || milestoneRecord.chapterLabel,
-          description: ms.description !== undefined ? ms.description : milestoneRecord.description,
+          description: ms.description !== undefined ? syncQuestCountInDescription(ms.description, countQuestsInBlock(ms.sequences)) : milestoneRecord.description,
           tips: ms.tips !== undefined ? ms.tips : milestoneRecord.tips,
           order: ms.order !== undefined ? ms.order : milestoneRecord.order,
           dofusId: ms.dofusId || milestoneRecord.dofusId,
@@ -5051,7 +5054,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
           chapter: payloadBlock.chapter ?? chapter,
           chapterLabel: payloadBlock.chapterLabel?.trim() || chapterLabel,
           title: blockPlan.title,
-          description: payloadBlock.description ?? null,
+          description: syncQuestCountInDescription(payloadBlock.description, countQuestsInBlock(payloadBlock.sequences)),
           accentColor: payloadBlock.accentColor ?? null,
           imageUrl: safeImageUrl(payloadBlock.imageUrl) || null,
           tips: payloadBlock.tips ?? null,

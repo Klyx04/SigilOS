@@ -131,7 +131,8 @@ import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemR
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
-import { isRushCombatBlock, isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
+import { isRushCombatBlock, isRushNonQuestBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushQuestConstraints } from "@/components/dofus-quests/rush/RushQuestConstraints";
 import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
@@ -2100,6 +2101,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           {prereqModal ? (
             <RushOverlayPrereqModal
               prereqs={prereqModal}
+              isDone={(id) => completedSeqIds.has(id)}
               onGoTo={(seqId) => {
                 scrollToStep(seqId);
                 setPrereqModal(null);
@@ -2769,6 +2771,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             );
           }
 
+          // Bandeau « Obtention Dofus » — le MÊME composant que le dashboard et l'overlay
+          // (22/11/2026) : il tombait ici dans l'encart CONSEIL générique.
+          if (ms.type === "DOFUS_OBTAINED") {
+            return (
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <DofusObtainedBanner milestone={ms} surface="page" />
+              </div>
+            );
+          }
+
           if (isRushCombatBlock(ms.type)) {
             return (
               <div key={ms.id} id={`bloc-${ms.id}`}>
@@ -3057,6 +3069,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             // Encart informatif : jamais cochable, aucune progression — le
                             // MÊME bandeau que le dashboard et l'overlay (composant partagé).
                             if (isInfoSequence(seq)) {
+                              // Combat tactique / semi-tactique DANS le bloc : même bandeau
+                              // que le bloc autonome, marqueur `activityTags` (22/11/2026).
+                              const combatSeq = rushCombatSequenceType(seq);
+                              if (combatSeq) {
+                                return (
+                                  <RushCombatBanner
+                                    key={seq.id}
+                                    type={combatSeq}
+                                    title={seq.subGuideName}
+                                    bodyText={seq.tips}
+                                    surface="page"
+                                    className="my-2"
+                                  />
+                                );
+                              }
                               return <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={ms.accentColor} />;
                             }
 

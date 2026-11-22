@@ -17,6 +17,8 @@ import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs
 import { getPrereqChoiceGroups, type RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
+import { filterAlignmentSequences } from "@/lib/rush-alignment-filter";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -70,9 +72,11 @@ import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamob
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
-import { isRushCombatBlock } from "@/lib/rush-block-types";
-import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
+import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
+import { isRushCombatBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
@@ -278,22 +282,9 @@ export default function GuideOverlayClient({
     [rawMilestones]
   );
 
-  // Détecte le Dofus associé à un jalon (via dofusId insensible aux accents, ou par correspondance du titre).
-  const getMsDofus = useCallback((ms?: RushMilestone | null) => {
-    if (!ms) return null;
-    const norm = (s?: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (ms.dofusId) {
-      const k = norm(ms.dofusId);
-      for (const [key, d] of Object.entries(DOFUS_DEFS)) {
-        if (norm(key) === k) return d;
-      }
-    }
-    const t = norm(ms.title);
-    for (const [key, d] of Object.entries(DOFUS_DEFS)) {
-      if (t.includes("dofus " + norm(key)) || (d.label && t.includes(norm(d.label)))) return d;
-    }
-    return null;
-  }, []);
+  // Détection du Dofus : règle PARTAGÉE `resolveRushDofus` (`@/lib/rush-dofus-meta`),
+  // appelée par le bandeau lui-même. La copie locale de l'overlay a été retirée le
+  // 22/11/2026 (elle seule connaissait le repli par titre).
 
   // ─── Thème ────────────────────────────────────────────────────────────────
   // L'overlay est **sombre uniquement** (décision du 18/11/2026) : le bouton de
@@ -923,9 +914,25 @@ export default function GuideOverlayClient({
         setCurrentMsIndex(idx);
         setDetailSeq(null);
       }
-      window.setTimeout(() => {
-        document.getElementById(`overlay-seq-${seqId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 90);
+      // Meme bloc ou autre bloc : on scrolle ET on met la quete en evidence, avec
+      // quelques reprises (le bloc cible peut se monter apres le changement de page).
+      let attempts = 0;
+      const tryScroll = () => {
+        const el = document.getElementById(`overlay-seq-${seqId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+          window.setTimeout(() => {
+            el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+          }, 1800);
+          return;
+        }
+        if (attempts < 12) {
+          attempts++;
+          window.setTimeout(tryScroll, 120 + attempts * 80);
+        }
+      };
+      window.setTimeout(tryScroll, 90);
     },
     [milestones, currentMsIndex]
   );
@@ -1369,13 +1376,20 @@ export default function GuideOverlayClient({
   // nom stocké — les prérequis sont résolus par nom (`resolvePrereqTag`).
   const alignmentSeries = useMemo(() => buildAlignmentSeries(milestones), [milestones]);
   const alignmentGroups = useMemo(() => {
+    // Meme regle que le dashboard : camp du joueur puis son Ordre ; jamais de bloc vide.
+    const filtered = filterAlignmentSequences(
+      visibleSequences,
+      alignmentSeries,
+      { camp: normalizeAlignmentCamp(selfAlignment), orderId: selfOrder },
+      selfOrder
+    );
     // Fail-closed : on ne regroupe (donc on ne réordonne) que si TOUTES les lignes
     // portent une série. Un encart info ou une quête commune garde sa place.
-    if (!visibleSequences.every((s) => alignmentSeries.has(s.id))) {
-      return [{ key: "ordre-du-guide", camp: null, label: null, sequences: visibleSequences }];
+    if (!filtered.every((s) => alignmentSeries.has(s.id))) {
+      return [{ key: "ordre-du-guide", camp: null, label: null, sequences: filtered }];
     }
-    return groupByAlignmentSeries(visibleSequences, alignmentSeries);
-  }, [visibleSequences, alignmentSeries]);
+    return groupByAlignmentSeries(filtered, alignmentSeries);
+  }, [visibleSequences, alignmentSeries, selfAlignment, selfOrder]);
 
   // Quête « à faire maintenant » de la liste AFFICHÉE : une seule règle partagée
   // par le nœud accentué, « Reprendre » et l'arrêt du fil de sève.
@@ -1505,7 +1519,13 @@ export default function GuideOverlayClient({
           collapsible
           bodyText={infoText}
         >
-          <RushRichText text={infoText} normalizeMeta />
+          {/* Pavé DofusDex (13 blocs, 463–1 956 caractères) : replié par la règle
+              partagée ; un conseil ordinaire garde `normalizeMeta` (positions, liens). */}
+          {splitDofusDexTip(infoText).official ? (
+            <RushDofusDexTip text={infoText} />
+          ) : (
+            <RushRichText text={infoText} normalizeMeta />
+          )}
         </RushInfoBanner>
       );
     }
@@ -1523,32 +1543,10 @@ export default function GuideOverlayClient({
         />
       );
     }
-    const dofus = getMsDofus(ms);
-    return (
-      <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
-        {dofus ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain" />
-        ) : ms.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain" />
-        ) : null}
-        <span className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "var(--color-gold)" }}>
-          ✦ Dofus obtenu ✦
-        </span>
-        <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
-          {ms.title}
-        </h3>
-        {ms.description ? (
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
-            <RushRichText text={ms.description} />
-          </p>
-        ) : ms.tips ? (
-          <RushDofusDexTip text={ms.tips} className="text-[12px] leading-relaxed text-muted-foreground" />
-        ) : null}
-        <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${ms.accentColor || "#a3e635"})` }} />
-      </div>
-    );
+    // Bandeau PARTAGÉ (22/11/2026) : le titre du studio est le titre, le Dofus n'est
+    // qu'un repère (œuf + couleur) et la carte est pleine largeur — la copie locale
+    // empilait un `max-w-md` qui débordait sur une PiP étroite.
+    return <DofusObtainedBanner key={ms.id} milestone={ms} surface="pip" className="my-3" />;
   };
 
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
@@ -1733,7 +1731,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main ref={listRef} className="flex-1 min-h-0 px-3 pt-3 pb-2 space-y-2 overlay-scroll">
+          <main ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pt-3 pb-2 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
@@ -1818,6 +1816,21 @@ export default function GuideOverlayClient({
                       {group.sequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
+                  // Combat tactique / semi-tactique DANS le bloc : bandeau `pip` partagé,
+                  // rien à cocher — marqueur `activityTags` (22/11/2026).
+                  const combatSeq = rushCombatSequenceType(seq);
+                  if (combatSeq) {
+                    return (
+                      <RushCombatBanner
+                        key={seq.id}
+                        type={combatSeq}
+                        title={seq.subGuideName}
+                        bodyText={seq.tips}
+                        surface="pip"
+                        className="my-2"
+                      />
+                    );
+                  }
                   // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
                   // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (

@@ -78,6 +78,14 @@ describe("overlay Rush — saut vers un prérequis", () => {
     const active = { search: "", hideCompleted: false, questFilter: "active" as const };
     expect(releaseOverlayFilters(active, { isDone: false, isLocked: false }).resetQuestFilter).toBe(false);
     expect(releaseOverlayFilters(active, { isDone: false, isLocked: true }).resetQuestFilter).toBe(true);
+
+    const locked = { search: "", hideCompleted: false, questFilter: "locked" as const };
+    expect(releaseOverlayFilters(locked, { isDone: false, isLocked: true }).resetQuestFilter).toBe(false);
+    expect(releaseOverlayFilters(locked, { isDone: false, isLocked: false }).resetQuestFilter).toBe(true);
+
+    const done = { search: "", hideCompleted: false, questFilter: "done" as const };
+    expect(releaseOverlayFilters(done, { isDone: true, isLocked: false }).resetQuestFilter).toBe(false);
+    expect(releaseOverlayFilters(done, { isDone: false, isLocked: false }).resetQuestFilter).toBe(true);
   });
 
   it("le saut cherche la ligne dans le document de l'overlay, pas dans l'hôte", () => {
@@ -102,5 +110,8 @@ describe("overlay Rush — saut vers un prérequis", () => {
     // La ref donne au toast le `jumpToQuest` courant : sans elle, un filtre
     // changé pendant les 10 s rendrait le retour muet.
     expect(shell).toContain("jumpToQuestRef.current(origin)");
+    expect(shell).toContain("jumpToQuestRef.current = jumpToQuest");
+    // Un second saut avant la fin de l'anneau doit retirer l'ancien surlignage.
+    expect(shell).toContain("highlighted?.classList.remove(...ring)");
   });
 });

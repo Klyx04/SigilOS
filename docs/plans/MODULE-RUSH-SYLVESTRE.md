@@ -201,7 +201,7 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
 - **Éditeur God** : la refonte UI/UX du studio a son plan dédié — `docs/plans/REFONTE-EDITEUR-RUSH.md` (E1→E5).
-- **Reste** : **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits · **DA « Carnet de campagne » livrée le 02/11** (matières, en-tête, chapitre, cartes, fiches, bandeaux, alignement, filtre Toutes/En cours/Verrouillées, ressources à prévoir, footer et portails ; verrou `rush-da-grimoire` **23**), **O15** et **G8** sont livrés le 12/11 (T-4a) ; restent **G7** hero complet et la composition **G9** (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Reste** : **une seule source** — `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` « Restes — fiche unique » (22/11/2026). Ce module ne duplique plus l'état des lots.
 - **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136) · **T2 consolidé** le 27/10/2026 (composant mort supprimé, verrou sur le code rendu) · **T-2c livré le 20/10/2026** (prérequis par id stable — il était encore listé en reste ici par erreur).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)

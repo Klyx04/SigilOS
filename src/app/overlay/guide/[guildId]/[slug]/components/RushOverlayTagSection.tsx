@@ -28,14 +28,26 @@ export function RushOverlayTagSection({ tags, className, viewer = "preview" }: R
   const [showTools, setShowTools] = useState(false);
 
   const hasNature = tags.nature.length > 0;
+  const hasSuccess = tags.success.length > 0;
   const hasCondition = tags.condition.length > 0;
   const hasTools = tags.tool.length > 0;
 
-  if (!hasNature && !hasCondition && !hasTools) return null;
+  if (!hasNature && !hasCondition && !hasTools && !hasSuccess) return null;
 
   return (
     <div className={cn("space-y-2", className)}>
       {/* A — Nature de l'étape */}
+      {hasSuccess && (
+        <div>
+          <p className="mb-1 text-[11px] font-semibold text-muted-foreground">Succès lié</p>
+          <div className="flex min-w-0 max-w-full flex-wrap gap-1">
+            {tags.success.map((tag, i) => (
+              <RushTagBadge key={i} tag={tag} size="sm" viewer={viewer} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {hasNature && (
         <div className="flex min-w-0 max-w-full flex-wrap gap-1">
           {tags.nature.slice(0, 4).map((tag, i) => (

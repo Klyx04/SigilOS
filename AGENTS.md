@@ -25,6 +25,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Besoin | Source de vérité |
 |---|---|
 | **Quoi faire / dans quel ordre** | `docs/ROADMAP.md` — **backlog et ordre uniques** (à lire en premier en mode plan) |
+| **Ce qui reste sur le Rush Sylvestre** | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` — section **⚡ Restes — fiche unique** (seule source du reste ; les autres docs pointent) |
 | État réel entre 2 sessions | `docs/agents/activeContext.md` — **en-tête + bloc du sujet uniquement** (jamais en entier) |
 | Historique des sessions (171 blocs) | `docs/agents/journal-sessions-2026.md` — **à la demande uniquement** |
 | Coder aux conventions + sécurité | `docs/RULES.md` (§ Security · § fail-closed · § Code Organization · § Git Workflow) |

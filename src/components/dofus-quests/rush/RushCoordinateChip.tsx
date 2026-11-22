@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
 import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { copyToClipboard } from "@/lib/clipboard";
+import { RushPositionMenu } from "./RushPositionMenu";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,10 @@ interface RushCoordinateChipProps {
    */
   manualZaap?: { x: number; y: number } | null;
   onOpenMap?: (x: number, y: number, worldId?: number) => void;
+  /** Deux etapes au clic (guide public) : ouvrir le menu au lieu de copier. */
+  menuOnClick?: boolean;
+  /** PNJ donneur de la quete : affiche dans le menu (nom + portrait) et sur la carte. */
+  npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
 }
 
 /** Zaap le plus proche (forme servie par `resolveMapWorldAction`). */
@@ -65,13 +70,19 @@ export function RushCoordinateChip({
   showZaap = false,
   manualZaap = null,
   onOpenMap,
+  menuOnClick = false,
+  npc = null,
 }: RushCoordinateChipProps) {
   const toast = useOverlayToast();
   const [copied, setCopied] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [copiedZaap, setCopiedZaap] = useState(false);
   const [zaap, setZaap] = useState<ChipZaap | null>(null);
   const [zaapState, setZaapState] = useState<"idle" | "loading" | "ready" | "none">("idle");
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Document PORTEUR de la puce : dans la fenetre PiP, le `document` du module est celui
+  // de l onglet principal (non focalise) et `execCommand` echoue. On cible le bon document.
+  const rootRef = useRef<HTMLSpanElement>(null);
   const parsed = parseCoordinates(coordText);
 
   if (!parsed) {
@@ -113,9 +124,13 @@ export function RushCoordinateChip({
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (menuOnClick) {
+      setMenuOpen(true);
+      return;
+    }
     // Fallback execCommand : en overlay (webview/PiP) `navigator.clipboard`
     // peut réussir l'appel mais échouer silencieusement → on vérifie le retour.
-    const ok = await copyToClipboard(parsed.travelCommand);
+    const ok = await copyToClipboard(parsed.travelCommand, rootRef.current?.ownerDocument);
     if (!ok) {
       toast.error("Copie impossible", {
         description: `Sélectionne et copie manuellement : ${parsed.travelCommand}`,
@@ -141,7 +156,7 @@ export function RushCoordinateChip({
     ) {
       const cmd = buildManualZaapTravelCommand(manualZaap.x, manualZaap.y, parsed.x, parsed.y);
       if (!cmd) return;
-      const ok = await copyToClipboard(cmd);
+      const ok = await copyToClipboard(cmd, rootRef.current?.ownerDocument);
       if (!ok) {
         toast.error("Copie impossible", {
           description: `Sélectionne et copie manuellement : ${cmd}`,
@@ -160,7 +175,7 @@ export function RushCoordinateChip({
     if (!zaap) return;
     const cmd = buildZaapTravelCommand(zaap, { x: parsed.x, y: parsed.y });
     if (!cmd) return;
-    const ok = await copyToClipboard(cmd);
+    const ok = await copyToClipboard(cmd, rootRef.current?.ownerDocument);
     if (!ok) {
       toast.error("Copie impossible", {
         description: `Sélectionne et copie manuellement : ${cmd}`,
@@ -177,7 +192,9 @@ export function RushCoordinateChip({
   };
 
   return (
+    <>
     <span
+      ref={rootRef}
       className="inline-flex items-center gap-1"
       onMouseEnter={scheduleZaapResolve}
       onMouseLeave={cancelZaapResolve}
@@ -186,8 +203,8 @@ export function RushCoordinateChip({
         type="button"
         onClick={handleCopy}
         data-copied={copied ? "true" : undefined}
-        title={`Cliquer pour copier ${parsed.travelCommand}`}
-        aria-label={`Copier la commande ${parsed.travelCommand}`}
+        title={menuOnClick ? "Copier la position ou voir la carte" : `Cliquer pour copier ${parsed.travelCommand}`}
+        aria-label={menuOnClick ? `Position ${parsed.raw} : copier ou voir la carte` : `Copier la commande ${parsed.travelCommand}`}
         className={cn(
           "da-coord",
           "inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[3px] border border-border bg-surface px-1.5 py-0.5",
@@ -233,5 +250,16 @@ export function RushCoordinateChip({
         </button>
       )}
     </span>
+    {menuOnClick && (
+      <RushPositionMenu
+        open={menuOpen}
+        npc={npc}
+        x={parsed.x}
+        y={parsed.y}
+        worldId={parsed.worldId}
+        onClose={() => setMenuOpen(false)}
+      />
+    )}
+    </>
   );
 }

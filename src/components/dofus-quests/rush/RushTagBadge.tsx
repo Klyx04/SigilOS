@@ -89,7 +89,7 @@ export function RushTagBadge({ tag, size = "sm", className, viewer = "preview" }
   const label = hasMonsters
     ? `Groupe · ${monsters.length} monstre${monsters.length > 1 ? "s" : ""}`
     : rawLabel;
-  const iconSrc = getTagBadgeIcon({ type: tag.type, name: tag.name });
+  const iconSrc = getTagBadgeIcon({ type: tag.type, name: tag.name, iconId: tag.iconId });
 
   return (
     <>
@@ -139,8 +139,16 @@ export function RushTagBadge({ tag, size = "sm", className, viewer = "preview" }
           <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated">
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-3.5 py-2.5">
               <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">{config?.label ?? "Badge"}</p>
-                <h3 className="mt-0.5 break-words text-[14px] font-semibold leading-snug text-foreground">{rawLabel}</h3>
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  {iconSrc && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={iconSrc} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" loading="lazy" />
+                  )}
+                  {config?.label ?? (tag.type === "succes" ? "Succès" : "Détail")}
+                </p>
+                <h3 className="mt-0.5 break-words text-[14px] font-semibold leading-snug text-foreground">
+                  {hasMonsters ? `${monsters.length} monstre${monsters.length > 1 ? "s" : ""}` : rawLabel}
+                </h3>
               </div>
               <button
                 type="button"
@@ -162,7 +170,7 @@ export function RushTagBadge({ tag, size = "sm", className, viewer = "preview" }
                       key={`${monster.slug ?? monster.name}-${index}`}
                       className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
                     >
-                      <RushMonsterThumb id={monster.gfxId ?? monster.monsterId} alt={monster.name} />
+                      <RushMonsterThumb id={monster.monsterId ?? monster.gfxId} alt={monster.name} />
                       <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
                         {monster.name}
                       </span>

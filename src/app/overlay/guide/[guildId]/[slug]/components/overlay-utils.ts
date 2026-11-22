@@ -5,6 +5,7 @@
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage, rushResourceKey } from "@/lib/rush-guide-utils";
+import { successIconUrl } from "@/lib/achievement-icon";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
 // Re-export pour compatibilité des imports overlay.
@@ -112,6 +113,9 @@ export const TAG_CONDITION_TYPES = [
   "prereq_text",
 ] as const;
 
+/** Tags « succès lié » — un succès officiel, ni une condition ni un outil. */
+export const TAG_SUCCESS_TYPES = ["succes"] as const;
+
 /** Tags cachés / techniques — jamais affichés (`npc` a son affichage dédié `NpcBadge`). */
 export const TAG_HIDDEN_TYPES = [
   "pos_tags",
@@ -125,6 +129,8 @@ export const TAG_HIDDEN_TYPES = [
 ] as const;
 
 export type TagClassification = {
+  /** S — succès officiel lié (tag `succes`), jamais un « détail utile ». */
+  success: RushActivityTag[];
   nature: RushActivityTag[];   // A — nature de l'étape
   condition: RushActivityTag[]; // B — conditions
   tool: RushActivityTag[];     // C — outils / détails utiles
@@ -132,14 +138,16 @@ export type TagClassification = {
 
 /** Classe les tags d'une séquence selon A/B/C. */
 export function classifyTags(tags: RushActivityTag[] | undefined): TagClassification {
-  if (!tags) return { nature: [], condition: [], tool: [] };
+  if (!tags) return { nature: [], condition: [], tool: [], success: [] };
 
   const nature: RushActivityTag[] = [];
   const condition: RushActivityTag[] = [];
   const tool: RushActivityTag[] = [];
+  const success: RushActivityTag[] = [];
 
   for (const tag of tags) {
     if ((TAG_HIDDEN_TYPES as readonly string[]).includes(tag.type)) continue;
+    if ((TAG_SUCCESS_TYPES as readonly string[]).includes(tag.type)) { success.push(tag); continue; }
     if ((TAG_NATURE_TYPES as readonly string[]).includes(tag.type)) {
       nature.push(tag);
     } else if ((TAG_CONDITION_TYPES as readonly string[]).includes(tag.type)) {
@@ -149,7 +157,7 @@ export function classifyTags(tags: RushActivityTag[] | undefined): TagClassifica
     }
   }
 
-  return { nature, condition, tool };
+  return { nature, condition, tool, success };
 }
 
 /** Extrait les tags de type item (ressources) d'une séquence. */
@@ -527,7 +535,8 @@ export function getFooterNextAction(
  * Retourne null quand aucun asset ne correspond (badge texte seul).
  * Pur et client-safe.
  */
-export function getTagBadgeIcon(tag: { type: string; name?: string | null }): string | null {
+export function getTagBadgeIcon(tag: { type: string; name?: string | null; iconId?: number | null }): string | null {
+  if (tag.type === "succes") return successIconUrl(tag.iconId);
   const label = `${tag.type || ""} ${(tag.name || "").toLowerCase()}`;
   if (label.includes("brakmar")) return "/ordres/brakmar.png";
   if (label.includes("bonta")) return "/ordres/bonta.png";

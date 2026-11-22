@@ -7,14 +7,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
-  Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
+  Users, Star, ArrowRight, ChevronLeft, ExternalLink, HelpCircle,
   Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost, Settings2, CircleHelp
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, completeGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
-import CoordHoverMap from "./CoordHoverMap";
+import { RushPositionMenu } from "@/components/dofus-quests/rush/RushPositionMenu";
 import type { GuideProgressMember, GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
+import { copyToClipboard } from "@/lib/clipboard";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import { formatDofusLevel } from "@/lib/dofus-level";
@@ -2135,6 +2136,8 @@ export default function OptimizedGuideClient({
     finally { setIsCompletingGuide(false); }
   }, [guildId, guide.id, altPseudo, milestones]);
 
+  const [coordMenu, setCoordMenu] = useState<{ x: number; y: number; worldId?: number } | null>(null);
+
   const handleInteractiveClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
 
@@ -2256,34 +2259,16 @@ export default function OptimizedGuideClient({
       return;
     }
 
-    // 1.5 Coordinate chip click (ONLY copies the travel command)
+    // 1.5 Coordinate chip click — deux etapes au clic (copier / voir la carte).
     const chip = target.closest(".coord-chip") as HTMLElement;
     if (chip) {
       e.stopPropagation();
       e.preventDefault();
-      const x = chip.getAttribute("data-x");
-      const y = chip.getAttribute("data-y");
-      if (x && y) {
-        const xNum = parseInt(x);
-        const yNum = parseInt(y);
-        navigator.clipboard.writeText(`/travel ${xNum} ${yNum}`);
-        chip.classList.add("copied");
-        setTimeout(() => chip.classList.remove("copied"), 1500);
-
-        toast.custom((t) => (
-          <div className="flex items-center gap-3 bg-zinc-950/95 border border-emerald-500/30 p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.15)] animate-in slide-in-from-bottom-5 duration-300">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-              <Copy className="w-4 h-4 animate-pulse" />
-            </div>
-            <div className="text-left">
-              <p className="text-caption font-black uppercase tracking-wider text-emerald-400">Position copiée</p>
-              <p className="text-xs font-mono text-zinc-300">/travel {xNum} {yNum}</p>
-            </div>
-          </div>
-        ), {
-          position: "bottom-right",
-          duration: 3000
-        });
+      const x = parseInt(chip.getAttribute("data-x") || "");
+      const y = parseInt(chip.getAttribute("data-y") || "");
+      if (Number.isSafeInteger(x) && Number.isSafeInteger(y)) {
+        const world = parseInt(chip.getAttribute("data-world") || "");
+        setCoordMenu({ x, y, worldId: Number.isSafeInteger(world) && world > 0 ? world : undefined });
       }
       return;
     }
@@ -3285,7 +3270,13 @@ export default function OptimizedGuideClient({
             </motion.div>
           </AnimatePresence>
         )}
-        <CoordHoverMap containerRef={mainRef} guildId={guildId} />
+        <RushPositionMenu
+          open={!!coordMenu}
+          x={coordMenu?.x ?? 0}
+          y={coordMenu?.y ?? 0}
+          worldId={coordMenu?.worldId}
+          onClose={() => setCoordMenu(null)}
+        />
       </main>
 
       {/* Fil d'activité live (Phase F) — events step:validated / milestone:completed */}

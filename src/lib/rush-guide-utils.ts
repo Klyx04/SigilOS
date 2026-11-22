@@ -11,6 +11,19 @@ import {
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
+ * Un id d objet Dofus tient dans un Int32 positif. Mesure du 22/11/2026 : 60 tags
+ * « Kamas » portent `10000000001`, un marqueur editorial et non un id — le resoudre
+ * produisait un 404 puis un placeholder. Aucune URL ne doit etre construite pour lui.
+ */
+export function isResolvableItemId(id?: string | number | null): boolean {
+  if (id == null || id === "") return false;
+  const raw = String(id);
+  if (!/^\d+$/.test(raw)) return false;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n > 0 && n <= 2147483647;
+}
+
+/**
  * 🛡️ Résolution locale-first des images d'items (comme ItemSearchPanel).
  *
  * Priorité (autonomie) :
@@ -30,9 +43,11 @@ export function resolveItemImage(id?: string | number | null, imageUrl?: string 
     return imageUrl;
   }
   // 2) id numérique -> WebP local siphonné (autonome).
-  if (id != null && id !== "" && /^\d+$/.test(String(id))) {
+  if (isResolvableItemId(id)) {
     return `/uploads/assets-dofus/items/${id}.webp`;
   }
+  // 2 bis) id numerique HORS BORNES = marqueur editorial : aucune URL possible.
+  if (id != null && id !== "" && /^\d+$/.test(String(id))) return imageUrl || "";
   // 3) id non numérique -> proxy (fallback ?url=).
   if (id != null && id !== "") {
     const q = imageUrl ? `?url=${encodeURIComponent(imageUrl)}` : "";
@@ -49,6 +64,7 @@ export function resolveItemImage(id?: string | number | null, imageUrl?: string 
  * volée depuis DofusDB (auto-healing), puis renvoie un placeholder (jamais 404).
  */
 export function getItemImageFallback(id?: string | number | null, imageUrl?: string | null): string {
+  if (id != null && id !== "" && /^\d+$/.test(String(id)) && !isResolvableItemId(id)) return imageUrl || "";
   if (id != null && id !== "") {
     // On ne passe jamais un chemin local comme source distante (ce n'est pas un URL).
     const remote = imageUrl && !imageUrl.startsWith("/") ? imageUrl : null;
@@ -158,12 +174,18 @@ export const RUSH_ACTIVITY_TAG_CONFIG: Record<
  */
 export function getMetierIconPath(metierName?: string): string {
   if (!metierName) return RUSH_ACTIVITY_TAG_CONFIG.metier.imagePath;
-  const normalized = metierName
+  // Le libelle porte parfois un suffixe editorial (« Eleveur . Etre Eleveur 20 »).
+  // Mesure : le chemin construit avec le libelle entier repondait 404 alors que
+  // `/assets/rush-sylvestre/eleveur.png` existe. On ne garde que le metier.
+  const base = String(metierName).split(/[.,:|]/)[0]?.trim() || "";
+  const job = getJob(base) ?? getJob(String(metierName).trim());
+  const normalized = (job?.name || base || String(metierName))
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/ç/g, "c")
     .trim();
+  if (!normalized) return RUSH_ACTIVITY_TAG_CONFIG.metier.imagePath;
   return `/assets/rush-sylvestre/${normalized}.png`;
 }
 
@@ -277,13 +299,30 @@ export function rushChapterPosition(
  */
 export function getSequenceCoord(seq: RushSequence | null | undefined) {
   if (!seq) return null;
-  const posTag = (seq.activityTags || []).find((t) => t.type === "pos_tags");
+  const posTag = (seq.activityTags || []).find((t) => t.type === "pos_tags") as
+    | { name?: unknown; worldId?: unknown; allowZaap?: unknown }
+    | undefined;
   const posStr = posTag?.name ? String(posTag.name) : null;
-  return parseCoordinates(posStr || "") ||
+  const parsed =
+    parseCoordinates(posStr || "") ||
     parseCoordinates(seq.subGuideName || "") ||
     parseCoordinates(seq.tips || "") ||
     parseCoordinates(seq.note || "") ||
     null;
+  if (!parsed) return null;
+  // Le monde vit dans le TAG (`pos_tags.worldId`) : 527 positions sur 527 le portent,
+  // mais `parseCoordinates` ne lit que le texte `[x, y]`. Sans cette fusion, l interface
+  // retombait sur « monde 1 » par defaut — un sous-monde faux annonce comme vrai.
+  const tagWorld =
+    typeof posTag?.worldId === "number" && Number.isSafeInteger(posTag.worldId)
+      ? posTag.worldId
+      : undefined;
+  const worldId = tagWorld ?? parsed.worldId;
+  return {
+    ...parsed,
+    ...(worldId !== undefined ? { worldId } : {}),
+    allowZaap: posTag?.allowZaap === true,
+  };
 }
 
 /**

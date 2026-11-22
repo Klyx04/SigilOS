@@ -104,6 +104,7 @@ export function RushOverlayQuestDetailModal({
       nature: (tags.nature || []).filter((t) => !hide(t as any)),
       condition: (tags.condition || []).filter((t) => !hide(t as any)),
       tool: (tags.tool || []).filter((t) => !hide(t as any)),
+      success: (tags.success || []).filter((t) => !hide(t as any)),
     };
   }, [tags]);
   const dungeons = useMemo(() => getDungeons(seq), [seq]);
@@ -286,10 +287,9 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {(badgesTags.nature.length > 0 || badgesTags.condition.length > 0 || badgesTags.tool.length > 0) && (
+            {(badgesTags.nature.length > 0 || badgesTags.condition.length > 0 || badgesTags.tool.length > 0 || badgesTags.success.length > 0) && (
               <section className="py-3">
-                <p className={sectionLabel}>Badges</p>
-                <RushOverlayTagSection tags={badgesTags} viewer={viewer} />
+               <RushOverlayTagSection tags={badgesTags} viewer={viewer} />
               </section>
             )}
 

@@ -86,7 +86,8 @@ docker exec -it sigilos-beta npx -y tsx scripts/fix-rush-pos-worlds.ts --world 2
 
 Correction manuelle possible dans **God ▸ Guide Rush ▸ quête ▸ Destination** (monde + carte). Relancer l'audit jusqu'à `✅ Aucun écart`.
 
-> `(0,0)` : un sous-monde peut avoir une vraie carte à `(0,0)` (Blessures de Guerre, monde 24). La route `map-at` l'autorise quand le monde est explicite (`world > 1`) ; une carte imposée en God reste prioritaire ; le monde principal garde le 404.
+> `(0,0)` : un sous-monde peut avoir une vraie carte à `(0,0)` (Blessures de Guerre, monde 24). La route `map-at` l'autorise quand le monde est explicite (`world > 1`) ; la **worldmap** (index de clic + overlay HD) utilise la même règle `hasKnownGameCoords` ; une carte imposée en God reste prioritaire ; le monde principal garde le 404.
+> La **tuile de fond `0`** n'existe pas chez DofusDB (`/img/worlds/24/1/0.jpg` → 404) : le sync qui commence à 1 est correct. C'est la **carte** à `(0,0)` qui était exclue, pas la tuile.
 > Mesure du 22/11 : **514 corrections** proposées (149 monde+carte, 365 carte seule — Mappemondes/donjons).
 
 > Sans `--world`, l'audit est **global** et plus bruyant : `GameQuest.imageUrl` peut pointer sur une étape ou un donjon (`worldMap = -1`), ce n'est pas toujours le donneur de quête.

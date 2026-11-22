@@ -54,21 +54,30 @@ export function resolveTileBank(scales: number[], z: number): { scale: number; b
 }
 
 /**
- * Le couple **(0, 0)** de `worldmap.json` n'est pas un lieu : c'est le tas des
- * maps sans coordonnées connues. Mesuré sur le fichier réel — monde 1 : **1 784
- * maps sur 8 476** réparties sur **270 de ses 289 sous-zones** ; tous mondes :
- * 2 188 maps, dont **1 449 hors du tracé de leur propre zone** ; 191 donjons ont
- * leur map d'entrée ici (60, tous les « Expéditions », même map indoor) et
- * **15 sous-zones n'ont que cette position** (Songes Infinis, Ankama, Dofus
- * Games…). Lire ce couple affichait donc une zone arbitraire et une tuile HD
- * hors sujet (`hd_maps/5.webp` = une map de combat) : toute position (0, 0) est
- * traitée comme « position inconnue » (jamais indexée, jamais un centre).
+ * Le couple **(0, 0)** n'est pas un lieu **dans le monde principal** : c'est le
+ * tas des maps sans coordonnées connues. Mesuré sur le fichier réel — monde 1 :
+ * **1 784 maps sur 8 476** réparties sur **270 de ses 289 sous-zones** ; tous
+ * mondes : 2 188 maps, dont **1 449 hors du tracé de leur propre zone** ; 191
+ * donjons ont leur map d'entrée ici (60, tous les « Expéditions », même map
+ * indoor) et **15 sous-zones n'ont que cette position** (Songes Infinis, Ankama,
+ * Dofus Games…). Lire ce couple affichait donc une zone arbitraire et une tuile
+ * HD hors sujet (`hd_maps/5.webp` = une map de combat) : le `(0, 0)` du monde 1
+ * ou hors monde (`-1`) reste « position inconnue » (jamais indexé, jamais un
+ * centre).
+ *
+ * ⚠️ Un **sous-monde** (`worldMap > 1`) peut avoir une **vraie carte** à `(0,0)` :
+ * mesuré le 22/11/2026, Blessures de Guerre (monde 24) a son `201588736` à
+ * `(0,0)`, présent dans `worldmap.json` et en HD. On l'accepte donc quand le
+ * monde est connu — sinon la carte existe mais n'est ni cliquable ni couverte
+ * par l'overlay HD (le cas DofusDB).
  */
 export function hasKnownGameCoords(
-    map: { x?: number | null; y?: number | null } | null | undefined
+    map: { x?: number | null; y?: number | null; worldMap?: number | null } | null | undefined
 ): boolean {
     if (!map || !Number.isFinite(map.x) || !Number.isFinite(map.y)) return false;
-    return !(map.x === 0 && map.y === 0);
+    if (map.x !== 0 || map.y !== 0) return true;
+    const worldId = Number(map.worldMap);
+    return Number.isSafeInteger(worldId) && worldId > 1;
 }
 
 /**

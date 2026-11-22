@@ -1,5 +1,5 @@
 ﻿$ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)

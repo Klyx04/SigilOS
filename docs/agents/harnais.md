@@ -50,7 +50,7 @@ et rien d'autre. Si le rang et le sujet divergent, c'est le sujet qui gagne — 
 | Brique | Quand elle est chargée | Coût | À quoi elle sert ici |
 |---|---|---|---|
 | **Rules** | **Toujours**, à chaque message | Permanent | Les invariants : sécurité, conventions, hygiène |
-| **Skills** | **À la demande** (métadonnées ~100 tokens au démarrage) | Quasi nul au repos | Les procédures répétitives (PR, migration, cron, Sentry) |
+| **Skills** | **À la demande** (métadonnées ~1 000 tokens au démarrage pour 12 skills) | Quasi nul au repos | Les procédures répétitives (PR, migration, cron, Sentry) |
 | **Hooks** | Sur événement, **sans LLM** | **0 token** | Les garde-fous déterministes (bloquer, rappeler) |
 | **Workflows** | Dépréciés par Cline | — | **Ne pas utiliser** : migrer en Skills |
 

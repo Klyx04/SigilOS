@@ -2274,6 +2274,7 @@ const timelineItems=useMemo(()=>{
         return;
       }
       if (attempts < 20) { attempts++; setTimeout(tryScroll, 150); }
+      else toast.error("Quête cible introuvable dans ce guide");
     };
     tryScroll();
     return () => { alive = false; };

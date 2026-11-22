@@ -1669,7 +1669,9 @@ details.da-conseil[open] .da-conseil-body {
   margin-bottom: .15rem;
 }
 
-.da-window[data-compact="true"] .da-rail {
+/* On masque le trait décoratif, jamais le conteneur `.da-rail` : il porte la liste. */
+.da-window[data-compact="true"] .da-rail::before,
+.da-window[data-compact="true"] .da-rail::after {
   display: none;
 }
 

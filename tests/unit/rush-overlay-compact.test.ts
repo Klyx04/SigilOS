@@ -24,5 +24,10 @@ describe("overlay Rush — mode compact", () => {
 
         const header = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx");
         expect(header).toContain("!narrow && onOpenAlignment");
+
+        // Le rail porte la liste : on masque son trait, jamais le conteneur.
+        const css = read("src/app/da-wakfu.css");
+        expect(css).toContain('.da-window[data-compact="true"] .da-rail::before');
+        expect(css).not.toMatch(/\.da-window\[data-compact="true"\] \.da-rail\s*\{\s*display:\s*none/);
     });
 });

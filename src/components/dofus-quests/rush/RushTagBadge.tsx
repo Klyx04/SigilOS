@@ -78,7 +78,7 @@ export function RushTagBadge({ tag, size = "sm", className, viewer = "preview" }
 
   // Tags techniques non affichés comme badges interactifs (`npc` a son
   // affichage dédié `NpcBadge` : nom + portrait par convention).
-  if (["pos_tags", "prereq_text", "tougli_box", "info_sequence", "dofus_link", "npc"].includes(tag.type)) {
+  if (["pos_tags", "prereq_text", "tougli_box", "info_sequence", "sequence_banner", "dofus_link", "npc"].includes(tag.type)) {
     return null;
   }
 

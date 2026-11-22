@@ -3,6 +3,7 @@ import { getJob } from "@/lib/dofus-assets";
 import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
 import { normalizeAlignmentCamp, previousOrderRank } from "@/lib/rush-route";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
+import { isRushNonQuestBlock, isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 import {
   evaluatePrereqExprGroups,
   readPrereqExprGroups,
@@ -222,17 +223,30 @@ export function getGuideMetiersRequires(
  * `RushTimelineClient` portent leur propre copie du type, sans `order`). Une signature
  * `RushSequence` obligerait ces appelants à caster — la règle doit rester la même pour
  * toutes les surfaces, sans cast.
+ *
+ * Depuis le 22/11/2026, la règle couvre aussi un **bandeau de séquence** : le tag
+ * dédié `sequence_banner` (kind `combat_tactique` / `combat_semi_tactique`) posé
+ * entre deux quêtes. ⚠️ Le tag `combat_tactique` SEUL reste une quête cochable : c'est
+ * le marqueur « cette quête comporte un combat tactique », pas un bandeau.
  */
 export function isInfoSequence(
-  seq: { activityTags?: ReadonlyArray<{ type?: string | null }> | null } | null | undefined
+  seq: { activityTags?: ReadonlyArray<{ type?: string | null; kind?: string | null }> | null } | null | undefined
 ): boolean {
   if (!seq) return false;
   if (!Array.isArray(seq.activityTags)) return false;
-  return seq.activityTags.some((tag) => tag.type === "info_sequence");
+  return seq.activityTags.some((tag) => isRushSequenceBannerMarker(tag));
 }
 
-/** Les trois types de blocs qui ne sont PAS des étapes : rien à cocher, pas de « n/N ». */
-export const NON_CHECKABLE_BLOCK_TYPES = ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"] as const;
+/** Les types de blocs qui ne sont PAS des étapes : rien à cocher, pas de « n/N ». */
+export const NON_CHECKABLE_BLOCK_TYPES = [
+  "SEPARATEUR",
+  "INFO",
+  "DOFUS_OBTAINED",
+  // Bandeaux Combat : un bloc de ce type n'est pas une étape (0/0 interdit).
+  // ⚠️ La source de vérité reste `isRushNonQuestBlock` (bloc-types) — voir plus bas.
+  "COMBAT_TACTIQUE",
+  "COMBAT_SEMI_TACTIQUE",
+] as const;
 
 /**
  * Un bloc qui n'est pas une étape : séparateur, encart CONSEIL/TIPS, « Dofus obtenu ».
@@ -246,7 +260,10 @@ export function isNonCheckableBlock(
   ms: Pick<RushMilestone, "type"> | null | undefined
 ): boolean {
   if (!ms) return false;
-  return (NON_CHECKABLE_BLOCK_TYPES as readonly string[]).includes(ms.type || "");
+  // Règle PARTAGÉE (bloc-types) : séparateur, conseil, bandeaux Combat, « Dofus obtenu ».
+  // La liste locale ci-dessus n'existe que pour la lecture historique ; toute nouvelle
+  // surface doit appeler cette fonction, jamais comparer un type à la main.
+  return isRushNonQuestBlock(ms.type);
 }
 
 /**

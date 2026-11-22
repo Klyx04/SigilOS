@@ -77,3 +77,53 @@ export function getDofusMeta(id: string | null | undefined): RushDofusMeta | nul
     const key = id.trim().toLowerCase();
     return RUSH_DOFUS_META.find((d) => d.id === key) ?? null;
 }
+
+/** Normalisation de comparaison (accents, casse) — usage interne aux deux replis. */
+function normalizeDofusKey(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+/**
+ * Fiche Dofus d'un bloc : par `dofusId`, sinon par le libellé présent dans le titre
+ * (« Dofus Sylvestre obtenu »). Le repli par titre existait **seulement** dans
+ * l'overlay (22/11/2026) : un bloc du studio sans `dofusId` n'affichait donc son œuf
+ * que dans une surface sur trois — la résolution devient la règle partagée.
+ */
+export function resolveRushDofus(
+    dofusId?: string | null,
+    title?: string | null
+): RushDofusMeta | null {
+    const byId = getDofusMeta(dofusId);
+    if (byId) return byId;
+    const haystack = normalizeDofusKey(title ?? "");
+    if (!haystack) return null;
+    for (const dofus of RUSH_DOFUS_META) {
+        const label = normalizeDofusKey(dofus.label);
+        if (label && (haystack.includes(`dofus ${label}`) || haystack === label)) return dofus;
+    }
+    return null;
+}
+
+/**
+ * Titre du bandeau « Dofus obtenu ».
+ *
+ * Mesure du 22/11/2026 : le dashboard affichait un titre **codé en dur**
+ * (« VOUS AVEZ OBTENU / LE DOFUS X ! ») et ne montrait le titre saisi dans le studio
+ * qu'en petit texte — un bloc intitulé « test » s'affichait donc « LE DOFUS  ! »
+ * quand aucun `dofusId` n'était posé. Le titre du studio passe devant ; le Dofus ne
+ * sert que de repli lisible.
+ */
+export function dofusObtainedHeading(
+    title?: string | null,
+    dofusId?: string | null
+): string {
+    const own = (title ?? "").trim();
+    if (own) return own;
+    const dofus = getDofusMeta(dofusId);
+    return dofus ? `Dofus ${dofus.label} obtenu` : "Dofus obtenu";
+}
+

@@ -13,6 +13,7 @@
  */
 
 import { RUSH_DOFUS_META, getDofusMeta } from "@/lib/rush-dofus-meta";
+import { isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 import { buildMilestoneStepKeys } from "@/lib/guide-progress-helpers";
 
 export type DofusQuestRef = {
@@ -174,7 +175,9 @@ export function dofusQuestStats(
             if (!sequence || typeof sequence.id !== "string") continue;
             if (sequence.isSuccess) continue;
             const tags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
-            if (tags.some((tag) => tag && typeof tag === "object" && (tag as { type?: unknown }).type === "info_sequence")) {
+            // Encart conseil (`info_sequence`) ou bandeau Combat (`sequence_banner`) :
+            // jamais une quête du pourcentage par Dofus (22/11/2026).
+            if (tags.some((tag) => isRushSequenceBannerMarker(tag as { type?: string | null; kind?: string | null }))) {
                 continue;
             }
             const entry = counts.get(key) ?? { done: 0, total: 0 };

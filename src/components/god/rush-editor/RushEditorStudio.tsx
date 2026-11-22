@@ -90,7 +90,15 @@ import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/c
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { RushMarkdown } from "@/components/dofus-quests/rush/RushMarkdown";
 import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
-import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
+import {
+  RUSH_COMBAT_BLOCK_META,
+  RUSH_INFO_SEQUENCE_TAG,
+  isRushCombatBlock,
+  isRushSequenceBannerMarker,
+  rushSequenceBannerKind,
+  rushSequenceBannerTag,
+  type RushSequenceBannerKind,
+} from "@/lib/rush-block-types";
 import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
 import { parseRushMarkdown } from "@/lib/rush-markdown";
 import { safeExternalUrl } from "@/lib/security";
@@ -1406,7 +1414,7 @@ export function RushSylvestreAdminClient({
                     <div>
                       <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Type de bloc</label>
                       <div className="flex flex-wrap gap-2">
-                        {MILESTONE_TYPES.map(t => (
+                        {MILESTONE_TYPES.filter(t => !isRushCombatBlock(t.value)).map(t => (
                           <button key={t.value} onClick={() => {
                             setNewStepType(t.value);
                             if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
@@ -3317,6 +3325,27 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
           )}
           <span className="text-xs text-foreground font-medium">{seq.subGuideName || seq.subGuideRef}</span>
+          {(() => {
+            // Bandeau de séquence (22/11/2026) : le studio doit le MONTRER, sinon une
+            // ligne correctement taguée ressemble à une quête ordinaire.
+            const kind = rushSequenceBannerKind(seq as any);
+            if (kind === "none") return null;
+            const label =
+              kind === "info_sequence"
+                ? "Conseil"
+                : kind === "combat_tactique"
+                  ? "Combat tactique"
+                  : "Combat semi-tactique";
+            return (
+              <span
+                title="Bandeau affiché entre deux quêtes — non cochable"
+                className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-caption font-bold text-primary"
+              >
+                <Sword className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                {label}
+              </span>
+            );
+          })()}
           {displayDungeons.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               {displayDungeons.map((dd: any, di: number) => (
@@ -4321,30 +4350,25 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     return existing?.color || "emerald";
   });
 
-  const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
-    return (seq.activityTags as any[])?.some(t => t.type === "info_sequence") ?? false;
-  });
+  // Bandeau de SÉQUENCE (22/11/2026) : conseil (`info_sequence`) ou combat
+  // (`combat_tactique` / `combat_semi_tactique`). Les trois tags vivent dans
+  // `activityTags` (JSON) : aucune migration. Une séquence marquée s'affiche comme un
+  // bandeau **dans le bloc** (entre deux quêtes), n'est jamais cochable et ne compte pas.
+  const [sequenceBannerKind, setSequenceBannerKind] = useState<RushSequenceBannerKind>(() =>
+    rushSequenceBannerKind(seq as any)
+  );
   const [infoBlockColor, setInfoBlockColor] = useState<string>(() => {
-    const existing = (seq.activityTags as any[])?.find(t => t.type === "info_sequence");
+    const existing = (seq.activityTags as any[])?.find(t => isRushSequenceBannerMarker(t));
     return existing?.color || "#10b981";
   });
 
-  const handleIsInfoBlockChange = (val: boolean) => {
-    setIsInfoBlock(val);
+  const handleSequenceBannerKindChange = (kind: RushSequenceBannerKind) => {
+    setSequenceBannerKind(kind);
     setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-      if (val) {
-        return [...filtered, { type: "info_sequence" as any, color: infoBlockColor }];
-      }
-      return filtered;
-    });
-  };
-
-  const handleInfoBlockColorChange = (color: string) => {
-    setInfoBlockColor(color);
-    setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-      return [...filtered, { type: "info_sequence" as any, color }];
+      // Un seul marqueur à la fois : on retire `info_sequence` ET `sequence_banner`.
+      const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+      const tag = rushSequenceBannerTag(kind, infoBlockColor);
+      return tag ? [...filtered, tag as any] : filtered;
     });
   };
 
@@ -5953,26 +5977,31 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-destructive/90">
-            ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            ⚔️ Donjons ({selectedDungeons.length}), Bandeau (conseil/combat) & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
         {openSections.advanced && (
           <div className="p-3 pt-0 space-y-3 border-t border-border">
-            {/* Toggle Info Sequence */}
+            {/* Bandeau de la séquence : conseil ou combat, rendu ENTRE DEUX QUÊTES */}
             <div className="flex flex-col gap-2 p-2 rounded-xl bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isInfoBlockToggle"
-                  checked={isInfoBlock}
-                  onChange={e => handleIsInfoBlockChange(e.target.checked)}
-                  className="w-4 h-4 accent-primary rounded cursor-pointer"
-                />
-                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-primary cursor-pointer select-none">
-                  📌 Est un bloc d'information pur (non cochable)
-                </label>
-              </div>
+              <label htmlFor="sequenceBannerKind" className="text-xs font-bold text-primary">
+                Bandeau de cette séquence (non cochable)
+              </label>
+              <select
+                id="sequenceBannerKind"
+                value={sequenceBannerKind}
+                onChange={e => handleSequenceBannerKindChange(e.target.value as RushSequenceBannerKind)}
+                className="w-full rounded-lg border border-primary/30 bg-background px-2 py-1.5 text-xs text-foreground"
+              >
+                <option value="none">Aucun — quête cochable</option>
+                <option value={RUSH_INFO_SEQUENCE_TAG}>Conseil / information</option>
+                <option value="combat_tactique">Combat tactique</option>
+                <option value="combat_semi_tactique">Combat semi-tactique</option>
+              </select>
+              <p className="text-caption text-subtle-foreground">
+                Le bandeau s&apos;affiche à la place de la quête, dans le bloc : ni case à cocher, ni progression.
+              </p>
             </div>
 
             {/* Donjons liés */}
@@ -6176,9 +6205,19 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
 
-  // Info block state
-  const [isInfoBlockNew, setIsInfoBlockNew] = useState(false);
+  // Bandeau de l'étape (création) : conseil ou combat — même marqueur que l'éditeur
+  // d'une séquence existante (`sequence_banner`), donc aucune migration.
+  const [sequenceBannerKindNew, setSequenceBannerKindNew] = useState<RushSequenceBannerKind>("none");
   const [infoBlockColorNew, setInfoBlockColorNew] = useState("#10b981");
+
+  const handleSequenceBannerKindNewChange = (kind: RushSequenceBannerKind) => {
+    setSequenceBannerKindNew(kind);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+      const tag = rushSequenceBannerTag(kind, infoBlockColorNew);
+      return tag ? [...filtered, tag as any] : filtered;
+    });
+  };
 
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
@@ -6280,6 +6319,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
     setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
     setQuestDbIds([]);
     setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
+    setSequenceBannerKindNew("none");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
@@ -6302,6 +6342,50 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
+      </div>
+
+      {/* Bandeau : VISIBLE sans « Options avancées » (mesuré le 22/11/2026 — le geste
+          courant est d'insérer un combat tactique entre deux quêtes, pas une option). */}
+      <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
+        <label htmlFor="sequenceBannerKindNew" className="text-caption font-bold text-primary">
+          Bandeau de cette étape (non cochable)
+        </label>
+        <select
+          id="sequenceBannerKindNew"
+          value={sequenceBannerKindNew}
+          onChange={e => handleSequenceBannerKindNewChange(e.target.value as RushSequenceBannerKind)}
+          className="w-full rounded-lg border border-primary/30 bg-background px-2 py-1 text-xs text-foreground"
+        >
+          <option value="none">Aucun — quête cochable</option>
+          <option value={RUSH_INFO_SEQUENCE_TAG}>Conseil / information</option>
+          <option value="combat_tactique">Combat tactique</option>
+          <option value="combat_semi_tactique">Combat semi-tactique</option>
+        </select>
+        <span className="text-caption text-subtle-foreground italic">
+          {sequenceBannerKindNew === "none"
+            ? "Aucun bandeau : la ligne se coche et compte dans le bloc."
+            : "Bandeau : la ligne s'affiche entre deux quêtes, ni case à cocher, ni progression."}
+        </span>
+        {sequenceBannerKindNew !== "none" && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
+            <div className="flex gap-1">
+              {COLOR_PALETTE.map(c => (
+                <button key={c.value} onClick={() => {
+                  setInfoBlockColorNew(c.value);
+                  setActivityTags(prev => {
+                    const filtered = prev.filter((t: any) => !isRushSequenceBannerMarker(t));
+                    const tag = rushSequenceBannerTag(sequenceBannerKindNew, c.value);
+                    return tag ? [...filtered, tag as any] : filtered;
+                  });
+                }} title={c.label}
+                  className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Même identité assistée qu'à l'édition : le catalogue fournit le nom et l'id DofusDB. */}
@@ -6480,49 +6564,6 @@ function AddSequenceForm({ milestoneId, onAdd, isPending, defaultRoute }: {
                   rows={2}
                   placeholder="Conseil pour le membre…"
                 />
-              </div>
-              <div className="flex flex-col gap-1 p-2 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isInfoBlockNew"
-                    checked={isInfoBlockNew}
-                    onChange={e => {
-                      setIsInfoBlockNew(e.target.checked);
-                      setActivityTags(prev => {
-                        const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-                        if (e.target.checked) {
-                          return [...filtered, { type: "info_sequence" as any, color: infoBlockColorNew }];
-                        }
-                        return filtered;
-                      });
-                    }}
-                    className="w-4 h-4 accent-primary rounded cursor-pointer"
-                  />
-          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-primary cursor-pointer select-none">
-            📌 Bloc d'info sans check ni bookmark
-          </label>
-          <span className="text-caption text-subtle-foreground ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
-                </div>
-                {isInfoBlockNew && (
-                  <div className="flex items-center gap-2 pl-6">
-                    <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wide">Couleur</span>
-                    <div className="flex gap-1">
-                      {COLOR_PALETTE.map(c => (
-                        <button key={c.value} onClick={() => {
-                          setInfoBlockColorNew(c.value);
-                          setActivityTags(prev => {
-                            const filtered = prev.filter((t: any) => t.type !== "info_sequence");
-                            return [...filtered, { type: "info_sequence" as any, color: c.value }];
-                          });
-                        }} title={c.label}
-                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-border scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                          style={{ backgroundColor: c.value }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div>
                 <label className="text-caption text-subtle-foreground mb-1 block">⚠️ Note courte</label>

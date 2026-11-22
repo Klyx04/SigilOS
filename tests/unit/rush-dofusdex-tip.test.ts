@@ -104,14 +104,16 @@ describe("Câblage — les deux surfaces qui affichaient le pavé passent par le
     }
   });
 
-  it("le tips de BLOC du dashboard (cadre `ms.tips`) passe par le repli", () => {
-    // Chemin réel mesuré sur la capture du 19/11 : le pavé n'est ni un tips de quête ni
-    // un encart INFO — c'est le cadre `ms.tips` du bloc ZONE/DOFUS.
+  it("les tips (bloc et quête) ne rendent jamais un pavé DofusDex brut", () => {
+    // Mesure du 19/11 : le pavé venait du cadre `ms.tips` d'un bloc ZONE/DOFUS. Ce cadre
+    // a été **retiré** le 22/11/2026 (le guide ne rend plus `ms.tips` de bloc) et les tips
+    // de quête passent par `CollapsibleHints` → `RushDofusDexTip`. La garde vérifie les
+    // deux : le repli est bien câblé, et aucun pavé brut n'est rendu directement.
     const DASH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
     const src = readFileSync(DASH, "utf8");
-    expect(src).toContain('import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip"');
     expect(src).toMatch(
-      /splitDofusDexTip\(ms\.tips\)\.official \? \(\s*<div className="mb-1">\s*<RushDofusDexTip text=\{ms\.tips\} \/>/
+      /function CollapsibleHints\(\{ tipsText[\s\S]*?<RushDofusDexTip text=\{tipsText\}/,
     );
+    expect(src).not.toMatch(/<RushDofusDexTip text=\{ms\.tips\}/);
   });
 });

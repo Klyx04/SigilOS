@@ -72,9 +72,11 @@ import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamob
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
-import { isRushCombatBlock } from "@/lib/rush-block-types";
-import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
+import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
+import { isRushCombatBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
@@ -280,22 +282,9 @@ export default function GuideOverlayClient({
     [rawMilestones]
   );
 
-  // Détecte le Dofus associé à un jalon (via dofusId insensible aux accents, ou par correspondance du titre).
-  const getMsDofus = useCallback((ms?: RushMilestone | null) => {
-    if (!ms) return null;
-    const norm = (s?: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (ms.dofusId) {
-      const k = norm(ms.dofusId);
-      for (const [key, d] of Object.entries(DOFUS_DEFS)) {
-        if (norm(key) === k) return d;
-      }
-    }
-    const t = norm(ms.title);
-    for (const [key, d] of Object.entries(DOFUS_DEFS)) {
-      if (t.includes("dofus " + norm(key)) || (d.label && t.includes(norm(d.label)))) return d;
-    }
-    return null;
-  }, []);
+  // Détection du Dofus : règle PARTAGÉE `resolveRushDofus` (`@/lib/rush-dofus-meta`),
+  // appelée par le bandeau lui-même. La copie locale de l'overlay a été retirée le
+  // 22/11/2026 (elle seule connaissait le repli par titre).
 
   // ─── Thème ────────────────────────────────────────────────────────────────
   // L'overlay est **sombre uniquement** (décision du 18/11/2026) : le bouton de
@@ -1530,7 +1519,13 @@ export default function GuideOverlayClient({
           collapsible
           bodyText={infoText}
         >
-          <RushRichText text={infoText} normalizeMeta />
+          {/* Pavé DofusDex (13 blocs, 463–1 956 caractères) : replié par la règle
+              partagée ; un conseil ordinaire garde `normalizeMeta` (positions, liens). */}
+          {splitDofusDexTip(infoText).official ? (
+            <RushDofusDexTip text={infoText} />
+          ) : (
+            <RushRichText text={infoText} normalizeMeta />
+          )}
         </RushInfoBanner>
       );
     }
@@ -1548,32 +1543,10 @@ export default function GuideOverlayClient({
         />
       );
     }
-    const dofus = getMsDofus(ms);
-    return (
-      <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
-        {dofus ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain" />
-        ) : ms.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain" />
-        ) : null}
-        <span className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "var(--color-gold)" }}>
-          ✦ Dofus obtenu ✦
-        </span>
-        <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
-          {ms.title}
-        </h3>
-        {ms.description ? (
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
-            <RushRichText text={ms.description} />
-          </p>
-        ) : ms.tips ? (
-          <RushDofusDexTip text={ms.tips} className="text-[12px] leading-relaxed text-muted-foreground" />
-        ) : null}
-        <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${ms.accentColor || "#a3e635"})` }} />
-      </div>
-    );
+    // Bandeau PARTAGÉ (22/11/2026) : le titre du studio est le titre, le Dofus n'est
+    // qu'un repère (œuf + couleur) et la carte est pleine largeur — la copie locale
+    // empilait un `max-w-md` qui débordait sur une PiP étroite.
+    return <DofusObtainedBanner key={ms.id} milestone={ms} surface="pip" className="my-3" />;
   };
 
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
@@ -1843,6 +1816,21 @@ export default function GuideOverlayClient({
                       {group.sequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
+                  // Combat tactique / semi-tactique DANS le bloc : bandeau `pip` partagé,
+                  // rien à cocher — marqueur `activityTags` (22/11/2026).
+                  const combatSeq = rushCombatSequenceType(seq);
+                  if (combatSeq) {
+                    return (
+                      <RushCombatBanner
+                        key={seq.id}
+                        type={combatSeq}
+                        title={seq.subGuideName}
+                        bodyText={seq.tips}
+                        surface="pip"
+                        className="my-2"
+                      />
+                    );
+                  }
                   // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
                   // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (

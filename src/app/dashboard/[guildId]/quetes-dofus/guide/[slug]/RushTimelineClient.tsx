@@ -32,7 +32,7 @@ import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboard
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
-import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock } from "@/lib/rush-block-types";
+import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock, isRushSequenceBannerMarker, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -44,6 +44,7 @@ import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
 import { useRushOverlayStore, type RushOverlayPayload } from "@/store/rush-overlay-store";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
+import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
 import type { RushMilestone } from "@/types/rush-guide-types";
 import type { RushQuestConstraints } from "@/types/rush-constraints";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
@@ -927,83 +928,10 @@ function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; n
 }
 
 
-// ─── DofusObtainedBanner (premium card style — high fantasy Dofus UI) ─────────
-function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
-  const dofusInfo = milestone.dofusId ? DOFUS_DEFS.find(d => d.id === milestone.dofusId) : null;
-  const color = milestone.accentColor || (dofusInfo?.color || "#e6b96b");
-  const message = milestone.description || milestone.title || (dofusInfo ? `Dofus ${dofusInfo.label}` : "Dofus obtenu !");
+// Bandeau « Obtention Dofus » : composant PARTAGÉ des trois surfaces (import en tête
+// de fichier). La copie locale affichait un titre codé en dur (« LE DOFUS  ! » sans
+// `dofusId`) et reléguait le titre du studio en petit texte — mesuré le 22/11/2026.
 
-  return (
-    <div className="relative my-6 mx-auto max-w-md select-none">
-      {/* Card frame — plate (zéro glow, bordure 1px) */}
-      <div className="relative rounded-[6px] overflow-hidden border"
-        style={{
-          borderColor: `${color}35`,
-          background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.5) 50%, ${color}06 100%)`,
-        }}
-      >
-        {/* Image du bloc — importée côté GOD : posée en tête de carte, NUE (l'œuf du Dofus
-            reste le picto du TYPE, l'image est l'illustration de l'obtention). */}
-        {milestone.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={safeImageUrl(milestone.imageUrl)}
-            alt=""
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-            className="max-h-40 w-full object-contain"
-          />
-        )}
-        {/* Inner content */}
-        <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
-          {/* Dofus icon — large egg */}
-          {dofusInfo && (
-            <div className="relative group">
-              {/* Icon container */}
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 flex items-center justify-center p-2"
-                style={{
-                  borderColor: `${color}50`,
-                  background: `rgba(0,0,0,0.6)`,
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={dofusInfo.imageUrl}
-                  alt={dofusInfo.label}
-                  className="w-full h-full object-contain scale-110"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Text content strictly inside card */}
-          <div className="space-y-2">
-            <h2
-              className="font-[family-name:var(--da-font-title)] text-lg sm:text-xl font-semibold uppercase tracking-[0.12em] leading-tight"
-              style={{ color }}
-            >
-              VOUS AVEZ OBTENU<br />
-              <span className="text-2xl sm:text-3xl">LE DOFUS {dofusInfo?.label?.toUpperCase() || ""} !</span>
-            </h2>
-            {message && (
-              <p className="text-sm text-muted-foreground/90 leading-relaxed font-medium max-w-xs mx-auto">
-                {message}
-              </p>
-            )}
-          </div>
-
-          {/* Bottom divider sparkles */}
-          <div className="flex items-center gap-2 opacity-60">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent to-current" style={{ color: `${color}60` }} />
-            <Sparkles className="w-3 h-3" style={{ color: `${color}80` }} />
-            <Sparkles className="w-4 h-4" style={{ color: `${color}90` }} />
-            <Sparkles className="w-3 h-3" style={{ color: `${color}80` }} />
-            <div className="h-px w-12 bg-gradient-to-l from-transparent to-current" style={{ color: `${color}60` }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
 function InfoBanner({ milestone }: { milestone: Milestone }) {
@@ -1272,7 +1200,14 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                         )}
                         {group.sequences.map((s:any)=>(
                       isInfoSequence(s) ? (
-                        <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        // Combat tactique / semi-tactique POSÉ DANS LE BLOC (22/11/2026) :
+                        // même rangée qu'une quête, même bandeau que le bloc autonome —
+                        // marqueur `activityTags`, non cochable et hors progression.
+                        rushCombatSequenceType(s) ? (
+                          <RushCombatBanner key={s.id} type={rushCombatSequenceType(s)!} title={s.subGuideName} bodyText={s.tips} surface="page" className="my-2" />
+                        ) : (
+                          <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        )
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
@@ -1390,7 +1325,10 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function isInfoSequence(seq: Sequence): boolean {
-  return Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+  // Règle PARTAGÉE (22/11/2026) : `info_sequence` ET le marqueur `sequence_banner`
+  // (bandeau Combat posé entre deux quêtes). La copie locale testait uniquement
+  // `info_sequence` — le bandeau était donc rendu comme une quête cochable.
+  return Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => isRushSequenceBannerMarker(t));
 }
 
 // ─── Contexts ────────────────────────────────────────────────────────────────

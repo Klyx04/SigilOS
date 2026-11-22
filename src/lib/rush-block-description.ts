@@ -16,12 +16,15 @@ export function syncQuestCountInDescription(
   return text.replace(/(\d+)(\s*qu[êe]tes?\b)/i, (_match, _n, rest: string) => `${questCount}${rest}`);
 }
 
-/** Nombre de QUETES d un bloc : les encarts `info_sequence` ne sont pas des quetes. */
+import { isRushSequenceBannerMarker } from "@/lib/rush-block-types";
+
+/** Nombre de QUETES d un bloc : les encarts `info_sequence` et les bandeaux
+ *  `sequence_banner` (Combat) ne sont pas des quetes. */
 export function countQuestsInBlock(
   sequences: ReadonlyArray<{ activityTags?: unknown }> | null | undefined
 ): number {
   return (sequences ?? []).filter((s) => {
     const tags = s?.activityTags;
-    return !Array.isArray(tags) || !tags.some((t) => (t as { type?: string })?.type === "info_sequence");
+    return !Array.isArray(tags) || !tags.some((t) => isRushSequenceBannerMarker(t as { type?: string | null }));
   }).length;
 }

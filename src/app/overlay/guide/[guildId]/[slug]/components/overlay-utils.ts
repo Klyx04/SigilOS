@@ -6,6 +6,7 @@
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage, rushResourceKey } from "@/lib/rush-guide-utils";
 import { successIconUrl } from "@/lib/achievement-icon";
+import { isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
 // Re-export pour compatibilité des imports overlay.
@@ -121,6 +122,10 @@ export const TAG_HIDDEN_TYPES = [
   "pos_tags",
   "tougli_box",
   "info_sequence",
+  // Marqueur d'un bandeau de séquence Combat (22/11/2026) : il pilote le rendu du
+  // bandeau, jamais une puce de nature (le tag `combat_tactique` d'une quête, lui,
+  // reste affiché).
+  "sequence_banner",
   "dofus_link",
   "ocre_dungeon",
   "quest_group",
@@ -480,7 +485,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
 /**
  * Retourne la prochaine séquence à faire :
  * 1. Le bookmark actif (si non terminée)
- * 2. Sinon la première séquence non terminée et non info_sequence
+ * 2. Sinon la première séquence non terminée et non bandeau (conseil ou combat)
  */
 export function getNextObjective(
   sequences: RushSequence[],
@@ -489,8 +494,11 @@ export function getNextObjective(
   allMilestones: RushMilestone[],
   allCompletedSeqIds: Set<string>
 ): RushSequence | null {
+  // Règle PARTAGÉE (`isRushSequenceBannerMarker`) : `info_sequence` et le marqueur
+  // `sequence_banner` des bandeaux Combat ne sont pas des objectifs — le tag
+  // `combat_tactique` d'une quête, lui, en reste un.
   const isInfo = (s: RushSequence) =>
-    (s.activityTags || []).some((t) => t.type === "info_sequence");
+    (s.activityTags || []).some((t) => isRushSequenceBannerMarker(t));
   const isBlocked = (s: RushSequence) =>
     isSequenceBlockedByPrereqs(s, allCompletedSeqIds, allMilestones);
 

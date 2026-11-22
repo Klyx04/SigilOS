@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactElement, type ReactNode } from "react";
 import { Toaster, toast as sonnerToast } from "sonner";
 
 /**
@@ -20,12 +20,17 @@ import { Toaster, toast as sonnerToast } from "sonner";
 export const OVERLAY_TOASTER_ID = "rush-overlay";
 
 type ToastOptions = Parameters<typeof sonnerToast.success>[1];
+type ToastId = string | number;
 
 export type OverlayToastApi = {
   success: (message: string, options?: ToastOptions) => void;
   info: (message: string, options?: ToastOptions) => void;
   warning: (message: string, options?: ToastOptions) => void;
   error: (message: string, options?: ToastOptions) => void;
+  /** Toast React libre (compte à rebours, bouton, etc.). */
+  custom: (jsx: (id: ToastId) => ReactElement, options?: ToastOptions) => ToastId;
+  /** Ferme un toast par son id (utile quand le contenu gère son propre bouton). */
+  dismiss: (id?: ToastId) => void;
 };
 
 const overlayToast: OverlayToastApi = {
@@ -33,6 +38,8 @@ const overlayToast: OverlayToastApi = {
   info: (m, o) => sonnerToast.info(m, { ...o, toasterId: OVERLAY_TOASTER_ID }),
   warning: (m, o) => sonnerToast.warning(m, { ...o, toasterId: OVERLAY_TOASTER_ID }),
   error: (m, o) => sonnerToast.error(m, { ...o, toasterId: OVERLAY_TOASTER_ID }),
+  custom: (jsx, o) => sonnerToast.custom(jsx, { ...o, toasterId: OVERLAY_TOASTER_ID }),
+  dismiss: (id) => sonnerToast.dismiss(id),
 };
 
 const globalToast: OverlayToastApi = {
@@ -40,6 +47,8 @@ const globalToast: OverlayToastApi = {
   info: (m, o) => sonnerToast.info(m, o),
   warning: (m, o) => sonnerToast.warning(m, o),
   error: (m, o) => sonnerToast.error(m, o),
+  custom: (jsx, o) => sonnerToast.custom(jsx, o),
+  dismiss: (id) => sonnerToast.dismiss(id),
 };
 
 const OverlayToastCtx = createContext<OverlayToastApi | null>(null);

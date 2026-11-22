@@ -68,6 +68,7 @@ import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
+import { RushOverlayReturnToast } from "./components/RushOverlayReturnToast";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayFeedbackPanel } from "./components/RushOverlayFeedbackPanel";
 import { PublicMetamobModal } from "@/components/dofus-quests/rush/PublicMetamobModal";
@@ -1006,12 +1007,20 @@ export default function GuideOverlayClient({
       if (!landed || !origin) return;
       // Même principe que le guide interne (retour proposé depuis la modale) :
       // le joueur a quitté sa quête d'origine (souvent dans un autre bloc),
-      // le toast la lui rend.
-      toast.info("Retour à la quête d'origine", {
-        description: origin.name,
-        duration: 10000,
-        action: { label: "Revenir", onClick: () => { jumpToQuestRef.current(origin); } },
-      });
+      // le toast la lui rend — 30 s avec compte à rebours pour ne pas le rater.
+      toast.custom(
+        (id) => (
+          <RushOverlayReturnToast
+            questName={origin.name}
+            seconds={30}
+            onReturn={() => {
+              toast.dismiss(id);
+              jumpToQuestRef.current(origin);
+            }}
+          />
+        ),
+        { duration: 30000 }
+      );
     },
     [jumpToQuest, toast]
   );

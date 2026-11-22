@@ -104,14 +104,20 @@ describe("overlay Rush — saut vers un prérequis", () => {
 
   it("le retour à la quête d'origine est proposé comme dans le guide interne", () => {
     const shell = read("src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx");
-    expect(shell).toContain('label: "Revenir"');
-    expect(shell).toContain("Retour à la quête d'origine");
-    expect(shell).toContain("duration: 10000");
+    expect(shell).toContain("toast.custom");
+    expect(shell).toContain("duration: 30000");
+    expect(shell).toContain("RushOverlayReturnToast");
     // La ref donne au toast le `jumpToQuest` courant : sans elle, un filtre
-    // changé pendant les 10 s rendrait le retour muet.
+    // changé pendant les 30 s rendrait le retour muet.
     expect(shell).toContain("jumpToQuestRef.current(origin)");
     expect(shell).toContain("jumpToQuestRef.current = jumpToQuest");
     // Un second saut avant la fin de l'anneau doit retirer l'ancien surlignage.
     expect(shell).toContain("highlighted?.classList.remove(...ring)");
+
+    const toast = read(
+      "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayReturnToast.tsx"
+    );
+    expect(toast).toContain("Revenir · {left} s");
+    expect(toast).toContain("setLeft((value) => value - 1)");
   });
 });

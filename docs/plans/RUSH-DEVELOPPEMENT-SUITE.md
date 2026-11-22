@@ -24,12 +24,8 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 
 | # | Lot | Définition / mesure | Ancrages | Taille |
 |---|---|---|---|---|
-| 1 | **O13 mini-carte** | Dans la modale de quête : image HD de la case (`hd_maps`) + pion + zaap le plus proche **dans le bon monde** ; 518/536 couvertes ; 18 sans image ⇒ **aucune carte** ; jamais de pion sur (0,0) | `RushOverlayQuestDetailModal` (partagée overlay + guide public), `nearest-zaap.ts`, `GameQuest.imageUrl` | M |
-| 2 | **V-D2 Kamas + Dragofesse** | **60 tags « Kamas »** portent l'id invalide `10000000001` (hors Int32, sans `imageUrl`) ⇒ image placeholder ; **2 tags « Dragofesse en Cuir Violet de Bwork »** id 7696 **absent de `GameItem`** ; 1 seul id réel hors base | `rush-guide-utils.ts` (`resolveItemImage`), `QuestItemResourceGrid`, `overlay-utils.ts` | S |
-| 4 | **O6 focus / scroll** | Aucun `autoFocus` ni verrou de scroll dans l'overlay (Échap PiP déjà livré) | modales overlay | S |
-| 5 | **E5 finitions studio** | 4 `prompt()` natifs (lien, position) + finitions `REFONTE-EDITEUR-RUSH.md` §3 | studio God | M |
-| 6 | **Compteur « 448 »** | Non reproduit : payload local = 536 ; à reproduire à l'écran avant de corriger | en-tête du guide | S |
-| 7 | **Descriptions de blocs (8 vs 12)** | Calculées avant l'enrichissement — correctif de seed | seed Rush | S |
+| 1 | **O13 mini-carte (modale de quête)** | Carte HD de la case + pion + zaap le plus proche **dans le bon monde** ; 518/536 couvertes ; 18 sans image ⇒ **aucune carte** ; jamais de pion sur (0,0). ⚠️ **Déjà livré sur la puce de coordonnées** (`RushPositionMenu` + `/api/rush/map-at` + `pos_tags.mapId` de God) — il reste la **modale de détail de quête** | `RushOverlayQuestDetailModal` (partagée overlay + guide public), `nearest-zaap.ts`, `GameQuest.imageUrl` | M |
+| 2 | **Compteur « 448 »** | Non reproduit : payload local = 536 ; à reproduire à l'écran avant de corriger | en-tête du guide | S |
 
 ### B. Code — mesure ou décision d'abord
 
@@ -48,7 +44,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 
 ### C. Déjà livré — à acter (ne plus compter comme reste)
 
-O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée).
+O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée) · **V-D2 livré** (`isResolvableItemId`, borne Int32) · **O6 livré** (`autoFocus`, verrou de scroll porteur, piège Tab `nextFocusIndex`) · **E5 livré** (4 `prompt()` → 2 `Dialog`) · **descriptions de blocs recalées** (`syncQuestCountInDescription`, 3 écritures) · **carte HD** (`pos_tags.mapId`) imposable depuis God et prioritaire dans `/api/rush/map-at`.
 
 ### D. Bloqué par le mainteneur
 
@@ -65,12 +61,12 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 
 ### E. Ops (hors code)
 
-Bêta à redéployer (`dev` `03aabc19` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
+Bêta à redéployer (`dev` `dbbe5ae3` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
 
 ### F. À savoir avant de coder
 
 - import **additif** : `importRushGuide(raw, apply)` fait un **dry-run par défaut** ;
-- **aucune migration** pour les lots 1 à 7 ci-dessus ;
+- **aucune migration** pour les lots restants ci-dessus ;
 - ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
 - piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
 - **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.

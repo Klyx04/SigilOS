@@ -21,12 +21,35 @@ export function RushOverlayQuestFilter({
   value,
   onChange,
   counts,
+  compact = false,
 }: {
   value: RushQuestFilter;
   onChange: (value: RushQuestFilter) => void;
   /** Compteurs par filtre (règle pure `countRushQuests`). Absent ⇒ pas de compteur. */
   counts?: RushQuestCounts;
+  /** PiP étroite : un seul select thématisé, jamais quatre onglets qui wrappent. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <label className="da-filter-select">
+        <span className="sr-only">Filtrer les quêtes</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value as RushQuestFilter)}
+          aria-label="Filtrer les quêtes"
+        >
+          {OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+              {counts ? ` (${counts[option.value]})` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
   return (
     <div
       role="group"

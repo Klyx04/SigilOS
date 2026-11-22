@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 59) — **Rush : overlay compact (PiP étroite)** — branche `fix/rush-overlay-compact-2026-11-22`
+
+> **Demande user (verbatim)** : « en fait la place prise par les quêtes semblent assez dérisoire plus on diminue, les bloc toutes en cours faites verrouillé sont vraiment nécessaire à cette taille ? le champ de recherche le dropdown debloc, tous les boutons du haut avec les étapes etc ? ».
+> **Mesuré** : à 310 px, les 4 filtres wrappent (`Verrouillées 9` sur une 2e ligne), le header passe sur 3 lignes (`8 / 390 / quêtes`), `Ressources 3/3` est coupé, la carte garde un titre 17,5 px et le rail décoratif.
+> **Fait** : `data-compact` sur la racine ; filtre en `select` thématisé ; recherche `h-8` + placeholder court ; « Ressources » en icône + badge ; header secondaire (alignement, Ocre, Metamob, donjons, masquer) dans `⋯` ; cartes `15 px`, padding réduit, rail masqué.
+> **Preuves** : **103 tests ciblés ✅** (dont `rush-overlay-compact`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
+> **Reste** : valider visuellement 310/390/768/1024/1440 · 3ᵉ palier (largeur cible + blocs visibles).
+
 ## 📝 Session 22/11/2026 (suite 58) — **Rush : overlay étroit, précédence corrigée** — branche `fix/rush-overlay-density-2026-11-22`
 
 > **Demande user (verbatim)** : « choisi et enchaine ».

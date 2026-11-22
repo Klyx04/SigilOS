@@ -10,6 +10,8 @@ interface RushOverlaySearchProps {
   onClear: () => void;
   placeholder?: string;
   className?: string;
+  /** PiP étroite : hauteur réduite, placeholder court, pas de raccourci `/`. */
+  compact?: boolean;
 }
 
 /**
@@ -20,13 +22,14 @@ interface RushOverlaySearchProps {
  */
 export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchProps>(
   function RushOverlaySearch(
-    { value, onChange, onClear, placeholder = "Rechercher une quête, zone, donjon…", className },
+    { value, onChange, onClear, placeholder, className, compact = false },
     ref
   ) {
     return (
       <div
         className={cn(
-          "da-search flex shrink-0 items-center gap-2 h-9 mx-3 mt-3 mb-2.5 px-3 transition-colors motion-reduce:transition-none",
+          "da-search flex shrink-0 items-center gap-2 transition-colors motion-reduce:transition-none",
+          compact ? "h-8 mx-2 mt-2 mb-2 px-2.5" : "h-9 mx-3 mt-3 mb-2.5 px-3",
           className
         )}
       >
@@ -37,7 +40,7 @@ export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchP
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
+          placeholder={placeholder ?? (compact ? "Rechercher…" : "Rechercher une quête, zone, donjon…")}
           aria-label="Rechercher"
           className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
         />
@@ -53,9 +56,11 @@ export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchP
           </button>
         )}
 
-        <kbd className="rounded border border-border-strong px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground">
-          /
-        </kbd>
+        {!compact && (
+          <kbd className="rounded border border-border-strong px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground">
+            /
+          </kbd>
+        )}
       </div>
     );
   }

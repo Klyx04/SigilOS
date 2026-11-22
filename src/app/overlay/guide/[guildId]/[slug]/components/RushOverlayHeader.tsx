@@ -179,9 +179,10 @@ export function RushOverlayHeader({
           <h1 className="sr-only">{guideName}</h1>
 
           {/* Progression explicite */}
-          <p className="da-meta mt-1">
+          <p className={cn("da-meta mt-1", compact && "flex-nowrap whitespace-nowrap")}>
             <span>
-              <strong>{completedSteps}</strong> / {totalSteps} quêtes
+              <strong>{completedSteps}</strong>/{totalSteps}
+              {compact ? "" : " quêtes"}
             </span>
             <span>{overallPct} %</span>
           </p>
@@ -233,7 +234,7 @@ export function RushOverlayHeader({
         {/* Droite : actions + œuf Dofus */}
         <div className="relative flex items-center gap-1.5 shrink-0">
           {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
-          {onOpenAlignment && (
+          {!narrow && onOpenAlignment && (
             <button
               type="button"
               onClick={onOpenAlignment}
@@ -247,7 +248,7 @@ export function RushOverlayHeader({
           )}
 
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
-          {onOpenOcre && (
+          {!narrow && onOpenOcre && (
             <button
               type="button"
               onClick={onOpenOcre}
@@ -276,7 +277,7 @@ export function RushOverlayHeader({
           {/* Metamob — surface PUBLIQUE connectée (demande du 08/11/2026). Même place et même
               habillage que le bouton Ocre de l'interne ; il ouvre la liaison Metamob, pas la
               Quête Ocre (sans guilde, il n'y a aucune progression Ocre à montrer). */}
-          {onOpenMetamob && (
+          {!narrow && onOpenMetamob && (
             <button
               type="button"
               onClick={onOpenMetamob}
@@ -307,7 +308,7 @@ export function RushOverlayHeader({
 
           {/* Bloc J — « Progression Donjons » : entre le compte (Ocre/Metamob) et les
               réglages d'affichage. Badge = exigences restantes, jamais à 0. */}
-          {onOpenDungeons && (
+          {!narrow && onOpenDungeons && (
             <button
               type="button"
               onClick={onOpenDungeons}
@@ -334,15 +335,17 @@ export function RushOverlayHeader({
           )}
 
           {/* Masquer les quêtes terminées */}
-          <button
-            type="button"
-            onClick={onToggleHideCompleted}
-            aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-            title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-            className={cn(actionBtn, hideCompleted && "border-success/40 bg-success/10 text-success")}
-          >
-            {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          </button>
+          {!narrow && (
+            <button
+              type="button"
+              onClick={onToggleHideCompleted}
+              aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
+              title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
+              className={cn(actionBtn, hideCompleted && "border-success/40 bg-success/10 text-success")}
+            >
+              {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          )}
 
           {/* Signaler un bug / retour : le panneau est monté par l'hôte, en fin de
               racine (F11) — dans ce header, `.da-hero` l'enfermait sous le contenu. */}
@@ -362,7 +365,7 @@ export function RushOverlayHeader({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
                   <div
-                    className="absolute top-full right-0 mt-1 z-50 w-48 overflow-hidden rounded-[6px] border border-border-strong bg-elevated py-1"
+                    className="absolute top-full right-0 mt-1 z-50 max-h-[70vh] w-48 overflow-y-auto rounded-[6px] border border-border-strong bg-elevated py-1"
                   >
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
                       <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
@@ -379,6 +382,38 @@ export function RushOverlayHeader({
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Guide complet
                     </a>
+                    {onOpenAlignment && (
+                      <button type="button" onClick={() => { setMoreOpen(false); onOpenAlignment(); }} className={menuItemCls}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" /> Alignement
+                      </button>
+                    )}
+                    {onOpenOcre && (
+                      <button type="button" onClick={() => { setMoreOpen(false); onOpenOcre(); }} className={menuItemCls}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre{ocre ? ` · ${ocre.missing}` : ""}
+                      </button>
+                    )}
+                    {onOpenMetamob && (
+                      <button type="button" onClick={() => { setMoreOpen(false); onOpenMetamob(); }} className={menuItemCls}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Metamob
+                      </button>
+                    )}
+                    {onOpenDungeons && (
+                      <button type="button" onClick={() => { setMoreOpen(false); onOpenDungeons(); }} className={menuItemCls}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsPending ? ` · ${dungeonsPending}` : ""}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setMoreOpen(false); onToggleHideCompleted(); }}
+                      className={menuItemCls}
+                    >
+                      {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {hideCompleted ? "Afficher les terminées" : "Masquer les terminées"}
+                    </button>
                     <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-danger")}>
                       <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser
                     </button>

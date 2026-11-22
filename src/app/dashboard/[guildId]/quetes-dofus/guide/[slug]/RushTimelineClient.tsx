@@ -327,6 +327,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
   const [orderKey, setOrderKey] = React.useState<string | null>(null);
+  // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
+  React.useEffect(() => { setOrderKey(null); }, [profileAlign.camp]);
   const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
   // Donjons : la MÊME source que les trois surfaces (`getDungeons` applique les groupes
   // « au choix » et complète les noms non résolus en base). Le compteur de la pastille
@@ -1048,6 +1050,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
   const [orderKey, setOrderKey] = React.useState<string | null>(null);
+  // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
+  React.useEffect(() => { setOrderKey(null); }, [profileAlign.camp]);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -1086,7 +1090,9 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   // Un bloc ENTIEREMENT de l autre camp resterait vide : on ne cache jamais tout
   // (le bloc existe dans le guide, il doit rester lisible).
   const alignmentFiltered = alignmentFilteredRaw.length > 0 ? alignmentFilteredRaw : visibleSeqs;
-  const selectedOrder = orderKey ? orderOptions.find((o) => o.id === orderKey) ?? null : null;
+  // Cle EFFECTIVE : un Ordre absent du catalogue du camp courant est ignore (jamais affiche).
+  const effectiveOrderKey = orderKey && orderOptions.some((o) => o.id === orderKey) ? orderKey : null;
+  const selectedOrder = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
   const orderFiltered = selectedOrder
     ? (() => {
         const want = normalizeOrderLabel(selectedOrder.name);
@@ -1206,7 +1212,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                       <div className="mb-1 flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
                         <span>Mon ordre</span>
                         <select
-                          value={orderKey ?? ""}
+                          value={effectiveOrderKey ?? ""}
                           onChange={(e) => setOrderKey(e.target.value || null)}
                           aria-label="Filtrer sur mon Ordre"
                           className="rounded-[4px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"

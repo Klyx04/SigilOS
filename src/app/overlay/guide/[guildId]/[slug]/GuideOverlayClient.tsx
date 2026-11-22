@@ -20,6 +20,7 @@ import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignme
 import { filterAlignmentSequences } from "@/lib/rush-alignment-filter";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { resolveOverlayLayout, type OverlayDensity } from "@/lib/rush-overlay-layout";
+import { planOverlayJump, type OverlayJumpOrigin } from "@/lib/rush-overlay-jump";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -909,34 +910,81 @@ export default function GuideOverlayClient({
     [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
   );
 
-  const handleGoToPrereq = useCallback(
-    (seqId: string, milestoneId: string) => {
-      const idx = milestones.findIndex((m) => m.id === milestoneId);
-      if (idx >= 0) {
-        setCurrentMsIndex(idx);
-        setDetailSeq(null);
+  const [pendingFocus, setPendingFocus] = useState<{ seqId: string; nonce: number } | null>(null);
+  const focusNonce = useRef(0);
+
+  const jumpToQuest = useCallback(
+    (target: { seqId: string; milestoneId: string }): boolean => {
+      const plan = planOverlayJump(milestones, target);
+      if (!plan) {
+        toast.error("Quête cible introuvable dans ce guide");
+        return false;
       }
-      // Meme bloc ou autre bloc : on scrolle ET on met la quete en evidence, avec
-      // quelques reprises (le bloc cible peut se monter apres le changement de page).
-      let attempts = 0;
-      const tryScroll = () => {
-        const el = document.getElementById(`overlay-seq-${seqId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-          window.setTimeout(() => {
-            el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-          }, 1800);
-          return;
-        }
-        if (attempts < 12) {
-          attempts++;
-          window.setTimeout(tryScroll, 120 + attempts * 80);
-        }
-      };
-      window.setTimeout(tryScroll, 90);
+      // Une recherche ou un filtre de la vue précédente peut empêcher la cible
+      // d'être rendue : le saut doit toujours atterrir, même règle que le guide
+      // interne (le joueur ne doit pas atterrir sur une liste vide).
+      setSearch("");
+      setHideCompleted(false);
+      setQuestFilter("all");
+      setCurrentMsIndex(plan.milestoneIndex);
+      setDetailSeq(null);
+      focusNonce.current += 1;
+      setPendingFocus({ seqId: plan.seqId, nonce: focusNonce.current });
+      return true;
     },
-    [milestones, currentMsIndex]
+    [milestones, toast]
+  );
+
+  /**
+   * Le nœud cible vit dans le document de l'overlay (PiP) : le `document` global
+   * désigne la page HÔTE. On attend que la ligne soit montée après le changement
+   * de bloc, puis on la centre et on l'anneau 1,8 s.
+   */
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const doc = rootRef.current?.ownerDocument;
+    const win = doc?.defaultView ?? (typeof window !== "undefined" ? window : null);
+    if (!doc || !win) return;
+    let alive = true;
+    let attempts = 0;
+    let timer: number | undefined;
+    let spotlight: number | undefined;
+    const ring = ["ring-2", "ring-success", "ring-offset-2", "ring-offset-background"];
+    const tryScroll = () => {
+      if (!alive) return;
+      const el = doc.getElementById(`overlay-seq-${pendingFocus.seqId}`);
+      if (!el) {
+        if (attempts < 12) {
+          attempts += 1;
+          timer = win.setTimeout(tryScroll, 100 + attempts * 60);
+        }
+        return;
+      }
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add(...ring);
+      spotlight = win.setTimeout(() => el.classList.remove(...ring), 1800);
+    };
+    timer = win.setTimeout(tryScroll, 80);
+    return () => {
+      alive = false;
+      if (timer !== undefined) win.clearTimeout(timer);
+      if (spotlight !== undefined) win.clearTimeout(spotlight);
+    };
+  }, [pendingFocus]);
+
+  const handleGoToPrereq = useCallback(
+    (seqId: string, milestoneId: string, origin?: OverlayJumpOrigin) => {
+      const landed = jumpToQuest({ seqId, milestoneId });
+      if (!landed || !origin) return;
+      // Même proposition que le guide interne : le joueur a quitté sa quête
+      // d'origine (souvent dans un autre bloc), le toast la lui rend.
+      toast.info("Retour à la quête d'origine", {
+        description: origin.name,
+        duration: 10000,
+        action: { label: "Revenir", onClick: () => { jumpToQuest(origin); } },
+      });
+    },
+    [jumpToQuest, toast]
   );
 
   const handleGoToDungeonStep = useCallback(
@@ -944,9 +992,9 @@ export default function GuideOverlayClient({
       const milestone = milestones.find((ms) =>
         Array.isArray(ms.sequences) && ms.sequences.some((seq) => seq.id === seqId)
       );
-      handleGoToPrereq(seqId, milestone?.id ?? "");
+      jumpToQuest({ seqId, milestoneId: milestone?.id ?? "" });
     },
-    [milestones, handleGoToPrereq]
+    [milestones, jumpToQuest]
   );
 
   // ─── Présence communauté : membres ayant un repère sur ce chapitre ─────────
@@ -1764,6 +1812,7 @@ export default function GuideOverlayClient({
                       <RushOverlayQuestListItem
                         seq={seq}
                         guildId={guildId}
+                        milestoneId={ms.id}
                         dungeonActions={dungeonActions}
                         onOpenAchievements={achievementHandler}
                         isDone={isSeqDone}
@@ -1850,6 +1899,7 @@ export default function GuideOverlayClient({
                     <RushOverlayQuestListItem
                       seq={seq}
                       guildId={guildId}
+                      milestoneId={currentMs.id}
                       dungeonActions={dungeonActions}
                       onOpenAchievements={achievementHandler}
                       isDone={isSeqDone}

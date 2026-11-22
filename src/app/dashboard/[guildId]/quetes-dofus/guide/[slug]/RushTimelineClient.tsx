@@ -1078,11 +1078,14 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const orderOptions = profileAlign.camp
     ? ((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[profileAlign.camp] ?? [])
     : [];
-  const alignmentFiltered = visibleSeqs.filter((s: any) => {
+  const alignmentFilteredRaw = visibleSeqs.filter((s: any) => {
     if (!profileAlign.camp) return true;
     const camp = s.alignReq ? normalizeAlignmentCamp(s.alignReq) : null;
     return camp === null || camp === profileAlign.camp;
   });
+  // Un bloc ENTIEREMENT de l autre camp resterait vide : on ne cache jamais tout
+  // (le bloc existe dans le guide, il doit rester lisible).
+  const alignmentFiltered = alignmentFilteredRaw.length > 0 ? alignmentFilteredRaw : visibleSeqs;
   const selectedOrder = orderKey ? orderOptions.find((o) => o.id === orderKey) ?? null : null;
   const orderFiltered = selectedOrder
     ? (() => {
@@ -1101,6 +1104,12 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         return matched.length > 0 ? matched : alignmentFiltered;
       })()
     : alignmentFiltered;
+  // Compteur du bloc aligne sur ce qui est AFFICHE (camp + Ordre filtres).
+  const filteredNonInfo = orderFiltered.filter((s:any)=>!isInfoSequence(s));
+  const filteredTotal = filteredNonInfo.length;
+  const filteredDone = filteredNonInfo.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
+  const allFiltered = isCompleted || (filteredTotal > 0 && filteredDone === filteredTotal);
+  const pctFiltered = filteredTotal > 0 ? Math.round((filteredDone / filteredTotal) * 100) : 0;
   const alignmentGroups = orderFiltered.every((s:any)=>alignmentSeries.has(s.id))
     ? groupByAlignmentSeries(orderFiltered, alignmentSeries)
     : [{ key:"ordre-du-guide", camp:null, label:null, sequences:orderFiltered }];
@@ -1134,7 +1143,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">{cs} / {totalQuests} quêtes ({pct}%)</span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{filteredDone} / {filteredTotal} quêtes ({pctFiltered}%)</span>
               {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
               {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
             </div>
@@ -1175,13 +1184,13 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
-            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
+            {!allFiltered&&!orderKey&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
             {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id)&&!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
           </div>
         </div>
         {/* Barre de progression du bloc (la donnée, pas une décoration) */}
-        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
+        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pctFiltered} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
           <div className="h-full bg-success transition-all duration-300" style={{width:`${pct}%`}}/>
         </div>
         {/* Expanded content */}

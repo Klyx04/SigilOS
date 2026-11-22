@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 55) — **Rush : bandeaux Combat de séquence + « Dofus obtenu » partagé** — branche `feat/rush-finitions-2026-11-22` (PR #1497)
+
+> **Demandes user (verbatim)** : « combat tactique et semi tactique je veux pouvoir les mettre entre 2 quête dans un bloc pas que ça créé un bloc dédié, en + tu as mis des icones ia, pas de centrage rien etc » puis « pousse la totalité pr merge, full doc à jour ».
+> **Mesuré** : `resolveRushRoute` **supprimait** tout bloc hors quête autre que `SEPARATEUR`/`INFO` (la bannière « test » n'arrivait jamais au client) ; `isNonCheckableBlock` ignorait les blocs Combat (d'où « 34 · test · 0/0 ») ; **7 copies divergentes** de la règle « bandeau » (dashboard, description de bloc, progression par Dofus, 3 projections serveur, badges) ne connaissaient que `info_sequence` ; le « Dofus obtenu » du dashboard avait un **titre codé en dur** (« LE DOFUS  ! » sans `dofusId`) et deux rendus locaux (public = encart CONSEIL, overlay = copie).
+> **Fait** : ① **bandeaux Combat de séquence** — marqueur dédié `{ type: "sequence_banner", kind }` dans `activityTags` (⚠️ `combat_tactique` seul reste le tag d'une quête **cochable**, prouvé par `rush-guide-view`) ; studio : menu « Bandeau » **visible** dans `+ Quête` et dans l'inspecteur ; rendu `RushCombatBanner` **centré** (page + PiP) sur les 3 surfaces ; ② palette « Ajouter un bloc » **sans** les 2 types Combat (plus de bloc dédié) + badge « Combat tactique » sur la ligne du studio ; ③ `DofusObtainedBanner` **partagé** (dashboard/public/overlay) : le titre du studio passe devant, œuf + couleur en repère, composition centrée, **aucune image par défaut** ; ④ `resolveRushRoute` garde les blocs hors quête (`isRushNonQuestBlock`) et `isNonCheckableBlock` délègue à la même règle ; ⑤ les 7 copies alignées + gardes recalées (`rush-vocabulary` → `filteredDone/filteredTotal`, `rush-dofusdex-tip` → `CollapsibleHints`, le pavé de bloc ayant été retiré le 22/11).
+> **Preuves** : **799 fichiers / 8 283 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration · donnée vérifiée : `activityTags = [{type:"sequence_banner",kind:"combat_tactique"}]`.
+> **Reste** : overlay **étroit** (3ᵉ palier < 480 px, quêtes mises en avant) — lot UI suivant · `pos_tags.mapId` (données) · ops (bêta, migrations `20270112000000`/`20270113000000`, bot, crontabs).
+> **Rotation** : bloc « suite 47 » (perf P1-2) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 22/11/2026 (suite 54) — **Rush : O6, descriptions de blocs, studio sans prompt()** — branche `feat/rush-finitions-2026-11-22`
 
 > **Demande user (verbatim)** : « 07 : oublie et efface cette feature des chantiers · 06 : GO · 4 à creuser · 5 : GO · 6 : GO ».
@@ -73,17 +83,7 @@
 > **Rotation** : bloc « suite 42 » (UI Rush, PR #1473) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 21/11/2026 (suite 47) — **Perf web · P1-2, images servies à la taille d'affichage** — branche `perf/p1-2-images-2026-11-21` (PR #1482)
-
-> **Demande user (verbatim)** : « l'objectif c'est surtout de tout prendre en compte, interne public, tout le projet » puis « go ».
-> **Mesure avant** : `calendar_kralamour.png` **8,2 Mo**, `calendar_autres.png` 2 Mo, `songes.png` 1,3 Mo, `dofus-missions-thumb.png` 1,08 Mo, `Roublard.png` 1,6 Mo, `calendar_dungeon_farm.png` 892 Ko — servis tels quels au navigateur, souvent pour un rendu de 16 à 144 px.
-> **Fait** : `next/image` sur `event-card` (fill + `sizes`), `raid-hero-banner` (56 px), `SongesPicto` (16–32 px), `mission-settings` (144 px), `BombGame` (800 px). Les PNG restent la source des embeds Discord (`calendar-event-images.ts`).
-> **Gain mesuré (sharp, qualité 75)** : kralamour **31 Ko** @512, dungeon_farm **47 Ko**, autres **23 Ko**, songes **< 1 Ko** @32, vignette missions **7 Ko** @144, Roublard **84 Ko** @800 → **÷20 à ÷100**.
-> **Fait (B-1, PR #1483)** : id de guilde résolu **une fois par requête** (`src/server/guild-id.ts`, React `cache` + mémoire 5 min) ; **4 lectures `GuildConfig` en double retirées** (calendrier, raid, activité, sondages, présence).
-> **Fait (B-2, PR #1484)** : calendrier du dashboard en **une lecture** (semaine + raid actif + focus 24 h, règle pure `dashboard-calendar`) ; focus préchargé, **2 requêtes `GuildEvent` en moins**.
-> **Preuves** : **788 fichiers / 8 219 tests ✅** (dont `guild-id` 2/2, `dashboard-calendar` 4/4) · `tsc` 0 · ESLint 0 erreur · `next-image-local-patterns` 3/3 · aucune migration.
-> **Reste** : `logo-v2.png` 170 Ko (favicon/manifest 32/192 px) ; P1-3 cache public ; P2 statique/PPR ; P3 CDN/WAF.
-> **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+## 📝 Session 21/11/2026 (suite 46) — *bloc sorti le 22/11/2026 (rotation, 7ᵉ)* — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 > **Rotation** : bloc « suite 46 » (perf P1-1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

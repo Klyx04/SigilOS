@@ -69,7 +69,25 @@ Exemple mesuré :
 - Réponses à tout (quête 1631) : pos_tags worldId=1 → attendu 41 (Temple Céleste), carte 241443329
 ```
 
-Correction dans **God ▸ Guide Rush ▸ quête ▸ Destination** : monde **Temple Céleste**, carte **241443329** (ou carte imposée `pos_tags.mapId`). Relancer l'audit jusqu'à `✅ Aucun écart`.
+Correction par lot (recommandée) :
+
+```bash
+npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24           # dry-run
+npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24 --apply   # écrit
+```
+
+Le script corrige `worldId` **et** `mapId` quand la carte est dans `worldmap.json` et son monde déclaré ; il pose seulement `mapId` quand la carte n'y est pas mais que son image HD existe (carte imposée). Il ne touche pas aux autres champs (`name`, `allowZaap`, `zaapX/Y`).
+
+Sur le VPS, `npx` n'est pas installé sur l'hôte : exécuter dans le conteneur app :
+
+```bash
+docker exec -it sigilos-beta npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24 --apply
+```
+
+Correction manuelle possible dans **God ▸ Guide Rush ▸ quête ▸ Destination** (monde + carte). Relancer l'audit jusqu'à `✅ Aucun écart`.
+
+> `(0,0)` : un sous-monde peut avoir une vraie carte à `(0,0)` (Blessures de Guerre, monde 24). La route `map-at` l'autorise quand le monde est explicite (`world > 1`) ; une carte imposée en God reste prioritaire ; le monde principal garde le 404.
+> Mesure du 22/11 : **514 corrections** proposées (149 monde+carte, 365 carte seule — Mappemondes/donjons).
 
 > Sans `--world`, l'audit est **global** et plus bruyant : `GameQuest.imageUrl` peut pointer sur une étape ou un donjon (`worldMap = -1`), ce n'est pas toujours le donneur de quête.
 

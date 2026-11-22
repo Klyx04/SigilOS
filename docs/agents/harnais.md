@@ -97,7 +97,7 @@ AGENTS.md                         contrat court, lu automatiquement (~13 Ko)
     ├── TaskStart.ps1             injecte SHA + prochaine étape
     └── TaskComplete.ps1          rappelle la Definition of Done
 .cline/skills/                    12 skills (voir §5) — source partagée Cline + OpenCode
-opencode.json                     adaptateur OpenCode : skills, permissions, watcher, MCP
+opencode.json                     adaptateur OpenCode : skills, permissions, watcher, worktree, MCP
 .opencode/commands/
 ├── reprise.md                    SHA + amorce de session
 └── fin.md                        Definition of Done
@@ -118,7 +118,7 @@ Mémoire volatile : src/temp/ (UNE seule zone, gitignorée)
 
 | Versionné (public) | Local (jamais poussé) |
 |---|---|
-| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**` | `.vscode/settings.json` (préférences éditeur) |
+| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**` | `.vscode/settings.json` (préférences éditeur) |
 | `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) |
 | hooks (relus en PR comme du code) | `docs/audits/`, `src/temp/`, `.env*`, artefacts de build |
 
@@ -280,11 +280,12 @@ OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne 
 `git status` et `git log`. Il relit le diff, liste les findings par sévérité et rend un verdict « prêt pour
 PR / corrections à faire ».
 
-Invocation : demander explicitement « utilise le sous-agent `reviewer` sur le diff ». Il tourne dans une
-session enfant, avec son propre contexte et ses propres permissions ; le parent ne reçoit que le rapport.
-Il ne remplace pas les tests : il les complète.
+Invocation : demander explicitement « utilise le sous-agent `reviewer` sur le diff ». Il relit avec
+`git diff HEAD` (ou `git diff --cached` si le parent a indexé). Il tourne dans une session enfant, avec son
+propre contexte et ses propres permissions ; le parent ne reçoit que le rapport. Il ne remplace pas les
+tests : il les complète.
 
 **Worktrees** : `opencode.json` → `worktree.directory = ../sigilos-worktrees` pour rester sur le même
 volume que le dépôt. Mesure du 22/11 : un worktree sur `C:` avec `node_modules` en jonction a fait
-dépasser les 5 s de six tests qui scannent `src/` ; le même test seul repasse en 4 s. Le worktree reste
-valable, mais le volume compte.
+dépasser les 5 s de six à huit tests qui scannent `src/` ; le même test seul repasse en 4 s. Le worktree
+reste valable, mais le volume compte.

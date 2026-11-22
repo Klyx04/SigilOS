@@ -6,7 +6,7 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 21/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 22/11/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 

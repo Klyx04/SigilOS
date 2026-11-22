@@ -85,7 +85,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.gitignore` / `.gitattributes` / `.dockerignore` | Exclusions git / normalisation des fins de ligne / exclusions Docker |
 | `.gitleaks.toml` | Règles de détection de secrets |
 | `.npmrc` | Config npm |
-| `opencode.json` | Adaptateur OpenCode : skills partagés (`.cline/skills`), permissions, `watcher.ignore`, MCP Sentry |
+| `opencode.json` | Adaptateur OpenCode : skills partagés (`.cline/skills`), permissions, `watcher.ignore`, `worktree.directory`, MCP Sentry |
 
 ## 2bis. `docs/` — l'arborescence de la documentation (une seule, depuis le 20/09/2026)
 

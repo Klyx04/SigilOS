@@ -109,7 +109,7 @@ npx prisma migrate deploy          # joue les migrations en attente (5433) — v
 npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (8 325 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (8 330 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
@@ -145,7 +145,7 @@ retour arrière `./scripts/rollback.sh` (détails : `docs/MAINTENANCE.md`).
 - [ ] Docs mises à jour **là où elles vivent** : `docs/ROADMAP.md` (statut du chantier) +
       `docs/agents/activeContext.md` (**nouveau bloc EN HAUT**, les 6 dernières sessions seulement — règle de
       rotation en tête du fichier). **Aucun nouveau fichier d'état, aucun mémo dupliqué.**
-- [ ] Relecture : sous-agent `reviewer` sur le diff (read-only, `.opencode/agents/reviewer.md`).
+- [ ] Relecture (OpenCode) : sous-agent `reviewer` sur le diff (read-only, `.opencode/agents/reviewer.md`).
 - [ ] Ops côté humain listées (migration à jouer, écran à contrôler, variable d'env à poser).
 - [ ] Rapport final **≤ 15 lignes** : fait · reste · côté utilisateur.
 

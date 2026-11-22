@@ -10,12 +10,14 @@ const powershell = (process.platform === "win32" ? ["powershell", "pwsh"] : ["pw
     (command) => spawnSync(command, ["-NoProfile", "-Command", "exit 0"], { encoding: "utf8" }).status === 0,
 );
 
-const runHook = (name: string, payload: unknown) => {
+const runHookRaw = (name: string, raw: string) => {
     expect(powershell, "PowerShell introuvable").toBeTruthy();
     const result = spawnSync(powershell!, ["-NoProfile", "-File", path.join(root, ".clinerules/hooks", name)], {
-        input: JSON.stringify(payload),
+        input: raw,
         encoding: "utf8",
+        timeout: 10_000,
     });
+    expect(result.error, result.error?.message).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
     return JSON.parse(result.stdout.replace(/^\uFEFF/, "").trim()) as {
         cancel: boolean;
@@ -23,6 +25,8 @@ const runHook = (name: string, payload: unknown) => {
         contextModification?: string;
     };
 };
+
+const runHook = (name: string, payload: unknown) => runHookRaw(name, JSON.stringify(payload));
 
 /**
  * Garde du harnais agentique.
@@ -199,6 +203,7 @@ describe("harnais agentique", () => {
         for (const file of [
             ".opencode/commands/reprise.md",
             ".opencode/commands/fin.md",
+            ".opencode/agents/reviewer.md",
             "src/AGENTS.md",
             "tests/AGENTS.md",
             "docs/AGENTS.md",
@@ -216,6 +221,15 @@ describe("harnais agentique", () => {
         }
     });
 
+    it("le sous-agent reviewer est read-only et limité à git", () => {
+        const reviewer = read(".opencode/agents/reviewer.md");
+        expect(reviewer).toContain("mode: subagent");
+        expect(reviewer).toMatch(/action: edit\s+resource: "\*"\s+effect: deny/);
+        expect(reviewer).toContain("git diff *");
+        expect(reviewer).toContain("--no-index");
+        expect(reviewer).toContain("--output");
+    });
+
     it("le journal archive est présent et ne contient aucun ID Discord", () => {
         const journal = read("docs/agents/journal-sessions-2026.md");
         expect(journal.length).toBeGreaterThan(100_000);
@@ -229,16 +243,28 @@ describe("hooks Cline — comportement", () => {
 
     it("PreToolUse bloque les gestes dangereux et laisse passer le reste", () => {
         block({ tool_call: { name: "write_to_file", input: { path: ".env" } } });
+        block({ tool_call: { name: "write_to_file", input: { path: ".ENV" } } });
+        block({ tool_call: { name: "write_to_file", input: { path: ".env", content: "voir .env.example" } } });
         allow({ tool_call: { name: "write_to_file", input: { path: ".env.example" } } });
+        allow({ tool_call: { name: "write_to_file", input: { path: "AGENTS.md", content: "Le fichier .env est interdit." } } });
         block({ tool_call: { name: "write_to_file", input: { path: "prisma/migrations/2026/migration.sql" } } });
         block({ tool_call: { name: "execute_command", input: { command: "npx prisma migrate dev" } } });
         block({ tool_call: { name: "execute_command", input: { command: "npx prisma db push" } } });
         block({ tool_call: { name: "execute_command", input: { command: "git push --force origin dev" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "git push -f origin dev" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "git reset --hard HEAD~1" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "drop database sigilos" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "rm -rf node_modules" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "Remove-Item -Path node_modules -Recurse" } } });
         block({ tool_call: { name: "execute_command", input: { command: "git commit --no-verify -m x" } } });
         block({ tool_call: { name: "execute_command", input: { command: "Set-Content .env foo" } } });
         allow({ tool_call: { name: "write_to_file", input: { path: "src/lib/foo.ts" } } });
         allow({ tool_call: { name: "execute_command", input: { command: "npm run test:run" } } });
     }, 30_000);
+
+    it("PreToolUse échoue fermé sur un payload illisible", () => {
+        expect(runHookRaw("PreToolUse.ps1", "not-json").cancel).toBe(true);
+    });
 
     it("TaskStart renvoie le SHA et une étape lisible", () => {
         const result = runHook("TaskStart.ps1", { taskId: "test" });

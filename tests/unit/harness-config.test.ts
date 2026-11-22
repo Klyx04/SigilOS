@@ -228,6 +228,10 @@ describe("harnais agentique", () => {
         expect(reviewer).toContain("git diff *");
         expect(reviewer).toContain("--no-index");
         expect(reviewer).toContain("--output");
+        expect(reviewer).toContain("--ext-diff");
+        expect(reviewer).toContain("--textconv");
+        expect(reviewer).toContain('resource: "*>*"');
+        expect(reviewer).toContain('resource: "*<*"');
     });
 
     it("le journal archive est présent et ne contient aucun ID Discord", () => {
@@ -258,6 +262,14 @@ describe("hooks Cline — comportement", () => {
         block({ tool_call: { name: "execute_command", input: { command: "Remove-Item -Path node_modules -Recurse" } } });
         block({ tool_call: { name: "execute_command", input: { command: "git commit --no-verify -m x" } } });
         block({ tool_call: { name: "execute_command", input: { command: "Set-Content .env foo" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "Set-Content -Path .env foo" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "Out-File -FilePath .env foo" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "Add-Content -Path .env foo" } } });
+        block({ tool_call: { name: "execute_command", input: { command: 'Set-Content .env "# voir .env.example"' } } });
+        allow({ tool_call: { name: "execute_command", input: { command: "Set-Content .env.example foo" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "echo x > .env" } } });
+        allow({ tool_call: { name: "execute_command", input: { command: "echo x > .env.example" } } });
+        block({ tool_call: { name: "write_to_file", input: { path: "Prisma/Migrations/2026/migration.sql" } } });
         allow({ tool_call: { name: "write_to_file", input: { path: "src/lib/foo.ts" } } });
         allow({ tool_call: { name: "execute_command", input: { command: "npm run test:run" } } });
     }, 90_000);

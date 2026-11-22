@@ -99,5 +99,8 @@ describe("overlay Rush — saut vers un prérequis", () => {
     expect(shell).toContain('label: "Revenir"');
     expect(shell).toContain("Retour à la quête d'origine");
     expect(shell).toContain("duration: 10000");
+    // La ref donne au toast le `jumpToQuest` courant : sans elle, un filtre
+    // changé pendant les 10 s rendrait le retour muet.
+    expect(shell).toContain("jumpToQuestRef.current(origin)");
   });
 });

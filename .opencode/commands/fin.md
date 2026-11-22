@@ -8,4 +8,5 @@ Definition of Done SigilOS.
 2. `npm run test:run`, `npx tsc --noEmit`, `npm run lint` verts.
 3. `docs/ROADMAP.md` mis à jour + nouveau bloc en haut de `docs/agents/activeContext.md` (6 dernières sessions).
 4. Aucun nouveau fichier d'état, aucun mémo dupliqué.
-5. Rapport final ≤ 15 lignes : fait · reste · côté utilisateur.
+5. Relecture : demande au sous-agent `reviewer` de relire `git diff HEAD` (ou `git diff --cached`).
+6. Rapport final ≤ 15 lignes : fait · reste · côté utilisateur.

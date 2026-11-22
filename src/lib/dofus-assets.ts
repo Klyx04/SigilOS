@@ -436,6 +436,7 @@ export const DOFUS_WORLDS = [
     { id: 37, name: "Gouffre du Gigalodon" },
     { id: 38, name: "Village des Brigandins" },
     { id: 40, name: "Sanctuaire des Jardins éternels" },
+    { id: 41, name: "Temple Céleste" },
 ] as const;
 
 export function getWorldName(worldMapId?: number | null, locale: string = "fr"): string {

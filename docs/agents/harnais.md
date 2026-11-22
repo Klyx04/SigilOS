@@ -331,12 +331,43 @@ garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de poi
 
 Le but n'est pas de « sentir » si c'est mieux : c'est de comparer des chiffres.
 
-**Checklist de migration (si déclenchée)** :
+**État au 23/11/2026** : condition 1 **remplie** (3 lots produit + scorecard) ; la source reste
+`.cline/skills` tant que 2 et 3 ne sont pas remplies. La migration n'est **pas commencée**.
+
+**Plan exact de sortie Cline** (2 PR, Cline reste opérationnel jusqu'à la fin) :
+
+**PR 1 — la source devient `.agents/skills`**
 1. `git mv .cline/skills .agents/skills`.
 2. `opencode.json` → `"skills": [".agents/skills"]`.
-3. `scripts/harness-links.mjs` → liens `.cline/skills` et `.claude/skills` vers `.agents/skills`.
-4. `.gitignore` → `/.cline/skills` et `/.claude/skills` (les liens), pas `.agents/skills`.
-5. Mettre à jour les citations `.cline/skills` : `AGENTS.md`, `harnais.md`, `responsive/references/sigilos.md`,
-   `tests/unit/harness-config.test.ts`.
-6. CI/installation : exécuter `npm run harness:links` après le checkout.
-7. Vérifier Cline, OpenCode, Codex/Claude sur un clone neuf.
+3. `scripts/harness-links.mjs` : source `.agents/skills` ; crée `.cline/skills` **et** `.claude/skills` ;
+   idempotent, refuse un vrai dossier, mode `--check`.
+4. `.gitignore` : ignorer `/.cline/skills` et `/.claude/skills` ; ne plus ignorer `.agents/skills`.
+5. `tests/unit/harness-config.test.ts` : inventaire 12 skills dans `.agents/skills`, config OpenCode, liens.
+6. `install:safe` + CI : `npm run harness:links` après le checkout ; test sur clone neuf.
+7. Docs : `AGENTS.md` §2, `harnais.md` §14, `CARTE-DU-PROJET`, `responsive/references/sigilos.md`.
+8. Preuve : `harness:links` deux fois, Cline lit `.cline/skills` (lien), OpenCode charge les skills,
+   `harness-config` vert.
+
+**PR 2 — règles, hooks, ignore, désinstallation**
+1. `git mv .clinerules docs/agents/rules` (règles + hooks) ; mettre à jour `AGENTS.md` et les routeurs
+   `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md`, `services/AGENTS.md`.
+2. Cline attend `.clinerules/*.md` : créer `.clinerules` → `docs/agents/rules` via `harness-links.mjs`
+   (jonction). **À tester** : si Cline ne suit pas la jonction, garder `.clinerules` tel quel jusqu'à la
+   désinstallation.
+3. Hooks `.ps1` : les porter en Node (`scripts/agent-guards.mjs`) ou les garder comme tests de politique ;
+   permissions OpenCode = garde active. Supprimer les tests de hooks devenus morts.
+4. `git rm .clineignore` après désinstallation ; reporter les motifs utiles dans `.gitignore`.
+5. `harness-config` : retirer `.clineignore`, attendre `.cline/skills`, `.claude/skills`, `.clinerules`.
+6. Désinstaller Cline (action utilisateur) ; supprimer le lien `.clinerules` s'il n'a plus de consommateur.
+7. Docs finales : `harnais.md` §14 « source unique `.agents/skills` », `CARTE-DU-PROJET`, `AGENTS.md` §2 ;
+   retirer la décision « source `.cline/skills` conservée ».
+8. Preuve finale : clone neuf → `npm ci` → `npm run harness:links` → OpenCode OK, Cline absent,
+   `harness-config` vert.
+
+**Risques** : jonctions Windows (déjà gérées), Cline qui ne suit pas `.clinerules` lié, tests qui figent les
+anciens chemins, CI qui ne recrée pas les liens. Les deux PR séparées permettent de garder Cline
+opérationnel jusqu'au bout.
+
+**Commandes de reprise** : `npm run install:safe` (après clone) → `npm run harness:links` →
+`npx vitest run tests/unit/harness-config.test.ts` → `git status --short` doit être propre (liens
+gitignorés).

@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 23/11/2026 (suite 61) — **Harnais : plan de sortie Cline persisté** — branche `docs/harnais-sortie-cline-2026-11-23`
+
+> **Demande user (verbatim)** : « ressors le plan complet si on relance une session elle va etre amnesique non ».
+> **Fait** : plan exact des **2 PR** de sortie Cline écrit dans `docs/agents/harnais.md` §14 (source `.agents/skills`, liens `.cline`/`.claude`, règles, hooks, `.clineignore`, CI, clone neuf) ; scorecard 3/3 déjà remplie ; état : migration **non commencée**.
+> **Preuves** : doc seule, aucun code · `git status` à contrôler avant PR.
+> **Reste** : GO phase 1 · Cline secondaire à confirmer · `harness:links` en CI/installation.
+> **Rotation** : bloc « suite 55 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 22/11/2026 (suite 60) — **Rush : saut vers un prérequis dans l'overlay** — branche `feat/rush-overlay-prereq-jump-2026-11-22`
 
 > **Demande user (verbatim)** : « quand on clic dans l'overlay sur une quete prérequis on cible bien la quete prérequis on va la chercher et on focus dessus, le guide navigateur le fait déjà, meme chose si c'est une quete dans un autre bloc on fait pareil et on propose un retour arri_re comme le guide interne ? ».
@@ -54,14 +62,3 @@
 > **Suite 2 (même session) — sous-mondes / `(0,0)`** : « Le jour le plus long » (2111) était `worldId: 1` alors que sa carte `201588736` est en **monde 24** (Blessures de Guerre) ; `map-at` refusait `(0,0)` en bloc. **Fait** : `(0,0)` autorisé si monde explicite > 1 (ou carte God imposée), testé (route 9) ; **worldmap** : `hasKnownGameCoords` accepte `(0,0)` d'un sous-monde > 1 et `map-hd-overlay` ne l'exclut plus (index de clic + overlay HD, test source) ; règle pure `rush-pos-fix` + `scripts/fix-rush-pos-worlds.ts` (dry-run/`--apply`) : **514 corrections** proposées (149 monde+carte, 365 carte seule — Mappemondes/donjons) ; **4 appliquées en local** (24 ×3, 41 ×1), audits 24/41 = 0 ; `map-at?x=0&y=0&world=24` → 200. **La tuile de fond `0` n'existe pas chez DofusDB (404)** : le sync à partir de 1 est correct. `npx` absent de l'hôte VPS → script dans le conteneur app.
 > **Reste** : compteur « 448 » à reproduire dans l'en-tête PiP · **bêta : appliquer le fix des positions (24/41 puis global 510)** (local déjà appliqué) · overlay étroit (3ᵉ palier) à décider · T-6/G6 à profiler · `useOptimistic` à supprimer.
 > **Rotation** : bloc « suite 48 » (sécurité #1486) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-## 📝 Session 22/11/2026 (suite 55) — **Rush : bandeaux Combat de séquence + « Dofus obtenu » partagé** — branche `feat/rush-finitions-2026-11-22` (PR #1497)
-
-> **Demandes user (verbatim)** : « combat tactique et semi tactique je veux pouvoir les mettre entre 2 quête dans un bloc pas que ça créé un bloc dédié, en + tu as mis des icones ia, pas de centrage rien etc » puis « pousse la totalité pr merge, full doc à jour ».
-> **Mesuré** : `resolveRushRoute` **supprimait** tout bloc hors quête autre que `SEPARATEUR`/`INFO` (la bannière « test » n'arrivait jamais au client) ; `isNonCheckableBlock` ignorait les blocs Combat (d'où « 34 · test · 0/0 ») ; **7 copies divergentes** de la règle « bandeau » (dashboard, description de bloc, progression par Dofus, 3 projections serveur, badges) ne connaissaient que `info_sequence` ; le « Dofus obtenu » du dashboard avait un **titre codé en dur** (« LE DOFUS  ! » sans `dofusId`) et deux rendus locaux (public = encart CONSEIL, overlay = copie).
-> **Fait** : ① **bandeaux Combat de séquence** — marqueur dédié `{ type: "sequence_banner", kind }` dans `activityTags` (⚠️ `combat_tactique` seul reste le tag d'une quête **cochable**, prouvé par `rush-guide-view`) ; studio : menu « Bandeau » **visible** dans `+ Quête` et dans l'inspecteur ; rendu `RushCombatBanner` **centré** (page + PiP) sur les 3 surfaces ; ② palette « Ajouter un bloc » **sans** les 2 types Combat (plus de bloc dédié) + badge « Combat tactique » sur la ligne du studio ; ③ `DofusObtainedBanner` **partagé** (dashboard/public/overlay) : le titre du studio passe devant, œuf + couleur en repère, composition centrée, **aucune image par défaut** ; ④ `resolveRushRoute` garde les blocs hors quête (`isRushNonQuestBlock`) et `isNonCheckableBlock` délègue à la même règle ; ⑤ les 7 copies alignées + gardes recalées (`rush-vocabulary` → `filteredDone/filteredTotal`, `rush-dofusdex-tip` → `CollapsibleHints`, le pavé de bloc ayant été retiré le 22/11).
-> **Preuves** : **799 fichiers / 8 283 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration · donnée vérifiée : `activityTags = [{type:"sequence_banner",kind:"combat_tactique"}]`.
-> **Reste** : overlay **étroit** (3ᵉ palier < 480 px, quêtes mises en avant) — lot UI suivant · `pos_tags.mapId` (données) · ops (bêta, migrations `20270112000000`/`20270113000000`, bot, crontabs).
-> **Rotation** : bloc « suite 47 » (perf P1-2) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

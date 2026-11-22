@@ -1620,3 +1620,108 @@ details.da-conseil[open] .da-conseil-body {
   background: var(--da-field, var(--surface));
 }
 
+/* ── PiP compacte (densité tight) — 22/11/2026 ─────────────────────────────
+   À 310–390 px, le chrome (header, recherche, filtres, actions) mangeait la
+   hauteur de la liste. On compacte sans changer la DA : cartes plus denses,
+   rail décoratif masqué, ressources en icône, filtre en select thématisé. */
+.da-actions .da-btn.da-btn-icon {
+  flex: 0 0 auto;
+  padding-inline: .65rem;
+}
+
+.da-filter-select {
+  position: relative;
+  display: block;
+  margin: .65rem .6rem .75rem;
+}
+
+.da-filter-trigger {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem;
+  padding: 0 .6rem;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 6px;
+  background: var(--da-field);
+  color: var(--da-ink);
+  font: 700 12px var(--da-font-text);
+  cursor: pointer;
+}
+
+.da-filter-menu {
+  position: absolute;
+  top: calc(100% + .25rem);
+  right: 0;
+  left: 0;
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1.5px solid var(--da-ln);
+  border-radius: 6px;
+  background: var(--da-panel);
+  box-shadow: 0 6px 16px rgb(0 0 0 / .25);
+}
+
+.da-filter-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .45rem .6rem;
+  border: 0;
+  background: none;
+  color: var(--da-muted);
+  font: 700 12px var(--da-font-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.da-filter-option:hover {
+  background: var(--da-field);
+  color: var(--da-ink);
+}
+
+.da-filter-option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--da-acc) 12%, transparent);
+  color: var(--da-ink);
+}
+
+.da-filter-option b {
+  font-size: 10px;
+  opacity: .65;
+}
+
+.da-window[data-compact="true"] .da-blockdesc {
+  display: none;
+}
+
+.da-window[data-compact="true"] .da-actions {
+  gap: .45rem;
+  padding: .5rem .6rem 0;
+}
+
+.da-window[data-compact="true"] .da-card {
+  gap: .45rem;
+  padding: .55rem .6rem;
+}
+
+.da-window[data-compact="true"] .da-qtitle {
+  margin-bottom: .25rem;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.da-window[data-compact="true"] .da-state {
+  margin-bottom: .15rem;
+}
+
+/* On masque le trait décoratif, jamais le conteneur `.da-rail` : il porte la liste. */
+.da-window[data-compact="true"] .da-rail::before,
+.da-window[data-compact="true"] .da-rail::after {
+  display: none;
+}
+

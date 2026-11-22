@@ -21,6 +21,7 @@ export function RushOverlayActions({
   checked,
   total,
   className,
+  compact = false,
 }: {
   /** Fait défiler la liste jusqu'à la prochaine quête à faire. */
   onResume: () => void;
@@ -31,6 +32,8 @@ export function RushOverlayActions({
   /** Ressources agrégées du guide. */
   total: number;
   className?: string;
+  /** PiP étroite : « Ressources » en icône + badge, « Reprendre » garde le libellé. */
+  compact?: boolean;
 }) {
   return (
     <div className={cn("da-actions", className)}>
@@ -49,7 +52,7 @@ export function RushOverlayActions({
         type="button"
         onClick={onOpenResources}
         title="Ressources à prévoir"
-        className="da-btn"
+        className={cn("da-btn", compact && "da-btn-icon")}
       >
         {/* Picto du jeu (asset Dofus du module Ressources, coloré dans les deux thèmes). */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -59,7 +62,7 @@ export function RushOverlayActions({
           className="h-4 w-4 object-contain"
           loading="lazy"
         />
-        <span>Ressources</span>
+        <span className={compact ? "sr-only" : undefined}>Ressources</span>
         {total > 0 && (
           <b className="da-badge" aria-hidden="true">
             {checked}/{total}

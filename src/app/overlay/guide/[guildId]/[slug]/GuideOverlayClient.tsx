@@ -1574,6 +1574,7 @@ export default function GuideOverlayClient({
          mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa
          signature, la petite fenêtre reste nette. */
       data-quality="low"
+      data-compact={overlayDensity === "tight"}
       className={`rush-overlay da-window da-grain relative flex flex-col h-screen overflow-hidden select-none transition-colors bg-background text-foreground`}
       style={{
         fontFamily: "var(--da-font-text)",
@@ -1645,6 +1646,7 @@ export default function GuideOverlayClient({
             value={search}
             onChange={setSearch}
             onClear={() => setSearch("")}
+            compact={overlayDensity === "tight"}
             ref={searchRef}
           />
 
@@ -1670,10 +1672,11 @@ export default function GuideOverlayClient({
             onOpenResources={() => setShowResources(true)}
             checked={resourcesChecked}
             total={chapterResources.length}
+            compact={overlayDensity === "tight"}
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
-          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} />
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} compact={overlayDensity === "tight"} />
 
           {/* F9 — le bandeau du bloc courant (image + titre + écriteau « N/M ») est
               retiré : le dock juste au-dessus porte déjà le titre du chapitre et son

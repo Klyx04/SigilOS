@@ -39,7 +39,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 | 13 | **G5 ContextualHelp** | Absent de l'overlay et du module Rush (présent dans le dashboard) | périmètre ? |
 | 14 | **E2 `achievements[]`** | Migration Prisma | accord explicite |
 | 16 | **Accents Dofus** | O14 contrasté ; l'application générale « écran par écran » reste à poser | périmètre ? |
-| 17 | **Overlay étroit (3ᵉ palier)** | **Précédence corrigée le 22/11/2026** (`resolveOverlayLayout` : étroit prioritaire, seuil `wide` aligné sur 820 px) ; il reste le 3ᵉ palier : au-delà des bandes latérales du client (13–17″), la quête courante ne grossit plus | **largeur cible de la PiP** + quels blocs garder visibles (3ᵉ palier uniquement) |
+| 17 | **Overlay étroit (3ᵉ palier)** | **Précédence corrigée le 22/11/2026** (`resolveOverlayLayout` : étroit prioritaire, seuil `wide` aligné sur 820 px) ; **mode compact 22/11** (filtre select, recherche courte, ressources en icône, header secondaire dans `⋯`, cartes denses) ; il reste le 3ᵉ palier : au-delà des bandes latérales du client (13–17″), la quête courante ne grossit plus | **largeur cible de la PiP** + quels blocs garder visibles (3ᵉ palier uniquement) |
 
 ### C. Déjà livré — à acter (ne plus compter comme reste)
 

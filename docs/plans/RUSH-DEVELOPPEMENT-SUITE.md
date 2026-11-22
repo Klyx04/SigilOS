@@ -26,7 +26,6 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 |---|---|---|---|---|
 | 1 | **O13 mini-carte** | Dans la modale de quête : image HD de la case (`hd_maps`) + pion + zaap le plus proche **dans le bon monde** ; 518/536 couvertes ; 18 sans image ⇒ **aucune carte** ; jamais de pion sur (0,0) | `RushOverlayQuestDetailModal` (partagée overlay + guide public), `nearest-zaap.ts`, `GameQuest.imageUrl` | M |
 | 2 | **V-D2 Kamas + Dragofesse** | **60 tags « Kamas »** portent l'id invalide `10000000001` (hors Int32, sans `imageUrl`) ⇒ image placeholder ; **2 tags « Dragofesse en Cuir Violet de Bwork »** id 7696 **absent de `GameItem`** ; 1 seul id réel hors base | `rush-guide-utils.ts` (`resolveItemImage`), `QuestItemResourceGrid`, `overlay-utils.ts` | S |
-| 3 | **O7 callout Tougli** | `tougli_box` n'est rendu que dans le dashboard ; absent de la modale de l'overlay | `RushTimelineClient` (source), `RushOverlayQuestDetailModal` | S |
 | 4 | **O6 focus / scroll** | Aucun `autoFocus` ni verrou de scroll dans l'overlay (Échap PiP déjà livré) | modales overlay | S |
 | 5 | **E5 finitions studio** | 4 `prompt()` natifs (lien, position) + finitions `REFONTE-EDITEUR-RUSH.md` §3 | studio God | M |
 | 6 | **Compteur « 448 »** | Non reproduit : payload local = 536 ; à reproduire à l'écran avant de corriger | en-tête du guide | S |

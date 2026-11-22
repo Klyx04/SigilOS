@@ -64,7 +64,7 @@
 >
 > **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (23 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 651 tests.
 >
-> **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
+> **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
 >
 > 🔭 **Session du 08/10/2026 « one shot »** (**PR #858 mergée** — 4 commits : 3 de code + 1 de docs) — livré **hors lots** : pictos **réels**
 > (source unique `RUSH_RESOURCES_PICTO` ; mesure `sharp` : `nav/resources.png` est **blanc pur** ⇒ écarté), rail de droite

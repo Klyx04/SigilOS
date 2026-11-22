@@ -3,6 +3,7 @@
 
 
 import { db } from "@/lib/prisma";
+import { countQuestsInBlock, syncQuestCountInDescription } from "@/lib/rush-block-description";
 import fs from "node:fs";
 import path from "node:path";
 import { getUserContext } from "./user-actions";
@@ -3606,7 +3607,7 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
           chapter: ms.chapter ?? (mIdx + 1),
           chapterLabel: ms.chapterLabel || ms.title.slice(0, 48),
           title: ms.title,
-          description: ms.description || null,
+          description: syncQuestCountInDescription(ms.description, countQuestsInBlock(ms.sequences)),
           tips: ms.tips || null,
           order: ms.order ?? mIdx,
           dofusId: ms.dofusId || null,
@@ -3628,7 +3629,7 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
           type: (ms.type as any) || milestoneRecord.type,
           chapter: ms.chapter !== undefined ? ms.chapter : milestoneRecord.chapter,
           chapterLabel: ms.chapterLabel || milestoneRecord.chapterLabel,
-          description: ms.description !== undefined ? ms.description : milestoneRecord.description,
+          description: ms.description !== undefined ? syncQuestCountInDescription(ms.description, countQuestsInBlock(ms.sequences)) : milestoneRecord.description,
           tips: ms.tips !== undefined ? ms.tips : milestoneRecord.tips,
           order: ms.order !== undefined ? ms.order : milestoneRecord.order,
           dofusId: ms.dofusId || milestoneRecord.dofusId,
@@ -5051,7 +5052,7 @@ export async function importRushGuide(raw: unknown, apply = false) {
           chapter: payloadBlock.chapter ?? chapter,
           chapterLabel: payloadBlock.chapterLabel?.trim() || chapterLabel,
           title: blockPlan.title,
-          description: payloadBlock.description ?? null,
+          description: syncQuestCountInDescription(payloadBlock.description, countQuestsInBlock(payloadBlock.sequences)),
           accentColor: payloadBlock.accentColor ?? null,
           imageUrl: safeImageUrl(payloadBlock.imageUrl) || null,
           tips: payloadBlock.tips ?? null,

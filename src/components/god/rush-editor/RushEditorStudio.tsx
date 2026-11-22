@@ -93,6 +93,7 @@ import { SiteFavicon } from "@/components/dofus-quests/rush/SiteFavicon";
 import { RUSH_COMBAT_BLOCK_META, isRushCombatBlock } from "@/lib/rush-block-types";
 import { parseRushBlockLinks, type RushBlockLink } from "@/lib/rush-block-links";
 import { parseRushMarkdown } from "@/lib/rush-markdown";
+import { safeExternalUrl } from "@/lib/security";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -4412,17 +4413,40 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     syncMetierTag(next);
   };
 
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; label: string; url: string }>({ open: false, label: "", url: "" });
+  const [posDialog, setPosDialog] = useState<{ open: boolean; x: string; y: string }>({ open: false, x: "", y: "" });
+
   const handleInsertLink = () => {
-    const label = prompt("Texte affiché pour le lien (ex: Le trésor de Totankama) :");
-    if (!label) return;
-    const url = prompt("URL du lien (ex: https://dofusdb.fr/...) :");
-    if (!url) return;
+    setLinkDialog({ open: true, label: "", url: "" });
+  };
+
+  const submitLink = () => {
+    const label = linkDialog.label.trim();
+    const url = safeExternalUrl(linkDialog.url.trim());
+    if (!label || !url) {
+      toast.error("Lien invalide", { description: "Un libelle et une URL http(s) sont requis." });
+      return;
+    }
     const markdown = `[${label}](${url})`;
     setTougliText(prev => {
       const newText = prev ? `${prev} ${markdown}` : markdown;
       handleTougliTextChange(newText);
       return newText;
     });
+    setLinkDialog({ open: false, label: "", url: "" });
+  };
+
+  const submitPosition = () => {
+    const xNum = parseInt(posDialog.x.trim(), 10);
+    const yNum = parseInt(posDialog.y.trim(), 10);
+    if (!Number.isSafeInteger(xNum) || !Number.isSafeInteger(yNum)) {
+      toast.error("Position invalide", { description: "Deux nombres entiers sont requis." });
+      return;
+    }
+    const pos = `/travel ${xNum},${yNum}`;
+    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
+    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+    setPosDialog({ open: false, x: "", y: "" });
   };
 
   // Détour zaap (choix God explicite) : le bouton `/zaap ; /travel` façon DPLN
@@ -5153,22 +5177,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide block">💡 Tips</label>
                 <button
                   type="button"
-                  onClick={() => {
-                    const x = prompt("Position X :");
-                    if (!x) return;
-                    const y = prompt("Position Y :");
-                    if (!y) return;
-                    const pos = `/travel ${x},${y}`;
-                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
-                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
-                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
-                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
-                  }}
+                  onClick={() => setPosDialog({ open: true, x: "", y: "" })}
                   className="flex items-center gap-1 text-caption font-bold text-primary hover:text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg transition-all"
                 >
                   <MapPin className="w-3 h-3" /> Ajouter position (/travel)
                 </button>
               </div>
+              <Dialog open={posDialog.open} onOpenChange={(o) => setPosDialog(prev => ({ ...prev, open: o }))}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Ajouter une position</DialogTitle>
+                    <DialogDescription>La commande /travel part sur sa propre ligne.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-2 py-2">
+                    <input value={posDialog.x} onChange={(e) => setPosDialog(prev => ({ ...prev, x: e.target.value }))} inputMode="numeric" placeholder="X" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                    <input value={posDialog.y} onChange={(e) => setPosDialog(prev => ({ ...prev, y: e.target.value }))} inputMode="numeric" placeholder="Y" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                  </div>
+                  <DialogFooter>
+                    <button type="button" onClick={() => setPosDialog({ open: false, x: "", y: "" })} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                    <button type="button" onClick={submitPosition} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Ajouter</button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <TipsLinesEditor
                 value={tips}
                 onChange={setTips}
@@ -5199,6 +5229,22 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   🔗 Insérer un lien
                 </button>
               </div>
+              <Dialog open={linkDialog.open} onOpenChange={(o) => setLinkDialog(prev => ({ ...prev, open: o }))}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Insérer un lien</DialogTitle>
+                    <DialogDescription>Un libelle lisible et une URL http(s).</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 py-2">
+                    <input value={linkDialog.label} onChange={(e) => setLinkDialog(prev => ({ ...prev, label: e.target.value }))} placeholder="Texte affiche (ex: Le trésor de Totankama)" className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs focus:outline-none" />
+                    <input value={linkDialog.url} onChange={(e) => setLinkDialog(prev => ({ ...prev, url: e.target.value }))} inputMode="url" placeholder="https://dofusdb.fr/..." className="w-full rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-mono focus:outline-none" />
+                  </div>
+                  <DialogFooter>
+                    <button type="button" onClick={() => setLinkDialog({ open: false, label: "", url: "" })} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                    <button type="button" onClick={submitLink} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Insérer</button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <textarea
                 value={tougliText}
                 onChange={e => handleTougliTextChange(e.target.value)}

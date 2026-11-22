@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
+import { nextFocusIndex } from "@/lib/focus-trap";
 import { X, MapPin, ExternalLink } from "lucide-react";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
@@ -150,6 +151,37 @@ export function RushOverlayQuestDetailModal({
     return () => win.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Verrou de scroll : la fiche est une vraie modale, le fond ne defile plus.
+  // On cible le document PORTEUR (fenetre PiP) et on restaure la valeur exacte :
+  // `use-guide-pip` pose deja son propre verrou sur la fenetre PiP.
+  useEffect(() => {
+    const body = dialogRef.current?.ownerDocument?.body;
+    if (!body) return;
+    const previous = body.style.overflow;
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = previous;
+    };
+  }, []);
+
+  // Piege a focus : Tab et Shift+Tab restent DANS la fiche (regle pure `nextFocusIndex`).
+  const handleTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const root = dialogRef.current;
+    const doc = root?.ownerDocument;
+    if (!root || !doc) return;
+    const items = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => el.offsetParent !== null);
+    if (items.length === 0) return;
+    const current = items.indexOf(doc.activeElement as HTMLElement);
+    const next = nextFocusIndex(current, items.length, e.shiftKey);
+    e.preventDefault();
+    items[next]?.focus();
+  };
+
   /** Libellé de section : un losange d'or + le libellé, jamais un pavé. */
   const sectionLabel =
     "mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground before:h-1 before:w-1 before:rotate-45 before:bg-gold/80 before:content-['']";
@@ -170,6 +202,7 @@ export function RushOverlayQuestDetailModal({
         aria-modal="true"
         aria-labelledby="rush-quest-detail-title"
         ref={dialogRef}
+        onKeyDown={handleTab}
         {...daScope}
         className="da-modal da-portal relative z-10 max-h-[85vh] w-full max-w-[32.5rem]"
       >
@@ -202,6 +235,7 @@ export function RushOverlayQuestDetailModal({
           </div>
           <button
             type="button"
+            autoFocus
             onClick={onClose}
             aria-label="Fermer"
             className="-mr-1 -mt-1 shrink-0 rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"

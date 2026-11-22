@@ -6,13 +6,23 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 54) — **Rush : O6, descriptions de blocs, studio sans prompt()** — branche `feat/rush-finitions-2026-11-22`
+
+> **Demande user (verbatim)** : « 07 : oublie et efface cette feature des chantiers · 06 : GO · 4 à creuser · 5 : GO · 6 : GO ».
+> **Fait (O6)** : la fiche de quête prend le focus sur « Fermer » (`autoFocus`), verrouille le scroll du **document porteur** (PiP) et piège Tab/Shift+Tab — règle pure `nextFocusIndex` (4 tests).
+> **Fait (#5)** : `syncQuestCountInDescription` + `countQuestsInBlock` recalent le nombre annoncé dans les descriptions de blocs, aux **3 écritures** (import legacy create/update + import typé). 4 tests.
+> **Fait (#6)** : les **4 `prompt()`** du studio sont remplacés par 2 `Dialog` (lien : `safeExternalUrl` ; position : X/Y entiers). Aucun `prompt()` restant.
+> **O7** : abandonné à la demande du mainteneur — retiré de la fiche, du plan de refonte et de la route.
+> **#4 (448)** : non reproduit. Les compteurs de l arbre sont **par bloc/chapitre**, calculés depuis les données chargées ; il faut l écran exact pour trancher.
+> **Preuves** : `tsc` 0 · 8 tests neufs verts · aucune migration.
+> **Reste** : mesure du 448 · faux donjons (données live) · ops VPS.
 ## 📝 Session 22/11/2026 (suite 53) — **Rush : copie PiP, menu carte au clic, details de quete** — branche `fix/rush-carte-copie-details-2026-11-22`
 
 > **Demande user (verbatim)** : « prends en compte les perf aussi avec les lots deja fait et a faire [...] et attaque quand t es pret » + « si tu es capable d associer le bon sous monde intelligemment chapeau par quete ».
 > **Mesure** : la copie PiP echouait parce que `copyToClipboard` ecrivait dans le `document` de l onglet principal (non focalise) ; le monde etait **force a 1** dans la bulle de survol alors que `pos_tags.worldId` porte le vrai monde (527/527) ; `getMetierIconPath` fabriquait `eleveur . etre eleveur 20.png` (404) ; `RushMonsterThumb` lisait `gfxId` avant `monsterId` ; le tag `succes` tombait dans « Details utiles » (type absent de l union) ; `10000000001` (Kamas) etait traite comme un id.
 > **Fait** : copie via `ownerDocument` (puce overlay + guide) ; `getSequenceCoord` lit `worldId` + `allowZaap` du tag ; menu **clic 2 etapes** (`RushPositionMenu`, guide interne + public, **pas** l overlay) ; route `/api/rush/map-at` (carte HD, `worldmap.json` serveur, 0 fetch avant clic) ; sections « Succes lie » / « Type d etape » (plus de « Badges ») ; icone de type dans la fiche badge ; titre court pour les groupes de monstres ; `monsterId` d abord ; `isResolvableItemId` (borne Int32).
 > **Preuves** : `tsc` 0 · 149 + 61 + 121 tests Rush verts · `rush-tag-overflow` 3 -> 4 conteneurs (justifie) · aucune migration.
-> **Reste** : `pos_tags.mapId` editable dans God (override carte) · faux donjons (donnees live, Temple Maudit d Araknas) · encart Tougli dans la modale (O7).
+> **Reste** : `pos_tags.mapId` editable dans God (override carte) · faux donjons (donnees live, Temple Maudit d Araknas).
 
 ## 📝 Session 22/11/2026 (suite 52) — **Restes Rush consolidés dans une fiche unique** — doc seule (aucun code produit)
 

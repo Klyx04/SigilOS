@@ -2,7 +2,7 @@
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
 > (Cline, OpenCode, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable** : ≈166 lignes, ~3 200 tokens — le minimum vital, tout le reste se lit à la demande.
+> négociable** : ≈168 lignes, ~3 300 tokens — le minimum vital, tout le reste se lit à la demande.
 > Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
@@ -39,6 +39,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.cline/skills/vps-ops/` — jamais `docker compose exec app-*` |
 | **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
 | **Config OpenCode** (skills partagés, permissions, commandes) | `opencode.json` + `docs/agents/harnais.md` §12 |
+| **Portabilité harnais** (liens Codex/Claude) | `scripts/harness-links.mjs` + `docs/agents/harnais.md` §14 |
 | **Toute UI** (layout, composant, correctif d'affichage) | skill `.cline/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |
 
@@ -103,13 +104,14 @@ dans une zone, lis sa règle : `.clinerules/01-server.md` (`src/server`, `src/ap
 ```bash
 npm run install:safe               # npm ci SANS exécuter le code des paquets + moteur Prisma + husky (recommandé)
 # npm install                      # alternative historique : exécute le code d'installation de TOUS les paquets
+npm run harness:links              # liens locaux .agents/skills + .claude/skills (portabilité)
 docker compose up -d db redis      # PostgreSQL (hôte 5433) + Redis
 # ⚠️ Base locale : la faire suivre le schéma AVANT de lancer l'app — sinon « The column X does not exist »
 npx prisma migrate deploy          # joue les migrations en attente (5433) — voir docs/agents/prisma-schema-change.md
 npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (8 332 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (8 333 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0

@@ -249,6 +249,10 @@ private_uploads/
 *_dump.json
 .gemini/
 
+# Liens locaux du harnais (scripts/harness-links.mjs)
+/.agents/skills
+/.claude/skills
+
 # Rapports & briefs d'audit (ponctuels, sensibles — garder en local)
 /docs/audits/
 AUDIT_*.md

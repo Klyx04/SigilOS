@@ -234,6 +234,17 @@ describe("harnais agentique", () => {
         expect(reviewer).toContain('resource: "*<*"');
     });
 
+    it("le harnais expose les liens de portabilité", () => {
+        const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+        expect(pkg.scripts["harness:links"]).toBe("node scripts/harness-links.mjs");
+        expect(fs.existsSync(path.join(root, "scripts/harness-links.mjs"))).toBe(true);
+
+        const ignore = read(".gitignore");
+        expect(ignore).toContain("/.agents/skills");
+        expect(ignore).toContain("/.claude/skills");
+        expect(read(".opencode/commands/fin.md")).toContain("reviewer");
+    });
+
     it("le journal archive est présent et ne contient aucun ID Discord", () => {
         const journal = read("docs/agents/journal-sessions-2026.md");
         expect(journal.length).toBeGreaterThan(100_000);

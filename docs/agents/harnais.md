@@ -98,6 +98,7 @@ AGENTS.md                         contrat court, lu automatiquement (~13 Ko)
     └── TaskComplete.ps1          rappelle la Definition of Done
 .cline/skills/                    12 skills (voir §5) — source partagée Cline + OpenCode
 opencode.json                     adaptateur OpenCode : skills, permissions, watcher, worktree, MCP
+scripts/harness-links.mjs         liens locaux .agents/skills + .claude/skills (portabilité)
 .opencode/commands/
 ├── reprise.md                    SHA + amorce de session
 └── fin.md                        Definition of Done
@@ -118,7 +119,7 @@ Mémoire volatile : src/temp/ (UNE seule zone, gitignorée)
 
 | Versionné (public) | Local (jamais poussé) |
 |---|---|
-| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**` | `.vscode/settings.json` (préférences éditeur) |
+| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**`, `scripts/harness-links.mjs` | `.vscode/settings.json` (préférences éditeur) |
 | `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) |
 | hooks (relus en PR comme du code) | `docs/audits/`, `src/temp/`, `.env*`, artefacts de build |
 
@@ -248,6 +249,7 @@ credentials : si un jour une base est branchée, ce sera un rôle **read-only** 
 | 19/10/2026 | **H0-H7** | photo chiffrée · roadmap unique (~200 lignes) + journal archivé · 4 règles conditionnelles · 6 skills · 3 hooks · `.clineignore` · garde `tests/unit/harness-config.test.ts` · **426 fichiers / 4 608 tests**, `tsc` 0, `eslint` 0 erreur |
 | 22/11/2026 | **OpenCode** | adaptateur `opencode.json` (skills partagés, permissions, watcher, Sentry MCP) · `/reprise` + `/fin` · routeurs `AGENTS.md` de zone · garde `harness-config` · Cline conservé |
 | 22/11/2026 | **Lot 2** | sous-agent `reviewer` read-only · premier worktree · hooks Cline durcis et testés par comportement · inventaire exact des 12 skills · chemins `paths:` vérifiés |
+| 22/11/2026 | **Lot 3** | liens locaux `.agents/skills` + `.claude/skills` (gitignorés) · scorecard de mesure · `/fin` déclenche `reviewer` · source `.cline/skills` conservée |
 
 ## 12. OpenCode — le même harnais, autre hôte
 
@@ -283,9 +285,33 @@ PR / corrections à faire ».
 Invocation : demander explicitement « utilise le sous-agent `reviewer` sur le diff ». Il relit avec
 `git diff HEAD` (ou `git diff --cached` si le parent a indexé). Il tourne dans une session enfant, avec son
 propre contexte et ses propres permissions ; le parent ne reçoit que le rapport. Il ne remplace pas les
-tests : il les complète.
+tests : il les complète. La commande `/fin` le déclenche automatiquement avant le rapport final.
 
 **Worktrees** : `opencode.json` → `worktree.directory = ../sigilos-worktrees` pour rester sur le même
 volume que le dépôt. Mesure du 22/11 : un worktree sur `C:` avec `node_modules` en jonction a fait
 dépasser les 5 s de six à huit tests qui scannent `src/` ; le même test seul repasse en 4 s. Le worktree
 reste valable, mais le volume compte.
+
+## 14. Portabilité — liens locaux et scorecard
+
+**Source unique** : `.cline/skills/` reste la source tant que Cline est conservé.
+
+`npm run harness:links` crée deux liens **locaux et gitignorés** :
+- `.agents/skills` → `.cline/skills` (Codex, DeepSeek Harness, Hermes ; OpenCode le découvre aussi) ;
+- `.claude/skills` → `.cline/skills` (Claude Code).
+
+Windows : jonctions ; Unix : symlinks. Un clone neuf lance `npm run harness:links`. Le script ne remplace
+jamais un dossier réel.
+
+**Après la décision (lot 4)** : déplacer les skills vers `.agents/skills` et inverser les liens pour
+Cline/Claude. La source devient alors standard.
+
+**Scorecard (à remplir au lot 4)** :
+
+| Lot | Harnais | Temps | Tokens | Interventions | Bugs attrapés | Tests |
+|---|---|---|---|---|---|---|
+| 1 | OpenCode | — | — | — | — | — |
+| 2 | OpenCode | — | — | — | — | — |
+| 3 | OpenCode | — | — | — | — | — |
+
+Le but n'est pas de « sentir » si c'est mieux : c'est de comparer des chiffres.

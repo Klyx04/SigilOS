@@ -17,6 +17,8 @@ import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs
 import { getPrereqChoiceGroups, type RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
+import { filterAlignmentSequences } from "@/lib/rush-alignment-filter";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -1385,13 +1387,20 @@ export default function GuideOverlayClient({
   // nom stocké — les prérequis sont résolus par nom (`resolvePrereqTag`).
   const alignmentSeries = useMemo(() => buildAlignmentSeries(milestones), [milestones]);
   const alignmentGroups = useMemo(() => {
+    // Meme regle que le dashboard : camp du joueur puis son Ordre ; jamais de bloc vide.
+    const filtered = filterAlignmentSequences(
+      visibleSequences,
+      alignmentSeries,
+      { camp: normalizeAlignmentCamp(selfAlignment), orderId: selfOrder },
+      selfOrder
+    );
     // Fail-closed : on ne regroupe (donc on ne réordonne) que si TOUTES les lignes
     // portent une série. Un encart info ou une quête commune garde sa place.
-    if (!visibleSequences.every((s) => alignmentSeries.has(s.id))) {
-      return [{ key: "ordre-du-guide", camp: null, label: null, sequences: visibleSequences }];
+    if (!filtered.every((s) => alignmentSeries.has(s.id))) {
+      return [{ key: "ordre-du-guide", camp: null, label: null, sequences: filtered }];
     }
-    return groupByAlignmentSeries(visibleSequences, alignmentSeries);
-  }, [visibleSequences, alignmentSeries]);
+    return groupByAlignmentSeries(filtered, alignmentSeries);
+  }, [visibleSequences, alignmentSeries, selfAlignment, selfOrder]);
 
   // Quête « à faire maintenant » de la liste AFFICHÉE : une seule règle partagée
   // par le nœud accentué, « Reprendre » et l'arrêt du fil de sève.

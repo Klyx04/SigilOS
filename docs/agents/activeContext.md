@@ -30,9 +30,9 @@
 
 > **Demande user (verbatim)** : « prends en compte les perf aussi avec les lots deja fait et a faire [...] et attaque quand t es pret » + « si tu es capable d associer le bon sous monde intelligemment chapeau par quete ».
 > **Mesure** : la copie PiP echouait parce que `copyToClipboard` ecrivait dans le `document` de l onglet principal (non focalise) ; le monde etait **force a 1** dans la bulle de survol alors que `pos_tags.worldId` porte le vrai monde (527/527) ; `getMetierIconPath` fabriquait `eleveur . etre eleveur 20.png` (404) ; `RushMonsterThumb` lisait `gfxId` avant `monsterId` ; le tag `succes` tombait dans « Details utiles » (type absent de l union) ; `10000000001` (Kamas) etait traite comme un id.
-> **Fait** : copie via `ownerDocument` (puce overlay + guide) ; `getSequenceCoord` lit `worldId` + `allowZaap` du tag ; menu **clic 2 etapes** (`RushPositionMenu`, guide interne + public, **pas** l overlay) ; route `/api/rush/map-at` (carte HD, `worldmap.json` serveur, 0 fetch avant clic) ; sections « Succes lie » / « Type d etape » (plus de « Badges ») ; icone de type dans la fiche badge ; titre court pour les groupes de monstres ; `monsterId` d abord ; `isResolvableItemId` (borne Int32).
+> **Fait** : copie via `ownerDocument` (puce overlay + guide) ; `getSequenceCoord` lit `worldId` + `allowZaap` du tag ; menu **clic 2 etapes** (`RushPositionMenu`, guide interne + public, **pas** l overlay) ; route `/api/rush/map-at` (carte HD, `worldmap.json` serveur, 0 fetch avant clic) ; sections « Succes lie » / « Type d etape » (plus de « Badges ») ; icone de type dans la fiche badge ; titre court pour les groupes de monstres ; `monsterId` d abord ; `isResolvableItemId` (borne Int32) ; champ **Carte HD** (`pos_tags.mapId`, borne Int32) editable dans God et prioritaire dans `/api/rush/map-at`.
 > **Preuves** : `tsc` 0 · 149 + 61 + 121 tests Rush verts · `rush-tag-overflow` 3 -> 4 conteneurs (justifie) · aucune migration.
-> **Reste** : `pos_tags.mapId` editable dans God (override carte) · faux donjons (donnees live, Temple Maudit d Araknas).
+> **Reste** : faux donjons (donnees live, Temple Maudit d Araknas) · encart Tougli dans la modale (O7) · verification ecran du menu et du PNJ.
 
 ## 📝 Session 22/11/2026 (suite 52) — **Restes Rush consolidés dans une fiche unique** — doc seule (aucun code produit)
 

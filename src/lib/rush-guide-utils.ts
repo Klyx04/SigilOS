@@ -317,7 +317,7 @@ export function rushChapterPosition(
 export function getSequenceCoord(seq: RushSequence | null | undefined) {
   if (!seq) return null;
   const posTag = (seq.activityTags || []).find((t) => t.type === "pos_tags") as
-    | { name?: unknown; worldId?: unknown; allowZaap?: unknown }
+    | { name?: unknown; worldId?: unknown; allowZaap?: unknown; mapId?: unknown }
     | undefined;
   const posStr = posTag?.name ? String(posTag.name) : null;
   const parsed =
@@ -339,6 +339,9 @@ export function getSequenceCoord(seq: RushSequence | null | undefined) {
     ...parsed,
     ...(worldId !== undefined ? { worldId } : {}),
     allowZaap: posTag?.allowZaap === true,
+    ...(typeof posTag?.mapId === "number" && Number.isSafeInteger(posTag.mapId) && posTag.mapId > 0 && posTag.mapId <= 2147483647
+      ? { mapId: posTag.mapId }
+      : {}),
   };
 }
 

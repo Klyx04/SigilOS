@@ -195,6 +195,23 @@ describe("rush-guide-utils", () => {
       expect(res?.y).toBe(34);
     });
 
+    it("lit la carte HD imposee en God (pos_tags.mapId) et rejette un id hors bornes", () => {
+      const seq: RushSequence = {
+        id: "s4",
+        subGuideRef: "Q",
+        subGuideName: "Q",
+        isOptional: false,
+        order: 0,
+        activityTags: [{ type: "pos_tags", name: "[-6,-3]", worldId: 1, mapId: 54169887 }],
+      };
+      expect(getSequenceCoord(seq)?.mapId).toBe(54169887);
+      const invalid: RushSequence = {
+        ...seq,
+        activityTags: [{ type: "pos_tags", name: "[-6,-3]", mapId: 10000000001 }],
+      };
+      expect(getSequenceCoord(invalid)?.mapId).toBeUndefined();
+    });
+
     it("renvoie null sans aucune coordonnée", () => {
       const seq: RushSequence = {
         id: "s3",

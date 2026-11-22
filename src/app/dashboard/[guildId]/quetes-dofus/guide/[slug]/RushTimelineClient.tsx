@@ -618,7 +618,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               const zaapEnabled = isZaapCopyEnabled(seq);
               const manualZaap = getSequenceManualZaap(seq);
               return (
-                <RushCoordinateChip coordText={coord.raw} showIcon menuOnClick npc={getSequenceNpc(seq)} showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
+                <RushCoordinateChip coordText={coord.raw} showIcon menuOnClick npc={getSequenceNpc(seq)} mapId={coord.mapId} showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
               );
             })()}
             <div className="flex items-center gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
@@ -1142,6 +1142,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               showIcon
               menuOnClick
               npc={soloQuest ? getSequenceNpc(soloQuest) : null}
+              mapId={headerCoord.mapId ?? null}
               showZaap={!!soloQuest && isZaapCopyEnabled(soloQuest)}
               manualZaap={soloQuest ? getSequenceManualZaap(soloQuest) : null}
               className="shrink-0"

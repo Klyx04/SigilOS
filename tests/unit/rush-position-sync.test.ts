@@ -50,6 +50,16 @@ describe("buildRushPositionTag", () => {
     });
   });
 
+
+  it("conserve la carte HD imposee en God (mapId) lors d une resynchro", () => {
+    const tag = buildRushPositionTag(POSITIONS["1608"], {
+      type: "pos_tags",
+      name: "[-24,-35]",
+      mapId: 54169887,
+    });
+    expect(tag.mapId).toBe(54169887);
+  });
+
   it("ignore un zaap incomplet plutôt que d'inventer l'axe manquant", () => {
     const tag = buildRushPositionTag(POSITIONS["1608"], {
       type: "pos_tags",

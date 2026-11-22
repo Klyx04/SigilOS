@@ -66,6 +66,8 @@ export type RushActivityTag = {
   npcId?: number;
   /** Tag `pos_tags` : monde Dofus (1 = classique). */
   worldId?: number;
+  /** Tag `pos_tags` : carte HD imposee en God (`/game-data/hd_maps/{mapId}.webp`). */
+  mapId?: number;
   /** Tag `pos_tags` : détour zaap proposé ; l'auto résout le plus proche. */
   allowZaap?: boolean;
   /** Tag `pos_tags` : zaap manuel (God), prioritaire sur l'auto. */

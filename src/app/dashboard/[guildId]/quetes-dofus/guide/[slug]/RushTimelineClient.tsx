@@ -104,6 +104,7 @@ import {
   groupByAlignmentSeries,
   type RushAlignmentSeriesMap,
 } from "@/lib/rush-alignment-series";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
@@ -323,6 +324,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const daScope = daScopeProps(useDaTheme());
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
+  const profileAlign = React.useContext(ProfileAlignmentCtx);
+  const [orderKey, setOrderKey] = React.useState<string | null>(null);
   const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
   // Donjons : la MÊME source que les trois surfaces (`getDungeons` applique les groupes
   // « au choix » et complète les noms non résolus en base). Le compteur de la pastille
@@ -1031,6 +1034,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
+  const profileAlign = React.useContext(ProfileAlignmentCtx);
+  const [orderKey, setOrderKey] = React.useState<string | null>(null);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -1059,6 +1064,14 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
     ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
     : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
+  // Filtre d alignement : on ne montre que le camp du joueur (profil), puis son Ordre
+  // s il en a choisi un ici. Le tronc commun reste toujours visible.
+  const orderGroups = alignmentGroups.filter((g: any) => g.key.startsWith("ordre:") && (!profileAlign.camp || g.camp === profileAlign.camp));
+  const visibleAlignmentGroups = alignmentGroups.filter((g: any) => {
+    if (g.camp && profileAlign.camp && g.camp !== profileAlign.camp) return false;
+    if (orderKey && g.key.startsWith("ordre:") && g.key !== orderKey) return false;
+    return true;
+  });
 
   return (
     <div>
@@ -1145,13 +1158,29 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
-                  ) : (
-                    /* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
-                       opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */
+                  ) : (<>
+                    {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
+                        opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
+                    {orderGroups.length > 1 && (
+                      <div className="mb-1 flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
+                        <span>Mon ordre</span>
+                        <select
+                          value={orderKey ?? ""}
+                          onChange={(e) => setOrderKey(e.target.value || null)}
+                          aria-label="Filtrer sur mon Ordre"
+                          className="rounded-[4px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
+                        >
+                          <option value="">Tous</option>
+                          {orderGroups.map((g: any) => (
+                            <option key={g.key} value={g.key}>{g.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <DaRail>
-                    {alignmentGroups.map((group)=>(
+                    {visibleAlignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>
-                        {alignmentGroups.length>1&&group.label&&(
+                        {visibleAlignmentGroups.length>1&&group.label&&(
                           <p className="flex items-center gap-1.5 px-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                             <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
                             {group.label}
@@ -1167,7 +1196,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                       </React.Fragment>
                     ))}
                     </DaRail>
-                  )}
+                  </>)}
                 </CompletedStepsCtx.Provider>
           </div>
         </RushCollapse>
@@ -1287,6 +1316,7 @@ const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
 // Un contexte évite de traverser `ChapterBlock` / `MilestoneRow` / `SequenceRow`.
 const OpenOcreCtx=React.createContext<(() => void) | undefined>(undefined);
 const ScrollToPrereqCtx=React.createContext<(name:string, targetSeqId?:string|null)=>void>(()=>{});
+const ProfileAlignmentCtx=React.createContext<{camp:"bontarien"|"brakmarien"|null;orderId:string|null}>({camp:null,orderId:null});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 /**
  * Séries d'alignement (« Ali 12 », « Rang 2 ») dérivées du guide ENTIER. Un seul
@@ -2467,8 +2497,12 @@ const timelineItems=useMemo(()=>{
 
   // Séries d'alignement (« Ali 12 », « Rang 2 ») : un seul calcul pour toute la page.
   const alignmentSeries = React.useMemo(() => buildAlignmentSeries(milestones), [milestones]);
+  const profileAlignment = React.useMemo(
+    () => ({ camp: normalizeAlignmentCamp(resolvedCharacterInfo.alignment), orderId: resolvedCharacterInfo.alignmentOrder ?? null }),
+    [resolvedCharacterInfo.alignment, resolvedCharacterInfo.alignmentOrder]
+  );
 
-  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AlignmentSeriesCtx.Provider value={alignmentSeries}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><OpenOcreCtx.Provider value={openOcre}><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AlignmentSeriesCtx.Provider value={alignmentSeries}><ProfileAlignmentCtx.Provider value={profileAlignment}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   {/* ══ COQUE DU GUIDE — les mêmes attributs que le guide public (E2) ══
       `data-da` + `data-theme` + `data-block` (bloc courant, règle PARTAGÉE
       `resolveRushDaTheme`) et `data-quality="high"` : le guide plein écran
@@ -3166,7 +3200,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AlignmentSeriesCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
+   </div></DaThemeProvider></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></ProfileAlignmentCtx.Provider></AlignmentSeriesCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider></OpenOcreCtx.Provider>
 
 
 </>);}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { planOverlayJump } from "@/lib/rush-overlay-jump";
+import { planOverlayJump, releaseOverlayFilters } from "@/lib/rush-overlay-jump";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -48,6 +48,36 @@ describe("overlay Rush — saut vers un prérequis", () => {
 
   it("refuse une quête absente du bloc (fail-closed)", () => {
     expect(planOverlayJump(MILESTONES, { milestoneId: "ms-1", seqId: "seq-c" })).toBeNull();
+  });
+
+  it("ne relâche aucun filtre quand la cible est déjà visible", () => {
+    expect(
+      releaseOverlayFilters(
+        { search: "", hideCompleted: false, questFilter: "all" },
+        { isDone: false, isLocked: false }
+      )
+    ).toEqual({ clearSearch: false, showCompleted: false, resetQuestFilter: false });
+  });
+
+  it("vide la recherche active pour rendre la cible d'un autre bloc", () => {
+    expect(
+      releaseOverlayFilters(
+        { search: "sang", hideCompleted: false, questFilter: "all" },
+        { isDone: false, isLocked: false }
+      ).clearSearch
+    ).toBe(true);
+  });
+
+  it("réaffiche les quêtes faites seulement si la cible est faite", () => {
+    const filters = { search: "", hideCompleted: true, questFilter: "all" as const };
+    expect(releaseOverlayFilters(filters, { isDone: true, isLocked: false }).showCompleted).toBe(true);
+    expect(releaseOverlayFilters(filters, { isDone: false, isLocked: false }).showCompleted).toBe(false);
+  });
+
+  it("repasse le filtre à Toutes seulement si la cible ne matche pas", () => {
+    const active = { search: "", hideCompleted: false, questFilter: "active" as const };
+    expect(releaseOverlayFilters(active, { isDone: false, isLocked: false }).resetQuestFilter).toBe(false);
+    expect(releaseOverlayFilters(active, { isDone: false, isLocked: true }).resetQuestFilter).toBe(true);
   });
 
   it("le saut cherche la ligne dans le document de l'overlay, pas dans l'hôte", () => {

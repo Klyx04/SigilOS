@@ -20,7 +20,7 @@ import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignme
 import { filterAlignmentSequences } from "@/lib/rush-alignment-filter";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { resolveOverlayLayout, type OverlayDensity } from "@/lib/rush-overlay-layout";
-import { planOverlayJump, type OverlayJumpOrigin } from "@/lib/rush-overlay-jump";
+import { planOverlayJump, releaseOverlayFilters, type OverlayJumpOrigin } from "@/lib/rush-overlay-jump";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -910,8 +910,7 @@ export default function GuideOverlayClient({
     [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
   );
 
-  const [pendingFocus, setPendingFocus] = useState<{ seqId: string; nonce: number } | null>(null);
-  const focusNonce = useRef(0);
+  const [pendingFocus, setPendingFocus] = useState<{ seqId: string; name: string } | null>(null);
 
   const jumpToQuest = useCallback(
     (target: { seqId: string; milestoneId: string }): boolean => {
@@ -927,18 +926,16 @@ export default function GuideOverlayClient({
       const targetSeq = targetMs?.sequences.find((s) => s.id === plan.seqId);
       const targetDone = completedStepsByMs.get(targetMs?.id ?? "")?.has(plan.seqId) ?? false;
       const targetLocked = targetSeq ? getSeqGate(targetSeq).locked : false;
-      if (search.trim()) setSearch("");
-      if (hideCompleted && targetDone) setHideCompleted(false);
-      if (
-        questFilter !== "all" &&
-        !matchesRushQuestFilter({ isDone: targetDone, isLocked: targetLocked }, questFilter)
-      ) {
-        setQuestFilter("all");
-      }
+      const release = releaseOverlayFilters(
+        { search, hideCompleted, questFilter },
+        { isDone: targetDone, isLocked: targetLocked }
+      );
+      if (release.clearSearch) setSearch("");
+      if (release.showCompleted) setHideCompleted(false);
+      if (release.resetQuestFilter) setQuestFilter("all");
       setCurrentMsIndex(plan.milestoneIndex);
       setDetailSeq(null);
-      focusNonce.current += 1;
-      setPendingFocus({ seqId: plan.seqId, nonce: focusNonce.current });
+      setPendingFocus({ seqId: plan.seqId, name: plan.name });
       return true;
     },
     [
@@ -951,6 +948,13 @@ export default function GuideOverlayClient({
       toast,
     ]
   );
+
+  // Le toast « Revenir » capture l'action pendant 10 s : la ref lui donne
+  // toujours le `jumpToQuest` courant (filtres et progression à jour).
+  const jumpToQuestRef = useRef(jumpToQuest);
+  useEffect(() => {
+    jumpToQuestRef.current = jumpToQuest;
+  }, [jumpToQuest]);
 
   /**
    * Le nœud cible vit dans le document de l'overlay (PiP) : le `document` global
@@ -976,7 +980,7 @@ export default function GuideOverlayClient({
           attempts += 1;
           timer = win.setTimeout(tryScroll, 100 + attempts * 60);
         } else {
-          toast.error("Quête cible introuvable dans ce guide");
+          toast.error(`Quête cible introuvable : ${pendingFocus.name}`);
         }
         return;
       }
@@ -1000,12 +1004,13 @@ export default function GuideOverlayClient({
     (seqId: string, milestoneId: string, origin?: OverlayJumpOrigin) => {
       const landed = jumpToQuest({ seqId, milestoneId });
       if (!landed || !origin) return;
-      // Même proposition que le guide interne : le joueur a quitté sa quête
-      // d'origine (souvent dans un autre bloc), le toast la lui rend.
+      // Même principe que le guide interne (retour proposé depuis la modale) :
+      // le joueur a quitté sa quête d'origine (souvent dans un autre bloc),
+      // le toast la lui rend.
       toast.info("Retour à la quête d'origine", {
         description: origin.name,
         duration: 10000,
-        action: { label: "Revenir", onClick: () => { jumpToQuest(origin); } },
+        action: { label: "Revenir", onClick: () => { jumpToQuestRef.current(origin); } },
       });
     },
     [jumpToQuest, toast]

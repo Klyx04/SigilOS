@@ -7,6 +7,8 @@
  * et pour rester fail-closed : une cible inconnue ne déclenche aucun saut.
  */
 
+import { matchesRushQuestFilter, type RushQuestFilter } from "@/lib/rush-quest-filter";
+
 export type OverlayJumpTarget = {
   seqId: string;
   milestoneId: string;
@@ -46,4 +48,42 @@ export function planOverlayJump(
   const seq = milestones[milestoneIndex]?.sequences.find((s) => s.id === target.seqId);
   if (!seq) return null;
   return { milestoneIndex, seqId: seq.id, name: seq.subGuideName };
+}
+
+export type OverlayFilterState = {
+  search: string;
+  hideCompleted: boolean;
+  questFilter: RushQuestFilter;
+};
+
+export type OverlayTargetState = {
+  isDone: boolean;
+  isLocked: boolean;
+};
+
+export type OverlayFilterRelease = {
+  clearSearch: boolean;
+  showCompleted: boolean;
+  resetQuestFilter: boolean;
+};
+
+/**
+ * Quels filtres de la vue relâcher pour que la cible soit rendue.
+ *
+ * On ne touche à rien si la cible est déjà visible : le saut ne doit pas
+ * changer la vue du joueur sans raison. La recherche est toujours vidée
+ * quand elle est active : la cible peut être dans un autre chapitre et le
+ * mode « résultats globaux » ne la rend pas forcément.
+ */
+export function releaseOverlayFilters(
+  filters: OverlayFilterState,
+  target: OverlayTargetState
+): OverlayFilterRelease {
+  return {
+    clearSearch: filters.search.trim().length > 0,
+    showCompleted: filters.hideCompleted && target.isDone,
+    resetQuestFilter:
+      filters.questFilter !== "all" &&
+      !matchesRushQuestFilter(target, filters.questFilter),
+  };
 }

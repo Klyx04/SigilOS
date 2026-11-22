@@ -11,7 +11,7 @@
 > **Demande user (verbatim)** : « quand on clic dans l'overlay sur une quete prérequis on cible bien la quete prérequis on va la chercher et on focus dessus, le guide navigateur le fait déjà, meme chose si c'est une quete dans un autre bloc on fait pareil et on propose un retour arri_re comme le guide interne ? ».
 > **Mesuré** : `handleGoToPrereq` cherchait `overlay-seq-*` avec le `document` GLOBAL — dans une PiP, c'est le document HÔTE : le bloc changeait, la ligne n'était jamais trouvée ; aucun retour n'était proposé, et un prérequis unique ouvrait une modale à un seul item.
 > **Fait** : règle pure `planOverlayJump` (cible par `milestoneId` + `seqId`, fail-closed) ; saut dans `rootRef.current.ownerDocument`, recherche + filtres relâchés pour que la cible soit rendue, ligne centrée + anneau 1,8 s ; prérequis unique = saut direct ; toast « Revenir » (10 s) qui ramène au bloc et à la quête d'origine ; action de toast aux tokens DA.
-> **Preuves** : **8 345 tests ✅** · 7 neufs (`rush-overlay-jump`) + 159 ciblés · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
+> **Preuves** : **8 349 tests ✅** · 11 neufs (`rush-overlay-jump`) + 159 ciblés · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
 > **Reste** : valider visuellement 310/390 (même bloc, autre bloc, retour) · scorecard lot 3/3 remplie — migration `.agents/skills` encore conditionnée à Cline secondaire + liens CI.
 > **Rotation** : blocs « suite 54 » et antérieurs sortis — récupérables via `git log -p -- docs/agents/activeContext.md`.
 

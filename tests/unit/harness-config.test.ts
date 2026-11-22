@@ -1,9 +1,28 @@
 import { describe, it, expect } from "vitest";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
+
+const powershell = (process.platform === "win32" ? ["powershell", "pwsh"] : ["pwsh", "powershell"]).find(
+    (command) => spawnSync(command, ["-NoProfile", "-Command", "exit 0"], { encoding: "utf8" }).status === 0,
+);
+
+const runHook = (name: string, payload: unknown) => {
+    expect(powershell, "PowerShell introuvable").toBeTruthy();
+    const result = spawnSync(powershell!, ["-NoProfile", "-File", path.join(root, ".clinerules/hooks", name)], {
+        input: JSON.stringify(payload),
+        encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return JSON.parse(result.stdout.replace(/^\uFEFF/, "").trim()) as {
+        cancel: boolean;
+        errorMessage: string;
+        contextModification?: string;
+    };
+};
 
 /**
  * Garde du harnais agentique.
@@ -61,6 +80,29 @@ describe("harnais agentique", () => {
         }
     });
 
+    it("l'inventaire des 12 skills est exact", () => {
+        const dir = path.join(root, ".cline/skills");
+        const skills = fs
+            .readdirSync(dir, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort();
+        expect(skills).toEqual([
+            "cron-task",
+            "discord-api",
+            "doc-session",
+            "lot-pr",
+            "metamob-api",
+            "node-runtime",
+            "prisma-change",
+            "responsive",
+            "route-securite",
+            "sentry-triage",
+            "sigilos-da-wakfu",
+            "vps-ops",
+        ]);
+    });
+
     it("les règles conditionnelles déclarent des chemins", () => {
         const dir = path.join(root, ".clinerules");
         const rules = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
@@ -72,6 +114,39 @@ describe("harnais agentique", () => {
             expect(frontmatter, rule).toBeTruthy();
             expect(frontmatter?.[1] ?? "", rule).toMatch(/^paths:/m);
             expect(frontmatter?.[1] ?? "", rule).toMatch(/- ".+"/);
+        }
+    });
+
+    it("chaque règle conditionnelle matche au moins un fichier suivi", () => {
+        const files = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+            .split(/\r?\n/)
+            .filter(Boolean);
+        const globToRegExp = (glob: string) =>
+            new RegExp(
+                "^" +
+                    glob
+                        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+                        .replace(/\*\*\//g, "@@DIR@@")
+                        .replace(/\*\*/g, "@@ANY@@")
+                        .replace(/\*/g, "[^/]*")
+                        .replace(/@@DIR@@/g, "(?:.*/)?")
+                        .replace(/@@ANY@@/g, ".*") +
+                    "$",
+            );
+        const dir = path.join(root, ".clinerules");
+        const rules = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
+
+        for (const rule of rules) {
+            const markdown = fs.readFileSync(path.join(dir, rule), "utf8");
+            const frontmatter = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+            const content = frontmatter?.[1] ?? "";
+            const paths = [...content.matchAll(/^\s*-\s*"([^"]+)"\s*$/gm)].map((match) => match[1]);
+
+            expect(paths.length, rule).toBeGreaterThan(0);
+            for (const glob of paths) {
+                const regex = globToRegExp(glob);
+                expect(files.some((file) => regex.test(file)), `${rule} → ${glob}`).toBe(true);
+            }
         }
     });
 
@@ -103,6 +178,7 @@ describe("harnais agentique", () => {
             skills: string[];
             permissions: Array<{ action: string; resource: string; effect: string }>;
             watcher: { ignore: string[] };
+            worktree: { directory: string };
             mcp: { servers: Record<string, { type: string; url: string }> };
         };
 
@@ -115,6 +191,7 @@ describe("harnais agentique", () => {
             ]),
         );
         expect(config.watcher.ignore).toContain("public/assets/**");
+        expect(config.worktree.directory).toBe("../sigilos-worktrees");
         expect(config.mcp.servers.sentry.url).toContain("mcp.sentry.dev");
     });
 
@@ -143,5 +220,37 @@ describe("harnais agentique", () => {
         const journal = read("docs/agents/journal-sessions-2026.md");
         expect(journal.length).toBeGreaterThan(100_000);
         expect(journal).not.toMatch(/\b\d{15,21}\b/);
+    });
+});
+
+describe("hooks Cline — comportement", () => {
+    const block = (payload: unknown) => expect(runHook("PreToolUse.ps1", payload).cancel).toBe(true);
+    const allow = (payload: unknown) => expect(runHook("PreToolUse.ps1", payload).cancel).toBe(false);
+
+    it("PreToolUse bloque les gestes dangereux et laisse passer le reste", () => {
+        block({ tool_call: { name: "write_to_file", input: { path: ".env" } } });
+        allow({ tool_call: { name: "write_to_file", input: { path: ".env.example" } } });
+        block({ tool_call: { name: "write_to_file", input: { path: "prisma/migrations/2026/migration.sql" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "npx prisma migrate dev" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "npx prisma db push" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "git push --force origin dev" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "git commit --no-verify -m x" } } });
+        block({ tool_call: { name: "execute_command", input: { command: "Set-Content .env foo" } } });
+        allow({ tool_call: { name: "write_to_file", input: { path: "src/lib/foo.ts" } } });
+        allow({ tool_call: { name: "execute_command", input: { command: "npm run test:run" } } });
+    }, 30_000);
+
+    it("TaskStart renvoie le SHA et une étape lisible", () => {
+        const result = runHook("TaskStart.ps1", { taskId: "test" });
+        expect(result.cancel).toBe(false);
+        expect(result.contextModification).toMatch(/Reprise SigilOS — dev [0-9a-f]{7,}/);
+        expect(result.contextModification).not.toContain("introuvable");
+    });
+
+    it("TaskComplete rappelle la DoD et l'état git", () => {
+        const result = runHook("TaskComplete.ps1", {});
+        expect(result.cancel).toBe(false);
+        expect(result.contextModification).toContain("DoD");
+        expect(result.contextModification).toMatch(/arbre propre|fichier\(s\)/);
     });
 });

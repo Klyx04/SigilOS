@@ -2,7 +2,7 @@
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
 > (Cline, OpenCode, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable** : ≈165 lignes, ~3 200 tokens — le minimum vital, tout le reste se lit à la demande.
+> négociable** : ≈166 lignes, ~3 200 tokens — le minimum vital, tout le reste se lit à la demande.
 > Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
@@ -145,6 +145,7 @@ retour arrière `./scripts/rollback.sh` (détails : `docs/MAINTENANCE.md`).
 - [ ] Docs mises à jour **là où elles vivent** : `docs/ROADMAP.md` (statut du chantier) +
       `docs/agents/activeContext.md` (**nouveau bloc EN HAUT**, les 6 dernières sessions seulement — règle de
       rotation en tête du fichier). **Aucun nouveau fichier d'état, aucun mémo dupliqué.**
+- [ ] Relecture : sous-agent `reviewer` sur le diff (read-only, `.opencode/agents/reviewer.md`).
 - [ ] Ops côté humain listées (migration à jouer, écran à contrôler, variable d'env à poser).
 - [ ] Rapport final **≤ 15 lignes** : fait · reste · côté utilisateur.
 

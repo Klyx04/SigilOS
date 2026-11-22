@@ -101,6 +101,8 @@ opencode.json                     adaptateur OpenCode : skills, permissions, wat
 .opencode/commands/
 ├── reprise.md                    SHA + amorce de session
 └── fin.md                        Definition of Done
+.opencode/agents/
+└── reviewer.md                   sous-agent read-only (délégation)
 src/AGENTS.md                     routeur de zone (server, UI, Discord)
 tests/AGENTS.md                   routeur de zone (tests)
 docs/AGENTS.md                    routeur de zone (docs)
@@ -173,6 +175,10 @@ Tests manuels :
 **OpenCode** : pas de hooks lifecycle 1:1. Les gardes sont dans `opencode.json` → `permissions` et les
 rituels dans `.opencode/commands/reprise.md` / `fin.md`. Les hooks Cline restent actifs.
 
+Les trois hooks Cline sont **testés par comportement** dans `tests/unit/harness-config.test.ts` :
+blocage `.env` (sauf `.env.example`), migrations (`migrate dev`, `db push`), destructives, `--no-verify` ;
+`TaskStart` (SHA + §0) ; `TaskComplete` (DoD + `git status`).
+
 ## 7. Règles conditionnelles
 
 Les fichiers `.clinerules/*.md` portent un frontmatter `paths:` : Cline ne les charge que lorsqu'un
@@ -204,13 +210,13 @@ main (ne pas indexer 40 000 images).
 
 **OpenCode** : `opencode.json` → `watcher.ignore` couvre les mêmes binaires ; `.clineignore` reste pour Cline.
 
-## 9. MCP — Sentry déclaré (OAuth à faire)
+## 9. MCP — Sentry connecté
 
-Sentry est déclaré dans `opencode.json` (`mcp.servers.sentry`, URL `https://mcp.sentry.dev/mcp`). La
-connexion se fait en **OAuth** via `/mcps` ; `opencode mcp list` doit afficher `connected`. Le skill
-`sentry-triage` impose l'ordre : **mesurer** (issue → error → trace → release) avant de proposer une
-cause. Aucun MCP de production avec credentials : si un jour une base est branchée, ce sera un rôle
-**read-only** et une base **locale**.
+Sentry est connecté via **OAuth** (`/mcps`) ; le serveur distant est déclaré dans `opencode.json`
+(`mcp.servers.sentry`, URL `https://mcp.sentry.dev/mcp`). Les outils `search_issues`, `search_errors`,
+`search_traces` et `get_sentry_resource` sont chargés. Le skill `sentry-triage` impose l'ordre :
+**mesurer** (issue → error → trace → release) avant de proposer une cause. Aucun MCP de production avec
+credentials : si un jour une base est branchée, ce sera un rôle **read-only** et une base **locale**.
 
 ## 10. Anti-patrons
 
@@ -241,6 +247,7 @@ cause. Aucun MCP de production avec credentials : si un jour une base est branch
 |---|---|---|
 | 19/10/2026 | **H0-H7** | photo chiffrée · roadmap unique (~200 lignes) + journal archivé · 4 règles conditionnelles · 6 skills · 3 hooks · `.clineignore` · garde `tests/unit/harness-config.test.ts` · **426 fichiers / 4 608 tests**, `tsc` 0, `eslint` 0 erreur |
 | 22/11/2026 | **OpenCode** | adaptateur `opencode.json` (skills partagés, permissions, watcher, Sentry MCP) · `/reprise` + `/fin` · routeurs `AGENTS.md` de zone · garde `harness-config` · Cline conservé |
+| 22/11/2026 | **Lot 2** | sous-agent `reviewer` read-only · premier worktree · hooks Cline durcis et testés par comportement · inventaire exact des 12 skills · chemins `paths:` vérifiés |
 
 ## 12. OpenCode — le même harnais, autre hôte
 
@@ -254,7 +261,7 @@ cause. Aucun MCP de production avec credentials : si un jour une base est branch
 | Skills | `.cline/skills/**/SKILL.md` | Source unique partagée, branchée par `"skills": [".cline/skills"]` |
 | Garde-fous | `opencode.json` → `permissions` | `.env` deny, migrations ask, commandes destructives ask, `--no-verify` deny |
 | Rituels | `.opencode/commands/reprise.md` et `fin.md` | Remplacent `TaskStart` / `TaskComplete` (manuels, pas d'événement natif) |
-| MCP | `opencode.json` → `mcp.servers.sentry` | Sentry déclaré en OAuth, URL `https://mcp.sentry.dev/mcp` |
+| MCP | `opencode.json` → `mcp.servers.sentry` | Sentry connecté via OAuth, URL `https://mcp.sentry.dev/mcp` |
 | Ignore | `opencode.json` → `watcher.ignore` | Remplace `.clineignore` côté OpenCode, qui reste pour Cline |
 
 **Pourquoi `.cline/skills` et pas une copie** : une seule source, aucun doublon. Quand on ajoutera
@@ -265,4 +272,19 @@ OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne 
 
 **Vérifier** : `npx vitest run tests/unit/harness-config.test.ts` · `/reprise` · `/fin` · `opencode mcp list`.
 
-**Suite** : lot 2 = sous-agent `reviewer`, premier worktree, tests de comportement des hooks Cline.
+**Suite** : lot 3 = mesure sur 3 lots réels + migration vers `.agents/skills` (standard Agent Skills).
+
+## 13. Délégation — le sous-agent `reviewer`
+
+`.opencode/agents/reviewer.md` définit un agent **read-only** : `edit` refusé, `shell` limité à `git diff`,
+`git status` et `git log`. Il relit le diff, liste les findings par sévérité et rend un verdict « prêt pour
+PR / corrections à faire ».
+
+Invocation : demander explicitement « utilise le sous-agent `reviewer` sur le diff ». Il tourne dans une
+session enfant, avec son propre contexte et ses propres permissions ; le parent ne reçoit que le rapport.
+Il ne remplace pas les tests : il les complète.
+
+**Worktrees** : `opencode.json` → `worktree.directory = ../sigilos-worktrees` pour rester sur le même
+volume que le dépôt. Mesure du 22/11 : un worktree sur `C:` avec `node_modules` en jonction a fait
+dépasser les 5 s de six tests qui scannent `src/` ; le même test seul repasse en 4 s. Le worktree reste
+valable, mais le volume compte.

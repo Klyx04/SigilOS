@@ -36,7 +36,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `monitoring/` | Config Prometheus **unique** (dev **et** prod) | ✅ unifié le 20/09/2026 — l'ancien doublon `prometheus/prometheus.yml` est supprimé |
 | `.gemini/` | Brouillons d'un assistant IA — **n'existe plus** (nettoyé) | ❌ supprimé |
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
-| `.opencode/` | Adaptateur OpenCode : commandes `/reprise` et `/fin` | ✅ |
+| `.opencode/` | Adaptateur OpenCode : commandes `/reprise`, `/fin` et sous-agent `reviewer` | ✅ |
 | `node_modules/` `.next/` `dist/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
 ## 2. La racine, fichier par fichier (28 fichiers suivis)

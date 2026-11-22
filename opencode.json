@@ -32,6 +32,9 @@
       "tsconfig.tsbuildinfo"
     ]
   },
+  "worktree": {
+    "directory": "../sigilos-worktrees"
+  },
   "mcp": {
     "servers": {
       "sentry": {

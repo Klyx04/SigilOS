@@ -84,7 +84,7 @@ Correction dans **God ▸ Guide Rush ▸ quête ▸ Destination** : monde **Temp
 
 > ⚠️ Le déploiement ne pousse **que** `worlds.json` / `worldmap.json` (versionnés). Les **cartes HD** et les **tuiles** ne sont **pas versionnées** : `sync-assets` est obligatoire. Le ménage des tuiles `w19` / `w29` est normal (mondes retirés du sélecteur) ; les `hd_maps` des Mappemondes sont un **autre dossier**, à conserver pour les quêtes. Le raccourci `sync-assets.ps1 beta w41` ne vise **que** `tiles/w41` : pour les 3 cartes HD, lancer la synchro **complète** (sans sous-dossier).
 
-- `worlds.json` / `worldmap.json` sont **versionnés** : `deploy-cd.sh` les propage et redémarre l'app (le cache process de `getWorldmapData` est donc vidé).
+- `worlds.json` / `worldmap.json` sont **versionnés** : `deploy-cd.sh` les propage et redémarre l'app. Le cache serveur de `getWorldmapData` est en plus invalidé par le **mtime** : un `sync-assets` est pris en compte au premier appel, même sans redémarrage (mesure 22/11/2026 : `map-at` répondait 404 alors que le monde 41 était déjà sur disque).
 - `tiles/` et `hd_maps/` sont **git-ignorés** : seul `sync-assets` les publie.
 - Aucun rebuild n'est nécessaire pour les assets (Caddy sert le volume).
 

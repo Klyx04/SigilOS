@@ -10,9 +10,8 @@
 
 ## 0. Reprise immédiate
 
-- 🎯 **Rush (20/11)** : 536 quêtes · 49 conseils · 532 positions (1 sans : 1938) · 737 tags monstres · 303 succès · 3 OU ; bêta 8d7528ff (ouverte), dev 8d7528ff.
-- ✅ **173 vs 143** : public **175 exigences** (tous blocs) vs route **Bontarien + Ordre 145** → écart **30** = filtre `resolveRushRoute`, pas un bug.
-- 📌 **Gestes Rush** : ① visuels 390/768/1024/1440 ; ② itérations 5/6 ; ③ doc/prod (`main` = `c190f2c7`).
+- 🎯 **Rush (mesuré 22/11)** : 536 séquences · 527 `pos_tags` (0 sans monde) · 527 prérequis (0 orphelin) · 518/536 cartographiables · 3 succès 3/3 · bêta 8d7528ff, dev 03aabc19.
+- 📌 **Gestes Rush** : état et prochain geste **uniques** dans `RUSH-DEVELOPPEMENT-SUITE.md` « ⚡ Restes — fiche unique » ; visuels 390/768/1024/1440 ; doc/prod (`main` = `c190f2c7`).
 - ⚡ **Perf web (21/11)** : guide **2,5→3,1–3,3 req/s**, accueil **21,9**, CSS **34,5→69** ; **P0 (#1476)** → **B-3** (profil 3 champs, TTL stats 3 min, `proxy-image` async) livrés ; **bêta à redéployer**. P2/P3 : `docs/plans/PERF-WEB.md`.
 - 🔐 **Sécurité (21/11)** : **#1485/#1486/#1487 mergés** (CSP prod sans wildcard, base dev loopback, guards hors `use server`, Caddy sans `.env.prod`, **`game-data` RW** car l'app écrit) → **redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 cron).
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.
@@ -47,9 +46,9 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
-| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1 → T-4 livrés** (T-4a le 12/11 : G8, O15, G9 tokenisée) | **G7 (hero) + composition G9** (captures) → **T-5** (O9/O10/O11/O12/O13) → **T-6** (G6, `useOptimistic`) | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B, V-G, V-F partiel, V-H livrés** · bloc B (route publique) 12/11 · route à 3 étages corrigée 12/11 · **conseils écrits** (guide 536) | **V-C** (purge WebP, ops VPS) · **V-D2** (re-mesurer sur 536) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `MAPPING-RUSH-SYLVESTRE.md` | — |
-| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1473** : guide **536**, **451 + 76 prérequis**, **303 succès en tags**, **positions 529/536**, **enrichissement 3b** (374/43/737/1 518) · **bêta f2e9c07f** ; **séries Ali**, **UX 4/4**, **prérequis OU**, **DA PiP + guide**, **UI-1 + donjons** | 1 position (1938) + 3 tags `succes` · itérations 5/6 (**définition absente** — `ROUTE` §13) | `ROUTE-RUSH-ISO-TOUGLI.md` §12 · `MODULE-RUSH-SYLVESTRE.md` §5 | — |
+| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1 → T-4 livrés** · G8/O15/G9 tokenisée · O10/O12/G2/T1/T5 livrés (mesuré 22/11) | **Fiche unique** : `RUSH-DEVELOPPEMENT-SUITE.md` « Restes » — O13 (carte HD, clic 2 etapes) puis T-6 · **livre 22/11** : copie PiP, menu carte, details de quete | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` | captures G7/G9 |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : ressources, ids/icônes, alignement, ocre, Metamob | **V-A/V-B/V-G/V-F partiel/V-H livrés** · conseils **49** · **V-D2 mesuré 22/11** (1 id absent + 1 id invalide ×60) | **V-D2 livre 22/11** (borne Int32) · **Fiche unique** : V-C (ops VPS) | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` | V-C : ops |
+| 10b | `rush-guide` | Rush : prérequis, succès, ordre, overlay | **#1431-#1473** · guide **536** · **T-2c clos par mesure (0 orphelin / 527)** · 3 succès **3/3** | **Fiche unique** : itérations 5/6 (non définies) · compteur « 448 » · descriptions de blocs | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` | itérations : définition |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |
@@ -150,16 +149,16 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 52 | `galerie-variantes` | **Galerie Stuff** : variantes proposées par le joueur, sans toucher au stuff Dofusbook | **livré le 26/10/2026** (`resolveVariantPreview`, tag VARIANTE) | — (rien) | — | — |
 | 53 | `passifs-objets` | **Effets passifs officiels** des objets | **livré** 23/10/2026 — **117 sorts** dans `src/data/item-passives.json`, repli inventé supprimé | 38 sorts sans description : à rejouer via le siphon | — | — |
 | 54 | `supply-chain` | Débloquer la porte de sécurité (`zod` 4.6.7, `undici` 7.30.1) | **livré** 23/10/2026 (PR #1101) : migration zod 3 → 4 sur 26 fichiers, `security:audit` franchie | — (rien) | — | — |
-| 55 | `rush-restes` | Restes du 26/10 : **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et sort de `questDbIds` (écrit, seule la puce du studio God l'affiche) | mesuré le 26/10 | juger à l'écran puis trancher | — |
+| 55 | `rush-restes` | **Absorbé le 22/11/2026** dans la fiche unique : G7/G9 = captures, `questDbIds` = décision d'affichage | mesuré | voir fiche unique | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` | — |
 | 56 | `live-discord` | Annonces de créateurs : live Twitch + nouvelle vidéo YouTube, **deux salons distincts** (Twitch / YouTube) + **deux interrupteurs** + ping par guilde, une annonce par session/vidéo (cron 5 min) | **livré** le 02/11/2026 · **scindé** le 04/11/2026 (salons et interrupteurs distincts, migration additive avec reprise du salon existant) | — (rien) | `docs/MAINTENANCE.md` | — |
 | 58 | `ui-dj` | DJ/Quête : DA landing sur `DjPostCreateModal`, `DjEditModal`, `DjFiltersBar`, `DungeonFinderClient` | ~90 occurrences | même passe que #1252 + `ui-tokens-dj` | `docs/RULES.md` § UI |
-| 59 | `god-rush-ux` | **Éditeur God Rush** : studio 3 panneaux (arbre / liste / inspecteur), Ctrl+K, filtres, actions de masse, DA God | **E1, E2b, E2c, E2d, E3c, E4 livrés** · coque élargie 10/11 · blocs Combat + liens + markdown 13/11 · dette DA 577 → **0** | **E5** finitions (raccourcis, virtualisation, états) | `docs/plans/REFONTE-EDITEUR-RUSH.md` | — |
+| 59 | `god-rush-ux` | **Éditeur God Rush** : studio 3 panneaux (arbre / liste / inspecteur), Ctrl+K, filtres, actions de masse, DA God | **E1, E2b, E2c, E2d, E3c, E4 livrés** · coque élargie 10/11 · blocs Combat + liens + markdown 13/11 · dette DA 577 → **0** | **E5** finitions — voir fiche unique Rush | `docs/plans/REFONTE-EDITEUR-RUSH.md` | — |
 | 60 | `standby-etendu` | Marché (`market-expire`), demandes de service (`cleanup-inactive-service-requests`) et sondages (`close-old-polls`) : **aucune pause** — ni bouton, ni colonne, l'expiration est subie | mesuré le 05/11/2026 (3 modèles avec `standBy` : `DjSearchPost`, `DreamRun`, `GuildEvent` ; les 3 autres n'en ont pas) | si demandé : colonne `standBy` sur 3 modèles (**migration**) + bouton + gardes de cron | `docs/MAINTENANCE.md` § Stand-by | — |
 ## 3 bis. File d'exécution — Rush Sylvestre + espace visiteur
 
-> **Seul ordre pour ces deux périmètres.** Les rangs 9, 10, 55, 57 et 59 portent le **détail**
-> de chaque sujet ; ils ne portent pas d'ordre. Une amorce de session ne recrée pas de file.
-> **Les lignes 1-2 sont livrées** ; la file vivante commence à la ligne 3.
+> **Seul ordre pour ces deux périmètres.** Le **détail des restes** vit dans **une seule** section :
+> `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` « Restes — fiche unique » (22/11/2026). Les rangs
+> 9/10/10b/55/59 n'en portent plus le détail. Une amorce de session ne recrée pas de file.
 
 | # | Chantier | Rang | Taille |
 |---|---|---|---|
@@ -167,15 +166,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 2 | ~~Brouillon local du formulaire de quête (E2b-suite 2/2)~~ ✅ **livré le 12/11** | 59 | M |
 | 3 | ~~Fiche visiteur — affinage (assets, hiérarchie)~~ ✅ **soldé le 15/11/2026** (validé user, rien à faire) | 57 | — |
 | 4 | ~~Dette DA du studio (577 motifs → 0, E4)~~ ✅ **livré le 12/11/2026** — 572 → 0, verrou `rush-editor-ui` | 59 | M |
-| 5 | ~~Restes T-4 : G8 (dépli), O15 (motion), G9 (tokens)~~ ✅ **livré le 12/11/2026 (T-4a)** — G7 (hero) et composition G9 restent (captures) | 9 · 55 | M |
-| 6 | Images : purge WebP / nettoyage (V-C, ops VPS) | 10 | M |
-| 7 | ~~Sélection multiple + action serveur en masse (E3c)~~ ✅ **livré le 12/11/2026** — 3 actions bornées, 200 ids, transaction | 59 | L |
-| 8 | ~~Route publique d'un bloc (bloc B)~~ ✅ **livré le 12/11/2026** — `/guides/rush-sylvestre/q/[slug]`, publication studio | 10 | L |
-| 9 | ~~Blocs **Combat tactique / semi-tactique** + liens nommés (favicon) + markdown couleur + modale de bloc~~ ✅ **livré le 13/11/2026** — migration `20270131000000`, `RushCombatBanner`, `GuideMilestone.links` | 59 | L |
-| 9 | T-5 — overlay avancé (O9, O10, O11, O13, O12) | 9 | L |
-| 10 | T-6 — perf & architecture (G6, `useOptimistic`) | 9 | M |
-| 11 | Finitions du studio (raccourcis, virtualisation, états, E5) | 59 | M |
-| 12 | Données Tougli / Dofusyelle (V-D2 : 536) | 10 | ? |
+| 5 | **Restes Rush** — état, priorités et prochain geste **uniques** : `RUSH-DEVELOPPEMENT-SUITE.md` « Restes — fiche unique » (22/11/2026) | 9 · 10 · 10b · 55 · 59 | — |
 | 13 | ~~Tour guidé (reste V2a-4)~~ ✅ **livré le 16/11/2026** (profil + guide Rush, connecté/anonyme) · V3 (God visiteurs) — **V2d abandonné** · **reste** : contrôle visuel 390/768/1024/1440 (bulle + parcours anonyme/connecté) | 57 | ? |
 
 

@@ -6,6 +6,24 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 53) — **Rush : copie PiP, menu carte au clic, details de quete** — branche `fix/rush-carte-copie-details-2026-11-22`
+
+> **Demande user (verbatim)** : « prends en compte les perf aussi avec les lots deja fait et a faire [...] et attaque quand t es pret » + « si tu es capable d associer le bon sous monde intelligemment chapeau par quete ».
+> **Mesure** : la copie PiP echouait parce que `copyToClipboard` ecrivait dans le `document` de l onglet principal (non focalise) ; le monde etait **force a 1** dans la bulle de survol alors que `pos_tags.worldId` porte le vrai monde (527/527) ; `getMetierIconPath` fabriquait `eleveur . etre eleveur 20.png` (404) ; `RushMonsterThumb` lisait `gfxId` avant `monsterId` ; le tag `succes` tombait dans « Details utiles » (type absent de l union) ; `10000000001` (Kamas) etait traite comme un id.
+> **Fait** : copie via `ownerDocument` (puce overlay + guide) ; `getSequenceCoord` lit `worldId` + `allowZaap` du tag ; menu **clic 2 etapes** (`RushPositionMenu`, guide interne + public, **pas** l overlay) ; route `/api/rush/map-at` (carte HD, `worldmap.json` serveur, 0 fetch avant clic) ; sections « Succes lie » / « Type d etape » (plus de « Badges ») ; icone de type dans la fiche badge ; titre court pour les groupes de monstres ; `monsterId` d abord ; `isResolvableItemId` (borne Int32).
+> **Preuves** : `tsc` 0 · 149 + 61 + 121 tests Rush verts · `rush-tag-overflow` 3 -> 4 conteneurs (justifie) · aucune migration.
+> **Reste** : `pos_tags.mapId` editable dans God (override carte) · faux donjons (donnees live, Temple Maudit d Araknas) · encart Tougli dans la modale (O7).
+
+## 📝 Session 22/11/2026 (suite 52) — **Restes Rush consolidés dans une fiche unique** — doc seule (aucun code produit)
+
+> **Demande user (verbatim)** : « est-ce que toutes le restant est dans un fichier ? on en a partout j'ai l'impression, on perd un temps fou et beaucoup de tokens contexte s'envole à chaque début de prompt ».
+> **Mesuré (base live `rush-sylvestre`)** : 36 blocs / **536 séquences** · 527 positions (**0 sans `worldId`**) · 527 `prereq_text` (**0 orphelin**) · 530 ids DofusDB (530 trouvés) · **518/536 cartographiables** · 863 tags `item` (505 ids : **1 id absent** 7696 ×2 et **1 id invalide** `10000000001` ×60) · 746 tags combat · **3 succès 3/3 `isSuccess`**.
+> **Fait** : la **fiche unique des restes** vit dans `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` (« ⚡ Restes — fiche unique », en tête) : lots prêts (O13, V-D2, O7, O6, E5, compteur 448, descriptions), décisions (T-6/G6, `useOptimistic`, O9/O11/O5/G5/E2/`questDbIds`), livrés à acter, bloqués mainteneur, ops. `ROADMAP.md` (rangs 9/10/10b/55, §3 bis), `PLAN-REFONTE…`, `MODULE…` et `ROUTE…` §13 **pointent** vers elle et ne dupliquent plus.
+> **Corrections d'état** : T-2c **clos par mesure** (0 orphelin / 527) ; 3 succès officiels **déjà posés** ; V-D2 réduit à 2 cas ; O10/O12/G2/T1/T5 **livrés**.
+> **Preuves** : `git status --short` propre · sonde temporaire supprimée · aucune migration · aucun code produit.
+> **Reste** : appliquer la fiche (O13 → V-D2 → O7/O6) ; les décisions listées ; ops VPS.
+
+
 ## 📝 Session 21/11/2026 (suite 51) — **Sécurité CodeQL + Sentry (footer, URLs sortantes, avis)** — branche `fix/codeql-sentry-2026-11-21` (empilée sur #1492)
 
 > **Demandes user (verbatim)** : « Il y a par ailleurs des nouvelles erreurs sentry qui ont pop aujourd'hui + erreurs github security and quality — traite la totalité ».
@@ -58,17 +76,7 @@
 > **Rotation** : bloc « suite 41 » (revalidations Rush) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 20/11/2026 (suite 46) — **Perf web · P1-1, spans serveur du dashboard** — branche `perf/p1-1-spans-2026-11-20` (PR #1479)
-
-> **Demande user (verbatim)** : « reprenons : […] Si tu valides ce périmètre, je démarre par 1.1 immédiatement ; sinon dis-moi ce que tu veux prioriser ».
-> **Mesure avant code (Sentry 7 j, doc §0)** : `/dashboard/:guildId` = **1 980 transactions** (≈ 280/j), p95 **836 ms** ; prélèvement serveur **5 %**. `@prisma/instrumentation` **absent** du projet mais **Prisma est déjà tracé automatiquement** (`prisma:client:operation`, SQL, `pg-pool.connect`) — inutile de l'ajouter. POST > 1 s (sous-ensemble) : `quetes-dofus/guide/[slug]` **100**, `profile` **80**, `galerie-stuff` 20, `missions` 10 — des **server actions** qui re-rendent le layout.
-> **Correction de diagnostic** : `getGuildHeaderData` (cache mémoire **60 s**) et `getGuildModules` (**30 s**) sont **déjà** cachés ; `getUserGuilds`/`getPlatformConfig` ont `cache()` depuis P0. Le « cache dashboard » restant à trancher est donc `getUserContext` (déjà Redis 60 s) et la requête `getUserGuilds` — la mesure décide.
-> **Fait (P1-1)** : helper `withSpan` (`src/lib/perf-span.ts` : serveur, no-op si Sentry off, rejet jamais avalé) ; **6 spans** sur le layout (`getUserContext`, `getGuildHeaderData`, `getUserGuilds`, `getGuildModules`, `getPlatformConfig`, `getUpcomingGuildEvents` **streamée**) ; sous-spans `userContext.redis.get`, `userContext.guildConfig.read`, `userContext.discord.fetch`, `userGuilds.query`, `guildHeader.*`, `guildModules.guildConfig.read`, `platformConfig.read` ; **aucun `guildId`** dans un nom de span (verrou `tests/unit/perf-span.test.ts`, 9 cas).
-> **Trace bêta du 20/11 (après deploy)** : `GET /dashboard/[guildId]` = **1 964 ms** ; `getUserContext` touche Redis (`user:ctx…`, **3,9 ms**) et **n'appelle pas Discord** ⇒ le layout n'est pas le coût principal ; le `render route` porte ~20 opérations Prisma à 600–1 000 ms. `pg-pool.connect` sur 1 h : p50 **1,1 ms**, p95 **82 ms** (max 981 ms).
-> **Correction mesurée (PR #1480)** : le SDK Next isole le rendu RSC dans un scope **sans client** ; `startSpan` rendait un span non enregistré (zéro donnée en bêta). `sentry.server.config.ts` enregistre le client rendu par `init` (`globalThis`) et `ensureSentryClient()` le rattache au scope courant.
-> **Preuves** : **786 fichiers / 8 213 tests ✅** (dont `perf-span-runtime`, transport mémoire réel) · `tsc` 0 · ESLint **0 erreur** · aucune migration.
-> **Reste** : redéployer la bêta avec **#1480** puis lire les p95 par span (`GET /dashboard/[guildId]`) ; **P1-2** images (calendrier 913 Ko, logo 170 Ko) ; **P1-3** cache public ; **P2** statique/PPR ; **P3** CDN/WAF + DPA.
-> **Rotation** : bloc « suite 40 » (runbook VPS) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+> **Rotation** : bloc « suite 46 » (perf P1-1) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

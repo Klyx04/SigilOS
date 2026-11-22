@@ -69,7 +69,7 @@ docs/
 │   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
 │   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
 │   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données
-│   ├── RUSH-DEVELOPPEMENT-SUITE.md  rush : blocs de contenu S0→S6 (l'ordre vit dans ROADMAP)
+│   ├── RUSH-DEVELOPPEMENT-SUITE.md  **rush : fiche unique des restes (section ⚡)** puis blocs S0→S6
 │   ├── PERF-WEB.md                  perf : mesure de charge, diagnostic, lots P0→P3
 │   ├── PLAN-SOLVEURS-TACTIQUES.md solveurs tactiques (à cadrer)
 

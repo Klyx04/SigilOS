@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
-import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
@@ -599,9 +598,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               const zaapEnabled = isZaapCopyEnabled(seq);
               const manualZaap = getSequenceManualZaap(seq);
               return (
-                <MapPositionPopover posX={coord.x} posY={coord.y} worldId={coord.worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={zaapEnabled} manualZaap={manualZaap}>
-                  <RushCoordinateChip coordText={coord.raw} showIcon showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
-                </MapPositionPopover>
+                <RushCoordinateChip coordText={coord.raw} showIcon menuOnClick npc={getSequenceNpc(seq)} showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
               );
             })()}
             <div className="flex items-center gap-0.5 rounded-[4px] border border-border bg-surface p-0.5">
@@ -1106,23 +1103,15 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               comme dans le guide public. Hors du bouton d'accordéon — `RushCoordinateChip`
               est un bouton, et un bouton ne peut pas en contenir un autre. */}
           {headerCoord && (
-            <MapPositionPopover
-              posX={headerCoord.x}
-              posY={headerCoord.y}
-              worldId={headerCoord.worldId}
-              guildId={guildId}
-              contextLabel={ms.title}
-              zaapEnabled={!!soloQuest && isZaapCopyEnabled(soloQuest)}
+            <RushCoordinateChip
+              coordText={headerCoord.raw}
+              showIcon
+              menuOnClick
+              npc={soloQuest ? getSequenceNpc(soloQuest) : null}
+              showZaap={!!soloQuest && isZaapCopyEnabled(soloQuest)}
               manualZaap={soloQuest ? getSequenceManualZaap(soloQuest) : null}
-            >
-              <RushCoordinateChip
-                coordText={headerCoord.raw}
-                showIcon
-                showZaap={!!soloQuest && isZaapCopyEnabled(soloQuest)}
-                manualZaap={soloQuest ? getSequenceManualZaap(soloQuest) : null}
-                className="shrink-0"
-              />
-            </MapPositionPopover>
+              className="shrink-0"
+            />
           )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">

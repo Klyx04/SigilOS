@@ -1,14 +1,80 @@
 ---
-description: Rush Sylvestre — contenu : blocs S0→S6, mesures, lots, dépendances, verrous de test (l'ordre vit dans ROADMAP §3 bis)
+description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), puis contenu S0→S6, mesures, lots, verrous de test (l'ordre global vit dans ROADMAP)
 ---
 
 # 🏹 Rush Sylvestre — la suite du développement
 
-> **Rôle unique.** Ce fichier porte **l'organisation** des chantiers Rush après la consolidation du
-> 21/10/2026 : dans quel ordre, sur quelles surfaces, avec quels verrous.
-> Il **ne duplique pas** : le contenu mesuré vit dans `MAPPING-RUSH-SYLVESTRE.md`, le « quoi » des
-> modules dans `MODULE-RUSH-SYLVESTRE.md`, l'ergonomie dans `PLAN-REFONTE-RUSH-SYLVESTRE.md`, et
-> **l'ordre global** dans `docs/ROADMAP.md`.
+> **Rôle unique.** Ce fichier porte **l'organisation** des chantiers Rush et, depuis le 22/11/2026,
+> la **fiche unique des restes** (section ⚡ juste en dessous) : c'est la **seule** section à lire pour
+> savoir ce qui reste. `docs/ROADMAP.md` garde l'**ordre global** ; les autres plans ne portent plus
+> le détail des restes.
+
+## ⚡ Restes — fiche unique (22/11/2026)
+
+> **Seule section à lire au démarrage d'une session Rush.** Elle remplace tous les « reste » éparpillés :
+> `ROADMAP.md` (rangs 9/10/10b/55), `PLAN-REFONTE-RUSH-SYLVESTRE.md`, `MODULE-RUSH-SYLVESTRE.md` et
+> `ROUTE-RUSH-ISO-TOUGLI.md` **pointent ici** et ne portent plus le détail.
+>
+> **Mesuré le 22/11/2026 sur la base live** (`rush-sylvestre`) : **36 blocs / 536 séquences** ·
+> 527 positions (**0 sans `worldId`**) · 527 `prereq_text` (**0 orphelin**) · 530 ids DofusDB
+> (**530 trouvés**) · **518/536 cartographiables** · 863 tags `item` (505 ids) · 746 tags combat ·
+> 3 succès officiels (**3/3 `isSuccess`**).
+
+### A. Code — prêt à exécuter (aucune décision requise)
+
+| # | Lot | Définition / mesure | Ancrages | Taille |
+|---|---|---|---|---|
+| 1 | **O13 mini-carte** | Dans la modale de quête : image HD de la case (`hd_maps`) + pion + zaap le plus proche **dans le bon monde** ; 518/536 couvertes ; 18 sans image ⇒ **aucune carte** ; jamais de pion sur (0,0) | `RushOverlayQuestDetailModal` (partagée overlay + guide public), `nearest-zaap.ts`, `GameQuest.imageUrl` | M |
+| 2 | **V-D2 Kamas + Dragofesse** | **60 tags « Kamas »** portent l'id invalide `10000000001` (hors Int32, sans `imageUrl`) ⇒ image placeholder ; **2 tags « Dragofesse en Cuir Violet de Bwork »** id 7696 **absent de `GameItem`** ; 1 seul id réel hors base | `rush-guide-utils.ts` (`resolveItemImage`), `QuestItemResourceGrid`, `overlay-utils.ts` | S |
+| 3 | **O7 callout Tougli** | `tougli_box` n'est rendu que dans le dashboard ; absent de la modale de l'overlay | `RushTimelineClient` (source), `RushOverlayQuestDetailModal` | S |
+| 4 | **O6 focus / scroll** | Aucun `autoFocus` ni verrou de scroll dans l'overlay (Échap PiP déjà livré) | modales overlay | S |
+| 5 | **E5 finitions studio** | 4 `prompt()` natifs (lien, position) + finitions `REFONTE-EDITEUR-RUSH.md` §3 | studio God | M |
+| 6 | **Compteur « 448 »** | Non reproduit : payload local = 536 ; à reproduire à l'écran avant de corriger | en-tête du guide | S |
+| 7 | **Descriptions de blocs (8 vs 12)** | Calculées avant l'enrichissement — correctif de seed | seed Rush | S |
+
+### B. Code — mesure ou décision d'abord
+
+| # | Lot | Pourquoi ce n'est pas codé | Décision attendue |
+|---|---|---|---|
+| 8 | **T-6 / G6** (contextes → Zustand) | 17 contextes dans `RushTimelineClient` ; le plan impose un **profiler navigateur avant/après** | session dédiée avec profiler |
+| 9 | **`useOptimistic`** | `src/hooks/use-optimistic-toggle.ts` **n'est importé nulle part** (code mort) ; l'overlay fait déjà optimiste + rollback + cascade | supprimer le hook **ou** l'utiliser |
+| 10 | **O9 carte « Maintenant »** | Définition d'une ligne ; doublon probable avec « Reprendre » + objectif courant (calculé, non affiché) | garder / abandonner |
+| 11 | **O11 jauges / anneaux** | **Une seule** jauge dans l'en-tête depuis le 12/11 (anti-doublon assumé) | garder / abandonner |
+| 12 | **O5 « Aller à la suite »** | « Reprendre » fait déjà le saut ; le libellé exact est absent du code | garder / abandonner |
+| 13 | **G5 ContextualHelp** | Absent de l'overlay et du module Rush (présent dans le dashboard) | périmètre ? |
+| 14 | **E2 `achievements[]`** | Migration Prisma | accord explicite |
+| 15 | **Sort de `questDbIds`** | Écrit en base ; seule la puce du studio God l'affiche (reste du 26/10) | faut-il l'afficher ailleurs ? |
+| 16 | **Accents Dofus** | O14 contrasté ; l'application générale « écran par écran » reste à poser | périmètre ? |
+
+### C. Déjà livré — à acter (ne plus compter comme reste)
+
+O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué).
+
+### D. Bloqué par le mainteneur
+
+| Sujet | Ce qu'il manque |
+|---|---|
+| **G7 hero + composition G9** | **Captures d'écran** (G8, O15 et G9 tokenisée sont livrés) |
+| **Itérations 5/6** | **Définition absente** (écrans, périmètre, critère de fin) — ne pas inventer |
+| **98 conseils Brâkmarien** | Textes (49 conseils en base, 194 visés) |
+| **V-C purge WebP** | Ops VPS + validation de l'archive `rush-sylvestre-archive-*` avant suppression |
+| **Touglie enrichi** | Import VPS (archive **108/492** importée en local) |
+| **Positions** | **6 mises à jour** du plan à appliquer dans God |
+| **Brâkmarien 121 vs 102** | Réconciliation des variantes exclusives |
+| **Combats** | **746 tags** avec au moins un monstre sans id |
+
+### E. Ops (hors code)
+
+Bêta à redéployer (`dev` `03aabc19` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
+
+### F. À savoir avant de coder
+
+- import **additif** : `importRushGuide(raw, apply)` fait un **dry-run par défaut** ;
+- **aucune migration** pour les lots 1 à 7 ci-dessus ;
+- ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
+- piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
+- **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.
+
 
 ## 0. Ce qui fait foi depuis le 21/10/2026
 
@@ -45,10 +111,8 @@ aucune source**. ② **V-D1 — les ressources par quête** : **390 → 485 ids*
 **252 tags** ajoutés (Brâkmarien **1 → 151 ids**), **2ᵉ passage = 0 écriture**, dataset
 **inchangé**, **aucune migration**.
 
-**Prochain lot : `V-C`** (purge WebP — ops serveur), puis **E5** (finitions du studio,
-`REFONTE-EDITEUR-RUSH.md` §3). **Blocs Combat livrés le 13/11/2026** (liens nommés + favicon,
-markdown couleur, modale de bloc). **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par
-étape) reste **ouvert**, à trancher. L'ordre **global** reste `docs/ROADMAP.md`.
+**Prochain lot** : voir la **fiche unique des restes** (section ⚡ en tête de fichier). Cette ligne
+annonçait `V-C` le 04/11/2026 : elle reste comme repère historique, plus comme état.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|
@@ -64,21 +128,8 @@ markdown couleur, modale de bloc). **V-D2** (51 ids Tougli hors base + 67 ids Do
 - piège connu : le studio écrit `subGuideRef: name.trim()` ⇒ le code **`RS-S2-QN` est écrasé** au premier enregistrement (sans effet sur ce lot, mais ne pas s'en servir comme identifiant) ;
 - **1 lot = 1 branche = 1 PR → `dev`** ; DoD du §9 (règle pure + 4 surfaces + tests + docs).
 
-**Prompt à coller** :
-
-```
-Rush Sylvestre — exécute le lot S1-2 (série brâkmarienne, 102 quêtes).
-Lis d'abord docs/plans/RUSH-DEVELOPPEMENT-SUITE.md (§0 bis et §3 S1-2), puis
-MAPPING-RUSH-SYLVESTRE.md.
-Sources : src/temp/trame-rush/export-god-cites.json et export-god-variantes.json.
-Méthode : importRushGuide en dry-run (lis le plan produit), corrige les avertissements,
-puis applique. Aucune migration. Ne touche pas aux verrous rush-* (public-parity,
-dungeon-invalidation, choice-groups, dungeons).
-Contrôle en base : les 5 paliers Brâkmar complets et la vue Branches à 100/102
-(une variante exclusive compte pour 1 étape).
-1 branche = 1 PR vers dev ; mets à jour ROADMAP §0 (fichier < 60 Ko) et le bloc
-activeContext (6 blocs maximum).
-```
+**Prompt d'amorçage** : `docs/agents/harnais.md` §0 (prompt générique). Ne pas coller un prompt de
+lot déjà livré — l'état et le prochain geste vivent dans la **fiche unique** en tête de fichier.
 
 ## 1. Les 4 surfaces (toute évolution touche les quatre)
 

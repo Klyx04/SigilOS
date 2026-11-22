@@ -28,6 +28,7 @@ export type RushActivityTagType =
   | "dofus_link"
   | "ocre_dungeon"
   | "alignment_set"
+  | "succes"
   | "npc";
 
 /** Alternative d'un prérequis « au choix » (tag `prereq_expr`), par id DofusDB. */
@@ -57,6 +58,8 @@ export type RushActivityTag = {
   color?: string;
   url?: string;
   id?: string;
+  /** Tag `succes` : icône officielle du client (`img/achievements/{iconId}.png`). */
+  iconId?: number;
   imageUrl?: string;
   quantity?: number;
   /** Tag `npc` : identifiant client du PNJ (portrait par convention). */

@@ -13,6 +13,7 @@ import {
   formatProgressLabel,
   getMetierIconPath,
   resolveItemImage,
+  isResolvableItemId,
   getItemImageFallback,
   resolveRushSeqIcon,
   getSequenceNpc,
@@ -512,6 +513,8 @@ describe("rush-guide-utils", () => {
       expect(resolveItemImage(undefined, "https://cdn.example/img.png")).toBe("https://cdn.example/img.png");
       expect(resolveItemImage(undefined, undefined)).toBe("");
     });
+
+    it("refuse un id hors bornes Int32 (marqueur Kamas) au lieu de fabriquer un 404", () => {       expect(isResolvableItemId(7696)).toBe(true);       expect(isResolvableItemId("10000000001")).toBe(false);       expect(resolveItemImage("10000000001")).toBe("");       expect(resolveItemImage(10000000001, "https://cdn.example/kamas.png")).toBe("https://cdn.example/kamas.png");       expect(getItemImageFallback("10000000001")).toBe("");     });
   });
 
   describe("getItemImageFallback (proxy)", () => {

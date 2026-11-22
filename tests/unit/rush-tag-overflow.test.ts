@@ -48,11 +48,11 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(src).toMatch(/<p className="break-words font-semibold/);
     });
 
-    it("les trois conteneurs de tags sont bornés", () => {
+    it("les quatre conteneurs de tags sont bornés (nature, succès, conditions, outils)", () => {
         const src = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayTagSection.tsx",
             "utf8"
         );
-        expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(3);
+        expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(4);
     });
 });

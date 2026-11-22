@@ -3,16 +3,18 @@
  * Liens locaux du harnais : rend les skills lisibles par Codex/Claude sans dupliquer.
  * Source unique : .cline/skills. Les liens sont gitignorés et recréés par `npm run harness:links`.
  */
-import { lstatSync, mkdirSync, symlinkSync } from "node:fs";
+import { lstatSync, mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = path.join(root, ".cline", "skills");
 const sourceStat = lstatSync(source, { throwIfNoEntry: false });
 if (!sourceStat?.isDirectory()) {
     console.error("Source introuvable : .cline/skills");
     process.exit(1);
 }
+const sourceReal = realpathSync(source);
 
 const links = [
     { path: path.join(root, ".agents", "skills"), label: ".agents/skills" },
@@ -24,7 +26,17 @@ let skipped = 0;
 for (const { path: target, label } of links) {
     const existing = lstatSync(target, { throwIfNoEntry: false });
     if (existing) {
-        console.log(`${existing.isSymbolicLink() ? "=" : "!"} ${label} : ${existing.isSymbolicLink() ? "déjà lié" : "existe et n'est pas un lien, ignoré"}`);
+        if (!existing.isSymbolicLink()) {
+            console.warn(`! ${label} existe et n'est pas un lien : ignoré`);
+        } else {
+            try {
+                const actual = realpathSync(target);
+                if (actual === sourceReal) console.log(`= ${label} : déjà lié`);
+                else console.warn(`! ${label} pointe vers ${actual}, pas .cline/skills : ignoré`);
+            } catch {
+                console.warn(`! ${label} : lien cassé, ignoré`);
+            }
+        }
         skipped++;
         continue;
     }

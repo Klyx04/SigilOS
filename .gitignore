@@ -252,6 +252,9 @@ private_uploads/
 # Liens locaux du harnais (scripts/harness-links.mjs)
 /.agents/skills
 /.claude/skills
+/.claude/settings.local.json
+/.claude/commands/
+/.claude/agents/
 
 # Rapports & briefs d'audit (ponctuels, sensibles — garder en local)
 /docs/audits/

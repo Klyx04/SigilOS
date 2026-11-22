@@ -242,7 +242,14 @@ describe("harnais agentique", () => {
         const ignore = read(".gitignore");
         expect(ignore).toContain("/.agents/skills");
         expect(ignore).toContain("/.claude/skills");
-        expect(read(".opencode/commands/fin.md")).toContain("reviewer");
+        expect(ignore).toContain("/.claude/settings.local.json");
+        expect(ignore).toContain("/.claude/commands/");
+        expect(ignore).toContain("/.claude/agents/");
+
+        const fin = read(".opencode/commands/fin.md");
+        expect(fin).toContain("reviewer");
+        expect(fin).toContain("origin/dev...HEAD");
+        expect(read(".opencode/agents/reviewer.md")).toContain("origin/dev...HEAD");
     });
 
     it("le journal archive est présent et ne contient aucun ID Discord", () => {

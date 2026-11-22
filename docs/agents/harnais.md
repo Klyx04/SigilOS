@@ -327,7 +327,7 @@ garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de poi
 |---|---|---|---|---|---|---|
 | 1 | OpenCode — Rush overlay | ~15 min | n/d | 0 | 1 (précédence 400×1000) | 4 neufs + 28 ciblés |
 | 2 | OpenCode — Rush compact | ~20 min | n/d | 0 | 2 (onglets wrappés, badge coupé) | 1 neuf + 103 ciblés |
-| 3 | OpenCode | — | — | — | — | — |
+| 3 | OpenCode — Rush prérequis | ~25 min | n/d | 0 | 1 (document hôte en PiP) | 7 neufs + 159 ciblés |
 
 Le but n'est pas de « sentir » si c'est mieux : c'est de comparer des chiffres.
 

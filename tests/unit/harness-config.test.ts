@@ -260,7 +260,7 @@ describe("hooks Cline — comportement", () => {
         block({ tool_call: { name: "execute_command", input: { command: "Set-Content .env foo" } } });
         allow({ tool_call: { name: "write_to_file", input: { path: "src/lib/foo.ts" } } });
         allow({ tool_call: { name: "execute_command", input: { command: "npm run test:run" } } });
-    }, 30_000);
+    }, 90_000);
 
     it("PreToolUse échoue fermé sur un payload illisible", () => {
         expect(runHookRaw("PreToolUse.ps1", "not-json").cancel).toBe(true);

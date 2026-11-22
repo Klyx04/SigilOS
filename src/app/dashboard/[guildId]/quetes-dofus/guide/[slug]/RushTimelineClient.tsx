@@ -1028,6 +1028,17 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 // Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
 // `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
 // dashboard, le guide public et l'overlay).
+/** Nom d Ordre normalise (« Ordre du Cœur Saignant » -> « coeur saignant »). */
+function normalizeOrderLabel(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/^ordre\s+(?:du\s+|de\s+la\s+|des\s+|de\s+|d[\u2019\u0027])?/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockNumber }: any) {
   const [expanded,setExpanded]=useState(true);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
@@ -1072,8 +1083,23 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
     const camp = s.alignReq ? normalizeAlignmentCamp(s.alignReq) : null;
     return camp === null || camp === profileAlign.camp;
   });
-  const orderFiltered = orderKey
-    ? alignmentFiltered.filter((s: any) => !s.alignOrderCode || normalizeOrderCode(s.alignOrderCode) === normalizeOrderCode(orderKey))
+  const selectedOrder = orderKey ? orderOptions.find((o) => o.id === orderKey) ?? null : null;
+  const orderFiltered = selectedOrder
+    ? (() => {
+        const want = normalizeOrderLabel(selectedOrder.name);
+        const wantCode = normalizeOrderCode(selectedOrder.id);
+        const matched = alignmentFiltered.filter((s: any) => {
+          const entry = alignmentSeries.get(s.id);
+          if (!entry || entry.kind !== "ordre") return true;
+          return (
+            normalizeOrderLabel(entry.orderName) === want ||
+            (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === wantCode)
+          );
+        });
+        // Aucune correspondance (code de source inconnu) : on garde le camp plutot
+        // que de vider le bloc — un filtre muet est pire qu un filtre large.
+        return matched.length > 0 ? matched : alignmentFiltered;
+      })()
     : alignmentFiltered;
   const alignmentGroups = orderFiltered.every((s:any)=>alignmentSeries.has(s.id))
     ? groupByAlignmentSeries(orderFiltered, alignmentSeries)

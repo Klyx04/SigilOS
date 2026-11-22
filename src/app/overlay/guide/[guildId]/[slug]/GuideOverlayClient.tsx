@@ -921,18 +921,35 @@ export default function GuideOverlayClient({
         return false;
       }
       // Une recherche ou un filtre de la vue précédente peut empêcher la cible
-      // d'être rendue : le saut doit toujours atterrir, même règle que le guide
-      // interne (le joueur ne doit pas atterrir sur une liste vide).
-      setSearch("");
-      setHideCompleted(false);
-      setQuestFilter("all");
+      // d'être rendue : on ne relâche que ce qui la cache, pour ne pas changer
+      // la vue du joueur sans raison (le saut doit toujours atterrir).
+      const targetMs = milestones[plan.milestoneIndex];
+      const targetSeq = targetMs?.sequences.find((s) => s.id === plan.seqId);
+      const targetDone = completedStepsByMs.get(targetMs?.id ?? "")?.has(plan.seqId) ?? false;
+      const targetLocked = targetSeq ? getSeqGate(targetSeq).locked : false;
+      if (search.trim()) setSearch("");
+      if (hideCompleted && targetDone) setHideCompleted(false);
+      if (
+        questFilter !== "all" &&
+        !matchesRushQuestFilter({ isDone: targetDone, isLocked: targetLocked }, questFilter)
+      ) {
+        setQuestFilter("all");
+      }
       setCurrentMsIndex(plan.milestoneIndex);
       setDetailSeq(null);
       focusNonce.current += 1;
       setPendingFocus({ seqId: plan.seqId, nonce: focusNonce.current });
       return true;
     },
-    [milestones, toast]
+    [
+      milestones,
+      completedStepsByMs,
+      getSeqGate,
+      search,
+      hideCompleted,
+      questFilter,
+      toast,
+    ]
   );
 
   /**
@@ -949,6 +966,7 @@ export default function GuideOverlayClient({
     let attempts = 0;
     let timer: number | undefined;
     let spotlight: number | undefined;
+    let highlighted: HTMLElement | null = null;
     const ring = ["ring-2", "ring-success", "ring-offset-2", "ring-offset-background"];
     const tryScroll = () => {
       if (!alive) return;
@@ -957,9 +975,12 @@ export default function GuideOverlayClient({
         if (attempts < 12) {
           attempts += 1;
           timer = win.setTimeout(tryScroll, 100 + attempts * 60);
+        } else {
+          toast.error("Quête cible introuvable dans ce guide");
         }
         return;
       }
+      highlighted = el;
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add(...ring);
       spotlight = win.setTimeout(() => el.classList.remove(...ring), 1800);
@@ -969,8 +990,11 @@ export default function GuideOverlayClient({
       alive = false;
       if (timer !== undefined) win.clearTimeout(timer);
       if (spotlight !== undefined) win.clearTimeout(spotlight);
+      // Un second saut avant la fin de l'anneau ne doit pas laisser la
+      // première ligne surlignée pour toujours.
+      highlighted?.classList.remove(...ring);
     };
-  }, [pendingFocus]);
+  }, [pendingFocus, toast]);
 
   const handleGoToPrereq = useCallback(
     (seqId: string, milestoneId: string, origin?: OverlayJumpOrigin) => {

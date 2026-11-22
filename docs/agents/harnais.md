@@ -325,7 +325,7 @@ garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de poi
 
 | Lot | Harnais | Temps | Tokens | Interventions | Bugs attrapés | Tests |
 |---|---|---|---|---|---|---|
-| 1 | OpenCode | — | — | — | — | — |
+| 1 | OpenCode — Rush overlay | ~15 min | n/d | 0 | 1 (précédence 400×1000) | 4 neufs + 28 ciblés |
 | 2 | OpenCode | — | — | — | — | — |
 | 3 | OpenCode | — | — | — | — | — |
 

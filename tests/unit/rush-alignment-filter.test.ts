@@ -26,6 +26,12 @@ describe("filterAlignmentSequences — camp puis Ordre", () => {
     expect(out.map((q) => q.id)).toEqual(["k1", "k2", "common"]);
   });
 
+  it("lit le camp dans la serie quand alignReq manque (cas de la base) — REEL", () => {
+    const sansReq = [{ id: "b1" }, { id: "k1" }, { id: "common" }];
+    const out = filterAlignmentSequences(sansReq, SERIES, { camp: "brakmarien" });
+    expect(out.map((q) => q.id)).toEqual(["k1", "common"]);
+  });
+
   it("ne vide jamais un bloc entierement de l autre camp", () => {
     const out = filterAlignmentSequences([QUESTS[0]], SERIES, { camp: "brakmarien" });
     expect(out.map((q) => q.id)).toEqual(["b1"]);

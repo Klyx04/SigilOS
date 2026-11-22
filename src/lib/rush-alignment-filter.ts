@@ -51,7 +51,11 @@ export function filterAlignmentSequences<
 ): T[] {
   const campFiltered = sequences.filter((seq) => {
     if (!profile.camp) return true;
-    const camp = seq.alignReq ? normalizeAlignmentCamp(seq.alignReq) : null;
+    // Le camp vit dans la SERIE (buildAlignmentSeries) ; `alignReq` n est qu un repli
+    // (la base ne le porte pas toujours, mesure du 22/11).
+    const seriesCamp = series.get(seq.id)?.camp ?? null;
+    const reqCamp = seq.alignReq ? normalizeAlignmentCamp(seq.alignReq) : null;
+    const camp = seriesCamp ?? reqCamp;
     return camp === null || camp === profile.camp;
   });
   const campSafe = campFiltered.length > 0 ? campFiltered : [...sequences];

@@ -118,6 +118,7 @@ import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushOrderSelect } from "@/components/dofus-quests/rush/RushOrderSelect";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
@@ -326,9 +327,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
-  const [orderKey, setOrderKey] = React.useState<string | null>(null);
+  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
   // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
-  React.useEffect(() => { setOrderKey(null); }, [profileAlign.camp]);
+  React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
   // Donjons : la MÊME source que les trois surfaces (`getDungeons` applique les groupes
   // « au choix » et complète les noms non résolus en base). Le compteur de la pastille
@@ -1049,9 +1050,9 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
-  const [orderKey, setOrderKey] = React.useState<string | null>(null);
+  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
   // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
-  React.useEffect(() => { setOrderKey(null); }, [profileAlign.camp]);
+  React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -1208,22 +1209,12 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (<>
                     {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
                         opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
-                    {orderOptions.length > 0 && (
-                      <div className="mb-1 flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
-                        <span>Mon ordre</span>
-                        <select
-                          value={effectiveOrderKey ?? ""}
-                          onChange={(e) => setOrderKey(e.target.value || null)}
-                          aria-label="Filtrer sur mon Ordre"
-                          className="rounded-[4px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
-                        >
-                          <option value="">Tous</option>
-                          {orderOptions.map((o) => (
-                            <option key={o.id} value={o.id}>{o.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    <RushOrderSelect
+                      options={orderOptions}
+                      value={effectiveOrderKey}
+                      onChange={setOrderKey}
+                      className="mb-1 px-1"
+                    />
                     <DaRail>
                     {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>

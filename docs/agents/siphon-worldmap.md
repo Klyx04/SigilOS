@@ -78,11 +78,14 @@ Correction dans **God ▸ Guide Rush ▸ quête ▸ Destination** : monde **Temp
 ## 4. Publication VPS
 
 ```bash
-./scripts/sync-assets.sh beta   # puis prod (PowerShell : .\scripts\sync-assets.ps1 beta)
+./scripts/deploy-cd.sh beta      # pousse worlds.json + worldmap.json et redémarre l'app
+./scripts/sync-assets.sh beta    # pousse les cartes HD + les tuiles (non versionnées)
 ```
 
-- `worlds.json` / `worldmap.json` sont **versionnés** : un `deploy-cd.sh` les propage.
-- `tiles/` et `hd_maps/` sont **git-ignorés** : seul `sync-assets.sh` les publie.
+> ⚠️ Le déploiement ne pousse **que** `worlds.json` / `worldmap.json` (versionnés). Les **cartes HD** et les **tuiles** ne sont **pas versionnées** : `sync-assets` est obligatoire. Le ménage des tuiles `w19` / `w29` est normal (mondes retirés du sélecteur) ; les `hd_maps` des Mappemondes sont un **autre dossier**, à conserver pour les quêtes. Le raccourci `sync-assets.ps1 beta w41` ne vise **que** `tiles/w41` : pour les 3 cartes HD, lancer la synchro **complète** (sans sous-dossier).
+
+- `worlds.json` / `worldmap.json` sont **versionnés** : `deploy-cd.sh` les propage et redémarre l'app (le cache process de `getWorldmapData` est donc vidé).
+- `tiles/` et `hd_maps/` sont **git-ignorés** : seul `sync-assets` les publie.
 - Aucun rebuild n'est nécessaire pour les assets (Caddy sert le volume).
 
 ---
@@ -90,12 +93,23 @@ Correction dans **God ▸ Guide Rush ▸ quête ▸ Destination** : monde **Temp
 ## 5. Vérifier
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/api/rush/map-at?x=1&y=1&world=41"   # → 200
-curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/hd_maps/241443329.webp"    # → 200
-curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/tiles/w41/1/1.webp"         # → 200
+# Données + accès public (le déploiement + redémarrage suffisent)
+curl -s https://beta.sigilos.fr/game-data/worlds.json | grep -o '"id":41'          # → "id":41
+curl -s https://beta.sigilos.fr/game-data/worldmap.json | grep -o '"worldMap":41'  # → 3 occurrences
+curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/api/rush/map-at?x=1&y=1&world=41"  # → 200
+
+# Images (sync-assets obligatoire)
+curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/hd_maps/241443329.webp"  # → 200
+curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/tiles/w41/1/1.webp"       # → 200
+
+# Mappemondes : cartes HD utilisées par ~20 quêtes (hors sélecteur)
+curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/hd_maps/200802304.webp"   # → 200 ; 404 ⇒ sync-assets
+curl -s -o /dev/null -w "%{http_code}\n" "https://beta.sigilos.fr/game-data/tiles/w19/1/1.webp"       # → 404 attendu (monde retiré)
 ```
 
-Puis contrôler à l'écran : le sélecteur de monde propose **Temple Céleste**, et la première quête du Rush affiche la bonne carte.
+Puis ouvrir la worldmap et **faire défiler le sélecteur jusqu'en bas** : « Temple Céleste » doit être le **dernier** monde (id 41, après « Sanctuaire des Jardins éternels »). Contrôler enfin la première quête du Rush.
+
+> Avec la clé agent **lecture seule**, on ne peut pas lister les fichiers du VPS (`ls`) : ces vérifications HTTP sont la voie normale. Un `ssh` humain reste possible pour un `ls` ciblé.
 
 ---
 

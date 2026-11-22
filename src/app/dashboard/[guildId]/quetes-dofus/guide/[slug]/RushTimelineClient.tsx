@@ -2260,6 +2260,24 @@ const timelineItems=useMemo(()=>{
       setTimeout(tryScroll, 300);
     }
   }, [milestones, ensureMsFor, seqToMs]);
+  // Le saut vers un prerequis doit ATTERRIR : on scrolle des que la ligne existe, y
+  // compris apres le changement de page (le bloc cible peut se monter tardivement).
+  React.useEffect(() => {
+    if (!focusedSeqId) return;
+    let alive = true;
+    let attempts = 0;
+    const tryScroll = () => {
+      if (!alive) return;
+      const el = document.querySelector(`[data-seq-id="${focusedSeqId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      if (attempts < 20) { attempts++; setTimeout(tryScroll, 150); }
+    };
+    tryScroll();
+    return () => { alive = false; };
+  }, [focusedSeqId]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {

@@ -118,8 +118,8 @@ export function RushOverlayHeader({
   }, []);
   // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
   const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
-  // Palier de densité : `wide` dès 820 px de haut (hero 276 px), `tight` en PiP.
-  const level = density ?? (narrow ? "tight" : "normal");
+  // Palier de densité : étroit (PiP) prioritaire ; sinon `wide` dès 820 px de haut (hero 276 px).
+  const level = narrow ? "tight" : density ?? "normal";
   const compact = level === "tight";
   const roomy = level !== "tight";
   const blockLabel =

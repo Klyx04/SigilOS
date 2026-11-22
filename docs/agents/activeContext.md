@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 58) — **Rush : overlay étroit, précédence corrigée** — branche `fix/rush-overlay-density-2026-11-22`
+
+> **Demande user (verbatim)** : « choisi et enchaine ».
+> **Mesuré** : `GuideOverlayClient.tsx:327` évaluait `h >= 900` avant `w < 580` ⇒ une PiP **400 × 1000** était `wide` alors que `overlaySmall` était vrai ; les commentaires annonçaient **820**, le code utilisait **900**.
+> **Fait** : règle pure `resolveOverlayLayout` (`src/lib/rush-overlay-layout.ts`) : `small` si un côté est étroit, `tight` prioritaire, `wide` dès 820 px de haut sinon ; `GuideOverlayClient` l'utilise ; `RushOverlayHeader` fait primer `narrow` sur `density`. 4 tests neufs.
+> **Preuves** : **28 tests ciblés ✅** (`rush-overlay-layout`, `rush-dungeons-overview-ui`, `rush-overlay-v2f`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
+> **Reste** : 3ᵉ palier (largeur cible + blocs visibles, décision) · captures 390/768/1024/1440 à valider visuellement.
+
 ## 📝 Session 22/11/2026 (suite 57) — **Harnais : bascule OpenCode, Cline conservé** — branche `feat/harnais-opencode-2026-11-22`
 
 > **Demande user (verbatim)** : « je souhaite migrer finalement sans supprimer cline je conserve cline mais on migre ici quand même ».

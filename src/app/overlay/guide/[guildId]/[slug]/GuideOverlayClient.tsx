@@ -19,6 +19,7 @@ import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
 import { filterAlignmentSequences } from "@/lib/rush-alignment-filter";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { resolveOverlayLayout, type OverlayDensity } from "@/lib/rush-overlay-layout";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -316,15 +317,16 @@ export default function GuideOverlayClient({
   const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
   // Palier de densité de l'en-tête : `wide` dès 820 px de haut (hero 276 px + pips
   // de stade), `tight` en fenêtre de jeu, `normal` entre les deux.
-  const [overlayDensity, setOverlayDensity] = useState<"wide" | "normal" | "tight">("normal");
+  const [overlayDensity, setOverlayDensity] = useState<OverlayDensity>("normal");
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry?.contentRect?.width ?? el.clientWidth;
       const h = entry?.contentRect?.height ?? el.clientHeight;
-      setOverlaySmall(w < 580 || h < 640);
-      setOverlayDensity(h >= 900 ? "wide" : w < 580 || h < 640 ? "tight" : "normal");
+      const layout = resolveOverlayLayout(w, h);
+      setOverlaySmall(layout.small);
+      setOverlayDensity(layout.density);
     });
     ro.observe(el);
     return () => ro.disconnect();

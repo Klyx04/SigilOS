@@ -1,0 +1,43 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": [".cline/skills"],
+  "permissions": [
+    { "action": "edit", "resource": "*.env", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.*", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.example", "effect": "allow" },
+    { "action": "edit", "resource": "*prisma/migrations/*", "effect": "ask" },
+    { "action": "shell", "resource": "*prisma migrate dev*", "effect": "ask" },
+    { "action": "shell", "resource": "*prisma db push*", "effect": "ask" },
+    { "action": "shell", "resource": "*git push --force*", "effect": "ask" },
+    { "action": "shell", "resource": "*git reset --hard*", "effect": "ask" },
+    { "action": "shell", "resource": "*prisma migrate reset*", "effect": "ask" },
+    { "action": "shell", "resource": "*drop database*", "effect": "ask" },
+    { "action": "shell", "resource": "*rm -rf*", "effect": "ask" },
+    { "action": "shell", "resource": "*Remove-Item*-Recurse*", "effect": "ask" },
+    { "action": "shell", "resource": "*--no-verify*", "effect": "deny" }
+  ],
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      ".next/**",
+      "dist/**",
+      "coverage/**",
+      "public/assets/**",
+      "public/uploads/**",
+      "private_uploads/**",
+      "docs/audits/**",
+      "src/temp/**",
+      "*.log",
+      "*.tmp",
+      "tsconfig.tsbuildinfo"
+    ]
+  },
+  "mcp": {
+    "servers": {
+      "sentry": {
+        "type": "remote",
+        "url": "https://mcp.sentry.dev/mcp"
+      }
+    }
+  }
+}

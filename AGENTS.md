@@ -1,8 +1,8 @@
 # AGENTS.md — amorce des assistants IA (SigilOS)
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
-> (Cline, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable** : 121 lignes, ~2 700 tokens — le minimum vital, tout le reste se lit à la demande.
+> (Cline, OpenCode, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
+> négociable** : ≈165 lignes, ~3 200 tokens — le minimum vital, tout le reste se lit à la demande.
 > Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
@@ -38,11 +38,20 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
 | **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.cline/skills/vps-ops/` — jamais `docker compose exec app-*` |
 | **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
+| **Config OpenCode** (skills partagés, permissions, commandes) | `opencode.json` + `docs/agents/harnais.md` §12 |
 | **Toute UI** (layout, composant, correctif d'affichage) | skill `.cline/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |
 
 **Ne lis pas par défaut** : l'historique long, les rapports d'audit (`docs/audits/`, non versionnés), les
 plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout le dépôt dans le contexte.
+
+**Règles de zone (OpenCode)** — OpenCode ne charge pas `.clinerules/*.md` automatiquement. Avant d'écrire
+dans une zone, lis sa règle : `.clinerules/01-server.md` (`src/server`, `src/app/api`, `src/workers`,
+`src/lib`) · `.clinerules/02-ui.md` (`src/components`, `src/app/**/*.tsx`) · `.clinerules/03-tests.md`
+(`tests`) · `.clinerules/04-docs.md` (`docs`, `AGENTS.md`) · `.clinerules/05-runtime.md` (`package.json`,
+`.nvmrc`, `Dockerfile*`, workflows) · `.clinerules/06-discord.md` · `.clinerules/07-vps.md`
+(`scripts/agent-ro.sh`, docs VPS). Les routeurs `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md` et
+`services/AGENTS.md` le rappellent par dossier. Cline garde ses `paths:` ; OpenCode passe par ce routage.
 
 ## 3. Zones de travail
 
@@ -50,8 +59,9 @@ plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout 
   une session la crée**, n'est **jamais versionnée** ; règle complète : `docs/agents/zone-volatile.md`.
 - **Jamais committé** : `.env*` · `docs/audits/` · `AUDIT_*.md` · `src/audit-*` · dumps `.sql`/`.xlsx` ·
   artefacts de build (`dist/`, `.next/`, `tsconfig.tsbuildinfo`) · toute capture du poste.
-- **Toute documentation vit dans `docs/`** — un sujet = un fichier. Aucun `.md` ailleurs, hors `README.md`
-  racine et `README.md` d'un sous-projet autonome.
+- **Toute documentation vit dans `docs/`** — un sujet = un fichier. Aucun `.md` de documentation ailleurs,
+  hors `README.md` racine et `README.md` d'un sous-projet autonome. Les prompts du harnais
+  (`.clinerules/`, `.cline/skills/`, `.opencode/commands/`, `AGENTS.md` de zone) ne sont pas de la doc.
 
 ## 4. Hygiène : zéro dette technique (non négociable)
 
@@ -99,12 +109,15 @@ npx prisma migrate deploy          # joue les migrations en attente (5433) — v
 npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
-npm run test:run                   # Vitest complet (8 251 tests) — obligatoire avant PR
+npm run test:run                   # Vitest complet (8 325 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
 npm run build                      # build de prod (délégué à la CI si `next dev` tourne — dis-le)
 ```
+
+Reprise OpenCode : **/reprise** · Fin de session : **/fin** (commandes OpenCode ; mêmes règles que
+`docs/agents/harnais.md` §0 et §8).
 
 Déploiement : `./scripts/deploy-cd.sh <env> [sha]` (voie normale) · repli `./scripts/deploy.sh <env>` ·
 retour arrière `./scripts/rollback.sh` (détails : `docs/MAINTENANCE.md`).

@@ -98,6 +98,47 @@ describe("harnais agentique", () => {
         expect(ignore).toMatch(/node_modules\//);
     });
 
+    it("la configuration OpenCode branche les skills et les garde-fous", () => {
+        const config = JSON.parse(read("opencode.json")) as {
+            skills: string[];
+            permissions: Array<{ action: string; resource: string; effect: string }>;
+            watcher: { ignore: string[] };
+            mcp: { servers: Record<string, { type: string; url: string }> };
+        };
+
+        expect(config.skills).toContain(".cline/skills");
+        expect(config.permissions).toEqual(
+            expect.arrayContaining([
+                { action: "edit", resource: "*.env", effect: "deny" },
+                { action: "edit", resource: "*prisma/migrations/*", effect: "ask" },
+                { action: "shell", resource: "*--no-verify*", effect: "deny" },
+            ]),
+        );
+        expect(config.watcher.ignore).toContain("public/assets/**");
+        expect(config.mcp.servers.sentry.url).toContain("mcp.sentry.dev");
+    });
+
+    it("les commandes OpenCode et les routeurs de zone existent", () => {
+        for (const file of [
+            ".opencode/commands/reprise.md",
+            ".opencode/commands/fin.md",
+            "src/AGENTS.md",
+            "tests/AGENTS.md",
+            "docs/AGENTS.md",
+            "services/AGENTS.md",
+        ]) {
+            expect(fs.existsSync(path.join(root, file)), file).toBe(true);
+        }
+
+        const agents = read("AGENTS.md");
+        const rules = fs
+            .readdirSync(path.join(root, ".clinerules"))
+            .filter((file) => file.endsWith(".md"));
+        for (const rule of rules) {
+            expect(agents, rule).toContain(`.clinerules/${rule}`);
+        }
+    });
+
     it("le journal archive est présent et ne contient aucun ID Discord", () => {
         const journal = read("docs/agents/journal-sessions-2026.md");
         expect(journal.length).toBeGreaterThan(100_000);

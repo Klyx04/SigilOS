@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Particle = {
   x: number;
@@ -40,6 +40,11 @@ function hexToRgba(hex: string, alpha: number): string {
  */
 export default function GuideParticles({ active, colors, haloColor = "#fbbf24" }: { active: boolean; colors?: string[]; haloColor?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Rendu uniquement APRES le montage : le serveur et le premier rendu client rendent
+  // tous les deux `null`, donc aucune divergence d hydratation (canvas absent du HTML SSR).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -130,8 +135,8 @@ export default function GuideParticles({ active, colors, haloColor = "#fbbf24" }
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [active, colors, haloColor]);
+  }, [active, colors, haloColor, mounted]);
 
-  if (!active) return null;
+  if (!active || !mounted) return null;
   return <canvas ref={canvasRef} className="guide-particles" aria-hidden="true" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: "var(--z-content, 1)", pointerEvents: "none", opacity: 0.85 }} />;
 }

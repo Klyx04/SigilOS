@@ -177,7 +177,7 @@ export function getMetierIconPath(metierName?: string): string {
   // Le libelle porte parfois un suffixe editorial (« Eleveur . Etre Eleveur 20 »).
   // Mesure : le chemin construit avec le libelle entier repondait 404 alors que
   // `/assets/rush-sylvestre/eleveur.png` existe. On ne garde que le metier.
-  const base = String(metierName).split(/[.,:|]/)[0]?.trim() || "";
+  const base = String(metierName).split(/[.,:|·]/)[0]?.trim() || "";
   const job = getJob(base) ?? getJob(String(metierName).trim());
   const normalized = (job?.name || base || String(metierName))
     .toLowerCase()

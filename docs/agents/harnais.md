@@ -1,11 +1,11 @@
 ---
-description: Harnais agentique — règles conditionnelles, skills, hooks, .clineignore, mesures et hygiène de contexte
+description: Harnais agentique — règles conditionnelles, skills, hooks, .clineignore, adaptateur OpenCode, mesures et hygiène de contexte
 ---
 
 # 🧰 Harnais agentique — comment on travaille avec les assistants IA
 
-> **Rôle.** Cette page décrit l'outillage qui encadre les assistants (Cline, Cursor, Copilot, Codex,
-> Gemini CLI…) : ce qui est **toujours chargé**, ce qui se charge **à la demande**, ce qui s'exécute
+> **Rôle.** Cette page décrit l'outillage qui encadre les assistants (Cline, OpenCode, Cursor, Copilot,
+> Codex, Gemini CLI…) : ce qui est **toujours chargé**, ce qui se charge **à la demande**, ce qui s'exécute
 > **sans LLM**, et ce qui reste **local**. Elle ne remplace ni `AGENTS.md` (le contrat) ni
 > `docs/ROADMAP.md` (le backlog et l'ordre).
 >
@@ -54,6 +54,9 @@ et rien d'autre. Si le rang et le sujet divergent, c'est le sujet qui gagne — 
 | **Hooks** | Sur événement, **sans LLM** | **0 token** | Les garde-fous déterministes (bloquer, rappeler) |
 | **Workflows** | Dépréciés par Cline | — | **Ne pas utiliser** : migrer en Skills |
 
+Avec OpenCode, seuls `AGENTS.md` et les `AGENTS.md` de zone sont toujours chargés ; les `.clinerules`
+sont lues via le routage (§12). Cline, lui, garde ses `paths:`.
+
 La règle qui gouverne tout : **ce qui est lu à chaque session doit rester petit** ; ce qui est gros vit
 en archive et ne s'ouvre qu'à la demande.
 
@@ -81,7 +84,7 @@ Commandes de re-mesure (lecture seule) :
 ## 3. Architecture cible
 
 ```text
-AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
+AGENTS.md                         contrat court, lu automatiquement (~13 Ko)
 .clinerules/
 ├── 01-server.md                  règles serveur (paths: src/server/**, src/app/api/**…)
 ├── 02-ui.md                      règles UI (paths: src/components/**, src/app/**/*.tsx)
@@ -93,16 +96,16 @@ AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
     ├── PreToolUse.ps1            bloque les gestes irréversibles
     ├── TaskStart.ps1             injecte SHA + prochaine étape
     └── TaskComplete.ps1          rappelle la Definition of Done
-.cline/skills/
-├── lot-pr/SKILL.md
-├── prisma-change/SKILL.md
-├── cron-task/SKILL.md
-├── sentry-triage/SKILL.md
-├── route-securite/SKILL.md
-├── doc-session/SKILL.md
-├── discord-api/SKILL.md
-└── node-runtime/SKILL.md
-.clineignore                      sort les binaires et les builds de l'index
+.cline/skills/                    12 skills (voir §5) — source partagée Cline + OpenCode
+opencode.json                     adaptateur OpenCode : skills, permissions, watcher, MCP
+.opencode/commands/
+├── reprise.md                    SHA + amorce de session
+└── fin.md                        Definition of Done
+src/AGENTS.md                     routeur de zone (server, UI, Discord)
+tests/AGENTS.md                   routeur de zone (tests)
+docs/AGENTS.md                    routeur de zone (docs)
+services/AGENTS.md                routeur de zone (bot Discord, runtime)
+.clineignore                      sort les binaires et les builds de l'index Cline
 
 Mémoire chaude   : docs/ROADMAP.md (~200 lignes) + activeContext.md (6 blocs)
 Mémoire froide   : docs/agents/journal-sessions-2026.md + docs/agents/archive/**
@@ -113,7 +116,7 @@ Mémoire volatile : src/temp/ (UNE seule zone, gitignorée)
 
 | Versionné (public) | Local (jamais poussé) |
 |---|---|
-| `AGENTS.md`, `.clinerules/**`, `.cline/skills/**`, `.clineignore` | `.vscode/settings.json` (préférences éditeur) |
+| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**` | `.vscode/settings.json` (préférences éditeur) |
 | `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) |
 | hooks (relus en PR comme du code) | `docs/audits/`, `src/temp/`, `.env*`, artefacts de build |
 
@@ -134,6 +137,8 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `discord-api` | toute nouveauté/modif/suppression côté Discord (commande, permission, salon, bouton, modale, intent) | la vérification doc officielle + types installés + `GET` de mesure **avant** de coder |
 | `sigilos-da-wakfu` | tout habillage visuel du Rush (overlay, guide public, guide membre), puis passation au dashboard | la DA « Gouache Wakfu » : tokens `--da-*`, signatures, contraste, coût de rendu, règle « habillage seul » |
 | `responsive` | toute UI, layout, page, composant, classe Tailwind ou bug d'affichage mobile/tablette/desktop | `.cline/skills/responsive/` — les 8 règles non négociables (mobile-first, aucune largeur fixe, `svh`/`dvh`, reflow à 320 px) **et** la vérification obligatoire 390 / 768 / 1 024 / 1 440 + zoom 200 % ; cliquet `tests/unit/responsive-guard.test.ts` |
+| `metamob-api` | tout appel Metamob (routes, schémas Zod, échanges, propositions) | la vérification de la doc officielle + `scripts/check-metamob-api.mjs` |
+| `vps-ops` | toute écriture VPS (dump, archive Rush, suppression, vérification) | le conteneur `ops-*`, le dry-run avant `--apply`, la sauvegarde et la preuve avant/après |
 
 Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même
@@ -165,6 +170,9 @@ Tests manuels :
 '{}' | powershell -NoProfile -File .clinerules/hooks/TaskComplete.ps1
 ```
 
+**OpenCode** : pas de hooks lifecycle 1:1. Les gardes sont dans `opencode.json` → `permissions` et les
+rituels dans `.opencode/commands/reprise.md` / `fin.md`. Les hooks Cline restent actifs.
+
 ## 7. Règles conditionnelles
 
 Les fichiers `.clinerules/*.md` portent un frontmatter `paths:` : Cline ne les charge que lorsqu'un
@@ -179,6 +187,9 @@ paths:
 ---
 ```
 
+**OpenCode** : pas de `paths:` natif. Le routage vit dans `AGENTS.md` §2 et dans les `AGENTS.md` de zone
+(`src/`, `tests/`, `docs/`, `services/`), qui pointent vers les mêmes `.clinerules/*.md`. Une seule source.
+
 > **Accès au VPS en lecture seule** — quel que soit l'assistant, la procédure et les règles vivent dans
 > `docs/agents/acces-lecture-seule.md` (utilisateur dédié, **jamais** dans le groupe `docker`, rôle
 > Postgres `SELECT` seulement). **Toute mesure de données se fait sur la bêta** : la base locale ne fait
@@ -191,12 +202,15 @@ binaires et les builds (`public/assets/`, `public/uploads/`, `node_modules/`, `.
 `src/temp/`, `*.tsbuildinfo`). Si la fonction disparaît, les mêmes exclusions restent applicables à la
 main (ne pas indexer 40 000 images).
 
-## 9. MCP — Sentry est déjà branché
+**OpenCode** : `opencode.json` → `watcher.ignore` couvre les mêmes binaires ; `.clineignore` reste pour Cline.
 
-Les outils Sentry (`search_issues`, `search_errors`, `search_traces`, `get_sentry_resource`) sont
-disponibles dans la session. Le skill `sentry-triage` impose l'ordre : **mesurer** (issue → error →
-trace → release) avant de proposer une cause. Aucun MCP de production avec credentials : si un jour une
-base est branchée, ce sera un rôle **read-only** et une base **locale**.
+## 9. MCP — Sentry déclaré (OAuth à faire)
+
+Sentry est déclaré dans `opencode.json` (`mcp.servers.sentry`, URL `https://mcp.sentry.dev/mcp`). La
+connexion se fait en **OAuth** via `/mcps` ; `opencode mcp list` doit afficher `connected`. Le skill
+`sentry-triage` impose l'ordre : **mesurer** (issue → error → trace → release) avant de proposer une
+cause. Aucun MCP de production avec credentials : si un jour une base est branchée, ce sera un rôle
+**read-only** et une base **locale**.
 
 ## 10. Anti-patrons
 
@@ -216,9 +230,39 @@ base est branchée, ce sera un rôle **read-only** et une base **locale**.
 10. **Committer les fichiers d'un chantier en cours du mainteneur** → `docs/ROADMAP.md` modifié et un
     `docs/plans/*.md` non suivi appartiennent à **son** chantier : l'assistant ne stage **que** ses propres
     fichiers, **nommés un par un** (jamais `git add -A`), et laisse ces deux-là intacts.
+11. **Dupliquer les skills dans `.opencode/skills`** → deux sources ; OpenCode lit `.cline/skills` via
+    `"skills": [".cline/skills"]`.
+12. **Croire que les hooks Cline existent dans OpenCode** → pas de lifecycle 1:1 ; permissions +
+    commandes, hooks Cline conservés.
 
 ## 11. Journal du harnais
 
 | Date | Lot | Contenu |
 |---|---|---|
 | 19/10/2026 | **H0-H7** | photo chiffrée · roadmap unique (~200 lignes) + journal archivé · 4 règles conditionnelles · 6 skills · 3 hooks · `.clineignore` · garde `tests/unit/harness-config.test.ts` · **426 fichiers / 4 608 tests**, `tsc` 0, `eslint` 0 erreur |
+| 22/11/2026 | **OpenCode** | adaptateur `opencode.json` (skills partagés, permissions, watcher, Sentry MCP) · `/reprise` + `/fin` · routeurs `AGENTS.md` de zone · garde `harness-config` · Cline conservé |
+
+## 12. OpenCode — le même harnais, autre hôte
+
+> **Statut (22/11/2026)** : OpenCode est le harnais **principal** pour les nouveaux lots ; Cline reste
+> installé et opérationnel comme filet de sécurité. Aucun fichier Cline n'est supprimé.
+
+| Brique | Emplacement | Rôle |
+|---|---|---|
+| Contrat | `AGENTS.md` + `AGENTS.md` de zone (`src/`, `tests/`, `docs/`, `services/`) | Toujours chargé, route vers les règles |
+| Règles de zone | `.clinerules/01..07` | Source unique ; OpenCode les lit via le routage, Cline via `paths:` |
+| Skills | `.cline/skills/**/SKILL.md` | Source unique partagée, branchée par `"skills": [".cline/skills"]` |
+| Garde-fous | `opencode.json` → `permissions` | `.env` deny, migrations ask, commandes destructives ask, `--no-verify` deny |
+| Rituels | `.opencode/commands/reprise.md` et `fin.md` | Remplacent `TaskStart` / `TaskComplete` (manuels, pas d'événement natif) |
+| MCP | `opencode.json` → `mcp.servers.sentry` | Sentry déclaré en OAuth, URL `https://mcp.sentry.dev/mcp` |
+| Ignore | `opencode.json` → `watcher.ignore` | Remplace `.clineignore` côté OpenCode, qui reste pour Cline |
+
+**Pourquoi `.cline/skills` et pas une copie** : une seule source, aucun doublon. Quand on ajoutera
+Codex/Claude, on déplacera vers `.agents/skills` (standard Agent Skills) avec des liens pour Cline/Claude.
+
+**Lancer depuis la racine** : `"skills": [".cline/skills"]` est relatif au répertoire de travail
+OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne seraient pas trouvés.
+
+**Vérifier** : `npx vitest run tests/unit/harness-config.test.ts` · `/reprise` · `/fin` · `opencode mcp list`.
+
+**Suite** : lot 2 = sous-agent `reviewer`, premier worktree, tests de comportement des hooks Cline.

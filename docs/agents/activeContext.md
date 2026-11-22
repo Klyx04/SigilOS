@@ -6,6 +6,13 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 22/11/2026 (suite 57) — **Harnais : bascule OpenCode, Cline conservé** — branche `feat/harnais-opencode-2026-11-22`
+
+> **Demande user (verbatim)** : « je souhaite migrer finalement sans supprimer cline je conserve cline mais on migre ici quand même ».
+> **Fait** : ① `opencode.json` : skills partagés `.cline/skills` (12 skills), permissions (`.env` deny, `prisma/migrations` + `migrate dev` + `db push` ask, destructives ask, `--no-verify` deny), `watcher.ignore`, MCP Sentry distant ; ② `/reprise` + `/fin` ; ③ routeurs `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md`, `services/AGENTS.md` + routage dans `AGENTS.md` ; ④ `docs/agents/harnais.md` §12, table 12 skills, `CARTE-DU-PROJET` ; ⑤ garde `harness-config` (2 tests neufs, 11 au total).
+> **Preuves** : **806 fichiers / 8 325 tests ✅** · `harness-config` 11/11 · `tsc` 0 · `lint` 0 erreur (7 798 warnings préexistants) · sondes : écriture `.env` **deny**, `--no-verify` **deny** · Cline intact (`.clinerules`, `.cline/skills`, hooks, `.clineignore`).
+> **Reste** : lot 2 = sous-agent `reviewer`, premier worktree, tests de comportement des hooks Cline · OAuth Sentry via `/mcps` (côté humain).
+
 ## 📝 Session 22/11/2026 (suite 56) — **Rush : carte des quêtes — bon monde + accès visiteur** — branche `fix/rush-carte-monde-public-2026-11-22`
 
 > **Demande user (verbatim)** : « on oublie la vue de la map dans l'overlay pip et le point sur la map, on conserve l'existant et tu debug ce qui doit l'être (effectivement il y a beaucoup de positions qui sont dans le mauvais sous-monde) + debug visiteurs connecté/déconnecté ».

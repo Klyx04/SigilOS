@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
@@ -326,10 +327,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const daScope = daScopeProps(useDaTheme());
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
-  const profileAlign = React.useContext(ProfileAlignmentCtx);
-  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
-  // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
-  React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const alignmentLabel = alignmentSeries.get(seq.id)?.label ?? null;
   // Donjons : la MÊME source que les trois surfaces (`getDungeons` applique les groupes
   // « au choix » et complète les noms non résolus en base). Le compteur de la pastille
@@ -1051,6 +1048,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
   const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
+  const router = useRouter();
+  const mulePseudo = React.useContext(AchievementCharacterCtx);
   // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
   React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
@@ -1094,6 +1093,37 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   // Cle EFFECTIVE : un Ordre absent du catalogue du camp courant est ignore (jamais affiche).
   const effectiveOrderKey = orderKey && orderOptions.some((o) => o.id === orderKey) ? orderKey : null;
   const selectedOrder = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
+  const [orderConfirm, setOrderConfirm] = React.useState<{ next: string | null; label: string; wouldUncheck: number } | null>(null);
+  const applyOrder = (next: string | null) => {
+    const previous = effectiveOrderKey;
+    setOrderKey(next);
+    if (!profileAlign.camp) return;
+    const payload = { alignment: profileAlign.camp, alignmentOrder: next };
+    const run = mulePseudo ? updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload }) : updateUserProfile({ guildId, ...payload });
+    void run.then((res) => {
+      if (!res?.success) { setOrderKey(previous); toast.error("Ordre non enregistré"); return; }
+      const cleared = res.data?.cleared ?? 0;
+      toast.success(cleared > 0 ? `Ordre mis à jour — ${cleared} quête${cleared > 1 ? "s" : ""} décochée${cleared > 1 ? "s" : ""}` : "Ordre mis à jour");
+      router.refresh();
+    }).catch(() => { setOrderKey(previous); toast.error("Ordre non enregistré"); });
+  };
+  const handleOrderChange = (next: string | null) => {
+    if (next === effectiveOrderKey) return;
+    const previousOption = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
+    const prevName = previousOption ? normalizeOrderLabel(previousOption.name) : "";
+    const prevCode = previousOption ? normalizeOrderCode(previousOption.id) : "";
+    const wouldUncheck = previousOption ? allMilestones.reduce((acc, m) => acc + (m.sequences ?? []).filter((s: any) => {
+      if (!allCompletedSeqIds.has(s.id)) return false;
+      const entry = alignmentSeries.get(s.id);
+      if (!entry || entry.kind !== "ordre") return false;
+      return normalizeOrderLabel(entry.orderName) === prevName || (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === prevCode);
+    }).length, 0) : 0;
+    if (wouldUncheck > 0) {
+      setOrderConfirm({ next, label: next ? orderOptions.find((o) => o.id === next)?.name ?? "cet Ordre" : "Tous les Ordres", wouldUncheck });
+      return;
+    }
+    applyOrder(next);
+  };
   const orderFiltered = selectedOrder
     ? (() => {
         const want = normalizeOrderLabel(selectedOrder.name);
@@ -1212,9 +1242,25 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                     <RushOrderSelect
                       options={orderOptions}
                       value={effectiveOrderKey}
-                      onChange={setOrderKey}
+                      onChange={handleOrderChange}
                       className="mb-1 px-1"
                     />
+                    {orderConfirm && (
+                      <Dialog open onOpenChange={(open) => { if (!open) setOrderConfirm(null); }}>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Changer pour {orderConfirm.label} ?</DialogTitle>
+                          </DialogHeader>
+                          <p className="text-sm text-muted-foreground">
+                            Cette action va décocher <strong className="text-foreground">{orderConfirm.wouldUncheck} quête{orderConfirm.wouldUncheck > 1 ? "s" : ""}</strong> validée{orderConfirm.wouldUncheck > 1 ? "s" : ""} de ton Ordre actuel. Elle est définitive.
+                          </p>
+                          <DialogFooter>
+                            <button type="button" onClick={() => setOrderConfirm(null)} className="rounded-[4px] border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
+                            <button type="button" onClick={() => { const next = orderConfirm.next; setOrderConfirm(null); applyOrder(next); }} className="rounded-[4px] border border-danger/50 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10">Décocher et changer</button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                     <DaRail>
                     {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>

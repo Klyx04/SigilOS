@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 
+import { hasKnownGameCoords } from '@/lib/worldmap-tiles';
+
 /**
  * MapHDOverlay — Vue HD des maps à fort zoom (façon DofusDB) généralisée à TOUS les mondes.
  *
@@ -68,7 +70,7 @@ export function MapHDOverlay({ activeWorld, mapsByCoords, selectedWorldId }: any
                     const m = mapsByCoords.get(key);
                     if (!m) continue;
                     if (m.worldMap !== selectedWorldId && !(selectedWorldId === 1 && m.worldMap === -1)) continue;
-                    if (m.x === 0 && m.y === 0) continue; // Exclure intérieurs non positionnés
+                    if (!hasKnownGameCoords(m)) continue; // tas du monde principal / hors monde
 
                     const south = -(oy + (gy + 1) * mh);
                     const west = ox + gx * mw;

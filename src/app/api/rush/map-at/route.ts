@@ -13,7 +13,9 @@ export const runtime = "nodejs";
  * Le navigateur ne le telecharge jamais ; il ne demande qu une URL au clic.
  *
  * Regles :
- *  - (0,0) n est pas un lieu -> 404, jamais une carte inventee ;
+ *  - (0,0) n est pas un lieu **dans le monde principal** -> 404 ; un sous-monde
+ *    peut avoir une vraie carte a (0,0) (Blessures de Guerre, monde 24) ;
+ *  - une carte imposee en God est servie AVANT cette restriction ;
  *  - le monde est celui de la position (`pos_tags.worldId`), jamais un defaut ;
  *  - on ne rend que si le WebP existe reellement sur le disque.
  */
@@ -25,9 +27,6 @@ export async function GET(request: NextRequest) {
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  if (x === 0 && y === 0) {
-    return NextResponse.json({ ok: false }, { status: 404 });
-  }
 
   // Carte imposee en God (`pos_tags.mapId`) : prioritaire, si le WebP existe.
   if (Number.isSafeInteger(mapParam) && mapParam > 0 && mapParam <= 2147483647) {
@@ -38,6 +37,14 @@ export async function GET(request: NextRequest) {
         { headers: { "Cache-Control": "public, max-age=86400, s-maxage=604800, immutable" } }
       );
     }
+  }
+
+  // `(0,0)` n'est pas un lieu dans le monde principal (tas de cartes sans
+  // coordonnees) ; un sous-monde peut avoir une vraie carte a `(0,0)`
+  // (Blessures de Guerre, monde 24). La carte imposee ci-dessus est deja servie.
+  const explicitSubWorld = Number.isSafeInteger(worldParam) && worldParam > 1;
+  if (x === 0 && y === 0 && !explicitSubWorld) {
+    return NextResponse.json({ ok: false }, { status: 404 });
   }
 
   const data = getWorldmapData();

@@ -24,13 +24,14 @@ vi.mock("@/server/game/worldmap-data", () => ({
       { id: 10, x: 5, y: 5, worldMap: 1 },
       { id: 20, x: 5, y: 5, worldMap: 9 },
       { id: 160, x: -32, y: -58, worldMap: 1 },
+      { id: 201588736, x: 0, y: 0, worldMap: 24 },
     ],
   }),
 }));
 
 import { GET } from "@/app/api/rush/map-at/route";
 
-const EXISTING = new Set(["5", "10", "20", "160"]);
+const EXISTING = new Set(["5", "10", "20", "160", "201588736"]);
 
 function req(query: string) {
   return new NextRequest(`http://localhost/api/rush/map-at${query}`);
@@ -76,10 +77,23 @@ describe("GET /api/rush/map-at — carte HD", () => {
     expect(await res.json()).toMatchObject({ ok: true, mapId: 10 });
   });
 
-  it("ne rend jamais de carte pour (0,0), même imposée", async () => {
+  it("ne rend pas de carte pour (0,0) dans le monde principal", async () => {
+    expect((await GET(req("?x=0&y=0"))).status).toBe(404);
+    expect((await GET(req("?x=0&y=0&world=1"))).status).toBe(404);
+  });
+
+  it("rend une carte réelle à (0,0) dans un sous-monde", async () => {
+    const res = await GET(req("?x=0&y=0&world=24"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, mapId: 201588736, worldId: 24 });
+  });
+
+  it("une carte imposée à (0,0) reste prioritaire", async () => {
     const res = await GET(req("?x=0&y=0&mapId=5"));
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, mapId: 5, source: "god" });
   });
 
   it("refuse une coordonnée non entière", async () => {

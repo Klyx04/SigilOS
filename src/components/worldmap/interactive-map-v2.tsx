@@ -523,10 +523,12 @@ export default function InteractiveMapV2({
 
     const mapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
-        // Le couple (0, 0) n'est pas un lieu : c'est le tas des maps sans
-        // coordonnées de `worldmap.json` (1 784 maps du monde 1). L'indexer
-        // faisait afficher une zone arbitraire (« Marécages sans fond ») et sa
-        // tuile HD (une map de combat) au clic sur [0, 0].
+        // Le couple (0, 0) du monde principal / hors monde n'est pas un lieu :
+        // c'est le tas des maps sans coordonnées de `worldmap.json` (1 784 maps
+        // du monde 1). L'indexer faisait afficher une zone arbitraire
+        // (« Marécages sans fond ») et sa tuile HD (une map de combat) au clic
+        // sur [0, 0]. Un sous-monde > 1 peut avoir une vraie carte à (0,0)
+        // (Blessures de Guerre, monde 24) : `hasKnownGameCoords` la garde.
         activeMaps.forEach(m => { if (hasKnownGameCoords(m)) index.set(`${m.x},${m.y}`, m); });
         return index;
     }, [activeMaps]);
@@ -580,8 +582,9 @@ export default function InteractiveMapV2({
         const index = new Map<string, MapNode[]>();
         worldMap.maps?.forEach(m => {
             const isRelevant = m.worldMap === selectedWorldId || (selectedWorldId === 1 && m.worldMap === -1);
-            // (0, 0) = position inconnue : jamais indexée (le clic/survol y
-            // tombait sur la première map du tas, donc une zone au hasard).
+            // (0, 0) du monde principal / hors monde = position inconnue : jamais
+            // indexée (le clic/survol y tombait sur la première map du tas, donc
+            // une zone au hasard). Un sous-monde > 1 garde sa vraie carte (24).
             if (isRelevant && hasKnownGameCoords(m)) {
                 const key = `${m.x},${m.y}`;
                 if (!index.has(key)) index.set(key, []);

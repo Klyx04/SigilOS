@@ -52,10 +52,22 @@ describe('resolveTileBank', () => {
 });
 
 describe('hasKnownGameCoords', () => {
-    it('accepte toute position sauf le sentinelle (0, 0)', () => {
+    it('accepte toute position hors (0, 0) du monde principal', () => {
         expect(hasKnownGameCoords({ x: 5, y: -19 })).toBe(true);
         expect(hasKnownGameCoords({ x: 0, y: -3 })).toBe(true);
         expect(hasKnownGameCoords({ x: -3, y: 0 })).toBe(true);
+        expect(hasKnownGameCoords({ x: 0, y: 0 })).toBe(false);
+    });
+
+    it('accepte (0,0) quand un sous-monde y a une vraie carte', () => {
+        // Blessures de Guerre (24) : carte 201588736 à (0,0), mesurée le 22/11/2026.
+        expect(hasKnownGameCoords({ x: 0, y: 0, worldMap: 24 })).toBe(true);
+        expect(hasKnownGameCoords({ x: 0, y: 0, worldMap: 2 })).toBe(true);
+    });
+
+    it('refuse (0,0) dans le monde principal et hors monde', () => {
+        expect(hasKnownGameCoords({ x: 0, y: 0, worldMap: 1 })).toBe(false);
+        expect(hasKnownGameCoords({ x: 0, y: 0, worldMap: -1 })).toBe(false);
         expect(hasKnownGameCoords({ x: 0, y: 0 })).toBe(false);
     });
 

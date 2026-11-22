@@ -330,8 +330,9 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(css).not.toMatch(/\.da-pips\s*\{/);
         const header = readFileSync(HEADER, "utf8");
         expect(header).not.toMatch(/dofusStage|RUSH_DOFUS_STAGE/);
-        // L'hôte décide du palier : `wide` dès 900 px de haut (30 vh de hero max).
-        expect(readFileSync(SHELL, "utf8")).toMatch(/h >= 900 \? "wide"/);
+        // L'hôte délègue le palier à la règle pure : étroit prioritaire, `wide` dès 820 px.
+        expect(readFileSync(SHELL, "utf8")).toContain("resolveOverlayLayout(w, h)");
+        expect(readFileSync("src/lib/rush-overlay-layout.ts", "utf8")).toMatch(/OVERLAY_WIDE_HEIGHT\s*=\s*820/);
     });
 
     it("le nœud du dock ne s'étire pas (plus de vide avant le titre)", () => {

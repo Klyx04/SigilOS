@@ -49,8 +49,9 @@ permissions:
     effect: deny
 ---
 
-Relis les changements en cours avec `git diff HEAD` (ou `git diff --cached` si le parent a indexé).
-Liste les findings par sévérité, avec fichier et ligne.
+Relis les changements avec `git diff origin/dev...HEAD` (ou `git diff --cached` si le parent a indexé).
+Vérifie aussi `git status --short` pour les fichiers non suivis. Liste les findings par sévérité, avec
+fichier et ligne.
 
 Ne modifie rien. Vérifie les invariants de `AGENTS.md` §5 (auth, `guildId`, Zod, fail-closed)
 et les tests manquants. Termine par un verdict : prêt pour PR, ou corrections à faire.

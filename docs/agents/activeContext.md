@@ -15,7 +15,9 @@
 > **Preuves Lot 2** : **806 fichiers / 8 332 tests ✅** · `harness-config` **18/18** · `tsc` 0 · `lint` 0 erreur (7 798 warnings préexistants) · relecture `reviewer` : findings 1-5 + 7-14 intégrés · worktree C: → 6-8 timeouts de scan `src/` (5 s), futurs worktrees sur `../sigilos-worktrees` · CI à venir.
 > **Suite (même session) — Lot 3** : `npm run harness:links` (jonctions `.agents/skills` + `.claude/skills` vers `.cline/skills`, gitignorées) · scorecard dans `harnais.md` §14 · `/fin` déclenche `reviewer` automatiquement · source unique `.cline/skills` conservée pour Cline.
 > **Preuves Lot 3** : `harness-config` **19/19** · 8 333 tests (CI) · `tsc` 0 · `lint` 0 erreur · liens créés et vérifiés sur Windows · Cline intact.
-> **Reste** : lot 4 = mesure sur 3 lots + décision migration `.agents/skills` · rotation `activeContext` non tranchée (#42) · gaps best-effort du hook shell.
+> **Suite (même session) — Lot 4** : décision **source `.cline/skills` conservée** ; migration `.agents/skills` conditionnée (3 lots produit + Cline secondaire + liens CI) ; baseline Lots 1-3 dans `harnais.md` §14 ; scorecard produit à remplir.
+> **Preuves Lot 4** : relecture Lot 3 → 2 bloquants corrigés (`/fin` sur `origin/dev...HEAD`, `.claude/settings.local.json` ignoré) · `harness-config` 19/19 · `tsc` 0 · `lint` 0 erreur · CI à venir.
+> **Reste** : 3 lots produit à mesurer (scorecard §14) · migration conditionnée · rotation `activeContext` non tranchée (#42) · gaps best-effort du hook shell.
 
 ## 📝 Session 22/11/2026 (suite 56) — **Rush : carte des quêtes — bon monde + accès visiteur** — branche `fix/rush-carte-monde-public-2026-11-22`
 

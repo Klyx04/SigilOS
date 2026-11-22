@@ -120,7 +120,7 @@ Mémoire volatile : src/temp/ (UNE seule zone, gitignorée)
 | Versionné (public) | Local (jamais poussé) |
 |---|---|
 | `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**`, `scripts/harness-links.mjs` | `.vscode/settings.json` (préférences éditeur) |
-| `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) |
+| `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) ; liens `.agents/skills` / `.claude/skills` ; `.claude/settings.local.json`, `.claude/commands/`, `.claude/agents/` |
 | hooks (relus en PR comme du code) | `docs/audits/`, `src/temp/`, `.env*`, artefacts de build |
 
 Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, et il tient en moins de
@@ -274,7 +274,7 @@ OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne 
 
 **Vérifier** : `npx vitest run tests/unit/harness-config.test.ts` · `/reprise` · `/fin` · `opencode mcp list`.
 
-**Suite** : lot 3 = mesure sur 3 lots réels + migration vers `.agents/skills` (standard Agent Skills).
+**Suite** : lot 4 = mesure sur 3 lots réels + décision de migration vers `.agents/skills` (standard Agent Skills).
 
 ## 13. Délégation — le sous-agent `reviewer`
 
@@ -283,9 +283,10 @@ OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne 
 PR / corrections à faire ».
 
 Invocation : demander explicitement « utilise le sous-agent `reviewer` sur le diff ». Il relit avec
-`git diff HEAD` (ou `git diff --cached` si le parent a indexé). Il tourne dans une session enfant, avec son
-propre contexte et ses propres permissions ; le parent ne reçoit que le rapport. Il ne remplace pas les
-tests : il les complète. La commande `/fin` le déclenche automatiquement avant le rapport final.
+`git diff origin/dev...HEAD` (ou `git diff --cached` si le parent a indexé) et `git status --short` pour
+les fichiers non suivis. Il tourne dans une session enfant, avec son propre contexte et ses propres
+permissions ; le parent ne reçoit que le rapport. Il ne remplace pas les tests : il les complète. La
+commande `/fin` le déclenche automatiquement avant le rapport final.
 
 **Worktrees** : `opencode.json` → `worktree.directory = ../sigilos-worktrees` pour rester sur le même
 volume que le dépôt. Mesure du 22/11 : un worktree sur `C:` avec `node_modules` en jonction a fait
@@ -303,10 +304,24 @@ reste valable, mais le volume compte.
 Windows : jonctions ; Unix : symlinks. Un clone neuf lance `npm run harness:links`. Le script ne remplace
 jamais un dossier réel.
 
-**Après la décision (lot 4)** : déplacer les skills vers `.agents/skills` et inverser les liens pour
-Cline/Claude. La source devient alors standard.
+**Décision du 22/11/2026 — source `.cline/skills` conservée** : la migration de la source vers
+`.agents/skills` est **conditionnée** à :
+1. 3 lots produit livrés dans OpenCode avec la scorecard remplie ;
+2. Cline passé en secondaire (plus utilisé au quotidien) ;
+3. CI et installation capables de recréer les liens (`npm run harness:links`) après un clone.
 
-**Scorecard (à remplir au lot 4)** :
+Tant que ces trois conditions ne sont pas réunies, les liens restent l'adaptateur de portabilité : Cline
+garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de pointer `.cline/skills`.
+
+**Baseline harnais (rétrospectif)** :
+
+| Lot | Fichiers | Tests | CI | Relecture |
+|---|---|---|---|---|
+| 1 — OpenCode | 13 | 8 325 | 7m37s | — |
+| 2 — délégation | 11 | 8 332 | 10m24s | 15 findings, 14 intégrés |
+| 3 — portabilité | 9 | 8 333 | 7m56s | 1 relecture, 2 bloquants corrigés |
+
+**Scorecard produit (à remplir, 3 lots réels)** :
 
 | Lot | Harnais | Temps | Tokens | Interventions | Bugs attrapés | Tests |
 |---|---|---|---|---|---|---|
@@ -315,3 +330,13 @@ Cline/Claude. La source devient alors standard.
 | 3 | OpenCode | — | — | — | — | — |
 
 Le but n'est pas de « sentir » si c'est mieux : c'est de comparer des chiffres.
+
+**Checklist de migration (si déclenchée)** :
+1. `git mv .cline/skills .agents/skills`.
+2. `opencode.json` → `"skills": [".agents/skills"]`.
+3. `scripts/harness-links.mjs` → liens `.cline/skills` et `.claude/skills` vers `.agents/skills`.
+4. `.gitignore` → `/.cline/skills` et `/.claude/skills` (les liens), pas `.agents/skills`.
+5. Mettre à jour les citations `.cline/skills` : `AGENTS.md`, `harnais.md`, `responsive/references/sigilos.md`,
+   `tests/unit/harness-config.test.ts`.
+6. CI/installation : exécuter `npm run harness:links` après le checkout.
+7. Vérifier Cline, OpenCode, Codex/Claude sur un clone neuf.

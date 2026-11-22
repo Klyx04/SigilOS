@@ -53,6 +53,8 @@ interface RushCoordinateChipProps {
   menuOnClick?: boolean;
   /** PNJ donneur de la quete : affiche dans le menu (nom + portrait) et sur la carte. */
   npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
+  /** Carte HD imposee en God (`pos_tags.mapId`). */
+  mapId?: number | null;
 }
 
 /** Zaap le plus proche (forme servie par `resolveMapWorldAction`). */
@@ -72,6 +74,7 @@ export function RushCoordinateChip({
   onOpenMap,
   menuOnClick = false,
   npc = null,
+  mapId = null,
 }: RushCoordinateChipProps) {
   const toast = useOverlayToast();
   const [copied, setCopied] = useState(false);
@@ -254,6 +257,7 @@ export function RushCoordinateChip({
       <RushPositionMenu
         open={menuOpen}
         npc={npc}
+        mapId={mapId}
         x={parsed.x}
         y={parsed.y}
         worldId={parsed.worldId}

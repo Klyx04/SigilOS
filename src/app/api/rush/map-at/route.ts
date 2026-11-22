@@ -21,12 +21,15 @@ export async function GET(request: NextRequest) {
   const x = Number(request.nextUrl.searchParams.get("x"));
   const y = Number(request.nextUrl.searchParams.get("y"));
   const worldParam = Number(request.nextUrl.searchParams.get("world"));
+  const mapParam = Number(request.nextUrl.searchParams.get("mapId"));
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
   if (x === 0 && y === 0) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
+
+  // Carte imposee en God (`pos_tags.mapId`) : prioritaire, si le WebP existe.   if (Number.isSafeInteger(mapParam) && mapParam > 0 && mapParam <= 2147483647) {     const forced = `/game-data/hd_maps/${mapParam}.webp`;     if (existsSync(join(process.cwd(), "public", forced))) {       return NextResponse.json(         { ok: true, mapId: mapParam, imageUrl: forced, source: "god" },         { headers: { "Cache-Control": "public, max-age=86400, s-maxage=604800, immutable" } }       );     }   }
 
   const data = getWorldmapData();
   const maps = Array.isArray(data?.maps) ? (data.maps as Record<string, unknown>[]) : [];

@@ -19,6 +19,8 @@ export type RushQuestPosition = {
     allowZaap?: boolean;
     /** Monde Dofus (1 = monde classique). */
     worldId?: number;
+    /** Carte HD imposee en God (prioritaire sur la resolution par coordonnees). */
+    mapId?: number;
     /** Zaap manuel saisi en God, prioritaire sur l'auto le plus proche. */
     zaapX?: number;
     zaapY?: number;
@@ -97,12 +99,19 @@ export function positionFromDofusQuestEntry(
  * prioritaire ; sinon le zaap de la carte (s'il existe) est repris. Un `allowZaap`
  * explicite (`true` **ou** `false`) est conservé tel quel.
  */
+/** Carte HD d un tag existant (entier positif, Int32) — `null` sinon. */
+function readMapId(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isSafeInteger(n) && n > 0 && n <= 2147483647 ? n : null;
+}
+
 export function buildRushPositionTag(
   position: RushQuestPosition,
   previous?: RushImportActivityTag | null
 ): RushImportActivityTag {
   const manualZaap = readZaapPair(previous) ?? readZaapPair(position);
   const worldId = readWorldId(previous?.worldId) ?? readWorldId(position.worldId);
+  const mapId = readMapId(previous?.mapId) ?? readMapId(position.mapId);
   const allowZaap =
     typeof previous?.allowZaap === "boolean"
       ? previous.allowZaap
@@ -113,6 +122,7 @@ export function buildRushPositionTag(
     type: "pos_tags",
     name: `[${position.x},${position.y}]`,
     ...(worldId != null ? { worldId } : {}),
+    ...(mapId != null ? { mapId } : {}),
     ...(allowZaap != null ? { allowZaap } : {}),
     ...(manualZaap ? { zaapX: manualZaap.x, zaapY: manualZaap.y } : {}),
   };

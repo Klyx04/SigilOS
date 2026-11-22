@@ -4442,19 +4442,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     return Number.isSafeInteger(existing?.zaapY) ? String(existing.zaapY) : "";
   });
 
+  // Carte HD imposee en God (facultatif) : le seul juge fiable quand (x,y) designe
+  // plusieurs maps (interieurs). Prioritaire sur la resolution automatique.
+  const [mapIdOverride, setMapIdOverride] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return Number.isSafeInteger(existing?.mapId) && existing.mapId > 0 ? String(existing.mapId) : "";
+  });
+
   const handlePositionsChange = (text: string) => {
     setPositionsInput(text);
-    syncPosTag(text, positionsWorldId, allowZaap, manualZaapX, manualZaapY);
+    syncPosTag(text, positionsWorldId, allowZaap, manualZaapX, manualZaapY, mapIdOverride);
   };
 
-  const syncPosTag = (text: string, worldId: number, zaap: boolean, mZx?: string, mZy?: string) => {
+  const syncPosTag = (text: string, worldId: number, zaap: boolean, mZx?: string, mZy?: string, mapIdArg?: string) => {
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "pos_tags");
       if (text.trim()) {
         const zx = parseInt(String(mZx ?? manualZaapX).trim(), 10);
         const zy = parseInt(String(mZy ?? manualZaapY).trim(), 10);
         const hasManual = Number.isSafeInteger(zx) && Number.isSafeInteger(zy) && String(mZx ?? manualZaapX).trim() !== "" && String(mZy ?? manualZaapY).trim() !== "";
-        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap || hasManual ? { allowZaap: true } : {}), ...(hasManual ? { zaapX: zx, zaapY: zy } : {}) }];
+        const mid = parseInt(String(mapIdArg ?? mapIdOverride).trim(), 10);
+        const hasMapId = Number.isSafeInteger(mid) && mid > 0 && mid <= 2147483647;
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap || hasManual ? { allowZaap: true } : {}), ...(hasManual ? { zaapX: zx, zaapY: zy } : {}), ...(hasMapId ? { mapId: mid } : {}) }];
       }
       return filtered;
     });
@@ -4462,7 +4471,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
 
   const handleAllowZaapChange = (enabled: boolean) => {
     setAllowZaap(enabled);
-    syncPosTag(positionsInput, positionsWorldId, enabled, manualZaapX, manualZaapY);
+    syncPosTag(positionsInput, positionsWorldId, enabled, manualZaapX, manualZaapY, mapIdOverride);
   };
 
   const handleManualZaapChange = (zx: string, zy: string) => {
@@ -4473,7 +4482,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     const hasManual = zx.trim() !== "" && zy.trim() !== "" && Number.isSafeInteger(nx) && Number.isSafeInteger(ny);
     const nextAllow = allowZaap || hasManual;
     if (nextAllow !== allowZaap) setAllowZaap(nextAllow);
-    syncPosTag(positionsInput, positionsWorldId, nextAllow, zx, zy);
+    syncPosTag(positionsInput, positionsWorldId, nextAllow, zx, zy, mapIdOverride);
+  };
+
+  const handleMapIdChange = (value: string) => {
+    setMapIdOverride(value);
+    syncPosTag(positionsInput, positionsWorldId, allowZaap, manualZaapX, manualZaapY, value);
   };
 
   const handleTougliTextChange = (text: string) => {
@@ -5336,7 +5350,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                     value={positionsWorldId}
                     onChange={w => {
                       setPositionsWorldId(w);
-                      syncPosTag(positionsInput, w, allowZaap);
+                      syncPosTag(positionsInput, w, allowZaap, undefined, undefined, mapIdOverride);
                     }}
                   />
                 </div>
@@ -5366,6 +5380,20 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                   Proposer le détour zaap <span className="font-mono text-info/80">/zaap + /travel</span>
                 </span>
               </label>
+
+              {/* Carte HD imposee (facultatif) : le seul juge fiable quand (x,y) designe
+                  plusieurs maps (interieurs). Prioritaire sur la resolution automatique. */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground font-mono font-bold shrink-0">Carte HD:</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={mapIdOverride}
+                  onChange={e => handleMapIdChange(e.target.value.replace(/[^0-9]/g, ""))}
+                  className="w-full bg-background/80 border border-border focus:border-primary/50 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none transition-colors"
+                  placeholder="mapId (vide = resolution auto)"
+                />
+              </div>
 
               {/* Zaap manuel (2e option) : X / Y dissociés du zaap — les membres
                   copient `/zaap zx,zy ; /travel x,y` tel quel (prioritaire). */}

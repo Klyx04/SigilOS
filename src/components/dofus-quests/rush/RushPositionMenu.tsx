@@ -30,6 +30,7 @@ export function RushPositionMenu({
   x,
   y,
   worldId,
+  mapId = null,
   npc = null,
   open,
   onClose,
@@ -37,6 +38,8 @@ export function RushPositionMenu({
   x: number;
   y: number;
   worldId?: number | null;
+  /** Carte HD imposee en God (`pos_tags.mapId`), prioritaire sur la resolution (x,y). */
+  mapId?: number | null;
   /** PNJ donneur importe dans la quete (nom + portrait), si la donnee en porte un. */
   npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
   open: boolean;
@@ -82,7 +85,7 @@ export function RushPositionMenu({
   const handleMap = () => {
     if (map.status === "loading" || map.status === "ready") return;
     setMap({ status: "loading" });
-    const q = worldId ? `&world=${worldId}` : "";
+    const q = `${worldId ? `&world=${worldId}` : ""}${mapId ? `&mapId=${mapId}` : ""}`;
     fetch(`/api/rush/map-at?x=${x}&y=${y}${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { imageUrl?: string } | null) => {

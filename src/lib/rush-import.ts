@@ -38,6 +38,8 @@ export type RushImportActivityTag = {
     alternatives?: Array<{ questId: number; name?: string }>;
     /** Tag `pos_tags` : monde Dofus (1 = classique). */
     worldId?: number;
+    /** Tag `pos_tags` : carte HD imposee en God (prioritaire sur la resolution (x,y)). */
+    mapId?: number;
     /** Tag `pos_tags` : détour zaap proposé ; l'auto résout le plus proche. */
     allowZaap?: boolean;
     /** Tag `pos_tags` : zaap manuel (God), prioritaire sur l'auto. */

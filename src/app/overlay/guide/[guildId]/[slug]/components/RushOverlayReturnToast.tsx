@@ -49,7 +49,8 @@ export function RushOverlayReturnToast({
         type="button"
         onClick={onDismiss}
         aria-label="Fermer le rappel de retour"
-        className="shrink-0 rounded-[3px] p-1 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+        className="shrink-0 rounded-[3px] p-1 transition-colors hover:bg-white/10"
+        style={{ color: "var(--da-muted, #a3afa1)" }}
       >
         <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>

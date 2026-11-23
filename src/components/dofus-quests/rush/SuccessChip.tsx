@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
 import { useDaTheme } from "@/components/da/da-theme";
@@ -104,23 +104,26 @@ function SuccessSheet({
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
+    const close = closeRef.current;
+    const doc = close?.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+    const previous = doc?.activeElement as HTMLElement | null;
+    close?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.stopPropagation();
       event.preventDefault();
       onClose();
     };
-    document.addEventListener("keydown", handleKeyDown, true);
+    doc?.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
+      doc?.removeEventListener("keydown", handleKeyDown, true);
       previous?.focus?.();
     };
   }, [onClose]);
 
   const trapTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
+    const doc = event.currentTarget.ownerDocument;
     const focusables = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -129,10 +132,10 @@ function SuccessSheet({
     if (focusables.length === 0) return;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    if (event.shiftKey && doc.activeElement === first) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && doc.activeElement === last) {
       event.preventDefault();
       first.focus();
     }
@@ -270,6 +273,7 @@ export function SuccessChip({
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const closeSheet = useCallback(() => setOpen(null), []);
   const daScope = daScopeProps(useDaTheme());
 
   if (successes.length === 0) return null;
@@ -314,7 +318,7 @@ export function SuccessChip({
       {open && portalRoot
         ? createPortal(
             <div className="da-portal" {...daScope}>
-              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={() => setOpen(null)} />
+              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={closeSheet} />
             </div>,
             portalRoot
           )

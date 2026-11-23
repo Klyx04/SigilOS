@@ -56,20 +56,22 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(3);
     });
 
-    it("la fiche détail rend le succès par SuccessChip et les 4 surfaces passent guideQuests", () => {
+    it("la fiche détail rend le succès par SuccessChip et les 3 surfaces passent guideQuests", () => {
         const modal = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx",
             "utf8"
         );
         expect(modal).toContain("<SuccessChip");
-        expect(modal).toContain("guideQuests");
+        expect(modal).toContain("successes.map");
         for (const file of [
             "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx",
             "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx",
             "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx",
         ]) {
             const src = readFileSync(file, "utf8");
-            expect(src).toContain("guideQuests={guideQuests}");
+            expect(src).toMatch(
+                /<RushOverlayQuestDetailModal[\s\S]{0,1400}?guideQuests=\{guideQuests\}/
+            );
         }
         const tagSection = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayTagSection.tsx",
@@ -78,12 +80,13 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(tagSection).not.toContain("tags.success");
     });
 
-    it("la fiche succès passe au-dessus de la fiche détail et gère Échap/focus", () => {
+    it("la fiche succès passe au-dessus de la fiche détail et gère Échap/focus en PiP", () => {
         const src = readFileSync("src/components/dofus-quests/rush/SuccessChip.tsx", "utf8");
         expect(src).toContain("z-[120]");
         expect(src).toContain("stopPropagation");
         expect(src).toContain("closeRef");
         expect(src).toContain("trapTab");
+        expect(src).toContain("ownerDocument");
     });
 
     it("le toast de retour propose une croix câblée à la fermeture", () => {

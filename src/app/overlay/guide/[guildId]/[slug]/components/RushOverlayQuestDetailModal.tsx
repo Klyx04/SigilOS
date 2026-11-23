@@ -333,7 +333,13 @@ export function RushOverlayQuestDetailModal({
               <section className="py-3">
                 <p className={sectionLabel}>Succès lié</p>
                 <div className="flex flex-wrap gap-1.5">
-                  <SuccessChip successes={successes} quests={guideQuests} />
+                  {successes.map((success) => (
+                    <SuccessChip
+                      key={success.id ?? success.name}
+                      successes={[success]}
+                      quests={guideQuests}
+                    />
+                  ))}
                 </div>
               </section>
             )}

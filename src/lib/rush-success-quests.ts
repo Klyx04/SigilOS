@@ -22,7 +22,7 @@ function isNameMap(
 /**
  * Construit **toutes** les quêtes d'un succès, dans l'ordre fourni par
  * `achievements.json`. Le nom vient du guide quand la quête y est, sinon du
- * catalogue optionnel, sinon d'un libellé neutre `Quête #id`.
+ * catalogue optionnel, sinon d'un libellé neutre `Quête <id>`.
  *
  * Règle pure : ids invalides écartés, doublons dédoublonnés, aucune devinette
  * d'état. Un id fourni mais absent du guide reste listé (`inGuide: false`),
@@ -37,8 +37,9 @@ export function buildSuccessQuestRows(
 
   const byId = new Map<number, RushGuideQuestRef>();
   for (const quest of guideQuests) {
-    if (!Number.isFinite(quest.id)) continue;
-    if (!byId.has(quest.id)) byId.set(quest.id, quest);
+    if (!Number.isInteger(quest.id) || quest.id <= 0) continue;
+    const prev = byId.get(quest.id);
+    byId.set(quest.id, prev ? { ...prev, done: prev.done || quest.done } : quest);
   }
 
   const nameOf = (id: number): string | undefined => {
@@ -50,13 +51,13 @@ export function buildSuccessQuestRows(
   const seen = new Set<number>();
   const rows: RushSuccessQuestRow[] = [];
   for (const raw of questIds) {
-    if (!Number.isFinite(raw) || raw <= 0) continue;
+    if (!Number.isInteger(raw) || raw <= 0) continue;
     if (seen.has(raw)) continue;
     seen.add(raw);
     const ref = byId.get(raw);
     rows.push({
       id: raw,
-      name: ref?.name ?? nameOf(raw) ?? `Quête #${raw}`,
+      name: ref?.name || nameOf(raw) || `Quête ${raw}`,
       done: ref?.done ?? false,
       inGuide: !!ref,
     });

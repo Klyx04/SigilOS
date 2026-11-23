@@ -42,7 +42,7 @@ describe("buildSuccessQuestRows", () => {
 
   it("replie sur le libellé neutre quand aucun nom n'est connu", () => {
     expect(buildSuccessQuestRows([1988], GUIDE)).toEqual([
-      { id: 1988, name: "Quête #1988", done: false, inGuide: false },
+      { id: 1988, name: "Quête 1988", done: false, inGuide: false },
     ]);
   });
 
@@ -53,10 +53,27 @@ describe("buildSuccessQuestRows", () => {
 
   it("dédoublonne les ids et écarte les valeurs invalides", () => {
     const rows = buildSuccessQuestRows(
-      [1989, 1989, Number.NaN, -3, 0, 1990] as number[],
+      [1989, 1989, Number.NaN, -3, 0, 1.5, 1990] as number[],
       GUIDE
     );
     expect(rows.map((row) => row.id)).toEqual([1989, 1990]);
+  });
+
+  it("liste un succès dont toutes les quêtes sont hors guide", () => {
+    const rows = buildSuccessQuestRows([1988, 894], []);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => !row.inGuide && !row.done)).toBe(true);
+    expect(rows.map((row) => row.name)).toEqual(["Quête 1988", "Quête 894"]);
+  });
+
+  it("fusionne l'état d'une quête portée par deux séquences", () => {
+    const rows = buildSuccessQuestRows([1989], [
+      { id: 1989, name: "Restauration rapide", done: false },
+      { id: 1989, name: "Restauration rapide", done: true },
+    ]);
+    expect(rows).toEqual([
+      { id: 1989, name: "Restauration rapide", done: true, inGuide: true },
+    ]);
   });
 
   it("ne rend rien sans ids", () => {
@@ -69,6 +86,8 @@ describe("buildSuccessQuestRows", () => {
     const source = readFileSync("src/components/dofus-quests/rush/SuccessChip.tsx", "utf8");
     expect(source).toContain("buildSuccessQuestRows");
     expect(source).toContain("Hors guide");
+    expect(source).toContain("rows.length > 0");
+    expect(source).toContain("Catalogue des succès indisponible");
     expect(source).not.toContain("successIconUrl");
   });
 });

@@ -23,7 +23,11 @@ import { cn } from "@/lib/utils";
 
 const ACHIEVEMENTS_URL = "/game-data/achievements.json";
 
-type AchievementQuestIndex = { byId: Map<string, number[]>; byName: Map<string, number[]> };
+type AchievementQuestIndex = {
+  byId: Map<string, number[]>;
+  byName: Map<string, number[]>;
+  ok: boolean;
+};
 let achievementsPromise: Promise<AchievementQuestIndex> | null = null;
 
 /** Cle de repli par NOM (casse, accents, ponctuation) : l id du tag peut etre un id Dofus. */
@@ -50,9 +54,9 @@ function loadAchievementQuests(): Promise<AchievementQuestIndex> {
           const name = normalizeAchievementName(row.name);
           if (name) byName.set(name, questIds);
         }
-        return { byId, byName };
+        return { byId, byName, ok: true };
       })
-      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>() }));
+      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>(), ok: false }));
   }
   return achievementsPromise;
 }
@@ -69,11 +73,15 @@ function SuccessSheet({
   onClose: () => void;
 }) {
   const [ids, setIds] = useState<number[] | null>(null);
+  const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
 
   useEffect(() => {
     let alive = true;
     loadAchievementQuests().then((map) => {
-      if (alive) setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
+      if (alive) {
+        setCatalogOk(map.ok);
+        setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
+      }
     });
     return () => {
       alive = false;
@@ -105,7 +113,7 @@ function SuccessSheet({
             </p>
             <h3 className="m-0 truncate text-sm font-semibold text-foreground">{success.name}</h3>
           </div>
-          {ids && (
+          {rows.length > 0 && (
             <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
               {done} / {rows.length}
             </span>
@@ -125,7 +133,9 @@ function SuccessSheet({
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
           ) : rows.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
-              Aucune quête liée à ce succès.
+              {catalogOk === false
+                ? "Catalogue des succès indisponible."
+                : "Aucune quête connue pour ce succès."}
             </p>
           ) : (
             <ul className="space-y-1">
@@ -159,7 +169,10 @@ function SuccessSheet({
                   </span>
                   <span className="min-w-0 flex-1 truncate">{row.name}</span>
                   {!row.inGuide && (
-                    <span className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
                       Hors guide
                     </span>
                   )}
@@ -186,7 +199,7 @@ export function SuccessChip({
   className?: string;
   /** Dashboard : icône seule, le nom complet reste en infobulle. */
   compact?: boolean;
-  /** Icône normalisée de la pastille (la fiche garde l'icône du succès). */
+  /** Icône de succès partagée par la pastille et la fiche (trophée). */
   iconSrc?: string;
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);

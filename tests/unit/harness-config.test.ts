@@ -264,6 +264,15 @@ describe("harnais agentique", () => {
         }
     });
 
+    it("le template de PR force le pourquoi et le critère de réussite", () => {
+        const template = read(".github/pull_request_template.md");
+        for (const section of ["Pourquoi", "Réussi si", "Ce qui change", "Preuve", "Risque", "Côté mainteneur"]) {
+            expect(template, section).toContain(`## ${section}`);
+        }
+        /* Un template trop long n'est pas lu : il doit tenir en une page. */
+        expect(template.length).toBeLessThan(2500);
+    });
+
     it("le sous-agent reviewer est read-only et limité à git", () => {
         const reviewer = read(".opencode/agents/reviewer.md");
         expect(reviewer).toContain("mode: subagent");

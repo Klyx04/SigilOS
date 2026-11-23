@@ -82,6 +82,28 @@ Mesure du 02/11/2026 — deux rulesets **actifs** (`protect-dev` → `refs/heads
 
 ---
 
+## 8. Le corps de PR — six lignes, pas un roman
+
+Le template `.github/pull_request_template.md` est prérempli à l'ouverture d'une PR. Il tient en
+six sections, et c'est volontaire :
+
+| Section | La question à laquelle elle répond |
+|---|---|
+| **Pourquoi** | quel problème observé, sans parler de solution |
+| **Réussi si…** | à quoi on reconnaît que c'est réglé (chiffre, écran, test) |
+| **Ce qui change** | les fichiers qui comptent, pas la liste exhaustive |
+| **Preuve** | capture, sortie de test, mesure — pas « ça marche » |
+| **Risque** | ce qui peut casser, et comment on le verrait |
+| **Côté mainteneur** | ce que l'humain doit faire après le merge (migration, env, écran) |
+
+**La règle qui compte** : si tu n'arrives pas à écrire « réussi si… », arrête-toi — le besoin n'est
+pas clair. C'est le critère qui évite de livrer quelque chose de plausible mais inutile.
+
+Un exemple réel (session 59) : « à 310 px, les 4 filtres tiennent sur une ligne et aucun badge n'est
+coupé ». Mesurable, visuel, il dit stop ou continue.
+
+---
+
 ## Pourquoi ce workflow ?
 
 Dependabot merge des mises à jour dans `dev` chaque semaine. Ces merges modifient

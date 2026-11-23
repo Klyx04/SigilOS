@@ -137,8 +137,9 @@ retour arrière `./scripts/rollback.sh` (détails : `docs/MAINTENANCE.md`).
 5. **Push** : `git fetch origin dev && git merge origin/dev --no-edit`, puis
    `npm install --package-lock-only` **si `package.json` a bougé** (sinon la CI casse en `EUSAGE` sur le
    lockfile) — procédure : `docs/agents/git-push.md`.
-6. **PR vers `dev`** (jamais pousser sur `main`/`dev`) : commits en français, `gh pr checks` jusqu'au vert,
-   merge, branche supprimée, `dev` repullé.
+6. **PR vers `dev`** (jamais pousser sur `main`/`dev`) : corps rempli depuis
+   `.github/pull_request_template.md` (pourquoi · réussi si · preuve), commits en français,
+   `gh pr checks` jusqu'au vert, merge, branche supprimée, `dev` repullé.
 7. **Arrêt immédiat + question** avant : migration de schéma · changement d'interface **publique** Discord ·
    action **God** · suppression de données · ou si une mesure contredit le brief.
 

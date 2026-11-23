@@ -46,7 +46,7 @@ describe("placeContextualHelp", () => {
     const right = placeContextualHelp(trigger({ left: 370 }), { width: 390, height: 800 }, SIZE);
     expect(right.left).toBe(390 - HELP_POPOVER_WIDTH - HELP_MARGIN);
     expect(right.left + right.width).toBeLessThanOrEqual(390 - HELP_MARGIN);
-    expect(right.arrowLeft).toBeLessThanOrEqual(right.width - 12);
+    expect(right.arrowLeft).toBe(right.width - 20);
   });
 
   it("borne la hauteur d'une bulle plus haute que la fenêtre", () => {

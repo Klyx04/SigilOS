@@ -127,6 +127,10 @@ export function ContextualHelp({
   useLayoutEffect(() => {
     if (!open) {
       setPosition(null);
+      if (rafRef.current != null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       return;
     }
     update();
@@ -198,6 +202,7 @@ export function ContextualHelp({
               }}
               onMouseLeave={scheduleClose}
               style={{
+                ...(daScope as { style?: React.CSSProperties }).style,
                 position: "fixed",
                 top: position?.top ?? 0,
                 left: position?.left ?? 0,
@@ -208,7 +213,7 @@ export function ContextualHelp({
             >
               <div
                 className="overflow-y-auto p-3 text-xs leading-relaxed"
-                style={{ maxHeight: position?.maxHeight }}
+                style={{ maxHeight: position ? Math.max(0, position.maxHeight - 2) : undefined }}
               >
                 {children}
               </div>

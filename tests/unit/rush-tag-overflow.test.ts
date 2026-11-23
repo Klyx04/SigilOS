@@ -56,22 +56,47 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(3);
     });
 
-    it("la fiche détail rend le succès par SuccessChip, pas par un badge de tag", () => {
-        const src = readFileSync(
+    it("la fiche détail rend le succès par SuccessChip et les 4 surfaces passent guideQuests", () => {
+        const modal = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx",
             "utf8"
         );
-        expect(src).toContain("<SuccessChip");
-        expect(src).toContain("guideQuests");
-        expect(src).not.toContain("tags.success.map");
+        expect(modal).toContain("<SuccessChip");
+        expect(modal).toContain("guideQuests");
+        for (const file of [
+            "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx",
+            "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx",
+            "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx",
+        ]) {
+            const src = readFileSync(file, "utf8");
+            expect(src).toContain("guideQuests={guideQuests}");
+        }
+        const tagSection = readFileSync(
+            "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayTagSection.tsx",
+            "utf8"
+        );
+        expect(tagSection).not.toContain("tags.success");
     });
 
-    it("le toast de retour propose une croix de fermeture", () => {
-        const src = readFileSync(
+    it("la fiche succès passe au-dessus de la fiche détail et gère Échap/focus", () => {
+        const src = readFileSync("src/components/dofus-quests/rush/SuccessChip.tsx", "utf8");
+        expect(src).toContain("z-[120]");
+        expect(src).toContain("stopPropagation");
+        expect(src).toContain("closeRef");
+        expect(src).toContain("trapTab");
+    });
+
+    it("le toast de retour propose une croix câblée à la fermeture", () => {
+        const toast = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayReturnToast.tsx",
             "utf8"
         );
-        expect(src).toContain("onDismiss");
-        expect(src).toContain("Fermer le rappel de retour");
+        expect(toast).toContain("onDismiss");
+        expect(toast).toContain("Fermer le rappel de retour");
+        const client = readFileSync(
+            "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx",
+            "utf8"
+        );
+        expect(client).toContain("onDismiss={() => toast.dismiss(id)}");
     });
 });

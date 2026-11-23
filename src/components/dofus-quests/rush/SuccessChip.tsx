@@ -101,6 +101,42 @@ function SuccessSheet({
   const [ids, setIds] = useState<number[] | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      event.preventDefault();
+      onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      previous?.focus?.();
+    };
+  }, [onClose]);
+
+  const trapTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const focusables = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.offsetParent !== null);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -125,10 +161,11 @@ function SuccessSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-3"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-3"
       role="dialog"
       aria-modal="true"
       aria-label={`Succès ${success.name}`}
+      onKeyDown={trapTab}
     >
       <button type="button" aria-label="Fermer" onClick={onClose} className="absolute inset-0 bg-black/60" />
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-elevated">
@@ -147,6 +184,7 @@ function SuccessSheet({
             </span>
           )}
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Fermer la fiche du succès"

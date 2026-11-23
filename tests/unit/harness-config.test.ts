@@ -1,39 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
-
-const powershell = (process.platform === "win32" ? ["powershell", "pwsh"] : ["pwsh", "powershell"]).find(
-    (command) => spawnSync(command, ["-NoProfile", "-Command", "exit 0"], { encoding: "utf8" }).status === 0,
-);
-
-const runHookRaw = (name: string, raw: string) => {
-    expect(powershell, "PowerShell introuvable").toBeTruthy();
-    const result = spawnSync(powershell!, ["-NoProfile", "-File", path.join(root, ".clinerules/hooks", name)], {
-        input: raw,
-        encoding: "utf8",
-        timeout: 10_000,
-    });
-    expect(result.error, result.error?.message).toBeUndefined();
-    expect(result.status, result.stderr).toBe(0);
-    return JSON.parse(result.stdout.replace(/^\uFEFF/, "").trim()) as {
-        cancel: boolean;
-        errorMessage: string;
-        contextModification?: string;
-    };
-};
-
-const runHook = (name: string, payload: unknown) => runHookRaw(name, JSON.stringify(payload));
 
 /**
  * Garde du harnais agentique.
  *
  * Vérifie que la mémoire chaude reste petite, qu'il n'y a qu'une zone temp,
  * que les anciennes sources d'ordre sont archivées, et que les skills, règles
- * et hooks sont exploitables (frontmatter valide, aucun secret).
+ * et garde-fous sont exploitables (frontmatter valide, aucun secret).
  *
  * Référence : docs/agents/harnais.md.
  */
@@ -108,7 +87,7 @@ describe("harnais agentique", () => {
     });
 
     it("les règles conditionnelles déclarent des chemins", () => {
-        const dir = path.join(root, ".clinerules");
+        const dir = path.join(root, "docs/agents/rules");
         const rules = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
         expect(rules.length).toBeGreaterThanOrEqual(4);
 
@@ -137,7 +116,7 @@ describe("harnais agentique", () => {
                         .replace(/@@ANY@@/g, ".*") +
                     "$",
             );
-        const dir = path.join(root, ".clinerules");
+        const dir = path.join(root, "docs/agents/rules");
         const rules = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
 
         for (const rule of rules) {
@@ -154,27 +133,83 @@ describe("harnais agentique", () => {
         }
     });
 
-    it("les trois hooks Windows existent et ne contiennent aucun secret", () => {
-        for (const hook of ["PreToolUse.ps1", "TaskStart.ps1", "TaskComplete.ps1"]) {
-            const file = path.join(root, ".clinerules/hooks", hook);
-            expect(fs.existsSync(file), hook).toBe(true);
-
-            const body = fs.readFileSync(file, "utf8");
-            expect(body, hook).toMatch(/ConvertTo-Json/);
-            expect(body, hook).not.toMatch(/(DISCORD_TOKEN|CLIENT_SECRET|ghp_|sk-[A-Za-z0-9]{10,})/);
+    it("la sortie de Cline ne laisse aucun vestige dans le dépôt", () => {
+        for (const gone of [".clinerules", ".clineignore"]) {
+            expect(fs.existsSync(path.join(root, gone)), gone).toBe(false);
         }
+        const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" });
+        expect(tracked).not.toMatch(/^\.clinerules\//m);
+        expect(tracked).not.toMatch(/^\.clineignore$/m);
+        expect(tracked).not.toMatch(/^\.cline\//m);
     });
 
-    it("les hooks forcent une sortie UTF-8", () => {
-        for (const hook of ["PreToolUse.ps1", "TaskStart.ps1", "TaskComplete.ps1"]) {
-            const body = fs.readFileSync(path.join(root, ".clinerules/hooks", hook), "utf8");
-            expect(body, hook).toMatch(/\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8/);
+    it("les garde-fous OpenCode bloquent les gestes dangereux et laissent passer le reste", () => {
+        const config = JSON.parse(read("opencode.json")) as {
+            permissions: Array<{ action: string; resource: string; effect: string }>;
+        };
+
+        /* OpenCode applique la DERNIÈRE règle dont le glob matche la valeur entière. */
+        const globToRegExp = (glob: string) =>
+            new RegExp(
+                "^" +
+                    glob
+                        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+                        .replace(/\*/g, ".*")
+                        .replace(/\?/g, ".") +
+                    "$",
+            );
+        const effectOf = (action: string, resource: string) => {
+            const matches = config.permissions.filter(
+                (rule) => rule.action === action && globToRegExp(rule.resource).test(resource),
+            );
+            return matches.length > 0 ? matches[matches.length - 1].effect : undefined;
+        };
+        const expectEffect = (action: string, resource: string, effect: string | undefined) =>
+            expect(effectOf(action, resource), `${action} ${resource}`).toBe(effect);
+
+        /* Secrets : `.env` bloqué à l'édition comme par commande, `.env.example` éditable. */
+        expectEffect("edit", ".env", "deny");
+        expectEffect("edit", "src/.env.local", "deny");
+        expectEffect("edit", ".env.example", "allow");
+        for (const command of [
+            "Set-Content .env foo",
+            "Set-Content -Path .env foo",
+            "Out-File -FilePath .env foo",
+            "Add-Content -Path .env foo",
+            "echo x > .env",
+            "echo x >> .env.local",
+        ]) {
+            expectEffect("shell", command, "deny");
         }
-    });
-    it(".clineignore sort les binaires de l'index", () => {
-        const ignore = read(".clineignore");
-        expect(ignore).toMatch(/public\/assets\//);
-        expect(ignore).toMatch(/node_modules\//);
+
+        /* Contournement des hooks git. */
+        expectEffect("shell", "git commit --no-verify -m x", "deny");
+        expectEffect("shell", "git push --force origin dev", "deny");
+        expectEffect("shell", "git push -f origin dev", "deny");
+
+        /* Migrations et gestes destructifs : accord explicite. */
+        expectEffect("edit", "prisma/migrations/2026/migration.sql", "ask");
+        for (const command of [
+            "npx prisma migrate dev",
+            "npx prisma db push",
+            "npx prisma migrate reset",
+            "git reset --hard HEAD~1",
+            "drop database sigilos",
+            "rm -rf node_modules",
+            "Remove-Item -Path node_modules -Recurse",
+        ]) {
+            expectEffect("shell", command, "ask");
+        }
+
+        /* Ce qui doit passer sans garde : lecture, tests, build, push normal. */
+        for (const command of ["npm run test:run", "git status --short", "git push origin dev", "npm run build"]) {
+            expectEffect("shell", command, undefined);
+        }
+
+        /* Une `allow` fourre-tout neutraliserait tous les deny : on n'en veut qu'une. */
+        expect(config.permissions.filter((rule) => rule.effect === "allow")).toEqual([
+            { action: "edit", resource: "*.env.example", effect: "allow" },
+        ]);
     });
 
     it("la configuration OpenCode branche les skills et les garde-fous", () => {
@@ -187,6 +222,17 @@ describe("harnais agentique", () => {
         };
 
         expect(config.skills).toContain(".agents/skills");
+        expect(config.watcher.ignore).toEqual(
+            expect.arrayContaining([
+                "node_modules/**",
+                ".next/**",
+                "public/assets/**",
+                "public/uploads/**",
+                "private_uploads/**",
+                "docs/audits/**",
+                "src/temp/**",
+            ]),
+        );
         expect(config.permissions).toEqual(
             expect.arrayContaining([
                 { action: "edit", resource: "*.env", effect: "deny" },
@@ -194,7 +240,6 @@ describe("harnais agentique", () => {
                 { action: "shell", resource: "*--no-verify*", effect: "deny" },
             ]),
         );
-        expect(config.watcher.ignore).toContain("public/assets/**");
         expect(config.worktree.directory).toBe("../sigilos-worktrees");
         expect(config.mcp.servers.sentry.url).toContain("mcp.sentry.dev");
     });
@@ -213,11 +258,9 @@ describe("harnais agentique", () => {
         }
 
         const agents = read("AGENTS.md");
-        const rules = fs
-            .readdirSync(path.join(root, ".clinerules"))
-            .filter((file) => file.endsWith(".md"));
+        const rules = fs.readdirSync(path.join(root, "docs/agents/rules")).filter((file) => file.endsWith(".md"));
         for (const rule of rules) {
-            expect(agents, rule).toContain(`.clinerules/${rule}`);
+            expect(agents, rule).toContain(`docs/agents/rules/${rule}`);
         }
     });
 
@@ -240,9 +283,9 @@ describe("harnais agentique", () => {
         expect(fs.existsSync(path.join(root, "scripts/harness-links.mjs"))).toBe(true);
 
         const ignore = read(".gitignore");
-        expect(ignore).toContain("/.cline/skills");
         expect(ignore).toContain("/.claude/skills");
         expect(ignore).not.toContain("/.agents/skills");
+        expect(ignore).not.toContain("/.cline");
         expect(ignore).toContain("/.claude/settings.local.json");
         expect(ignore).toContain("/.claude/commands/");
         expect(ignore).toContain("/.claude/agents/");
@@ -264,65 +307,49 @@ describe("harnais agentique", () => {
            du 23/11/2026, du dossier Cline vers un emplacement neutre. */
         expect(fs.lstatSync(path.join(root, ".agents/skills")).isSymbolicLink()).toBe(false);
         expect(isIgnored(".agents/skills")).toBe(false);
-        expect(isIgnored(".cline/skills")).toBe(true);
         expect(isIgnored(".claude/skills")).toBe(true);
+    });
+
+    it("harness:links remplace un dossier vide, refuse un dossier plein et vérifie sans écrire", () => {
+        const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sigilos-harness-"));
+        const run = (...args: string[]) =>
+            spawnSync(process.execPath, [path.join(root, "scripts/harness-links.mjs"), ...args], {
+                cwd: sandbox,
+                encoding: "utf8",
+                env: { ...process.env, HARNESS_LINKS_ROOT: sandbox },
+            });
+
+        try {
+            const source = path.join(sandbox, ".agents/skills/demo");
+            const link = path.join(sandbox, ".claude/skills");
+            fs.mkdirSync(source, { recursive: true });
+            fs.writeFileSync(path.join(source, "SKILL.md"), "---\nname: demo\n---\n");
+
+            /* Lien absent : `--check` échoue sans rien créer. */
+            expect(run("--check").status).toBe(1);
+            expect(fs.existsSync(link)).toBe(false);
+
+            /* Dossier vide : remplacé par le lien, puis idempotent. */
+            fs.mkdirSync(link, { recursive: true });
+            expect(run().status).toBe(0);
+            expect(fs.lstatSync(link).isSymbolicLink()).toBe(true);
+            expect(run("--check").status).toBe(0);
+            expect(run().status).toBe(0);
+
+            /* Dossier réel non vide : jamais remplacé, et le script le signale. */
+            fs.rmSync(link, { recursive: true, force: true });
+            fs.mkdirSync(link, { recursive: true });
+            fs.writeFileSync(path.join(link, "keep.md"), "x");
+            expect(run().status).toBe(1);
+            expect(fs.existsSync(path.join(link, "keep.md"))).toBe(true);
+        } finally {
+            fs.rmSync(sandbox, { recursive: true, force: true });
+        }
     });
 
     it("le journal archive est présent et ne contient aucun ID Discord", () => {
         const journal = read("docs/agents/journal-sessions-2026.md");
         expect(journal.length).toBeGreaterThan(100_000);
         expect(journal).not.toMatch(/\b\d{15,21}\b/);
-    });
-});
-
-describe("hooks Cline — comportement", () => {
-    const block = (payload: unknown) => expect(runHook("PreToolUse.ps1", payload).cancel).toBe(true);
-    const allow = (payload: unknown) => expect(runHook("PreToolUse.ps1", payload).cancel).toBe(false);
-
-    it("PreToolUse bloque les gestes dangereux et laisse passer le reste", () => {
-        block({ tool_call: { name: "write_to_file", input: { path: ".env" } } });
-        block({ tool_call: { name: "write_to_file", input: { path: ".ENV" } } });
-        block({ tool_call: { name: "write_to_file", input: { path: ".env", content: "voir .env.example" } } });
-        allow({ tool_call: { name: "write_to_file", input: { path: ".env.example" } } });
-        allow({ tool_call: { name: "write_to_file", input: { path: "AGENTS.md", content: "Le fichier .env est interdit." } } });
-        block({ tool_call: { name: "write_to_file", input: { path: "prisma/migrations/2026/migration.sql" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "npx prisma migrate dev" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "npx prisma db push" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "git push --force origin dev" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "git push -f origin dev" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "git reset --hard HEAD~1" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "drop database sigilos" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "rm -rf node_modules" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "Remove-Item -Path node_modules -Recurse" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "git commit --no-verify -m x" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "Set-Content .env foo" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "Set-Content -Path .env foo" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "Out-File -FilePath .env foo" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "Add-Content -Path .env foo" } } });
-        block({ tool_call: { name: "execute_command", input: { command: 'Set-Content .env "# voir .env.example"' } } });
-        allow({ tool_call: { name: "execute_command", input: { command: "Set-Content .env.example foo" } } });
-        block({ tool_call: { name: "execute_command", input: { command: "echo x > .env" } } });
-        allow({ tool_call: { name: "execute_command", input: { command: "echo x > .env.example" } } });
-        block({ tool_call: { name: "write_to_file", input: { path: "Prisma/Migrations/2026/migration.sql" } } });
-        allow({ tool_call: { name: "write_to_file", input: { path: "src/lib/foo.ts" } } });
-        allow({ tool_call: { name: "execute_command", input: { command: "npm run test:run" } } });
-    }, 90_000);
-
-    it("PreToolUse échoue fermé sur un payload illisible", () => {
-        expect(runHookRaw("PreToolUse.ps1", "not-json").cancel).toBe(true);
-    });
-
-    it("TaskStart renvoie le SHA et une étape lisible", () => {
-        const result = runHook("TaskStart.ps1", { taskId: "test" });
-        expect(result.cancel).toBe(false);
-        expect(result.contextModification).toMatch(/Reprise SigilOS — dev [0-9a-f]{7,}/);
-        expect(result.contextModification).not.toContain("introuvable");
-    });
-
-    it("TaskComplete rappelle la DoD et l'état git", () => {
-        const result = runHook("TaskComplete.ps1", {});
-        expect(result.cancel).toBe(false);
-        expect(result.contextModification).toContain("DoD");
-        expect(result.contextModification).toMatch(/arbre propre|fichier\(s\)/);
     });
 });

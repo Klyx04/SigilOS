@@ -62,7 +62,7 @@ src/temp/
 **Documentation produit** : un bouton « Documentation » de module pointe sur un **slug** dont le
 contenu vit en base (`DocPage`, God → Docs). On l'écrit ici : `src/temp/docs/<slug>.html`, on le
 relit dans un navigateur, **on ne le commit jamais** — le mainteneur l'uploade lui-même. Règle
-complète : `.clinerules/04-docs.md`.
+complète : `docs/agents/rules/04-docs.md`.
 
 ---
 
@@ -102,7 +102,7 @@ Get-ChildItem -LiteralPath 'A:\SigilOS\src\temp' -Recurse -File -Filter '*.old' 
 |---|---|---|---|
 | 1 | **`.next/standalone/src/temp/`** | copie du dossier faite par le build `next build` (mode standalone) | **écrasée au prochain build** ⇒ à copier **tout de suite** |
 | 2 | **Historique local VS Code** | `%APPDATA%\Code\User\History` (une entrée par fichier **déjà ouvert/édité** dans l'éditeur) | seuls les fichiers édités dans VS Code y sont |
-| 3 | **Historique des sessions d'agent** | `%USERPROFILE%\.cline\data\sessions\**\*.messages.json` (contenu des `read_files` / `write` passés) | reconstruction partielle, ligne à ligne |
+| 3 | **Historique des sessions Cline (avant le 23/11/2026)** | `%USERPROFILE%\.cline\data\sessions\**\*.messages.json` (contenu des `read_files` / `write` passés) | reconstruction partielle, ligne à ligne |
 
 > 🔒 **Corollaire** : si un document de `src/temp/` devient **important**, on le **promeut dans `docs/`**
 > (exactement comme `docs/PLAN-REFONTE-ONBOARDING.md`) — c'est le seul endroit protégé par git.

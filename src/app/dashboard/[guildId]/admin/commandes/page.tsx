@@ -115,7 +115,7 @@ export default async function AdminCommandesPage({ params }: Props) {
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
                         {/* 📚 Documentation du module : contenu géré en base (God → Docs),
-                            jamais commité dans le dépôt (règle `.clinerules/04-docs.md`). */}
+                            jamais commité dans le dépôt (règle `docs/agents/rules/04-docs.md`). */}
                         <ModuleHelpActions
                             docSlug="commandes-discord"
                             docTitle="Faire fonctionner les commandes SigilOS sur Discord"

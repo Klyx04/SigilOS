@@ -239,7 +239,7 @@ jobs:
 
       - name: 🔗 Liens du harnais (clone neuf)
         # La source des skills est versionnée dans .agents/skills ; ce contrôle prouve
-        # qu'un checkout nu sait recréer les liens des hôtes (Cline, Claude Code), puis
+        # qu'un checkout nu sait recréer le lien de l'hôte (Claude Code), puis
         # qu'un second passage est idempotent (--check ne modifie rien).
         run: |
           npm run harness:links

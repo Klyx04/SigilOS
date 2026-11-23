@@ -6,7 +6,7 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 22/11/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 23/11/2026 · SHA courant injecté par `/reprise`.
 
 ## 0. Reprise immédiate
 
@@ -137,7 +137,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | 40 | `admin-members-doc` | Doc vivante `admin-members` à mettre à jour | `docs-catalog.ts` figé | éditer dans `/god/docs` | — |
 | 41 | `captures-a3` | 3 captures 1440 / 1024 / 390 manquantes | session navigateur connectée | les prendre | — |
 | 42 | `active-context-rotation` | Purge effective des blocs ou abandon de la règle des 6 ? | 6 blocs | trancher | `docs/agents/activeContext.md` |
-| 43 | `harness-maintenance` | Harnais H0-H7 + **adaptateur OpenCode** + **lots 2-3** + **PR 1 sortie Cline** (source `.agents/skills`, liens `.cline`/`.claude`, CI) | 23/11/2026 | PR 2 : règles → `docs/agents/rules`, hooks retirés, `.clineignore` supprimé, Cline désinstallé | `docs/agents/harnais.md` §12-14 |
+| 43 | ~~`harness-maintenance`~~ | **Résolu le 23/11/2026** : harnais H0-H7, adaptateur OpenCode, source unique `.agents/skills`, règles dans `docs/agents/rules`, garde-fous `opencode.json` testés, sortie de Cline | — | — | `docs/agents/harnais.md` §12-14 |
 | 44 | ~~`god-system-polish`~~ | **Résolu le 13/11/2026** : cAdvisor supprimé (SEC-04), carte « Conteneurs » retirée ; les autres métriques God restent | — | — | — | — |
 | 45 | `grafana-alerts-audit` | Règles d'alerte Grafana éventuelles dans `grafana_data` : plus exécutées | volume conservé, non audité | lister et recréer dans Sentry/webhook si nécessaire | `docs/MAINTENANCE.md` |
 | 46 | `deploy-sha-normalize` | `deploy-cd.sh` refuse un SHA 8/40 alors que la CI publie 7 caractères | `5b31ad0f` refusé, `5b31ad0` accepté | normaliser le SHA à 7 dans `deploy-cd.sh` et `rollback.sh` | `docs/agents/deploy-vps.md` |
@@ -289,7 +289,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 
 
 
-| `harnais-discord` | Harnais — règle scopée `.clinerules/06-discord.md`, skill `discord-api`, §0 de `docs/agents/discord-module.md` : « une donnée absente n'est pas une impossibilité » | 24/10/2026 |
+| `harnais-discord` | Harnais — règle scopée `docs/agents/rules/06-discord.md`, skill `discord-api`, §0 de `docs/agents/discord-module.md` : « une donnée absente n'est pas une impossibilité » | 24/10/2026 |
 | `PROD-MIGRATIONS` | Prod — ordre des migrations réparé (`add_component_stats` altérait une table créée un mois plus tard) : **32 migrations** appliquées, 6 conteneurs `Healthy` en Node 24.22.1, `api/health` 200 | 22/10/2026 |
 
 

@@ -29,7 +29,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `prisma/` | Schéma BDD + 279 migrations + données de seed des modules Dofus | ✅ |
 | `public/` | Tout ce qui est servi en statique (assets, images, game-data, uploads) | ✅ |
 | `scripts/` | Outils de dev/ops : seeds, siphons de données Dofus, déploiement, worldmap | ✅ trié (90 fichiers — lot L5 du 19/09) |
-| `tests/` | Tests vitest (424 fichiers, 4 604 tests) | ✅ |
+| `tests/` | Tests vitest (809 fichiers, 8 345 tests) | ✅ |
 | `docs/` | **Toute la documentation du projet** + `docs/audits/` (non suivi) | ✅ arbo unique depuis le 20/09 (§2bis) |
 | `services/` | Le **bot Discord** (process Node séparé, 117 Mo avec son `node_modules`) | ✅ |
 | `cloudflare-workers/` | 3 Workers Cloudflare (proxies Dofusbook / Ladder) | ✅ |
@@ -100,6 +100,7 @@ docs/
 ├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`) ;
 │   │                              l'amorce lue automatiquement est `AGENTS.md` (RACINE)
 │   ├── harnais.md · journal-sessions-2026.md · activeContext.md · git-push.md
+│   ├── rules/                     règles de zone (01-server … 07-vps), routées par AGENTS.md
 │   ├── prisma-schema-change.md · add-cron-task.md · discord-module.md · dev-local.md
 │   ├── deploy-vps.md · disaster-recovery.md · dofus-quest-compile.md · siphon-worldmap.md
 │   └── sync-game-assets.md · zone-volatile.md · archive/ (anciens ordres)
@@ -198,7 +199,7 @@ docs/
 | `.gemini/antigravity` | Ancien contexte d'assistant — **n'existe plus** | ❌ supprimé |
 | `docs/` (55 suivis) | **Toute la documentation du projet** : 5 docs de référence + `agents/`, `ops/`, `plans/`, `reference/`, `arbo/` | ✅ arbo unique (cf. §2bis) |
 | `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`AGENTS.md` §3 l'interdit) |
-| `tests/` (424) | `unit/` + `security/` + `infrastructure.test.ts` : 4 604 tests | ✅ |
+| `tests/` (809) | `unit/` + `security/` + `infrastructure.test.ts` : 8 345 tests | ✅ |
 
 ## 8. Récap : ce qui ne sert plus (par ordre de certitude)
 

@@ -30,7 +30,7 @@ const docsLocales = (): string[] =>
  * Règle (24/10/2026) : le contenu d'une doc produit vit en base (`DocPage`, édité via
  * God → Docs). On l'écrit **en local** dans `src/temp/docs/<slug>.html` — zone volatile
  * **jamais commitée** — et le mainteneur l'uploade lui-même. Le dépôt ne porte que le
- * **slug** et le bouton. Références : `.clinerules/04-docs.md`, `docs/agents/zone-volatile.md`.
+ * **slug** et le bouton. Références : `docs/agents/rules/04-docs.md`, `docs/agents/zone-volatile.md`.
  */
 describe("documentation produit", () => {
     it("le module Commandes expose un bouton Documentation sur le slug `commandes-discord`", () => {
@@ -54,7 +54,7 @@ describe("documentation produit", () => {
     });
 
     it("la règle « doc produit locale, jamais commitée » est écrite dans le harnais", () => {
-        const rule = readFileSync(".clinerules/04-docs.md", "utf8");
+        const rule = readFileSync("docs/agents/rules/04-docs.md", "utf8");
         expect(rule).toContain("src/temp/docs/");
         expect(rule).toMatch(/jamais\s+commitée/);
         const zone = readFileSync("docs/agents/zone-volatile.md", "utf8");
@@ -62,7 +62,7 @@ describe("documentation produit", () => {
     });
 
     it("la règle interdit l'exploitation dans une doc produit (espace guilde uniquement)", () => {
-        const rule = readFileSync(".clinerules/04-docs.md", "utf8");
+        const rule = readFileSync("docs/agents/rules/04-docs.md", "utf8");
         expect(rule).toContain("espace guilde");
         expect(rule).toContain("src/app/god*");
         expect(rule).toContain("demandez l'activation au support");

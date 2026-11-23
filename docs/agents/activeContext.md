@@ -14,6 +14,7 @@
 > **Preuves** : **809 fichiers / 8 346 tests ✅** · `harness-config` 16/16 · `harness:links` 1/1 + `--check` · export sans lien → recréé, 12 skills · `tsc` 0 · `lint` 0 erreur · CI #1510 verte · relecture `reviewer` : 1 bloquant + 3 importants corrigés.
 > **Reste** : Cline désinstallé et `~/.cline` supprimé (1,27 Go libérés) · permissions rechargées **sans redémarrage** (config à chaud ; vérifié : écriture `.env` refusée).
 > **Suite (même session) — PR #1512** : `.github/pull_request_template.md` (6 sections) · règle « réussi si » dans `git-push.md` §8 et `AGENTS.md` §7.6 · garde `harness-config` 17/17.
+> **Suite 2 (même session) — PR #1513** : mutation testing Stryker **9.6** (pilote `rush-overlay-layout`, **18/18 mutants tués**, 23 s, hors CI) · `reviewer` borné (`node_modules` interdit, ~40 appels) après une revue à 6 min / 145 k tokens.
 > **Rotation** : bloc « suite 56 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 23/11/2026 (suite 61) — **Harnais : plan de sortie Cline persisté** — branche `docs/harnais-sortie-cline-2026-11-23`

@@ -86,7 +86,8 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(src).toContain("closeRef");
         expect(src).toContain("trapTab");
         expect(src).toContain("close?.ownerDocument");
-        expect(src).toContain("event.currentTarget.ownerDocument.activeElement");
+        expect(src).toContain("event.currentTarget.ownerDocument");
+        expect(src).toContain("doc.activeElement === first");
         expect(src).toContain('doc?.addEventListener("keydown", handleKeyDown, true)');
     });
 

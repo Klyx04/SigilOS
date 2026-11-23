@@ -64,6 +64,7 @@ docker compose up -d
 | `npm run harness:links` | Recrée le lien local `.claude/skills` vers `.agents/skills` (`--check` pour vérifier) |
 | `npm run test:run` | Suite Vitest complète (8 345 tests) |
 | `npm run test:coverage` | Idem avec couverture |
+| `npm run test:mutate` | Mutation testing (Stryker) sur un fichier — voir `docs/agents/mutation-testing.md` |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Vérification TypeScript (aussi jouée par le hook pre-commit) |
 | `npm run seed` / `seed:game-data` | Seeds (défauts / données de jeu) |

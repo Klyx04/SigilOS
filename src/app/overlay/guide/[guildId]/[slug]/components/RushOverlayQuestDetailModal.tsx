@@ -6,12 +6,13 @@ import { X, MapPin, ExternalLink } from "lucide-react";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
+import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import type { RushTagViewer } from "@/components/dofus-quests/rush/RushTagBadge";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type DungeonInfo, type TagClassification } from "./overlay-utils";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -61,6 +62,8 @@ interface RushOverlayQuestDetailModalProps {
   onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
   /** Surface : fiche monstre interne pour un membre, lien public pour un visiteur. */
   viewer?: RushTagViewer;
+  /** Quêtes du guide (id → nom + état) pour la fiche d'un succès. */
+  guideQuests?: RushGuideQuestRef[];
 }
 
 /**
@@ -96,8 +99,10 @@ export function RushOverlayQuestDetailModal({
   onSetDungeon,
   onOpenAchievements,
   viewer = "preview",
+  guideQuests = [],
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
+  const successes = useMemo(() => getSequenceSuccesses(seq), [seq]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
   const badgesTags = useMemo<TagClassification>(() => {
     const hide = (t: { type: string }) => ["donjon", "ocre_dungeon", "dofus_link"].includes(t.type);
@@ -105,7 +110,9 @@ export function RushOverlayQuestDetailModal({
       nature: (tags.nature || []).filter((t) => !hide(t as any)),
       condition: (tags.condition || []).filter((t) => !hide(t as any)),
       tool: (tags.tool || []).filter((t) => !hide(t as any)),
-      success: (tags.success || []).filter((t) => !hide(t as any)),
+      // Le succès est rendu par `SuccessChip` (icône trophée + fiche des quêtes),
+      // jamais comme une puce de nature : plus de doublon nom + badge.
+      success: [],
     };
   }, [tags]);
   const dungeons = useMemo(() => getDungeons(seq), [seq]);
@@ -322,7 +329,22 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {(badgesTags.nature.length > 0 || badgesTags.condition.length > 0 || badgesTags.tool.length > 0 || badgesTags.success.length > 0) && (
+            {successes.length > 0 && (
+              <section className="py-3">
+                <p className={sectionLabel}>Succès lié</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {successes.map((success) => (
+                    <SuccessChip
+                      key={success.id ?? success.name}
+                      successes={[success]}
+                      quests={guideQuests}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {(badgesTags.nature.length > 0 || badgesTags.condition.length > 0 || badgesTags.tool.length > 0) && (
               <section className="py-3">
                <RushOverlayTagSection tags={badgesTags} viewer={viewer} />
               </section>

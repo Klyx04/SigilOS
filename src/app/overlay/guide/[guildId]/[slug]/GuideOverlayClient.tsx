@@ -1017,6 +1017,7 @@ export default function GuideOverlayClient({
               toast.dismiss(id);
               jumpToQuestRef.current(origin);
             }}
+            onDismiss={() => toast.dismiss(id)}
           />
         ),
         { duration: 30000 }
@@ -2029,6 +2030,7 @@ export default function GuideOverlayClient({
               : undefined
           }
           viewer={isGuest ? "visitor" : "member"}
+          guideQuests={guideQuests}
           onClose={() => setDetailSeq(null)}
         />
       )}

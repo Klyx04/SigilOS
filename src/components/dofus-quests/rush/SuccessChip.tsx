@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
 import { useDaTheme } from "@/components/da/da-theme";
@@ -101,6 +101,45 @@ function SuccessSheet({
   const [ids, setIds] = useState<number[] | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const close = closeRef.current;
+    const doc = close?.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+    const previous = doc?.activeElement as HTMLElement | null;
+    close?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      event.preventDefault();
+      onClose();
+    };
+    doc?.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      doc?.removeEventListener("keydown", handleKeyDown, true);
+      previous?.focus?.();
+    };
+  }, [onClose]);
+
+  const trapTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const doc = event.currentTarget.ownerDocument;
+    const focusables = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.offsetParent !== null);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && doc.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && doc.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -125,10 +164,11 @@ function SuccessSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-3"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-3"
       role="dialog"
       aria-modal="true"
       aria-label={`Succès ${success.name}`}
+      onKeyDown={trapTab}
     >
       <button type="button" aria-label="Fermer" onClick={onClose} className="absolute inset-0 bg-black/60" />
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-elevated">
@@ -147,6 +187,7 @@ function SuccessSheet({
             </span>
           )}
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Fermer la fiche du succès"
@@ -232,6 +273,7 @@ export function SuccessChip({
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const closeSheet = useCallback(() => setOpen(null), []);
   const daScope = daScopeProps(useDaTheme());
 
   if (successes.length === 0) return null;
@@ -276,7 +318,7 @@ export function SuccessChip({
       {open && portalRoot
         ? createPortal(
             <div className="da-portal" {...daScope}>
-              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={() => setOpen(null)} />
+              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={closeSheet} />
             </div>,
             portalRoot
           )

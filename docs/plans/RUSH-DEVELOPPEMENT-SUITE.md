@@ -25,21 +25,21 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 | # | Lot | Définition / mesure | Ancrages | Taille |
 |---|---|---|---|---|
 | 1 | **O13 carte des quêtes — monde + accès** | **Décision du 22/11/2026 : pas de carte dans la PiP, pas de pion.** On garde le menu existant (dashboard + guide public) et on répare : ① `/api/rush/map-at` **public** (un visiteur non connecté recevait **401**) ; ② `worldId` du `pos_tags` transmis au menu **et** au zaap — **112 / 527** positions tombent sur une case présente dans plusieurs mondes ; ③ carte `mapId` de God **prioritaire** (la branche était dans un commentaire, `mapParam` jamais lu). Règle d'URL pure `buildRushMapAtUrl`. **Positions** : `(0,0)` autorisé dans un sous-monde (monde 24) + `fix-rush-pos-worlds` (514 corrections proposées : 149 monde+carte, 365 carte seule ; 4 appliquées en local). | `src/lib/rush-map-at.ts`, `RushCoordinateChip`, `RushPositionMenu`, `map-at/route.ts`, `src/proxy.ts` | ✅ **code + tests** (branche `fix/rush-carte-monde-public-2026-11-22`, PR à ouvrir) |
-| 2 | **Compteur « 448 »** | Non reproduit : base locale = **534 séquences / 1 bandeau** (la fiche mesurait 536). Le total global n'est affiché **que dans l'en-tête de la PiP** (`RushOverlayHeader` : « X / Y quêtes ») ; le guide plein écran compte **par bloc**. Mécanisme : `contentSeqs` exclut `info_sequence` + `sequence_banner` ; si la base live a **88 bandeaux**, 448 est correct. À reproduire à l'écran avant de corriger. | en-tête de la PiP | S |
+| 2 | ~~**Compteur « 448 »**~~ ✅ **clos par mesure le 23/11/2026** | Les deux surfaces affichent **515** quêtes cochables (local 29/515 · bêta 26/515), pourcentages cohérents (6 % / 5 %) et compteurs de bloc alignés (INCARNAM 0/8, ASTRUB 12/12). Le total est le nombre de quêtes **cochables** : blocs info, séparateurs, bandeaux et combats ne comptent pas. Le « 448 » était une ancienne mesure. **Aucun code à changer.** | — | — |
 
 ### B. Code — mesure ou décision d'abord
 
 | # | Lot | Pourquoi ce n'est pas codé | Décision attendue |
 |---|---|---|---|
 | 8 | **T-6 / G6** (contextes → Zustand) | **21** `createContext` (pas 17) ; `SequenceRow` en lit **18** ; `CompletedStepsCtx` est **fourni mais jamais lu** (code mort à retirer). Le plan impose un **profiler navigateur avant/après** | session dédiée avec profiler |
-| 9 | **`useOptimistic`** | `src/hooks/use-optimistic-toggle.ts` **n'est importé nulle part** (code mort) ; l'overlay fait déjà optimiste + rollback + cascade | supprimer le hook **ou** l'utiliser |
-| 10 | **O9 carte « Maintenant »** | Définition d'une ligne ; doublon probable avec « Reprendre » + objectif courant (calculé, non affiché) | garder / abandonner |
-| 11 | **O11 jauges / anneaux** | **Une seule** jauge dans l'en-tête depuis le 12/11 (anti-doublon assumé) | garder / abandonner |
-| 12 | **O5 « Aller à la suite »** | « Reprendre » fait déjà le saut ; le libellé exact est absent du code | garder / abandonner |
-| 13 | **G5 ContextualHelp** | Absent de l'overlay et du module Rush (présent dans le dashboard) | périmètre ? |
+| 9 | ~~**`useOptimistic`**~~ ✅ **supprimé le 23/11/2026** | `src/hooks/use-optimistic-toggle.ts` n'était importé nulle part ; l'overlay fait déjà optimiste + rollback + cascade. `CompletedStepsCtx` (fourni mais jamais lu) retiré de `RushTimelineClient`. | — |
+| 10 | ~~**O9 carte « Maintenant »**~~ ✅ **abandonnée le 23/11/2026** | La carte n'existe pas dans l'overlay ; doublon de « Reprendre » + objectif courant retiré. Rayée du plan. | — |
+| 11 | ~~**O11 jauges / anneaux**~~ ✅ **abandonnés le 23/11/2026** | Une seule jauge dans l'en-tête (anti-doublon assumé). | — |
+| 12 | ~~**O5 « Aller à la suite »**~~ ✅ **abandonné le 23/11/2026** | « Reprendre » fait déjà le saut ; libellé absent du code. | — |
+| 13 | **Bulles d'aide du guide navigateur** | Les bulles sortent de l'écran (capture 23/11) ; l'overlay a déjà son bouton d'aide. | corriger le débordement + en ajouter (guide navigateur uniquement) |
 | 14 | **E2 `achievements[]`** | Migration Prisma | accord explicite |
-| 16 | **Accents Dofus** | O14 contrasté ; l'application générale « écran par écran » reste à poser | périmètre ? |
-| 17 | **Overlay étroit (3ᵉ palier)** | **Précédence corrigée le 22/11/2026** (`resolveOverlayLayout` : étroit prioritaire, seuil `wide` aligné sur 820 px) ; **mode compact 22/11** (filtre select, recherche courte, ressources en icône, header secondaire dans `⋯`, cartes denses) ; il reste le 3ᵉ palier : au-delà des bandes latérales du client (13–17″), la quête courante ne grossit plus | **largeur cible de la PiP** + quels blocs garder visibles (3ᵉ palier uniquement) |
+| 16 | ~~**Accents Dofus**~~ ✅ **cadré le 23/11/2026** | Couleur réservée à l'identité du bloc et aux états actifs ; jamais le texte. | — |
+| 17 | ~~**Overlay étroit (3ᵉ palier)**~~ ✅ **sans objet le 23/11/2026** | Précédence corrigée et mode compact livrés le 22/11 ; l'overlay large est validé tel quel (capture 1440). Rouvrir seulement sur une gêne mesurée. | — |
 
 ### C. Déjà livré — à acter (ne plus compter comme reste)
 
@@ -69,6 +69,15 @@ Bêta à redéployer (`dev` `dbbe5ae3` ≠ bêta `8d7528ff`) · migrations `2027
 - ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
 - piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
 - **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.
+
+### G. Succès & quêtes — audit des sources (23/11/2026)
+
+> **Mesure** : Tougli (`GET /api/guide/details-batch?slugs=rsa-rush-sylvestre-accelere`, 1,18 Mo) expose **530 quêtes**, exactement les **530 `questDbIds`** du guide (écart **0**). L'oubli est donc **dans Tougli**, pas dans l'import. Dofusyelle (`window.RUSH_DATA`, 58 étapes) apporte **8 quêtes absentes** du guide :
+> Quête de classe · L'histoire en mouvement · Mieux vaut ne pas se fier à la première impression · Full Contact · La destinée · Dépôt de ravitaillement · L'arme fatale · Qui nous protège des protecteurs.
+>
+> **Succès** : les **72 succès** référencés par le guide sont tous résolus dans `public/game-data/achievements.json` (2 777 succès, `questIds` fournis par le siphon client). **114 quêtes** liées à ces succès manquent dans le guide ; la fiche d'un succès ne liste que les quêtes présentes → **0/0** et message « les N quêtes ne sont pas dans le guide » alors que **3/4 existent** en local. La bêta est en plus en retard (3/4 en local, 0/0 sur la bêta).
+>
+> **Lots** : ① `SuccessChip` affiche **toutes** les quêtes d'un succès (nom, coché/non coché, badge « hors guide ») ; ② ajouter les **8 quêtes Dofusyelle** avec leurs prérequis (ex. `1989 Restauration rapide` → `1988 L'histoire en mouvement`, confirmé par DofusDB) ; ③ garde-fou : contrôle qui liste les succès dont les quêtes manquent ; ④ réimport bêta après correction. **Aucune migration.** Sources : `docs/reference/TOUGLI-API.md` · `https://dofusyelle.com/rush-sylvestre.html`.
 
 
 ## 0. Ce qui fait foi depuis le 21/10/2026

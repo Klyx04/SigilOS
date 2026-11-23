@@ -1163,7 +1163,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         {/* Expanded content */}
         <RushCollapse open={expanded}>
           <div className="p-4 space-y-2">
-                <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
                   ) : (<>
@@ -1218,7 +1217,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                     ))}
                     </DaRail>
                   </>)}
-                </CompletedStepsCtx.Provider>
           </div>
         </RushCollapse>
       </div>
@@ -1347,7 +1345,6 @@ const AllMilestonesCtx=React.createContext<Milestone[]>([]);
  * calcul par page (`buildAlignmentSeries`) : les lignes ne font que lire la table.
  */
 const AlignmentSeriesCtx=React.createContext<RushAlignmentSeriesMap>(new Map());
-const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
 /**
  * Coche des donjons **par occurrence**, disponible dans toute la timeline (une seule

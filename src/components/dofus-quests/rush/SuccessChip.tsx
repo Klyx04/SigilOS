@@ -3,10 +3,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
-import { successIconUrl } from "@/lib/achievement-icon";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
+import { buildSuccessQuestRows } from "@/lib/rush-success-quests";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +22,36 @@ import { cn } from "@/lib/utils";
  */
 
 const ACHIEVEMENTS_URL = "/game-data/achievements.json";
+const QUEST_NAMES_URL = "/game-data/quest-names.json";
 
-type AchievementQuestIndex = { byId: Map<string, number[]>; byName: Map<string, number[]> };
+type QuestNames = Record<number, string>;
+let questNamesPromise: Promise<QuestNames> | null = null;
+
+function loadQuestNames(): Promise<QuestNames> {
+  if (!questNamesPromise) {
+    questNamesPromise = fetch(QUEST_NAMES_URL)
+      .then(async (response) => {
+        if (!response.ok) return {};
+        const data = (await response.json()) as { quests?: Record<string, string> };
+        const out: QuestNames = {};
+        for (const [key, value] of Object.entries(data.quests ?? {})) {
+          const id = Number(key);
+          if (Number.isInteger(id) && id > 0 && typeof value === "string" && value.trim()) {
+            out[id] = value;
+          }
+        }
+        return out;
+      })
+      .catch(() => ({}));
+  }
+  return questNamesPromise;
+}
+
+type AchievementQuestIndex = {
+  byId: Map<string, number[]>;
+  byName: Map<string, number[]>;
+  ok: boolean;
+};
 let achievementsPromise: Promise<AchievementQuestIndex> | null = null;
 
 /** Cle de repli par NOM (casse, accents, ponctuation) : l id du tag peut etre un id Dofus. */
@@ -39,8 +67,10 @@ function normalizeAchievementName(value: string | null | undefined): string {
 function loadAchievementQuests(): Promise<AchievementQuestIndex> {
   if (!achievementsPromise) {
     achievementsPromise = fetch(ACHIEVEMENTS_URL)
-      .then((response) => (response.ok ? response.json() : { achievements: [] }))
-      .then((data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> }) => {
+      .then(async (response) => {
+        const ok = response.ok;
+        const data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> } =
+          ok ? await response.json() : { achievements: [] };
         const byId = new Map<string, number[]>();
         const byName = new Map<string, number[]>();
         for (const row of data.achievements ?? []) {
@@ -50,9 +80,9 @@ function loadAchievementQuests(): Promise<AchievementQuestIndex> {
           const name = normalizeAchievementName(row.name);
           if (name) byName.set(name, questIds);
         }
-        return { byId, byName };
+        return { byId, byName, ok };
       })
-      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>() }));
+      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>(), ok: false }));
   }
   return achievementsPromise;
 }
@@ -60,29 +90,36 @@ function loadAchievementQuests(): Promise<AchievementQuestIndex> {
 function SuccessSheet({
   success,
   quests,
+  iconSrc,
   onClose,
 }: {
   success: RushSuccessRef;
   quests: RushGuideQuestRef[];
+  iconSrc: string;
   onClose: () => void;
 }) {
   const [ids, setIds] = useState<number[] | null>(null);
+  const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
+  const [names, setNames] = useState<QuestNames>({});
 
   useEffect(() => {
     let alive = true;
-    loadAchievementQuests().then((map) => {
-      if (alive) setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
+    Promise.all([loadAchievementQuests(), loadQuestNames()]).then(([map, questNames]) => {
+      if (alive) {
+        setCatalogOk(map.ok);
+        setNames(questNames);
+        setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
+      }
     });
     return () => {
       alive = false;
     };
   }, [success.id]);
 
-  const rows = useMemo(() => {
-    if (!ids) return [];
-    const byId = new Map(quests.map((quest) => [quest.id, quest]));
-    return ids.map((id) => byId.get(id)).filter((quest): quest is RushGuideQuestRef => !!quest);
-  }, [ids, quests]);
+  const rows = useMemo(
+    () => buildSuccessQuestRows(ids, quests, names),
+    [ids, quests, names]
+  );
 
   const done = rows.filter((row) => row.done).length;
 
@@ -97,14 +134,14 @@ function SuccessSheet({
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-elevated">
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={successIconUrl(success.iconId)} alt="" className="h-5 w-5 shrink-0 object-contain" />
+          <img src={iconSrc} alt="" className="h-5 w-5 shrink-0 object-contain" />
           <div className="min-w-0 flex-1">
             <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Succès
             </p>
             <h3 className="m-0 truncate text-sm font-semibold text-foreground">{success.name}</h3>
           </div>
-          {ids && (
+          {rows.length > 0 && (
             <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
               {done} / {rows.length}
             </span>
@@ -124,7 +161,9 @@ function SuccessSheet({
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
           ) : rows.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
-              {ids.length > 0 ? `Les ${ids.length} quêtes de ce succès ne sont pas dans le guide.` : "Aucune quête de ce succès n est dans le guide."}
+              {catalogOk === false
+                ? "Catalogue des succès indisponible."
+                : "Aucune quête connue pour ce succès."}
             </p>
           ) : (
             <ul className="space-y-1">
@@ -133,6 +172,7 @@ function SuccessSheet({
                   key={row.id}
                   className={cn(
                     "flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]",
+                    row.inGuide ? "" : "border-dashed",
                     row.done ? "text-muted-foreground" : "text-foreground"
                   )}
                 >
@@ -156,7 +196,15 @@ function SuccessSheet({
                     {row.done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                  <span className="sr-only">{row.done ? "Validée" : "À faire"}</span>
+                  {!row.inGuide && (
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Hors guide
+                    </span>
+                  )}
+                  <span className="sr-only">{row.done ? "Validée" : row.inGuide ? "À faire" : "Hors guide"}</span>
                 </li>
               ))}
             </ul>
@@ -179,7 +227,7 @@ export function SuccessChip({
   className?: string;
   /** Dashboard : icône seule, le nom complet reste en infobulle. */
   compact?: boolean;
-  /** Icône normalisée de la pastille (la fiche garde l'icône du succès). */
+  /** Icône de succès partagée par la pastille et la fiche (trophée). */
   iconSrc?: string;
 }) {
   const [open, setOpen] = useState<RushSuccessRef | null>(null);
@@ -228,7 +276,7 @@ export function SuccessChip({
       {open && portalRoot
         ? createPortal(
             <div className="da-portal" {...daScope}>
-              <SuccessSheet success={open} quests={quests} onClose={() => setOpen(null)} />
+              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={() => setOpen(null)} />
             </div>,
             portalRoot
           )

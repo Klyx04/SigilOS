@@ -22,6 +22,30 @@ import { cn } from "@/lib/utils";
  */
 
 const ACHIEVEMENTS_URL = "/game-data/achievements.json";
+const QUEST_NAMES_URL = "/game-data/quest-names.json";
+
+type QuestNames = Record<number, string>;
+let questNamesPromise: Promise<QuestNames> | null = null;
+
+function loadQuestNames(): Promise<QuestNames> {
+  if (!questNamesPromise) {
+    questNamesPromise = fetch(QUEST_NAMES_URL)
+      .then(async (response) => {
+        if (!response.ok) return {};
+        const data = (await response.json()) as { quests?: Record<string, string> };
+        const out: QuestNames = {};
+        for (const [key, value] of Object.entries(data.quests ?? {})) {
+          const id = Number(key);
+          if (Number.isInteger(id) && id > 0 && typeof value === "string" && value.trim()) {
+            out[id] = value;
+          }
+        }
+        return out;
+      })
+      .catch(() => ({}));
+  }
+  return questNamesPromise;
+}
 
 type AchievementQuestIndex = {
   byId: Map<string, number[]>;
@@ -76,12 +100,14 @@ function SuccessSheet({
 }) {
   const [ids, setIds] = useState<number[] | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
+  const [names, setNames] = useState<QuestNames>({});
 
   useEffect(() => {
     let alive = true;
-    loadAchievementQuests().then((map) => {
+    Promise.all([loadAchievementQuests(), loadQuestNames()]).then(([map, questNames]) => {
       if (alive) {
         setCatalogOk(map.ok);
+        setNames(questNames);
         setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
       }
     });
@@ -91,8 +117,8 @@ function SuccessSheet({
   }, [success.id]);
 
   const rows = useMemo(
-    () => buildSuccessQuestRows(ids, quests),
-    [ids, quests]
+    () => buildSuccessQuestRows(ids, quests, names),
+    [ids, quests, names]
   );
 
   const done = rows.filter((row) => row.done).length;

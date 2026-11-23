@@ -76,6 +76,32 @@ describe("buildSuccessQuestRows", () => {
     ]);
   });
 
+  it("ne garde que la quête de classe du guide, pas les 18 autres variantes", () => {
+    const classIds = [1963, 1964, 1965, 1966, 1967, 1968, 1969, 1970, 1971, 1972, 1973, 1974, 704, 716, 938, 1615, 1677, 1841, 2470];
+    const rows = buildSuccessQuestRows(classIds, [
+      { id: 704, name: "Braquage à la Roublard", done: true },
+    ]);
+    expect(rows).toEqual([
+      { id: 704, name: "Braquage à la Roublard", done: true, inGuide: true },
+    ]);
+  });
+
+  it("replie les 19 variantes en une seule « Quête de classe » sans classe connue", () => {
+    const classIds = [1963, 1964, 704, 716, 938, 1615, 1677, 1841, 2470];
+    const rows = buildSuccessQuestRows(classIds, []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: "Quête de classe", inGuide: false, done: false });
+  });
+
+  it("replie aussi quand le guide porte plusieurs classes (route non filtrée)", () => {
+    const rows = buildSuccessQuestRows([1963, 704], [
+      { id: 1963, name: "Tournée d'inspection", done: false },
+      { id: 704, name: "Braquage à la Roublard", done: false },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("Quête de classe");
+  });
+
   it("ne rend rien sans ids", () => {
     expect(buildSuccessQuestRows([], GUIDE)).toEqual([]);
     expect(buildSuccessQuestRows(null, GUIDE)).toEqual([]);
@@ -88,6 +114,7 @@ describe("buildSuccessQuestRows", () => {
     expect(source).toContain("Hors guide");
     expect(source).toContain("rows.length > 0");
     expect(source).toContain("Catalogue des succès indisponible");
+    expect(source).toContain("QUEST_NAMES_URL");
     expect(source).not.toContain("successIconUrl");
   });
 });

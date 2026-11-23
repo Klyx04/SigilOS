@@ -1,4 +1,5 @@
 import type { RushGuideQuestRef } from "./rush-guide-utils";
+import { RUSH_CLASS_QUESTS } from "./rush-class-quests";
 
 /**
  * Une ligne de la fiche d'un succès : la quête est toujours listée, même quand
@@ -48,12 +49,34 @@ export function buildSuccessQuestRows(
     return names[id];
   };
 
+  const guideClassIds = guideQuests
+    .filter((quest) => RUSH_CLASS_QUESTS[quest.id])
+    .map((quest) => quest.id);
+  const guideClassValues = new Set(guideClassIds.map((id) => RUSH_CLASS_QUESTS[id]));
+  const singleClassId = guideClassValues.size === 1 ? guideClassIds[0] : null;
+  let genericClassEmitted = false;
+
   const seen = new Set<number>();
   const rows: RushSuccessQuestRow[] = [];
   for (const raw of questIds) {
     if (!Number.isInteger(raw) || raw <= 0) continue;
     if (seen.has(raw)) continue;
     seen.add(raw);
+    if (RUSH_CLASS_QUESTS[raw]) {
+      if (singleClassId) {
+        if (raw !== singleClassId) continue;
+      } else {
+        if (genericClassEmitted) continue;
+        genericClassEmitted = true;
+        rows.push({
+          id: raw,
+          name: "Quête de classe",
+          done: false,
+          inGuide: false,
+        });
+        continue;
+      }
+    }
     const ref = byId.get(raw);
     rows.push({
       id: raw,

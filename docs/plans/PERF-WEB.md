@@ -124,8 +124,8 @@ Même protocole, `Accept-Encoding: gzip`, après déploiement de la PR #1476.
 |---|---|---|
 | **P0** (ce lot) | Caddy `encode zstd gzip` + Next `compress: false` ; `cache()` sur `getPlatformConfig` et `getUserGuilds` ; retrait de `donationsEnabled` mort ; squelette de chargement ; verrou de config | livré (PR #1476) |
 | **P1** | **P1-1** spans serveur (livrée, #1479/#1480) ; **P1-2** images (livrée, #1482) ; **P1-3** cache public guide/bestiaire avec tags ; **P1-4** cache cross-request dashboard **si la mesure le justifie** (`getUserContext`/`getUserGuilds`) ; **B-1/B-2** dashboard : id + calendrier en une lecture (livrée, #1483/#1484) ; **B-3** profil allégé + TTL stats 3 min + `proxy-image` `fs.promises` (livrée, ce lot) | en cours |
-| **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | à cadrer |
-| **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | à décider |
+| **P2** | Public statique/PPR : proxy sans nonce public, layout public/privé, page sans `auth`/`headers`, hash pour thème + JSON-LD, session côté client ; puis ISR | **cadré (§6)**, à exécuter |
+| **P3** | CDN/WAF (Cloudflare ou EU), cache HTML anonyme, DPA/RGPD, RUM/k6 | **cadré (§6.3)**, décision CDN à prendre |
 
 ### 3.1 P1-1 — spans serveur du dashboard (20/11/2026)
 
@@ -283,4 +283,93 @@ npx autocannon -c 50 -d 10 -H "Accept-Encoding: gzip" \
 - Aucun cache partagé de données utilisateur.
 - Aucun CDN en P0.
 
+## 6. P2/P3 ÔÇö plan d'ex├®cution (public cacheable + CDN)
 
+> **But** : servir les pages **publiques anonymes** depuis un HTML pr├®par├® (ISR/PPR), puis depuis un
+> CDN. Le dashboard reste dynamique (donn├®es personnelles). **Crit├¿re d'acceptation** : guide ├á
+> 100 connexions, p97,5 < 1 s, origine quasi inactive ; z├®ro r├®gression th├¿me/SEO/connexion/s├®curit├®.
+
+### 6.1 Les trois verrous (mesur├®s)
+
+| ├ëtage | Fichier | Ce qui force le dynamique |
+|---|---|---|
+| Proxy | `src/proxy.ts:314-319` | `Content-Security-Policy` + `x-nonce` sur **toutes** les routes ; Next 16 lit le nonce (`getScriptNonceFromHeader`) ÔåÆ rendu dynamique m├¬me si le layout est propre |
+| Coque | `src/app/layout.tsx:154-167` | `auth()` + `getPlatformConfig()` (parall├¿les), puis `headers()` + `getServerLocale()` (s├®quentiels) ; `ThemeProvider nonce` et `AuthProvider session` |
+| Page | `src/app/guides/rush-sylvestre/page.tsx` | `auth()`, `getUserContext()`, `getServerI18n()`, `headers()`, `<JsonLd nonce>` |
+
+Un seul de ces verrous suffit ├á interdire l'ISR : les trois doivent tomber dans le m├¬me lot.
+
+> ÔÜá´©Å **Maintenance** : `getPlatformConfig` reste en cache **par requ├¬te** (pas de TTL/Redis) ÔÇö le mode
+> maintenance doit couper imm├®diatement une session ouverte. Si un cache partag├® est ajout├® un jour,
+> il faudra l'invalider dans l'action God qui bascule `maintenanceMode`.
+
+### 6.2 Ordre d'ex├®cution
+
+| ├ëtape | Travail | Fichiers | Preuve |
+|---|---|---|---|
+| **2.1 Cadrage CSP** | Choisir hash fixe vs `strict-dynamic` ; inventorier les scripts inline (th├¿me, JSON-LD) ; ├®crire la d├®cision | doc | d├®cision + liste des scripts |
+| **2.2 Proxy** | Routes publiques **sans nonce** (CSP hash/strict-dynamic) ; dashboard inchang├® | `src/proxy.ts` | test en-t├¬tes : public sans `x-nonce`, dashboard avec ; CSP valide |
+| **2.3 Coque** | Sortir `auth/headers/locale/platformConfig` de la coque publique ; session/th├¿me c├┤t├® client ; dashboard garde son layout | `src/app/layout.tsx`, route group public (spike 1ÔÇô2 h avant) | test : page publique sans API dynamique ; dashboard inchang├® |
+| **2.4 Page publique** | Retirer `auth/getUserContext/getServerI18n/headers/JsonLd nonce` ; ├®tat connect├® en composant client ; JSON-LD statique/hash | `guides/rush-sylvestre/page.tsx` | `Cache-Control: public, s-maxage=ÔÇª` ; th├¿me + bouton connexion OK |
+| **2.5 Scripts inline** | Th├¿me `next-themes` et JSON-LD en hash (ou externalis├®s) | layout + `JsonLd` | clair/sombre sans flash ; JSON-LD valide (Rich Results) |
+| **2.6 ISR/PPR + charge** | `revalidate`/`use cache` sur les pages publiques ; v├®rifier `revalidateRushContent` ; autocannon 10/50/100 | pages + tests | 100 conn., p97,5 < 1 s ; contenu ├á jour apr├¿s action |
+
+**Rollback** : chaque ├®tape est une PR ind├®pendante ; un `git revert` suffit. Aucune migration.
+
+### 6.3 P3 ÔÇö CDN (duo toi + moi)
+
+| Qui | Action | Quand |
+|---|---|---|
+| **Toi** | Choisir Cloudflare **ou** un acteur EU ; compte/zone ; DPA, politique de confidentialit├®, cookies | avant 3.2 |
+| **Toi** | Passer le DNS en proxy (nuage orange) sur **beta** d'abord ; rollback = nuage gris | 3.2 |
+| **Moi** | R├¿gles de cache (public anonyme seulement), bypass `/dashboard/*`, `/api/*`, cookie de session ; IP r├®elle (`CF-Connecting-IP`), origine verrouill├®e, WAF ; doc + tests | 3.2 |
+| **Moi** | Purge ├á la publication (API CDN depuis les actions de contenu) + doc d'ops | 3.2 |
+| **Toi** | Valider sur b├¬ta : OAuth Discord, WebSocket, webhooks, th├¿me, connexion | 3.2 |
+
+**Garde-fou** : le CDN ne doit **jamais** cacher une r├®ponse portant un cookie de session ou une
+route `/dashboard|/api|/god`. Le code envoie `private, no-store` sur ces routes ; la r├¿gle CDN le
+double (d├®fense en profondeur).
+
+### 6.3 bis ÔÇö Effets de bord v├®rifi├®s (Workers, IP r├®elle, WAF)
+
+- **Workers Cloudflare** (`dofusbook-proxy`, `dofus-ladder-proxy`, `sigil-ladder-ankama`) :
+  **aucune route sur `sigilos.fr`** (pas de `routes` dans les `wrangler.toml`) ; ils vivent sur
+  `*.workers.dev`. Les appels VPS ÔåÆ Worker (sortants), navigateur ÔåÆ Worker (`/s/:id`, CORS `*`) et
+  le cache interne du Worker (`caches.default`) sont **ind├®pendants** du CDN du site. Les pages
+  ladder/stuff lisent la base/Redis, pas les Workers en direct : le cache HTML ne change que la
+  fra├«cheur (TTL).
+- **CSP** : `connect-src` doit conserver `https://*.workers.dev` + l'origine du relais
+  (`DOFUSBOOK_CF_WORKER_URL`) quand on passe au hash/strict-dynamic ÔÇö sinon l'aper├ºu Dofusbook casse.
+- **IP r├®elle** : Caddy pose `X-Real-IP {remote_host}` et **├®crase** `X-Forwarded-For` avec
+  `{remote_host}`. Derri├¿re Cloudflare, c'est l'IP de l'edge : le `rate_limit` Caddy
+  (`key {remote_host}`) et le limiteur de `src/proxy.ts` (`x-real-ip`) mettraient **tous les
+  visiteurs dans le m├¬me seau** ÔåÆ 429 global. Pr├®requis : `servers { trusted_proxies ÔÇª client_ip_headers CF-Connecting-IP }`
+  (Caddy ÔëÑ 2.7), puis `{client_ip}` pour `X-Real-IP`/XFF et la cl├® du rate-limit.
+- **Serveur ÔåÆ serveur** : `/api/discord/interactions` (Discord), `/api/cron/*` (les crontabs
+  appellent `https://beta.sigilos.fr/...`), `/api/webhooks/kofi|sentry` traversent le WAF. Le Bot
+  Fight Mode / un challenge casserait Discord (< 3 s) et les crons : r├¿gles de **skip WAF** par
+  chemin, ou crons en localhost/Tunnel. ├Ç tester sur la b├¬ta.
+- **Aper├ºu Dofusbook** : le navigateur renvoie le JSON via `storeClientDofusbookPreview` (server
+  action POST) ÔåÆ bypass cache POST/API/cookie, WAF standard ; tester un import sur la b├¬ta.
+- **WebSocket / OAuth** : `/socket.io/*` et `/api/auth/*` sans cache ; valider sur la b├¬ta.
+
+### 6.4 Checklist avant merge (2.2 ÔåÆ 2.6)
+
+- [ ] Th├¿me clair/sombre sans flash, sur guide + accueil.
+- [ ] JSON-LD valide (Rich Results) et pr├®sent dans le HTML pr├®par├®.
+- [ ] Bouton ┬½ Se connecter / Mon compte ┬╗ juste (anonyme et connect├®).
+- [ ] Aucune r├®ponse publique ne contient de donn├®e personnelle.
+- [ ] CSP : aucun script bloqu├® (console propre), nonce absent du public, pr├®sent sur le dashboard.
+- [ ] `connect-src` garde `https://*.workers.dev` + l'origine du relais Dofusbook.
+- [ ] Deux IP clientes distinctes ÔåÆ rate-limit par IP r├®elle (pas par IP d'edge Cloudflare).
+- [ ] Discord interactions + un cron + un webhook passent sans challenge WAF.
+- [ ] Import Dofusbook sur la b├¬ta OK ; WebSocket et OAuth Discord OK derri├¿re le CDN.
+- [ ] `npm run test:run`, `tsc`, `lint`, verrou `caddy-compression`.
+- [ ] Charge guide 10/50/100, 0 `5xx`, p97,5 < 1 s ├á 100.
+
+### 6.5 D├®cisions ├á prendre (toi)
+
+1. **CDN** : Cloudflare ou EU ? (DPA/RGPD)
+2. **Fra├«cheur** : combien de secondes/minutes un contenu public peut rester en cache apr├¿s une
+   modification ? (les actions revalident d├®j├á ; le CDN ajoute son TTL)
+3. **Fen├¬tre** : passage DNS/CDN sur **b├¬ta**, heure creuse, rollback en 1 clic (nuage gris).

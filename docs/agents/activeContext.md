@@ -12,7 +12,8 @@
 > **Mesuré** : la jonction `.cline/skills` de la PR 1 a cassé un `git switch` vers un commit antérieur — git a restauré `.cline/skills/*` sous la jonction en supprimant la nouvelle source ; réparé par `git restore`. Les 3 hooks `.ps1` coûtaient 22 s de `harness-config` pour une politique déjà exprimable par `opencode.json`.
 > **Fait** : PR 1 **#1510** (source `.agents/skills`, `harness:links` idempotent + `--check`, CI, 4 tests repointés) · PR 2 (règles → `docs/agents/rules`, hooks supprimés, `.clineignore` supprimé, lien `.cline/skills` retiré, écriture `.env` par commande et `git push --force`/`-f` en `deny`) · test des garde-fous par **matrice de commandes** (dernière règle gagnante) · script `harness:links` testé (dossier vide/plein, `--check`).
 > **Preuves** : **809 fichiers / 8 346 tests ✅** · `harness-config` 16/16 · `harness:links` 1/1 + `--check` · export sans lien → recréé, 12 skills · `tsc` 0 · `lint` 0 erreur · CI #1510 verte · relecture `reviewer` : 1 bloquant + 3 importants corrigés.
-> **Reste** : désinstaller Cline (geste utilisateur) · redémarrer OpenCode pour recharger les permissions.
+> **Reste** : Cline désinstallé et `~/.cline` supprimé (1,27 Go libérés) · permissions rechargées **sans redémarrage** (config à chaud ; vérifié : écriture `.env` refusée).
+> **Suite (même session) — PR #1512** : `.github/pull_request_template.md` (6 sections) · règle « réussi si » dans `git-push.md` §8 et `AGENTS.md` §7.6 · garde `harness-config` 17/17.
 > **Rotation** : bloc « suite 56 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 23/11/2026 (suite 61) — **Harnais : plan de sortie Cline persisté** — branche `docs/harnais-sortie-cline-2026-11-23`

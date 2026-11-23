@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 23/11/2026 (suite 63) — **Rush : audit Tougli/Dofusyelle + hygiène** — branche `fix/rush-hygiene-2026-11-23`
+
+> **Demande user (verbatim)** : « on focus tous les chantiers restant sur le rush sylvestre » puis « recouper avec le guide du streamer lanyielle (dofusyelle) en + de tougli ».
+> **Mesuré** : compteur **515** identique local/bêta (29/515 = 6 %, 26/515 = 5 %, blocs 0/8 et 12/12) ⇒ « 448 » périmé, **lot clos par mesure**. Tougli API (`docs/reference/TOUGLI-API.md`) = **530 quêtes**, exactement les **530 `questDbIds`** du guide (0 écart) ⇒ l'oubli est **dans Tougli**. Dofusyelle (`window.RUSH_DATA`) = **8 quêtes absentes** : Quête de classe · L'histoire en mouvement · Mieux vaut ne pas se fier à la première impression · Full Contact · La destinée · Dépôt de ravitaillement · L'arme fatale · Qui nous protège des protecteurs. **114 quêtes** liées aux **72 succès** manquent dans le guide ; la fiche n'affiche que les présentes (0/0 possible) ; bêta en retard (3/4 en local, 0/0 sur la bêta).
+> **Fait** : fiche + roadmap mises à jour (compteur clos, O5/O9/O11 rayés, overlay large validé, accents cadrés) · `use-optimistic-toggle.ts` supprimé (0 import) · `CompletedStepsCtx` retiré (jamais lu) · branche obsolète `fix/rush-carte-copie-details-2026-11-22` supprimée.
+> **Preuves** : 66 tests ciblés ✅ · `tsc` 0 · `lint` 0 erreur (7 795 warnings préexistants) · aucune migration.
+> **Reste** : succès (afficher toutes les quêtes + badge « hors guide ») · 8 quêtes Dofusyelle + prérequis · bulles d'aide du guide navigateur · perf T-6/G6 · réimport bêta.
+> **Rotation** : bloc « suite 57 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 23/11/2026 (suite 62) — **Harnais : sortie de Cline terminée** — branche `refactor/harnais-sortie-cline-2026-11-23`
 
 > **Demande user (verbatim)** : « PR 1 puis PR 2 d'affilée » puis « feu vert ».
@@ -49,16 +58,3 @@
 > **Fait** : règle pure `resolveOverlayLayout` (`src/lib/rush-overlay-layout.ts`) : `small` si un côté est étroit, `tight` prioritaire, `wide` dès 820 px de haut sinon ; `GuideOverlayClient` l'utilise ; `RushOverlayHeader` fait primer `narrow` sur `density`. 4 tests neufs.
 > **Preuves** : **28 tests ciblés ✅** (`rush-overlay-layout`, `rush-dungeons-overview-ui`, `rush-overlay-v2f`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
 > **Reste** : 3ᵉ palier (largeur cible + blocs visibles, décision) · captures 390/768/1024/1440 à valider visuellement.
-
-## 📝 Session 22/11/2026 (suite 57) — **Harnais : bascule OpenCode, Cline conservé** — branche `feat/harnais-opencode-2026-11-22`
-
-> **Demande user (verbatim)** : « je souhaite migrer finalement sans supprimer cline je conserve cline mais on migre ici quand même ».
-> **Fait** : ① `opencode.json` : skills partagés `.cline/skills` (12 skills), permissions (`.env` deny, `prisma/migrations` + `migrate dev` + `db push` ask, destructives ask, `--no-verify` deny), `watcher.ignore`, MCP Sentry distant ; ② `/reprise` + `/fin` ; ③ routeurs `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md`, `services/AGENTS.md` + routage dans `AGENTS.md` ; ④ `docs/agents/harnais.md` §12, table 12 skills, `CARTE-DU-PROJET` ; ⑤ garde `harness-config` (2 tests neufs, 11 au total).
-> **Preuves** : **806 fichiers / 8 325 tests ✅** · `harness-config` 11/11 · `tsc` 0 · `lint` 0 erreur (7 798 warnings préexistants) · sondes : écriture `.env` **deny**, `--no-verify` **deny** · Cline intact (`.clinerules`, `.cline/skills`, hooks, `.clineignore`).
-> **Suite (même session) — Lot 2** : sous-agent `reviewer` read-only (`.opencode/agents/reviewer.md`) · premier **worktree** (`harnais-lot2`) avec `node_modules` en jonction · hooks Cline durcis (`prisma migrate dev`, `db push`, `.env` par shell, `Remove-Item -Recurse`, `.env.example` autorisé) · `TaskStart` lit **tout** `ROADMAP` §0 (l'ancien `Prochaine étape` n'existait plus : fallback silencieux corrigé) · `TaskComplete` liste 5 fichiers · tests de comportement 18/18 · inventaire exact 12 skills · `paths:` vérifiés.
-> **Preuves Lot 2** : **806 fichiers / 8 332 tests ✅** · `harness-config` **18/18** · `tsc` 0 · `lint` 0 erreur (7 798 warnings préexistants) · relecture `reviewer` : findings 1-5 + 7-14 intégrés · worktree C: → 6-8 timeouts de scan `src/` (5 s), futurs worktrees sur `../sigilos-worktrees` · CI à venir.
-> **Suite (même session) — Lot 3** : `npm run harness:links` (jonctions `.agents/skills` + `.claude/skills` vers `.cline/skills`, gitignorées) · scorecard dans `harnais.md` §14 · `/fin` déclenche `reviewer` automatiquement · source unique `.cline/skills` conservée pour Cline.
-> **Preuves Lot 3** : `harness-config` **19/19** · 8 333 tests (CI) · `tsc` 0 · `lint` 0 erreur · liens créés et vérifiés sur Windows · Cline intact.
-> **Suite (même session) — Lot 4** : décision **source `.cline/skills` conservée** ; migration `.agents/skills` conditionnée (3 lots produit + Cline secondaire + liens CI) ; baseline Lots 1-3 dans `harnais.md` §14 ; scorecard produit à remplir.
-> **Preuves Lot 4** : relecture Lot 3 → 2 bloquants corrigés (`/fin` sur `origin/dev...HEAD`, `.claude/settings.local.json` ignoré) · `harness-config` 19/19 · `tsc` 0 · `lint` 0 erreur · CI à venir.
-> **Reste** : 3 lots produit à mesurer (scorecard §14) · migration conditionnée · rotation `activeContext` non tranchée (#42) · gaps best-effort du hook shell.

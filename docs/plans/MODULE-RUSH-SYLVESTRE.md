@@ -546,7 +546,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 | Prérequis « au choix » (OU) | ✅ livré 18/11/2026 | `prereq_expr` : alternatives par id DofusDB, « au moins une » ; une alternative **hors guide** ne bloque jamais ; ligne « Au choix : … » sur les 3 surfaces. **Archivage + import requis** ; le seed régénéré du 19/11 porte **3 groupes** (20 quêtes), la base locale en a **0** tant que le guide n'est pas réimporté |
 | Détail trop petit / vrais monstres/items | ✅ **code + seed livrés 19/11/2026 (monstres)** : 742 tags → **1 518** monstres, **100 %** résolus (carte `rush-monster-map`, 3 alias mesurés) ; image + fiche interne / publique `/bestiaire/<slug>` ; items ✅ (`ResourceImage`, 1 898 WebP) | `RushOverlayTagSection`, `RushTagBadge`, `RushMonsterFicheModal`, `rush-combat-monsters`, `build-rush-monster-map.ts` |
 | 68 succès cochables | ✅ livré | un succès est un **groupe de quêtes** : 303 tags sur 284 quêtes, `SuccessChip` (pastille + fiche) |
-| Compteur 0/448 vs 536 séquences | ⏸ **à reproduire** : payload local = **536** séquences, **0** info, **0** choix ⇒ le public affiche 536 ; aucun chemin ne produit 448 | `RushGuideView`/`stepCounts` (étapes ≠ 536 séquences ; succès/donjons/infos) |
+| Compteur 0/448 vs 536 séquences | ✅ **clos par mesure le 23/11/2026** : local et bêta affichent **515** quêtes cochables (info, séparateurs, bandeaux et combats exclus) ; le « 448 » était une ancienne mesure — voir `RUSH-DEVELOPPEMENT-SUITE.md` §G | `RushGuideView`/`stepCounts` |
 | 16 DofusDex sans panneau | ✅ **déjà livré** : `PublicDofusProgressPanel` + `RushDofusDetailModal` partagée avec l'interne | `tips`/`RushMarkdown`, `dofusId`, `RushDofusBadge`, `RushDofusProgress` |
 | Icône Dofus discrète | ✅ **livré 19/11/2026** : le médaillon de la barre de chapitre porte le **Dofus du bloc** (overlay), et la liste nomme chaque Dofus — parité dashboard/public | `RushTimelineClient:970`, `GuideOverlayClient:688`, `PublicDofusProgressPanel`, `RUSH_DOFUS_META` |
 | Pastille Succès absente du guide **public** | ✅ **livré 19/11/2026** : `SuccessChip` + `guideQuests` (mêmes `questDbIds`), verrouillé par `rush-public-parity` | `SuccessChip`, `getSequenceSuccesses` |
@@ -576,6 +576,6 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 **Ordre** : UX ✅ (« Ali 1 / Ali 2 », alignement, clic quête, message perso) → **`prereq_expr` (OU)** ✅ →
 **retouches DA** ✅ (PiP, guide, verrou, DofusDex, fiche Succès, pastilles — PR #1450) →
-**UI-1** ✅ 19/11/2026 (Succès public + Dofus du bloc ; DofusDex déjà livré ; compteur 448 à reproduire ;
+**UI-1** ✅ 19/11/2026 (Succès public + Dofus du bloc ; DofusDex déjà livré ; compteur 448 **clos le 23/11** ;
 monstres = lot data) → **Bloc I** (succès de donjon) →
 **Bloc J** (donjons : qui a fait quoi) → **VPS** (conseils écrits le 19/11).

@@ -9,7 +9,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > savoir ce qui reste. `docs/ROADMAP.md` garde l'**ordre global** ; les autres plans ne portent plus
 > le détail des restes.
 
-## ⚡ Restes — fiche unique (22/11/2026)
+## ⚡ Restes — fiche unique (23/11/2026)
 
 > **Seule section à lire au démarrage d'une session Rush.** Elle remplace tous les « reste » éparpillés :
 > `ROADMAP.md` (rangs 9/10/10b/55), `PLAN-REFONTE-RUSH-SYLVESTRE.md`, `MODULE-RUSH-SYLVESTRE.md` et
@@ -19,25 +19,33 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > 527 positions (**0 sans `worldId`**) · 527 `prereq_text` (**0 orphelin**) · 530 ids DofusDB
 > (**530 trouvés**) · **518/536 cartographiables** · 863 tags `item` (505 ids) · 746 tags combat ·
 > 3 succès officiels (**3/3 `isSuccess`**).
+>
+> **Mesures locales du 23/11/2026** (non autoritaires pour la bêta) : **541 séquences** (bêta **540**)
+> · **117 séquences Brâkmarien = 102 série + 15 quêtes d'Ordre** (3 × 5) · **0 `constraints`** réelles
+> (le champ existe, le backfill S2 n'est pas fait) · **29 conseils** (7 de quête + 22 de bloc ; bêta
+> **49**) · **742 tags combat** (bêta 746) · **6 positions** de quêtes ajoutées à traiter (local fait,
+> bêta à vérifier) · dialogue **DPLN : 0 à mettre à jour** (532 positions sur les deux).
 
 ### A. Code — prêt à exécuter (aucune décision requise)
 
 | # | Lot | Définition / mesure | Ancrages | Taille |
 |---|---|---|---|---|
-| 1 | **O13 carte des quêtes — monde + accès** | **Décision du 22/11/2026 : pas de carte dans la PiP, pas de pion.** On garde le menu existant (dashboard + guide public) et on répare : ① `/api/rush/map-at` **public** (un visiteur non connecté recevait **401**) ; ② `worldId` du `pos_tags` transmis au menu **et** au zaap — **112 / 527** positions tombent sur une case présente dans plusieurs mondes ; ③ carte `mapId` de God **prioritaire** (la branche était dans un commentaire, `mapParam` jamais lu). Règle d'URL pure `buildRushMapAtUrl`. **Positions** : `(0,0)` autorisé dans un sous-monde (monde 24) + `fix-rush-pos-worlds` (514 corrections proposées : 149 monde+carte, 365 carte seule ; 4 appliquées en local). | `src/lib/rush-map-at.ts`, `RushCoordinateChip`, `RushPositionMenu`, `map-at/route.ts`, `src/proxy.ts` | ✅ **code + tests** (branche `fix/rush-carte-monde-public-2026-11-22`, PR à ouvrir) |
+| 1 | **O13 carte des quêtes — monde + accès** | **Décision du 22/11/2026 : pas de carte dans la PiP, pas de pion.** On garde le menu existant (dashboard + guide public) et on répare : ① `/api/rush/map-at` **public** (un visiteur non connecté recevait **401**) ; ② `worldId` du `pos_tags` transmis au menu **et** au zaap — **112 / 527** positions tombent sur une case présente dans plusieurs mondes ; ③ carte `mapId` de God **prioritaire** (la branche était dans un commentaire, `mapParam` jamais lu). Règle d'URL pure `buildRushMapAtUrl`. **Positions** : `(0,0)` autorisé dans un sous-monde (monde 24) + `fix-rush-pos-worlds` (514 corrections proposées : 149 monde+carte, 365 carte seule ; 4 appliquées en local). | `src/lib/rush-map-at.ts`, `RushCoordinateChip`, `RushPositionMenu`, `map-at/route.ts`, `src/proxy.ts` | ✅ **livré — PR #1499 mergée** |
 | 2 | ~~**Compteur « 448 »**~~ ✅ **clos par mesure le 23/11/2026** | Les deux surfaces affichent **515** quêtes cochables (local 29/515 · bêta 26/515), pourcentages cohérents (6 % / 5 %) et compteurs de bloc alignés (INCARNAM 0/8, ASTRUB 12/12). Le total est le nombre de quêtes **cochables** : blocs info, séparateurs, bandeaux et combats ne comptent pas. Le « 448 » était une ancienne mesure. **Aucun code à changer.** | — | — |
+| 3 | **Phase 1 — cohérence de progression** | Cascade **montante** des prérequis à la validation d'un bloc, coche des donjons requis, resets qui effacent les donjons, modales recalculées, coche du sommaire, reset bloc dans l'overlay, placement de la célébration. Détail et ordre : **§H**. Aucune migration. | `src/lib/rush-*` + `optimized-guide-actions.ts` + `RushTimelineClient` + `GuideOverlayClient` | **en cours** (branche `feat/rush-progression-2026-11-23`) |
+| 4 | **Choix exclusifs Brak (55/66)** | Une seule étape avec **carte de choix** : étape 55 = Le magnanime / Les kamas résolvent tout / Assassinat effectué ; étape 66 = Les ordres sont-ils les ordres ? / On m'appelle l'Escargot. Comptée pour **1**, note « quêtes identiques, seul le nom change », **éditable dans God** (variantes + libellé + condition). `rush-choice-groups` porte déjà le comptage et l'exclusivité ; il manque le rendu. | `RushTimelineClient`, `PublicRushGuideClient`, `GuideOverlayClient`, studio God | **à coder** |
 
 ### B. Code — mesure ou décision d'abord
 
 | # | Lot | Pourquoi ce n'est pas codé | Décision attendue |
 |---|---|---|---|
-| 8 | **T-6 / G6** (contextes → Zustand) | **20** `createContext` après le retrait du 23/11 (21 avant) ; `SequenceRow` en lit **18** ; `CompletedStepsCtx` **retiré**. Le plan impose un **profiler navigateur avant/après** | session dédiée avec profiler |
+| 8 | **T-6 / G6** (contextes → Zustand) | **20** `createContext` encore dans `RushTimelineClient.tsx` (l. 1341-1378, mesuré le 23/11) ; `SequenceRow` en lit **18** ; `CompletedStepsCtx` **retiré**. Le plan impose un **profiler navigateur avant/après**. Le guide public est profilable sans compte ; le dashboard demande une **session connectée** | session dédiée avec profiler |
 | 9 | ~~**`useOptimistic`**~~ ✅ **supprimé le 23/11/2026** | `src/hooks/use-optimistic-toggle.ts` n'était importé nulle part ; l'overlay fait déjà optimiste + rollback + cascade. `CompletedStepsCtx` (fourni mais jamais lu) retiré de `RushTimelineClient`. | — |
 | 10 | ~~**O9 carte « Maintenant »**~~ ✅ **abandonnée le 23/11/2026** | La carte n'existe pas dans l'overlay ; doublon de « Reprendre » + objectif courant retiré. Rayée du plan. | — |
 | 11 | ~~**O11 jauges / anneaux**~~ ✅ **abandonnés le 23/11/2026** | Une seule jauge dans l'en-tête (anti-doublon assumé). | — |
 | 12 | ~~**O5 « Aller à la suite »**~~ ✅ **abandonné le 23/11/2026** | « Reprendre » fait déjà le saut ; libellé absent du code. | — |
 | 13 | ~~**Bulles d'aide du guide navigateur**~~ ✅ **livré le 23/11/2026** | Bulle portée dans le `body` en `fixed` (plus de sortie d'écran) : bascule haut/bas, clamp horizontal, **6 tests** 390/768/1024/1440 ; survol = aperçu, clic = épingle, Échap/clic extérieur = fermeture. Ajouts : Ordre, actions de bloc (en plus de progression, recherche, personnage et guide). Overlay inchangé (son bouton d'aide). | — |
-| 14 | **E2 `achievements[]`** | Migration Prisma | accord explicite |
+| 14 | ~~**E2 `achievements[]`**~~ ✅ **écarté le 23/11/2026** | **Pas de migration** : les succès restent des tags par **id Ankama stable** + le catalogue `achievements.json` (2 777). Une nouveauté = re-siphon du client + rattachement éditorial ; la colonne ne l'automatise pas. Le vrai garde-fou est le contrôle des succès dont les quêtes manquent (§G ④). | — |
 | 16 | ~~**Accents Dofus**~~ ✅ **cadré le 23/11/2026** | Couleur réservée à l'identité du bloc et aux états actifs ; jamais le texte. | — |
 | 17 | ~~**Overlay étroit (3ᵉ palier)**~~ ✅ **sans objet le 23/11/2026** | Précédence corrigée et mode compact livrés le 22/11 ; l'overlay large est validé tel quel (capture 1440). Rouvrir seulement sur une gêne mesurée. | — |
 
@@ -45,29 +53,33 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 
 O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée) · **V-D2 livré** (`isResolvableItemId`, borne Int32) · **O6 livré** (`autoFocus`, verrou de scroll porteur, piège Tab `nextFocusIndex`) · **E5 livré** (4 `prompt()` → 2 `Dialog`) · **descriptions de blocs recalées** (`syncQuestCountInDescription`, 3 écritures) · **carte HD** (`pos_tags.mapId`) **réellement** prioritaire depuis le 22/11 (branche réactivée) · **positions sous-mondes** : `(0,0)` d'un sous-monde autorisé + `fix-rush-pos-worlds` (514 proposées, 4 appliquées en local) · **`questDbIds` : déjà utilisé sur les 3 surfaces pour les succès ⇒ lot clos par mesure** · **saut prérequis overlay (22/11)** : cible par `milestoneId` + `seqId` (fail-closed), focus dans le document PiP, retour « Revenir » — verrou `rush-overlay-jump` **11**.
 
-### D. Bloqué par le mainteneur
+### D. Bloqué par le mainteneur / données à vérifier
 
 | Sujet | Ce qu'il manque |
 |---|---|
-| **G7 hero + composition G9** | **Captures d'écran** (G8, O15 et G9 tokenisée sont livrés) |
-| **Itérations 5/6** | **Définition absente** (écrans, périmètre, critère de fin) — ne pas inventer |
-| **98 conseils Brâkmarien** | Textes (49 conseils en base, 194 visés) |
-| **V-C purge WebP** | Ops VPS + validation de l'archive `rush-sylvestre-archive-*` avant suppression |
-| **Touglie enrichi** | Import VPS (archive **108/492** importée en local) |
-| **Positions** | **6 mises à jour** du plan à appliquer dans God |
-| **Brâkmarien 121 vs 102** | Réconciliation des variantes exclusives |
-| **Combats** | **746 tags** avec au moins un monstre sans id |
+| **G7 hero + composition G9** | **Captures d'écran** (G8, O15 et G9 tokenisée sont livrés). ⚠️ **Priorité au mode blanc** : le guide doit d'abord être utilisable en thème clair ; G7/G9 sont cosmétiques et viennent après. |
+| **98 conseils Brâkmarien** | Textes : **49 en base (bêta)**, **29 en local** (7 de quête + 22 de bloc), **194 visés**. Les 98 Brâkmarien n'ont **aucune source** (Tougli/Dofusyelle) → rédaction manuelle. |
+| **V-C purge WebP** | Ops VPS + validation de l'archive `rush-sylvestre-archive-*` avant `rush-delete-archive --apply`. |
+| **Touglie enrichi** | Import VPS : la bêta a **540 séquences**, le local **541** ; l'archive **108/492** est l'ancien guide. Les données locales ne sont pas toutes sur le VPS. |
+| **6 positions des quêtes ajoutées (23/11)** | **Local fait ; bêta à vérifier/appliquer.** Le dialogue **DPLN** dit **0 à mettre à jour** : il ne couvre pas ces positions manuelles. Valeurs `DofusQuestEntry.coords` : 614 `(-85,-36)` (correction), 626 `(-63,-75)`, 710/711 `(-34,-16)`, 1939 `(1,0)`, 1988 `(7,-19)` déjà bonne. **894 : aucune source.** |
+| **Brâkmarien 121 vs 102** | **Mesuré** : 117 en local = **102 série + 15 quêtes d'Ordre** (3 × 5). Le 121 est le compte **brut** (variantes incluses) ; le 102 le compte **jouable**. Ce n'est **pas** un doublon à supprimer. Le vrai lot est le **choix exclusif des étapes 55/66** (§H) et l'actage « 102 + 15 Ordres + variantes ». |
+| **Combats** | **746 tags** bêta / **742** local avec au moins un monstre sans id. La résolution **815 / 1 443** date du **19/11** et porte sur les fichiers statiques (`unity-bestiary.json` + `rush-monster-map.json`), **pas** sur la base : re-mesurer sur la bêta avant de compléter. |
+| **Itérations 5/6** | ~~Définition absente~~ → **supprimées de la liste le 23/11/2026** : elles ne sont pas actionnables. Toute itération future est un **nouveau lot à définir**. |
 
 ### E. Ops (hors code)
 
-Bêta à redéployer (`dev` `5fde8ddb` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
+**Bêta** : code à vérifier (dev `2275227c`), **540 séquences** contre **541 en local** ; les données locales (6 positions, quête manquante) ne sont pas toutes sur le VPS. Dialogue **DPLN : 0 à mettre à jour** (532 positions) — il ne couvre **pas** les 6 positions manuelles. Migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs**.
 
-**Ordre données** : import Tougli → `scripts/add-rush-missing-quests.ts --apply` → `scripts/fix-rush-prerequisites.ts --apply` (l'import écrase les `activityTags`).
+**Prod** : **en attente** (décision du 23/11/2026), `main` = `c190f2c7`, aucune date.
+
+**Ordre données (bêta)** : import Tougli → `scripts/add-rush-missing-quests.ts --apply` → `scripts/fix-rush-prerequisites.ts --apply` (l'import écrase les `activityTags`) ; **prod en attente**.
 
 ### F. À savoir avant de coder
 
 - import **additif** : `importRushGuide(raw, apply)` fait un **dry-run par défaut** ;
-- **aucune migration** pour les lots restants ci-dessus ;
+- **aucune migration** pour les lots restants ci-dessus (E2 écarté) ;
+- **valider un bloc = confort** : aucun refus (donjon/prérequis), mais **cascade montante** des prérequis + **coche des donjons requis** ; ne jamais transformer le bloc en verrou fail-closed (la quête seule reste fail-closed) ;
+- **reset bloc/guide** : efface les donjons du personnage ; **dévalider** un bloc laisse les donjons (fait acquis) ;
 - ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
 - piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
 - **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.
@@ -82,6 +94,24 @@ Bêta à redéployer (`dev` `5fde8ddb` ≠ bêta `8d7528ff`) · migrations `2027
 >
 > **Lots** : ① ✅ **livré le 23/11/2026** : `SuccessChip` affiche **toutes** les quêtes d'un succès (nom du guide ou catalogue `quest-names.json`, **les 19 variantes de classe repliées sur celle du guide**, coché/non coché, badge « hors guide », icône de succès) · **fiche détail** : `SuccessChip` (trophée + liste, z-120, Échap/focus/PiP, une pastille par succès) ; toast retour fermable ; ② ✅ **script livré le 23/11/2026** (`scripts/add-rush-missing-quests.ts`, dry-run/--apply, idempotent, **bloc résolu par l'ancre**, ordres verrouillés, tags `prereq_text` avec **id de séquence** T-2c) : 6 quêtes ajoutées en local ; 1988 prérequis de 1989, 710/711 prérequis de 1317, 614/1939 avec leur prérequis ; **bêta faite 23/11** (540 séquences) ; **prod à jouer** ; **626 ajouté** (2 dépendants) ; ③ ✅ **checkup prérequis livré** (`scripts/fix-rush-prerequisites.ts`, dry-run/--apply) : **37 arêtes** (9 client + 28 DofusDB) + **626**, re-mesure **0 manquant** ; **bêta faite 23/11** ; variantes OR (275, 1960) inchangées ; ④ garde-fou : contrôle qui liste les succès dont les quêtes manquent ; ⑤ **import Tougli d'abord**, puis jouer `add-rush-missing-quests --apply` puis `fix-rush-prerequisites --apply` — l'import réécrit les `activityTags` ; **bêta faite 23/11** ; reste **prod** (même ordre). **Aucune migration.** Sources : `docs/reference/TOUGLI-API.md` · `https://dofusyelle.com/rush-sylvestre.html`.
 
+
+### H. Plan de reprise consolidé — 5 phases (23/11/2026)
+
+> **Décisions du 23/11/2026** (elles lèvent les ambiguïtés) :
+> · **Cascade montante** : valider un bloc coche ses quêtes **et** les prérequis manquants, récursivement (un seul par groupe « OU »), sans valider les dépendants. Dévalider/reset recalcule la fermeture des blocs encore validés et **retire** les prérequis qui ne sont plus impliqués. Aucune migration ; un prérequis coché **manuellement** qui n'est plus impliqué serait aussi retiré (cas rare accepté).
+> · **Donjons** : valider un bloc coche tous les donjons **requis** (un seul par groupe « au choix », optionnels ignorés) ; reset bloc/guide **efface** les donjons du personnage ; dévalider un bloc **laisse** les donjons (fait acquis).
+> · **UI** : la modale Dofus « Avancement », la modale « Progression Donjons » (statut par membre) et la coche du sommaire se recalculent après validation/dévalidation de bloc, coche/décoche de quête, reset bloc/guide, pour le personnage ciblé. Overlay : bouton **« Réinitialiser »** du bloc. Célébration : placement unifié (bloc = toast discret, chapitre = burst central).
+> · **Choix Brak 55/66** : carte de choix claire + édition God. **Mode blanc** prioritaire sur G7/G9. **E2** écarté. **Itérations 5/6** supprimées. **Prod en attente**.
+
+| Phase | Contenu | État |
+|---|---|---|
+| **1 — Cohérence de progression** (aucune migration) | ① cascade montante · ② donjons à la validation · ③ resets qui effacent les donjons · ④ modale Dofus recalculée · ⑤ modale Donjons par membre + refresh · ⑥ coche du sommaire · ⑦ reset bloc overlay · ⑧ célébration unifiée | **en cours** — 1A serveur puis 1B UI |
+| **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | à faire |
+| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | à faire |
+| **4 — Ops / vérifs** | ⑲ bêta 540/541 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (attente) | à faire |
+| **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) | à faire / tranché |
+
+**Prochain lot** : **Phase 1A** (serveur) sur `feat/rush-progression-2026-11-23`, puis **1B** (UI). Un lot = une branche = une PR → `dev`.
 
 ## 0. Ce qui fait foi depuis le 21/10/2026
 

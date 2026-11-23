@@ -1390,6 +1390,7 @@ cd ~/SigilOS
   sur le nouveau guide (ils resynchronisent l'ancien dataset et suppriment les blocs absents) ; le bouton
   God est refusé par `seedSource`. Le seed du nouveau guide est `tougli-enriched.json` (généré par
   `build-rush-trame-seed.ts --spine tougli --enrich-yelle`).
+- **Positions manuelles** : le dialogue **« Positions de lancement DPLN »** ne couvre que les positions **DPLN** (`RUSH_POSITION_MAP`). Les quêtes ajoutées le 23/11 (614, 626, 710, 711, 1939, 1988) ont des positions `DofusQuestEntry.coords` à vérifier sur la bêta ; `894` n'a **aucune source**. Un dialogue à « 0 à mettre à jour » ne prouve donc **pas** que ces positions sont posées.
 - **Effets** : progression/ressources/donjons des membres **remis à zéro** (nouveaux ids) ; l'archive
   conserve l'ancien ; les pages `/q/<slug>` restent 404 tant qu'elles ne sont pas publiées ; la page
   publique est ISR 1 h (revalidation ou attente).

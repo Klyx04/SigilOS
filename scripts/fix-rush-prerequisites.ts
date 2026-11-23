@@ -20,11 +20,15 @@ import "dotenv/config";
 import { Prisma, PrismaClient, type GuideSequence } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { RUSH_PREREQ_EDGES, RUSH_MISSING_QUEST_626 } from "../src/lib/rush-prereq-edges";
 
 const cleanEnv = (value: string | undefined) =>
   value ? value.replace(/^['"]|['"]$/g, "").trim() : "";
 
 function connectionString(): string {
+  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL requis en production (aucun fallback bêta).");
+  }
   if (process.env.DATABASE_URL) return cleanEnv(process.env.DATABASE_URL);
   const user = cleanEnv(process.env.POSTGRES_USER) || "sigiluser";
   const password = encodeURIComponent(cleanEnv(process.env.POSTGRES_PASSWORD));
@@ -34,62 +38,6 @@ function connectionString(): string {
   const scheme = "postgres" + "ql://";
   return `${scheme}${encodeURIComponent(user)}:${password}@${host}:${port}/${database}?schema=public`;
 }
-
-/**
- * Arêtes `quête dépendante ← prérequis`, mesurées le 23/11/2026 :
- * 9 depuis le client, 28 depuis DofusDB (`quests/:id`, 101 quêtes hors catalogue
- * client). Les cibles sont toutes dans le guide.
- */
-const EDGES: ReadonlyArray<{ questId: number; prereqId: number }> = [
-  // Client — quest-prerequisites.json
-  { questId: 1527, prereqId: 1523 },
-  { questId: 2442, prereqId: 439 },
-  { questId: 1665, prereqId: 1656 },
-  { questId: 2481, prereqId: 2477 },
-  { questId: 582, prereqId: 581 },
-  { questId: 2488, prereqId: 2487 },
-  { questId: 2488, prereqId: 2423 },
-  { questId: 2489, prereqId: 2488 },
-  { questId: 2420, prereqId: 2422 },
-  // DofusDB — quêtes absentes du catalogue client
-  { questId: 1524, prereqId: 1523 },
-  { questId: 1525, prereqId: 1523 },
-  { questId: 1526, prereqId: 1523 },
-  { questId: 1610, prereqId: 1609 },
-  { questId: 1611, prereqId: 1609 },
-  { questId: 1612, prereqId: 1609 },
-  { questId: 1660, prereqId: 1657 },
-  { questId: 1661, prereqId: 1658 },
-  { questId: 1662, prereqId: 1659 },
-  { questId: 1911, prereqId: 1909 },
-  { questId: 1912, prereqId: 1909 },
-  { questId: 1913, prereqId: 1909 },
-  { questId: 1914, prereqId: 1909 },
-  { questId: 2012, prereqId: 2011 },
-  { questId: 2013, prereqId: 2011 },
-  { questId: 2019, prereqId: 2011 },
-  { questId: 2111, prereqId: 2122 },
-  { questId: 2112, prereqId: 2122 },
-  { questId: 2117, prereqId: 2122 },
-  { questId: 2130, prereqId: 2122 },
-  { questId: 2136, prereqId: 2138 },
-  { questId: 2137, prereqId: 2138 },
-  { questId: 2160, prereqId: 2406 },
-  { questId: 2198, prereqId: 2180 },
-  { questId: 2201, prereqId: 2200 },
-  { questId: 2407, prereqId: 2406 },
-  { questId: 2408, prereqId: 2406 },
-  { questId: 2425, prereqId: 2423 },
-];
-
-/** Quête absente du guide, requise par 2014 et 1910 (Dofus des Veilleurs). */
-const MISSING_QUEST = {
-  id: 626,
-  name: "Le pic qui glace",
-  anchorId: 2014,
-  dependents: [2014, 1910] as const,
-  dofusdbUrl: "https://dofusdb.fr/fr/database/quest/626",
-};
 
 const APPLY = process.argv.includes("--apply");
 
@@ -152,26 +100,26 @@ async function main() {
     }
 
     // 626 — absent du guide, requis par 2014 et 1910.
-    let picId = byQuestId(MISSING_QUEST.id)?.id ?? null;
+    let picId = byQuestId(RUSH_MISSING_QUEST_626.id)?.id ?? null;
     if (picId) {
-      console.log(`= ${MISSING_QUEST.name} (626) : déjà présent.`);
+      console.log(`= ${RUSH_MISSING_QUEST_626.name} (626) : déjà présent.`);
     } else {
-      const anchor = byQuestId(MISSING_QUEST.anchorId);
+      const anchor = byQuestId(RUSH_MISSING_QUEST_626.anchorId);
       if (!anchor) {
-        throw new Error(`Ancre ${MISSING_QUEST.anchorId} introuvable pour 626.`);
+        throw new Error(`Ancre ${RUSH_MISSING_QUEST_626.anchorId} introuvable pour 626.`);
       }
       console.log(
-        `${APPLY ? "→" : "[DRY]"} ${MISSING_QUEST.name} (626) · ${anchor.blockTitle} · avant ${anchor.subGuideName}`
+        `${APPLY ? "→" : "[DRY]"} ${RUSH_MISSING_QUEST_626.name} (626) · ${anchor.blockTitle} · avant ${anchor.subGuideName}`
       );
       if (APPLY) {
         const created = await db.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT id FROM "GuideMilestone" WHERE id = ${anchor.milestoneId} FOR UPDATE`;
           const currentAnchor = await tx.guideSequence.findFirst({
-            where: { milestoneId: anchor.milestoneId, questDbIds: { has: MISSING_QUEST.anchorId } },
+            where: { milestoneId: anchor.milestoneId, questDbIds: { has: RUSH_MISSING_QUEST_626.anchorId } },
             orderBy: { order: "asc" },
           });
           if (!currentAnchor) {
-            throw new Error(`Ancre ${MISSING_QUEST.anchorId} introuvable dans « ${anchor.blockTitle} ».`);
+            throw new Error(`Ancre ${RUSH_MISSING_QUEST_626.anchorId} introuvable dans « ${anchor.blockTitle} ».`);
           }
           await tx.guideSequence.updateMany({
             where: { milestoneId: anchor.milestoneId, order: { gte: currentAnchor.order } },
@@ -181,12 +129,12 @@ async function main() {
             data: {
               milestoneId: anchor.milestoneId,
               order: currentAnchor.order,
-              subGuideRef: MISSING_QUEST.name,
-              subGuideName: MISSING_QUEST.name,
-              questDbIds: [MISSING_QUEST.id],
+              subGuideRef: RUSH_MISSING_QUEST_626.name,
+              subGuideName: RUSH_MISSING_QUEST_626.name,
+              questDbIds: [RUSH_MISSING_QUEST_626.id],
               mapPositions: [],
               activityTags: [],
-              dofusdbUrl: MISSING_QUEST.dofusdbUrl,
+              dofusdbUrl: RUSH_MISSING_QUEST_626.dofusdbUrl,
               isPartial: false,
               isPublished: false,
             },
@@ -198,19 +146,19 @@ async function main() {
     }
 
     if (picId) {
-      for (const dependentId of MISSING_QUEST.dependents) {
+      for (const dependentId of RUSH_MISSING_QUEST_626.dependents) {
         const dependent = byQuestId(dependentId);
         if (!dependent) throw new Error(`Dépendant ${dependentId} introuvable pour 626.`);
-        await addPrereq(dependent, picId, MISSING_QUEST.name);
+        await addPrereq(dependent, picId, RUSH_MISSING_QUEST_626.name);
       }
     } else {
-      for (const dependentId of MISSING_QUEST.dependents) {
+      for (const dependentId of RUSH_MISSING_QUEST_626.dependents) {
         const dependent = byQuestId(dependentId);
-        if (dependent) console.log(`  [DRY] prérequis « ${MISSING_QUEST.name} » sur « ${dependent.subGuideName} »`);
+        if (dependent) console.log(`  [DRY] prérequis « ${RUSH_MISSING_QUEST_626.name} » sur « ${dependent.subGuideName} »`);
       }
     }
 
-    for (const edge of EDGES) {
+    for (const edge of RUSH_PREREQ_EDGES) {
       const dependent = byQuestId(edge.questId);
       const target = byQuestId(edge.prereqId);
       if (!dependent) throw new Error(`Dépendant ${edge.questId} introuvable.`);

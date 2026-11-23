@@ -30,6 +30,9 @@ const cleanEnv = (value: string | undefined) =>
   value ? value.replace(/^['"]|['"]$/g, "").trim() : "";
 
 function connectionString(): string {
+  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL requis en production (aucun fallback bêta).");
+  }
   if (process.env.DATABASE_URL) return cleanEnv(process.env.DATABASE_URL);
   const user = cleanEnv(process.env.POSTGRES_USER) || "sigiluser";
   const password = encodeURIComponent(cleanEnv(process.env.POSTGRES_PASSWORD));

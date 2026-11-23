@@ -45,7 +45,7 @@ officiel dit l'inverse : `type` = `1` rôle, `2` membre, **`3` salon**, et « to
 | `catch` muet sur une synchro | Affiche « Enregistré » alors que Discord a refusé |
 
 Procédure complète : skill `discord-api` (`.agents/skills/discord-api/SKILL.md`). Règle toujours chargée :
-`.clinerules/06-discord.md`.
+`docs/agents/rules/06-discord.md`.
 
 ## Architecture Overview
 

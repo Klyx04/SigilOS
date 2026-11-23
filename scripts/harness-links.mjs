@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 /**
- * Liens locaux du harnais : rendent les skills lisibles par Cline, Claude Code et Codex
- * sans dupliquer. Source unique versionnée : `.agents/skills`. Les liens sont gitignorés
- * et recréés par `npm run harness:links` ; `--check` vérifie sans rien modifier.
+ * Liens locaux du harnais : rendent les skills lisibles par Claude Code sans dupliquer.
+ * Source unique versionnée : `.agents/skills`. Les liens sont gitignorés et recréés par
+ * `npm run harness:links` ; `--check` vérifie sans rien modifier.
  *
  * Règles : jamais de remplacement d'un dossier réel (sauf s'il est vide), jamais de
  * duplication de contenu. Un lien cassé est recréé ; un lien qui pointe ailleurs est
  * signalé et laisse en place.
  */
-import { lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, realpathSync, rmdirSync, rmSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = process.env.HARNESS_LINKS_ROOT
+    ? path.resolve(process.env.HARNESS_LINKS_ROOT)
+    : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = path.join(root, ".agents", "skills");
 const checkOnly = process.argv.includes("--check");
 
@@ -30,10 +32,7 @@ if (skills.length === 0) fail("aucun skill dans .agents/skills");
 
 const sourceReal = realpathSync(source);
 
-const links = [
-    { path: path.join(root, ".cline", "skills"), label: ".cline/skills" },
-    { path: path.join(root, ".claude", "skills"), label: ".claude/skills" },
-];
+const links = [{ path: path.join(root, ".claude", "skills"), label: ".claude/skills" }];
 
 let created = 0;
 let ok = 0;
@@ -63,7 +62,7 @@ for (const { path: target, label } of links) {
         console.log(`~ ${label} : lien cassé, recréé`);
     } else if (existing) {
         if (!checkOnly && existing.isDirectory() && readdirSync(target).length === 0) {
-            rmSync(target);
+            rmdirSync(target);
             console.log(`~ ${label} : dossier vide remplacé par un lien`);
         } else {
             console.warn(`! ${label} existe et n'est pas un lien : ignoré`);

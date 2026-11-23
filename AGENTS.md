@@ -37,22 +37,24 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
 | **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.agents/skills/vps-ops/` — jamais `docker compose exec app-*` |
-| **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
+| **Amorce de session** + harnais agentique (règles, skills, garde-fous) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
 | **Config OpenCode** (skills partagés, permissions, commandes) | `opencode.json` + `docs/agents/harnais.md` §12 |
-| **Portabilité harnais** (liens Codex/Claude) | `scripts/harness-links.mjs` + `docs/agents/harnais.md` §14 |
+| **Portabilité harnais** (lien Claude Code) | `scripts/harness-links.mjs` + `docs/agents/harnais.md` §14 |
 | **Toute UI** (layout, composant, correctif d'affichage) | skill `.agents/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |
 
 **Ne lis pas par défaut** : l'historique long, les rapports d'audit (`docs/audits/`, non versionnés), les
 plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout le dépôt dans le contexte.
 
-**Règles de zone (OpenCode)** — OpenCode ne charge pas `.clinerules/*.md` automatiquement. Avant d'écrire
-dans une zone, lis sa règle : `.clinerules/01-server.md` (`src/server`, `src/app/api`, `src/workers`,
-`src/lib`) · `.clinerules/02-ui.md` (`src/components`, `src/app/**/*.tsx`) · `.clinerules/03-tests.md`
-(`tests`) · `.clinerules/04-docs.md` (`docs`, `AGENTS.md`) · `.clinerules/05-runtime.md` (`package.json`,
-`.nvmrc`, `Dockerfile*`, workflows) · `.clinerules/06-discord.md` · `.clinerules/07-vps.md`
-(`scripts/agent-ro.sh`, docs VPS). Les routeurs `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md` et
-`services/AGENTS.md` le rappellent par dossier. Cline garde ses `paths:` ; OpenCode passe par ce routage.
+**Règles de zone (OpenCode)** — les règles conditionnelles vivent dans `docs/agents/rules/` et sont
+lisibles par tous les assistants. Avant d'écrire dans une zone, lis sa règle :
+`docs/agents/rules/01-server.md` (`src/server`, `src/app/api`, `src/workers`, `src/lib`) ·
+`docs/agents/rules/02-ui.md` (`src/components`, `src/app/**/*.tsx`) · `docs/agents/rules/03-tests.md`
+(`tests`) · `docs/agents/rules/04-docs.md` (`docs`, `AGENTS.md`) · `docs/agents/rules/05-runtime.md`
+(`package.json`, `.nvmrc`, `Dockerfile*`, workflows) · `docs/agents/rules/06-discord.md` ·
+`docs/agents/rules/07-vps.md` (`scripts/agent-ro.sh`, docs VPS). Les routeurs `src/AGENTS.md`,
+`tests/AGENTS.md`, `docs/AGENTS.md` et `services/AGENTS.md` le rappellent par dossier. Le frontmatter
+`paths:` de chaque règle documente sa zone ; OpenCode passe par ce routage.
 
 ## 3. Zones de travail
 
@@ -62,7 +64,7 @@ dans une zone, lis sa règle : `.clinerules/01-server.md` (`src/server`, `src/ap
   artefacts de build (`dist/`, `.next/`, `tsconfig.tsbuildinfo`) · toute capture du poste.
 - **Toute documentation vit dans `docs/`** — un sujet = un fichier. Aucun `.md` de documentation ailleurs,
   hors `README.md` racine et `README.md` d'un sous-projet autonome. Les prompts du harnais
-  (`.clinerules/`, `.agents/skills/`, `.opencode/commands/`, `AGENTS.md` de zone) ne sont pas de la doc.
+  (`docs/agents/rules/`, `.agents/skills/`, `.opencode/commands/`, `AGENTS.md` de zone) ne sont pas de la doc.
 
 ## 4. Hygiène : zéro dette technique (non négociable)
 

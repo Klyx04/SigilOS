@@ -63,4 +63,4 @@ Jamais de secret affiché ; **aucune écriture** sans décision explicite. Une *
 | Réponse lente | 3 s maximum ; au-delà, « L'application n'a pas répondu » (même si le travail aboutit) |
 | Erreur avalée | Un `catch` muet = « Enregistré » alors que Discord a refusé |
 
-Références : `.clinerules/06-discord.md` · `docs/agents/discord-module.md` §0.
+Références : `docs/agents/rules/06-discord.md` · `docs/agents/discord-module.md` §0.

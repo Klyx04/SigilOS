@@ -250,8 +250,7 @@ private_uploads/
 .gemini/
 
 # Liens locaux du harnais (scripts/harness-links.mjs)
-# La source versionnée est le dossier .agents/skills ; les hôtes la lisent via ces liens.
-/.cline/skills
+# La source versionnée est le dossier .agents/skills ; l'hôte la lit via ce lien.
 /.claude/skills
 /.claude/settings.local.json
 /.claude/commands/

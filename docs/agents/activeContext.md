@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 23/11/2026 (suite 62) — **Harnais : sortie de Cline terminée** — branche `refactor/harnais-sortie-cline-2026-11-23`
+
+> **Demande user (verbatim)** : « PR 1 puis PR 2 d'affilée » puis « feu vert ».
+> **Mesuré** : la jonction `.cline/skills` de la PR 1 a cassé un `git switch` vers un commit antérieur — git a restauré `.cline/skills/*` sous la jonction en supprimant la nouvelle source ; réparé par `git restore`. Les 3 hooks `.ps1` coûtaient 22 s de `harness-config` pour une politique déjà exprimable par `opencode.json`.
+> **Fait** : PR 1 **#1510** (source `.agents/skills`, `harness:links` idempotent + `--check`, CI, 4 tests repointés) · PR 2 (règles → `docs/agents/rules`, hooks supprimés, `.clineignore` supprimé, lien `.cline/skills` retiré, écriture `.env` par commande et `git push --force`/`-f` en `deny`) · test des garde-fous par **matrice de commandes** (dernière règle gagnante) · script `harness:links` testé (dossier vide/plein, `--check`).
+> **Preuves** : **809 fichiers / 8 346 tests ✅** · `harness-config` 16/16 · `harness:links` 1/1 + `--check` · export sans lien → recréé, 12 skills · `tsc` 0 · `lint` 0 erreur · CI #1510 verte · relecture `reviewer` : 1 bloquant + 3 importants corrigés.
+> **Reste** : désinstaller Cline (geste utilisateur) · redémarrer OpenCode pour recharger les permissions.
+> **Rotation** : bloc « suite 56 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 23/11/2026 (suite 61) — **Harnais : plan de sortie Cline persisté** — branche `docs/harnais-sortie-cline-2026-11-23`
 
 > **Demande user (verbatim)** : « ressors le plan complet si on relance une session elle va etre amnesique non ».
@@ -51,14 +60,3 @@
 > **Suite (même session) — Lot 4** : décision **source `.cline/skills` conservée** ; migration `.agents/skills` conditionnée (3 lots produit + Cline secondaire + liens CI) ; baseline Lots 1-3 dans `harnais.md` §14 ; scorecard produit à remplir.
 > **Preuves Lot 4** : relecture Lot 3 → 2 bloquants corrigés (`/fin` sur `origin/dev...HEAD`, `.claude/settings.local.json` ignoré) · `harness-config` 19/19 · `tsc` 0 · `lint` 0 erreur · CI à venir.
 > **Reste** : 3 lots produit à mesurer (scorecard §14) · migration conditionnée · rotation `activeContext` non tranchée (#42) · gaps best-effort du hook shell.
-
-## 📝 Session 22/11/2026 (suite 56) — **Rush : carte des quêtes — bon monde + accès visiteur** — branche `fix/rush-carte-monde-public-2026-11-22`
-
-> **Demande user (verbatim)** : « on oublie la vue de la map dans l'overlay pip et le point sur la map, on conserve l'existant et tu debug ce qui doit l'être (effectivement il y a beaucoup de positions qui sont dans le mauvais sous-monde) + debug visiteurs connecté/déconnecté ».
-> **Mesuré** : `/api/rush/map-at` absent de `isPublicApi` ⇒ **401** pour un visiteur non connecté ; **112 / 527** positions `pos_tags` tombent sur une case présente dans plusieurs mondes ; la branche `mapId` de God était **dans un commentaire** (`mapParam` jamais lu, ESLint le signalait) ; la puce ne transmettait que `parsed.worldId` (le texte `[x,y]` ne porte pas le monde).
-> **Fait** : ① proxy : `/api/rush/map-at` en **lecture publique** (asset déjà public, entiers bornés) ; ② `RushCoordinateChip` reçoit `worldId` (du `pos_tags`) et le transmet au menu **et** à `resolveMapWorldAction` (4ᵉ param, monde explicite prioritaire) ; ③ route : la carte `mapId` de God est **de nouveau prioritaire** ; ④ règle pure `buildRushMapAtUrl` (seul constructeur d'URL) ; ⑤ tests : route **7**, URL **3**, câblage **4** ; ⑥ **pas** de carte dans la PiP, **pas** de pion (décision user).
-> **Preuves** : **802 fichiers / 8 299 tests ✅** · `tsc` 0 · ESLint 0 erreur · aucune migration.
-> **Suite (même session) — Temple Céleste (monde 41)** : DofusDB l'a créé le 23/06/2026 (sous-zone 446, 3 cartes 241443329/241444353/241445377) ; `worldmap.json` datait du 16/04. Voie **ciblée** `scripts/sync-subworld.ts` (dry-run/`--apply`, refus 19/29, aucun écrasement) : **37 mondes / 14 706 cartes** ; `DOFUS_WORLDS` + test de parité ; images **3 HD + 160/84/40/12 tuiles** ; **cache serveur `getWorldmapData` invalidé par mtime** (`map-at?world=41` → 200 sans redémarrage) ; audit `--world 41` : **1 écart** « Réponses à tout » (1631) `worldId=1 → 41`, carte 241443329, à corriger dans God (« Bien débuter » déjà passé à 41). Doc : `docs/agents/siphon-worldmap.md` réécrite.
-> **Suite 2 (même session) — sous-mondes / `(0,0)`** : « Le jour le plus long » (2111) était `worldId: 1` alors que sa carte `201588736` est en **monde 24** (Blessures de Guerre) ; `map-at` refusait `(0,0)` en bloc. **Fait** : `(0,0)` autorisé si monde explicite > 1 (ou carte God imposée), testé (route 9) ; **worldmap** : `hasKnownGameCoords` accepte `(0,0)` d'un sous-monde > 1 et `map-hd-overlay` ne l'exclut plus (index de clic + overlay HD, test source) ; règle pure `rush-pos-fix` + `scripts/fix-rush-pos-worlds.ts` (dry-run/`--apply`) : **514 corrections** proposées (149 monde+carte, 365 carte seule — Mappemondes/donjons) ; **4 appliquées en local** (24 ×3, 41 ×1), audits 24/41 = 0 ; `map-at?x=0&y=0&world=24` → 200. **La tuile de fond `0` n'existe pas chez DofusDB (404)** : le sync à partir de 1 est correct. `npx` absent de l'hôte VPS → script dans le conteneur app.
-> **Reste** : compteur « 448 » à reproduire dans l'en-tête PiP · **bêta : appliquer le fix des positions (24/41 puis global 510)** (local déjà appliqué) · overlay étroit (3ᵉ palier) à décider · T-6/G6 à profiler · `useOptimistic` à supprimer.
-> **Rotation** : bloc « suite 48 » (sécurité #1486) sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

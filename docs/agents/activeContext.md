@@ -58,6 +58,3 @@
 > **Fait** : règle pure `resolveOverlayLayout` (`src/lib/rush-overlay-layout.ts`) : `small` si un côté est étroit, `tight` prioritaire, `wide` dès 820 px de haut sinon ; `GuideOverlayClient` l'utilise ; `RushOverlayHeader` fait primer `narrow` sur `density`. 4 tests neufs.
 > **Preuves** : **28 tests ciblés ✅** (`rush-overlay-layout`, `rush-dungeons-overview-ui`, `rush-overlay-v2f`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
 > **Reste** : 3ᵉ palier (largeur cible + blocs visibles, décision) · captures 390/768/1024/1440 à valider visuellement.
-
-
-

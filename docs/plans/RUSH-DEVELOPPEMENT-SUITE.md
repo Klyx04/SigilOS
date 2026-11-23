@@ -31,7 +31,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 
 | # | Lot | Pourquoi ce n'est pas codé | Décision attendue |
 |---|---|---|---|
-| 8 | **T-6 / G6** (contextes → Zustand) | **21** `createContext` (pas 17) ; `SequenceRow` en lit **18** ; `CompletedStepsCtx` est **fourni mais jamais lu** (code mort à retirer). Le plan impose un **profiler navigateur avant/après** | session dédiée avec profiler |
+| 8 | **T-6 / G6** (contextes → Zustand) | **20** `createContext` après le retrait du 23/11 (21 avant) ; `SequenceRow` en lit **18** ; `CompletedStepsCtx` **retiré**. Le plan impose un **profiler navigateur avant/après** | session dédiée avec profiler |
 | 9 | ~~**`useOptimistic`**~~ ✅ **supprimé le 23/11/2026** | `src/hooks/use-optimistic-toggle.ts` n'était importé nulle part ; l'overlay fait déjà optimiste + rollback + cascade. `CompletedStepsCtx` (fourni mais jamais lu) retiré de `RushTimelineClient`. | — |
 | 10 | ~~**O9 carte « Maintenant »**~~ ✅ **abandonnée le 23/11/2026** | La carte n'existe pas dans l'overlay ; doublon de « Reprendre » + objectif courant retiré. Rayée du plan. | — |
 | 11 | ~~**O11 jauges / anneaux**~~ ✅ **abandonnés le 23/11/2026** | Une seule jauge dans l'en-tête (anti-doublon assumé). | — |
@@ -60,7 +60,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 
 ### E. Ops (hors code)
 
-Bêta à redéployer (`dev` `dbbe5ae3` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
+Bêta à redéployer (`dev` `5fde8ddb` ≠ bêta `8d7528ff`) · migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs** · prod `main` = `c190f2c7`, **aucune date**.
 
 ### F. À savoir avant de coder
 

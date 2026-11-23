@@ -77,7 +77,7 @@ Bêta à redéployer (`dev` `5fde8ddb` ≠ bêta `8d7528ff`) · migrations `2027
 >
 > **Succès** : les **72 succès** référencés par le guide sont tous résolus dans `public/game-data/achievements.json` (2 777 succès, `questIds` fournis par le siphon client). **114 quêtes** liées à ces succès manquent dans le guide ; la fiche d'un succès ne liste que les quêtes présentes → **0/0** et message « les N quêtes ne sont pas dans le guide » alors que **3/4 existent** en local. La bêta est en plus en retard (3/4 en local, 0/0 sur la bêta).
 >
-> **Lots** : ① `SuccessChip` affiche **toutes** les quêtes d'un succès (nom, coché/non coché, badge « hors guide ») ; ② ajouter les **8 quêtes Dofusyelle** avec leurs prérequis (ex. `1989 Restauration rapide` → `1988 L'histoire en mouvement`, confirmé par DofusDB) ; ③ garde-fou : contrôle qui liste les succès dont les quêtes manquent ; ④ réimport bêta après correction. **Aucune migration.** Sources : `docs/reference/TOUGLI-API.md` · `https://dofusyelle.com/rush-sylvestre.html`.
+> **Lots** : ① ✅ **livré le 23/11/2026** : `SuccessChip` affiche **toutes** les quêtes d'un succès (nom, coché/non coché, badge « hors guide », icône de succès) ; ② ajouter les **8 quêtes Dofusyelle** avec leurs prérequis (ex. `1989 Restauration rapide` → `1988 L'histoire en mouvement`, confirmé par DofusDB) ; ③ garde-fou : contrôle qui liste les succès dont les quêtes manquent ; ④ réimport bêta après correction. **Aucune migration.** Sources : `docs/reference/TOUGLI-API.md` · `https://dofusyelle.com/rush-sylvestre.html`.
 
 
 ## 0. Ce qui fait foi depuis le 21/10/2026

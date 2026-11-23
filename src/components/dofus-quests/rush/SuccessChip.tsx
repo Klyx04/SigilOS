@@ -3,10 +3,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
-import { successIconUrl } from "@/lib/achievement-icon";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
+import { buildSuccessQuestRows } from "@/lib/rush-success-quests";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
 
@@ -60,10 +60,12 @@ function loadAchievementQuests(): Promise<AchievementQuestIndex> {
 function SuccessSheet({
   success,
   quests,
+  iconSrc,
   onClose,
 }: {
   success: RushSuccessRef;
   quests: RushGuideQuestRef[];
+  iconSrc: string;
   onClose: () => void;
 }) {
   const [ids, setIds] = useState<number[] | null>(null);
@@ -78,11 +80,10 @@ function SuccessSheet({
     };
   }, [success.id]);
 
-  const rows = useMemo(() => {
-    if (!ids) return [];
-    const byId = new Map(quests.map((quest) => [quest.id, quest]));
-    return ids.map((id) => byId.get(id)).filter((quest): quest is RushGuideQuestRef => !!quest);
-  }, [ids, quests]);
+  const rows = useMemo(
+    () => buildSuccessQuestRows(ids, quests),
+    [ids, quests]
+  );
 
   const done = rows.filter((row) => row.done).length;
 
@@ -97,7 +98,7 @@ function SuccessSheet({
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-elevated">
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={successIconUrl(success.iconId)} alt="" className="h-5 w-5 shrink-0 object-contain" />
+          <img src={iconSrc} alt="" className="h-5 w-5 shrink-0 object-contain" />
           <div className="min-w-0 flex-1">
             <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Succès
@@ -124,7 +125,7 @@ function SuccessSheet({
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
           ) : rows.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
-              {ids.length > 0 ? `Les ${ids.length} quêtes de ce succès ne sont pas dans le guide.` : "Aucune quête de ce succès n est dans le guide."}
+              Aucune quête liée à ce succès.
             </p>
           ) : (
             <ul className="space-y-1">
@@ -133,6 +134,7 @@ function SuccessSheet({
                   key={row.id}
                   className={cn(
                     "flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]",
+                    row.inGuide ? "" : "border-dashed",
                     row.done ? "text-muted-foreground" : "text-foreground"
                   )}
                 >
@@ -156,7 +158,12 @@ function SuccessSheet({
                     {row.done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                  <span className="sr-only">{row.done ? "Validée" : "À faire"}</span>
+                  {!row.inGuide && (
+                    <span className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Hors guide
+                    </span>
+                  )}
+                  <span className="sr-only">{row.done ? "Validée" : row.inGuide ? "À faire" : "Hors guide"}</span>
                 </li>
               ))}
             </ul>
@@ -228,7 +235,7 @@ export function SuccessChip({
       {open && portalRoot
         ? createPortal(
             <div className="da-portal" {...daScope}>
-              <SuccessSheet success={open} quests={quests} onClose={() => setOpen(null)} />
+              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={() => setOpen(null)} />
             </div>,
             portalRoot
           )

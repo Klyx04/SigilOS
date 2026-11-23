@@ -30,6 +30,7 @@ export type HelpPosition = {
 
 export const HELP_MARGIN = 8;
 export const HELP_GAP = 8;
+export const HELP_POPOVER_WIDTH = 320;
 
 export function placeContextualHelp(
   trigger: HelpTriggerRect,

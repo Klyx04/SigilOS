@@ -30,6 +30,10 @@ leurs éditeurs.
 
 - **Aucun secret versionné** : la configuration passe par des variables d'environnement (modèle
   `.env.example`) et les jetons d'accès sont chiffrés au repos.
+- **Secrets hors de portée de l'agent** (config `opencode.json`) : `.env` est refusé en lecture comme
+  en écriture, à l'outil **et** aux commandes ; `.env.example` reste seul lisible. Les dossiers de
+  credentials (`~/.ssh`, `~/.aws`, `~/.config/gh`…) sont refusés et toute sortie du projet demande une
+  validation. Limite assumée : sans bac à sable système, ces règles filtrent les formes directes.
 - **Aucune empreinte de machine** : pas de chemin local, d'identifiant personnel, ni d'image
   porteuse de métadonnées — contrôle automatique (`node scripts/check-media-metadata.mjs`) exécuté
   dans la CI **et** avant chaque commit.

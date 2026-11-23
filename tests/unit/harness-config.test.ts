@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
@@ -273,6 +274,30 @@ describe("harnais agentique", () => {
         expect(template.length).toBeLessThan(2500);
     });
 
+    it("le pilote de mutation reste borné et ciblé", async () => {
+        const pkg = JSON.parse(read("package.json")) as {
+            scripts: Record<string, string>;
+            devDependencies: Record<string, string>;
+        };
+        expect(pkg.scripts["test:mutate"]).toBe("stryker run");
+        expect(pkg.devDependencies["@stryker-mutator/core"]).toBeTruthy();
+        expect(pkg.devDependencies["@stryker-mutator/vitest-runner"]).toBeTruthy();
+
+        /* Un pilote qui muterait tout `src/` coûterait des heures : on charge la vraie config
+           et on exige UNE seule cible. Un `toContain` laisserait passer `["src/**", …]`. */
+        const config = (
+            await import(pathToFileURL(path.join(root, ".stryker.config.mjs")).href)
+        ).default as { mutate: string[]; thresholds: { break: unknown } };
+        expect(config.mutate).toEqual(["src/lib/rush-overlay-layout.ts"]);
+        expect(config.thresholds.break).toBeNull();
+        expect(fs.existsSync(path.join(root, "src/lib/rush-overlay-layout.ts"))).toBe(true);
+
+        const ignore = read(".gitignore");
+        for (const entry of ["/.stryker-tmp/", "/stryker.log", "/reports/"]) {
+            expect(ignore, entry).toContain(entry);
+        }
+    });
+
     it("le sous-agent reviewer est read-only et limité à git", () => {
         const reviewer = read(".opencode/agents/reviewer.md");
         expect(reviewer).toContain("mode: subagent");
@@ -284,6 +309,9 @@ describe("harnais agentique", () => {
         expect(reviewer).toContain("--textconv");
         expect(reviewer).toContain('resource: "*>*"');
         expect(reviewer).toContain('resource: "*<*"');
+        /* Un reviewer qui lit node_modules part en expédition : mesuré 6 min / 145 k tokens. */
+        expect(reviewer).toContain('resource: "node_modules/**"');
+        expect(reviewer).toContain("~40 appels d'outils");
     });
 
     it("le harnais expose les liens de portabilité", () => {

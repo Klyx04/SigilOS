@@ -35,6 +35,7 @@ docs/
 │   │                              (amorce lue automatiquement : `AGENTS.md`, à la RACINE)
 │   ├── harnais.md                 harnais agentique : règles, skills, garde-fous, mesure
 │   ├── rules/                     règles de zone (01-server … 07-vps), routées par AGENTS.md
+│   ├── mutation-testing.md        mesurer un test (Stryker), pilote sur une règle pure
 │   ├── vps-read-only.md           accès agent au VPS : clé SSH à commande forcée, lecture seule (bêta)
 │   ├── journal-sessions-2026.md   archive des 171 blocs de session (à la demande)
 │   ├── archive/                   anciennes sources d'ordre (FILE-EXECUTION, BRIEF, amorce)

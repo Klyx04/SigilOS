@@ -249,6 +249,11 @@ private_uploads/
 *_dump.json
 .gemini/
 
+# Mutation testing (Stryker) — sorties locales, jamais commitées
+/.stryker-tmp/
+/stryker.log
+/reports/
+
 # Liens locaux du harnais (scripts/harness-links.mjs)
 # La source versionnée est le dossier .agents/skills ; l'hôte la lit via ce lien.
 /.claude/skills

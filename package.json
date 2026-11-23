@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:mutate": "stryker run",
     "security:audit": "node scripts/security-gate.mjs",
     "security:install-scripts": "node scripts/check-install-scripts.mjs",
     "harness:links": "node scripts/harness-links.mjs",
@@ -128,6 +129,8 @@
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.1",
+    "@stryker-mutator/core": "9.6.0",
+    "@stryker-mutator/vitest-runner": "9.6.0",
     "@tailwindcss/postcss": "^4",
     "@types/ioredis": "^5.0.0",
     "@types/leaflet": "^1.9.22",

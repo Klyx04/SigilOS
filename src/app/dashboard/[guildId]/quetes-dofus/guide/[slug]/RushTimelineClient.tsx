@@ -121,6 +121,7 @@ import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparato
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushOrderSelect } from "@/components/dofus-quests/rush/RushOrderSelect";
+import { ContextualHelp as ContextualHelpBase } from "@/components/dofus-quests/rush/ContextualHelp";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
@@ -1150,10 +1151,11 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
             />
           )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 self-end sm:self-center">
             {!allFiltered&&!orderKey&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
             {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id)&&!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
+            <ContextualHelp label="Aide bloc">« Valider » coche toutes les quêtes du bloc ; « Je suis ici » pose un repère ; « Réinitialiser » décoche le bloc.</ContextualHelp>
           </div>
         </div>
         {/* Barre de progression du bloc (la donnée, pas une décoration) */}
@@ -1168,12 +1170,15 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (<>
                     {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
                         opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
-                    <RushOrderSelect
-                      options={orderOptions}
-                      value={effectiveOrderKey}
-                      onChange={handleOrderChange}
-                      className="mb-1 px-1"
-                    />
+                    <div className="mb-1 flex items-center gap-1 px-1">
+                      <RushOrderSelect
+                        options={orderOptions}
+                        value={effectiveOrderKey}
+                        onChange={handleOrderChange}
+                        className="min-w-0 flex-1"
+                      />
+                      <ContextualHelp label="Aide Ordre">Changer d'Ordre affiche les quêtes de cet Ordre et décoche celles de l'ancien.</ContextualHelp>
+                    </div>
                     {orderConfirm && (
                       <Dialog open onOpenChange={(open) => { if (!open) setOrderConfirm(null); }}>
                         <DialogContent className="max-w-sm">
@@ -1372,59 +1377,16 @@ const CanViewSuccesCtx=React.createContext<boolean>(false);
 const AchievementCharacterCtx=React.createContext<string|undefined>(undefined);
 
 // ─── ContextualHelp ──────────────────────────────────────────────────────────
+/**
+ * Enveloppe locale : la base portée dans le `body` est partagée, le contexte
+ * `ContextualHelpCtx` reste la source de l'activation par le guide.
+ */
 function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
   const enabled = React.useContext(ContextualHelpCtx);
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
-          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  if (!enabled) return null;
-
   return (
-    <span className={`relative inline-flex ${className || ''}`}>
-      <button
-        type="button"
-        ref={triggerRef}
-        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setTimeout(() => setOpen(false), 150); }}
-        aria-label={label}
-        className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground hover:text-success hover:bg-success/10 transition-all shrink-0"
-      >
-        <CircleHelp className="w-3.5 h-3.5" />
-      </button>
-      {open && (
-        <div
-          ref={popoverRef}
-          role="tooltip"
-          className="absolute z-[var(--z-tooltip)] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 rounded-[4px] bg-background border border-border text-xs text-foreground leading-relaxed  pointer-events-auto"
-        >
-          {children}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-background border-r border-b border-border rotate-45 -mt-px" />
-        </div>
-      )}
-    </span>
+    <ContextualHelpBase enabled={enabled} label={label} className={className}>
+      {children}
+    </ContextualHelpBase>
   );
 }
 

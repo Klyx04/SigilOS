@@ -36,11 +36,11 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
-| **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.cline/skills/vps-ops/` — jamais `docker compose exec app-*` |
+| **Ops VPS en écriture** (dump, archive Rush, vérif) | `docs/agents/vps-ops.md` + skill `.agents/skills/vps-ops/` — jamais `docker compose exec app-*` |
 | **Amorce de session** + harnais agentique (règles, skills, hooks) | `docs/agents/harnais.md` — **§0** = le prompt générique à coller ; le reste **à la demande** |
 | **Config OpenCode** (skills partagés, permissions, commandes) | `opencode.json` + `docs/agents/harnais.md` §12 |
 | **Portabilité harnais** (liens Codex/Claude) | `scripts/harness-links.mjs` + `docs/agents/harnais.md` §14 |
-| **Toute UI** (layout, composant, correctif d'affichage) | skill `.cline/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
+| **Toute UI** (layout, composant, correctif d'affichage) | skill `.agents/skills/responsive/` + `docs/RULES.md` § Responsive (4 largeurs, `svh`/`dvh`, cliquet) |
 | Index complet de la doc | `docs/README.md` |
 
 **Ne lis pas par défaut** : l'historique long, les rapports d'audit (`docs/audits/`, non versionnés), les
@@ -62,7 +62,7 @@ dans une zone, lis sa règle : `.clinerules/01-server.md` (`src/server`, `src/ap
   artefacts de build (`dist/`, `.next/`, `tsconfig.tsbuildinfo`) · toute capture du poste.
 - **Toute documentation vit dans `docs/`** — un sujet = un fichier. Aucun `.md` de documentation ailleurs,
   hors `README.md` racine et `README.md` d'un sous-projet autonome. Les prompts du harnais
-  (`.clinerules/`, `.cline/skills/`, `.opencode/commands/`, `AGENTS.md` de zone) ne sont pas de la doc.
+  (`.clinerules/`, `.agents/skills/`, `.opencode/commands/`, `AGENTS.md` de zone) ne sont pas de la doc.
 
 ## 4. Hygiène : zéro dette technique (non négociable)
 

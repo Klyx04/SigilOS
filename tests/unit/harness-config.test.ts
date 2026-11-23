@@ -55,7 +55,7 @@ describe("harnais agentique", () => {
     });
 
     it("chaque skill a un frontmatter valide et un nom égal au dossier", () => {
-        const dir = path.join(root, ".cline/skills");
+        const dir = path.join(root, ".agents/skills");
         const skills = fs.readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
         expect(skills.length).toBeGreaterThanOrEqual(6);
 
@@ -85,7 +85,7 @@ describe("harnais agentique", () => {
     });
 
     it("l'inventaire des 12 skills est exact", () => {
-        const dir = path.join(root, ".cline/skills");
+        const dir = path.join(root, ".agents/skills");
         const skills = fs
             .readdirSync(dir, { withFileTypes: true })
             .filter((entry) => entry.isDirectory())
@@ -186,7 +186,7 @@ describe("harnais agentique", () => {
             mcp: { servers: Record<string, { type: string; url: string }> };
         };
 
-        expect(config.skills).toContain(".cline/skills");
+        expect(config.skills).toContain(".agents/skills");
         expect(config.permissions).toEqual(
             expect.arrayContaining([
                 { action: "edit", resource: "*.env", effect: "deny" },
@@ -240,8 +240,9 @@ describe("harnais agentique", () => {
         expect(fs.existsSync(path.join(root, "scripts/harness-links.mjs"))).toBe(true);
 
         const ignore = read(".gitignore");
-        expect(ignore).toContain("/.agents/skills");
+        expect(ignore).toContain("/.cline/skills");
         expect(ignore).toContain("/.claude/skills");
+        expect(ignore).not.toContain("/.agents/skills");
         expect(ignore).toContain("/.claude/settings.local.json");
         expect(ignore).toContain("/.claude/commands/");
         expect(ignore).toContain("/.claude/agents/");
@@ -250,6 +251,21 @@ describe("harnais agentique", () => {
         expect(fin).toContain("reviewer");
         expect(fin).toContain("origin/dev...HEAD");
         expect(read(".opencode/agents/reviewer.md")).toContain("origin/dev...HEAD");
+    });
+
+    it("la source des skills est versionnée et les liens hôtes ignorés", () => {
+        const isIgnored = (relative: string) => {
+            const result = spawnSync("git", ["check-ignore", "-q", relative], { cwd: root });
+            return result.status === 0;
+        };
+
+        /* La source doit rester un vrai dossier suivi : un lien à sa place casserait
+           un clone neuf (la cible n'existerait pas). C'était le sens de la migration
+           du 23/11/2026, du dossier Cline vers un emplacement neutre. */
+        expect(fs.lstatSync(path.join(root, ".agents/skills")).isSymbolicLink()).toBe(false);
+        expect(isIgnored(".agents/skills")).toBe(false);
+        expect(isIgnored(".cline/skills")).toBe(true);
+        expect(isIgnored(".claude/skills")).toBe(true);
     });
 
     it("le journal archive est présent et ne contient aucun ID Discord", () => {

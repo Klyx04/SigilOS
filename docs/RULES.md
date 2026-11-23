@@ -146,7 +146,7 @@ Garde-fou : `tests/unit/ui-tokens-dj.test.ts` verrouille les surfaces DJ/Quête.
 ## 📐 Responsive — le skill, et le cliquet
 
 Toute UI, tout layout, tout composant et **tout correctif d'affichage** passent par le skill
-`.cline/skills/responsive/` (règles + références `tailwind-v4.md` et `sigilos.md`). Il n'est pas
+`.agents/skills/responsive/` (règles + références `tailwind-v4.md` et `sigilos.md`). Il n'est pas
 optionnel : c'est la seule façon d'éviter qu'un écran neuf réintroduise un anti-pattern déjà payé.
 
 - **Quatre largeurs de contrôle** : 390 / 768 / 1 024 / 1 440 — plus **320 px** pour le reflow.

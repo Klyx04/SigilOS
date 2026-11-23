@@ -1,7 +1,7 @@
 /**
  * Garde responsive — **cliquet** (ratchet), pas un big bang.
  *
- * Le skill `.cline/skills/responsive/` dit *quoi* faire ; il ne peut pas prouver qu'on l'a fait.
+ * Le skill `.agents/skills/responsive/` dit *quoi* faire ; il ne peut pas prouver qu'on l'a fait.
  * Un skill purement déclaratif est une intention. Ce test le rend **vérifiable** : il compte les
  * trois anti-patterns qui ont réellement cassé des écrans, et **interdit qu'ils augmentent**.
  *
@@ -80,9 +80,9 @@ describe("Garde responsive — le cliquet ne remonte jamais", () => {
 
 describe("Le skill responsive est branché (pas seulement présent)", () => {
     it("le skill et ses deux références existent", () => {
-        expect(existsSync(".cline/skills/responsive/SKILL.md")).toBe(true);
-        expect(existsSync(".cline/skills/responsive/references/tailwind-v4.md")).toBe(true);
-        expect(existsSync(".cline/skills/responsive/references/sigilos.md")).toBe(true);
+        expect(existsSync(".agents/skills/responsive/SKILL.md")).toBe(true);
+        expect(existsSync(".agents/skills/responsive/references/tailwind-v4.md")).toBe(true);
+        expect(existsSync(".agents/skills/responsive/references/sigilos.md")).toBe(true);
     });
 
     it("les règles du dépôt et l'amorce le citent — un skill qu'on ne route pas est mort", () => {

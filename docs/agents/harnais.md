@@ -154,17 +154,24 @@ jamais chargé) et à `sigilos-da-wakfu`. Utiliser un tiret cadratin `—`. Verr
 Les garde-fous sont **déterministes** et vivent dans `opencode.json` → `permissions` : aucune
 interprétation, aucun LLM. Deux niveaux :
 
-- **`deny`** — l'action n'est pas exécutée : écriture d'un `.env` (outil d'édition **et** commandes
-  `Set-Content` / `Out-File` / `Add-Content` / `>`), `--no-verify`, `git push --force` ;
+- **`deny`** — l'action n'est pas exécutée : **lecture et écriture** d'un `.env` (outil de lecture/édition
+  **et** commandes `Get-Content` / `cat` / `grep` / `Set-Content` / `Out-File` / `Add-Content` / `>`),
+  dossiers de credentials (`~/.ssh`, `~/.aws`, `~/.config/gh`, `~/.config/opencode`, `~/.kube`),
+  `--no-verify`, `git push --force` / `-f` ;
 - **`ask`** — l'action attend un accord explicite : migration Prisma (`migrations/`, `migrate dev`,
-  `migrate reset`, `db push`), `git reset --hard`, `drop database`, `rm -rf`, `Remove-Item -Recurse`.
+  `migrate reset`, `db push`), `git reset --hard`, `drop database`, `rm -rf`, `Remove-Item -Recurse`,
+  **toute sortie du projet** (`external_directory`) ;
+- **`allow`** — un seul cas : `.env.example`, en lecture comme en écriture (le contrat des noms, jamais
+  les valeurs).
 
 Le test ne se contente pas de vérifier la présence des règles : il rejoue une **matrice de commandes**
 réelles (`Set-Content .env foo`, `echo x >> .env.local`, `git push -f`, …) avec la sémantique d'OpenCode
 (dernière règle qui matche). Retirer une ligne de cette table fait échouer la CI.
 
-Limite connue : le glob porte sur la chaîne de commande entière. Une écriture de `.env` déguisée
-(variable, script tiers) peut passer ; les formes directes sont couvertes.
+Limite connue : les motifs shell sont une **liste de verbes** (`Get-Content`, `cat`, `grep`…), pas une
+barrière système ; un agent déterminé peut lire autrement (`node -e …`). Le bac à sable reste le vrai
+correctif (WSL2 / conteneur). Mesure du 23/11/2026 : `Get-Content .env` lisait 53 lignes avant ces
+règles, `Permission denied` après.
 
 Les rituels `TaskStart` / `TaskComplete` sont remplacés par `/reprise` et `/fin` (`.opencode/commands/`).
 

@@ -183,6 +183,24 @@ describe("harnais agentique", () => {
             expectEffect("shell", command, "deny");
         }
 
+        /* Lecture des secrets : l'outil ET le shell — sinon le garde-fou est décoratif
+           (mesuré le 23/11/2026 : `Get-Content .env` lisait 53 lignes sans demande). */
+        expectEffect("read", ".env", "deny");
+        expectEffect("read", ".env.local", "deny");
+        expectEffect("read", ".env.example", "allow");
+        for (const command of [
+            "Get-Content .env",
+            "cat .env.local",
+            "Select-String -Path .env foo",
+            "grep foo .env",
+        ]) {
+            expectEffect("shell", command, "deny");
+        }
+
+        /* Sortie du projet : accord explicite ; credentials : refus. */
+        expectEffect("external_directory", "*", "ask");
+        expectEffect("read", "~/.ssh/id_rsa", "deny");
+
         /* Contournement des hooks git. */
         expectEffect("shell", "git commit --no-verify -m x", "deny");
         expectEffect("shell", "git push --force origin dev", "deny");
@@ -207,9 +225,10 @@ describe("harnais agentique", () => {
             expectEffect("shell", command, undefined);
         }
 
-        /* Une `allow` fourre-tout neutraliserait tous les deny : on n'en veut qu'une. */
+        /* Une `allow` fourre-tout neutraliserait tous les deny : on n'en veut que deux. */
         expect(config.permissions.filter((rule) => rule.effect === "allow")).toEqual([
             { action: "edit", resource: "*.env.example", effect: "allow" },
+            { action: "read", resource: "*.env.example", effect: "allow" },
         ]);
     });
 

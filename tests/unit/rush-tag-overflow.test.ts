@@ -83,10 +83,11 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
     it("la fiche succès passe au-dessus de la fiche détail et gère Échap/focus en PiP", () => {
         const src = readFileSync("src/components/dofus-quests/rush/SuccessChip.tsx", "utf8");
         expect(src).toContain("z-[120]");
-        expect(src).toContain("stopPropagation");
         expect(src).toContain("closeRef");
         expect(src).toContain("trapTab");
-        expect(src).toContain("ownerDocument");
+        expect(src).toContain("close?.ownerDocument");
+        expect(src).toContain("event.currentTarget.ownerDocument.activeElement");
+        expect(src).toContain('doc?.addEventListener("keydown", handleKeyDown, true)');
     });
 
     it("le toast de retour propose une croix câblée à la fermeture", () => {

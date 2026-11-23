@@ -1,5 +1,5 @@
 /**
- * Arêtes de prérequis **mesquées le 23/11/2026** pour le guide Rush Sylvestre.
+ * Arêtes de prérequis **mesurées le 23/11/2026** pour le guide Rush Sylvestre.
  *
  * Source unique du script `scripts/fix-rush-prerequisites.ts` et du test de
  * garde : 9 arêtes lues dans le client (`quest-prerequisites.json`) + 28 lues

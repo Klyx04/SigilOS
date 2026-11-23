@@ -1,7 +1,7 @@
 /* ═══ SigilOS — DA « Gouache Wakfu » ═════════════════════════════════════════
    Couche 1 (tokens + socle). Extraite de la maquette validée
    (`src/temp/DA-SigilOS/rush-sylvestre-wakfu-affine.html`) et adaptée au dépôt.
-   Le mode d'emploi complet vit dans `.cline/skills/sigilos-da-wakfu/`.
+   Le mode d'emploi complet vit dans `.agents/skills/sigilos-da-wakfu/`.
 
    Règles de la couche :
      1. Préfixe `--da-` OBLIGATOIRE. Les noms sémantiques globaux appartiennent

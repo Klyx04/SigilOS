@@ -376,7 +376,7 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
   **pseudo Metamob affiché dans cette vue seulement** (décision du 11/11/2026 : sans lui, pas de
   contact) + lien « Contacter sur Metamob » ; aucun envoi de proposition. Cache Redis **120 s**
   (matches) / **600 s** (quête) par lecteur, invalidé par `updatePublicMetamob`, aucun secret
-  dans le cache. Veille : `docs/reference/METAMOB-API.md`, skill `.cline/skills/metamob-api/`,
+  dans le cache. Veille : `docs/reference/METAMOB-API.md`, skill `.agents/skills/metamob-api/`,
   `scripts/check-metamob-api.mjs` (clé **obligatoire**, pas de hook), siphon volatile
   `src/temp/metamob-api-siphon.mjs`. **Correctif mesuré** : `/v1/quests` (liste privée) n'était
   pas reconnu comme ressource utilisateur → cache partagé/circuit ouvert ; corrigé + test.

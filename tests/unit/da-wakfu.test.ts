@@ -16,7 +16,7 @@ import { countRushQuests, matchesRushQuestFilter } from "@/lib/rush-quest-filter
  */
 
 const CSS = "src/app/da-wakfu.css";
-const SKILL = ".cline/skills/sigilos-da-wakfu/SKILL.md";
+const SKILL = ".agents/skills/sigilos-da-wakfu/SKILL.md";
 const FILTERS = "src/components/da/DaWakfuFilters.tsx";
 const DOCK = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 const SHELL = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";

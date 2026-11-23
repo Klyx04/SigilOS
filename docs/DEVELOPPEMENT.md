@@ -60,7 +60,8 @@ docker compose up -d
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js (dev / build de prod / serveur) |
-| `npm run install:safe` | Installation reproductible **sans exécuter les scripts** des paquets (+ moteur Prisma + husky) |
+| `npm run install:safe` | Installation reproductible **sans exécuter les scripts** des paquets (+ moteur Prisma + husky + liens des skills) |
+| `npm run harness:links` | Recrée les liens locaux `.cline/skills` et `.claude/skills` vers `.agents/skills` (`--check` pour vérifier) |
 | `npm run test:run` | Suite Vitest complète (4 604 tests) |
 | `npm run test:coverage` | Idem avec couverture |
 | `npm run lint` | ESLint |

@@ -96,9 +96,9 @@ AGENTS.md                         contrat court, lu automatiquement (~13 Ko)
     ├── PreToolUse.ps1            bloque les gestes irréversibles
     ├── TaskStart.ps1             injecte SHA + prochaine étape
     └── TaskComplete.ps1          rappelle la Definition of Done
-.cline/skills/                    12 skills (voir §5) — source partagée Cline + OpenCode
+.agents/skills/                   12 skills (voir §5) — source unique versionnée
 opencode.json                     adaptateur OpenCode : skills, permissions, watcher, worktree, MCP
-scripts/harness-links.mjs         liens locaux .agents/skills + .claude/skills (portabilité)
+scripts/harness-links.mjs         liens locaux .cline/skills + .claude/skills (portabilité)
 .opencode/commands/
 ├── reprise.md                    SHA + amorce de session
 └── fin.md                        Definition of Done
@@ -119,8 +119,8 @@ Mémoire volatile : src/temp/ (UNE seule zone, gitignorée)
 
 | Versionné (public) | Local (jamais poussé) |
 |---|---|
-| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.cline/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**`, `scripts/harness-links.mjs` | `.vscode/settings.json` (préférences éditeur) |
-| `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) ; liens `.agents/skills` / `.claude/skills` ; `.claude/settings.local.json`, `.claude/commands/`, `.claude/agents/` |
+| `AGENTS.md`, `AGENTS.md` de zone, `.clinerules/**`, `.agents/skills/**`, `.clineignore`, `opencode.json`, `.opencode/commands/**`, `.opencode/agents/**`, `scripts/harness-links.mjs` | `.vscode/settings.json` (préférences éditeur) |
+| `docs/agents/harnais.md`, `docs/ROADMAP.md`, journal et archives | `%USERPROFILE%\.cline\skills` (skills globaux) ; liens `.cline/skills` / `.claude/skills` ; `.claude/settings.local.json`, `.claude/commands/`, `.claude/agents/` |
 | hooks (relus en PR comme du code) | `docs/audits/`, `src/temp/`, `.env*`, artefacts de build |
 
 Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, et il tient en moins de
@@ -139,11 +139,11 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `node-runtime` | avis de sécurité Node, conteneur plus vieux que `.nvmrc` | la procédure `.nvmrc` → images → rebuild bêta/prod |
 | `discord-api` | toute nouveauté/modif/suppression côté Discord (commande, permission, salon, bouton, modale, intent) | la vérification doc officielle + types installés + `GET` de mesure **avant** de coder |
 | `sigilos-da-wakfu` | tout habillage visuel du Rush (overlay, guide public, guide membre), puis passation au dashboard | la DA « Gouache Wakfu » : tokens `--da-*`, signatures, contraste, coût de rendu, règle « habillage seul » |
-| `responsive` | toute UI, layout, page, composant, classe Tailwind ou bug d'affichage mobile/tablette/desktop | `.cline/skills/responsive/` — les 8 règles non négociables (mobile-first, aucune largeur fixe, `svh`/`dvh`, reflow à 320 px) **et** la vérification obligatoire 390 / 768 / 1 024 / 1 440 + zoom 200 % ; cliquet `tests/unit/responsive-guard.test.ts` |
+| `responsive` | toute UI, layout, page, composant, classe Tailwind ou bug d'affichage mobile/tablette/desktop | `.agents/skills/responsive/` — les 8 règles non négociables (mobile-first, aucune largeur fixe, `svh`/`dvh`, reflow à 320 px) **et** la vérification obligatoire 390 / 768 / 1 024 / 1 440 + zoom 200 % ; cliquet `tests/unit/responsive-guard.test.ts` |
 | `metamob-api` | tout appel Metamob (routes, schémas Zod, échanges, propositions) | la vérification de la doc officielle + `scripts/check-metamob-api.mjs` |
 | `vps-ops` | toute écriture VPS (dump, archive Rush, suppression, vérification) | le conteneur `ops-*`, le dry-run avant `--apply`, la sauvegarde et la preuve avant/après |
 
-Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
+Emplacement : **`.agents/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même
 nom **écrase** le skill projet : on garde donc tout dans le dépôt.
 
@@ -237,8 +237,8 @@ credentials : si un jour une base est branchée, ce sera un rôle **read-only** 
 10. **Committer les fichiers d'un chantier en cours du mainteneur** → `docs/ROADMAP.md` modifié et un
     `docs/plans/*.md` non suivi appartiennent à **son** chantier : l'assistant ne stage **que** ses propres
     fichiers, **nommés un par un** (jamais `git add -A`), et laisse ces deux-là intacts.
-11. **Dupliquer les skills dans `.opencode/skills`** → deux sources ; OpenCode lit `.cline/skills` via
-    `"skills": [".cline/skills"]`.
+11. **Dupliquer les skills dans `.opencode/skills`** → deux sources ; OpenCode lit `.agents/skills` via
+    `"skills": [".agents/skills"]`.
 12. **Croire que les hooks Cline existent dans OpenCode** → pas de lifecycle 1:1 ; permissions +
     commandes, hooks Cline conservés.
 
@@ -250,6 +250,7 @@ credentials : si un jour une base est branchée, ce sera un rôle **read-only** 
 | 22/11/2026 | **OpenCode** | adaptateur `opencode.json` (skills partagés, permissions, watcher, Sentry MCP) · `/reprise` + `/fin` · routeurs `AGENTS.md` de zone · garde `harness-config` · Cline conservé |
 | 22/11/2026 | **Lot 2** | sous-agent `reviewer` read-only · premier worktree · hooks Cline durcis et testés par comportement · inventaire exact des 12 skills · chemins `paths:` vérifiés |
 | 22/11/2026 | **Lot 3** | liens locaux `.agents/skills` + `.claude/skills` (gitignorés) · scorecard de mesure · `/fin` déclenche `reviewer` · source `.cline/skills` conservée |
+| 23/11/2026 | **PR 1** | source déplacée vers `.agents/skills` (standard Agent Skills) · liens `.cline/skills` + `.claude/skills` recréés par `harness:links` (`--check`, idempotent) · `install:safe` + CI · Cline opérationnel via le lien |
 
 ## 12. OpenCode — le même harnais, autre hôte
 
@@ -260,21 +261,22 @@ credentials : si un jour une base est branchée, ce sera un rôle **read-only** 
 |---|---|---|
 | Contrat | `AGENTS.md` + `AGENTS.md` de zone (`src/`, `tests/`, `docs/`, `services/`) | Toujours chargé, route vers les règles |
 | Règles de zone | `.clinerules/01..07` | Source unique ; OpenCode les lit via le routage, Cline via `paths:` |
-| Skills | `.cline/skills/**/SKILL.md` | Source unique partagée, branchée par `"skills": [".cline/skills"]` |
+| Skills | `.agents/skills/**/SKILL.md` | Source unique versionnée, branchée par `"skills": [".agents/skills"]` |
 | Garde-fous | `opencode.json` → `permissions` | `.env` deny, migrations ask, commandes destructives ask, `--no-verify` deny |
 | Rituels | `.opencode/commands/reprise.md` et `fin.md` | Remplacent `TaskStart` / `TaskComplete` (manuels, pas d'événement natif) |
 | MCP | `opencode.json` → `mcp.servers.sentry` | Sentry connecté via OAuth, URL `https://mcp.sentry.dev/mcp` |
 | Ignore | `opencode.json` → `watcher.ignore` | Remplace `.clineignore` côté OpenCode, qui reste pour Cline |
 
-**Pourquoi `.cline/skills` et pas une copie** : une seule source, aucun doublon. Quand on ajoutera
-Codex/Claude, on déplacera vers `.agents/skills` (standard Agent Skills) avec des liens pour Cline/Claude.
+**Pourquoi `.agents/skills` et pas une copie** : une seule source versionnée, aucun doublon. Cline et
+Claude Code la lisent via des liens locaux (`npm run harness:links`) ; c'est le standard Agent Skills,
+donc Codex et les autres hôtes la découvrent sans configuration.
 
-**Lancer depuis la racine** : `"skills": [".cline/skills"]` est relatif au répertoire de travail
+**Lancer depuis la racine** : `"skills": [".agents/skills"]` est relatif au répertoire de travail
 OpenCode, pas au fichier `opencode.json`. Depuis un sous-dossier, les skills ne seraient pas trouvés.
 
 **Vérifier** : `npx vitest run tests/unit/harness-config.test.ts` · `/reprise` · `/fin` · `opencode mcp list`.
 
-**Suite** : lot 4 = mesure sur 3 lots réels + décision de migration vers `.agents/skills` (standard Agent Skills).
+**Suite** : sortie complète de Cline (PR 2), voir §14.
 
 ## 13. Délégation — le sous-agent `reviewer`
 
@@ -295,23 +297,18 @@ reste valable, mais le volume compte.
 
 ## 14. Portabilité — liens locaux et scorecard
 
-**Source unique** : `.cline/skills/` reste la source tant que Cline est conservé.
+**Source unique** : `.agents/skills/` (standard Agent Skills), **versionnée**. `npm run harness:links`
+crée deux liens **locaux et gitignorés** :
+- `.cline/skills` → `.agents/skills` (Cline) ;
+- `.claude/skills` → `.agents/skills` (Claude Code).
 
-`npm run harness:links` crée deux liens **locaux et gitignorés** :
-- `.agents/skills` → `.cline/skills` (Codex, DeepSeek Harness, Hermes ; OpenCode le découvre aussi) ;
-- `.claude/skills` → `.cline/skills` (Claude Code).
+Windows : jonctions ; Unix : symlinks relatifs. `--check` vérifie sans rien modifier ; le script refuse
+de remplacer un dossier réel non vide (un dossier vide est remplacé). Un clone neuf lance
+`npm run harness:links` — `install:safe` et la CI le font déjà.
 
-Windows : jonctions ; Unix : symlinks. Un clone neuf lance `npm run harness:links`. Le script ne remplace
-jamais un dossier réel.
-
-**Décision du 22/11/2026 — source `.cline/skills` conservée** : la migration de la source vers
-`.agents/skills` est **conditionnée** à :
-1. 3 lots produit livrés dans OpenCode avec la scorecard remplie ;
-2. Cline passé en secondaire (plus utilisé au quotidien) ;
-3. CI et installation capables de recréer les liens (`npm run harness:links`) après un clone.
-
-Tant que ces trois conditions ne sont pas réunies, les liens restent l'adaptateur de portabilité : Cline
-garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de pointer `.cline/skills`.
+**Décision du 22/11/2026 — migration conditionnée** : elle a été exécutée le 23/11/2026, une fois les
+trois conditions remplies : 3 lots produit mesurés (scorecard ci-dessous), Cline passé en secondaire,
+installation et CI capables de recréer les liens.
 
 **Baseline harnais (rétrospectif)** :
 
@@ -331,42 +328,23 @@ garde sa source, Codex/Claude lisent la même chose, et OpenCode continue de poi
 
 Le but n'est pas de « sentir » si c'est mieux : c'est de comparer des chiffres.
 
-**État au 23/11/2026** : condition 1 **remplie** (3 lots produit + scorecard) ; la source reste
-`.cline/skills` tant que 2 et 3 ne sont pas remplies. La migration n'est **pas commencée**.
+**État au 23/11/2026** : **PR 1 livrée** — la source est `.agents/skills`, Cline et Claude Code la lisent
+via leurs liens, `opencode.json` pointe `.agents/skills`. Reste la sortie complète (PR 2) : règles,
+hooks, ignore, désinstallation de Cline.
 
-**Plan exact de sortie Cline** (2 PR, Cline reste opérationnel jusqu'à la fin) :
+**PR 2 — règles, hooks, ignore, désinstallation** :
+1. `git mv .clinerules docs/agents/rules` (règles) ; les hooks `.ps1` sont **supprimés**, pas recodés :
+   les permissions `opencode.json` portent la garde, et un test vérifie que chaque geste dangereux y est
+   couvert.
+2. `AGENTS.md` + routeurs `src/`, `tests/`, `docs/`, `services/` repointés vers `docs/agents/rules`.
+3. `.clineignore` supprimé : **rien à reporter** (tout est déjà dans `.gitignore` ; `package-lock.json`
+   et `public/assets/` restent suivis).
+4. Cline désinstallé (action du mainteneur) ; plus aucun fichier Cline dans le dépôt.
+5. Preuve : clone neuf → `npm ci` → `npm run harness:links` → OpenCode charge les 12 skills, Cline
+   absent, `harness-config` vert.
 
-**PR 1 — la source devient `.agents/skills`**
-1. `git mv .cline/skills .agents/skills`.
-2. `opencode.json` → `"skills": [".agents/skills"]`.
-3. `scripts/harness-links.mjs` : source `.agents/skills` ; crée `.cline/skills` **et** `.claude/skills` ;
-   idempotent, refuse un vrai dossier, mode `--check`.
-4. `.gitignore` : ignorer `/.cline/skills` et `/.claude/skills` ; ne plus ignorer `.agents/skills`.
-5. `tests/unit/harness-config.test.ts` : inventaire 12 skills dans `.agents/skills`, config OpenCode, liens.
-6. `install:safe` + CI : `npm run harness:links` après le checkout ; test sur clone neuf.
-7. Docs : `AGENTS.md` §2, `harnais.md` §14, `CARTE-DU-PROJET`, `responsive/references/sigilos.md`.
-8. Preuve : `harness:links` deux fois, Cline lit `.cline/skills` (lien), OpenCode charge les skills,
-   `harness-config` vert.
-
-**PR 2 — règles, hooks, ignore, désinstallation**
-1. `git mv .clinerules docs/agents/rules` (règles + hooks) ; mettre à jour `AGENTS.md` et les routeurs
-   `src/AGENTS.md`, `tests/AGENTS.md`, `docs/AGENTS.md`, `services/AGENTS.md`.
-2. Cline attend `.clinerules/*.md` : créer `.clinerules` → `docs/agents/rules` via `harness-links.mjs`
-   (jonction). **À tester** : si Cline ne suit pas la jonction, garder `.clinerules` tel quel jusqu'à la
-   désinstallation.
-3. Hooks `.ps1` : les porter en Node (`scripts/agent-guards.mjs`) ou les garder comme tests de politique ;
-   permissions OpenCode = garde active. Supprimer les tests de hooks devenus morts.
-4. `git rm .clineignore` après désinstallation ; reporter les motifs utiles dans `.gitignore`.
-5. `harness-config` : retirer `.clineignore`, attendre `.cline/skills`, `.claude/skills`, `.clinerules`.
-6. Désinstaller Cline (action utilisateur) ; supprimer le lien `.clinerules` s'il n'a plus de consommateur.
-7. Docs finales : `harnais.md` §14 « source unique `.agents/skills` », `CARTE-DU-PROJET`, `AGENTS.md` §2 ;
-   retirer la décision « source `.cline/skills` conservée ».
-8. Preuve finale : clone neuf → `npm ci` → `npm run harness:links` → OpenCode OK, Cline absent,
-   `harness-config` vert.
-
-**Risques** : jonctions Windows (déjà gérées), Cline qui ne suit pas `.clinerules` lié, tests qui figent les
-anciens chemins, CI qui ne recrée pas les liens. Les deux PR séparées permettent de garder Cline
-opérationnel jusqu'au bout.
+**Risques** : un lien qui pointe ailleurs est signalé et jamais remplacé ; tests qui figent un ancien
+chemin ; CI qui ne recréerait pas les liens (couverte par l'étape `verify`).
 
 **Commandes de reprise** : `npm run install:safe` (après clone) → `npm run harness:links` →
 `npx vitest run tests/unit/harness-config.test.ts` → `git status --short` doit être propre (liens

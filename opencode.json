@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "skills": [".cline/skills"],
+  "skills": [".agents/skills"],
   "permissions": [
     { "action": "edit", "resource": "*.env", "effect": "deny" },
     { "action": "edit", "resource": "*.env.*", "effect": "deny" },

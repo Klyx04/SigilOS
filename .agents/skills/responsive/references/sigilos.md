@@ -27,7 +27,7 @@ cite les largeurs réellement contrôlées — sinon ce n'est pas une vérificat
    un seul état, un seul endroit (déjà corrigé deux fois dans le module Rush).
 
 ## DA et tokens
-Le module Rush suit `.cline/skills/sigilos-da-wakfu/` : tokens `--da-*` uniquement, rayons ≤ 12 px
+Le module Rush suit `.agents/skills/sigilos-da-wakfu/` : tokens `--da-*` uniquement, rayons ≤ 12 px
 (sauf les deux signatures mesurées), aucune couleur en dur. Le responsive ne justifie **jamais**
 une couleur ou un rayon improvisé.
 

@@ -237,6 +237,14 @@ jobs:
           npm run sync:shared
           npx tsc --noEmit
 
+      - name: 🔗 Liens du harnais (clone neuf)
+        # La source des skills est versionnée dans .agents/skills ; ce contrôle prouve
+        # qu'un checkout nu sait recréer les liens des hôtes (Cline, Claude Code), puis
+        # qu'un second passage est idempotent (--check ne modifie rien).
+        run: |
+          npm run harness:links
+          npm run harness:links -- --check
+
       - name: 🚀 Run Tests
         run: npm run test:run
 

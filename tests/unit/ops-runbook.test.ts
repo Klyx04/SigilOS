@@ -15,7 +15,7 @@ const read = (relative: string) =>
 const DOCKERFILE = read("Dockerfile");
 const COMPOSE = read("docker-compose.prod.yml");
 const SCRIPT = read("scripts/ops/vps.sh");
-const SKILL = read(".cline/skills/vps-ops/SKILL.md");
+const SKILL = read(".agents/skills/vps-ops/SKILL.md");
 const DOC = read("docs/agents/vps-ops.md");
 
 describe("ops-runbook — image et services", () => {

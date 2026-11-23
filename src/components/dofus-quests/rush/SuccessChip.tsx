@@ -43,8 +43,10 @@ function normalizeAchievementName(value: string | null | undefined): string {
 function loadAchievementQuests(): Promise<AchievementQuestIndex> {
   if (!achievementsPromise) {
     achievementsPromise = fetch(ACHIEVEMENTS_URL)
-      .then((response) => (response.ok ? response.json() : { achievements: [] }))
-      .then((data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> }) => {
+      .then(async (response) => {
+        const ok = response.ok;
+        const data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> } =
+          ok ? await response.json() : { achievements: [] };
         const byId = new Map<string, number[]>();
         const byName = new Map<string, number[]>();
         for (const row of data.achievements ?? []) {
@@ -54,7 +56,7 @@ function loadAchievementQuests(): Promise<AchievementQuestIndex> {
           const name = normalizeAchievementName(row.name);
           if (name) byName.set(name, questIds);
         }
-        return { byId, byName, ok: true };
+        return { byId, byName, ok };
       })
       .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>(), ok: false }));
   }

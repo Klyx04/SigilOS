@@ -33,6 +33,8 @@ export type RushDungeonStatesHandle = {
   ) => Promise<{ invalidatedSequenceId: string | null } | null>;
   /** Charge une fois (idempotent) — utile en mode `lazy`. */
   ensureLoaded: () => Promise<void>;
+  /** Force une relecture (après validation/reset de bloc, coche de quête…). */
+  refresh: () => Promise<void>;
 };
 export function useRushDungeonStates({
   guildId,
@@ -86,6 +88,10 @@ export function useRushDungeonStates({
   }, [lazy, load]);
 
   const ensureLoaded = useCallback(() => load(), [load]);
+  const refresh = useCallback(async () => {
+    loadedScope.current = null;
+    await load();
+  }, [load]);
 
   const setState = useCallback(
     async (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
@@ -132,5 +138,5 @@ export function useRushDungeonStates({
     [states, guildId, slug, altPseudo]
   );
 
-  return { states, others, loading, busyKey, setState, ensureLoaded };
+  return { states, others, loading, busyKey, setState, ensureLoaded, refresh };
 }

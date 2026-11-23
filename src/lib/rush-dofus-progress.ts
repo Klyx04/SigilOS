@@ -293,3 +293,30 @@ export function projectRushStepKeys(
     }
     return [...out];
 }
+
+/**
+ * Clés d'étapes d'un membre pour un ensemble de lignes de progression.
+ *
+ * **Un bloc `isCompleted` vaut toutes ses séquences** : la validation de bloc écrit
+ * bien `completedSteps`, mais les données anciennes (ou une ligne réparée) peuvent
+ * n'avoir que le drapeau. Sans cette règle, la fiche Dofus affichait « 1/1 bloc »
+ * et « 0/8 quêtes » (mesure du 23/11/2026) : les ids de séquence n'étaient pas
+ * projetés en clés de quête dans l'agrégat par membre.
+ */
+export function memberCompletedStepKeys(input: {
+    rows: ReadonlyArray<{
+        milestoneId: string;
+        isCompleted: boolean;
+        completedSteps?: readonly string[] | null;
+    }>;
+    sequenceIdsByMilestone: ReadonlyMap<string, readonly string[]>;
+    stepKeysBySequenceId: ReadonlyMap<string, readonly string[]>;
+}): string[] {
+    const raw = new Set<string>();
+    for (const row of input.rows) {
+        for (const id of row.completedSteps ?? []) raw.add(id);
+        if (!row.isCompleted) continue;
+        for (const id of input.sequenceIdsByMilestone.get(row.milestoneId) ?? []) raw.add(id);
+    }
+    return projectRushStepKeys(raw, input.stepKeysBySequenceId);
+}

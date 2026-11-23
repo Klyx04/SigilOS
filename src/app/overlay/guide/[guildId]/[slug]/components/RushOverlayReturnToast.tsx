@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 /**
  * Toast de retour après un saut vers un prérequis.
@@ -13,10 +14,12 @@ export function RushOverlayReturnToast({
   questName,
   seconds = 30,
   onReturn,
+  onDismiss,
 }: {
   questName: string;
   seconds?: number;
   onReturn: () => void;
+  onDismiss: () => void;
 }) {
   const [left, setLeft] = useState(seconds);
 
@@ -41,6 +44,14 @@ export function RushOverlayReturnToast({
         aria-label={`Revenir à ${questName} (${left} secondes restantes)`}
       >
         Revenir · {left} s
+      </button>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Fermer le rappel de retour"
+        className="shrink-0 rounded-[3px] p-1 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </div>
   );

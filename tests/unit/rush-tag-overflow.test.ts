@@ -48,11 +48,30 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
         expect(src).toMatch(/<p className="break-words font-semibold/);
     });
 
-    it("les quatre conteneurs de tags sont bornés (nature, succès, conditions, outils)", () => {
+    it("les trois conteneurs de tags sont bornés (nature, conditions, outils)", () => {
         const src = readFileSync(
             "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayTagSection.tsx",
             "utf8"
         );
-        expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(4);
+        expect(src.match(/flex min-w-0 max-w-full flex-wrap gap-1/g)?.length).toBe(3);
+    });
+
+    it("la fiche détail rend le succès par SuccessChip, pas par un badge de tag", () => {
+        const src = readFileSync(
+            "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx",
+            "utf8"
+        );
+        expect(src).toContain("<SuccessChip");
+        expect(src).toContain("guideQuests");
+        expect(src).not.toContain("tags.success.map");
+    });
+
+    it("le toast de retour propose une croix de fermeture", () => {
+        const src = readFileSync(
+            "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayReturnToast.tsx",
+            "utf8"
+        );
+        expect(src).toContain("onDismiss");
+        expect(src).toContain("Fermer le rappel de retour");
     });
 });

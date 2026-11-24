@@ -51,6 +51,8 @@ interface RushCoordinateChipProps {
   onOpenMap?: (x: number, y: number, worldId?: number) => void;
   /** Deux etapes au clic (guide public) : ouvrir le menu au lieu de copier. */
   menuOnClick?: boolean;
+  /** Icône seule (barre compacte de l'overlay) : la position reste en infobulle. */
+  iconOnly?: boolean;
   /** PNJ donneur de la quete : affiche dans le menu (nom + portrait) et sur la carte. */
   npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
   /** Carte HD imposee en God (`pos_tags.mapId`). */
@@ -79,6 +81,7 @@ export function RushCoordinateChip({
   manualZaap = null,
   onOpenMap,
   menuOnClick = false,
+  iconOnly = false,
   npc = null,
   mapId = null,
   worldId = null,
@@ -207,6 +210,49 @@ export function RushCoordinateChip({
     });
     setTimeout(() => setCopiedZaap(false), 2000);
   };
+
+  if (iconOnly) {
+    return (
+      <>
+        <span
+          ref={rootRef}
+          className="inline-flex"
+          onMouseEnter={scheduleZaapResolve}
+          onMouseLeave={cancelZaapResolve}
+        >
+          <button
+            type="button"
+            onClick={handleCopy}
+            data-copied={copied ? "true" : undefined}
+            title={`Position ${parsed.raw}`}
+            aria-label={`Position ${parsed.raw} : copier ou voir la carte`}
+            className={cn(
+              "inline-flex h-6 w-6 items-center justify-center rounded-[3px] text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground",
+              "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              className
+            )}
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-success" aria-hidden="true" />
+            ) : (
+              <PositionPicto className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </span>
+        {menuOnClick && (
+          <RushPositionMenu
+            open={menuOpen}
+            npc={npc}
+            mapId={mapId}
+            x={parsed.x}
+            y={parsed.y}
+            worldId={resolvedWorldId ?? null}
+            onClose={() => setMenuOpen(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <>

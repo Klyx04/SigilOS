@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import dynamic from "next/dynamic";
+
 import { GameIcon } from "@/components/shared/game-icon";
 import type { RushConstraintInfo } from "@/lib/rush-constraints";
 import { cn } from "@/lib/utils";
@@ -7,6 +10,19 @@ import type { RushBashMob, RushCombat, RushDungeonChoiceDungeon } from "@/types/
 
 import { RushPortrait } from "./RushPortrait";
 import { RushRichText } from "./RushRichText";
+
+/** Fiche monstre lourde : chargée à la demande, comme les tags de combat. */
+const RushMonsterFicheModal = dynamic(
+  () => import("./RushMonsterFicheModal").then((mod) => mod.RushMonsterFicheModal),
+  { ssr: false },
+);
+
+/** Id DofusDB d'un monstre depuis son URL d'asset (`/api/assets-dofus/monsters/2860`). */
+function monsterIdFromImageUrl(url: string | undefined): number | null {
+  const match = /\/monsters\/(\d+)(?:\?|$)/.exec(url ?? "");
+  const id = match ? Number(match[1]) : NaN;
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
 
 /**
  * Infos de quête illustrées — **jamais des conditions de blocage**.
@@ -125,6 +141,8 @@ function RushCombatCard({
   label: string;
   icon: string;
 }) {
+  const [fiche, setFiche] = useState<{ slug: string; name: string } | null>(null);
+
   return (
     <div className="rounded-[4px] border border-border bg-surface p-2">
       <div className="flex items-center gap-1.5">
@@ -134,30 +152,57 @@ function RushCombatCard({
         </span>
       </div>
       <div className="mt-1.5 space-y-1">
-        {combat.monsters.map((monster, index) => (
-          <div key={`${monster.name}-${index}`} className="flex items-center gap-2">
-            <RushPortrait src={monster.imageUrl} alt={monster.name} className="h-7 w-7" />
-            <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
-              {monster.count > 1 ? `${monster.count} × ` : ""}
-              {monster.name}
-            </span>
-            {monster.level !== undefined && (
-              <span className="shrink-0 text-[10px] text-muted-foreground">
-                Niv. {monster.level}
+        {combat.monsters.map((monster, index) => {
+          const monsterId = monsterIdFromImageUrl(monster.imageUrl);
+          const rowClass = "flex w-full items-center gap-2 rounded-[3px] px-0.5 py-0.5 text-left";
+          const content = (
+            <>
+              <RushPortrait src={monster.imageUrl} alt={monster.name} className="h-7 w-7" />
+              <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                {monster.count > 1 ? `${monster.count} × ` : ""}
+                {monster.name}
               </span>
-            )}
-            {monster.health !== undefined && (
-              <span className="shrink-0 text-[10px] font-semibold text-danger">
-                {monster.health} PV
-              </span>
-            )}
-          </div>
-        ))}
+              {monster.level !== undefined && (
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  Niv. {monster.level}
+                </span>
+              )}
+              {monster.health !== undefined && (
+                <span className="shrink-0 text-[10px] font-semibold text-danger">
+                  {monster.health} PV
+                </span>
+              )}
+            </>
+          );
+          return monsterId ? (
+            <button
+              key={`${monster.name}-${index}`}
+              type="button"
+              onClick={() => setFiche({ slug: String(monsterId), name: monster.name })}
+              title={`Ouvrir la fiche de ${monster.name}`}
+              aria-label={`Ouvrir la fiche de ${monster.name}`}
+              className={cn(rowClass, "transition-colors hover:bg-elevated")}
+            >
+              {content}
+            </button>
+          ) : (
+            <div key={`${monster.name}-${index}`} className={rowClass}>
+              {content}
+            </div>
+          );
+        })}
       </div>
       {combat.detail && (
         <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
           {combat.detail}
         </p>
+      )}
+      {fiche && (
+        <RushMonsterFicheModal
+          slug={fiche.slug}
+          name={fiche.name}
+          onClose={() => setFiche(null)}
+        />
       )}
     </div>
   );

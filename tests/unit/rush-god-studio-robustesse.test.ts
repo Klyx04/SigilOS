@@ -209,7 +209,11 @@ describe("E5 — l'aperçu live rend les composants du MEMBRE", () => {
       })
     );
     expect(out).toContain("Faire parler le gardien");
-    expect(out).toContain("Copier la commande /travel -55,15");
+    // Overlay compact (24/11/2026) : l'icône de quête est toujours là, même sans
+    // `icon` God, et la position est une icône seule (aria-label explicite).
+    expect(out).toContain("/assets/icons/icone-quete.png");
+    expect(out).toContain('title="Liens de la quête"');
+    expect(out).toContain("Position [-55,15] : copier ou voir la carte");
   });
 });
 

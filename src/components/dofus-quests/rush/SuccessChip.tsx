@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronRight, ShieldCheck, X } from "lucide-react";
+import { Check, ChevronRight, Package, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
@@ -22,6 +22,7 @@ import {
   planSuccessValidation,
   planSuccessValidationWrites,
   successPossessionItems,
+  type RushSuccessPossession,
 } from "@/lib/rush-success-validation";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ const QUEST_NAMES_URL = "/game-data/quest-names.json";
 
 type QuestNames = Record<number, string>;
 type ItemNames = Record<number, string>;
+type ItemIcons = Record<number, number | null>;
 let questNamesPromise: Promise<QuestNames> | null = null;
 
 function loadQuestNames(): Promise<QuestNames> {
@@ -83,6 +85,7 @@ type AchievementCatalogIndex = {
   questCriteria: RushQuestCriteriaMap;
   questNames: Record<number, string>;
   itemNames: ItemNames;
+  itemIcons: ItemIcons;
   generatedAt: string | null;
   meta: RushSuccessMeta;
   ok: boolean;
@@ -125,7 +128,7 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
             itemIds?: number[];
             criterion?: string;
           }>;
-          items?: Array<{ id?: number; name?: string }>;
+          items?: Array<{ id?: number; name?: string; iconId?: number | null }>;
         } = ok ? await response.json() : { achievements: [], quests: [], items: [] };
         const metaRaw = metaResponse?.ok ? await metaResponse.json().catch(() => null) : null;
         const meta = parseRushSuccessMeta(metaRaw);
@@ -166,9 +169,14 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
         }
 
         const itemNames: ItemNames = {};
+        const itemIcons: ItemIcons = {};
         for (const row of data.items ?? []) {
-          if (row?.id == null || typeof row.name !== "string" || !row.name.trim()) continue;
-          itemNames[row.id] = row.name.trim();
+          if (row?.id == null) continue;
+          if (typeof row.name === "string" && row.name.trim()) {
+            itemNames[row.id] = row.name.trim();
+          }
+          const iconId = Number(row.iconId);
+          if (Number.isFinite(iconId) && iconId > 0) itemIcons[row.id] = iconId;
         }
 
         return {
@@ -178,6 +186,7 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
           questCriteria,
           questNames,
           itemNames,
+          itemIcons,
           generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : null,
           meta,
           ok,
@@ -191,6 +200,7 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
           questCriteria: new Map<number, RushQuestCriteria>(),
           questNames: {} as Record<number, string>,
           itemNames: {} as ItemNames,
+          itemIcons: {} as ItemIcons,
           generatedAt: null,
           meta: { overrides: {}, notes: {} },
           ok: false,
@@ -215,6 +225,146 @@ export type SuccessValidationContext = {
   altPseudo?: string;
   onValidated?: (updates: SuccessValidationUpdate[]) => void;
 };
+
+/** Icône officielle DofusDB (`iconId` siphonné), repli picto neutre si absente. */
+function ItemIcon({ iconId, className }: { iconId?: number | null; className?: string }) {
+  if (!iconId) {
+    return (
+      <span
+        className={cn("grid shrink-0 place-items-center text-muted-foreground", className)}
+        aria-hidden="true"
+      >
+        <Package className="h-4 w-4" />
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/assets-dofus/items/${iconId}?icon=1`}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      className={cn("shrink-0 object-contain", className)}
+    />
+  );
+}
+
+/**
+ * Petite modale « Objets requis » : la liste **complète** des `need.items` directs, avec
+ * l'icône officielle et le statut de chaque objet. Les ressources déjà présentes dans une
+ * quête sont marquées comme telles (elles ne sont pas répétées dans la fiche).
+ */
+function ItemsModal({
+  successName,
+  items,
+  onClose,
+}: {
+  successName: string;
+  items: RushSuccessPossession[];
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+  /** Piège Tab DANS la modale : le fond de la fiche ne doit pas reprendre le focus. */
+  const trapTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    event.stopPropagation();
+    const doc = event.currentTarget.ownerDocument;
+    const focusables = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.offsetParent !== null);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && doc.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && doc.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  return (
+    <div
+      className="fixed inset-0 z-[130] flex items-center justify-center p-3"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Objets requis pour ${successName}`}
+      onKeyDown={trapTab}
+    >
+      <button
+        type="button"
+        aria-label="Fermer la liste des objets"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60"
+      />
+      <div className="relative z-10 flex max-h-[75vh] w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-elevated">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5">
+          <Package className="h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Objets requis
+            </p>
+            <h4 className="m-0 truncate text-sm font-semibold text-foreground">{successName}</h4>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer la liste des objets"
+            className="shrink-0 rounded-[3px] p-1 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          <p className="m-0 mb-1.5 px-1 text-[10px] leading-snug text-muted-foreground">
+            Directement demandés par ce succès. Les objets des succès prérequis ont leur propre
+            fiche.
+          </p>
+          <ul className="space-y-1">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-[4px] border bg-surface px-2 py-1.5",
+                  item.inGuideResources ? "border-dashed border-border" : "border-border"
+                )}
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[4px] border border-border bg-elevated">
+                  <ItemIcon iconId={item.iconId} className="h-8 w-8" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12px] text-foreground">{item.name}</span>
+                  <span className="block text-[9px] text-muted-foreground">
+                    {item.inGuideResources
+                      ? "Ressource de quête — déjà dans le détail d'une quête"
+                      : "À posséder pour valider le succès"}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-[3px] border px-1 py-0.5 text-[9px] font-semibold",
+                    item.inGuideResources
+                      ? "border-border text-muted-foreground"
+                      : "border-gold/40 bg-gold/10 text-gold"
+                  )}
+                >
+                  {item.inGuideResources ? "Ressource" : "Requis"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SuccessSheet({
   success,
@@ -242,9 +392,16 @@ function SuccessSheet({
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
   const [itemNames, setItemNames] = useState<ItemNames>({});
+  const [itemIcons, setItemIcons] = useState<ItemIcons>({});
   const [confirming, setConfirming] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(false);
+  const itemsOpenRef = useRef(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    itemsOpenRef.current = itemsOpen;
+  }, [itemsOpen]);
 
   useEffect(() => {
     const close = closeRef.current;
@@ -255,6 +412,11 @@ function SuccessSheet({
       if (event.key !== "Escape") return;
       event.stopPropagation();
       event.preventDefault();
+      // La petite modale des objets passe AVANT la fiche : Échap la ferme seule.
+      if (itemsOpenRef.current) {
+        setItemsOpen(false);
+        return;
+      }
       onClose();
     };
     doc?.addEventListener("keydown", handleKeyDown, true);
@@ -296,6 +458,7 @@ function SuccessSheet({
         setOverrides(map.meta.overrides);
         setNotes(map.meta.notes);
         setItemNames(map.itemNames);
+        setItemIcons(map.itemIcons);
         setGeneratedAt(map.generatedAt);
         setEntry(
           map.byId.get(String(success.id)) ??
@@ -361,10 +524,9 @@ function SuccessSheet({
       guideQuests: quests,
       questCriteria: questCriteria ?? undefined,
       itemNames,
+      itemIcons,
     });
-  }, [catalog, entry, milestones, quests, questCriteria, itemNames]);
-  const possessionNames = possessions?.extras.map((item) => item.name) ?? [];
-  const coveredPossessionCount = possessions?.coveredCount ?? 0;
+  }, [catalog, entry, milestones, quests, questCriteria, itemNames, itemIcons]);
 
   /** Aperçu pur : blocs, quêtes cibles, cascade de route, hors guide, possessions. */
   const validationPlan = useMemo(() => {
@@ -378,8 +540,9 @@ function SuccessSheet({
       milestones,
       questNames: names,
       itemNames,
+      itemIcons,
     });
-  }, [entry, catalog, validation, questCriteria, overrides, quests, milestones, names, itemNames]);
+  }, [entry, catalog, validation, questCriteria, overrides, quests, milestones, names, itemNames, itemIcons]);
 
   /** Écritures serveur : périmètre par bloc + séquences rangées sous leur propriétaire. */
   const validationWrites = useMemo(
@@ -493,7 +656,9 @@ function SuccessSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {!entry ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
-          ) : rows.length === 0 && prerequisites.length === 0 && possessionNames.length === 0 ? (
+          ) : rows.length === 0 &&
+            prerequisites.length === 0 &&
+            !(possessions && possessions.items.length > 0) ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
               {catalogOk === false
                 ? "Catalogue des succès indisponible."
@@ -528,50 +693,56 @@ function SuccessSheet({
                 </div>
               )}
 
-              {possessionNames.length > 0 && (
-                <section className="mb-2 px-1">
-                  <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Objets requis par ce succès
+              {possessions && possessions.items.length > 0 && (
+                <section className="mb-2 rounded-[4px] border border-border bg-surface px-2 py-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Objets requis par ce succès
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setItemsOpen(true)}
+                      className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-[3px] border border-border bg-elevated px-1.5 py-0.5 text-[10px] font-semibold text-foreground transition-colors hover:border-accent/50 hover:text-accent"
+                    >
+                      Voir les {possessions.items.length}
+                      <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  </div>
+                  {possessions.extras.length > 0 && (
+                    <ul className="m-0 mt-1 flex flex-wrap gap-1 p-0">
+                      {possessions.extras.slice(0, 6).map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => setItemsOpen(true)}
+                            title={`${item.name} — voir la liste complète`}
+                            className="inline-flex cursor-pointer items-center gap-1 rounded-[3px] border border-border bg-elevated px-1 py-0.5 text-[10px] text-foreground transition-colors hover:border-accent/50"
+                          >
+                            <ItemIcon iconId={item.iconId} className="h-5 w-5" />
+                            <span className="max-w-[7.5rem] truncate">{item.name}</span>
+                          </button>
+                        </li>
+                      ))}
+                      {possessions.extras.length > 6 && (
+                        <li className="inline-flex items-center rounded-[3px] border border-dashed border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          +{possessions.extras.length - 6}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                  <p className="m-0 mt-1 text-[9px] leading-snug text-muted-foreground">
+                    {possessions.extras.length > 0
+                      ? "Directement demandés par ce succès — les objets des succès prérequis ont leur propre fiche."
+                      : "Tous les objets requis sont déjà listés dans le détail d'une quête du guide."}
                   </p>
-                  <p className="m-0 mt-0.5 text-[10px] leading-snug text-muted-foreground">
-                    Directement demandés par ce succès — les objets des succès prérequis ont leur
-                    propre fiche, et les ressources déjà listées dans une quête ne sont pas
-                    répétées.
-                  </p>
-                  <ul className="mt-1 flex flex-wrap gap-1">
-                    {possessionNames.slice(0, 8).map((name, index) => (
-                      <li
-                        key={`${name}-${index}`}
-                        className="rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[10px] text-foreground"
-                      >
-                        {name}
-                      </li>
-                    ))}
-                    {possessionNames.length > 8 && (
-                      <li className="rounded-[3px] border border-dashed border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        +{possessionNames.length - 8} autre{possessionNames.length - 8 > 1 ? "s" : ""}
-                      </li>
-                    )}
-                  </ul>
-                  {coveredPossessionCount > 0 && (
-                    <p className="m-0 mt-1 text-[9px] text-muted-foreground">
-                      {coveredPossessionCount} autre{coveredPossessionCount > 1 ? "s" : ""} objet
-                      {coveredPossessionCount > 1 ? "s" : ""} requis{" "}
-                      {coveredPossessionCount > 1 ? "sont des ressources" : "est une ressource"} de
-                      quête, déjà {coveredPossessionCount > 1 ? "listées" : "listée"} dans le détail
-                      de {coveredPossessionCount > 1 ? "leur quête" : "sa quête"}.
+                  {possessions.coveredCount > 0 && possessions.extras.length > 0 && (
+                    <p className="m-0 mt-0.5 text-[9px] text-muted-foreground">
+                      + {possessions.coveredCount} ressource
+                      {possessions.coveredCount > 1 ? "s" : ""} de quête déjà listée
+                      {possessions.coveredCount > 1 ? "s" : ""} dans le détail de leur quête.
                     </p>
                   )}
                 </section>
-              )}
-
-              {possessionNames.length === 0 && coveredPossessionCount > 0 && (
-                <p className="mb-2 px-1 text-[10px] leading-snug text-muted-foreground">
-                  {coveredPossessionCount} objet{coveredPossessionCount > 1 ? "s" : ""} requis par
-                  le succès {coveredPossessionCount > 1 ? "sont" : "est"} déjà listé
-                  {coveredPossessionCount > 1 ? "s" : ""} dans les ressources des quêtes — aucun
-                  doublon ici.
-                </p>
               )}
               {editorialNote && (
                 <p className="mb-2 px-1 text-[10px] italic text-muted-foreground">
@@ -870,6 +1041,13 @@ function SuccessSheet({
           )}
         </div>
       </div>
+      {itemsOpen && possessions && possessions.items.length > 0 ? (
+        <ItemsModal
+          successName={success.name}
+          items={possessions.items}
+          onClose={() => setItemsOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

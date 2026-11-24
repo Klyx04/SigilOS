@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   planSuccessValidation,
   planSuccessValidationWrites,
+  successPossessionItems,
 } from "@/lib/rush-success-validation";
 import type { RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import {
@@ -105,6 +106,19 @@ describe("planSuccessValidation — aperçu avant écriture", () => {
     expect(plan?.blocks[1].cascadedSequenceIds).toEqual(["s0"]);
     expect(plan?.cascadedCount).toBe(1);
     expect(plan?.possessionNames).toEqual(["Dom de Pin"]);
+  });
+
+  it("porte l'iconId siphonné pour l'image officielle de l'objet", () => {
+    const result = successPossessionItems({
+      successId: 100,
+      catalog: CATALOG,
+      guideQuests: GUIDE,
+      milestones: MILESTONES,
+      itemNames: { 900: "Dom de Pin" },
+      itemIcons: { 900: 23035 },
+    });
+    expect(result.items.find((item) => item.id === 900)?.iconId).toBe(23035);
+    expect(result.extras.map((item) => item.name)).toEqual(["Dom de Pin"]);
   });
 
   it("n'agrège pas les objets d'un succès prérequis (2299 / 2302)", () => {
@@ -471,6 +485,9 @@ describe("branchement des surfaces — « Valider les prérequis »", () => {
     const src = codeOf(CHIP);
     expect(src).toContain("Objets requis par ce succès");
     expect(src).toContain("les objets des succès prérequis ont leur");
+    expect(src).toContain("ItemsModal");
+    expect(src).toContain("Voir les ");
+    expect(src).toContain("/api/assets-dofus/items/");
     expect(src).toContain("planSuccessValidation");
     expect(src).toContain("validation?: SuccessValidationContext");
     expect(src).toContain("if (!validation || validationWrites.length === 0");

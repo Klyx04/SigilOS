@@ -39,6 +39,8 @@ export type RushSuccessValidationBlock = {
 export type RushSuccessPossession = {
   id: number;
   name: string;
+  /** `iconId` DofusDB (siphonné dans `success-graph.json`) — l'image vient de là. */
+  iconId: number | null;
   /** Déjà listé dans les ressources `item` d'une quête du guide. */
   inGuideResources: boolean;
 };
@@ -82,6 +84,8 @@ export type RushSuccessValidationInput = {
   questNames?: Readonly<Record<number, string>>;
   /** Noms des objets (`need.items`) pour les possessions. */
   itemNames?: Readonly<Record<number, string>>;
+  /** `iconId` DofusDB des objets (icône officielle). */
+  itemIcons?: Readonly<Record<number, number | null>>;
 };
 
 function completedSequenceIds(
@@ -160,6 +164,7 @@ export function successPossessionItems(input: {
   guideQuests?: readonly RushGuideQuestRef[];
   questCriteria?: RushQuestCriteriaMap;
   itemNames?: Readonly<Record<number, string>>;
+  itemIcons?: Readonly<Record<number, number | null>>;
 }): {
   items: RushSuccessPossession[];
   extras: RushSuccessPossession[];
@@ -180,9 +185,11 @@ export function successPossessionItems(input: {
   }
   const items: RushSuccessPossession[] = [...ids].map((id) => {
     const name = input.itemNames?.[id] ?? `Objet ${id}`;
+    const iconId = input.itemIcons?.[id];
     return {
       id,
       name,
+      iconId: Number.isFinite(Number(iconId)) && Number(iconId) > 0 ? Number(iconId) : null,
       inGuideResources:
         index.names.has(normalizeResourceName(name)) || index.ids.has(String(id)),
     };
@@ -336,6 +343,7 @@ export function planSuccessValidation(
     guideQuests: input.guideQuests,
     questCriteria: input.questCriteria,
     itemNames: input.itemNames,
+    itemIcons: input.itemIcons,
   });
 
   return {
